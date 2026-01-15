@@ -22,10 +22,9 @@ use turbo_tasks::{
 
 use crate::{
     backend::{
-        OperationGuard, TaskDataCategory, TaskStorageAccessors, TransientTask, TurboTasksBackend,
-        TurboTasksBackendInner,
+        OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
         storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
-        storage_schema::TaskStorage,
+        storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     backing_storage::{BackingStorage, BackingStorageSealed},
     data::{CachedDataItemKey, Dirtyness},
@@ -158,11 +157,7 @@ where
         true
     }
 
-    fn restore_task_data_typed(
-        &mut self,
-        task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> TaskStorage {
+    fn restore_task_data(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskStorage {
         if !self.ensure_transaction() {
             // If we don't need to restore, we can just return an empty storage
             return TaskStorage::default();
@@ -170,22 +165,12 @@ where
         let tx = self.get_tx();
         let mut storage = TaskStorage::default();
         // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        let result = match category {
-            TaskDataCategory::Meta | TaskDataCategory::All => unsafe {
-                self.backend
-                    .backing_storage
-                    .lookup_task_storage_meta(tx, task_id, &mut storage)
-            },
-            TaskDataCategory::Data => Ok(()),
-        }
-        .and_then(|_| match category {
-            TaskDataCategory::Data | TaskDataCategory::All => unsafe {
-                self.backend
-                    .backing_storage
-                    .lookup_task_storage_data(tx, task_id, &mut storage)
-            },
-            TaskDataCategory::Meta => Ok(()),
-        });
+        let result = unsafe {
+            self.backend
+                .backing_storage
+                .lookup_data(tx, task_id, category, &mut storage)
+        };
+
         match result {
             Ok(()) => storage,
             Err(e) => {
@@ -216,7 +201,7 @@ where
         let result = unsafe {
             self.backend
                 .backing_storage
-                .batch_lookup_task_storage(tx, task_ids, category)
+                .batch_lookup_data(tx, task_ids, category)
         };
         match result {
             Ok(result) => Some(result),
@@ -325,7 +310,7 @@ where
             0 => {}
             1 => {
                 let task_id = tasks_to_restore_for_data[0];
-                let storage = self.restore_task_data_typed(task_id, TaskDataCategory::Data);
+                let storage = self.restore_task_data(task_id, TaskDataCategory::Data);
                 let idx = tasks_to_restore_for_data_indicies[0];
                 tasks[idx].2 = Some(storage);
             }
@@ -351,7 +336,7 @@ where
             0 => {}
             1 => {
                 let task_id = tasks_to_restore_for_meta[0];
-                let storage = self.restore_task_data_typed(task_id, TaskDataCategory::Meta);
+                let storage = self.restore_task_data(task_id, TaskDataCategory::Meta);
                 let idx = tasks_to_restore_for_meta_indicies[0];
                 tasks[idx].3 = Some(storage);
             }
@@ -441,7 +426,7 @@ where
                         // Avoid holding the lock too long since this can also affect other tasks
                         drop(task);
 
-                        let storage = self.restore_task_data_typed(task_id, category);
+                        let storage = self.restore_task_data(task_id, category);
                         task = self.backend.storage.access_mut(task_id);
                         if !task.flags.is_restored(category) {
                             task.restore_from(storage, category);
@@ -528,10 +513,8 @@ where
                 drop(task1);
                 drop(task2);
 
-                let storage1 =
-                    (!is_restored1).then(|| self.restore_task_data_typed(task_id1, category));
-                let storage2 =
-                    (!is_restored2).then(|| self.restore_task_data_typed(task_id2, category));
+                let storage1 = (!is_restored1).then(|| self.restore_task_data(task_id1, category));
+                let storage2 = (!is_restored2).then(|| self.restore_task_data(task_id2, category));
 
                 let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
                 task1 = t1;
@@ -644,7 +627,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// It returns a set of tasks and which info is needed.
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>>;
     fn is_immutable(&self) -> bool {
-        self.contains_key(&CachedDataItemKey::Immutable {})
+        self.has_key(&CachedDataItemKey::Immutable {})
     }
     fn is_dirty(&self) -> Option<TaskPriority> {
         get!(self, Dirty).and_then(|dirtyness| match dirtyness {
@@ -846,11 +829,13 @@ impl<'a, B: BackingStorage> TaskStorageAccessors for TaskGuardImpl<'a, B> {
     }
 
     fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory) {
-        self.task.track_modification(category);
+        if !self.task_id.is_transient() {
+            self.task.track_modification(category);
+        }
     }
 
     fn check_access(&self, category: crate::backend::TaskDataCategory) {
-        TaskGuardImpl::check_access(self, category);
+        self.check_access(category);
     }
 }
 

@@ -62,9 +62,9 @@ struct FieldInfo {
     /// The CachedDataItem variant name for adapter code generation.
     /// If None, no adapter code is generated for this field.
     cached_data_variant: Option<Ident>,
-    /// The key field name in CachedDataItemKey for collection types.
-    /// E.g., "task", "target", "cell", "collectible".
-    key_field: Option<Ident>,
+    /// The key field names in CachedDataItemKey for collection types.
+    /// E.g., ["task"], ["target", "key"], ["cell", "key", "task"].
+    key_fields: Option<Vec<Ident>>,
 }
 
 impl FieldInfo {
@@ -305,6 +305,73 @@ impl FieldInfo {
             proc_macro2::Span::call_site(),
         )
     }
+
+    // =========================================================================
+    // Key Fields Helpers (for CachedDataItem adapter code generation)
+    // =========================================================================
+
+    /// Generate the key pattern for match arms in CachedDataItemKey.
+    ///
+    /// For single key field: `{ task }`
+    /// For multiple key fields: `{ cell, key, task }`
+    fn key_pattern(&self) -> TokenStream {
+        match &self.key_fields {
+            None => quote! {},
+            Some(fields) => {
+                quote! { #(#fields),* }
+            }
+        }
+    }
+
+    /// Generate the key expression for use in set/map insert operations (moves values).
+    ///
+    /// For single key field: `task`
+    /// For multiple key fields: `(cell, key, task)`
+    fn key_expr(&self) -> TokenStream {
+        match &self.key_fields {
+            None => quote! {},
+            Some(fields) if fields.len() == 1 => {
+                let f = &fields[0];
+                quote! { #f }
+            }
+            Some(fields) => {
+                quote! { (#(#fields),*) }
+            }
+        }
+    }
+
+    /// Generate the key expression for use when fields are bound by reference (e.g., in
+    /// get/contains). Clones the values to construct a tuple by value.
+    ///
+    /// For single key field: `target.clone()`
+    /// For multiple key fields: `(target.clone(), key.clone())`
+    fn key_expr_cloned(&self) -> TokenStream {
+        match &self.key_fields {
+            None => quote! {},
+            Some(fields) if fields.len() == 1 => {
+                let f = &fields[0];
+                quote! { #f.clone() }
+            }
+            Some(fields) => {
+                let cloned: Vec<_> = fields.iter().map(|f| quote! { #f.clone() }).collect();
+                quote! { (#(#cloned),*) }
+            }
+        }
+    }
+
+    /// Generate the key expression with clone/copy for constructing CachedDataItemKey.
+    ///
+    /// For single key field: `task: *task`
+    /// For multiple key fields: `cell: *cell, key: *key, task: *task`
+    fn key_construction(&self) -> TokenStream {
+        match &self.key_fields {
+            None => quote! {},
+            Some(fields) => {
+                let constructs: Vec<_> = fields.iter().map(|f| quote! { #f: *#f }).collect();
+                quote! { #(#constructs),* }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -354,7 +421,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut filter_transient = false;
     let mut use_default = false;
     let mut cached_data_variant: Option<Ident> = None;
-    let mut key_field: Option<Ident> = None;
+    let mut key_fields: Option<Vec<Ident>> = None;
 
     // Find and parse the field attribute
     if let Some(attr) = field.attrs.iter().find(|attr| {
@@ -445,7 +512,12 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                 ..
                             }) = &nv.value
                             {
-                                key_field = Some(Ident::new(&lit_str.value(), lit_str.span()));
+                                let fields: Vec<Ident> = lit_str
+                                    .value()
+                                    .split(',')
+                                    .map(|s| Ident::new(s.trim(), lit_str.span()))
+                                    .collect();
+                                key_fields = Some(fields);
                             }
                         }
 
@@ -553,7 +625,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         filter_transient,
         use_default,
         cached_data_variant,
-        key_field,
+        key_fields,
     }
 }
 
@@ -2986,16 +3058,14 @@ fn generate_insert_kv_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_mac
 
 fn generate_insert_kv_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
     let field_mut = field.mut_ident();
-    let key_field = field
-        .key_field
-        .as_ref()
-        .expect("auto_set requires key_field");
+    let key_pattern = field.key_pattern();
+    let key_expr = field.key_expr();
     quote! {
         (
-            CachedDataItemKey::#variant { #key_field },
+            CachedDataItemKey::#variant { #key_pattern },
             CachedDataItemValue::#variant { value: () },
         ) => {
-            let existed = !self.#field_mut().insert(#key_field);
+            let existed = !self.#field_mut().insert(#key_expr);
             if existed {
                 Some(CachedDataItemValue::#variant { value: () })
             } else {
@@ -3007,14 +3077,15 @@ fn generate_insert_kv_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_m
 
 fn generate_insert_kv_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
     let field_mut = field.mut_ident();
-    let key_field = field.key_field.as_ref().expect("map requires key_field");
+    let key_pattern = field.key_pattern();
+    let key_expr = field.key_expr();
     quote! {
         (
-            CachedDataItemKey::#variant { #key_field },
+            CachedDataItemKey::#variant { #key_pattern },
             CachedDataItemValue::#variant { value },
         ) => self
             .#field_mut()
-            .insert(#key_field, value)
+            .insert(#key_expr, value)
             .map(|v| CachedDataItemValue::#variant { value: v }),
     }
 }
@@ -3071,15 +3142,14 @@ fn generate_get_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2::T
 
 fn generate_get_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
     let field_name = &field.field_name;
-    let key_field = field
-        .key_field
-        .as_ref()
-        .expect("auto_set requires key_field");
+    let key_pattern = field.key_pattern();
+    // Use cloned key expr since the key is passed by reference
+    let key_expr = field.key_expr_cloned();
 
     if field.is_inline() {
         quote! {
-            CachedDataItemKey::#variant { #key_field } => {
-                if self.#field_name().contains(#key_field) {
+            CachedDataItemKey::#variant { #key_pattern } => {
+                if self.#field_name().contains(&#key_expr) {
                     Some(CachedDataItemValueRef::#variant { value: &() })
                 } else {
                     None
@@ -3088,8 +3158,8 @@ fn generate_get_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macro2:
         }
     } else {
         quote! {
-            CachedDataItemKey::#variant { #key_field } => self.#field_name().and_then(|set| {
-                if set.contains(#key_field) {
+            CachedDataItemKey::#variant { #key_pattern } => self.#field_name().and_then(|set| {
+                if set.contains(&#key_expr) {
                     Some(CachedDataItemValueRef::#variant { value: &() })
                 } else {
                     None
@@ -3101,20 +3171,22 @@ fn generate_get_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macro2:
 
 fn generate_get_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
     let field_name = &field.field_name;
-    let key_field = field.key_field.as_ref().expect("map requires key_field");
+    let key_pattern = field.key_pattern();
+    // Use cloned key expr since the key is passed by reference
+    let key_expr = field.key_expr_cloned();
 
     if field.is_inline() {
         quote! {
-            CachedDataItemKey::#variant { #key_field } => self
+            CachedDataItemKey::#variant { #key_pattern } => self
                 .#field_name()
-                .get(#key_field)
+                .get(&#key_expr)
                 .map(|value| CachedDataItemValueRef::#variant { value }),
         }
     } else {
         quote! {
-            CachedDataItemKey::#variant { #key_field } => self
+            CachedDataItemKey::#variant { #key_pattern } => self
                 .#field_name()
-                .and_then(|map| map.get(#key_field))
+                .and_then(|map| map.get(&#key_expr))
                 .map(|value| CachedDataItemValueRef::#variant { value }),
         }
     }
@@ -3166,13 +3238,12 @@ fn generate_remove_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2
 
 fn generate_remove_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
     let field_mut = field.mut_ident();
-    let key_field = field
-        .key_field
-        .as_ref()
-        .expect("auto_set requires key_field");
+    let key_pattern = field.key_pattern();
+    // Use cloned key expr since the key is passed by reference
+    let key_expr = field.key_expr_cloned();
     quote! {
-        CachedDataItemKey::#variant { #key_field } => {
-            if self.#field_mut().remove(#key_field) {
+        CachedDataItemKey::#variant { #key_pattern } => {
+            if self.#field_mut().remove(&#key_expr) {
                 Some(CachedDataItemValue::#variant { value: () })
             } else {
                 None
@@ -3183,11 +3254,13 @@ fn generate_remove_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macr
 
 fn generate_remove_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
     let field_mut = field.mut_ident();
-    let key_field = field.key_field.as_ref().expect("map requires key_field");
+    let key_pattern = field.key_pattern();
+    // Use cloned key expr since the key is passed by reference
+    let key_expr = field.key_expr_cloned();
     quote! {
-        CachedDataItemKey::#variant { #key_field } => self
+        CachedDataItemKey::#variant { #key_pattern } => self
             .#field_mut()
-            .remove(#key_field)
+            .remove(&#key_expr)
             .map(|value| CachedDataItemValue::#variant { value }),
     }
 }
@@ -3245,11 +3318,13 @@ fn generate_get_mut_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro
 
 fn generate_get_mut_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
     let field_mut = field.mut_ident();
-    let key_field = field.key_field.as_ref().expect("map requires key_field");
+    let key_pattern = field.key_pattern();
+    // Use cloned key expr since the key is passed by reference
+    let key_expr = field.key_expr_cloned();
     quote! {
-        CachedDataItemKey::#variant { #key_field } => self
+        CachedDataItemKey::#variant { #key_pattern } => self
             .#field_mut()
-            .get_mut(#key_field)
+            .get_mut(&#key_expr)
             .map(|value| CachedDataItemValueRefMut::#variant { value }),
     }
 }
@@ -3257,12 +3332,14 @@ fn generate_get_mut_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::
 /// Generate a get_mut arm for AutoSet types that returns None.
 /// AutoSet values are always () so mutable access is not meaningful.
 fn generate_get_mut_arm_set_none(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let key_field = field
-        .key_field
+    // Ignore all key fields with _
+    let ignored_fields: Vec<_> = field
+        .key_fields
         .as_ref()
-        .expect("auto_set requires key_field");
+        .map(|fields| fields.iter().map(|f| quote! { #f: _ }).collect())
+        .unwrap_or_default();
     quote! {
-        CachedDataItemKey::#variant { #key_field: _ } => None,
+        CachedDataItemKey::#variant { #(#ignored_fields),* } => None,
     }
 }
 
@@ -3371,16 +3448,14 @@ fn generate_iter_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2::
 
 fn generate_iter_arm_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
     let field_name = &field.field_name;
-    let key_field = field
-        .key_field
-        .as_ref()
-        .expect("auto_set requires key_field");
+    let key_expr = field.key_expr();
+    let key_construction = field.key_construction();
 
     if field.is_inline() {
         quote! {
-            CachedDataItemType::#variant => Box::new(self.#field_name().iter().map(|#key_field| {
+            CachedDataItemType::#variant => Box::new(self.#field_name().iter().map(|#key_expr| {
                 (
-                    CachedDataItemKey::#variant { #key_field: *#key_field },
+                    CachedDataItemKey::#variant { #key_construction },
                     CachedDataItemValueRef::#variant { value: &() },
                 )
             })),
@@ -3391,9 +3466,9 @@ fn generate_iter_arm_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::Tok
                 self.#field_name()
                     .into_iter()
                     .flat_map(|set| set.iter())
-                    .map(|#key_field| {
+                    .map(|#key_expr| {
                         (
-                            CachedDataItemKey::#variant { #key_field: *#key_field },
+                            CachedDataItemKey::#variant { #key_construction },
                             CachedDataItemValueRef::#variant { value: &() },
                         )
                     }),
@@ -3404,13 +3479,14 @@ fn generate_iter_arm_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::Tok
 
 fn generate_iter_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
     let field_name = &field.field_name;
-    let key_field = field.key_field.as_ref().expect("map requires key_field");
+    let key_expr = field.key_expr();
+    let key_construction = field.key_construction();
 
     if field.is_inline() {
         quote! {
-            CachedDataItemType::#variant => Box::new(self.#field_name().iter().map(|(#key_field, value)| {
+            CachedDataItemType::#variant => Box::new(self.#field_name().iter().map(|(#key_expr, value)| {
                 (
-                    CachedDataItemKey::#variant { #key_field: *#key_field },
+                    CachedDataItemKey::#variant { #key_construction },
                     CachedDataItemValueRef::#variant { value },
                 )
             })),
@@ -3421,9 +3497,9 @@ fn generate_iter_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::Tok
                 self.#field_name()
                     .into_iter()
                     .flat_map(|m| m.iter())
-                    .map(|(#key_field, value)| {
+                    .map(|(#key_expr, value)| {
                         (
-                            CachedDataItemKey::#variant { #key_field: *#key_field },
+                            CachedDataItemKey::#variant { #key_construction },
                             CachedDataItemValueRef::#variant { value },
                         )
                     }),

@@ -276,9 +276,9 @@ struct TaskStorageSchema {
         category = "data",
         filter_transient,
         variant = "CellDependency",
-        key_field = "target"
+        key_field = "target, key"
     )]
-    pub cell_dependencies: AutoSet<CellRef>,
+    pub cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
 
     /// Collectibles this task depends on.
     #[field(
@@ -304,9 +304,9 @@ struct TaskStorageSchema {
         storage = "auto_set",
         category = "transient",
         variant = "OutdatedCellDependency",
-        key_field = "target"
+        key_field = "target, key"
     )]
-    pub outdated_cell_dependencies: AutoSet<CellRef>,
+    pub outdated_cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(
@@ -324,7 +324,7 @@ struct TaskStorageSchema {
         storage = "auto_set",
         category = "data",
         variant = "CellDependent",
-        key_field = "task",
+        key_field = "cell, key, task",
         filter_transient
     )]
     pub cell_dependents: AutoSet<(CellId, Option<u64>, TaskId)>,
@@ -336,7 +336,7 @@ struct TaskStorageSchema {
         storage = "auto_set",
         category = "meta",
         variant = "CollectiblesDependent",
-        key_field = "task",
+        key_field = "collectible_type, task",
         filter_transient
     )]
     pub collectibles_dependents: AutoSet<(TraitTypeId, TaskId)>,
@@ -545,6 +545,11 @@ impl IsTransient for (CellId, Option<u64>, TaskId) {
         self.2.is_transient()
     }
 }
+impl IsTransient for (CellRef, Option<u64>) {
+    fn is_transient(&self) -> bool {
+        self.0.task.is_transient()
+    }
+}
 
 // ==========================================================================
 // TaskStorage Serialization Helpers
@@ -578,833 +583,6 @@ pub fn serialize_task_storage_data(
     Ok(buffer)
 }
 
-// ==========================================================================
-// CachedDataItem Compatibility Layer
-// ==========================================================================
-//
-// This module provides compatibility methods that allow TaskStorage to be used
-// with the existing CachedDataItem-based API. This enables incremental migration
-// from InnerStorage to TaskStorage without changing all call sites at once.
-//
-// The adapter maps each CachedDataItem variant to the corresponding TaskStorage
-// field using a dispatch macro.
-
-use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataItemValueRef};
-
-impl TaskStorage {
-    /// Add a CachedDataItem to storage.
-    ///
-    /// Returns `true` if the item was newly added, `false` if it already existed.
-    /// This is the compatibility method for migrating from InnerStorage.
-    pub fn add_cached_data_item(&mut self, item: CachedDataItem) -> bool {
-        use turbo_tasks::KeyValuePair;
-        let (key, value) = item.into_key_and_value();
-        self.insert_kv(key, value).is_none()
-    }
-
-    /// Insert a CachedDataItem, returning the old value if present.
-    pub fn insert_cached_data_item(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
-        use turbo_tasks::KeyValuePair;
-        let (key, value) = item.into_key_and_value();
-        self.insert_kv(key, value)
-    }
-
-    /// Insert a key-value pair, returning the old value if present.
-    fn insert_kv(
-        &mut self,
-        key: CachedDataItemKey,
-        value: CachedDataItemValue,
-    ) -> Option<CachedDataItemValue> {
-        match (key, value) {
-            // Direct fields (inline)
-            (CachedDataItemKey::Output {}, CachedDataItemValue::Output { value }) => self
-                .set_output(value)
-                .map(|v| CachedDataItemValue::Output { value: v }),
-            (
-                CachedDataItemKey::AggregationNumber {},
-                CachedDataItemValue::AggregationNumber { value },
-            ) => self
-                .set_aggregation_number(value)
-                .map(|v| CachedDataItemValue::AggregationNumber { value: v }),
-
-            // AutoSet fields (inline)
-            (
-                CachedDataItemKey::OutputDependent { task },
-                CachedDataItemValue::OutputDependent { value: () },
-            ) => {
-                let existed = !self.output_dependent_mut().insert(task);
-                if existed {
-                    Some(CachedDataItemValue::OutputDependent { value: () })
-                } else {
-                    None
-                }
-            }
-
-            // CounterMap fields (inline)
-            (CachedDataItemKey::Upper { task }, CachedDataItemValue::Upper { value }) => self
-                .upper_mut()
-                .insert(task, value)
-                .map(|v| CachedDataItemValue::Upper { value: v }),
-
-            // Direct fields (lazy)
-            (CachedDataItemKey::Dirty {}, CachedDataItemValue::Dirty { value }) => self
-                .set_dirty(value)
-                .map(|v| CachedDataItemValue::Dirty { value: v }),
-            (
-                CachedDataItemKey::AggregatedDirtyContainerCount {},
-                CachedDataItemValue::AggregatedDirtyContainerCount { value },
-            ) => self
-                .set_aggregated_dirty_container_count(value)
-                .map(|v| CachedDataItemValue::AggregatedDirtyContainerCount { value: v }),
-            (CachedDataItemKey::Activeness {}, CachedDataItemValue::Activeness { value }) => self
-                .set_activeness(value)
-                .map(|v| CachedDataItemValue::Activeness { value: v }),
-            (CachedDataItemKey::InProgress {}, CachedDataItemValue::InProgress { value }) => self
-                .set_in_progress(value)
-                .map(|v| CachedDataItemValue::InProgress { value: v }),
-            (
-                CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount {},
-                CachedDataItemValue::AggregatedCurrentSessionCleanContainerCount { value },
-            ) => self
-                .set_aggregated_current_session_clean_container_count(value)
-                .map(
-                    |v| CachedDataItemValue::AggregatedCurrentSessionCleanContainerCount {
-                        value: v,
-                    },
-                ),
-
-            // Flag fields
-            (
-                CachedDataItemKey::HasInvalidator {},
-                CachedDataItemValue::HasInvalidator { value: () },
-            ) => {
-                let existed = self.flags.invalidator();
-                self.flags.set_invalidator(true);
-                if existed {
-                    Some(CachedDataItemValue::HasInvalidator { value: () })
-                } else {
-                    None
-                }
-            }
-            (CachedDataItemKey::Immutable {}, CachedDataItemValue::Immutable { value: () }) => {
-                let existed = self.flags.immutable();
-                self.flags.set_immutable(true);
-                if existed {
-                    Some(CachedDataItemValue::Immutable { value: () })
-                } else {
-                    None
-                }
-            }
-            (
-                CachedDataItemKey::CurrentSessionClean {},
-                CachedDataItemValue::CurrentSessionClean { value: () },
-            ) => {
-                let existed = self.flags.current_session_clean();
-                self.flags.set_current_session_clean(true);
-                if existed {
-                    Some(CachedDataItemValue::CurrentSessionClean { value: () })
-                } else {
-                    None
-                }
-            }
-
-            // AutoSet fields (lazy)
-            (CachedDataItemKey::Child { task }, CachedDataItemValue::Child { value: () }) => {
-                let existed = !self.children_mut().insert(task);
-                if existed {
-                    Some(CachedDataItemValue::Child { value: () })
-                } else {
-                    None
-                }
-            }
-            (
-                CachedDataItemKey::OutputDependency { target },
-                CachedDataItemValue::OutputDependency { value: () },
-            ) => {
-                let existed = !self.output_dependencies_mut().insert(target);
-                if existed {
-                    Some(CachedDataItemValue::OutputDependency { value: () })
-                } else {
-                    None
-                }
-            }
-            (
-                CachedDataItemKey::CellDependency { target },
-                CachedDataItemValue::CellDependency { value: () },
-            ) => {
-                let existed = !self.cell_dependencies_mut().insert(target);
-                if existed {
-                    Some(CachedDataItemValue::CellDependency { value: () })
-                } else {
-                    None
-                }
-            }
-            (
-                CachedDataItemKey::CollectiblesDependency { target },
-                CachedDataItemValue::CollectiblesDependency { value: () },
-            ) => {
-                let existed = !self.collectibles_dependencies_mut().insert(target);
-                if existed {
-                    Some(CachedDataItemValue::CollectiblesDependency { value: () })
-                } else {
-                    None
-                }
-            }
-            (
-                CachedDataItemKey::OutdatedOutputDependency { target },
-                CachedDataItemValue::OutdatedOutputDependency { value: () },
-            ) => {
-                let existed = !self.outdated_output_dependencies_mut().insert(target);
-                if existed {
-                    Some(CachedDataItemValue::OutdatedOutputDependency { value: () })
-                } else {
-                    None
-                }
-            }
-            (
-                CachedDataItemKey::OutdatedCellDependency { target },
-                CachedDataItemValue::OutdatedCellDependency { value: () },
-            ) => {
-                let existed = !self.outdated_cell_dependencies_mut().insert(target);
-                if existed {
-                    Some(CachedDataItemValue::OutdatedCellDependency { value: () })
-                } else {
-                    None
-                }
-            }
-            (
-                CachedDataItemKey::OutdatedCollectiblesDependency { target },
-                CachedDataItemValue::OutdatedCollectiblesDependency { value: () },
-            ) => {
-                let existed = !self.outdated_collectibles_dependencies_mut().insert(target);
-                if existed {
-                    Some(CachedDataItemValue::OutdatedCollectiblesDependency { value: () })
-                } else {
-                    None
-                }
-            }
-
-            // CounterMap fields (lazy)
-            (
-                CachedDataItemKey::Collectible { collectible },
-                CachedDataItemValue::Collectible { value },
-            ) => self
-                .collectibles_mut()
-                .insert(collectible, value)
-                .map(|v| CachedDataItemValue::Collectible { value: v }),
-            (
-                CachedDataItemKey::AggregatedCollectible { collectible },
-                CachedDataItemValue::AggregatedCollectible { value },
-            ) => self
-                .aggregated_collectibles_mut()
-                .insert(collectible, value)
-                .map(|v| CachedDataItemValue::AggregatedCollectible { value: v }),
-            (
-                CachedDataItemKey::OutdatedCollectible { collectible },
-                CachedDataItemValue::OutdatedCollectible { value },
-            ) => self
-                .outdated_collectibles_mut()
-                .insert(collectible, value)
-                .map(|v| CachedDataItemValue::OutdatedCollectible { value: v }),
-            (CachedDataItemKey::Follower { task }, CachedDataItemValue::Follower { value }) => self
-                .followers_mut()
-                .insert(task, value)
-                .map(|v| CachedDataItemValue::Follower { value: v }),
-            (
-                CachedDataItemKey::AggregatedDirtyContainer { task },
-                CachedDataItemValue::AggregatedDirtyContainer { value },
-            ) => self
-                .aggregated_dirty_containers_mut()
-                .insert(task, value)
-                .map(|v| CachedDataItemValue::AggregatedDirtyContainer { value: v }),
-            (
-                CachedDataItemKey::AggregatedCurrentSessionCleanContainer { task },
-                CachedDataItemValue::AggregatedCurrentSessionCleanContainer { value },
-            ) => self
-                .aggregated_current_session_clean_containers_mut()
-                .insert(task, value)
-                .map(|v| CachedDataItemValue::AggregatedCurrentSessionCleanContainer { value: v }),
-
-            // AutoMap fields (lazy)
-            (CachedDataItemKey::CellData { cell }, CachedDataItemValue::CellData { value }) => self
-                .cell_data_mut()
-                .insert(cell, value)
-                .map(|v| CachedDataItemValue::CellData { value: v }),
-            (
-                CachedDataItemKey::TransientCellData { cell },
-                CachedDataItemValue::TransientCellData { value },
-            ) => self
-                .transient_cell_data_mut()
-                .insert(cell, value)
-                .map(|v| CachedDataItemValue::TransientCellData { value: v }),
-            (
-                CachedDataItemKey::CellTypeMaxIndex { cell_type },
-                CachedDataItemValue::CellTypeMaxIndex { value },
-            ) => self
-                .cell_type_max_index_mut()
-                .insert(cell_type, value)
-                .map(|v| CachedDataItemValue::CellTypeMaxIndex { value: v }),
-            (
-                CachedDataItemKey::InProgressCell { cell },
-                CachedDataItemValue::InProgressCell { value },
-            ) => self
-                .in_progress_cells_mut()
-                .insert(cell, value)
-                .map(|v| CachedDataItemValue::InProgressCell { value: v }),
-
-            // AutoMultimap fields
-            (
-                CachedDataItemKey::CellDependent { cell, task },
-                CachedDataItemValue::CellDependent { value: () },
-            ) => {
-                let set = self.cell_dependents_mut().entry(cell).or_default();
-                let existed = !set.insert(task);
-                if existed {
-                    Some(CachedDataItemValue::CellDependent { value: () })
-                } else {
-                    None
-                }
-            }
-            (
-                CachedDataItemKey::CollectiblesDependent {
-                    collectible_type,
-                    task,
-                },
-                CachedDataItemValue::CollectiblesDependent { value: () },
-            ) => {
-                let set = self
-                    .collectibles_dependents_mut()
-                    .entry(collectible_type)
-                    .or_default();
-                let existed = !set.insert(task);
-                if existed {
-                    Some(CachedDataItemValue::CollectiblesDependent { value: () })
-                } else {
-                    None
-                }
-            }
-
-            // Catch-all for mismatched key/value types (should not happen in practice)
-            #[allow(unreachable_patterns)]
-            (key, value) => {
-                panic!("Mismatched CachedDataItem key/value types: key={key:?}, value={value:?}");
-            }
-        }
-    }
-
-    /// Get a reference to a CachedDataItem value by key.
-    pub fn get_cached_data_item(
-        &self,
-        key: &CachedDataItemKey,
-    ) -> Option<CachedDataItemValueRef<'_>> {
-        match key {
-            // Direct fields (inline)
-            CachedDataItemKey::Output {} => self
-                .get_output()
-                .map(|value| CachedDataItemValueRef::Output { value }),
-            CachedDataItemKey::AggregationNumber {} => self
-                .get_aggregation_number()
-                .map(|value| CachedDataItemValueRef::AggregationNumber { value }),
-
-            // AutoSet fields (inline)
-            CachedDataItemKey::OutputDependent { task } => {
-                if self.output_dependent().contains(task) {
-                    Some(CachedDataItemValueRef::OutputDependent { value: &() })
-                } else {
-                    None
-                }
-            }
-
-            // CounterMap fields (inline)
-            CachedDataItemKey::Upper { task } => self
-                .upper()
-                .get(task)
-                .map(|value| CachedDataItemValueRef::Upper { value }),
-
-            // Direct fields (lazy)
-            CachedDataItemKey::Dirty {} => self
-                .get_dirty()
-                .map(|value| CachedDataItemValueRef::Dirty { value }),
-            CachedDataItemKey::AggregatedDirtyContainerCount {} => self
-                .get_aggregated_dirty_container_count()
-                .map(|value| CachedDataItemValueRef::AggregatedDirtyContainerCount { value }),
-            CachedDataItemKey::Activeness {} => self
-                .get_activeness()
-                .map(|value| CachedDataItemValueRef::Activeness { value }),
-            CachedDataItemKey::InProgress {} => self
-                .get_in_progress()
-                .map(|value| CachedDataItemValueRef::InProgress { value }),
-            CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount {} => self
-                .get_aggregated_current_session_clean_container_count()
-                .map(
-                    |value| CachedDataItemValueRef::AggregatedCurrentSessionCleanContainerCount {
-                        value,
-                    },
-                ),
-
-            // Flag fields
-            CachedDataItemKey::HasInvalidator {} => {
-                if self.flags.invalidator() {
-                    Some(CachedDataItemValueRef::HasInvalidator { value: &() })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::Immutable {} => {
-                if self.flags.immutable() {
-                    Some(CachedDataItemValueRef::Immutable { value: &() })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::CurrentSessionClean {} => {
-                if self.flags.current_session_clean() {
-                    Some(CachedDataItemValueRef::CurrentSessionClean { value: &() })
-                } else {
-                    None
-                }
-            }
-
-            // AutoSet fields (lazy)
-            CachedDataItemKey::Child { task } => self.children().and_then(|set| {
-                if set.contains(task) {
-                    Some(CachedDataItemValueRef::Child { value: &() })
-                } else {
-                    None
-                }
-            }),
-            CachedDataItemKey::OutputDependency { target } => {
-                self.output_dependencies().and_then(|set| {
-                    if set.contains(target) {
-                        Some(CachedDataItemValueRef::OutputDependency { value: &() })
-                    } else {
-                        None
-                    }
-                })
-            }
-            CachedDataItemKey::CellDependency { target } => {
-                self.cell_dependencies().and_then(|set| {
-                    if set.contains(target) {
-                        Some(CachedDataItemValueRef::CellDependency { value: &() })
-                    } else {
-                        None
-                    }
-                })
-            }
-            CachedDataItemKey::CollectiblesDependency { target } => {
-                self.collectibles_dependencies().and_then(|set| {
-                    if set.contains(target) {
-                        Some(CachedDataItemValueRef::CollectiblesDependency { value: &() })
-                    } else {
-                        None
-                    }
-                })
-            }
-            CachedDataItemKey::OutdatedOutputDependency { target } => {
-                self.outdated_output_dependencies().and_then(|set| {
-                    if set.contains(target) {
-                        Some(CachedDataItemValueRef::OutdatedOutputDependency { value: &() })
-                    } else {
-                        None
-                    }
-                })
-            }
-            CachedDataItemKey::OutdatedCellDependency { target } => {
-                self.outdated_cell_dependencies().and_then(|set| {
-                    if set.contains(target) {
-                        Some(CachedDataItemValueRef::OutdatedCellDependency { value: &() })
-                    } else {
-                        None
-                    }
-                })
-            }
-            CachedDataItemKey::OutdatedCollectiblesDependency { target } => {
-                self.outdated_collectibles_dependencies().and_then(|set| {
-                    if set.contains(target) {
-                        Some(CachedDataItemValueRef::OutdatedCollectiblesDependency { value: &() })
-                    } else {
-                        None
-                    }
-                })
-            }
-
-            // CounterMap fields (lazy)
-            CachedDataItemKey::Collectible { collectible } => self
-                .collectibles()
-                .and_then(|map| map.get(collectible))
-                .map(|value| CachedDataItemValueRef::Collectible { value }),
-            CachedDataItemKey::AggregatedCollectible { collectible } => self
-                .aggregated_collectibles()
-                .and_then(|map| map.get(collectible))
-                .map(|value| CachedDataItemValueRef::AggregatedCollectible { value }),
-            CachedDataItemKey::OutdatedCollectible { collectible } => self
-                .outdated_collectibles()
-                .and_then(|map| map.get(collectible))
-                .map(|value| CachedDataItemValueRef::OutdatedCollectible { value }),
-            CachedDataItemKey::Follower { task } => self
-                .followers()
-                .and_then(|map| map.get(task))
-                .map(|value| CachedDataItemValueRef::Follower { value }),
-            CachedDataItemKey::AggregatedDirtyContainer { task } => self
-                .aggregated_dirty_containers()
-                .and_then(|map| map.get(task))
-                .map(|value| CachedDataItemValueRef::AggregatedDirtyContainer { value }),
-            CachedDataItemKey::AggregatedCurrentSessionCleanContainer { task } => self
-                .aggregated_current_session_clean_containers()
-                .and_then(|map| map.get(task))
-                .map(
-                    |value| CachedDataItemValueRef::AggregatedCurrentSessionCleanContainer {
-                        value,
-                    },
-                ),
-
-            // AutoMap fields (lazy)
-            CachedDataItemKey::CellData { cell } => self
-                .cell_data()
-                .and_then(|map| map.get(cell))
-                .map(|value| CachedDataItemValueRef::CellData { value }),
-            CachedDataItemKey::TransientCellData { cell } => self
-                .transient_cell_data()
-                .and_then(|map| map.get(cell))
-                .map(|value| CachedDataItemValueRef::TransientCellData { value }),
-            CachedDataItemKey::CellTypeMaxIndex { cell_type } => self
-                .cell_type_max_index()
-                .and_then(|map| map.get(cell_type))
-                .map(|value| CachedDataItemValueRef::CellTypeMaxIndex { value }),
-            CachedDataItemKey::InProgressCell { cell } => self
-                .in_progress_cells()
-                .and_then(|map| map.get(cell))
-                .map(|value| CachedDataItemValueRef::InProgressCell { value }),
-
-            // AutoMultimap fields
-            CachedDataItemKey::CellDependent { cell, task } => self
-                .cell_dependents()
-                .and_then(|map| map.get(cell))
-                .and_then(|set| {
-                    if set.contains(task) {
-                        Some(CachedDataItemValueRef::CellDependent { value: &() })
-                    } else {
-                        None
-                    }
-                }),
-            CachedDataItemKey::CollectiblesDependent {
-                collectible_type,
-                task,
-            } => self
-                .collectibles_dependents()
-                .and_then(|map| map.get(collectible_type))
-                .and_then(|set| {
-                    if set.contains(task) {
-                        Some(CachedDataItemValueRef::CollectiblesDependent { value: &() })
-                    } else {
-                        None
-                    }
-                }),
-        }
-    }
-
-    /// Check if a CachedDataItem key exists in storage.
-    pub fn contains_key(&self, key: &CachedDataItemKey) -> bool {
-        self.get_cached_data_item(key).is_some()
-    }
-
-    /// Remove a CachedDataItem by key, returning the old value if present.
-    pub fn remove_cached_data_item(
-        &mut self,
-        key: &CachedDataItemKey,
-    ) -> Option<CachedDataItemValue> {
-        match key {
-            // Direct fields (inline)
-            CachedDataItemKey::Output {} => self
-                .take_output()
-                .map(|value| CachedDataItemValue::Output { value }),
-            CachedDataItemKey::AggregationNumber {} => self
-                .take_aggregation_number()
-                .map(|value| CachedDataItemValue::AggregationNumber { value }),
-
-            // AutoSet fields (inline)
-            CachedDataItemKey::OutputDependent { task } => {
-                if self.output_dependent_mut().remove(task) {
-                    Some(CachedDataItemValue::OutputDependent { value: () })
-                } else {
-                    None
-                }
-            }
-
-            // CounterMap fields (inline)
-            CachedDataItemKey::Upper { task } => self
-                .upper_mut()
-                .remove(task)
-                .map(|value| CachedDataItemValue::Upper { value }),
-
-            // Direct fields (lazy)
-            CachedDataItemKey::Dirty {} => self
-                .take_dirty()
-                .map(|value| CachedDataItemValue::Dirty { value }),
-            CachedDataItemKey::AggregatedDirtyContainerCount {} => self
-                .take_aggregated_dirty_container_count()
-                .map(|value| CachedDataItemValue::AggregatedDirtyContainerCount { value }),
-            CachedDataItemKey::Activeness {} => self
-                .take_activeness()
-                .map(|value| CachedDataItemValue::Activeness { value }),
-            CachedDataItemKey::InProgress {} => self
-                .take_in_progress()
-                .map(|value| CachedDataItemValue::InProgress { value }),
-            CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount {} => self
-                .take_aggregated_current_session_clean_container_count()
-                .map(
-                    |value| CachedDataItemValue::AggregatedCurrentSessionCleanContainerCount {
-                        value,
-                    },
-                ),
-
-            // Flag fields
-            CachedDataItemKey::HasInvalidator {} => {
-                let existed = self.flags.invalidator();
-                self.flags.set_invalidator(false);
-                if existed {
-                    Some(CachedDataItemValue::HasInvalidator { value: () })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::Immutable {} => {
-                let existed = self.flags.immutable();
-                self.flags.set_immutable(false);
-                if existed {
-                    Some(CachedDataItemValue::Immutable { value: () })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::CurrentSessionClean {} => {
-                let existed = self.flags.current_session_clean();
-                self.flags.set_current_session_clean(false);
-                if existed {
-                    Some(CachedDataItemValue::CurrentSessionClean { value: () })
-                } else {
-                    None
-                }
-            }
-
-            // AutoSet fields (lazy) - use children() first to check, then children_mut() to remove
-            CachedDataItemKey::Child { task } => {
-                if self.children().is_some_and(|set| set.contains(task)) {
-                    self.children_mut().remove(task);
-                    Some(CachedDataItemValue::Child { value: () })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::OutputDependency { target } => {
-                if self
-                    .output_dependencies()
-                    .is_some_and(|set| set.contains(target))
-                {
-                    self.output_dependencies_mut().remove(target);
-                    Some(CachedDataItemValue::OutputDependency { value: () })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::CellDependency { target } => {
-                if self
-                    .cell_dependencies()
-                    .is_some_and(|set| set.contains(target))
-                {
-                    self.cell_dependencies_mut().remove(target);
-                    Some(CachedDataItemValue::CellDependency { value: () })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::CollectiblesDependency { target } => {
-                if self
-                    .collectibles_dependencies()
-                    .is_some_and(|set| set.contains(target))
-                {
-                    self.collectibles_dependencies_mut().remove(target);
-                    Some(CachedDataItemValue::CollectiblesDependency { value: () })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::OutdatedOutputDependency { target } => {
-                if self
-                    .outdated_output_dependencies()
-                    .is_some_and(|set| set.contains(target))
-                {
-                    self.outdated_output_dependencies_mut().remove(target);
-                    Some(CachedDataItemValue::OutdatedOutputDependency { value: () })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::OutdatedCellDependency { target } => {
-                if self
-                    .outdated_cell_dependencies()
-                    .is_some_and(|set| set.contains(target))
-                {
-                    self.outdated_cell_dependencies_mut().remove(target);
-                    Some(CachedDataItemValue::OutdatedCellDependency { value: () })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::OutdatedCollectiblesDependency { target } => {
-                if self
-                    .outdated_collectibles_dependencies()
-                    .is_some_and(|set| set.contains(target))
-                {
-                    self.outdated_collectibles_dependencies_mut().remove(target);
-                    Some(CachedDataItemValue::OutdatedCollectiblesDependency { value: () })
-                } else {
-                    None
-                }
-            }
-
-            // CounterMap fields (lazy)
-            CachedDataItemKey::Collectible { collectible } => self
-                .collectibles()
-                .is_some_and(|map| map.contains_key(collectible))
-                .then(|| {
-                    self.collectibles_mut()
-                        .remove(collectible)
-                        .map(|value| CachedDataItemValue::Collectible { value })
-                })
-                .flatten(),
-            CachedDataItemKey::AggregatedCollectible { collectible } => self
-                .aggregated_collectibles()
-                .is_some_and(|map| map.contains_key(collectible))
-                .then(|| {
-                    self.aggregated_collectibles_mut()
-                        .remove(collectible)
-                        .map(|value| CachedDataItemValue::AggregatedCollectible { value })
-                })
-                .flatten(),
-            CachedDataItemKey::OutdatedCollectible { collectible } => self
-                .outdated_collectibles()
-                .is_some_and(|map| map.contains_key(collectible))
-                .then(|| {
-                    self.outdated_collectibles_mut()
-                        .remove(collectible)
-                        .map(|value| CachedDataItemValue::OutdatedCollectible { value })
-                })
-                .flatten(),
-            CachedDataItemKey::Follower { task } => self
-                .followers()
-                .is_some_and(|map| map.contains_key(task))
-                .then(|| {
-                    self.followers_mut()
-                        .remove(task)
-                        .map(|value| CachedDataItemValue::Follower { value })
-                })
-                .flatten(),
-            CachedDataItemKey::AggregatedDirtyContainer { task } => self
-                .aggregated_dirty_containers()
-                .is_some_and(|map| map.contains_key(task))
-                .then(|| {
-                    self.aggregated_dirty_containers_mut()
-                        .remove(task)
-                        .map(|value| CachedDataItemValue::AggregatedDirtyContainer { value })
-                })
-                .flatten(),
-            CachedDataItemKey::AggregatedCurrentSessionCleanContainer { task } => self
-                .aggregated_current_session_clean_containers()
-                .is_some_and(|map| map.contains_key(task))
-                .then(|| {
-                    self.aggregated_current_session_clean_containers_mut()
-                        .remove(task)
-                        .map(
-                            |value| CachedDataItemValue::AggregatedCurrentSessionCleanContainer {
-                                value,
-                            },
-                        )
-                })
-                .flatten(),
-
-            // AutoMap fields (lazy)
-            CachedDataItemKey::CellData { cell } => self
-                .cell_data()
-                .is_some_and(|map| map.contains_key(cell))
-                .then(|| {
-                    self.cell_data_mut()
-                        .remove(cell)
-                        .map(|value| CachedDataItemValue::CellData { value })
-                })
-                .flatten(),
-            CachedDataItemKey::TransientCellData { cell } => self
-                .transient_cell_data()
-                .is_some_and(|map| map.contains_key(cell))
-                .then(|| {
-                    self.transient_cell_data_mut()
-                        .remove(cell)
-                        .map(|value| CachedDataItemValue::TransientCellData { value })
-                })
-                .flatten(),
-            CachedDataItemKey::CellTypeMaxIndex { cell_type } => self
-                .cell_type_max_index()
-                .is_some_and(|map| map.contains_key(cell_type))
-                .then(|| {
-                    self.cell_type_max_index_mut()
-                        .remove(cell_type)
-                        .map(|value| CachedDataItemValue::CellTypeMaxIndex { value })
-                })
-                .flatten(),
-            CachedDataItemKey::InProgressCell { cell } => self
-                .in_progress_cells()
-                .is_some_and(|map| map.contains_key(cell))
-                .then(|| {
-                    self.in_progress_cells_mut()
-                        .remove(cell)
-                        .map(|value| CachedDataItemValue::InProgressCell { value })
-                })
-                .flatten(),
-
-            // AutoMultimap fields
-            CachedDataItemKey::CellDependent { cell, task } => {
-                let exists = self
-                    .cell_dependents()
-                    .and_then(|map| map.get(cell))
-                    .is_some_and(|set| set.contains(task));
-                if exists {
-                    let map = self.cell_dependents_mut();
-                    if let Some(set) = map.get_mut(cell) {
-                        set.remove(task);
-                        if set.is_empty() {
-                            map.remove(cell);
-                        }
-                    }
-                    Some(CachedDataItemValue::CellDependent { value: () })
-                } else {
-                    None
-                }
-            }
-            CachedDataItemKey::CollectiblesDependent {
-                collectible_type,
-                task,
-            } => {
-                let exists = self
-                    .collectibles_dependents()
-                    .and_then(|map| map.get(collectible_type))
-                    .is_some_and(|set| set.contains(task));
-                if exists {
-                    let map = self.collectibles_dependents_mut();
-                    if let Some(set) = map.get_mut(collectible_type) {
-                        set.remove(task);
-                        if set.is_empty() {
-                            map.remove(collectible_type);
-                        }
-                    }
-                    Some(CachedDataItemValue::CollectiblesDependent { value: () })
-                } else {
-                    None
-                }
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::mem::size_of;
@@ -1412,7 +590,42 @@ mod tests {
     use turbo_tasks::{CellId, TaskId};
 
     use super::*;
-    use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
+    use crate::{
+        backend::storage::SpecificTaskDataCategory,
+        data::{AggregationNumber, CellRef, Dirtyness, OutputValue},
+    };
+
+    /// Test wrapper that implements TaskStorageAccessors for testing the CachedDataItem adapter.
+    /// This wrapper doesn't track modifications since we're just testing functionality.
+    struct TestStorage(TaskStorage);
+
+    impl TestStorage {
+        fn new() -> Self {
+            Self(TaskStorage::new())
+        }
+
+        fn inner(&self) -> &TaskStorage {
+            &self.0
+        }
+    }
+
+    impl TaskStorageAccessors for TestStorage {
+        fn typed(&self) -> &TaskStorage {
+            &self.0
+        }
+
+        fn typed_mut(&mut self) -> &mut TaskStorage {
+            &mut self.0
+        }
+
+        fn track_modification(&mut self, _category: SpecificTaskDataCategory) {
+            // No-op for tests
+        }
+
+        fn check_access(&self, _category: crate::backend::TaskDataCategory) {
+            // No-op for tests
+        }
+    }
 
     #[test]
     fn test_accessors() {
@@ -1907,7 +1120,7 @@ mod tests {
     fn test_adapter_basic() {
         use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue};
 
-        let mut storage = TaskStorage::new();
+        let mut storage = TestStorage::new();
         let task1 = unsafe { TaskId::new_unchecked(1) };
         let task2 = unsafe { TaskId::new_unchecked(2) };
 
@@ -1915,48 +1128,48 @@ mod tests {
         let output_item = CachedDataItem::Output {
             value: OutputValue::Output(task1),
         };
-        assert!(storage.add_cached_data_item(output_item.clone()));
-        assert!(!storage.add_cached_data_item(output_item)); // Second add should return false
+        assert!(storage.add(output_item.clone()));
+        assert!(!storage.add(output_item)); // Second add should return false
 
         // Test get for Output
         let key = CachedDataItemKey::Output {};
-        assert!(storage.get_cached_data_item(&key).is_some());
+        assert!(storage.get(&key).is_some());
         assert!(storage.contains_key(&key));
 
         // Test remove for Output
-        let removed = storage.remove_cached_data_item(&key);
+        let removed = storage.remove(&key);
         assert!(matches!(removed, Some(CachedDataItemValue::Output { .. })));
-        assert!(storage.get_cached_data_item(&key).is_none());
+        assert!(storage.get(&key).is_none());
 
         // Test add for inline AutoSet field (OutputDependent)
         let dep_item = CachedDataItem::OutputDependent {
             task: task1,
             value: (),
         };
-        assert!(storage.add_cached_data_item(dep_item.clone()));
-        assert!(!storage.add_cached_data_item(dep_item)); // Already exists
+        assert!(storage.add(dep_item.clone()));
+        assert!(!storage.add(dep_item)); // Already exists
 
         // Verify via typed accessor
-        assert!(storage.output_dependent().contains(&task1));
+        assert!(storage.inner().output_dependent().contains(&task1));
 
         // Test add another
         let dep_item2 = CachedDataItem::OutputDependent {
             task: task2,
             value: (),
         };
-        assert!(storage.add_cached_data_item(dep_item2));
-        assert_eq!(storage.output_dependent().len(), 2);
+        assert!(storage.add(dep_item2));
+        assert_eq!(storage.inner().output_dependent().len(), 2);
 
         // Test remove OutputDependent
         let key = CachedDataItemKey::OutputDependent { task: task1 };
-        let removed = storage.remove_cached_data_item(&key);
+        let removed = storage.remove(&key);
         assert!(matches!(
             removed,
             Some(CachedDataItemValue::OutputDependent { value: () })
         ));
-        assert_eq!(storage.output_dependent().len(), 1);
-        assert!(!storage.output_dependent().contains(&task1));
-        assert!(storage.output_dependent().contains(&task2));
+        assert_eq!(storage.inner().output_dependent().len(), 1);
+        assert!(!storage.inner().output_dependent().contains(&task1));
+        assert!(storage.inner().output_dependent().contains(&task2));
     }
 
     #[test]

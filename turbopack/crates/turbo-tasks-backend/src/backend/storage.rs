@@ -15,16 +15,6 @@ use crate::{
     },
 };
 
-/// A snapshot of TaskStorage, used during persistence.
-/// This is just a clone of TaskStorage with modified flags preserved.
-pub struct TaskStorageSnapshot {
-    pub storage: TaskStorage,
-    /// Whether meta was modified (preserved from flags at snapshot time)
-    pub meta_modified: bool,
-    /// Whether data was modified (preserved from flags at snapshot time)
-    pub data_modified: bool,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskDataCategory {
     Meta,
@@ -91,16 +81,6 @@ impl Iterator for TaskDataCategoryIterator {
     }
 }
 
-impl From<&TaskStorage> for TaskStorageSnapshot {
-    fn from(storage: &TaskStorage) -> Self {
-        Self {
-            storage: storage.clone(),
-            meta_modified: storage.flags.meta_modified(),
-            data_modified: storage.flags.data_modified(),
-        }
-    }
-}
-
 enum ModifiedState {
     /// It was modified before snapshot mode was entered, but it was not accessed during snapshot
     /// mode.
@@ -111,7 +91,7 @@ enum ModifiedState {
     /// Snapshot(None):
     /// It was not modified before snapshot mode was entered, but it was accessed during snapshot
     /// mode. Or the snapshot was already taken out by the snapshot operation.
-    Snapshot(Option<Box<TaskStorageSnapshot>>),
+    Snapshot(Option<Box<TaskStorage>>),
 }
 
 pub struct Storage {
@@ -154,7 +134,7 @@ impl Storage {
         R,
         PP: for<'a> Fn(TaskId, &'a TaskStorage) -> T + Sync,
         P: Fn(TaskId, T) -> R + Sync,
-        PS: Fn(TaskId, Box<TaskStorageSnapshot>) -> R + Sync,
+        PS: Fn(TaskId, Box<TaskStorage>) -> R + Sync,
     >(
         &'l self,
         preprocess: &'l PP,
@@ -170,7 +150,7 @@ impl Storage {
         // The number of shards is much larger than the number of threads, so the effect of the
         // locks held is negligible.
         parallel::map_collect::<_, _, Vec<_>>(self.modified.shards(), |shard| {
-            let mut direct_snapshots: Vec<(TaskId, Box<TaskStorageSnapshot>)> = Vec::new();
+            let mut direct_snapshots: Vec<(TaskId, Box<TaskStorage>)> = Vec::new();
             let mut modified: SmallVec<[TaskId; 4]> = SmallVec::new();
             {
                 // Take the snapshots from the modified map
@@ -370,7 +350,7 @@ impl StorageWriteGuard<'_> {
                     if !flags.any_snapshot() {
                         self.storage.modified.insert(
                             *self.inner.key(),
-                            ModifiedState::Snapshot(Some(Box::new((&**self.inner).into()))),
+                            ModifiedState::Snapshot(Some(Box::new(*self.inner.clone()))),
                         );
                     }
                     match category {
@@ -659,7 +639,7 @@ impl Drop for SnapshotGuard<'_> {
 }
 
 pub struct SnapshotShard<'l, PP, P, PS> {
-    direct_snapshots: Vec<(TaskId, Box<TaskStorageSnapshot>)>,
+    direct_snapshots: Vec<(TaskId, Box<TaskStorage>)>,
     modified: SmallVec<[TaskId; 4]>,
     storage: &'l Storage,
     guard: Option<Arc<SnapshotGuard<'l>>>,
@@ -672,7 +652,7 @@ impl<'l, T, R, PP, P, PS> Iterator for SnapshotShard<'l, PP, P, PS>
 where
     PP: for<'a> Fn(TaskId, &'a TaskStorage) -> T + Sync,
     P: Fn(TaskId, T) -> R + Sync,
-    PS: Fn(TaskId, Box<TaskStorageSnapshot>) -> R + Sync,
+    PS: Fn(TaskId, Box<TaskStorage>) -> R + Sync,
 {
     type Item = R;
 
@@ -702,35 +682,5 @@ where
         }
         self.guard = None;
         None
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_task_storage_size() {
-        // TaskStorage size affects memory usage per task.
-        // We track this to catch unexpected bloat from type changes.
-        // Note: The size of TaskStorage depends on the number of inline fields
-        // and the size of the flags bitfield. This is a sanity check.
-        let storage_size = std::mem::size_of::<TaskStorage>();
-        let snapshot_size = std::mem::size_of::<TaskStorageSnapshot>();
-
-        // Just verify the sizes are reasonable (not zero, not huge)
-        assert!(storage_size > 0, "TaskStorage should have non-zero size");
-        assert!(
-            storage_size < 1024,
-            "TaskStorage should be reasonably sized"
-        );
-        assert!(
-            snapshot_size > 0,
-            "TaskStorageSnapshot should have non-zero size"
-        );
-        assert!(
-            snapshot_size < 1024,
-            "TaskStorageSnapshot should be reasonably sized"
-        );
     }
 }

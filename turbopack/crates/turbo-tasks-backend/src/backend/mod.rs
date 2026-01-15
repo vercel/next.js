@@ -55,8 +55,7 @@ use crate::{
             make_task_dirty_internal, prepare_new_children,
         },
         storage::{
-            Storage, TaskStorageSnapshot, count, get, get_many, get_mut, get_mut_or_insert_with,
-            iter_many, remove,
+            Storage, count, get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove,
         },
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
@@ -1075,27 +1074,37 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let data_restored = inner.flags.data_restored();
 
             // Encode meta/data directly from TaskStorage
-            let meta =
-                meta_restored.then(|| self.backing_storage.serialize_task_storage_meta(inner));
-            let data =
-                data_restored.then(|| self.backing_storage.serialize_task_storage_data(inner));
+            let meta = meta_restored.then(|| inner.clone_meta_snapshot());
+            let data = data_restored.then(|| inner.clone_data_snapshot());
 
             (meta, data)
         };
-        let process = |task_id: TaskId, (meta, data): (Option<_>, Option<_>)| (task_id, meta, data);
-        let process_snapshot = |task_id: TaskId, inner: Box<TaskStorageSnapshot>| {
+        let process = |task_id: TaskId, (meta, data): (Option<_>, Option<_>)| {
+            (
+                task_id,
+                meta.map(|d| {
+                    self.backing_storage
+                        .serialize(task_id, &d, TaskDataCategory::Meta)
+                }),
+                data.map(|d| {
+                    self.backing_storage
+                        .serialize(task_id, &d, TaskDataCategory::Data)
+                }),
+            )
+        };
+        let process_snapshot = |task_id: TaskId, inner: Box<TaskStorage>| {
             if task_id.is_transient() {
                 return (task_id, None, None);
             }
 
             // Encode meta/data directly from TaskStorage snapshot
-            let meta = inner.meta_modified.then(|| {
+            let meta = inner.flags.meta_modified().then(|| {
                 self.backing_storage
-                    .serialize_task_storage_meta(&inner.storage)
+                    .serialize(task_id, &inner, TaskDataCategory::Meta)
             });
-            let data = inner.data_modified.then(|| {
+            let data = inner.flags.data_modified().then(|| {
                 self.backing_storage
-                    .serialize_task_storage_data(&inner.storage)
+                    .serialize(task_id, &inner, TaskDataCategory::Data)
             });
 
             (task_id, meta, data)
@@ -1147,26 +1156,50 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let mut iter = iter
                     .filter_map(
                         |(task_id, meta, data): (
-                            TaskId,
-                            Option<SmallVec<_>>,
-                            Option<SmallVec<_>>,
+                            _,
+                            Option<Result<SmallVec<_>>>,
+                            Option<Result<SmallVec<_>>>,
                         )| {
-                            #[cfg(feature = "print_cache_item_size")]
-                            if let Some(ref meta) = meta {
-                                task_cache_stats
-                                    .lock()
-                                    .entry(self.get_task_description(task_id))
-                                    .or_default()
-                                    .add_meta(meta);
-                            }
-                            #[cfg(feature = "print_cache_item_size")]
-                            if let Some(ref data) = data {
-                                task_cache_stats
-                                    .lock()
-                                    .entry(self.get_task_description(task_id))
-                                    .or_default()
-                                    .add_data(data);
-                            }
+                            let meta = match meta {
+                                Some(Ok(meta)) => {
+                                    #[cfg(feature = "print_cache_item_size")]
+                                    task_cache_stats
+                                        .lock()
+                                        .entry(self.get_task_description(task_id))
+                                        .or_default()
+                                        .add_meta(meta);
+                                    Some(meta)
+                                }
+                                None => None,
+                                Some(Err(err)) => {
+                                    println!(
+                                        "Serializing task {} failed (meta): {:?}",
+                                        self.get_task_description(task_id),
+                                        err
+                                    );
+                                    None
+                                }
+                            };
+                            let data = match data {
+                                Some(Ok(data)) => {
+                                    #[cfg(feature = "print_cache_item_size")]
+                                    task_cache_stats
+                                        .lock()
+                                        .entry(self.get_task_description(task_id))
+                                        .or_default()
+                                        .add_data(data);
+                                    Some(data)
+                                }
+                                None => None,
+                                Some(Err(err)) => {
+                                    println!(
+                                        "Serializing task {} failed (data): {:?}",
+                                        self.get_task_description(task_id),
+                                        err
+                                    );
+                                    None
+                                }
+                            };
                             (meta.is_some() || data.is_some()).then_some((task_id, meta, data))
                         },
                     )
