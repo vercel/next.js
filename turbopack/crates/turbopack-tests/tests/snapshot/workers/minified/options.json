@@ -1,0 +1,10 @@
+{
+  "runtime": "Browser",
+  "runtimeType": "Production",
+  "minifyType": {
+    "Minify": {
+      "mangle": "optimal-size"
+    }
+  },
+  "environment": "Browser"
+}

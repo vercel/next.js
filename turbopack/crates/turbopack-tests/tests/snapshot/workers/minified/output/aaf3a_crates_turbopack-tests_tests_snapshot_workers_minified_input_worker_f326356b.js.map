@@ -1,0 +1,1 @@
+{"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/minified/input/worker.js"],"sourcesContent":["self.postMessage('hello')\n"],"names":["self","postMessage"],"mappings":"kRAAAA,KAAKC,WAAW,CAAC"}

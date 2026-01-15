@@ -1,0 +1,8 @@
+error - [process module] /turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js  Invalid module type
+  
+  The module type must be Ecmascript or Typescript to add Ecmascript transforms
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js
