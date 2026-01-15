@@ -975,10 +975,14 @@ export abstract class RouteModule<
     }
   }
 
-  public getResponseCache(req: IncomingMessage | BaseNextRequest) {
+  public getResponseCache(
+    req: IncomingMessage | BaseNextRequest,
+    nextConfig?: NextConfigRuntime
+  ) {
     if (!this.responseCache) {
       const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
-      this.responseCache = new ResponseCache(minimalMode)
+      const maxSize = nextConfig?.experimental?.maxResponseCacheSize
+      this.responseCache = new ResponseCache(minimalMode, maxSize)
     }
     return this.responseCache
   }
@@ -1010,13 +1014,16 @@ export abstract class RouteModule<
     waitUntil?: (prom: Promise<any>) => void
     isMinimalMode: boolean
   }) {
-    const responseCache = this.getResponseCache(req)
+    const responseCache = this.getResponseCache(req, nextConfig)
     const cacheEntry = await responseCache.get(cacheKey, responseGenerator, {
       routeKind,
       isFallback,
       isRoutePPREnabled,
       isOnDemandRevalidate,
       isPrefetch: req.headers.purpose === 'prefetch',
+      // Use x-vercel-id header to scope the in-memory cache to a single
+      // revalidation request in minimal mode.
+      invocationID: req.headers['x-vercel-id'] as string | undefined,
       incrementalCache: await this.getIncrementalCache(
         req,
         nextConfig,

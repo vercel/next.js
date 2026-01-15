@@ -6,8 +6,8 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
   createNowRouteMatches,
-  fetchViaHTTP,
   findPort,
+  infra,
   initNextServerScript,
   killApp,
 } from 'next-test-utils'
@@ -103,7 +103,7 @@ describe('required server files app router', () => {
   })
 
   it('should send the right cache headers for an app route', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/test/123', undefined, {
+    const res = await infra.fetch(appPort, '/api/test/123', undefined, {
       headers: {
         'x-matched-path': '/api/test/[slug]',
         'x-now-route-matches': createNowRouteMatches({
@@ -116,7 +116,7 @@ describe('required server files app router', () => {
   })
 
   it('should handle optional catchall', async () => {
-    let res = await fetchViaHTTP(
+    let res = await infra.fetch(
       appPort,
       '/optional-catchall/[lang]/[flags]/[[...slug]]',
       undefined,
@@ -138,7 +138,7 @@ describe('required server files app router', () => {
     expect($('body [data-lang]').text()).toBe('en')
     expect($('body [data-slug]').text()).toBe('slug')
 
-    res = await fetchViaHTTP(
+    res = await infra.fetch(
       appPort,
       '/optional-catchall/[lang]/[flags]/[[...slug]]',
       undefined,
@@ -162,7 +162,7 @@ describe('required server files app router', () => {
   })
 
   it('should send the right cache headers for an app page', async () => {
-    const res = await fetchViaHTTP(appPort, '/test/123', undefined, {
+    const res = await infra.fetch(appPort, '/test/123', undefined, {
       headers: {
         'x-matched-path': '/test/[slug]',
         'x-now-route-matches': createNowRouteMatches({
@@ -181,7 +181,7 @@ describe('required server files app router', () => {
   })
 
   it('should properly handle prerender for bot request', async () => {
-    const res = await fetchViaHTTP(appPort, '/isr/first', undefined, {
+    const res = await infra.fetch(appPort, '/isr/first', undefined, {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
@@ -195,7 +195,7 @@ describe('required server files app router', () => {
 
     expect($('#page').text()).toBe('/isr/[slug]')
 
-    const rscRes = await fetchViaHTTP(appPort, '/isr/first.rsc', undefined, {
+    const rscRes = await infra.fetch(appPort, '/isr/first.rsc', undefined, {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
@@ -207,7 +207,7 @@ describe('required server files app router', () => {
   })
 
   it('should properly handle fallback for bot request', async () => {
-    const res = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
+    const res = await infra.fetch(appPort, '/isr/[slug]', undefined, {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
@@ -224,7 +224,7 @@ describe('required server files app router', () => {
 
     expect($('#page').text()).toBe('/isr/[slug]')
 
-    const rscRes = await fetchViaHTTP(appPort, '/isr/[slug].rsc', undefined, {
+    const rscRes = await infra.fetch(appPort, '/isr/[slug].rsc', undefined, {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
@@ -258,7 +258,7 @@ describe('required server files app router', () => {
       ],
     ]) {
       require('console').error('checking', { path, tags })
-      const res = await fetchViaHTTP(appPort, path, undefined, {
+      const res = await infra.fetch(appPort, path, undefined, {
         redirect: 'manual',
       })
       expect(res.status).toBe(200)
@@ -273,7 +273,7 @@ describe('required server files app router', () => {
       '/api/ssr/first',
       '/api/ssr/second',
     ]) {
-      const res = await fetchViaHTTP(appPort, path, undefined, {
+      const res = await infra.fetch(appPort, path, undefined, {
         redirect: 'manual',
       })
       expect(res.status).toBe(200)
@@ -288,7 +288,7 @@ describe('required server files app router', () => {
       '/api/ssr/first',
       '/api/ssr/second',
     ]) {
-      const res = await fetchViaHTTP(
+      const res = await infra.fetch(
         appPort,
         path,
         { hello: 'world' },
@@ -302,7 +302,7 @@ describe('required server files app router', () => {
   })
 
   it('should not override params with query params', async () => {
-    const res = await fetchViaHTTP(
+    const res = await infra.fetch(
       appPort,
       '/search/[key]',
       { key: 'searchParams', nxtPkey: 'params' },
@@ -317,5 +317,72 @@ describe('required server files app router', () => {
     const $ = cheerio.load(html)
     expect($('dd[data-params]').text()).toBe('params')
     expect($('dd[data-searchParams]').text()).toBe('searchParams')
+  })
+
+  it('should de-dupe HTML/RSC requests for ISR pages', async () => {
+    const group = infra.group()
+
+    // First request: HTML for ISR page
+    const htmlRes = await group.fetch(appPort, '/isr/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/isr/[slug]',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
+      },
+    })
+    expect(htmlRes.status).toBe(200)
+    const html = await htmlRes.text()
+    const $ = cheerio.load(html)
+    const timestamp1 = $('#now').text()
+
+    // Second request: RSC for same page with same x-vercel-id
+    const rscRes = await group.fetch(appPort, '/isr/[slug].rsc', undefined, {
+      headers: {
+        'x-matched-path': '/isr/[slug]',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
+      },
+    })
+    expect(rscRes.status).toBe(200)
+    const rscText = await rscRes.text()
+
+    // Both should have the same timestamp (same cached render)
+    expect(rscText).toContain(timestamp1)
+  })
+
+  it('should isolate cache between different ISR request groups', async () => {
+    // First group makes a request
+    const group1 = infra.group()
+    const res1 = await group1.fetch(appPort, '/isr/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/isr/[slug]',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
+      },
+    })
+    expect(res1.status).toBe(200)
+    const $1 = cheerio.load(await res1.text())
+    const data1 = $1('#data').text()
+
+    // Second group with different x-vercel-id
+    const group2 = infra.group()
+    const res2 = await group2.fetch(appPort, '/isr/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/isr/[slug]',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
+      },
+    })
+    expect(res2.status).toBe(200)
+    const $2 = cheerio.load(await res2.text())
+    const data2 = $2('#data').text()
+
+    // Each group should get its own render with different random data
+    // since ISR pages fetch fresh data on each render
+    expect(data1).not.toBe(data2)
   })
 })
