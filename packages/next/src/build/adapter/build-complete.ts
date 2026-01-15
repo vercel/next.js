@@ -751,7 +751,7 @@ export async function handleBuildComplete({
           const nextDataPath = path.posix.join(
             '/_next/data/',
             buildId,
-            output.pathname + '.json'
+            normalizePagePath(output.pathname) + '.json'
           )
           outputs.appPages.push({
             ...output,
