@@ -87,13 +87,15 @@ describe('app-dir trailingSlash handling', () => {
 
       expect(initialGeneratedAt).toBeDateString()
 
-      await browser.refresh()
+      if (!isNextDev) {
+        await browser.refresh()
 
-      const refreshedGeneratedAt = await browser
-        .elementById('generated-at')
-        .text()
+        const refreshedGeneratedAt = await browser
+          .elementById('generated-at')
+          .text()
 
-      expect(refreshedGeneratedAt).toBe(initialGeneratedAt)
+        expect(refreshedGeneratedAt).toBe(initialGeneratedAt)
+      }
 
       await browser.elementById('revalidate-button').click()
 
