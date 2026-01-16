@@ -40,6 +40,8 @@ For detailed information on configuration and usage, please refer to our compreh
 
 - **Create Your Own Handlers:** Take a look at [Custom Redis Handler](https://caching-tools.github.io/next-shared-cache/usage/creating-a-custom-handler) and use it as a basis to create your own handler.
 
+- **Redis Client Identification:** This example uses the `clientInfoTag` option to identify Redis connections as coming from Next.js. This helps with monitoring and debugging Redis connections. The tag appears in Redis client lists as `node-redis(next.js_v<version>)`, following the standard pattern for ecosystem identification.
+
 - **Redis Server Setup:** Ensure your Redis server is running and properly configured before starting your Next.js application.
 
 - **Configure Redis Credentials:** Update the `cache-handler-redis*` files with your Redis credentials. Connection details can be found [here](https://redis.io/docs/connect/clients/nodejs/).
