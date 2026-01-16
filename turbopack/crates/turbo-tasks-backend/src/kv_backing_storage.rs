@@ -6,7 +6,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use smallvec::SmallVec;
 use turbo_bincode::{
     TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder, turbo_bincode_decode,
     turbo_bincode_encode, turbo_bincode_encode_into,
@@ -256,7 +255,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         task: TaskId,
         data: &TaskStorage,
         category: SpecificTaskDataCategory,
-    ) -> Result<SmallVec<[u8; 16]>> {
+    ) -> Result<TurboBincodeBuffer> {
         encode_task_data(task, data, category)
     }
 
@@ -270,8 +269,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         I: Iterator<
                 Item = (
                     TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
+                    Option<TurboBincodeBuffer>,
+                    Option<TurboBincodeBuffer>,
                 ),
             > + Send
             + Sync,

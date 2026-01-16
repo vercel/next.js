@@ -318,15 +318,14 @@ where
                 tasks[idx].2 = Some(data);
             }
             _ => {
-                if let Some(storages) = self.restore_task_data_batch(
+                if let Some(data) = self.restore_task_data_batch(
                     &tasks_to_restore_for_data,
                     SpecificTaskDataCategory::Data,
                 ) {
-                    storages
-                        .into_iter()
+                    data.into_iter()
                         .zip(tasks_to_restore_for_data_indicies)
-                        .for_each(|(storage, idx)| {
-                            tasks[idx].2 = Some(storage);
+                        .for_each(|(item, idx)| {
+                            tasks[idx].2 = Some(item);
                         });
                 } else {
                     for idx in tasks_to_restore_for_data_indicies {
@@ -344,15 +343,14 @@ where
                 tasks[idx].3 = Some(data);
             }
             _ => {
-                if let Some(storages) = self.restore_task_data_batch(
+                if let Some(data) = self.restore_task_data_batch(
                     &tasks_to_restore_for_meta,
                     SpecificTaskDataCategory::Meta,
                 ) {
-                    storages
-                        .into_iter()
+                    data.into_iter()
                         .zip(tasks_to_restore_for_meta_indicies)
-                        .for_each(|(storage, idx)| {
-                            tasks[idx].3 = Some(storage);
+                        .for_each(|(item, idx)| {
+                            tasks[idx].3 = Some(item);
                         });
                 } else {
                     for idx in tasks_to_restore_for_meta_indicies {
@@ -424,19 +422,36 @@ where
             if task_id.is_transient() {
                 task.flags.set_restored(TaskDataCategory::All);
             } else {
-                for category in category {
-                    if !task.flags.is_restored(category.into()) {
-                        // Avoid holding the lock too long since this can also affect other tasks
-                        drop(task);
-                        // If we are restoring ALL it would be best to call restore_task_data twice
-                        // in here instead of looping
+                // Collect which categories need restoring while we have the lock
+                let needs_data =
+                    category.includes_data() && !task.flags.is_restored(TaskDataCategory::Data);
+                let needs_meta =
+                    category.includes_meta() && !task.flags.is_restored(TaskDataCategory::Meta);
 
-                        let storage = self.restore_task_data(task_id, category);
-                        task = self.backend.storage.access_mut(task_id);
-                        if !task.flags.is_restored(category.into()) {
-                            task.restore_from(storage, category.into());
-                            task.flags.set_restored(category.into());
-                        }
+                if needs_data || needs_meta {
+                    // Avoid holding the lock too long since this can also affect other tasks
+                    // Drop lock once, do all I/O, then re-acquire once
+                    drop(task);
+
+                    let storage_data = needs_data
+                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
+                    let storage_meta = needs_meta
+                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
+
+                    task = self.backend.storage.access_mut(task_id);
+
+                    // Handle race conditions and merge
+                    if let Some(storage) = storage_data
+                        && !task.flags.is_restored(TaskDataCategory::Data)
+                    {
+                        task.restore_from(storage, TaskDataCategory::Data);
+                        task.flags.set_restored(TaskDataCategory::Data);
+                    }
+                    if let Some(storage) = storage_meta
+                        && !task.flags.is_restored(TaskDataCategory::Meta)
+                    {
+                        task.restore_from(storage, TaskDataCategory::Meta);
+                        task.flags.set_restored(TaskDataCategory::Meta);
                     }
                 }
             }
@@ -510,28 +525,60 @@ where
         }
 
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
-        let is_restored1 = task1.flags.is_restored(category);
-        let is_restored2 = task2.flags.is_restored(category);
-        if !is_restored1 || !is_restored2 {
-            for category in category {
-                // Avoid holding the lock too long since this can also affect other tasks
-                drop(task1);
-                drop(task2);
 
-                let storage1 = (!is_restored1).then(|| self.restore_task_data(task_id1, category));
-                let storage2 = (!is_restored2).then(|| self.restore_task_data(task_id2, category));
+        // Collect what needs restoring for each task
+        let needs_data1 =
+            category.includes_data() && !task1.flags.is_restored(TaskDataCategory::Data);
+        let needs_meta1 =
+            category.includes_meta() && !task1.flags.is_restored(TaskDataCategory::Meta);
+        let needs_data2 =
+            category.includes_data() && !task2.flags.is_restored(TaskDataCategory::Data);
+        let needs_meta2 =
+            category.includes_meta() && !task2.flags.is_restored(TaskDataCategory::Meta);
 
-                let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
-                task1 = t1;
-                task2 = t2;
-                if !task1.flags.is_restored(category.into()) {
-                    task1.restore_from(storage1.unwrap(), category.into());
-                    task1.flags.set_restored(category.into());
-                }
-                if !task2.flags.is_restored(category.into()) {
-                    task2.restore_from(storage2.unwrap(), category.into());
-                    task2.flags.set_restored(category.into());
-                }
+        if needs_data1 || needs_meta1 || needs_data2 || needs_meta2 {
+            // Avoid holding the lock too long since this can also affect other tasks
+            // Drop locks once, do all I/O, then re-acquire once
+            drop(task1);
+            drop(task2);
+
+            let storage_data1 = needs_data1
+                .then(|| self.restore_task_data(task_id1, SpecificTaskDataCategory::Data));
+            let storage_meta1 = needs_meta1
+                .then(|| self.restore_task_data(task_id1, SpecificTaskDataCategory::Meta));
+            let storage_data2 = needs_data2
+                .then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Data));
+            let storage_meta2 = needs_meta2
+                .then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Meta));
+
+            let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
+            task1 = t1;
+            task2 = t2;
+
+            // Merge results, handling race conditions
+            if let Some(storage) = storage_data1
+                && !task1.flags.is_restored(TaskDataCategory::Data)
+            {
+                task1.restore_from(storage, TaskDataCategory::Data);
+                task1.flags.set_restored(TaskDataCategory::Data);
+            }
+            if let Some(storage) = storage_meta1
+                && !task1.flags.is_restored(TaskDataCategory::Meta)
+            {
+                task1.restore_from(storage, TaskDataCategory::Meta);
+                task1.flags.set_restored(TaskDataCategory::Meta);
+            }
+            if let Some(storage) = storage_data2
+                && !task2.flags.is_restored(TaskDataCategory::Data)
+            {
+                task2.restore_from(storage, TaskDataCategory::Data);
+                task2.flags.set_restored(TaskDataCategory::Data);
+            }
+            if let Some(storage) = storage_meta2
+                && !task2.flags.is_restored(TaskDataCategory::Meta)
+            {
+                task2.restore_from(storage, TaskDataCategory::Meta);
+                task2.flags.set_restored(TaskDataCategory::Meta);
             }
         }
         (

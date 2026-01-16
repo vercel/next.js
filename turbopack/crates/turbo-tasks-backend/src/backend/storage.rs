@@ -30,14 +30,13 @@ impl TaskDataCategory {
             TaskDataCategory::All => unreachable!(),
         }
     }
-}
 
-impl From<SpecificTaskDataCategory> for TaskDataCategory {
-    fn from(value: SpecificTaskDataCategory) -> Self {
-        match value {
-            SpecificTaskDataCategory::Meta => TaskDataCategory::Meta,
-            SpecificTaskDataCategory::Data => TaskDataCategory::Data,
-        }
+    pub fn includes_data(self) -> bool {
+        matches!(self, TaskDataCategory::Data | TaskDataCategory::All)
+    }
+
+    pub fn includes_meta(self) -> bool {
+        matches!(self, TaskDataCategory::Meta | TaskDataCategory::All)
     }
 }
 
@@ -45,49 +44,6 @@ impl From<SpecificTaskDataCategory> for TaskDataCategory {
 pub enum SpecificTaskDataCategory {
     Meta,
     Data,
-}
-
-impl IntoIterator for TaskDataCategory {
-    type Item = SpecificTaskDataCategory;
-
-    type IntoIter = TaskDataCategoryIterator;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match self {
-            TaskDataCategory::Meta => TaskDataCategoryIterator::Meta,
-            TaskDataCategory::Data => TaskDataCategoryIterator::Data,
-            TaskDataCategory::All => TaskDataCategoryIterator::All,
-        }
-    }
-}
-
-pub enum TaskDataCategoryIterator {
-    All,
-    Meta,
-    Data,
-    None,
-}
-
-impl Iterator for TaskDataCategoryIterator {
-    type Item = SpecificTaskDataCategory;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            TaskDataCategoryIterator::All => {
-                *self = TaskDataCategoryIterator::Data;
-                Some(SpecificTaskDataCategory::Meta)
-            }
-            TaskDataCategoryIterator::Meta => {
-                *self = TaskDataCategoryIterator::None;
-                Some(SpecificTaskDataCategory::Meta)
-            }
-            TaskDataCategoryIterator::Data => {
-                *self = TaskDataCategoryIterator::None;
-                Some(SpecificTaskDataCategory::Data)
-            }
-            TaskDataCategoryIterator::None => None,
-        }
-    }
 }
 
 enum ModifiedState {

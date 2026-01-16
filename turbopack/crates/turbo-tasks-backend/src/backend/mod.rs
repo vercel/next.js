@@ -1082,38 +1082,41 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             (meta, data)
         };
-        let process = |task_id: TaskId, (meta, data): (Option<_>, Option<_>)| {
-            // TODO: perf: Instead of returning a `Vec` of individually allocated `SmallVec`s, it'd
-            // be better to append everything to a flat per-task or per-shard `Vec<u8>`, and have
-            // each `serialize` call return `(start_idx, end_idx)`.
-            (
-                task_id,
-                meta.map(|d| {
-                    self.backing_storage
-                        .serialize(task_id, &d, SpecificTaskDataCategory::Meta)
-                }),
-                data.map(|d| {
-                    self.backing_storage
-                        .serialize(task_id, &d, SpecificTaskDataCategory::Data)
-                }),
-            )
-        };
+        let process =
+            |task_id: TaskId, (meta, data): (Option<TaskStorage>, Option<TaskStorage>)| {
+                // TODO: perf: Instead of returning a `Vec` of individually allocated `SmallVec`s,
+                // it'd be better to append everything to a flat per-task or
+                // per-shard `Vec<u8>`, and have each `serialize` call return
+                // `(start_idx, end_idx)`.
+                (
+                    task_id,
+                    meta.map(|d| {
+                        self.backing_storage
+                            .serialize(task_id, &d, SpecificTaskDataCategory::Meta)
+                    }),
+                    data.map(|d| {
+                        self.backing_storage
+                            .serialize(task_id, &d, SpecificTaskDataCategory::Data)
+                    }),
+                )
+            };
         let process_snapshot = |task_id: TaskId, inner: Box<TaskStorage>| {
             if task_id.is_transient() {
                 return (task_id, None, None);
             }
 
             // Encode meta/data directly from TaskStorage snapshot
-            let meta = inner.flags.meta_modified().then(|| {
-                self.backing_storage
-                    .serialize(task_id, &inner, SpecificTaskDataCategory::Meta)
-            });
-            let data = inner.flags.data_modified().then(|| {
-                self.backing_storage
-                    .serialize(task_id, &inner, SpecificTaskDataCategory::Data)
-            });
-
-            (task_id, meta, data)
+            (
+                task_id,
+                inner.flags.meta_modified().then(|| {
+                    self.backing_storage
+                        .serialize(task_id, &inner, SpecificTaskDataCategory::Meta)
+                }),
+                inner.flags.data_modified().then(|| {
+                    self.backing_storage
+                        .serialize(task_id, &inner, SpecificTaskDataCategory::Data)
+                }),
+            )
         };
 
         let snapshot = self
