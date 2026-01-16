@@ -116,10 +116,26 @@ export function installPackages(
   }
 }
 
-export function runInstallation(
+export interface InstallationError extends Error {
+  isPeerDependencyError: boolean
+  originalError?: Error
+}
+
+function createInstallationError(
+  message: string,
+  isPeerDependencyError: boolean,
+  cause?: Error
+): InstallationError {
+  const error = new Error(message, { cause }) as InstallationError
+  error.isPeerDependencyError = isPeerDependencyError
+  error.originalError = cause
+  return error
+}
+
+export async function runInstallation(
   packageManager: PackageManager,
   options: { cwd: string }
-) {
+): Promise<void> {
   try {
     execa.sync(packageManager, ['install'], {
       cwd: options.cwd,
@@ -133,8 +149,28 @@ export function runInstallation(
       stdio: 'inherit',
       shell: true,
     })
-  } catch (error) {
-    throw new Error('Failed to install dependencies', { cause: error })
+  } catch (error: any) {
+    // Check if this is a peer dependency resolution error
+    const errorOutput = error?.stderr?.toString() || error?.message || ''
+    const isPeerDependencyError =
+      errorOutput.includes('ERESOLVE') ||
+      errorOutput.includes('peer dep') ||
+      errorOutput.includes('Could not resolve dependency')
+
+    if (isPeerDependencyError) {
+      const installError = createInstallationError(
+        'Failed to install dependencies due to peer dependency conflicts',
+        true,
+        error
+      )
+      throw installError
+    }
+
+    throw createInstallationError(
+      'Failed to install dependencies',
+      false,
+      error
+    )
   }
 }
 

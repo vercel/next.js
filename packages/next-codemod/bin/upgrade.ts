@@ -14,6 +14,7 @@ import {
   getPkgManager,
   addPackageDependency,
   runInstallation,
+  type InstallationError,
 } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
@@ -36,6 +37,100 @@ const optionalNextjsPackages = [
   '@next/react-refresh-utils',
   '@next/third-parties',
 ]
+
+/**
+ * Fetches the peer dependencies of a specific package version from npm.
+ */
+async function getPackagePeerDependencies(
+  packageName: string,
+  version: string
+): Promise<Record<string, string> | null> {
+  try {
+    const packageInfo = execSync(
+      `npm --silent view "${packageName}@${version}" peerDependencies --json`,
+      { encoding: 'utf-8' }
+    )
+    return JSON.parse(packageInfo)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Checks if a version satisfies a given range.
+ */
+function checkVersionSatisfies(version: string, range: string): boolean {
+  try {
+    return satisfiesVersionRange(version, range, { includePrerelease: true })
+  } catch {
+    return false
+  }
+}
+
+interface PeerDependencyConflict {
+  packageName: string
+  peerDependency: string
+  requiredRange: string
+  installedVersion: string
+}
+
+/**
+ * Checks for peer dependency conflicts before installation.
+ * Returns a list of conflicts that would cause installation to fail.
+ */
+async function checkPeerDependencyConflicts(
+  packagesToUpgrade: Array<{ name: string; version: string }>,
+  allDependencies: Record<string, string>
+): Promise<PeerDependencyConflict[]> {
+  const conflicts: PeerDependencyConflict[] = []
+
+  for (const pkg of packagesToUpgrade) {
+    const peerDeps = await getPackagePeerDependencies(pkg.name, pkg.version)
+    if (!peerDeps) continue
+
+    for (const [peerDep, requiredRange] of Object.entries(peerDeps)) {
+      // Skip if the peer dependency is also being upgraded
+      if (packagesToUpgrade.some((p) => p.name === peerDep)) continue
+
+      // Check if the peer dependency is installed in the project
+      const installedVersion = allDependencies[peerDep]
+      if (!installedVersion) continue
+
+      // Try to resolve the actual installed version
+      let resolvedVersion = installedVersion
+      try {
+        const pkgJsonPath = require.resolve(`${peerDep}/package.json`, {
+          paths: [cwd],
+        })
+        resolvedVersion = require(pkgJsonPath).version
+      } catch {
+        // If we can't resolve the version, use the semver range to check
+        // This is a best-effort check
+        if (
+          installedVersion.startsWith('^') ||
+          installedVersion.startsWith('~')
+        ) {
+          // Extract the base version from the range
+          const match = installedVersion.match(/[\d.]+/)
+          if (match) {
+            resolvedVersion = match[0]
+          }
+        }
+      }
+
+      if (!checkVersionSatisfies(resolvedVersion, requiredRange)) {
+        conflicts.push({
+          packageName: pkg.name,
+          peerDependency: peerDep,
+          requiredRange,
+          installedVersion: resolvedVersion,
+        })
+      }
+    }
+  }
+
+  return conflicts
+}
 
 /**
  * @param query
@@ -256,6 +351,11 @@ export async function runUpgrade(
     await suggestTurbopack(appPackageJson, targetNextVersion)
   }
 
+  // In Next.js 16+, Turbopack is the default for `next dev`, so remove the flag
+  if (compareVersions(targetNextVersion, '16.0.0-canary') >= 0) {
+    await removeTurbopackFlag(appPackageJson)
+  }
+
   const codemods = await suggestCodemods(
     installedNextVersion,
     targetNextVersion
@@ -382,6 +482,171 @@ export async function runUpgrade(
     addPackageDependency(appPackageJson, dep, version, true)
   }
 
+  // Check for peer dependency conflicts before installation
+  const packagesToUpgrade = [
+    ...dependenciesToInstall.map(([name, version]) => ({ name, version })),
+    ...devDependenciesToInstall.map(([name, version]) => ({ name, version })),
+  ]
+
+  const conflicts = await checkPeerDependencyConflicts(
+    packagesToUpgrade,
+    allDependencies
+  )
+
+  // Handle ESLint version conflicts specifically
+  const eslintConflict = conflicts.find(
+    (c) =>
+      c.peerDependency === 'eslint' && c.packageName === 'eslint-config-next'
+  )
+
+  if (eslintConflict) {
+    console.log()
+    console.log(
+      `${pc.yellow('⚠')} ${pc.bold('eslint-config-next@' + targetNextVersion)} requires ${pc.bold('eslint@' + eslintConflict.requiredRange)}, ` +
+        `but you have ${pc.bold('eslint@' + eslintConflict.installedVersion)} installed.`
+    )
+
+    const { upgradeEslint } = await prompts(
+      {
+        type: 'confirm',
+        name: 'upgradeEslint',
+        message: `Would you like to upgrade ESLint to a compatible version?`,
+        initial: true,
+      },
+      { onCancel }
+    )
+
+    if (upgradeEslint) {
+      // Find the latest ESLint version that satisfies the requirement
+      const targetEslintVersion = await loadHighestNPMVersionMatching(
+        `eslint@${eslintConflict.requiredRange}`
+      )
+
+      if (appPackageJson.devDependencies?.['eslint']) {
+        addPackageDependency(
+          appPackageJson,
+          'eslint',
+          targetEslintVersion,
+          true
+        )
+        devDependenciesToInstall.push(['eslint', targetEslintVersion])
+      } else if (appPackageJson.dependencies?.['eslint']) {
+        addPackageDependency(
+          appPackageJson,
+          'eslint',
+          targetEslintVersion,
+          false
+        )
+        dependenciesToInstall.push(['eslint', targetEslintVersion])
+      }
+
+      console.log(
+        `${pc.green('✔')} Will upgrade ESLint to v${targetEslintVersion}`
+      )
+
+      // When upgrading to ESLint 9+, also upgrade @typescript-eslint packages
+      // because v7.x only supports ESLint 8.x, v8.x+ supports ESLint 9.x
+      if (major(targetEslintVersion) >= 9) {
+        const typescriptEslintPackages = [
+          '@typescript-eslint/parser',
+          '@typescript-eslint/eslint-plugin',
+        ]
+
+        for (const tsEslintPkg of typescriptEslintPackages) {
+          const hasPackage = allDependencies[tsEslintPkg]
+          if (!hasPackage) continue
+
+          // Check if the installed version is < 8 (v8+ supports ESLint 9)
+          let installedVersion = hasPackage
+          try {
+            const pkgJsonPath = require.resolve(`${tsEslintPkg}/package.json`, {
+              paths: [cwd],
+            })
+            installedVersion = require(pkgJsonPath).version
+          } catch {
+            // Use the semver range to extract version
+            const match = hasPackage.match(/[\d.]+/)
+            if (match) installedVersion = match[0]
+          }
+
+          // Only upgrade if current version is < 8
+          if (major(installedVersion) < 8) {
+            const targetTsEslintVersion = await loadHighestNPMVersionMatching(
+              `${tsEslintPkg}@^8`
+            )
+
+            if (appPackageJson.devDependencies?.[tsEslintPkg]) {
+              addPackageDependency(
+                appPackageJson,
+                tsEslintPkg,
+                targetTsEslintVersion,
+                true
+              )
+              devDependenciesToInstall.push([
+                tsEslintPkg,
+                targetTsEslintVersion,
+              ])
+            } else if (appPackageJson.dependencies?.[tsEslintPkg]) {
+              addPackageDependency(
+                appPackageJson,
+                tsEslintPkg,
+                targetTsEslintVersion,
+                false
+              )
+              dependenciesToInstall.push([tsEslintPkg, targetTsEslintVersion])
+            }
+
+            console.log(
+              `${pc.green('✔')} Will upgrade ${tsEslintPkg} to v${targetTsEslintVersion}`
+            )
+          }
+        }
+
+        // Check if user needs to migrate ESLint config to flat config format
+        await suggestEslintConfigMigration(cwd, codemods)
+      }
+
+      // Remove this conflict from the list since we're handling it
+      const conflictIndex = conflicts.indexOf(eslintConflict)
+      if (conflictIndex > -1) {
+        conflicts.splice(conflictIndex, 1)
+      }
+    } else {
+      console.log()
+      console.log(pc.yellow('To resolve this manually, you can either:'))
+      console.log(
+        `  1. Upgrade ESLint: ${pc.cyan(`${packageManager} ${packageManager === 'npm' ? 'install' : 'add'} eslint@${eslintConflict.requiredRange.replace('>=', '^')}`)}`
+      )
+      console.log(
+        `  2. Use legacy peer deps: ${pc.cyan(`${packageManager} install --legacy-peer-deps`)}`
+      )
+      console.log()
+    }
+  }
+
+  // Warn about other peer dependency conflicts
+  const otherConflicts = conflicts.filter(
+    (c) =>
+      !(c.peerDependency === 'eslint' && c.packageName === 'eslint-config-next')
+  )
+
+  if (otherConflicts.length > 0) {
+    console.log()
+    console.log(
+      `${pc.yellow('⚠')} Detected ${otherConflicts.length} potential peer dependency ${otherConflicts.length === 1 ? 'conflict' : 'conflicts'}:`
+    )
+    for (const conflict of otherConflicts) {
+      console.log(
+        `  ${pc.bold(conflict.packageName)} requires ${pc.bold(conflict.peerDependency + '@' + conflict.requiredRange)}, ` +
+          `but ${pc.bold(conflict.peerDependency + '@' + conflict.installedVersion)} is installed`
+      )
+    }
+    console.log()
+    console.log(
+      `${pc.dim('These may cause installation issues. Consider updating these dependencies after the upgrade.')}`
+    )
+  }
+
   fs.writeFileSync(
     appPackageJsonPath,
     JSON.stringify(appPackageJson, null, 2) +
@@ -389,7 +654,71 @@ export async function runUpgrade(
       os.EOL
   )
 
-  runInstallation(packageManager, { cwd })
+  try {
+    await runInstallation(packageManager, { cwd })
+  } catch (error) {
+    const installError = error as InstallationError
+
+    if (installError.isPeerDependencyError) {
+      console.log()
+      console.log(
+        pc.red('✖') + ' Installation failed due to peer dependency conflicts.'
+      )
+      console.log()
+      console.log(pc.bold('To resolve this, you can try one of the following:'))
+      console.log()
+      console.log(
+        `  ${pc.cyan('1.')} Upgrade conflicting dependencies to compatible versions`
+      )
+      console.log(
+        `     Check which packages have peer dependency conflicts and upgrade them.`
+      )
+      console.log()
+      console.log(
+        `  ${pc.cyan('2.')} Use legacy peer dependency resolution (${pc.yellow('not recommended')})`
+      )
+
+      const legacyCommand =
+        packageManager === 'npm'
+          ? 'npm install --legacy-peer-deps'
+          : packageManager === 'yarn'
+            ? 'yarn install --ignore-engines'
+            : packageManager === 'pnpm'
+              ? 'pnpm install --ignore-peer-deps'
+              : 'bun install'
+
+      console.log(`     Run: ${pc.cyan(legacyCommand)}`)
+      console.log()
+      console.log(
+        `  ${pc.cyan('3.')} Revert the package.json changes and try again`
+      )
+      console.log(`     Run: ${pc.cyan('git checkout package.json')}`)
+      console.log()
+      console.log(
+        pc.dim(
+          'Note: Your package.json has been updated but dependencies were not installed.'
+        )
+      )
+      console.log(
+        pc.dim(
+          "Fix the peer dependency conflicts and run your package manager's install command manually."
+        )
+      )
+    } else {
+      console.log()
+      console.log(
+        pc.red('✖') + ' Installation failed. Please check the error above.'
+      )
+      console.log()
+      console.log(
+        pc.dim(
+          "Your package.json has been updated. Try running your package manager's install command manually."
+        )
+      )
+    }
+
+    throw error
+  }
 
   for (const codemod of codemods) {
     await runTransform(codemod, cwd, { force: true, verbose })
@@ -554,6 +883,132 @@ async function suggestTurbopack(
 
   packageJson.scripts['dev'] =
     responseCustomDevScript.customDevScript || devScript
+}
+
+/*
+ * Checks if the user has a legacy ESLint config that needs migration.
+ * ESLint 9 uses flat config format (eslint.config.js) instead of .eslintrc.*
+ */
+function hasLegacyEslintConfig(projectPath: string): boolean {
+  const legacyConfigs = [
+    '.eslintrc',
+    '.eslintrc.js',
+    '.eslintrc.cjs',
+    '.eslintrc.json',
+    '.eslintrc.yaml',
+    '.eslintrc.yml',
+  ]
+
+  return legacyConfigs.some((config) =>
+    fs.existsSync(path.join(projectPath, config))
+  )
+}
+
+function hasFlatEslintConfig(projectPath: string): boolean {
+  const flatConfigs = [
+    'eslint.config.js',
+    'eslint.config.mjs',
+    'eslint.config.cjs',
+    'eslint.config.ts',
+    'eslint.config.mts',
+    'eslint.config.cts',
+  ]
+
+  return flatConfigs.some((config) =>
+    fs.existsSync(path.join(projectPath, config))
+  )
+}
+
+/*
+ * When upgrading to ESLint 9+, suggest running the ESLint config migration
+ * codemod if the user has a legacy .eslintrc.* config.
+ */
+async function suggestEslintConfigMigration(
+  projectPath: string,
+  codemods: string[]
+): Promise<void> {
+  const hasLegacy = hasLegacyEslintConfig(projectPath)
+  const hasFlat = hasFlatEslintConfig(projectPath)
+
+  // If user already has flat config or the codemod is already in the list, skip
+  if (hasFlat || codemods.includes('next-lint-to-eslint-cli')) {
+    return
+  }
+
+  if (hasLegacy) {
+    console.log()
+    console.log(
+      `${pc.yellow('⚠')} ESLint 9 uses the new flat config format (eslint.config.js).`
+    )
+    console.log(
+      `   Your project has a legacy ESLint config that needs to be migrated.`
+    )
+
+    const { runMigration } = await prompts(
+      {
+        type: 'confirm',
+        name: 'runMigration',
+        message:
+          'Would you like to migrate your ESLint config to flat config format?',
+        initial: true,
+      },
+      { onCancel }
+    )
+
+    if (runMigration) {
+      // Add the codemod to the list to be run
+      codemods.push('next-lint-to-eslint-cli')
+      console.log(`${pc.green('✔')} Will run ESLint config migration codemod`)
+    } else {
+      console.log()
+      console.log(pc.dim('To migrate manually, run:'))
+      console.log(pc.cyan('  npx @next/codemod next-lint-to-eslint-cli'))
+      console.log()
+    }
+  }
+}
+
+/*
+ * In Next.js 16+, Turbopack is the default for `next dev` and `next build`.
+ * This function removes the `--turbopack` or `--turbo` flag from scripts
+ * since it's no longer needed.
+ */
+async function removeTurbopackFlag(packageJson: any): Promise<void> {
+  const scriptsToCheck = ['dev', 'build']
+  const updatedScripts: string[] = []
+
+  for (const scriptName of scriptsToCheck) {
+    const script: string | undefined = packageJson.scripts?.[scriptName]
+
+    if (!script) {
+      continue
+    }
+
+    // Check if this is a Next.js script with --turbopack or --turbo
+    const isNextScript = script.includes(`next ${scriptName}`)
+    const hasTurbopackFlag =
+      script.includes('--turbopack') || script.includes('--turbo')
+
+    if (isNextScript && hasTurbopackFlag) {
+      // Remove the flag (handle both with and without leading space)
+      const updatedScript = script
+        .replace(/\s+--turbopack\b/g, '')
+        .replace(/\s+--turbo\b/g, '')
+        .replace(/--turbopack\s*/g, '')
+        .replace(/--turbo\s*/g, '')
+        .trim()
+
+      packageJson.scripts[scriptName] = updatedScript
+      updatedScripts.push(scriptName)
+    }
+  }
+
+  if (updatedScripts.length > 0) {
+    console.log()
+    console.log(
+      `${pc.green('✔')} Removed "--turbopack" from ${updatedScripts.map((s) => `"${s}"`).join(' and ')} script${updatedScripts.length > 1 ? 's' : ''} (Turbopack is now the default in Next.js 16+)`
+    )
+  }
 }
 
 async function suggestCodemods(
