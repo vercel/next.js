@@ -8,7 +8,7 @@ describe('extractRoutesFromFlightRouterState', () => {
         const tree: FlightRouterState = [
           '',
           {
-            children: ['__PAGE__', {}, '/', undefined, true],
+            children: ['__PAGE__', {}, ['/', ''], undefined, true],
           },
           undefined,
           undefined,
@@ -25,7 +25,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'about',
               {
-                children: ['__PAGE__', {}, '/about'],
+                children: ['__PAGE__', {}, ['/about', '']],
               },
             ],
           },
@@ -46,7 +46,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'about',
               {
-                children: ['__PAGE__', {}, '/about'],
+                children: ['__PAGE__', {}, ['/about', '']],
               },
             ],
           },
@@ -65,7 +65,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'about',
               {
-                children: ['__PAGE__', {}, '/about'],
+                children: ['__PAGE__', {}, ['/about', '']],
               },
             ],
           },
@@ -90,7 +90,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   'about',
                   {
-                    children: ['__PAGE__', {}, '/about'],
+                    children: ['__PAGE__', {}, ['/about', '']],
                   },
                 ],
               },
@@ -119,7 +119,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       'settings',
                       {
-                        children: ['__PAGE__', {}, '/settings'],
+                        children: ['__PAGE__', {}, ['/settings', '']],
                       },
                     ],
                   },
@@ -153,7 +153,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                         children: [
                           'login',
                           {
-                            children: ['__PAGE__', {}, '/login'],
+                            children: ['__PAGE__', {}, ['/login', '']],
                           },
                         ],
                       },
@@ -187,7 +187,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   ['slug', 'my-post', 'd'],
                   {
-                    children: ['__PAGE__', {}, '/blog/my-post'],
+                    children: ['__PAGE__', {}, ['/blog/my-post', '']],
                   },
                 ],
               },
@@ -216,7 +216,11 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       ['product', 'laptop', 'd'],
                       {
-                        children: ['__PAGE__', {}, '/shop/electronics/laptop'],
+                        children: [
+                          '__PAGE__',
+                          {},
+                          ['/shop/electronics/laptop', ''],
+                        ],
                       },
                     ],
                   },
@@ -247,7 +251,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       ['product', 'laptop', 'd'],
                       {
-                        children: ['__PAGE__', {}, '/electronics/laptop'],
+                        children: ['__PAGE__', {}, ['/electronics/laptop', '']],
                       },
                     ],
                   },
@@ -277,7 +281,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   ['slug', 'api/reference', 'c'],
                   {
-                    children: ['__PAGE__', {}, '/docs/api/reference'],
+                    children: ['__PAGE__', {}, ['/docs/api/reference', '']],
                   },
                 ],
               },
@@ -300,7 +304,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               ['path', 'blog/posts', 'c'],
               {
-                children: ['__PAGE__', {}, '/blog/posts'],
+                children: ['__PAGE__', {}, ['/blog/posts', '']],
               },
             ],
           },
@@ -326,7 +330,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   ['slug', 'api/reference', 'oc'],
                   {
-                    children: ['__PAGE__', {}, '/docs/api/reference'],
+                    children: ['__PAGE__', {}, ['/docs/api/reference', '']],
                   },
                 ],
               },
@@ -349,7 +353,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               ['slug', 'about/team', 'oc'],
               {
-                children: ['__PAGE__', {}, '/about/team'],
+                children: ['__PAGE__', {}, ['/about/team', '']],
               },
             ],
           },
@@ -372,7 +376,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'posts',
               {
-                children: ['__PAGE__', {}, '/posts'],
+                children: ['__PAGE__', {}, ['/posts', '']],
                 modal: [
                   '(slot)',
                   {
@@ -382,7 +386,11 @@ describe('extractRoutesFromFlightRouterState', () => {
                         children: [
                           ['slug', 'my-post', 'd'],
                           {
-                            children: ['__PAGE__', {}, '/posts/post/my-post'],
+                            children: [
+                              '__PAGE__',
+                              {},
+                              ['/posts/post/my-post', ''],
+                            ],
                           },
                         ],
                       },
@@ -418,7 +426,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                         children: [
                           ['id', '123', 'di(.)'],
                           {
-                            children: ['__PAGE__', {}, '/gallery/123'],
+                            children: ['__PAGE__', {}, ['/gallery/123', '']],
                           },
                         ],
                       },
@@ -449,14 +457,14 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   'catalog',
                   {
-                    children: ['__PAGE__', {}, '/store/catalog'],
+                    children: ['__PAGE__', {}, ['/store/catalog', '']],
                     modal: [
                       '(slot)',
                       {
                         children: [
                           ['productId', '999', 'di(..)'],
                           {
-                            children: ['__PAGE__', {}, '/store/999'],
+                            children: ['__PAGE__', {}, ['/store/999', '']],
                           },
                         ],
                       },
@@ -487,14 +495,14 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   'panel',
                   {
-                    children: ['__PAGE__', {}, '/admin/panel'],
+                    children: ['__PAGE__', {}, ['/admin/panel', '']],
                     overlay: [
                       '(slot)',
                       {
                         children: [
                           ['userId', '555', 'di(...)'],
                           {
-                            children: ['__PAGE__', {}, '/555'],
+                            children: ['__PAGE__', {}, ['/555', '']],
                           },
                         ],
                       },
@@ -524,7 +532,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'wiki',
               {
-                children: ['__PAGE__', {}, '/wiki'],
+                children: ['__PAGE__', {}, ['/wiki', '']],
                 modal: [
                   '(slot)',
                   {
@@ -537,7 +545,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                             children: [
                               '__PAGE__',
                               {},
-                              '/wiki/docs/getting-started/intro',
+                              ['/wiki/docs/getting-started/intro', ''],
                             ],
                           },
                         ],
@@ -574,7 +582,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       ['path', 'guides/intro', 'ci(.)'],
                       {
-                        children: ['__PAGE__', {}, '/docs/guides/intro'],
+                        children: ['__PAGE__', {}, ['/docs/guides/intro', '']],
                       },
                     ],
                   },
@@ -606,7 +614,11 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       'settings',
                       {
-                        children: ['__PAGE__', {}, '/app/dashboard/settings'],
+                        children: [
+                          '__PAGE__',
+                          {},
+                          ['/app/dashboard/settings', ''],
+                        ],
                         docs: [
                           '(slot)',
                           {
@@ -616,7 +628,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                                 children: [
                                   '__PAGE__',
                                   {},
-                                  '/app/api/reference/config',
+                                  ['/app/api/reference/config', ''],
                                 ],
                               },
                             ],
@@ -653,14 +665,18 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       'users',
                       {
-                        children: ['__PAGE__', {}, '/admin/panel/users'],
+                        children: ['__PAGE__', {}, ['/admin/panel/users', '']],
                         help: [
                           '(slot)',
                           {
                             children: [
                               ['segments', 'docs/faq/account', 'ci(...)'],
                               {
-                                children: ['__PAGE__', {}, '/docs/faq/account'],
+                                children: [
+                                  '__PAGE__',
+                                  {},
+                                  ['/docs/faq/account', ''],
+                                ],
                               },
                             ],
                           },
@@ -691,14 +707,14 @@ describe('extractRoutesFromFlightRouterState', () => {
         const tree: FlightRouterState = [
           '',
           {
-            children: ['__PAGE__', {}, '/'],
+            children: ['__PAGE__', {}, ['/', '']],
             modal: [
               '(slot)',
               {
                 children: [
                   'login',
                   {
-                    children: ['__PAGE__', {}, '/login'],
+                    children: ['__PAGE__', {}, ['/login', '']],
                   },
                 ],
               },
@@ -721,11 +737,11 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'app',
               {
-                children: ['__PAGE__', {}, '/app'],
+                children: ['__PAGE__', {}, ['/app', '']],
                 sidebar: [
                   'nav',
                   {
-                    children: ['__PAGE__', {}, '/app/nav'],
+                    children: ['__PAGE__', {}, ['/app/nav', '']],
                   },
                 ],
               },
@@ -752,13 +768,13 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   ['id', '123', 'd'],
                   {
-                    children: ['__PAGE__', {}, '/gallery/123'],
+                    children: ['__PAGE__', {}, ['/gallery/123', '']],
                   },
                 ],
                 modal: [
                   '(slot)',
                   {
-                    children: ['__PAGE__', {}, '/gallery/modal'],
+                    children: ['__PAGE__', {}, ['/gallery/modal', '']],
                   },
                 ],
               },
@@ -782,11 +798,11 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'see',
               {
-                children: ['__PAGE__', {}, '/see'],
+                children: ['__PAGE__', {}, ['/see', '']],
                 modal: [
                   '(slot)', // synthetic segment - should be skipped
                   {
-                    children: ['__PAGE__', {}, '/see'],
+                    children: ['__PAGE__', {}, ['/see', '']],
                   },
                 ],
               },
@@ -814,11 +830,11 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'dashboard',
               {
-                children: ['__PAGE__', {}, '/dashboard'],
+                children: ['__PAGE__', {}, ['/dashboard', '']],
                 sidebar: [
                   '(nav)',
                   {
-                    children: ['__PAGE__', {}, '/dashboard'],
+                    children: ['__PAGE__', {}, ['/dashboard', '']],
                   },
                 ],
               },
@@ -843,17 +859,17 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'dashboard',
               {
-                children: ['__PAGE__', {}, '/dashboard'],
+                children: ['__PAGE__', {}, ['/dashboard', '']],
                 analytics: [
                   'chart',
                   {
-                    children: ['__PAGE__', {}, '/dashboard/chart'],
+                    children: ['__PAGE__', {}, ['/dashboard/chart', '']],
                   },
                 ],
                 sidebar: [
                   'chart',
                   {
-                    children: ['__PAGE__', {}, '/dashboard/chart'],
+                    children: ['__PAGE__', {}, ['/dashboard/chart', '']],
                   },
                 ],
               },
@@ -887,18 +903,22 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   'dashboard',
                   {
-                    children: ['__PAGE__', {}, '/app/dashboard'],
+                    children: ['__PAGE__', {}, ['/app/dashboard', '']],
                     panel: [
                       'stats',
                       {
-                        children: ['__PAGE__', {}, '/app/dashboard/stats'],
+                        children: [
+                          '__PAGE__',
+                          {},
+                          ['/app/dashboard/stats', ''],
+                        ],
                         chart: [
                           'line',
                           {
                             children: [
                               '__PAGE__',
                               {},
-                              '/app/dashboard/stats/line',
+                              ['/app/dashboard/stats/line', ''],
                             ],
                           },
                         ],
@@ -938,7 +958,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                             children: [
                               '__PAGE__',
                               {},
-                              '/app/level1/level2/level3',
+                              ['/app/level1/level2/level3', ''],
                             ],
                           },
                         ],
@@ -949,7 +969,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                 shortcut: [
                   'direct',
                   {
-                    children: ['__PAGE__', {}, '/app/direct'],
+                    children: ['__PAGE__', {}, ['/app/direct', '']],
                   },
                 ],
               },
@@ -978,7 +998,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   ['id', '123', 'd'],
                   {
-                    children: ['__PAGE__', {}, '/test/123'],
+                    children: ['__PAGE__', {}, ['/test/123', '']],
                   },
                 ],
                 modal: [
@@ -987,7 +1007,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       ['id', '123', 'd'],
                       {
-                        children: ['__PAGE__', {}, '/test/123'],
+                        children: ['__PAGE__', {}, ['/test/123', '']],
                       },
                     ],
                   },
@@ -1017,7 +1037,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   ['productId', '456', 'd'],
                   {
-                    children: ['__PAGE__', {}, '/test/product/456'],
+                    children: ['__PAGE__', {}, ['/test/product/456', '']],
                   },
                 ],
                 modal: [
@@ -1026,7 +1046,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       ['itemId', '123', 'd'],
                       {
-                        children: ['__PAGE__', {}, '/test/123'],
+                        children: ['__PAGE__', {}, ['/test/123', '']],
                       },
                     ],
                   },
@@ -1052,7 +1072,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'see',
               {
-                children: ['__PAGE__', {}, '/see'],
+                children: ['__PAGE__', {}, ['/see', '']],
                 modal: [
                   '(slot)',
                   {
@@ -1065,7 +1085,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                             children: [
                               '__PAGE__',
                               {},
-                              '/see/14CE0C38-483F-42F0-B2DF-4B1E23C20EFE',
+                              ['/see/14CE0C38-483F-42F0-B2DF-4B1E23C20EFE', ''],
                             ],
                           },
                         ],
@@ -1096,11 +1116,11 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               ['path', 'blog/posts', 'c'],
               {
-                children: ['__PAGE__', {}, '/blog/posts'],
+                children: ['__PAGE__', {}, ['/blog/posts', '']],
                 sidebar: [
                   'nav',
                   {
-                    children: ['__PAGE__', {}, '/blog/posts/nav'],
+                    children: ['__PAGE__', {}, ['/blog/posts/nav', '']],
                   },
                 ],
               },
@@ -1123,11 +1143,11 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               ['path', 'docs', 'oc'],
               {
-                children: ['__PAGE__', {}, '/docs'],
+                children: ['__PAGE__', {}, ['/docs', '']],
                 toc: [
                   'sidebar',
                   {
-                    children: ['__PAGE__', {}, '/docs/sidebar'],
+                    children: ['__PAGE__', {}, ['/docs/sidebar', '']],
                   },
                 ],
               },
@@ -1153,7 +1173,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'product',
               {
-                children: ['__PAGE__', {}, '/product'],
+                children: ['__PAGE__', {}, ['/product', '']],
                 modal: [
                   '(slot)', // synthetic - should be skipped
                   {
@@ -1166,7 +1186,11 @@ describe('extractRoutesFromFlightRouterState', () => {
                             children: [
                               ['id', '123', 'd'],
                               {
-                                children: ['__PAGE__', {}, '/product/123'],
+                                children: [
+                                  '__PAGE__',
+                                  {},
+                                  ['/product/123', ''],
+                                ],
                               },
                             ],
                           },
@@ -1200,11 +1224,11 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   'dashboard',
                   {
-                    children: ['__PAGE__', {}, '/dashboard'],
+                    children: ['__PAGE__', {}, ['/dashboard', '']],
                     panel: [
                       'stats',
                       {
-                        children: ['__PAGE__', {}, '/dashboard/stats'],
+                        children: ['__PAGE__', {}, ['/dashboard/stats', '']],
                       },
                     ],
                   },
@@ -1231,11 +1255,11 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'app',
               {
-                children: ['__PAGE__', {}, '/app'],
+                children: ['__PAGE__', {}, ['/app', '']],
                 sidebar: [
                   'nav',
                   {
-                    children: ['__PAGE__', {}, '/app/nav'],
+                    children: ['__PAGE__', {}, ['/app/nav', '']],
                   },
                 ],
               },
@@ -1263,7 +1287,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'feed',
               {
-                children: ['__PAGE__', {}, '/feed'],
+                children: ['__PAGE__', {}, ['/feed', '']],
                 modal: [
                   '(slot)',
                   {
@@ -1273,7 +1297,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                         children: [
                           ['id', '123', 'd'],
                           {
-                            children: ['__PAGE__', {}, '/feed/photo/123'],
+                            children: ['__PAGE__', {}, ['/feed/photo/123', '']],
                           },
                         ],
                       },
@@ -1300,7 +1324,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'blog',
               {
-                children: ['__PAGE__', {}, '/blog'],
+                children: ['__PAGE__', {}, ['/blog', '']],
                 modal: [
                   '(slot)',
                   {
@@ -1313,7 +1337,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                             children: [
                               '__PAGE__',
                               {},
-                              '/blog/docs/api/reference/config',
+                              ['/blog/docs/api/reference/config', ''],
                             ],
                           },
                         ],
@@ -1344,7 +1368,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'gallery',
               {
-                children: ['__PAGE__', {}, '/gallery'],
+                children: ['__PAGE__', {}, ['/gallery', '']],
                 modal: [
                   '(slot)',
                   {
@@ -1354,7 +1378,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                         children: [
                           ['id', '999', 'd'],
                           {
-                            children: ['__PAGE__', {}, '/gallery/999'],
+                            children: ['__PAGE__', {}, ['/gallery/999', '']],
                           },
                         ],
                       },
@@ -1392,7 +1416,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                         children: [
                           ['id', '123', 'di(.)'],
                           {
-                            children: ['__PAGE__', {}, '/gallery/123'],
+                            children: ['__PAGE__', {}, ['/gallery/123', '']],
                           },
                         ],
                       },
@@ -1420,14 +1444,14 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'docs',
               {
-                children: ['__PAGE__', {}, '/docs'],
+                children: ['__PAGE__', {}, ['/docs', '']],
                 preview: [
                   '(slot)',
                   {
                     children: [
                       ['path', 'guides/intro', 'ci(.)'],
                       {
-                        children: ['__PAGE__', {}, '/docs/guides/intro'],
+                        children: ['__PAGE__', {}, ['/docs/guides/intro', '']],
                       },
                     ],
                   },
@@ -1458,7 +1482,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   'feed',
                   {
-                    children: ['__PAGE__', {}, '/app/feed'],
+                    children: ['__PAGE__', {}, ['/app/feed', '']],
                     modal: [
                       '(slot)',
                       {
@@ -1468,7 +1492,11 @@ describe('extractRoutesFromFlightRouterState', () => {
                             children: [
                               ['id', '456', 'd'],
                               {
-                                children: ['__PAGE__', {}, '/app/photo/456'],
+                                children: [
+                                  '__PAGE__',
+                                  {},
+                                  ['/app/photo/456', ''],
+                                ],
                               },
                             ],
                           },
@@ -1497,7 +1525,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'docs',
               {
-                children: ['__PAGE__', {}, '/docs'],
+                children: ['__PAGE__', {}, ['/docs', '']],
                 modal: [
                   '(slot)',
                   {
@@ -1510,7 +1538,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                             children: [
                               '__PAGE__',
                               {},
-                              '/preview/api/components',
+                              ['/preview/api/components', ''],
                             ],
                           },
                         ],
@@ -1543,14 +1571,14 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   'catalog',
                   {
-                    children: ['__PAGE__', {}, '/store/catalog'],
+                    children: ['__PAGE__', {}, ['/store/catalog', '']],
                     modal: [
                       '(slot)',
                       {
                         children: [
                           ['productId', '999', 'di(..)'],
                           {
-                            children: ['__PAGE__', {}, '/store/999'],
+                            children: ['__PAGE__', {}, ['/store/999', '']],
                           },
                         ],
                       },
@@ -1583,7 +1611,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   'settings',
                   {
-                    children: ['__PAGE__', {}, '/dashboard/settings'],
+                    children: ['__PAGE__', {}, ['/dashboard/settings', '']],
                     modal: [
                       '(slot)',
                       {
@@ -1593,7 +1621,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                             children: [
                               ['id', '789', 'd'],
                               {
-                                children: ['__PAGE__', {}, '/photo/789'],
+                                children: ['__PAGE__', {}, ['/photo/789', '']],
                               },
                             ],
                           },
@@ -1627,14 +1655,14 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   'panel',
                   {
-                    children: ['__PAGE__', {}, '/admin/panel'],
+                    children: ['__PAGE__', {}, ['/admin/panel', '']],
                     overlay: [
                       '(slot)',
                       {
                         children: [
                           ['userId', '555', 'di(...)'],
                           {
-                            children: ['__PAGE__', {}, '/555'],
+                            children: ['__PAGE__', {}, ['/555', '']],
                           },
                         ],
                       },
@@ -1670,7 +1698,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       'deep',
                       {
-                        children: ['__PAGE__', {}, '/app/dashboard/deep'],
+                        children: ['__PAGE__', {}, ['/app/dashboard/deep', '']],
                         modal: [
                           '(slot)',
                           {
@@ -1683,7 +1711,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                                     children: [
                                       '__PAGE__',
                                       {},
-                                      '/app/photo/abc',
+                                      ['/app/photo/abc', ''],
                                     ],
                                   },
                                 ],
@@ -1727,7 +1755,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                             children: [
                               '__PAGE__',
                               {},
-                              '/app/level1/level2/level3',
+                              ['/app/level1/level2/level3', ''],
                             ],
                             modal: [
                               '(slot)',
@@ -1741,7 +1769,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                                         children: [
                                           '__PAGE__',
                                           {},
-                                          '/photo/999',
+                                          ['/photo/999', ''],
                                         ],
                                       },
                                     ],
@@ -1777,14 +1805,18 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'wiki',
               {
-                children: ['__PAGE__', {}, '/wiki'],
+                children: ['__PAGE__', {}, ['/wiki', '']],
                 sidebar: [
                   '(slot)',
                   {
                     children: [
                       ['segments', 'advanced/routing', 'oc'],
                       {
-                        children: ['__PAGE__', {}, '/wiki/advanced/routing'],
+                        children: [
+                          '__PAGE__',
+                          {},
+                          ['/wiki/advanced/routing', ''],
+                        ],
                       },
                     ],
                   },
@@ -1823,14 +1855,14 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       ['product', 'laptop', 'd'],
                       {
-                        children: ['__PAGE__', {}, '/electronics/laptop'],
+                        children: ['__PAGE__', {}, ['/electronics/laptop', '']],
                         reviews: [
                           'list',
                           {
                             children: [
                               '__PAGE__',
                               {},
-                              '/electronics/laptop/reviews',
+                              ['/electronics/laptop/reviews', ''],
                             ],
                           },
                         ],
@@ -1869,7 +1901,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       ['id', '123', 'd'],
                       {
-                        children: ['__PAGE__', {}, '/en/photos/123'],
+                        children: ['__PAGE__', {}, ['/en/photos/123', '']],
                       },
                     ],
                     modal: [
@@ -1881,7 +1913,11 @@ describe('extractRoutesFromFlightRouterState', () => {
                             children: [
                               ['photoId', '456', 'd'],
                               {
-                                children: ['__PAGE__', {}, '/en/photos/456'],
+                                children: [
+                                  '__PAGE__',
+                                  {},
+                                  ['/en/photos/456', ''],
+                                ],
                               },
                             ],
                           },
@@ -1916,7 +1952,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                     children: [
                       'blog',
                       {
-                        children: ['__PAGE__', {}, '/en/us/blog'],
+                        children: ['__PAGE__', {}, ['/en/us/blog', '']],
                         modal: [
                           '(slot)',
                           {
@@ -1929,7 +1965,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                                     children: [
                                       '__PAGE__',
                                       {},
-                                      '/en/us/blog/post/123',
+                                      ['/en/us/blog/post/123', ''],
                                     ],
                                   },
                                 ],
@@ -1966,7 +2002,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                 children: [
                   'products',
                   {
-                    children: ['__PAGE__', {}, '/products'],
+                    children: ['__PAGE__', {}, ['/products', '']],
                     modal: [
                       '(slot)',
                       {
@@ -1982,7 +2018,7 @@ describe('extractRoutesFromFlightRouterState', () => {
                                     children: [
                                       '__PAGE__',
                                       {},
-                                      '/products/abc123',
+                                      ['/products/abc123', ''],
                                     ],
                                   },
                                 ],
@@ -2074,7 +2110,7 @@ describe('extractRoutesFromFlightRouterState', () => {
             children: [
               'page',
               {
-                children: ['__PAGE__', {}, '/page'],
+                children: ['__PAGE__', {}, ['/page', '']],
               },
             ],
           },
