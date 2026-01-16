@@ -1,6 +1,6 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use rustc_hash::FxHashSet;
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TryFlatJoinIterExt, Vc};
 
 use crate::{
     module::{Module, Modules},
@@ -40,20 +40,26 @@ pub async fn compute_async_module_info(
     graphs: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<AsyncModulesInfo>> {
     // Layout segment optimization, we can individually compute the async modules for each graph.
-    let mut result: Vc<AsyncModulesInfo> = Vc::cell(Default::default());
+    let mut result = None;
     for graph in graphs.iter_graphs().await? {
-        result = compute_async_module_info_single(graph.connect(), result);
+        result = Some(compute_async_module_info_single(*graph, result));
     }
-    Ok(result)
+    Ok(result
+        .context("There must be at least one single graph in the module graph")?
+        .connect())
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 async fn compute_async_module_info_single(
-    graph: ResolvedVc<ModuleGraphLayer>,
-    parent_async_modules: Vc<AsyncModulesInfo>,
+    graph: OperationVc<ModuleGraphLayer>,
+    parent_async_modules: Option<OperationVc<AsyncModulesInfo>>,
 ) -> Result<Vc<AsyncModulesInfo>> {
-    let parent_async_modules = parent_async_modules.await?;
-    let graph = graph.await?;
+    let parent_async_modules = if let Some(parent_async_modules) = parent_async_modules {
+        Some(parent_async_modules.read_strongly_consistent().await?)
+    } else {
+        None
+    };
+    let graph = graph.read_strongly_consistent().await?;
     let self_async_modules = graph
         .enumerate_nodes()
         .map(async |(_, node)| {
@@ -64,7 +70,10 @@ async fn compute_async_module_info_single(
                 super::SingleModuleGraphNode::VisitedModule { idx: _, module } => {
                     // If a module is async in the parent then we need to mark reverse dependencies
                     // async in this graph as well.
-                    parent_async_modules.contains(module).then_some(*module)
+                    parent_async_modules
+                        .as_ref()
+                        .is_some_and(|set| set.contains(module))
+                        .then_some(*module)
                 }
             })
         })
@@ -101,7 +110,7 @@ async fn compute_async_module_info_single(
     )?;
 
     // Accumulate the parent modules at the end. Not all parent async modules were in this graph
-    async_modules.extend(parent_async_modules);
+    async_modules.extend(parent_async_modules.into_iter().flatten());
 
     Ok(Vc::cell(async_modules))
 }
