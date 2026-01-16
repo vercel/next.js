@@ -76,6 +76,7 @@ pub async fn make_production_chunks(
                             // lookup using the original module.
                             let original_module = merged_modules
                                 .get_original_module(ResolvedVc::upcast(module))
+                                .await?
                                 .context("every module should have a chunk group")?;
                             module_chunk_groups
                                 .get(&original_module)
