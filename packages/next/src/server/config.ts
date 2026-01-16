@@ -1941,6 +1941,25 @@ function enforceExperimentalFeatures(
     config.reactCompiler = true
     // TODO: Report if we enable non-experimental features via env
   }
+
+  // Allow disabling browserDebugInfoInTerminal via env variable
+  if (
+    process.env.__NEXT_DISABLE_BROWSER_DEBUG_INFO_IN_TERMINAL === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.browserDebugInfoInTerminal === undefined ||
+      (isDefaultConfig && config.experimental.browserDebugInfoInTerminal))
+  ) {
+    config.experimental.browserDebugInfoInTerminal = false
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'browserDebugInfoInTerminal',
+        false,
+        'disabled by `__NEXT_DISABLE_BROWSER_DEBUG_INFO_IN_TERMINAL`'
+      )
+    }
+  }
 }
 
 function addConfiguredExperimentalFeature<
