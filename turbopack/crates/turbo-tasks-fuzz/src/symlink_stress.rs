@@ -5,7 +5,7 @@ use std::{
 
 const PROGRESS_INTERVAL: Duration = Duration::from_secs(1);
 
-use clap::{Args, ValueEnum};
+use clap::Args;
 use rand::{Rng, SeedableRng};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, apply_effects};
@@ -28,19 +28,6 @@ pub struct SymlinkStress {
     /// How long to run the stress test for.
     #[arg(long, default_value_t = 5)]
     duration_secs: u64,
-    /// Type of symlink to test.
-    #[arg(long, value_enum, default_value_t = SymlinkMode::Directory)]
-    mode: SymlinkMode,
-}
-
-#[derive(Clone, Copy, Debug, ValueEnum)]
-pub enum SymlinkMode {
-    /// Test directory symlinks
-    #[cfg_attr(windows, doc = "(requires developer mode or admin)")]
-    Directory,
-    /// Test junction points (Windows-only)
-    #[cfg(windows)]
-    Junction,
 }
 
 pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
@@ -70,7 +57,6 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
     let symlink_count = args.symlink_count;
     let parallelism = args.parallelism;
     let duration = Duration::from_secs(args.duration_secs);
-    let mode = args.mode;
 
     tt.run_once(async move {
         let project_fs = disk_file_system_operation(RcStr::from(fs_root.to_str().unwrap()))
@@ -86,10 +72,7 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
         let symlinks_path = project_root.join("_symlinks")?;
         let initial_target = RcStr::from("../_targets/0");
 
-        println!(
-            "creating {} initial symlinks (mode: {:?})...",
-            symlink_count, mode
-        );
+        println!("creating {symlink_count} initial symlinks...");
 
         let initial_op =
             create_initial_symlinks_operation(symlinks_path.clone(), symlink_count, initial_target);
