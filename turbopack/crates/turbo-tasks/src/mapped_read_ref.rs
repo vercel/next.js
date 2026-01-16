@@ -13,6 +13,9 @@ pub struct MappedReadRef<A, T> {
     arc: triomphe::Arc<A>,
 }
 
+unsafe impl<A: Send + Sync, T: Sync> Send for MappedReadRef<A, T> {}
+unsafe impl<A: Send + Sync, T: Sync> Sync for MappedReadRef<A, T> {}
+
 impl<A, T> MappedReadRef<A, T> {
     /// # Safety
     /// The caller must ensure that the `arc` keeps the value pointed to by `value` alive.
