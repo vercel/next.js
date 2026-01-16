@@ -13,31 +13,16 @@ interface ResolvedBuildPaths {
 }
 
 /**
- * Escapes bracket expressions that correspond to existing directories.
- * This allows Next.js dynamic routes like [slug] to work with glob patterns.
+ * Escapes Next.js dynamic route bracket expressions so glob treats them as
+ * literal directory names rather than character classes.
  *
  * e.g., "app/blog/[slug]/** /page.tsx" → "app/blog/\[slug\]/** /page.tsx"
- *       (if app/blog/[slug] directory exists)
  */
-function escapeExistingBrackets(pattern: string, projectDir: string): string {
-  // Match bracket expressions: [name], [...name], [[...name]]
-  const bracketRegex = /\[\[?\.\.\.[^\]]+\]?\]|\[[^\]]+\]/g
-  let lastIndex = 0
-  let result = ''
-  let match: RegExpExecArray | null
-
-  while ((match = bracketRegex.exec(pattern)) !== null) {
-    const pathPrefix = pattern.slice(0, match.index + match[0].length)
-    const exists = fs.existsSync(path.join(projectDir, pathPrefix))
-
-    result += pattern.slice(lastIndex, match.index)
-    result += exists
-      ? match[0].replace(/\[/g, '\\[').replace(/\]/g, '\\]')
-      : match[0]
-    lastIndex = match.index + match[0].length
-  }
-
-  return result + pattern.slice(lastIndex)
+function escapeBrackets(pattern: string): string {
+  // Match Next.js dynamic route patterns: [name], [...name], [[...name]]
+  return pattern.replace(/\[\[?\.\.\.[^\]]+\]?\]|\[[^\]]+\]/g, (match) =>
+    match.replace(/\[/g, '\\[').replace(/\]/g, '\\]')
+  )
 }
 
 /**
@@ -56,8 +41,8 @@ export async function resolveBuildPaths(
     if (!trimmed) continue
 
     try {
-      // Escape brackets that correspond to existing Next.js dynamic route directories
-      const escapedPattern = escapeExistingBrackets(trimmed, projectDir)
+      // Escape brackets for Next.js dynamic route directories
+      const escapedPattern = escapeBrackets(trimmed)
       const matches = (await glob(escapedPattern, {
         cwd: projectDir,
       })) as string[]
