@@ -96,7 +96,7 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
         } else {
             None
         };
-        let id = id.as_deref();
+        let id = id.as_ref();
 
         let chunks_data = self.chunks_data().await?;
         let chunks_data = chunks_data.iter().try_join().await?;
