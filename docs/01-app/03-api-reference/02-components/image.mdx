@@ -839,22 +839,22 @@ module.exports = {
 
 #### `maximumResponseBody`
 
-The default image optimization loader will fetch source images up to 300 MB in size.
-
-```js filename="next.config.js"
-module.exports = {
-  images: {
-    maximumResponseBody: 300_000_000,
-  },
-}
-```
-
-If you know all your source images are small, you can protect memory constrained servers by reducing this to a smaller value such as 50 MB.
+The default image optimization loader will fetch source images up to 50 MB in size.
 
 ```js filename="next.config.js"
 module.exports = {
   images: {
     maximumResponseBody: 50_000_000,
+  },
+}
+```
+
+If you know all your source images are small, you can protect memory constrained servers by reducing this to a smaller value such as 5 MB.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumResponseBody: 5_000_000,
   },
 }
 ```

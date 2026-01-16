@@ -82,7 +82,7 @@ pub async fn node_evaluate_asset_context(
         enable_typescript: true,
         import_map: Some(import_map),
         rules: vec![(
-            ContextCondition::InDirectory("node_modules".to_string()),
+            ContextCondition::InNodeModules,
             resolve_options_context.clone().resolved_cell(),
         )],
         ..resolve_options_context

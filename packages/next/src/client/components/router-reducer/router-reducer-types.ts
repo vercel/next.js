@@ -23,25 +23,6 @@ export type RouterChangeByServerResponse = ({
   serverResponse: FetchServerResponseResult
 }) => void
 
-export interface Mutable {
-  mpaNavigation?: boolean
-  patchedTree?: FlightRouterState
-  renderedSearch?: string
-  canonicalUrl?: string
-  scrollableSegments?: FlightSegmentPath[]
-  pendingPush?: boolean
-  cache?: CacheNode
-  hashFragment?: string
-  shouldScroll?: boolean
-  preserveCustomHistoryState?: boolean
-  onlyHashChange?: boolean
-  collectedDebugInfo?: Array<unknown>
-}
-
-export interface ServerActionMutable extends Mutable {
-  inFlightServerAction?: Promise<any> | null
-}
-
 /**
  * Refresh triggers a refresh of the full page data.
  * - fetches the Flight data and fills rsc at the root of the cache.

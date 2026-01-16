@@ -38,6 +38,7 @@
 #![feature(ptr_metadata)]
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
+#![feature(impl_trait_in_assoc_type)]
 
 pub mod backend;
 mod capture_future;
@@ -68,6 +69,7 @@ mod output;
 pub mod panic_hooks;
 pub mod parallel;
 pub mod primitives;
+mod priority_runner;
 mod raw_vc;
 mod read_options;
 mod read_ref;
@@ -112,8 +114,8 @@ pub use crate::{
     magic_any::MagicAny,
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
-        TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo,
-        dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_root,
+        TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
+        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_root,
         mark_session_dependent, prevent_gc, run, run_once, run_once_with_reason, trait_call,
         turbo_tasks, turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
     },
@@ -281,6 +283,45 @@ pub use turbo_tasks_macros::value;
 /// Example: `#[turbo_tasks::value_trait(resolved)]`
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value_trait;
+
+/// Derives the TaskStorage struct and generates optimized storage structures.
+///
+/// This macro analyzes `field` annotations and generates:
+/// 1. A unified TaskStorage struct
+/// 2. LazyField enum for lazy_vec fields
+/// 3. Typed accessor methods on TaskStorage
+/// 4. TaskStorageAccessors trait with accessor methods
+/// 5. TaskFlags bitfield for boolean flags
+///
+/// # Field Attributes
+///
+/// All fields require two attributes:
+///
+/// ## `storage = "..."` (required)
+///
+/// Specifies how the field is stored:
+/// - `direct` - Direct field access (e.g., `Option<OutputValue>`)
+/// - `auto_set` - Uses AutoSet for small collections
+/// - `auto_map` - Uses AutoMap for key-value pairs
+/// - `counter_map` - Uses CounterMap for reference counting
+/// - `flag` - Boolean flag stored in a compact TaskFlags bitfield (field type must be `bool`)
+///
+/// ## `category = "..."` (required)
+///
+/// Specifies the data category for persistence and access:
+/// - `data` - Frequently changed, bulk I/O
+/// - `meta` - Rarely changed, small I/O
+/// - `transient` - Field is not serialized (in-memory only)
+///
+/// ## Optional Modifiers
+///
+/// - `inline` - Field is stored inline on TaskStorage (default is lazy). Only use for hot-path
+///   fields that are frequently accessed.
+/// - `default` - Use `Default::default()` semantics instead of `Option` for inline direct fields.
+/// - `filter_transient` - Filter out transient values during serialization.
+/// - Serialization methods
+#[rustfmt::skip]
+pub use turbo_tasks_macros::task_storage;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 

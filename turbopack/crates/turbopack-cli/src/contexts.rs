@@ -45,7 +45,7 @@ impl fmt::Display for NodeEnv {
 }
 
 fn foreign_code_context_condition() -> ContextCondition {
-    ContextCondition::InDirectory("node_modules".to_string())
+    ContextCondition::InNodeModules
 }
 
 #[turbo_tasks::function]

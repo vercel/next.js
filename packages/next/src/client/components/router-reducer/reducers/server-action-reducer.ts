@@ -28,11 +28,9 @@ import type {
   ReadonlyReducerState,
   ReducerState,
   ServerActionAction,
-  ServerActionMutable,
 } from '../router-reducer-types'
 import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { handleExternalUrl, handleNavigationResult } from './navigate-reducer'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import {
   normalizeFlightData,
@@ -40,7 +38,7 @@ import {
   type NormalizedFlightData,
 } from '../../../flight-data-helpers'
 import { getRedirectError } from '../../redirect'
-import { RedirectType } from '../../redirect-error'
+import type { RedirectType } from '../../redirect-error'
 import { removeBasePath } from '../../../remove-base-path'
 import { hasBasePath } from '../../../has-base-path'
 import {
@@ -50,9 +48,10 @@ import {
 import { revalidateEntireCache } from '../../segment-cache/cache'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import {
+  completeHardNavigation,
   convertServerPatchToFullTree,
   navigateToKnownRoute,
-  navigate as navigateUsingSegmentCache,
+  navigate,
 } from '../../segment-cache/navigation'
 import type { NormalizedSearch } from '../../segment-cache/cache-key'
 import {
@@ -63,6 +62,7 @@ import {
 } from '../../../../shared/lib/action-revalidation-kind'
 import { isExternalURL } from '../../app-router-utils'
 import { FreshnessPolicy } from '../ppr-navigations'
+import { invalidateBfCache } from '../../segment-cache/bfcache'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -154,10 +154,10 @@ async function fetchServerAction(
   let redirectType: RedirectType | undefined
   switch (_redirectType) {
     case 'push':
-      redirectType = RedirectType.push
+      redirectType = 'push'
       break
     case 'replace':
-      redirectType = RedirectType.replace
+      redirectType = 'replace'
       break
     default:
       redirectType = undefined
@@ -254,9 +254,6 @@ export function serverActionReducer(
   action: ServerActionAction
 ): ReducerState {
   const { resolve, reject } = action
-  const mutable: ServerActionMutable = {}
-
-  mutable.preserveCustomHistoryState = false
 
   // only pass along the `nextUrl` param (used for interception routes) if the current route was intercepted.
   // If the route has been intercepted, the action should be as well.
@@ -283,6 +280,11 @@ export function serverActionReducer(
       redirectType,
     }) => {
       if (revalidationKind !== ActionDidNotRevalidate) {
+        // There was either a revalidation or a refresh, or maybe both.
+
+        // Evict the BFCache, which may contain dynamic data.
+        invalidateBfCache()
+
         // Store whether this action triggered any revalidation
         // The action queue will use this information to potentially
         // trigger a refresh action if the action was discarded
@@ -296,9 +298,7 @@ export function serverActionReducer(
         }
       }
 
-      const pendingPush = redirectType !== RedirectType.replace
-      state.pushRef.pendingPush = pendingPush
-      mutable.pendingPush = pendingPush
+      const navigateType = redirectType || 'push'
 
       if (redirectLocation !== undefined) {
         // If the action triggered a redirect, the action promise will be rejected with
@@ -307,17 +307,16 @@ export function serverActionReducer(
         // the component that called the action as the error boundary will remount the tree.
         // The status code doesn't matter here as the action handler will have already sent
         // a response with the correct status code.
-        const resolvedRedirectType = redirectType || RedirectType.push
 
         if (isExternalURL(redirectLocation)) {
           // External redirect. Triggers an MPA navigation.
           const redirectHref = redirectLocation.href
           const redirectError = createRedirectErrorForAction(
             redirectHref,
-            resolvedRedirectType
+            navigateType
           )
           reject(redirectError)
-          return handleExternalUrl(state, mutable, redirectHref, pendingPush)
+          return completeHardNavigation(state, redirectLocation, navigateType)
         } else {
           // Internal redirect. Triggers an SPA navigation.
           const redirectWithBasepath = createHrefFromUrl(
@@ -329,7 +328,7 @@ export function serverActionReducer(
             : redirectWithBasepath
           const redirectError = createRedirectErrorForAction(
             redirectHref,
-            resolvedRedirectType
+            navigateType
           )
           reject(redirectError)
         }
@@ -357,18 +356,17 @@ export function serverActionReducer(
         // an external redirect.
         // TODO: We should refactor the action response type to be more explicit
         // about the various response types.
-        return handleExternalUrl(
-          state,
-          mutable,
-          redirectLocation.href,
-          pendingPush
-        )
+        return completeHardNavigation(state, redirectLocation, navigateType)
       }
 
       if (typeof flightData === 'string') {
         // If the flight data is just a string, something earlier in the
         // response handling triggered an external redirect.
-        return handleExternalUrl(state, mutable, flightData, pendingPush)
+        return completeHardNavigation(
+          state,
+          new URL(flightData, location.origin),
+          navigateType
+        )
       }
 
       // The action triggered a navigation — either a redirect, a revalidation,
@@ -407,8 +405,9 @@ export function serverActionReducer(
           flightDataRenderedSearch
         )
         const now = Date.now()
-        const result = navigateToKnownRoute(
+        return navigateToKnownRoute(
           now,
+          state,
           redirectUrl,
           redirectCanonicalUrl,
           redirectSeed,
@@ -418,20 +417,16 @@ export function serverActionReducer(
           currentFlightRouterState,
           freshnessPolicy,
           nextUrl,
-          shouldScroll
-        )
-        return handleNavigationResult(
-          redirectUrl,
-          state,
-          mutable,
-          pendingPush,
-          result
+          shouldScroll,
+          navigateType,
+          null
         )
       }
 
       // The server did not send back new data. We'll perform a regular, non-
       // seeded navigation — effectively the same as <Link> or router.push().
-      const result = navigateUsingSegmentCache(
+      return navigate(
+        state,
         redirectUrl,
         currentUrl,
         currentRenderedSearch,
@@ -440,14 +435,7 @@ export function serverActionReducer(
         nextUrl,
         freshnessPolicy,
         shouldScroll,
-        mutable
-      )
-      return handleNavigationResult(
-        redirectUrl,
-        state,
-        mutable,
-        pendingPush,
-        result
+        navigateType
       )
     },
     (e: any) => {
