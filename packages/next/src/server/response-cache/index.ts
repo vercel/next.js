@@ -52,6 +52,13 @@ export default class ResponseCache implements ResponseCacheBase {
   private readonly previousCacheItems: LRUCache<{
     entry: IncrementalResponseCacheEntry | null
     invocationID: string | undefined
+    /**
+     * TTL expiration timestamp in milliseconds. Only set when invocationID is
+     * undefined (non-Vercel providers that don't send x-vercel-id yet).
+     * When invocationID exists, cache scoping is handled by invocationID
+     * matching instead of TTL.
+     */
+    expiresAt: number | undefined
   }>
 
   /**
@@ -129,8 +136,35 @@ export default class ResponseCache implements ResponseCacheBase {
     // Check minimal mode cache before doing any other work.
     if (this.minimal_mode) {
       const cachedItem = this.previousCacheItems.get(key)
-      if (cachedItem && cachedItem.invocationID === context.invocationID) {
-        return toResponseCacheEntry(cachedItem.entry)
+      if (cachedItem) {
+        // Cache hit validation uses two strategies based on environment:
+        //
+        // 1. Vercel (invocationID exists): Match by invocationID
+        //    - Each serverless invocation gets isolated cache scope
+        //    - Prevents cross-request cache pollution during revalidation
+        //
+        // 2. Other providers (invocationID undefined): Match by TTL expiration
+        //    - Without invocationID, we can't scope by request
+        //    - Use time-based expiration (10s) to prevent indefinite caching
+        const invocationMatch =
+          cachedItem.invocationID !== undefined &&
+          cachedItem.invocationID === context.invocationID
+        const ttlValid =
+          cachedItem.invocationID === undefined &&
+          cachedItem.expiresAt !== undefined &&
+          cachedItem.expiresAt > Date.now()
+
+        if (invocationMatch || ttlValid) {
+          return toResponseCacheEntry(cachedItem.entry)
+        }
+
+        // Clean up expired TTL entries to prevent unbounded memory growth
+        if (
+          cachedItem.expiresAt !== undefined &&
+          cachedItem.expiresAt <= Date.now()
+        ) {
+          this.previousCacheItems.remove(key)
+        }
       }
 
       // Warn if this invocation had entries evicted - indicates cache may be too small
@@ -341,9 +375,22 @@ export default class ResponseCache implements ResponseCacheBase {
       // defined.
       if (incrementalResponseCacheEntry.cacheControl) {
         if (this.minimal_mode) {
+          // Set TTL expiration only when invocationID is undefined.
+          // This handles non-Vercel providers that don't send x-vercel-id yet.
+          // On Vercel, cache scoping is handled by invocationID matching, so TTL
+          // is unnecessary.
+          //
+          // 10 second TTL chosen because:
+          // - Long enough to dedupe rapid successive requests (e.g., page + data)
+          // - Short enough to not serve stale data across unrelated requests
+          // - Reasonable default until providers implement invocation IDs
+          const expiresAt =
+            invocationID === undefined ? Date.now() + 10_000 : undefined
+
           this.previousCacheItems.set(key, {
             entry: incrementalResponseCacheEntry,
             invocationID,
+            expiresAt,
           })
         } else {
           await incrementalCache.set(key, incrementalResponseCacheEntry.value, {

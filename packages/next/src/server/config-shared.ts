@@ -1602,7 +1602,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
     devCacheControlNoCache: false,
-    maxResponseCacheSize: 5,
+    maxResponseCacheSize: 10,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
