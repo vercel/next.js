@@ -96,9 +96,11 @@ export async function resolveBuildPaths(
 
 /**
  * Categorizes a file path to either app or pages router based on its prefix.
+ * For app router, only route-defining files (page.*, route.*) are included.
  *
  * Examples:
  * - "app/page.tsx" → appPaths.add("/page.tsx")
+ * - "app/layout.tsx" → skipped (not a route file)
  * - "pages/index.tsx" → pagePaths.add("/index.tsx")
  */
 function categorizeAndAddPath(
@@ -109,7 +111,10 @@ function categorizeAndAddPath(
   const normalized = filePath.replace(/\\/g, '/')
 
   if (normalized.startsWith('app/')) {
-    appPaths.add('/' + normalized.slice(4))
+    // Only include route-defining files (page.* or route.*)
+    if (/\/(page|route)\.[^/]+$/.test(normalized)) {
+      appPaths.add('/' + normalized.slice(4))
+    }
   } else if (normalized.startsWith('pages/')) {
     pagePaths.add('/' + normalized.slice(6))
   }

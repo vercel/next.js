@@ -146,6 +146,28 @@ pub struct WatchOptions {
 
 #[derive(
     Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Clone,
+    TaskInput,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct DebugBuildPaths {
+    pub app: Vec<RcStr>,
+    pub pages: Vec<RcStr>,
+}
+
+#[derive(
+    Debug,
     Serialize,
     Deserialize,
     Clone,
@@ -208,6 +230,10 @@ pub struct ProjectOptions {
 
     /// The version of Node.js that is available/currently running.
     pub current_node_js_version: RcStr,
+
+    /// Debug build paths for selective builds.
+    /// When set, only routes matching these paths will be included in the build.
+    pub debug_build_paths: Option<DebugBuildPaths>,
 }
 
 pub struct PartialProjectOptions {
@@ -253,6 +279,10 @@ pub struct PartialProjectOptions {
 
     /// Whether to write the route hashes manifest.
     pub write_routes_hashes_manifest: Option<bool>,
+
+    /// Debug build paths for selective builds.
+    /// When set, only routes matching these paths will be included in the build.
+    pub debug_build_paths: Option<DebugBuildPaths>,
 }
 
 #[derive(
@@ -405,6 +435,62 @@ fn define_env_diff_report(old: &DefineEnv, new: &DefineEnv) -> String {
     report
 }
 
+/// Checks if an app router route should be included based on debug build paths.
+///
+/// App router debug paths have the format "/blog/[slug]/page.tsx".
+/// Route keys have the format "/blog/[slug]".
+/// Conversion: strip the filename (everything after last /).
+fn should_include_app_route(route_key: &RcStr, debug_paths: &[RcStr]) -> bool {
+    // Special app router framework routes
+    if matches!(route_key.as_str(), "/_not-found" | "/_global-error") {
+        return true;
+    }
+
+    for path in debug_paths {
+        // Strip filename: "/blog/[slug]/page.tsx" -> "/blog/[slug]"
+        let route_from_path = if let Some(last_slash_idx) = path.rfind('/') {
+            if last_slash_idx == 0 {
+                "/" // Root: "/page.tsx" -> "/"
+            } else {
+                &path[..last_slash_idx]
+            }
+        } else {
+            path.as_str()
+        };
+
+        if route_key.as_str() == route_from_path {
+            return true;
+        }
+    }
+    false
+}
+
+/// Checks if a pages router route should be included based on debug build paths.
+///
+/// Pages router debug paths have the format "/foo.tsx" or "/api/hello.ts".
+/// Route keys have the format "/foo" or "/api/hello".
+/// Conversion: strip the file extension (everything after last .).
+fn should_include_pages_route(route_key: &RcStr, debug_paths: &[RcStr]) -> bool {
+    // Special pages router framework routes
+    if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
+        return true;
+    }
+
+    for path in debug_paths {
+        // Strip extension: "/foo.tsx" -> "/foo"
+        let route_from_path = if let Some(dot_idx) = path.rfind('.') {
+            &path[..dot_idx]
+        } else {
+            path.as_str()
+        };
+
+        if route_key.as_str() == route_from_path {
+            return true;
+        }
+    }
+    false
+}
+
 impl ProjectContainer {
     pub async fn initialize(self: ResolvedVc<Self>, options: ProjectOptions) -> Result<()> {
         let span = tracing::info_span!(
@@ -467,6 +553,7 @@ impl ProjectContainer {
             browserslist_query,
             no_mangling,
             write_routes_hashes_manifest,
+            debug_build_paths,
         } = options;
 
         let resolved_self = self.to_resolved().await?;
@@ -516,6 +603,9 @@ impl ProjectContainer {
         }
         if let Some(write_routes_hashes_manifest) = write_routes_hashes_manifest {
             new_options.write_routes_hashes_manifest = write_routes_hashes_manifest;
+        }
+        if let Some(debug_build_paths) = debug_build_paths {
+            new_options.debug_build_paths = Some(debug_build_paths);
         }
 
         // TODO: Handle mode switch, should prevent mode being switched.
@@ -583,6 +673,7 @@ impl ProjectContainer {
         let no_mangling;
         let write_routes_hashes_manifest;
         let current_node_js_version;
+        let debug_build_paths;
         {
             let options = self.options_state.get();
             let options = options
@@ -607,6 +698,7 @@ impl ProjectContainer {
             no_mangling = options.no_mangling;
             write_routes_hashes_manifest = options.write_routes_hashes_manifest;
             current_node_js_version = options.current_node_js_version.clone();
+            debug_build_paths = options.debug_build_paths.clone();
         }
 
         let dist_dir = next_config.dist_dir().owned().await?;
@@ -633,6 +725,7 @@ impl ProjectContainer {
             no_mangling,
             write_routes_hashes_manifest,
             current_node_js_version,
+            debug_build_paths,
         }
         .cell())
     }
@@ -723,6 +816,10 @@ pub struct Project {
     write_routes_hashes_manifest: bool,
 
     current_node_js_version: RcStr,
+
+    /// Debug build paths for selective builds.
+    /// When set, only routes matching these paths will be included in the build.
+    debug_build_paths: Option<DebugBuildPaths>,
 }
 
 #[turbo_tasks::value]
@@ -1445,21 +1542,30 @@ impl Project {
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
         self.collect_project_feature_telemetry().await?;
 
+        let this = self.await?;
         let mut routes = FxIndexMap::default();
         let app_project = self.app_project();
         let pages_project = self.pages_project();
 
         if let Some(app_project) = &*app_project.await? {
             let app_routes = app_project.routes();
-            routes.extend(
-                app_routes
-                    .await?
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.clone())),
-            );
+            for (k, v) in app_routes.await?.iter() {
+                if let Some(ref paths) = this.debug_build_paths
+                    && !should_include_app_route(k, &paths.app)
+                {
+                    continue;
+                }
+                routes.insert(k.clone(), v.clone());
+            }
         }
 
         for (pathname, page_route) in pages_project.routes().await?.iter() {
+            if let Some(ref paths) = this.debug_build_paths
+                && !should_include_pages_route(pathname, &paths.pages)
+            {
+                continue;
+            }
+
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
                     ConflictIssue {

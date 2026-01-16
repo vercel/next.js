@@ -912,8 +912,7 @@ export default async function build(
   bundler = Bundler.Turbopack,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
-  debugBuildAppPaths?: string[],
-  debugBuildPagePaths?: string[]
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
@@ -936,6 +935,7 @@ export default async function build(
     NextBuildContext.reactProductionProfiling = reactProductionProfiling
     NextBuildContext.noMangling = noMangling
     NextBuildContext.debugPrerender = debugPrerender
+    NextBuildContext.debugBuildPaths = debugBuildPaths
 
     await nextBuildSpan.traceAsyncFn(async () => {
       // attempt to load global env values so they are available in next.config.js
@@ -1159,10 +1159,7 @@ export default async function build(
         nextBuildSpan,
         config,
         cacheDir,
-        debugBuildPaths:
-          debugBuildAppPaths !== undefined || debugBuildPagePaths !== undefined
-            ? { app: debugBuildAppPaths, pages: debugBuildPagePaths }
-            : undefined,
+        debugBuildPaths,
       }
 
       if (appDir && 'exportPathMap' in config) {
@@ -1191,10 +1188,9 @@ export default async function build(
           : []
 
       // Apply debug build paths filter if specified
-      // If debugBuildPagePaths is defined (even if empty), only build specified pages
-      if (debugBuildPagePaths !== undefined) {
-        if (debugBuildPagePaths.length > 0) {
-          const debugPathsSet = new Set(debugBuildPagePaths)
+      if (debugBuildPaths) {
+        if (debugBuildPaths.pages.length > 0) {
+          const debugPathsSet = new Set(debugBuildPaths.pages)
           pagesPaths = pagesPaths.filter((pagePath) =>
             debugPathsSet.has(pagePath)
           )
@@ -1328,10 +1324,9 @@ export default async function build(
           layoutPaths = result.layoutPaths
 
           // Apply debug build paths filter if specified
-          // If debugBuildAppPaths is defined (even if empty), only build specified app paths
-          if (debugBuildAppPaths !== undefined) {
-            if (debugBuildAppPaths.length > 0) {
-              const debugPathsSet = new Set(debugBuildAppPaths)
+          if (debugBuildPaths) {
+            if (debugBuildPaths.app.length > 0) {
+              const debugPathsSet = new Set(debugBuildPaths.app)
               appPaths = appPaths.filter((appPath) =>
                 debugPathsSet.has(appPath)
               )
