@@ -137,12 +137,10 @@ async fn rule_condition_from_webpack_condition(
             }
             match &query {
                 Some(ConditionQuery::Constant(value)) => {
-                    rule_conditions.push(RuleCondition::ResourceQueryContainsEquals(
-                        value.clone().into(),
-                    ));
+                    rule_conditions.push(RuleCondition::ResourceQueryEquals(value.clone().into()));
                 }
                 Some(ConditionQuery::Regex(regex)) => {
-                    rule_conditions.push(RuleCondition::ResourceQueryContainsEsRegex(regex.await?));
+                    rule_conditions.push(RuleCondition::ResourceQueryEsRegex(regex.await?));
                 }
                 None => {}
             }

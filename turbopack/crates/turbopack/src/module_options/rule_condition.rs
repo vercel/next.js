@@ -45,8 +45,8 @@ pub enum RuleCondition {
     },
     ResourceBasePathGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
     ResourceQueryContains(String),
-    ResourceQueryContainsEquals(String),
-    ResourceQueryContainsEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ResourceQueryEquals(String),
+    ResourceQueryEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
 }
 
 impl RuleCondition {
@@ -285,11 +285,11 @@ impl RuleCondition {
                         let ident = source.ident().await?;
                         return Ok(ident.query.contains(query));
                     }
-                    RuleCondition::ResourceQueryContainsEquals(query) => {
+                    RuleCondition::ResourceQueryEquals(query) => {
                         let ident = source.ident().await?;
                         return Ok(ident.query == *query);
                     }
-                    RuleCondition::ResourceQueryContainsEsRegex(regex) => {
+                    RuleCondition::ResourceQueryEsRegex(regex) => {
                         let ident = source.ident().await?;
                         return Ok(regex.is_match(&ident.query));
                     }
