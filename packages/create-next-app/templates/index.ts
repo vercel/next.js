@@ -320,13 +320,13 @@ export const installTemplate = async ({
     packageJson.devDependencies = sorted(packageJson.devDependencies);
   }
 
-  // Only create pnpm-workspace.yaml for pnpm v10+.
-  // In v9, having a pnpm-workspace.yaml (even with packages: []) causes
-  // ERR_PNPM_ADDING_TO_ROOT errors when running `pnpm add`.
-  // In v10, the packages field can be omitted entirely.
-  // If we can't determine the version, assume latest (v10+) since we already
-  // know pnpm is being used at this point.
   if (packageManager === "pnpm") {
+    // Only create pnpm-workspace.yaml for pnpm v10+.
+    // In v9, having a pnpm-workspace.yaml (even with packages: []) causes
+    // ERR_PNPM_ADDING_TO_ROOT errors when running `pnpm add`.
+    // In v10, the packages field can be omitted entirely.
+    // If we can't determine the version, assume latest (v10+) since we already
+    // know pnpm is being used at this point.
     const pnpmMajorVersion = getPnpmMajorVersion();
     if (pnpmMajorVersion === null || pnpmMajorVersion >= 10) {
       const pnpmWorkspaceYaml = [

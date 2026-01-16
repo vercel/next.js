@@ -37,7 +37,7 @@ export function getPnpmMajorVersion(): number | null {
 
   // Fall back to spawning pnpm --version
   try {
-    const version = execSync('pnpm --version', {
+    const version = execSync('pnpm --version --quiet', {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
     }).trim()
