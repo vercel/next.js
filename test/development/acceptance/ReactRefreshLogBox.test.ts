@@ -347,7 +347,6 @@ describe('ReactRefreshLogBox', () => {
              |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
-             "App index.js (24:23)",
            ],
          }
         `)
@@ -645,7 +644,6 @@ describe('ReactRefreshLogBox', () => {
              |           ^",
            "stack": [
              "ClickCount.render Child.js (4:11)",
-             "Home index.js (6:13)",
            ],
          }
         `)
