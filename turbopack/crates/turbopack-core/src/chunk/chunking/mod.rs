@@ -280,6 +280,7 @@ async fn batch_chunk_items_with_info_with_type(
 }
 
 /// Creates chunks based on heuristics for the passed `chunk_items`.
+#[tracing::instrument(level = Level::TRACE, skip_all)]
 pub async fn make_chunks(
     module_graph: Vc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
