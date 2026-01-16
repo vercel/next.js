@@ -1,6 +1,6 @@
 /**
  * Structured logging for Next.js dev mode.
- * Ring buffer for bounded memory, optional file sink for MCP.
+ * In-memory ring buffer for bounded memory, queryable via MCP.
  */
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -32,96 +32,6 @@ export function methodToLevel(method: string): LogLevel {
       return 'debug'
     default:
       return 'info'
-  }
-}
-
-export class FileSink implements LogSink {
-  private fs: typeof import('fs')
-  private path: typeof import('path')
-  private logFilePath: string
-  private pending: string[] = []
-  private timer: ReturnType<typeof setTimeout> | null = null
-  private flushDelayMs: number
-
-  constructor(logFilePath: string, flushDelayMs = 100) {
-    this.fs = require('fs') as typeof import('fs')
-    this.path = require('path') as typeof import('path')
-
-    this.logFilePath = logFilePath
-    this.flushDelayMs = flushDelayMs
-
-    this.ensureFile()
-  }
-
-  /** Create the log directory and file if they don't exist */
-  private ensureFile(): void {
-    this.fs.mkdirSync(this.path.dirname(this.logFilePath), { recursive: true })
-    this.fs.writeFileSync(this.logFilePath, '')
-  }
-
-  /** Map LogLevel back to a display method name matching the old FileLogger format */
-  private static levelToFileMethod(level: LogLevel): string {
-    return level === 'info' ? 'LOG' : level.toUpperCase()
-  }
-
-  write(event: LogEvent): void {
-    // Format timestamp as HH:MM:SS.mmm (matching old FileLogger)
-    const d = new Date(event.ts)
-    const hh = String(d.getHours()).padStart(2, '0')
-    const mm = String(d.getMinutes()).padStart(2, '0')
-    const ss = String(d.getSeconds()).padStart(2, '0')
-    const ms = String(d.getMilliseconds()).padStart(3, '0')
-    const timestamp = `${hh}:${mm}:${ss}.${ms}`
-
-    const source = event.source === 'browser' ? 'Browser' : 'Server'
-
-    // Level: use original method name if available, else map from level
-    const method =
-      (event.structured?.method as string) ||
-      FileSink.levelToFileMethod(event.level)
-    const level = method.toUpperCase()
-
-    this.pending.push(
-      JSON.stringify({ timestamp, source, level, message: event.message }) +
-        '\n'
-    )
-    this.scheduleFlush()
-  }
-
-  private scheduleFlush(): void {
-    if (this.timer) return // Already scheduled
-    this.timer = setTimeout(() => {
-      this.timer = null
-      this.flush()
-    }, this.flushDelayMs)
-  }
-
-  private flush(): void {
-    if (this.pending.length === 0) return
-    try {
-      this.fs.appendFileSync(this.logFilePath, this.pending.join(''))
-      this.pending = []
-    } catch (err: any) {
-      // Directory may have been removed by bundler (e.g. webpack cleans distDir).
-      // Recreate it and retry once.
-      if (err?.code === 'ENOENT') {
-        try {
-          this.ensureFile()
-          this.fs.appendFileSync(this.logFilePath, this.pending.join(''))
-          this.pending = []
-        } catch {
-          // Give up silently
-        }
-      }
-    }
-  }
-
-  close(): void {
-    if (this.timer) {
-      clearTimeout(this.timer)
-      this.timer = null
-    }
-    this.flush()
   }
 }
 
@@ -188,11 +98,14 @@ export class LogStream {
     return result
   }
 
+  /** Get all buffered logs */
+  all(): LogEvent[] {
+    return this.recent(this.len)
+  }
+
   /** Get logs since timestamp */
-  since(timestamp: number, limit?: number): LogEvent[] {
-    const all = this.recent(this.len)
-    const filtered = all.filter((e) => e.ts >= timestamp)
-    return limit ? filtered.slice(-limit) : filtered
+  since(timestamp: number): LogEvent[] {
+    return this.all().filter((e) => e.ts >= timestamp)
   }
 
   stats(): { count: number; capacity: number } {

@@ -109,7 +109,7 @@ import {
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
-import { initLogStream, FileSink } from './log-stream'
+import { initLogStream } from './log-stream'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
 import {
@@ -329,18 +329,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
 
-    // Initialize structured logging
-    const logStream = initLogStream(1000)
-
-    // Only write log file to disk when MCP server is enabled
-    if (this.config.experimental.mcpServer) {
-      logStream.addSink(
-        new FileSink(join(this.distDir, 'logs', 'next-development.log'))
-      )
-    }
+    // Initialize structured logging (in-memory only, no file writes)
+    initLogStream(1000)
 
     onDevServerCleanup?.(async () => {
-      logStream.close()
       await lockfile?.unlock()
     })
   }
