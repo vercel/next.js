@@ -37,12 +37,12 @@ export function getPnpmMajorVersion(): number | null {
 
   // Fall back to spawning pnpm --version
   try {
-    const version = execSync('pnpm --version --quiet', {
+    const version = execSync('pnpm --version', {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
     }).trim()
     const majorVersion = parseInt(version.split('.')[0], 10)
-    if (!isNaN(majorVersion)) {
+    if (!Number.isNaN(majorVersion)) {
       return majorVersion
     }
   } catch {
