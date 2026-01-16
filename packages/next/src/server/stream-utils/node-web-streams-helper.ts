@@ -22,7 +22,6 @@ import {
   NEXT_RSC_UNION_QUERY,
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
-import { isNextRouterError } from '../../client/components/is-next-router-error'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -616,16 +615,6 @@ function createFlightDataInjectionTransformStream(
         controller.enqueue(value)
       }
     } catch (err) {
-      // For Next.js router errors (notFound, forbidden, unauthorized, redirect),
-      // don't error the controller. The error has already been serialized into
-      // the flight data and will be handled by client-side error boundaries.
-      // Cancel the reader and stop pulling - the stream will close naturally
-      // when the HTML stream finishes.
-      if (isNextRouterError(err)) {
-        donePulling = true
-        reader.cancel().catch(() => {})
-        return
-      }
       controller.error(err)
     }
   }

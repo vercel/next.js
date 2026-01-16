@@ -5,7 +5,6 @@ import { htmlEscapeJsonString } from '../htmlescape'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getClientReferenceManifest } from './manifests-singleton'
-import { isNextRouterError } from '../../client/components/is-next-router-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -197,18 +196,9 @@ export function createInlinedDataReadableStream(
           controller.close()
         }
       } catch (error) {
-        // There was a problem in the upstream reader or during decoding or enqueuing.
-        // For Next.js router errors (notFound, forbidden, unauthorized, redirect),
-        // cancel the reader and close the stream gracefully. The error has already
-        // been serialized into the flight data and will be handled by client-side
-        // error boundaries.
-        if (isNextRouterError(error)) {
-          flightReader.cancel().catch(() => {})
-          controller.close()
-        } else {
-          // For other errors, forward the error downstream
-          controller.error(error)
-        }
+        // There was a problem in the upstream reader or during decoding or enqueuing
+        // forward the error downstream
+        controller.error(error)
       }
     },
   })

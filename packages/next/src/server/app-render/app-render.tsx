@@ -58,8 +58,7 @@ import {
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
-import type {
-  HTTPAccessErrorStatus} from '../../client/components/http-access-fallback/http-access-fallback';
+import type { HTTPAccessErrorStatus } from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getAccessFallbackErrorTypeByStatus,
   getAccessFallbackHTTPStatus,
@@ -5402,10 +5401,12 @@ async function prerenderToStream(
     })
     let errorRSCPayload: InitialRSCPayload & { P?: ReactNode }
 
-    // For HTTP access errors (notFound, forbidden, unauthorized), re-render with
-    // the prerenderHTTPError so createComponentTree renders the fallback content
-    // in the proper layout context instead of an empty error shell
-    if (isHTTPAccessFallbackError(err)) {
+    // For HTTP access errors (notFound, forbidden, unauthorized) with cacheComponents,
+    // re-render with the prerenderHTTPError so createComponentTree renders the fallback
+    // content in the proper layout context instead of an empty error shell. This allows
+    // Suspense boundaries in the layout to continue resolving while rendering the fallback.
+    // Without cacheComponents, use the standard error payload handling.
+    if (cacheComponents && isHTTPAccessFallbackError(err)) {
       const prerenderHTTPError = {
         triggeredStatus:
           res.statusCode as (typeof HTTPAccessErrorStatus)[keyof typeof HTTPAccessErrorStatus],
@@ -5441,11 +5442,11 @@ async function prerenderToStream(
       }
     )
 
-    // For HTTP access errors (notFound, forbidden, unauthorized), we re-render
-    // with prerenderHTTPError which produces the correct fallback content.
+    // For HTTP access errors (notFound, forbidden, unauthorized) with cacheComponents,
+    // we re-render with prerenderHTTPError which produces the correct fallback content.
     // We need to use this new stream for both HTML rendering and flight data.
     // For other errors (redirects, 500), use the original flight stream.
-    const useNewFlightData = isHTTPAccessFallbackError(err)
+    const useNewFlightData = cacheComponents && isHTTPAccessFallbackError(err)
     let errorServerStream: ReadableStream<Uint8Array>
     let errorFlightStream: ReadableStream<Uint8Array> | undefined
 
