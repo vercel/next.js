@@ -198,6 +198,7 @@ pub async fn get_babel_loader_rules(
                                 .expect("valid const regex")
                                 .resolved_cell(),
                         ),
+                        query: None,
                     });
                 }
                 ReactCompilerCompilationMode::Infer => {
@@ -210,6 +211,7 @@ pub async fn get_babel_loader_rules(
                                 .expect("valid const regex")
                                 .resolved_cell(),
                         ),
+                        query: None,
                     });
                 }
                 ReactCompilerCompilationMode::All => {}
