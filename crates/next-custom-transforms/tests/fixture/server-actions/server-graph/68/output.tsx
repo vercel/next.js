@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"ffab21efdafbe611287bc25c0462b1e0510d13e48b":"foo","ffac840dcaf5e8197cb02b7f3a43c119b7a770b272":"bar"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"ffab21efdafbe611287bc25c0462b1e0510d13e48b":{"name":"foo"},"ffac840dcaf5e8197cb02b7f3a43c119b7a770b272":{"name":"bar"}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 // @ts-ignore

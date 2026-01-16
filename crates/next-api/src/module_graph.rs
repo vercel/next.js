@@ -30,7 +30,9 @@ use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use crate::{
     client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
     dynamic_imports::{DynamicImportEntries, DynamicImportEntriesMapType, map_next_dynamic},
-    server_actions::{AllActions, AllModuleActions, map_server_actions, to_rsc_context},
+    server_actions::{
+        ActionMeta, AllActions, AllModuleActions, map_server_actions, to_rsc_context,
+    },
 };
 
 #[turbo_tasks::value]
@@ -374,12 +376,15 @@ impl ServerActionsGraph {
                     actions
                         .actions
                         .iter()
-                        .map(async |(hash, name)| {
+                        .map(async |(hash, entry)| {
                             Ok((
                                 hash.to_string(),
                                 (
                                     *layer,
-                                    name.to_string(),
+                                    ActionMeta {
+                                        name: entry.name.clone(),
+                                        source_path: actions.entry_path.clone(),
+                                    },
                                     if *layer == ActionLayer::Rsc {
                                         *module
                                     } else {

@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"ffaa88e24cee8047d167e47f4f374dbddc187e2899":"fooCached"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"ffaa88e24cee8047d167e47f4f374dbddc187e2899":{"name":"fooCached"}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 const { foo: fooCached } = {

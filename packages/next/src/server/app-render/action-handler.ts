@@ -57,18 +57,22 @@ import {
   getServerModuleMap,
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
+import { normalizeFilePath } from './segment-explorer-path'
+import type { ServerActionLogInfo } from '../dev/server-action-logger'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
-import { getRequestMeta } from '../request-meta'
+import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import {
   ActionDidNotRevalidate,
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
+
+const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
 
 /**
  * Checks if the app has any server actions defined in any runtime.
@@ -1080,6 +1084,37 @@ export async function handleAction({
             actionId!
           ]
 
+        // Log server action call in development
+        let logInfo: ServerActionLogInfo | null = null
+        if (process.env.NODE_ENV === 'development') {
+          const serverActionsManifest = getServerActionsManifest()
+          const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+          const actionInfo = serverActionsManifest[runtime]?.[actionId!]
+
+          if (actionInfo) {
+            const isInlineAction =
+              actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
+
+            const projectDir =
+              ctx.renderOpts.dir ||
+              (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd())
+            const location = normalizeFilePath(projectDir, actionInfo.filename)
+
+            // Format function name for display
+            let functionName: string
+            if (isInlineAction) {
+              functionName = '<inline action>'
+            } else if (actionInfo.exportedName === 'default') {
+              functionName = 'default'
+            } else {
+              functionName = actionInfo.exportedName || '<action>'
+            }
+
+            logInfo = { functionName, args: boundActionArguments, location }
+          }
+        }
+
+        const startTime = performance.now()
         const { actionResult, skipPageRendering } =
           await executeActionAndPrepareForRender(
             actionHandler,
@@ -1089,6 +1124,16 @@ export async function handleAction({
             actionWasForwarded
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
+            if (logInfo) {
+              // Store server action log info to be logged after the request log
+              const duration = Math.round(performance.now() - startTime)
+              addRequestMeta(req, 'devServerActionLog', {
+                functionName: logInfo.functionName,
+                args: logInfo.args,
+                location: logInfo.location,
+                duration,
+              })
+            }
           })
 
         // For form actions, we need to continue rendering the page.

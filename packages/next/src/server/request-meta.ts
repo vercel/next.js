@@ -286,6 +286,16 @@ export interface RequestMeta {
    * DEV only: The duration of getStaticPaths/generateStaticParams in process.hrtime.bigint()
    */
   devGenerateStaticParamsDuration?: bigint
+
+  /**
+   * DEV only: Server action log info to be logged after the request log
+   */
+  devServerActionLog?: {
+    functionName: string
+    args: unknown[]
+    location: string
+    duration: number
+  }
 }
 
 /**

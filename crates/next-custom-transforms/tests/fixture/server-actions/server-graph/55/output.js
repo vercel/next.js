@@ -11,7 +11,7 @@ registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "fetch"
 });
-/* __next_internal_action_entry_do_not_use__ {"803128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0"} */ export const api = {
+/* __next_internal_action_entry_do_not_use__ {"803128060c414d59f8552e4788b846c0d2b7f74743":{"name":"$$RSC_SERVER_CACHE_0"}} */ export const api = {
     product: {
         fetch: $$RSC_SERVER_CACHE_0
     }
