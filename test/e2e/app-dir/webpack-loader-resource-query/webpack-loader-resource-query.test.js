@@ -14,11 +14,7 @@ describe('webpack-loader-resource-query', () => {
     expect(next.cliOutput).toContain('resource query:  ?test=hi')
   })
 
-  // Skip for Turbopack since condition.query not implemented yet
   it('should apply loader based on resourceQuery', async () => {
-    if (process.env.IS_TURBOPACK_TEST) {
-      return
-    }
     const $ = await next.render$('/')
     const text = $('#reversed').text()
     expect(text).toBe('dlroW olleH')

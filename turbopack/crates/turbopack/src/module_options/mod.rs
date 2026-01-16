@@ -117,7 +117,11 @@ async fn rule_condition_from_webpack_condition(
                 anyhow::bail!("{name:?} is not a valid built-in condition")
             }
         },
-        ConditionItem::Base { path, content } => {
+        ConditionItem::Base {
+            path,
+            content,
+            query,
+        } => {
             let mut rule_conditions = Vec::new();
             match &path {
                 Some(ConditionPath::Glob(glob)) => rule_conditions.push(
@@ -130,6 +134,9 @@ async fn rule_condition_from_webpack_condition(
             }
             if let Some(content) = content {
                 rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
+            }
+            if let Some(query) = query {
+                rule_conditions.push(RuleCondition::ResourceQueryContains(query.clone().into()));
             }
             RuleCondition::All(rule_conditions)
         }
