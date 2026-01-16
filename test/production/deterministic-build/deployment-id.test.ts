@@ -27,8 +27,8 @@ async function readFiles(next: NextInstance) {
   )
 }
 
-// TODO static/chunks browser chunks are content hashed and have the deployment id inlined
-const IGNORE_NAME = /(^static\/chunks\/)/
+// TODO static/* browser chunks are content hashed and have the deployment id inlined
+const IGNORE_NAME = /^static\/chunks\//
 const IGNORE_CONTENT = new RegExp(
   [
     // TODO These contain content-hashed browser chunk urls (and/or the deployment id query param)
@@ -42,6 +42,8 @@ const IGNORE_CONTENT = new RegExp(
     'middleware-manifest\\.json',
     // TODO this contains the build id
     'BUILD_ID',
+    // TODO this contains the build id: "/pages-static-gsp": { "dataRoute": "/_next/data/V7oVUAlS1LiV5CqrtpkAL/pages-static-gsp.json",
+    'prerender-manifest\\.json',
     // TODO These contain (but are not deployed to the serverless function itself)
     // - content-hashed browser chunk urls
     // - the build id
@@ -73,9 +75,9 @@ const IGNORE_CONTENT = new RegExp(
         'next.config.js': `module.exports = {
             experimental: {
               // Enable these when debugging to get readable diffs
-              turbopackMinify: false,
-              turbopackModuleIds: 'named',
-              turbopackScopeHoisting: false,
+              // turbopackMinify: false,
+              // turbopackModuleIds: 'named',
+              // turbopackScopeHoisting: false,
             },
           }`,
       },
@@ -117,7 +119,15 @@ const IGNORE_CONTENT = new RegExp(
         if (content1 !== content2) {
           errors.push(
             `File content mismatch for ${fileName}\n\n` +
-              diff(content1, content2)
+              diff(content1 ?? '', content2 ?? '')
+          )
+        }
+      }
+      for (const [fileName, content2] of run2Map) {
+        if (!run1Map.has(fileName)) {
+          errors.push(
+            `File content mismatch for ${fileName}\n\n` +
+              diff('', content2 ?? '')
           )
         }
       }

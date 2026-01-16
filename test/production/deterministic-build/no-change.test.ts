@@ -30,7 +30,8 @@ const nodeFilePaths = [
   'app/force-dynamic/app-page/page',
   'app/force-dynamic/app-route/route',
   'pages/api/pages-api',
-  'pages/dynamic/pages-page',
+  'pages/pages-dynamic',
+  'pages/pages-static-gsp',
 ]
 
 function getEdgeRouteFileHashes(next: NextInstance): RouteFileHashRecords {
