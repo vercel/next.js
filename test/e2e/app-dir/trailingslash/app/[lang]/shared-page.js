@@ -1,7 +1,5 @@
 import { RevalidateButton } from './revalidate-button'
 
-export const revalidate = 86400
-
 export default async function Page({ params }) {
   const { lang } = await params
   const generatedAt = new Date().toISOString()

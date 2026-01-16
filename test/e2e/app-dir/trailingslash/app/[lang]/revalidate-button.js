@@ -10,7 +10,7 @@ export function RevalidateButton({ lang }) {
     startTransition(async () => {
       setResult(null)
       try {
-        const res = await fetch(`/api/revalidate/?path=/${lang}/`)
+        const res = await fetch(`/api/revalidate/?lang=${lang}`)
         const data = await res.json()
         setResult(`Revalidated at: ${data.timestamp}`)
       } catch (e) {
