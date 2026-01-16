@@ -72,7 +72,7 @@ async fn compute_async_module_info_single(
                     // async in this graph as well.
                     parent_async_modules
                         .as_ref()
-                        .map_or(false, |set| set.contains(module))
+                        .is_some_and(|set| set.contains(module))
                         .then_some(*module)
                 }
             })
