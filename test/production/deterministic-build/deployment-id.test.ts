@@ -28,10 +28,7 @@ async function readFiles(next: NextInstance) {
 }
 
 // TODO static/chunks browser chunks are content hashed and have the deployment id inlined
-// TODO _buildManifest.js, _clientMiddlewareManifest.json, _ssgManifest.js are inside of a folder named
-//   after the build id
-const IGNORE_NAME =
-  /(^static\/chunks\/)|(\/_buildManifest\.js$|\/_clientMiddlewareManifest\.json$|\/_ssgManifest\.js$)/
+const IGNORE_NAME = /(^static\/chunks\/)/
 const IGNORE_CONTENT = new RegExp(
   [
     // TODO These contain content-hashed browser chunk urls (and/or the deployment id query param)

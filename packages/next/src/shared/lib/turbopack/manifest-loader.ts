@@ -801,9 +801,17 @@ export class TurbopackManifestLoader {
     return manifest
   }
 
-  private writeMiddlewareManifest(): void {
-    if (!this.middlewareManifests.takeChanged()) {
-      return
+  private writeMiddlewareManifest(): {
+    clientMiddlewareManifestPath: string
+  } {
+    if (this.dev && !this.middlewareManifests.takeChanged()) {
+      return {
+        clientMiddlewareManifestPath: join(
+          'static',
+          this.buildId,
+          `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
+        ),
+      }
     }
     const middlewareManifest = this.mergeMiddlewareManifests(
       this.middlewareManifests.values()
@@ -838,17 +846,33 @@ export class TurbopackManifestLoader {
     // Client middleware manifest
     const matchers = middlewareManifest?.middleware['/']?.matchers || []
 
-    const clientMiddlewareManifestPath = join(
-      this.distDir,
-      'static',
-      this.buildId,
-      `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
-    )
+    const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(
+      matchers,
+      null,
+      2
+    )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
+
+    let clientMiddlewareManifestPath =
+      this.deploymentId && !this.dev
+        ? join(
+            CLIENT_STATIC_FILES_PATH,
+            `_clientMiddlewareManifest-${createHash('sha1').update(clientMiddlewareManifestJs).digest('hex').substring(0, 16)}.js`
+          )
+        : join(
+            CLIENT_STATIC_FILES_PATH,
+            this.buildId,
+            `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
+          )
+
     deleteCache(clientMiddlewareManifestPath)
     writeFileAtomic(
-      clientMiddlewareManifestPath,
-      JSON.stringify(matchers, null, 2)
+      join(this.distDir, clientMiddlewareManifestPath),
+      clientMiddlewareManifestJs
     )
+
+    return {
+      clientMiddlewareManifestPath,
+    }
   }
 
   loadPagesManifest(pageName: string): void {
@@ -892,9 +916,9 @@ export class TurbopackManifestLoader {
       devRewrites,
       productionRewrites
     )
-    this.writeBuildManifest(lowPriorityFiles)
+    const { clientMiddlewareManifestPath } = this.writeMiddlewareManifest()
+    this.writeBuildManifest([...lowPriorityFiles, clientMiddlewareManifestPath])
     this.writeInterceptionRouteRewriteManifest(devRewrites, productionRewrites)
-    this.writeMiddlewareManifest()
     this.writeNextFontManifest()
     this.writePagesManifest()
 

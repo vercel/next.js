@@ -2714,15 +2714,70 @@ export default async function build(
           }
 
           if (bundler === Bundler.Turbopack) {
-            await writeManifest(
-              path.join(
-                distDir,
-                'static',
-                buildId,
-                TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-              ),
-              functionsConfigManifest.functions['/_middleware'].matchers || []
+            const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(
+              functionsConfigManifest.functions['/_middleware'].matchers || [],
+              null,
+              2
+            )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
+
+            let clientMiddlewareManifestPath =
+              bundler === Bundler.Turbopack &&
+              (config.experimental.assetDeploymentId || config.deploymentId)
+                ? path.join(
+                    'static',
+                    `_clientMiddlewareManifest-${createHash('sha1').update(clientMiddlewareManifestJs).digest('hex').substring(0, 16)}.js`
+                  )
+                : path.join(
+                    CLIENT_STATIC_FILES_PATH,
+                    buildId,
+                    TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+                  )
+
+            await writeFileUtf8(
+              path.join(distDir, clientMiddlewareManifestPath),
+              clientMiddlewareManifestJs
             )
+
+            if (config.experimental.assetDeploymentId || config.deploymentId) {
+              // TODO properly do this, without reading and patching
+
+              // Turbopack writes an empty _clientMiddlewareManifest.js file. We need to update build-manifest.json to
+              // reference the correct file now.
+              let oldEntry = buildManifest.lowPriorityFiles.findIndex((file) =>
+                file.includes('/_clientMiddlewareManifest-')
+              )
+              if (oldEntry === -1) {
+                throw new Error(
+                  "Couldn't find _clientMiddlewareManifest-* in lowPriorityFiles of build-manifest.json: " +
+                    JSON.stringify(buildManifest.lowPriorityFiles)
+                )
+              }
+              // @ts-expect-error lowPriorityFiles is a readonly array
+              buildManifest.lowPriorityFiles[oldEntry] =
+                clientMiddlewareManifestPath
+              // Flush the changes
+              await writeManifest(buildManifestPath, buildManifest)
+
+              let middleware = await readFileUtf8(
+                path.join(
+                  distDir,
+                  SERVER_DIRECTORY,
+                  MIDDLEWARE_BUILD_MANIFEST + '.js'
+                )
+              )
+              middleware = middleware.replace(
+                /static\/_clientMiddlewareManifest-([a-f0-9]+)\.js/,
+                clientMiddlewareManifestPath
+              )
+              await fs.writeFile(
+                path.join(
+                  distDir,
+                  SERVER_DIRECTORY,
+                  MIDDLEWARE_BUILD_MANIFEST + '.js'
+                ),
+                middleware
+              )
+            }
           }
         }
       }
