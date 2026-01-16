@@ -7,12 +7,12 @@ use turbopack_core::{
         ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt, ChunksData,
         availability_info::AvailabilityInfo,
     },
+    context::AssetContext,
     ident::AssetIdent,
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::WorkerReferenceSubType,
-    resolve::origin::ResolveOrigin,
 };
 
 use super::module::WorkerLoaderModule;
@@ -31,7 +31,7 @@ pub struct WorkerLoaderChunkItem {
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub worker_type: WorkerReferenceSubType,
-    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -64,8 +64,8 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
 
-        // Get the worker entrypoint for this chunking context, using the origin's asset context
-        let asset_context = this.origin.asset_context();
+        // Get the worker entrypoint for this chunking context
+        let asset_context = *this.asset_context;
         let entrypoint_full_path = this
             .chunking_context
             .worker_entrypoint(asset_context)
@@ -113,7 +113,7 @@ impl OutputAssetsReference for WorkerLoaderChunkItem {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
-        let asset_context = this.origin.asset_context();
+        let asset_context = *this.asset_context;
         Ok(self.chunk_group().concatenate(
             this.chunking_context
                 .worker_entrypoint(asset_context)

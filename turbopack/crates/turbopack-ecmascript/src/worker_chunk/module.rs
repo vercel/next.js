@@ -7,12 +7,13 @@ use turbopack_core::{
         ChunkGroupType, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption,
     },
+    context::AssetContext,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     reference_type::WorkerReferenceSubType,
-    resolve::{ModuleResolveResult, origin::ResolveOrigin},
+    resolve::ModuleResolveResult,
 };
 
 use super::chunk_item::WorkerLoaderChunkItem;
@@ -23,7 +24,7 @@ use super::chunk_item::WorkerLoaderChunkItem;
 pub struct WorkerLoaderModule {
     pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
     pub worker_type: WorkerReferenceSubType,
-    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -32,12 +33,12 @@ impl WorkerLoaderModule {
     pub fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         worker_type: WorkerReferenceSubType,
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Self> {
         Self::cell(WorkerLoaderModule {
             inner: module,
             worker_type,
-            origin,
+            asset_context,
         })
     }
 
@@ -50,11 +51,8 @@ impl WorkerLoaderModule {
 #[turbo_tasks::value_impl]
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        // Include origin path in the ident to disambiguate worker loaders
-        // that reference the same worker from different origins
-        let origin_ident = AssetIdent::from_path(self.origin.origin_path().owned().await?);
-        Ok(Self::asset_ident_for(*self.inner).with_asset(rcstr!("origin"), origin_ident))
+    fn ident(&self) -> Vc<AssetIdent> {
+        Self::asset_ident_for(*self.inner)
     }
 
     #[turbo_tasks::function]
@@ -100,7 +98,7 @@ impl ChunkableModule for WorkerLoaderModule {
                 module_graph,
                 chunking_context,
                 worker_type: this.worker_type,
-                origin: this.origin,
+                asset_context: this.asset_context,
             }
             .cell(),
         ))

@@ -56,9 +56,7 @@ impl WorkerAssetReference {
 }
 
 impl WorkerAssetReference {
-    async fn worker_loader_module(
-        self: &WorkerAssetReference,
-    ) -> Result<Option<Vc<WorkerLoaderModule>>> {
+    async fn worker_loader_module(&self) -> Result<Option<Vc<WorkerLoaderModule>>> {
         let module = url_resolve(
             *self.origin,
             *self.request,
@@ -86,7 +84,7 @@ impl WorkerAssetReference {
         Ok(Some(WorkerLoaderModule::new(
             *chunkable,
             self.worker_type,
-            *self.origin,
+            *self.origin.asset_context().to_resolved().await?,
         )))
     }
 }

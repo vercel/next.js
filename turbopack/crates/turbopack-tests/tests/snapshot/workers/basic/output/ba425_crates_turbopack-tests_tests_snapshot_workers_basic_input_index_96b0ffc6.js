@@ -1,6 +1,6 @@
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
-    "output/ba425_crates_turbopack-tests_tests_snapshot_workers_shared_input_index_f46d6fb7.js",
-    {"otherChunks":["output/turbopack_crates_turbopack-tests_tests_snapshot_workers_shared_input_bcc6dcfd._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js [test] (ecmascript)"]}
+    "output/ba425_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_96b0ffc6.js",
+    {"otherChunks":["output/turbopack_crates_turbopack-tests_tests_snapshot_workers_basic_input_73fc86c5._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
@@ -1865,4 +1865,4 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_workers_shared_input_index_f46d6fb7.js.map
+//# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_96b0ffc6.js.map

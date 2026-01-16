@@ -207,8 +207,7 @@ pub async fn get_browser_runtime_code(
 }
 
 /// Returns the code for the ECMAScript worker entrypoint bootstrap.
-#[turbo_tasks::function]
-pub async fn get_worker_runtime_code(
+pub fn get_worker_runtime_code(
     asset_context: Vc<Box<dyn AssetContext>>,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
