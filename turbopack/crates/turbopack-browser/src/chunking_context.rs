@@ -695,6 +695,8 @@ impl ChunkingContext for BrowserChunkingContext {
             )
             .await?;
 
+            let chunks = chunks.await?;
+
             let mut assets = chunks
                 .iter()
                 .map(|chunk| self.generate_chunk(**chunk).to_resolved())
@@ -760,6 +762,8 @@ impl ChunkingContext for BrowserChunkingContext {
                 input_availability_info,
             )
             .await?;
+
+            let chunks = chunks.await?;
 
             let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
                 .iter()
