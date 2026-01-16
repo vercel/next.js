@@ -324,9 +324,11 @@ export const installTemplate = async ({
   // In v9, having a pnpm-workspace.yaml (even with packages: []) causes
   // ERR_PNPM_ADDING_TO_ROOT errors when running `pnpm add`.
   // In v10, the packages field can be omitted entirely.
+  // If we can't determine the version, assume latest (v10+) since we already
+  // know pnpm is being used at this point.
   if (packageManager === "pnpm") {
     const pnpmMajorVersion = getPnpmMajorVersion();
-    if (pnpmMajorVersion !== null && pnpmMajorVersion >= 10) {
+    if (pnpmMajorVersion === null || pnpmMajorVersion >= 10) {
       const pnpmWorkspaceYaml = [
         "ignoredBuiltDependencies:",
         // Sharp has prebuilt binaries for the platforms next-swc has binaries.

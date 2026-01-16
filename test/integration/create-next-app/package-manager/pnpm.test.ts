@@ -149,6 +149,38 @@ describe('create-next-app with package manager pnpm', () => {
     })
   })
 
+  it('should create pnpm-workspace.yaml when pnpm version is unknown (assumes latest)', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'pnpm-unknown-version-workspace'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-turbopack',
+          '--no-linter',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--no-react-compiler',
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+          // User agent without version number - assumes latest pnpm
+          env: { npm_config_user_agent: 'pnpm' },
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: [...files, 'pnpm-workspace.yaml'],
+      })
+    })
+  })
+
   it('should use pnpm for --use-pnpm flag with example', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-pnpm-with-example'
