@@ -81,9 +81,11 @@ function extract(
   // Get the segment value for the canonical route
   const segmentValue = getCanonicalSegmentValue(segment)
 
-  // Skip synthetic '(slot)' segments that Next.js adds internally for parallel routes
-  // These only appear immediately after a @parallelRoute marker, e.g., @modal/(slot)
-  // We must be careful not to skip user-defined (slot) route groups elsewhere
+  // Next.js internally adds synthetic '(slot)' segments for parallel route state management.
+  // These appear immediately after @parallelRoute markers (e.g., @modal/(slot)/...).
+  // We skip these to avoid polluting the canonical route with internal implementation details.
+  // User-defined route groups named "(slot)" elsewhere in the tree are preserved because
+  // they won't appear immediately after a @parallelRoute marker.
   const lastSegment = segments.length > 0 ? segments[segments.length - 1] : null
   const isAfterParallelRoute = lastSegment?.startsWith('@')
   const isSyntheticSlot = segmentValue === '(slot)' && isAfterParallelRoute
