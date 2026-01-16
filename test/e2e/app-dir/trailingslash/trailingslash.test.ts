@@ -1,14 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('app-dir trailingSlash handling', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should redirect route when requesting it directly', async () => {
     const res = await next.fetch('/a', {
@@ -59,4 +55,33 @@ describe('app-dir trailingSlash handling', () => {
       'http://trailingslash-another.com/metadata'
     )
   })
+
+  // TODO: Likely needs an infrastructure fix to pass as a deploy test.
+  const itFailsWhenDeployed = isNextDeploy ? it.failing : it
+  /* eslint-disable jest/no-standalone-expect */
+  itFailsWhenDeployed(
+    'should revalidate a page with generated static params and trailing slash',
+    async () => {
+      const browser = await next.browser('/en/')
+      const initialGeneratedAt = await browser
+        .elementById('generated-at')
+        .text()
+
+      expect(initialGeneratedAt).toBeDateString()
+
+      await browser.elementById('revalidate-button').click()
+
+      expect(await browser.elementById('revalidate-result').text()).toInclude(
+        'Revalidated'
+      )
+
+      await retry(async () => {
+        await browser.refresh()
+        const generatedAt = await browser.elementById('generated-at').text()
+        expect(generatedAt).toBeDateString()
+        expect(generatedAt).not.toBe(initialGeneratedAt)
+      })
+    }
+  )
+  /* eslint-enable jest/no-standalone-expect */
 })
