@@ -5408,15 +5408,16 @@ async function prerenderToStream(
     // Without cacheComponents, use the standard error payload handling.
     if (cacheComponents && isHTTPAccessFallbackError(err)) {
       const prerenderHTTPError = {
-        triggeredStatus:
-          res.statusCode as (typeof HTTPAccessErrorStatus)[keyof typeof HTTPAccessErrorStatus],
+        triggeredStatus: getAccessFallbackHTTPStatus(
+          err
+        ) as (typeof HTTPAccessErrorStatus)[keyof typeof HTTPAccessErrorStatus],
       }
       errorRSCPayload = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
         getRSCPayload,
         tree,
         ctx,
-        true, // is404 - triggers not-found metadata handling
+        errorType === 'not-found', // Only use not-found metadata for actual 404 errors
         prerenderHTTPError
       )
     } else {
