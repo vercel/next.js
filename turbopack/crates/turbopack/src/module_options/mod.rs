@@ -135,8 +135,16 @@ async fn rule_condition_from_webpack_condition(
             if let Some(content) = content {
                 rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
             }
-            if let Some(query) = query {
-                rule_conditions.push(RuleCondition::ResourceQueryContains(query.clone().into()));
+            match &query {
+                Some(ConditionQuery::Constant(value)) => {
+                    rule_conditions.push(RuleCondition::ResourceQueryContainsEquals(
+                        value.clone().into(),
+                    ));
+                }
+                Some(ConditionQuery::Regex(regex)) => {
+                    rule_conditions.push(RuleCondition::ResourceQueryContainsEsRegex(regex.await?));
+                }
+                None => {}
             }
             RuleCondition::All(rule_conditions)
         }

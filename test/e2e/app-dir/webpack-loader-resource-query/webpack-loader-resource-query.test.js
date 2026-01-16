@@ -19,4 +19,10 @@ describe('webpack-loader-resource-query', () => {
     const text = $('#reversed').text()
     expect(text).toBe('dlroW olleH')
   })
+
+  it('should apply loader based on resourceQuery regex', async () => {
+    const $ = await next.render$('/')
+    const text = $('#upper').text()
+    expect(text).toBe('HELLO WORLD')
+  })
 })

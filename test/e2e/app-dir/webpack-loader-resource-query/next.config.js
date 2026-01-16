@@ -12,6 +12,11 @@ const nextConfig = {
           loaders: [require.resolve('./reverse-loader.js')],
           as: '*.js',
         },
+        {
+          condition: { query: /\?upper/ },
+          loaders: [require.resolve('./upper-loader.js')],
+          as: '*.js',
+        },
       ],
     },
   },
@@ -23,6 +28,10 @@ const nextConfig = {
     config.module.rules.push({
       resourceQuery: '?reverse',
       use: require.resolve('./reverse-loader.js'),
+    })
+    config.module.rules.push({
+      resourceQuery: /\?upper/,
+      use: require.resolve('./upper-loader.js'),
     })
     return config
   },
