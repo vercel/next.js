@@ -204,7 +204,7 @@ The `source` field pulls content from the App Router doc.
 
 ### Clarity
 
-- Use simple words over complex alternatives
+- Use plain words over complex alternatives
 - Be specific: "the `src` prop" not "this prop"
 - Avoid jargon unless explaining it
 
