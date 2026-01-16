@@ -6,12 +6,12 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use super::{
-    Chunk, ChunkGroupContent, ChunkItemWithAsyncModuleInfo, ChunkingContext,
+    ChunkGroupContent, ChunkItemWithAsyncModuleInfo, ChunkingContext,
     availability_info::AvailabilityInfo, chunking::make_chunks,
 };
 use crate::{
     chunk::{
-        ChunkableModule, ChunkingType,
+        ChunkableModule, ChunkingType, Chunks,
         available_modules::AvailableModuleItem,
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
@@ -35,7 +35,7 @@ use crate::{
 };
 
 pub struct MakeChunkGroupResult {
-    pub chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+    pub chunks: ResolvedVc<Chunks>,
     pub referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub references: Vec<ResolvedVc<Box<dyn OutputAssetsReference>>>,
     pub availability_info: AvailabilityInfo,
@@ -154,11 +154,12 @@ pub async fn make_chunk_group(
     // Pass chunk items to chunking algorithm
     let chunks = make_chunks(
         module_graph,
-        chunking_context,
-        chunk_items,
-        chunk_item_batch_groups,
+        *chunking_context,
+        Vc::cell(chunk_items),
+        Vc::cell(chunk_item_batch_groups),
         rcstr!(""),
     )
+    .to_resolved()
     .await?;
 
     Ok(MakeChunkGroupResult {
