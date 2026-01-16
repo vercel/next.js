@@ -16,4 +16,4 @@ export { ReadonlyURLSearchParams }
 export const RedirectType = {
   push: 'push',
   replace: 'replace',
-}
+} as const
