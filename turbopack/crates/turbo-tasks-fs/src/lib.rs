@@ -3102,13 +3102,6 @@ mod tests {
             fs.root()
         }
 
-        #[derive(Clone, Copy)]
-        enum SymlinkStressMode {
-            Directory,
-            #[cfg(windows)]
-            Junction,
-        }
-
         #[turbo_tasks::function(operation)]
         async fn write_symlink_stress_batch(
             fs: ResolvedVc<DiskFileSystem>,
@@ -3120,7 +3113,7 @@ mod tests {
             updates
                 .into_iter()
                 .map(|(symlink_idx, target_idx)| {
-                    let target: RcStr = format!("../_targets/{}", target_idx).into();
+                    let target = RcStr::from(format!("../_targets/{target_idx}"));
                     let symlink_path = symlinks_dir.join(&symlink_idx.to_string()).unwrap();
                     async move {
                         fs.write_link(
