@@ -176,9 +176,7 @@ impl<
     ) -> Option<(E::Future, Option<Sender<()>>)> {
         let mut queue = self.queue.lock();
         if let Some(heap_item) = queue.pop() {
-            if queue.len() * 2 + 16 < queue.capacity() {
-                queue.shrink_to_fit();
-            }
+            shrink_amortized(&mut queue);
             drop(queue);
             let tx = heap_item.tx;
             Some((
@@ -198,9 +196,7 @@ impl<
     ) -> bool {
         let mut queue = self.queue.lock();
         if let Some(heap_item) = queue.pop() {
-            if queue.len() * 2 + 16 < queue.capacity() {
-                queue.shrink_to_fit();
-            }
+            shrink_amortized(&mut queue);
             drop(queue);
             let tx = heap_item.tx;
             let new_future =
@@ -215,6 +211,15 @@ impl<
         } else {
             false
         }
+    }
+}
+
+fn shrink_amortized<P, T>(queue: &mut BinaryHeap<HeapItem<P, T>>) {
+    // Amortized shrinking of the queue, but with a lower threshold to avoid
+    // frequent reallocations when the queue is small.
+    if queue.capacity() > queue.len() * 3 && queue.capacity() > 128 {
+        let new_capacity = queue.len().next_power_of_two().max(128);
+        queue.shrink_to(new_capacity);
     }
 }
 
