@@ -42,9 +42,9 @@ impl ModuleIdStrategy {
     pub async fn get_id_from_ident(&self, ident: Vc<AssetIdent>) -> Result<ModuleId> {
         let ident = ident.to_resolved().await?;
         if let Some(module_id_map) = self.module_id_map
-            && let Some(module_id) = module_id_map.get(&ident).await?
+            && let Some(module_id) = module_id_map.get(&ident).await?.as_deref().cloned()
         {
-            return Ok((*module_id).clone());
+            return Ok(module_id);
         }
 
         match self.fallback {
