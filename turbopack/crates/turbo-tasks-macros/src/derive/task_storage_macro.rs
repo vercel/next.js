@@ -1385,6 +1385,8 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                 )
             };
 
+            let track_modification = field.track_modification_call();
+
             let base_accessor = quote! {
                 #[doc = #doc_comment]
                 fn #ref_name(&self) -> #return_type {
@@ -1394,10 +1396,11 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
 
                 /// Get a mutable reference to the collection (allocates if needed for lazy fields).
                 ///
-                /// Note: This does NOT track modifications. Call `track_modification` after
-                /// making changes to ensure persistence.
+                /// Tracks modification pessimistically - assumes caller will mutate.
+                /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic
                 fn #mut_name(&mut self) -> &mut #field_type {
                     #check_access
+                    #track_modification
                     #mut_expr
                 }
             };
@@ -1428,6 +1431,8 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                 )
             };
 
+            let track_modification = field.track_modification_call();
+
             let base_accessor = quote! {
                 #[doc = #doc_comment]
                 fn #ref_name(&self) -> #return_type {
@@ -1437,10 +1442,11 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
 
                 /// Get a mutable reference to the collection (allocates if needed for lazy fields).
                 ///
-                /// Note: This does NOT track modifications. Call `track_modification` after
-                /// making changes to ensure persistence.
+                /// Tracks modification pessimistically - assumes caller will mutate.
+                /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic
                 fn #mut_name(&mut self) -> &mut #field_type {
                     #check_access
+                    #track_modification
                     #mut_expr
                 }
             };
@@ -1469,6 +1475,8 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                 )
             };
 
+            let track_modification = field.track_modification_call();
+
             let base_accessor = quote! {
                 #[doc = #ref_doc]
                 fn #ref_name(&self) -> #return_type {
@@ -1478,10 +1486,11 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
 
                 /// Get a mutable reference to the collection (allocates if needed for lazy fields).
                 ///
-                /// Note: This does NOT track modifications. Call `track_modification` after
-                /// making changes to ensure persistence.
+                /// Tracks modification pessimistically - assumes caller will mutate.
+                /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic
                 fn #mut_name(&mut self) -> &mut #field_type {
                     #check_access
+                    #track_modification
                     #mut_expr
                 }
             };
@@ -1546,10 +1555,13 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                 quote! {
                     /// Get a mutable reference to the field value.
                     ///
-                    /// Note: This does NOT track modifications. Call `track_modification` after
-                    /// making changes to ensure persistence.
+                    /// Tracks modification pessimistically - assumes caller will mutate.
+                    /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic.
+                    /// If this is needed then we need to use a guard struct that tracks `DerefMut` calls and calls track_modification
+                    /// in Drop
                     fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
                         #check_access
+                        #track_modification
                         Some(&mut self.typed_mut().#field_name)
                     }
                 }
@@ -1558,10 +1570,10 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                 quote! {
                     /// Get a mutable reference to the field value (if present).
                     ///
-                    /// Note: This does NOT track modifications. Call `track_modification` after
-                    /// making changes to ensure persistence.
+                    /// Tracks modification pessimistically - assumes caller will mutate.
                     fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
                         #check_access
+                        #track_modification
                         self.typed_mut().#field_name.as_mut()
                     }
                 }
@@ -1572,10 +1584,10 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
             quote! {
                 /// Get a mutable reference to the field value (if present).
                 ///
-                /// Note: This does NOT track modifications. Call `track_modification` after
-                /// making changes to ensure persistence.
+                /// Tracks modification pessimistically - assumes caller will mutate.
                 fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
                     #check_access
+                    #track_modification
                     #get_mut_expr
                 }
             }
