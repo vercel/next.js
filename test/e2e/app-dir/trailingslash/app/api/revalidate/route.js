@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 
-const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+const isCacheComponentsEnabled = !!process.env.__NEXT_CACHE_COMPONENTS
 
 export async function GET(request) {
   const lang = request.nextUrl.searchParams.get('lang') || 'en'
