@@ -382,8 +382,6 @@ impl ServerActionsGraph {
                                     ActionMeta {
                                         name: entry.name.clone(),
                                         source_path: actions.entry_path.clone(),
-                                        line: entry.line,
-                                        col: entry.col,
                                     },
                                     if *layer == ActionLayer::Rsc {
                                         *module

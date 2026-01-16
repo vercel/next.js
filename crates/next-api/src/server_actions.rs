@@ -45,8 +45,8 @@ use turbopack_ecmascript::{
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 
-/// Metadata for a server action: (layer, exported_name, filename, line, col)
-type ActionMetadata = (ActionLayer, String, String, Option<u32>, Option<u32>);
+/// Metadata for a server action: (layer, exported_name, filename)
+type ActionMetadata = (ActionLayer, String, String);
 
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
@@ -196,14 +196,11 @@ async fn build_manifest(
             module_path.to_string()
         };
 
-        action_metadata.push((
-            hash_id.clone(),
-            (*layer, meta.name.clone(), filename, meta.line, meta.col),
-        ));
+        action_metadata.push((hash_id.clone(), (*layer, meta.name.clone(), filename)));
     }
 
     // Now create the manifest entries
-    for (hash_id, (layer, name, filename, line, col)) in &action_metadata {
+    for (hash_id, (layer, name, filename)) in &action_metadata {
         let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
             &key,
@@ -216,11 +213,9 @@ async fn build_manifest(
         );
         entry.layer.insert(&key, *layer);
 
-        // Hoist the filename, exported_name, and location to the entry level
+        // Hoist the filename and exported_name to the entry level
         entry.exported_name = name.as_str();
         entry.filename = filename.as_str();
-        entry.line = *line;
-        entry.col = *col;
     }
 
     Ok(ResolvedVc::upcast(
@@ -267,40 +262,21 @@ pub async fn to_rsc_context(
     Ok(module)
 }
 
-/// Location info for a server action (1-indexed line and column)
-#[derive(Clone, Debug, serde::Deserialize)]
-struct ServerActionLocationRaw {
-    line: u32,
-    col: u32,
-}
-
-/// Server action info including name and optional source location (for JSON parsing)
+/// Server action info for JSON parsing
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(untagged)]
 enum ServerActionInfoRaw {
     /// Old format: just the export name as a string
     Name(String),
-    /// New format: object with name and optional location
-    WithLocation {
-        name: String,
-        #[serde(default)]
-        loc: Option<ServerActionLocationRaw>,
-    },
+    /// New format: object with name
+    WithName { name: String },
 }
 
 impl ServerActionInfoRaw {
     fn into_action_entry(self) -> ActionEntry {
         match self {
-            ServerActionInfoRaw::Name(name) => ActionEntry {
-                name,
-                line: None,
-                col: None,
-            },
-            ServerActionInfoRaw::WithLocation { name, loc } => ActionEntry {
-                name,
-                line: loc.as_ref().map(|l| l.line),
-                col: loc.as_ref().map(|l| l.col),
-            },
+            ServerActionInfoRaw::Name(name) => ActionEntry { name },
+            ServerActionInfoRaw::WithName { name } => ActionEntry { name },
         }
     }
 }
@@ -309,8 +285,6 @@ impl ServerActionInfoRaw {
 #[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct ActionEntry {
     pub name: String,
-    pub line: Option<u32>,
-    pub col: Option<u32>,
 }
 
 /// Parses the Server Actions comment for all exported action function names.
@@ -500,14 +474,12 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
         .unwrap_or(false)
 }
 
-/// Action metadata including name, source path, and optional location
+/// Action metadata including name and source path
 #[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct ActionMeta {
     pub name: String,
     /// The original source file path (from entry_path in the action comment)
     pub source_path: String,
-    pub line: Option<u32>,
-    pub col: Option<u32>,
 }
 
 type HashToLayerNameModule = Vec<(

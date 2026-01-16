@@ -33,7 +33,7 @@ const flightClientModuleLoader: webpack.LoaderDefinitionFunction =
         prefix +
         Object.entries(buildInfo.rsc.actionIds)
           .map(([id, exportInfo]) => {
-            // exportInfo can be a string (legacy) or object with name and loc
+            // exportInfo can be a string (legacy) or object with name
             const name =
               typeof exportInfo === 'string' ? exportInfo : exportInfo.name
             return `export { ${name} } from 'next-flight-server-reference-proxy-loader?id=${id}&name=${name}!'`

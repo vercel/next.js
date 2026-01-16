@@ -72,6 +72,8 @@ import {
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 
+const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
+
 /**
  * Checks if the app has any server actions defined in any runtime.
  */
@@ -1090,7 +1092,6 @@ export async function handleAction({
           const actionInfo = serverActionsManifest[runtime]?.[actionId!]
 
           if (actionInfo) {
-            const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
             const isInlineAction =
               actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
 
