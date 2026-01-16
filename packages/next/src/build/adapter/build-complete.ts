@@ -1358,7 +1358,9 @@ export async function handleBuildComplete({
                   filePath,
                   postponedState: undefined,
                   initialStatus:
-                    (initialStatus ?? isNotFoundTrue) ? 404 : undefined,
+                    initialStatus ??
+                    meta.status ??
+                    (isNotFoundTrue ? 404 : undefined),
                   initialHeaders: {
                     ...initialHeaders,
                     vary: varyHeader,
@@ -1422,6 +1424,7 @@ export async function handleBuildComplete({
               fallback: {
                 ...initialOutput.fallback,
                 postponedState: postponed,
+                initialStatus: undefined,
                 initialHeaders: {
                   ...initialOutput.fallback?.initialHeaders,
                   ...dataInitialHeaders,
@@ -1441,6 +1444,7 @@ export async function handleBuildComplete({
                 ? undefined
                 : {
                     ...initialOutput.fallback,
+                    initialStatus: undefined,
                     initialHeaders: {
                       ...initialOutput.fallback?.initialHeaders,
                       ...dataInitialHeaders,
@@ -1533,7 +1537,7 @@ export async function handleBuildComplete({
                     fallback.endsWith('.html') ? fallback : `${fallback}.html`
                   ),
                   postponedState: undefined,
-                  initialStatus: fallbackStatus,
+                  initialStatus: fallbackStatus ?? meta.status,
                   initialHeaders: {
                     ...fallbackHeaders,
                     ...(appPageKeys?.length ? { vary: varyHeader } : {}),
@@ -1612,6 +1616,7 @@ export async function handleBuildComplete({
                 ...initialOutput.fallback,
                 filePath: undefined,
                 postponedState: meta.postponed,
+                initialStatus: undefined,
                 initialHeaders: {
                   ...initialOutput.fallback?.initialHeaders,
                   ...dataInitialHeaders,
@@ -1645,6 +1650,7 @@ export async function handleBuildComplete({
                 typeof fallback === 'string'
                   ? {
                       ...initialOutput.fallback,
+                      initialStatus: undefined,
                       postponedState: undefined,
                       filePath: path.join(
                         pagesDistDir,
