@@ -29,7 +29,7 @@ describe('standalone mode and optimizeCss', () => {
         output: 'standalone',
       },
       dependencies: {
-        critters: '0.0.16',
+        beasties: '0.3.5',
       },
     })
   })

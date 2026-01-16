@@ -68,7 +68,7 @@ const sharedExternals = [
   'next/dist/compiled/undici',
   'next/dist/compiled/raw-body',
   'next/dist/server/capsize-font-metrics.json',
-  'critters',
+  'beasties',
   'next/dist/compiled/node-html-parser',
   'next/dist/compiled/compression',
   'next/dist/compiled/jsonwebtoken',
