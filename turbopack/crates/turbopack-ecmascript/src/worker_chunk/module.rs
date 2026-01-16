@@ -70,12 +70,8 @@ impl Module for WorkerLoaderModule {
 impl Asset for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        // For content(), we delegate to the inner module because:
-        // 1. During normal chunking/bundling, content() is not called - instead the chunk item's
-        //    code_generation() is used, which generates the worker loader code
-        // 2. During tracing (e.g. node-file-trace), content() is called to emit all referenced
-        //    files, and we want to include the actual worker file, not a synthetic loader
-        // 3. This follows the same pattern as other transform modules:
+        // For content(), we delegate to the inner module to support some testing usecases that
+        // attempt to emit all assets. This follows the same pattern as other transform modules:
         //    - TracedAsset: delegates to inner module (explicit tracing wrapper)
         //    - EcmascriptModulePartAsset: delegates to full module (tree-shaking wrapper)
         //    - CachedExternalModule: returns NotFound (build-time only, no source to trace)
