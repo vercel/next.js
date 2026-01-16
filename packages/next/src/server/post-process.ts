@@ -14,7 +14,7 @@ async function postProcessHTML(
       ? async (html: string) => {
           // eslint-disable-next-line import/no-extraneous-dependencies
           const Beasties = require('beasties') as typeof import('beasties')
-          // @ts-expect-error -- interopRequireDefaul
+          // @ts-expect-error -- interopRequireDefault
           const cssOptimizer = new Beasties({
             /* beasties options v0.3.5 {@link https://github.com/danielroe/beasties#usage} */
             reduceInlineStyles: false,
