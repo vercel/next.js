@@ -36,7 +36,7 @@ function extract(
   segments: string[],
   results: string[]
 ): void {
-  const [segment, parallelRoutes, url] = flightRouterState
+  const [segment, parallelRoutes, refreshState] = flightRouterState
 
   // Skip root segment (empty string) but check all parallel routes
   if (segment === '') {
@@ -62,11 +62,13 @@ function extract(
 
   // Check if we've reached a page marker
   if (typeof segment === 'string' && segment.startsWith(PAGE_SEGMENT_KEY)) {
-    // During client-side navigation, the url field may be null/undefined
+    // During client-side navigation, the refreshState field may be null/undefined
     // If the url matches OR is null (meaning this is the active page for the current path),
     // we should add the canonical route we've built to results
+    // refreshState is [url, renderedSearch] if present, otherwise null/undefined
+    const url = refreshState ? refreshState[0] : null
     const urlMatches = url === targetPathname
-    const isNullUrl = url === null || url === undefined
+    const isNullUrl = url === null
 
     if (urlMatches || isNullUrl) {
       const route = segments.length > 0 ? '/' + segments.join('/') : '/'
