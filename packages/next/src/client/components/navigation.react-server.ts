@@ -14,6 +14,6 @@ export { unstable_rethrow } from './unstable-rethrow'
 export { ReadonlyURLSearchParams }
 
 export const RedirectType = {
-  push: 'push',
-  replace: 'replace',
+  push: 'push' as const,
+  replace: 'replace' as const,
 }
