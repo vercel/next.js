@@ -671,7 +671,8 @@ mod tests {
             Action::Schedule(7, true),
             Action::Schedule(8, true),
             Action::Schedule(9, true),
-            Action::Schedule(10, true),
+            // 10..19 are waiting tasks
+            Action::Schedule(10, false),
             Action::Schedule(11, false),
             Action::Schedule(12, false),
             Action::Schedule(13, false),
