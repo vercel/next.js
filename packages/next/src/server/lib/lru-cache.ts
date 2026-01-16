@@ -198,6 +198,10 @@ export class LRUCache<T> {
    * Removes a specific key from the cache.
    * Updates both the hash map and doubly-linked list.
    *
+   * Note: This is an explicit removal and does NOT trigger the `onEvict`
+   * callback. Use this for intentional deletions where eviction tracking
+   * is not needed.
+   *
    * Time Complexity: O(1)
    */
   public remove(key: string): void {
