@@ -1495,6 +1495,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     let add_name = field.prefixed_ident("add");
     let add_items_name = field.suffixed_ident("extend");
     let remove_name = field.prefixed_ident("remove");
+    let remove_all_name = field.suffixed_ident("remove_all");
     let has_name = field.prefixed_ident("has");
     let iter_name = field.iter_ident();
     let len_name = field.len_ident();
@@ -1550,6 +1551,39 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         }
     };
 
+    // Remove all uses find_lazy_mut for lazy to avoid allocation when set doesn't exist.
+    let remove_all_body = if is_option {
+        let extractor = field.lazy_extractor_closure();
+
+        quote! {
+            let Some(set) = self.typed_mut().find_lazy_mut(#extractor) else {
+                return;
+            };
+            let mut any_removed = false;
+            for item in items {
+                if set.remove(item) {
+                    any_removed = true;
+                }
+            }
+            if any_removed {
+                #track_modification
+            }
+        }
+    } else {
+        quote! {
+            let set = #mut_expr;
+            let mut any_removed = false;
+            for item in items {
+                if set.remove(item) {
+                    any_removed = true;
+                }
+            }
+            if any_removed {
+                #track_modification
+            }
+        }
+    };
+
     quote! {
         /// Check if the set contains an item
         fn #has_name(&self, item: &#element_type) -> bool {
@@ -1590,6 +1624,16 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         fn #remove_name(&mut self, item: &#element_type) -> bool {
             #check_access
             #remove_body
+        }
+
+        /// Remove multiple items from the set.
+        /// Only tracks modification if at least one item is actually removed.
+        fn #remove_all_name<'a>(&mut self, items: impl Iterator<Item = &'a #element_type>)
+        where
+            #element_type: 'a,
+        {
+            #check_access
+            #remove_all_body
         }
 
         /// Iterate over all items in the set
@@ -1642,6 +1686,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     // Method names - use shorter names to match existing API
     let update_count_name = field.infixed_ident("update", "count");
+    let update_counts_name = field.infixed_ident("update", "counts");
     let update_and_get_name = field.prefixed_ident("update_and_get");
     let update_with_name = field.prefixed_ident("update");
     let add_entry_name = field.prefixed_ident("add");
@@ -1731,7 +1776,18 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         fn #update_count_name(&mut self, key: #key_type, delta: #value_type) -> bool {
             #check_access
             #track_modification
-                        #mut_expr.update_count(key, delta)
+            #mut_expr.update_count(key, delta)
+        }
+
+        /// Update multiple counters by the given delta.
+        /// More efficient than calling update_count in a loop.
+        fn #update_counts_name(&mut self, keys: impl Iterator<Item = #key_type>, delta: #value_type) {
+            #check_access
+            #track_modification
+            let map = #mut_expr;
+            for key in keys {
+                map.update_count(key, delta);
+            }
         }
 
         /// Update a counter by the given delta and return the new value.

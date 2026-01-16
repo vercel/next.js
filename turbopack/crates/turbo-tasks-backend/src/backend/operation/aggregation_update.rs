@@ -2484,9 +2484,7 @@ impl AggregationUpdateQueue {
                 // When converted from leaf to aggregating node, all children become
                 // followers
                 let children: Vec<_> = task.iter_children().collect();
-                for child in children {
-                    task.add_followers(child, 1);
-                }
+                task.update_followers_counts(children.into_iter(), 1);
             }
 
             if is_aggregating_node(aggregation_number) {
