@@ -2,8 +2,9 @@ import type { LoaderTree } from '../lib/app-dir-module'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 
 /**
- * Extracts the staleTime export from a loader tree.
- * Walks the tree to find the page segment and extracts staleTime from page/layout modules.
+ * Extracts the unstable_staleTime export from a loader tree.
+ * Walks the tree to find the page segment and extracts unstable_staleTime from
+ * page/layout modules.
  * The nested-most value wins (page overrides layout).
  */
 export async function extractStaleTimeFromLoaderTree(
@@ -14,10 +15,10 @@ export async function extractStaleTimeFromLoaderTree(
   // Get the layout or page module for this segment
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
 
-  // Get staleTime from this segment's layout or page module if present
+  // Get unstable_staleTime from this segment's layout or page module if present
   let staleTime: number | undefined =
-    typeof layoutOrPageMod?.staleTime === 'number'
-      ? layoutOrPageMod.staleTime
+    typeof layoutOrPageMod?.unstable_staleTime === 'number'
+      ? layoutOrPageMod.unstable_staleTime
       : undefined
 
   // Walk through parallel routes (typically just 'children')

@@ -4,14 +4,14 @@ export default function Page() {
   return (
     <>
       <p>
-        Tests for export const staleTime segment config. This test suite does
-        NOT use cacheComponents, as staleTime segment config is not supported
-        with cacheComponents.
+        Tests for export const unstable_staleTime segment config. This test
+        suite does NOT use cacheComponents, as unstable_staleTime segment config
+        is not supported with cacheComponents.
       </p>
       <ul>
         <li>
           <LinkAccordion href="/stale-5-minutes">
-            Page with staleTime = 300 (5 minutes)
+            Page with unstable_staleTime = 300 (5 minutes)
           </LinkAccordion>
         </li>
         <li>
@@ -21,7 +21,12 @@ export default function Page() {
         </li>
         <li>
           <LinkAccordion href="/inherit">
-            Page inheriting staleTime from layout (120)
+            Page inheriting unstable_staleTime from layout (120)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/override">
+            Page overriding layout unstable_staleTime (page=60, layout=180)
           </LinkAccordion>
         </li>
       </ul>
