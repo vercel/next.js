@@ -156,7 +156,11 @@ where
         true
     }
 
-    fn restore_task_data(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskStorage {
+    fn restore_task_data(
+        &mut self,
+        task_id: TaskId,
+        category: SpecificTaskDataCategory,
+    ) -> TaskStorage {
         if !self.ensure_transaction() {
             // If we don't need to restore, we can just return an empty storage
             return TaskStorage::default();
@@ -182,10 +186,10 @@ where
         }
     }
 
-    fn restore_task_data_batch_typed(
+    fn restore_task_data_batch(
         &mut self,
         task_ids: &[TaskId],
-        category: TaskDataCategory,
+        category: SpecificTaskDataCategory,
     ) -> Option<Vec<TaskStorage>> {
         debug_assert!(
             task_ids.len() > 1,
@@ -309,14 +313,14 @@ where
             0 => {}
             1 => {
                 let task_id = tasks_to_restore_for_data[0];
-                let storage = self.restore_task_data(task_id, TaskDataCategory::Data);
+                let data = self.restore_task_data(task_id, SpecificTaskDataCategory::Data);
                 let idx = tasks_to_restore_for_data_indicies[0];
-                tasks[idx].2 = Some(storage);
+                tasks[idx].2 = Some(data);
             }
             _ => {
-                if let Some(storages) = self.restore_task_data_batch_typed(
+                if let Some(storages) = self.restore_task_data_batch(
                     &tasks_to_restore_for_data,
-                    TaskDataCategory::Data,
+                    SpecificTaskDataCategory::Data,
                 ) {
                     storages
                         .into_iter()
@@ -335,14 +339,14 @@ where
             0 => {}
             1 => {
                 let task_id = tasks_to_restore_for_meta[0];
-                let storage = self.restore_task_data(task_id, TaskDataCategory::Meta);
+                let data = self.restore_task_data(task_id, SpecificTaskDataCategory::Meta);
                 let idx = tasks_to_restore_for_meta_indicies[0];
-                tasks[idx].3 = Some(storage);
+                tasks[idx].3 = Some(data);
             }
             _ => {
-                if let Some(storages) = self.restore_task_data_batch_typed(
+                if let Some(storages) = self.restore_task_data_batch(
                     &tasks_to_restore_for_meta,
-                    TaskDataCategory::Meta,
+                    SpecificTaskDataCategory::Meta,
                 ) {
                     storages
                         .into_iter()
@@ -421,15 +425,17 @@ where
                 task.flags.set_restored(TaskDataCategory::All);
             } else {
                 for category in category {
-                    if !task.flags.is_restored(category) {
+                    if !task.flags.is_restored(category.into()) {
                         // Avoid holding the lock too long since this can also affect other tasks
                         drop(task);
+                        // If we are restoring ALL it would be best to call restore_task_data twice
+                        // in here instead of looping
 
                         let storage = self.restore_task_data(task_id, category);
                         task = self.backend.storage.access_mut(task_id);
-                        if !task.flags.is_restored(category) {
-                            task.restore_from(storage, category);
-                            task.flags.set_restored(category);
+                        if !task.flags.is_restored(category.into()) {
+                            task.restore_from(storage, category.into());
+                            task.flags.set_restored(category.into());
                         }
                     }
                 }
@@ -518,13 +524,13 @@ where
                 let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
                 task1 = t1;
                 task2 = t2;
-                if !task1.flags.is_restored(category) {
-                    task1.restore_from(storage1.unwrap(), category);
-                    task1.flags.set_restored(category);
+                if !task1.flags.is_restored(category.into()) {
+                    task1.restore_from(storage1.unwrap(), category.into());
+                    task1.flags.set_restored(category.into());
                 }
-                if !task2.flags.is_restored(category) {
-                    task2.restore_from(storage2.unwrap(), category);
-                    task2.flags.set_restored(category);
+                if !task2.flags.is_restored(category.into()) {
+                    task2.restore_from(storage2.unwrap(), category.into());
+                    task2.flags.set_restored(category.into());
                 }
             }
         }

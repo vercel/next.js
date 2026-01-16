@@ -81,7 +81,7 @@ impl CounterValue for i32 {
 }
 
 impl<K, V> CounterMap<K, V> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self(AutoMap::default())
     }
 

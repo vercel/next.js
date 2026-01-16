@@ -7,7 +7,7 @@ use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{TaskId, backend::CachedTaskType};
 
 use crate::{
-    backend::{AnyOperation, TaskDataCategory, storage_schema::TaskStorage},
+    backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
     utils::chunked_vec::ChunkedVec,
 };
 
@@ -48,7 +48,7 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         &self,
         task: TaskId,
         data: &TaskStorage,
-        category: TaskDataCategory,
+        category: SpecificTaskDataCategory,
     ) -> Result<SmallVec<[u8; 16]>>;
 
     fn save_snapshot<I>(
@@ -98,7 +98,7 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
-        category: TaskDataCategory,
+        category: SpecificTaskDataCategory,
         storage: &mut TaskStorage,
     ) -> Result<()>;
 
@@ -111,7 +111,7 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_ids: &[TaskId],
-        category: TaskDataCategory,
+        category: SpecificTaskDataCategory,
     ) -> Result<Vec<TaskStorage>>;
 
     fn shutdown(&self) -> Result<()> {
@@ -147,7 +147,7 @@ where
         &self,
         task: TaskId,
         data: &TaskStorage,
-        category: TaskDataCategory,
+        category: SpecificTaskDataCategory,
     ) -> Result<SmallVec<[u8; 16]>> {
         either::for_both!(self, this => this.serialize(task, data, category))
     }
@@ -219,7 +219,7 @@ where
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
-        category: TaskDataCategory,
+        category: SpecificTaskDataCategory,
         storage: &mut TaskStorage,
     ) -> Result<()> {
         match self {
@@ -238,7 +238,7 @@ where
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_ids: &[TaskId],
-        category: TaskDataCategory,
+        category: SpecificTaskDataCategory,
     ) -> Result<Vec<TaskStorage>> {
         match self {
             Either::Left(this) => {

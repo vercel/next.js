@@ -32,6 +32,15 @@ impl TaskDataCategory {
     }
 }
 
+impl From<SpecificTaskDataCategory> for TaskDataCategory {
+    fn from(value: SpecificTaskDataCategory) -> Self {
+        match value {
+            SpecificTaskDataCategory::Meta => TaskDataCategory::Meta,
+            SpecificTaskDataCategory::Data => TaskDataCategory::Data,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SpecificTaskDataCategory {
     Meta,
@@ -39,7 +48,7 @@ pub enum SpecificTaskDataCategory {
 }
 
 impl IntoIterator for TaskDataCategory {
-    type Item = TaskDataCategory;
+    type Item = SpecificTaskDataCategory;
 
     type IntoIter = TaskDataCategoryIterator;
 
@@ -60,21 +69,21 @@ pub enum TaskDataCategoryIterator {
 }
 
 impl Iterator for TaskDataCategoryIterator {
-    type Item = TaskDataCategory;
+    type Item = SpecificTaskDataCategory;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             TaskDataCategoryIterator::All => {
                 *self = TaskDataCategoryIterator::Data;
-                Some(TaskDataCategory::Meta)
+                Some(SpecificTaskDataCategory::Meta)
             }
             TaskDataCategoryIterator::Meta => {
                 *self = TaskDataCategoryIterator::None;
-                Some(TaskDataCategory::Meta)
+                Some(SpecificTaskDataCategory::Meta)
             }
             TaskDataCategoryIterator::Data => {
                 *self = TaskDataCategoryIterator::None;
-                Some(TaskDataCategory::Data)
+                Some(SpecificTaskDataCategory::Data)
             }
             TaskDataCategoryIterator::None => None,
         }

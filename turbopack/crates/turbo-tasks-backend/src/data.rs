@@ -7,10 +7,7 @@ use turbo_tasks::{
     event::{Event, EventListener},
 };
 
-use crate::{
-    backend::TaskDataCategory,
-    data_storage::{AutoMapStorage, OptionStorage, Storage},
-};
+use crate::backend::TaskDataCategory;
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared
@@ -733,6 +730,5 @@ mod tests {
         assert_eq!(std::mem::size_of::<super::CachedDataItem>(), 40);
         assert_eq!(std::mem::size_of::<super::CachedDataItemKey>(), 32);
         assert_eq!(std::mem::size_of::<super::CachedDataItemValue>(), 32);
-        assert_eq!(std::mem::size_of::<super::CachedDataItemStorage>(), 56);
     }
 }

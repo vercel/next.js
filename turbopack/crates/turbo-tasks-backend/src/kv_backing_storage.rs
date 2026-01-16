@@ -20,7 +20,7 @@ use turbo_tasks::{
 
 use crate::{
     GitVersionInfo,
-    backend::{AnyOperation, TaskDataCategory, storage_schema::TaskStorage},
+    backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
     backing_storage::{BackingStorage, BackingStorageSealed},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
@@ -255,7 +255,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         &self,
         task: TaskId,
         data: &TaskStorage,
-        category: TaskDataCategory,
+        category: SpecificTaskDataCategory,
     ) -> Result<SmallVec<[u8; 16]>> {
         encode_task_data(task, data, category)
     }
@@ -516,7 +516,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         &self,
         tx: Option<&T::ReadTransaction<'_>>,
         task_id: TaskId,
-        category: TaskDataCategory,
+        category: SpecificTaskDataCategory,
         storage: &mut TaskStorage,
     ) -> Result<()> {
         let inner = &*self.inner;
@@ -524,7 +524,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             database: &D,
             tx: &D::ReadTransaction<'_>,
             task_id: TaskId,
-            category: TaskDataCategory,
+            category: SpecificTaskDataCategory,
             storage: &mut TaskStorage,
         ) -> Result<()> {
             let Some(bytes) = database.get(
@@ -541,9 +541,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 (),
             );
             match category {
-                TaskDataCategory::Meta => storage.decode_meta(&mut decoder),
-                TaskDataCategory::Data => storage.decode_data(&mut decoder),
-                TaskDataCategory::All => unreachable!(),
+                SpecificTaskDataCategory::Meta => storage.decode_meta(&mut decoder),
+                SpecificTaskDataCategory::Data => storage.decode_data(&mut decoder),
             }
             .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))
         }
@@ -558,14 +557,14 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_ids: &[TaskId],
-        category: TaskDataCategory,
+        category: SpecificTaskDataCategory,
     ) -> Result<Vec<TaskStorage>> {
         let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
             task_ids: &[TaskId],
-            category: TaskDataCategory,
+            category: SpecificTaskDataCategory,
         ) -> Result<Vec<TaskStorage>> {
             let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
             let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
@@ -582,17 +581,16 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                             (),
                         );
                         match category {
-                            TaskDataCategory::Meta => {
+                            SpecificTaskDataCategory::Meta => {
                                 storage
                                     .decode_meta(&mut decoder)
                                     .map_err(|e| anyhow::anyhow!("Failed to decode meta: {e:?}"))?;
                             }
-                            TaskDataCategory::Data => {
+                            SpecificTaskDataCategory::Data => {
                                 storage
                                     .decode_data(&mut decoder)
                                     .map_err(|e| anyhow::anyhow!("Failed to decode data: {e:?}"))?;
                             }
-                            TaskDataCategory::All => unreachable!(),
                         }
                     }
                     Ok(storage)
@@ -792,21 +790,20 @@ where
 fn encode_task_data(
     task: TaskId,
     data: &TaskStorage,
-    category: TaskDataCategory,
+    category: SpecificTaskDataCategory,
 ) -> Result<TurboBincodeBuffer> {
     let mut buffer = TurboBincodeBuffer::with_capacity(256);
     let mut encoder = new_turbo_bincode_encoder(&mut buffer);
     match category {
-        TaskDataCategory::Meta => data.encode_meta(&mut encoder)?,
-        TaskDataCategory::Data => data.encode_data(&mut encoder)?,
-        TaskDataCategory::All => unreachable!(),
+        SpecificTaskDataCategory::Meta => data.encode_meta(&mut encoder)?,
+        SpecificTaskDataCategory::Data => data.encode_data(&mut encoder)?,
     }
     if !cfg!(feature = "verify_serialization") {
         return Ok(buffer);
     }
 
     match category {
-        TaskDataCategory::Meta => {
+        SpecificTaskDataCategory::Meta => {
             let copy = data.clone_meta_snapshot();
             let mut deserialized = TaskStorage::new();
             deserialized.decode_meta(&mut new_turbo_bincode_decoder(buffer.borrow()))?;
@@ -815,7 +812,7 @@ fn encode_task_data(
                 "expected to be able to round trip 'meta' information for {task}"
             );
         }
-        TaskDataCategory::Data => {
+        SpecificTaskDataCategory::Data => {
             let copy = data.clone_data_snapshot();
             let mut deserialized = TaskStorage::new();
             deserialized.decode_data(&mut new_turbo_bincode_decoder(buffer.borrow()))?;
@@ -824,15 +821,13 @@ fn encode_task_data(
                 "expected to be able to round trip 'data' information {task}"
             );
         }
-        TaskDataCategory::All => unreachable!(),
     };
     Ok(buffer)
 }
 
-fn category_to_key_space(category: TaskDataCategory) -> KeySpace {
+fn category_to_key_space(category: SpecificTaskDataCategory) -> KeySpace {
     match category {
-        TaskDataCategory::Meta => KeySpace::TaskMeta,
-        TaskDataCategory::Data => KeySpace::TaskData,
-        TaskDataCategory::All => unreachable!(),
+        SpecificTaskDataCategory::Meta => KeySpace::TaskMeta,
+        SpecificTaskDataCategory::Data => KeySpace::TaskData,
     }
 }
