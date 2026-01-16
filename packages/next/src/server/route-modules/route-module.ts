@@ -836,7 +836,7 @@ export abstract class RouteModule<
         params &&
         paramsResult.hasValidParams &&
         queryResult.hasValidParams &&
-        Object.keys(paramsResult.params).length <
+        Object.keys(paramsResult.params).length <=
           Object.keys(queryResult.params).length
       ) {
         paramsToInterpolate = queryResult.params
