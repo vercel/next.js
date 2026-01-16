@@ -1163,7 +1163,12 @@ impl Project {
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
             let is_production = self.next_mode().await?.is_production();
-            ModuleGraph::from_entry_module(*entry, is_production, is_production)
+            ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entry(
+                ChunkGroupEntry::Entry(vec![entry]),
+                is_production,
+                is_production,
+            ))
+            .connect()
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -1182,11 +1187,12 @@ impl Project {
                 .copied()
                 .map(ResolvedVc::upcast)
                 .collect();
-            ModuleGraph::from_modules(
-                Vc::cell(vec![ChunkGroupEntry::Entry(entries)]),
+            ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+                ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entries)]),
                 is_production,
                 is_production,
-            )
+            ))
+            .connect()
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -2034,19 +2040,11 @@ impl Project {
     /// Compute the used exports and unused imports for each module.
     #[turbo_tasks::function]
     async fn binding_usage_info(self: Vc<Self>) -> Result<Vc<BindingUsageInfo>> {
-        let remove_unused_imports = *self
-            .next_config()
-            .turbopack_remove_unused_imports(self.next_mode())
-            .await?;
-
         let module_graphs = self.whole_app_module_graphs().await?;
-        Ok(*compute_binding_usage_info(
-            module_graphs.full_with_unused_references,
-            remove_unused_imports,
-        )
-        // As a performance optimization, we resolve strongly consistently
-        .resolve_strongly_consistent()
-        .await?)
+        Ok(module_graphs
+            .binding_usage_info
+            .context("No binding usage info")?
+            .connect())
     }
 
     /// Compute the used exports for each module.
@@ -2102,7 +2100,7 @@ async fn whole_app_module_graph_operation(
     let should_trace = next_mode_ref.is_production();
     let should_read_binding_usage = next_mode_ref.is_production();
     let base_single_module_graph = SingleModuleGraph::new_with_entries(
-        project.get_all_entries(),
+        project.get_all_entries().to_resolved().await?,
         should_trace,
         should_read_binding_usage,
     );
@@ -2118,16 +2116,19 @@ async fn whole_app_module_graph_operation(
     let base = if turbopack_remove_unused_imports {
         // TODO suboptimal that we do compute_binding_usage_info twice (once for the base graph
         // and later for the full graph)
-        base.without_unused_references(
-            *compute_binding_usage_info(base.to_resolved().await?, true)
-                .resolve_strongly_consistent()
-                .await?,
+        let binding_usage_info = compute_binding_usage_info(base, true);
+        ModuleGraph::from_single_graph_without_unused_references(
+            base_single_module_graph,
+            binding_usage_info,
         )
     } else {
         base
     };
 
-    let additional_entries = project.get_all_additional_entries(base);
+    let additional_entries = project
+        .get_all_additional_entries(base.connect())
+        .to_resolved()
+        .await?;
 
     let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
         additional_entries,
@@ -2136,28 +2137,23 @@ async fn whole_app_module_graph_operation(
         should_read_binding_usage,
     );
 
-    let full_with_unused_references =
-        ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph])
-            .to_resolved()
-            .await?;
+    let graphs = vec![base_single_module_graph, additional_module_graph];
 
-    let full = if turbopack_remove_unused_imports {
-        full_with_unused_references
-            .without_unused_references(
-                *compute_binding_usage_info(full_with_unused_references, true)
-                    .resolve_strongly_consistent()
-                    .await?,
-            )
-            .to_resolved()
-            .await?
+    let (full, binding_usage_info) = if turbopack_remove_unused_imports {
+        let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone());
+        let binding_usage_info = compute_binding_usage_info(full_with_unused_references, true);
+        (
+            ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info),
+            Some(binding_usage_info),
+        )
     } else {
-        full_with_unused_references
+        (ModuleGraph::from_graphs(graphs), None)
     };
 
     Ok(BaseAndFullModuleGraph {
-        base: base.to_resolved().await?,
-        full_with_unused_references,
-        full,
+        base: base.connect().to_resolved().await?,
+        full: full.connect().to_resolved().await?,
+        binding_usage_info,
     }
     .cell())
 }
@@ -2166,11 +2162,10 @@ async fn whole_app_module_graph_operation(
 pub struct BaseAndFullModuleGraph {
     /// The base module graph generated from the entry points.
     pub base: ResolvedVc<ModuleGraph>,
-    /// The base graph plus any modules that were generated from additional entries (for which the
-    /// base graph is needed).
-    pub full_with_unused_references: ResolvedVc<ModuleGraph>,
     /// `full_with_unused_references` but with unused references removed.
     pub full: ResolvedVc<ModuleGraph>,
+    /// Information about binding usage in the module graph.
+    pub binding_usage_info: Option<OperationVc<BindingUsageInfo>>,
 }
 
 #[turbo_tasks::function]

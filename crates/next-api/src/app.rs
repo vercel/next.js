@@ -924,12 +924,12 @@ impl AppProject {
                             // Only propagate the visited_modules of the parent layout(s), not
                             // across siblings such as loading.js and
                             // page.js.
-                            visited_modules.concatenate(graph)
+                            VisitedModules::concatenate(visited_modules, graph)
                         } else {
                             // Prevents graph index from getting out of sync.
                             // TODO We should remove VisitedModule entirely in favor of lookups
                             // in SingleModuleGraph
-                            visited_modules.with_incremented_index()
+                            VisitedModules::with_incremented_index(visited_modules)
                         };
                     }
                     visited_modules
@@ -951,10 +951,10 @@ impl AppProject {
                     should_read_binding_usage,
                 );
                 graphs.push(graph);
-                visited_modules = visited_modules.concatenate(graph);
+                visited_modules = VisitedModules::concatenate(visited_modules, graph);
 
                 let base = ModuleGraph::from_graphs(graphs.clone());
-                let additional_entries = endpoint.additional_entries(base);
+                let additional_entries = endpoint.additional_entries(base.connect());
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
                     visited_modules,
@@ -963,31 +963,33 @@ impl AppProject {
                 );
                 graphs.push(additional_module_graph);
 
-                let full_with_unused_references =
-                    ModuleGraph::from_graphs(graphs).to_resolved().await?;
-
-                let full = if *self
+                let remove_unused_imports = *self
                     .project
                     .next_config()
                     .turbopack_remove_unused_imports(next_mode)
-                    .await?
-                {
-                    full_with_unused_references
-                        .without_unused_references(
-                            *compute_binding_usage_info(full_with_unused_references, true)
-                                .resolve_strongly_consistent()
-                                .await?,
-                        )
-                        .to_resolved()
-                        .await?
+                    .await?;
+
+                let (full, binding_usage_info) = if remove_unused_imports {
+                    let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone());
+                    let binding_usage_info = compute_binding_usage_info(
+                        full_with_unused_references,
+                        should_read_binding_usage,
+                    );
+                    (
+                        ModuleGraph::from_graphs_without_unused_references(
+                            graphs,
+                            binding_usage_info,
+                        ),
+                        Some(binding_usage_info),
+                    )
                 } else {
-                    full_with_unused_references
+                    (ModuleGraph::from_graphs(graphs), None)
                 };
 
                 Ok(BaseAndFullModuleGraph {
-                    base: base.to_resolved().await?,
-                    full_with_unused_references,
-                    full,
+                    base: base.connect().to_resolved().await?,
+                    full: full.connect().to_resolved().await?,
+                    binding_usage_info,
                 }
                 .cell())
             }

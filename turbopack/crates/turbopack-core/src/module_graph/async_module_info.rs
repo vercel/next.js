@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
 
 use crate::{
     module::{Module, Modules},
-    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraphWithBindingUsage},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
 
 #[turbo_tasks::value(transparent)]
@@ -41,21 +41,19 @@ pub async fn compute_async_module_info(
 ) -> Result<Vc<AsyncModulesInfo>> {
     // Layout segment optimization, we can individually compute the async modules for each graph.
     let mut result: Vc<AsyncModulesInfo> = Vc::cell(Default::default());
-    let graphs = graphs.await?;
-    for graph in graphs.iter_graphs() {
-        result = compute_async_module_info_single(graph, result);
+    for graph in graphs.iter_graphs().await? {
+        result = compute_async_module_info_single(graph.connect(), result);
     }
     Ok(result)
 }
 
 #[turbo_tasks::function]
 async fn compute_async_module_info_single(
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
     parent_async_modules: Vc<AsyncModulesInfo>,
 ) -> Result<Vc<AsyncModulesInfo>> {
     let parent_async_modules = parent_async_modules.await?;
-    let graph = graph.read().await?;
-
+    let graph = graph.await?;
     let self_async_modules = graph
         .enumerate_nodes()
         .map(async |(_, node)| {
