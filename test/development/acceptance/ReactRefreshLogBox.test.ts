@@ -633,6 +633,20 @@ describe('ReactRefreshLogBox', () => {
            ],
          }
         `)
+      } else if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+         > 4 |     throw new Error()
+             |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {

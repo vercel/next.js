@@ -7,6 +7,14 @@ import {
   getRedboxDescription,
   getRedboxSource,
 } from 'next-test-utils'
+
+// Filter out browser log lines from CLI output to avoid counting forwarded browser errors
+function filterBrowserLogs(output: string): string {
+  return output
+    .split('\n')
+    .filter((line) => !line.includes('[browser]'))
+    .join('\n')
+}
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'cache-components-edge-deduplication',
   () => {
@@ -49,7 +57,9 @@ import {
          Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."
         `)
         // Count occurrences of the layout error at the specific location
-        const layoutErrorMatches = next.cliOutput.match(
+        // Filter out browser logs to avoid counting forwarded browser errors
+        const filteredOutput = filterBrowserLogs(next.cliOutput)
+        const layoutErrorMatches = filteredOutput.match(
           /\.\/app\/edge-with-layout\/layout\.tsx:1:14/g
         )
         // We don't show an error stack, just the individual error messages at each location
