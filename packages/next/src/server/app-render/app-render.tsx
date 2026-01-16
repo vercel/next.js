@@ -58,11 +58,11 @@ import {
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
-import type { HTTPAccessErrorStatus } from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getAccessFallbackErrorTypeByStatus,
   getAccessFallbackHTTPStatus,
   isHTTPAccessFallbackError,
+  type HTTPAccessErrorStatusCode,
 } from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getURLFromRedirectError,
@@ -5410,7 +5410,7 @@ async function prerenderToStream(
       const prerenderHTTPError = {
         triggeredStatus: getAccessFallbackHTTPStatus(
           err
-        ) as (typeof HTTPAccessErrorStatus)[keyof typeof HTTPAccessErrorStatus],
+        ) as HTTPAccessErrorStatusCode,
       }
       errorRSCPayload = await workUnitAsyncStorage.run(
         prerenderLegacyStore,

@@ -1,5 +1,20 @@
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
+import type { Playwright } from 'next-webdriver'
+
+/**
+ * Helper to verify no connection errors occurred in the browser console.
+ * Used to detect issues where HTTP error handling causes premature stream closure.
+ */
+async function expectNoConnectionErrors(browser: Playwright): Promise<void> {
+  const logs = await browser.log()
+  const connectionClosedErrors = logs.filter(
+    (log: { message: string }) =>
+      log.message.includes('Connection closed') ||
+      log.message.includes('client-side exception')
+  )
+  expect(connectionClosedErrors).toHaveLength(0)
+}
 
 describe('cache-components', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -77,13 +92,7 @@ describe('cache-components', () => {
     expect(notFoundText).toBe('Not Found from Suspense!')
 
     // Check that there are no console errors about "Connection closed"
-    const logs = await browser.log()
-    const connectionClosedErrors = logs.filter(
-      (log: { message: string }) =>
-        log.message.includes('Connection closed') ||
-        log.message.includes('client-side exception')
-    )
-    expect(connectionClosedErrors).toHaveLength(0)
+    await expectNoConnectionErrors(browser)
   })
 
   it('should handle not-found with async component in layout Suspense boundary', async () => {
@@ -105,13 +114,7 @@ describe('cache-components', () => {
     expect(asyncData).toBe('Data: Fetched Data')
 
     // Check that there are no console errors about "Connection closed"
-    const logs = await browser.log()
-    const connectionClosedErrors = logs.filter(
-      (log: { message: string }) =>
-        log.message.includes('Connection closed') ||
-        log.message.includes('client-side exception')
-    )
-    expect(connectionClosedErrors).toHaveLength(0)
+    await expectNoConnectionErrors(browser)
   })
 
   it('should handle forbidden with async component in layout Suspense boundary', async () => {
@@ -133,13 +136,7 @@ describe('cache-components', () => {
     expect(asyncData).toBe('Data: Fetched Data')
 
     // Check that there are no console errors about "Connection closed"
-    const logs = await browser.log()
-    const connectionClosedErrors = logs.filter(
-      (log: { message: string }) =>
-        log.message.includes('Connection closed') ||
-        log.message.includes('client-side exception')
-    )
-    expect(connectionClosedErrors).toHaveLength(0)
+    await expectNoConnectionErrors(browser)
   })
 
   it('should handle unauthorized with async component in layout Suspense boundary', async () => {
@@ -163,13 +160,7 @@ describe('cache-components', () => {
     expect(asyncData).toBe('Data: Fetched Data')
 
     // Check that there are no console errors about "Connection closed"
-    const logs = await browser.log()
-    const connectionClosedErrors = logs.filter(
-      (log: { message: string }) =>
-        log.message.includes('Connection closed') ||
-        log.message.includes('client-side exception')
-    )
-    expect(connectionClosedErrors).toHaveLength(0)
+    await expectNoConnectionErrors(browser)
   })
 
   it('should prerender pages that render in a microtask', async () => {

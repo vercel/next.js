@@ -21,7 +21,6 @@ import {
 } from './http-access-fallback'
 import { warnOnce } from '../../../shared/lib/utils/warn-once'
 import { MissingSlotContext } from '../../../shared/lib/app-router-context.shared-runtime'
-import { usePrerenderHTTPError } from './prerender-error-context'
 
 interface HTTPAccessFallbackBoundaryProps {
   notFound?: React.ReactNode
@@ -164,40 +163,6 @@ export function HTTPAccessFallbackBoundary({
   const pathname = useUntrackedPathname()
   const missingSlots = useContext(MissingSlotContext)
   const hasErrorFallback = !!(notFound || forbidden || unauthorized)
-
-  // Check if we're in a prerender with a pre-triggered HTTP error.
-  // This is used when notFound(), forbidden(), or unauthorized() is called
-  // at the page level (outside Suspense) during cacheComponents prerender.
-  const prerenderError = usePrerenderHTTPError()
-
-  if (prerenderError) {
-    const { triggeredStatus } = prerenderError
-    const errorComponents: Record<number, React.ReactNode | undefined> = {
-      [HTTPAccessErrorStatus.NOT_FOUND]: notFound,
-      [HTTPAccessErrorStatus.FORBIDDEN]: forbidden,
-      [HTTPAccessErrorStatus.UNAUTHORIZED]: unauthorized,
-    }
-
-    const matchedFallback = errorComponents[triggeredStatus]
-
-    // Only render the fallback if this boundary has a matching component
-    if (matchedFallback) {
-      return (
-        <>
-          <meta name="robots" content="noindex" />
-          {process.env.NODE_ENV === 'development' && (
-            <meta
-              name="boundary-next-error"
-              content={getAccessFallbackErrorTypeByStatus(triggeredStatus)}
-            />
-          )}
-          {matchedFallback}
-        </>
-      )
-    }
-    // If no matching fallback at this level, continue to children
-    // which may have their own HTTPAccessFallbackBoundary
-  }
 
   if (hasErrorFallback) {
     return (

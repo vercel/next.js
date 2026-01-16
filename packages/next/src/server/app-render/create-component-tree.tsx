@@ -36,7 +36,10 @@ import {
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
-import { HTTPAccessErrorStatus } from '../../client/components/http-access-fallback/http-access-fallback'
+import {
+  HTTPAccessErrorStatus,
+  type HTTPAccessErrorStatusCode,
+} from '../../client/components/http-access-fallback/http-access-fallback'
 
 /**
  * State for pre-triggering HTTP access error rendering during prerender.
@@ -45,7 +48,7 @@ import { HTTPAccessErrorStatus } from '../../client/components/http-access-fallb
  */
 export type PrerenderHTTPErrorState =
   | {
-      triggeredStatus: (typeof HTTPAccessErrorStatus)[keyof typeof HTTPAccessErrorStatus]
+      triggeredStatus: HTTPAccessErrorStatusCode
     }
   | undefined
 
@@ -550,24 +553,12 @@ async function createComponentTreeInternal(
             // immediate parent of the page that threw the error)
             if (childHasPage) {
               const { triggeredStatus } = prerenderHTTPError
-              let fallbackElement: React.ReactNode | undefined
-
-              if (
-                triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND &&
-                notFoundElement
-              ) {
-                fallbackElement = notFoundElement
-              } else if (
-                triggeredStatus === HTTPAccessErrorStatus.FORBIDDEN &&
-                forbiddenElement
-              ) {
-                fallbackElement = forbiddenElement
-              } else if (
-                triggeredStatus === HTTPAccessErrorStatus.UNAUTHORIZED &&
-                unauthorizedElement
-              ) {
-                fallbackElement = unauthorizedElement
+              const fallbackElements = {
+                [HTTPAccessErrorStatus.NOT_FOUND]: notFoundElement,
+                [HTTPAccessErrorStatus.FORBIDDEN]: forbiddenElement,
+                [HTTPAccessErrorStatus.UNAUTHORIZED]: unauthorizedElement,
               }
+              const fallbackElement = fallbackElements[triggeredStatus]
 
               if (fallbackElement) {
                 // Create seed data with the fallback element directly

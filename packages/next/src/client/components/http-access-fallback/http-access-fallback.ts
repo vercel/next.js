@@ -4,6 +4,12 @@ export const HTTPAccessErrorStatus = {
   UNAUTHORIZED: 401,
 }
 
+/**
+ * Type representing valid HTTP access error status codes (404, 403, 401).
+ */
+export type HTTPAccessErrorStatusCode =
+  (typeof HTTPAccessErrorStatus)[keyof typeof HTTPAccessErrorStatus]
+
 const ALLOWED_CODES = new Set(Object.values(HTTPAccessErrorStatus))
 
 export const HTTP_ERROR_FALLBACK_ERROR_CODE = 'NEXT_HTTP_ERROR_FALLBACK'

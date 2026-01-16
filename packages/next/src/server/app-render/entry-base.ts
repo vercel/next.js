@@ -34,7 +34,6 @@ export {
 } from '../request/params'
 export * as serverHooks from '../../client/components/hooks-server-context'
 export { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
-export { PrerenderHTTPErrorContext } from '../../client/components/http-access-fallback/prerender-error-context'
 export { createMetadataComponents } from '../../lib/metadata/metadata'
 export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
