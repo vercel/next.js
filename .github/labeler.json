@@ -80,6 +80,7 @@
       { "type": "user", "pattern": "bgw" },
       { "type": "user", "pattern": "lukesandberg" },
       { "type": "user", "pattern": "mischnic" },
+      { "type": "user", "pattern": "mmastrac" },
       { "type": "user", "pattern": "sokra" },
       { "type": "user", "pattern": "timneutkens" },
       { "type": "user", "pattern": "wbinnssmith" }
