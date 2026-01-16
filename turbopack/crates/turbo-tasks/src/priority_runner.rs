@@ -565,7 +565,7 @@ mod tests {
                 let execute_context = execute_context.clone();
                 println!("Created task {}", task);
                 Box::pin(async move {
-                    let cpu_bound = task < 10;
+                    let cpu_bound = task < 50;
                     if cpu_bound {
                         println!("Executing cpu-bound task {}...", task);
                         // CPU bound task
@@ -591,13 +591,13 @@ mod tests {
             Arc::new(PriorityRunner::new(executor));
         let results = Arc::new(Mutex::new(Vec::new()));
 
-        for i in 0..20 {
+        for i in 0..100 {
             let results = results.clone();
             println!("Scheduling task {}...", i);
             runner.schedule(&results, i, i);
         }
 
-        while results.lock().len() < 20 {
+        while results.lock().len() < 100 {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
         let results = results.lock();
@@ -610,22 +610,22 @@ mod tests {
         // And the two highest priority cpu-bound tasks are executed too.
         // Since we only have 2 workers, the waiting tasks ain't polled until the cpu-bound tasks
         // are done.
-        assert!(results[2..4].contains(&9));
-        assert!(results[2..4].contains(&8));
+        assert!(results[2..4].contains(&49));
+        assert!(results[2..4].contains(&48));
         let waiting_task_pos = results
             .iter()
-            .position(|&x| x >= 10)
+            .position(|&x| x >= 50)
             .expect("Waiting task should be executed");
         // Waiting tasks should be interleaved with cpu-bound tasks
-        assert!(waiting_task_pos < 8);
+        assert!(waiting_task_pos < 45);
 
         let cpu_bound_results = results
             .iter()
             .copied()
-            .filter(|&x| x < 10)
+            .filter(|&x| x < 50)
             .collect::<Vec<_>>();
         // The last tasks are the tasks with the lowest priority
-        assert!(cpu_bound_results[8..10].contains(&2));
-        assert!(cpu_bound_results[8..10].contains(&3));
+        assert!(cpu_bound_results[48..50].contains(&2));
+        assert!(cpu_bound_results[48..50].contains(&3));
     }
 }
