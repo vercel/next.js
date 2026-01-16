@@ -1,5 +1,5 @@
 use std::{
-    hash::{BuildHasher, Hash, Hasher},
+    hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
 };
 
@@ -17,11 +17,7 @@ pub fn raw_entry<'l, K: Eq + Hash + AsRef<Q>, V, Q: Eq + Hash, S: BuildHasher + 
     let result = shard.find_or_find_insert_slot(
         hash,
         |(k, _v)| k.as_ref() == key,
-        |(k, _v)| {
-            let mut hasher = hasher.build_hasher();
-            k.hash(&mut hasher);
-            hasher.finish()
-        },
+        |(k, _v)| hasher.hash_one(k),
     );
     match result {
         Ok(bucket) => RawEntry::Occupied(OccupiedEntry { bucket, shard }),

@@ -16,7 +16,7 @@ use tokio::time::{Timeout, timeout};
 
 pub trait EventDescriptor {
     #[cfg(feature = "hanging_detection")]
-    fn get_description(&self) -> Arc<dyn Fn() -> String + Sync + Send>;
+    fn get_description(self) -> Arc<dyn Fn() -> String + Sync + Send>;
 }
 
 impl<T, InnerFn> EventDescriptor for T
@@ -25,8 +25,8 @@ where
     InnerFn: Fn() -> String + Sync + Send + 'static,
 {
     #[cfg(feature = "hanging_detection")]
-    fn get_description(&self) -> Arc<dyn Fn() -> String + Sync + Send> {
-        (self)()
+    fn get_description(self) -> Arc<dyn Fn() -> String + Sync + Send> {
+        Arc::new((self)())
     }
 }
 
@@ -38,14 +38,14 @@ pub struct EventDescription {
 
 impl EventDescription {
     #[inline(always)]
-    pub fn new<InnerFn>(_description: impl FnOnce() -> InnerFn) -> Self
+    pub fn new<InnerFn>(#[allow(unused_variables)] description: impl FnOnce() -> InnerFn) -> Self
     where
         InnerFn: Fn() -> String + Sync + Send + 'static,
     {
-        return Self {
+        Self {
             #[cfg(feature = "hanging_detection")]
             description: Arc::new((description)()),
-        };
+        }
     }
 }
 
@@ -61,8 +61,8 @@ impl Display for EventDescription {
 
 impl EventDescriptor for EventDescription {
     #[cfg(feature = "hanging_detection")]
-    fn get_description(&self) -> Arc<dyn Fn() -> String + Sync + Send> {
-        self.description.clone()
+    fn get_description(self) -> Arc<dyn Fn() -> String + Sync + Send> {
+        self.description
     }
 }
 
@@ -87,14 +87,14 @@ impl Event {
     /// The outer closure allows avoiding extra lookups (e.g. task type info) that may be needed to
     /// capture information needed for constructing (moving into) the inner closure.
     #[inline(always)]
-    pub fn new(_description: impl EventDescriptor) -> Self {
+    pub fn new(#[allow(unused_variables)] description: impl EventDescriptor) -> Self {
         #[cfg(not(feature = "hanging_detection"))]
         return Self {
             event: event_listener::Event::new(),
         };
         #[cfg(feature = "hanging_detection")]
         return Self {
-            description: _description.get_description(),
+            description: description.get_description(),
             event: event_listener::Event::new(),
         };
     }
