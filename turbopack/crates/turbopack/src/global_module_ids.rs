@@ -19,7 +19,7 @@ pub async fn get_global_module_id_strategy(
 ) -> Result<Vc<GlobalModuleIdStrategy>> {
     let span = tracing::info_span!("compute module id map");
     async move {
-        let module_graph = module_graph.read_graphs().await?;
+        let module_graph = module_graph.await?;
         let graphs = &module_graph.graphs;
 
         // All modules in the graph

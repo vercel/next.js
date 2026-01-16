@@ -23,7 +23,7 @@ use turbopack_core::{
     context::AssetContext,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraphWithBindingUsage},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
 use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 
@@ -35,7 +35,7 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct NextDynamicGraph {
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
 
     /// list of NextDynamicEntryModules
@@ -52,12 +52,13 @@ impl NextDynamicGraphs {
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let graphs_ref = &graphs.await?;
+        let graphs_ref = &graphs.iter_graphs().await?;
         let next_dynamic = async {
             graphs_ref
-                .iter_graphs()
+                .iter()
                 .map(|graph| {
-                    NextDynamicGraph::new_with_entries(graph, is_single_page).to_resolved()
+                    NextDynamicGraph::new_with_entries(graph.connect(), is_single_page)
+                        .to_resolved()
                 })
                 .try_join()
                 .await
@@ -130,10 +131,10 @@ pub struct DynamicImportEntriesWithImporter(
 impl NextDynamicGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: SingleModuleGraphWithBindingUsage,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_next_dynamic(*graph.graph);
+        let mapped = map_next_dynamic(*graph);
 
         Ok(NextDynamicGraph {
             is_single_page,
@@ -151,7 +152,7 @@ impl NextDynamicGraph {
         let span = tracing::info_span!("collect next/dynamic imports for endpoint");
         async move {
             let data = &*self.data.await?;
-            let graph = self.graph.read().await?;
+            let graph = self.graph.await?;
 
             #[derive(Clone, PartialEq, Eq)]
             enum VisitState {
@@ -232,7 +233,7 @@ impl NextDynamicGraph {
 
 #[turbo_tasks::value]
 pub struct ServerActionsGraph {
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
 
     /// (Layer, RSC or Browser module) -> list of actions
@@ -249,12 +250,13 @@ impl ServerActionsGraphs {
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let graphs_ref = &graphs.await?;
+        let graphs_ref = &graphs.iter_graphs().await?;
         let server_actions = async {
             graphs_ref
-                .iter_graphs()
+                .iter()
                 .map(|graph| {
-                    ServerActionsGraph::new_with_entries(graph, is_single_page).to_resolved()
+                    ServerActionsGraph::new_with_entries(graph.connect(), is_single_page)
+                        .to_resolved()
                 })
                 .try_join()
                 .await
@@ -316,10 +318,10 @@ impl ServerActionsGraphs {
 impl ServerActionsGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: SingleModuleGraphWithBindingUsage,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_server_actions(*graph.graph);
+        let mapped = map_server_actions(*graph);
 
         Ok(ServerActionsGraph {
             is_single_page,
@@ -343,7 +345,7 @@ impl ServerActionsGraph {
                 Cow::Borrowed(data)
             } else {
                 // The graph contains the whole app, traverse and collect all reachable imports.
-                let graph = self.graph.read().await?;
+                let graph = self.graph.await?;
 
                 if !graph.graphs.first().unwrap().has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
@@ -407,7 +409,7 @@ impl ServerActionsGraph {
 #[turbo_tasks::value]
 pub struct ClientReferencesGraph {
     is_single_page: bool,
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
 
     /// List of client references (modules that entries into the client graph)
     data: ResolvedVc<ClientReferenceData>,
@@ -423,12 +425,13 @@ impl ClientReferencesGraphs {
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let graphs_ref = &graphs.await?;
+        let graphs_ref = graphs.iter_graphs().await?;
         let client_references = async {
             graphs_ref
-                .iter_graphs()
+                .iter()
                 .map(|graph| {
-                    ClientReferencesGraph::new_with_entries(graph, is_single_page).to_resolved()
+                    ClientReferencesGraph::new_with_entries(graph.connect(), is_single_page)
+                        .to_resolved()
                 })
                 .try_join()
                 .await
@@ -518,10 +521,10 @@ impl ClientReferencesGraphs {
 impl ClientReferencesGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: SingleModuleGraphWithBindingUsage,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_client_references(*graph.graph);
+        let mapped = map_client_references(*graph);
 
         Ok(Self {
             is_single_page,
@@ -539,7 +542,7 @@ impl ClientReferencesGraph {
         let span = tracing::info_span!("collect client references for endpoint");
         async move {
             let data = &*self.data.await?;
-            let graph = self.graph.read().await?;
+            let graph = self.graph.await?;
 
             let entries = if !self.is_single_page {
                 if !graph.graphs.first().unwrap().has_entry_module(entry) {
@@ -766,12 +769,12 @@ struct ModuleNameMap(#[bincode(with = "turbo_bincode::indexmap")] pub FxModuleNa
 #[tracing::instrument(level = "info", name = "validate pages css imports", skip_all)]
 #[turbo_tasks::function]
 async fn validate_pages_css_imports_individual(
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
     entry: Vc<Box<dyn Module>>,
     app_module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<()> {
-    let graph = graph.read().await?;
+    let graph = graph.await?;
     let entry = entry.to_resolved().await?;
 
     let entries = if !is_single_page {
@@ -869,12 +872,17 @@ pub async fn validate_pages_css_imports(
     entry: Vc<Box<dyn Module>>,
     app_module: Vc<Box<dyn Module>>,
 ) -> Result<()> {
-    let graphs = &graph.await?;
+    let graphs = graph.iter_graphs().await?;
     graphs
-        .iter_graphs()
+        .iter()
         .map(|graph| {
-            validate_pages_css_imports_individual(graph, is_single_page, entry, app_module)
-                .as_side_effect()
+            validate_pages_css_imports_individual(
+                graph.connect(),
+                is_single_page,
+                entry,
+                app_module,
+            )
+            .as_side_effect()
         })
         .try_join()
         .await?;

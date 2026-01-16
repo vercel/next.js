@@ -19,7 +19,7 @@ use turbo_tasks::{
 use crate::{
     chunk::ChunkingType,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraphRef, RefData},
+    module_graph::{GraphTraversalAction, ModuleGraph, RefData},
 };
 
 #[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat, Encode, Decode)]
@@ -372,7 +372,7 @@ impl Ord for TraversalPriority {
     }
 }
 
-pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<ChunkGroupInfo>> {
+pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGroupInfo>> {
     let span_outer = tracing::info_span!(
         "compute chunk group info",
         module_count = tracing::field::Empty,

@@ -21,7 +21,7 @@ use crate::{
     chunk::{ChunkableModule, ChunkingType},
     module::Module,
     module_graph::{
-        GraphTraversalAction, ModuleGraph, ModuleGraphRef,
+        GraphTraversalAction, ModuleGraph,
         chunk_group_info::{ChunkGroupInfo, ChunkGroupKey, RoaringBitmapWrapper},
         module_batch::{ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
         traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
@@ -281,7 +281,7 @@ impl PreBatches {
         &mut self,
         entry: ResolvedVc<Box<dyn Module>>,
         chunk_group_info: &ChunkGroupInfo,
-        module_graph: &ModuleGraphRef,
+        module_graph: &ModuleGraph,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<Vec<PreBatchItem>> {
         let mut state = TraversalState {
@@ -349,7 +349,7 @@ pub async fn compute_module_batches(
     let span = outer_span.clone();
     async move {
         let chunk_group_info = module_graph.chunk_group_info().await?;
-        let module_graph = module_graph.read_graphs().await?;
+        let module_graph = module_graph.await?;
 
         let mut pre_batches = PreBatches::new();
 

@@ -30,7 +30,7 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
@@ -257,9 +257,14 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false)
-            .to_resolved()
-            .await?;
+        let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        ))
+        .connect()
+        .to_resolved()
+        .await?;
 
         let resource_fs_path = self.source.ident().path().await?;
         let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {

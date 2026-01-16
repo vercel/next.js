@@ -21,7 +21,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::Layer,
     issue::{IssueExt, IssueSeverity, StyledString},
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ResolveResult,
@@ -760,7 +760,12 @@ async fn get_mock_stylesheet(
         .module();
 
     let entries = get_evaluate_entries(mocked_response_asset, asset_context, None);
-    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false);
+    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+        entries.graph_entries().to_resolved().await?,
+        false,
+        false,
+    ));
+    let module_graph = module_graph.connect();
 
     let root = mock_fs.root().owned().await?;
     let val = evaluate(

@@ -38,7 +38,9 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{CollectibleIssuesExt, IssueFilter},
-    module_graph::{ModuleGraph, binding_usage_info::compute_binding_usage_info},
+    module_graph::{
+        ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
+    },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
@@ -479,23 +481,28 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let entries = get_evaluate_entries(jest_entry_asset, asset_context, None);
 
-    let mut module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, true);
+    let single_graph = SingleModuleGraph::new_with_entries(
+        entries.graph_entries().to_resolved().await?,
+        false,
+        true,
+    );
+    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
-        Some(
-            compute_binding_usage_info(
-                module_graph.to_resolved().await?,
-                options.remove_unused_imports,
-            )
-            .resolve_strongly_consistent()
-            .await?,
-        )
+        Some(compute_binding_usage_info(
+            module_graph,
+            options.remove_unused_imports,
+        ))
     } else {
         None
     };
-    if options.remove_unused_imports {
-        module_graph = module_graph.without_unused_references(*binding_usage.unwrap());
+    if options.remove_unused_imports
+        && let Some(binding_usage) = binding_usage
+    {
+        module_graph =
+            ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
     }
+    let module_graph = module_graph.connect();
 
     let mut builder = NodeJsChunkingContext::builder(
         project_root.clone(),
@@ -516,16 +523,17 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
-    .export_usage(
-        options
-            .remove_unused_exports
-            .then(|| binding_usage.unwrap()),
-    );
+    .export_usage(if options.remove_unused_exports {
+        Some(binding_usage.unwrap().connect().to_resolved().await?)
+    } else {
+        None
+    });
 
     if options.remove_unused_imports {
         builder = builder.unused_references(
             binding_usage
                 .unwrap()
+                .connect()
                 .unused_references()
                 .to_resolved()
                 .await?,
