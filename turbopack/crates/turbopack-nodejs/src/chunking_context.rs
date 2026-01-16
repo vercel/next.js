@@ -618,8 +618,6 @@ impl ChunkingContext for NodeJsChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<AssetIdent>> {
         Ok(if self.await?.manifest_chunks {
-                
-
             ManifestLoaderChunkItem::asset_ident_for(module)
         } else {
             AsyncLoaderModule::asset_ident_for(module)
