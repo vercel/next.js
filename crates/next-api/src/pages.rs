@@ -78,7 +78,7 @@ use crate::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
-    project::Project,
+    project::{Project, get_module_graph_for_modules_operation},
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
     sri_manifest::get_sri_manifest_asset,
 };
@@ -699,71 +699,13 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn client_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
-        let this = self.await?;
-        let project = this.pages_project.project();
-        let evaluatable_assets = self.client_evaluatable_assets();
-        Ok(project.module_graph_for_modules(evaluatable_assets))
+    async fn client_module_graph(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraph>> {
+        Ok(get_pages_client_module_graph_operation(self).connect())
     }
 
     #[turbo_tasks::function]
-    async fn ssr_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
-        let this = self.await?;
-        let project = this.pages_project.project();
-
-        if *project.per_page_module_graph().await? {
-            let next_mode = project.next_mode();
-            let next_mode_ref = next_mode.await?;
-            let should_trace = next_mode_ref.is_production();
-            let should_read_binding_usage = next_mode_ref.is_production();
-
-            let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
-            // Implements layout segment optimization to compute a graph "chain" for document, app,
-            // page
-            let mut graphs = vec![];
-            let mut visited_modules = VisitedModules::empty();
-            for module in [
-                ssr_chunk_module.document_module,
-                ssr_chunk_module.app_module,
-            ]
-            .into_iter()
-            .flatten()
-            {
-                let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                    vec![ChunkGroupEntry::Shared(module)],
-                    visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
-                );
-                graphs.push(graph);
-                visited_modules = VisitedModules::concatenate(visited_modules, graph);
-            }
-
-            let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
-                visited_modules,
-                should_trace,
-                should_read_binding_usage,
-            );
-            graphs.push(graph);
-
-            let remove_unused_imports = *project
-                .next_config()
-                .turbopack_remove_unused_imports(next_mode)
-                .await?;
-
-            let graph = if remove_unused_imports {
-                let graph = ModuleGraph::from_graphs(graphs.clone());
-                let binding_usage_info = compute_binding_usage_info(graph, true);
-                ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info)
-            } else {
-                ModuleGraph::from_graphs(graphs)
-            };
-
-            Ok(graph.connect())
-        } else {
-            Ok(*project.whole_app_module_graphs().await?.full)
-        }
+    async fn ssr_module_graph(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraph>> {
+        Ok(get_pages_ssr_module_graph_operation(self).connect())
     }
 
     #[turbo_tasks::function]
@@ -1712,13 +1654,12 @@ impl Endpoint for PageEndpoint {
 
     #[turbo_tasks::function]
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
-        let client_module_graph = self.client_module_graph().to_resolved().await?;
-        let ssr_module_graph = self.ssr_module_graph().to_resolved().await?;
-        Ok(Vc::cell(if client_module_graph != ssr_module_graph {
-            vec![client_module_graph, ssr_module_graph]
-        } else {
-            vec![ssr_module_graph]
-        }))
+        let this = self.to_resolved().await?;
+        let client_module_graph = get_pages_client_module_graph_operation(this);
+        let ssr_module_graph = get_pages_ssr_module_graph_operation(this);
+        // Note: We can't easily deduplicate these anymore since OperationVc
+        // doesn't implement Eq, but that's fine - they're operation references
+        Ok(Vc::cell(vec![client_module_graph, ssr_module_graph]))
     }
 
     #[turbo_tasks::function]
@@ -1786,4 +1727,76 @@ pub enum SsrChunk {
         dynamic_import_entries: ResolvedVc<DynamicImportedChunks>,
         regions: Option<Vec<RcStr>>,
     },
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_pages_client_module_graph_operation(
+    endpoint: ResolvedVc<PageEndpoint>,
+) -> Result<Vc<ModuleGraph>> {
+    let this = endpoint.await?;
+    let project = this.pages_project.project().to_resolved().await?;
+    let evaluatable_assets = endpoint.client_evaluatable_assets().to_resolved().await?;
+    Ok(get_module_graph_for_modules_operation(project, evaluatable_assets).connect())
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_pages_ssr_module_graph_operation(
+    endpoint: ResolvedVc<PageEndpoint>,
+) -> Result<Vc<ModuleGraph>> {
+    let this = endpoint.await?;
+    let project = this.pages_project.project();
+
+    if *project.per_page_module_graph().await? {
+        let next_mode = project.next_mode();
+        let next_mode_ref = next_mode.await?;
+        let should_trace = next_mode_ref.is_production();
+        let should_read_binding_usage = next_mode_ref.is_production();
+
+        let ssr_chunk_module = endpoint.internal_ssr_chunk_module().await?;
+        // Implements layout segment optimization to compute a graph "chain" for document, app,
+        // page
+        let mut graphs = vec![];
+        let mut visited_modules = VisitedModules::empty();
+        for module in [
+            ssr_chunk_module.document_module,
+            ssr_chunk_module.app_module,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let graph = SingleModuleGraph::new_with_entries_visited_intern(
+                vec![ChunkGroupEntry::Shared(module)],
+                visited_modules,
+                should_trace,
+                should_read_binding_usage,
+            );
+            graphs.push(graph);
+            visited_modules = VisitedModules::concatenate(visited_modules, graph);
+        }
+
+        let graph = SingleModuleGraph::new_with_entries_visited_intern(
+            vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
+            visited_modules,
+            should_trace,
+            should_read_binding_usage,
+        );
+        graphs.push(graph);
+
+        let remove_unused_imports = *project
+            .next_config()
+            .turbopack_remove_unused_imports(next_mode)
+            .await?;
+
+        let graph = if remove_unused_imports {
+            let graph = ModuleGraph::from_graphs(graphs.clone());
+            let binding_usage_info = compute_binding_usage_info(graph, true);
+            ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info)
+        } else {
+            ModuleGraph::from_graphs(graphs)
+        };
+
+        Ok(graph.connect())
+    } else {
+        Ok(project.whole_app_module_graphs().await?.full.connect())
+    }
 }

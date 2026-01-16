@@ -30,7 +30,7 @@ use crate::{
     paths::{
         all_asset_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
     },
-    project::Project,
+    project::{Project, get_module_graph_operation},
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
 };
 
@@ -247,9 +247,11 @@ impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
         let this = self.await?;
-        let module = self.entry_module();
-        let module_graph = this.project.module_graph(module).to_resolved().await?;
-        Ok(Vc::cell(vec![module_graph]))
+        let module = self.entry_module().to_resolved().await?;
+        Ok(Vc::cell(vec![get_module_graph_operation(
+            this.project,
+            module,
+        )]))
     }
 
     #[turbo_tasks::function]

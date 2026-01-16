@@ -39,7 +39,8 @@ use turbopack_core::{
     ident::Layer,
     issue::{CollectibleIssuesExt, IssueFilter},
     module_graph::{
-        ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
+        ModuleGraph, SingleModuleGraph,
+        binding_usage_info::{compute_binding_usage_info, get_unused_references},
     },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -530,22 +531,14 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         }
     } else {
         MinifyType::NoMinify
-    })
-    .export_usage(if options.remove_unused_exports {
-        Some(binding_usage.unwrap().connect().to_resolved().await?)
-    } else {
-        None
     });
 
+    if options.remove_unused_exports {
+        builder = builder.export_usage(binding_usage.unwrap());
+    }
+
     if options.remove_unused_imports {
-        builder = builder.unused_references(
-            binding_usage
-                .unwrap()
-                .connect()
-                .unused_references()
-                .to_resolved()
-                .await?,
-        );
+        builder = builder.unused_references(get_unused_references(binding_usage.unwrap()));
     }
 
     if options.production_chunking {

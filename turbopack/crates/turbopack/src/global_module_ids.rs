@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{OperationVc, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     chunk::{
@@ -16,13 +16,13 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::async_chunk::module::AsyncLoaderModule;
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 pub async fn get_global_module_id_strategy(
-    module_graph: ResolvedVc<ModuleGraph>,
+    module_graph: OperationVc<ModuleGraph>,
 ) -> Result<Vc<ModuleIdStrategy>> {
     let span = tracing::info_span!("compute module id map");
     async move {
-        let module_graph = module_graph.await?;
+        let module_graph = module_graph.connect().await?;
         let graphs = &module_graph.graphs;
 
         // All modules in the graph

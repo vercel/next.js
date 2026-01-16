@@ -42,7 +42,7 @@ pub enum Route {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
+pub struct ModuleGraphs(Vec<OperationVc<ModuleGraph>>);
 
 #[turbo_tasks::value_trait]
 pub trait Endpoint {

@@ -33,7 +33,7 @@ use crate::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
-    project::Project,
+    project::{Project, get_module_graph_operation},
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
 };
 
@@ -394,12 +394,11 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
         let this = self.await?;
-        let module_graph = this
-            .project
-            .module_graph(self.entry_module())
-            .to_resolved()
-            .await?;
-        Ok(Vc::cell(vec![module_graph]))
+        let module = self.entry_module().to_resolved().await?;
+        Ok(Vc::cell(vec![get_module_graph_operation(
+            this.project,
+            module,
+        )]))
     }
 
     #[turbo_tasks::function]

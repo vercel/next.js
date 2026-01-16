@@ -66,9 +66,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
-        binding_usage_info::{
-            BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
-        },
+        binding_usage_info::{BindingUsageInfo, compute_binding_usage_info, get_unused_references},
         chunk_group_info::ChunkGroupEntry,
     },
     output::{
@@ -1441,17 +1439,8 @@ impl Project {
         self: Vc<Self>,
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleGraph>> {
-        Ok(if *self.per_page_module_graph().await? {
-            let is_production = self.next_mode().await?.is_production();
-            ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entry(
-                ChunkGroupEntry::Entry(vec![entry]),
-                is_production,
-                is_production,
-            ))
-            .connect()
-        } else {
-            *self.whole_app_module_graphs().await?.full
-        })
+        let this = self.to_resolved().await?;
+        Ok(get_module_graph_operation(this, entry).connect())
     }
 
     #[turbo_tasks::function]
@@ -1459,23 +1448,9 @@ impl Project {
         self: Vc<Self>,
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Result<Vc<ModuleGraph>> {
-        Ok(if *self.per_page_module_graph().await? {
-            let is_production = self.next_mode().await?.is_production();
-            let entries = evaluatable_assets
-                .await?
-                .iter()
-                .copied()
-                .map(ResolvedVc::upcast)
-                .collect();
-            ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-                ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entries)]),
-                is_production,
-                is_production,
-            ))
-            .connect()
-        } else {
-            *self.whole_app_module_graphs().await?.full
-        })
+        let this = self.to_resolved().await?;
+        let evaluatable_assets = evaluatable_assets.to_resolved().await?;
+        Ok(get_module_graph_for_modules_operation(this, evaluatable_assets).connect())
     }
 
     #[turbo_tasks::function]
@@ -1544,7 +1519,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) async fn client_chunking_context(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
@@ -1555,7 +1530,7 @@ impl Project {
             asset_prefix: self.next_config().computed_asset_prefix(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
-            export_usage: self.export_usage(),
+            export_usage: self.export_usage().await?,
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_minify(self.next_mode()),
             source_maps: self.next_config().client_source_maps(self.next_mode()),
@@ -1572,7 +1547,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) async fn server_chunking_context(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         client_assets: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
@@ -1583,7 +1558,7 @@ impl Project {
             node_root_to_root_path: self.node_root_to_root_path().owned().await?,
             environment: self.server_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
-            export_usage: self.export_usage(),
+            export_usage: self.export_usage().await?,
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_minify(self.next_mode()),
             source_maps: self.next_config().server_source_maps(),
@@ -1606,7 +1581,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) async fn edge_chunking_context(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         client_assets: bool,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
@@ -1617,7 +1592,7 @@ impl Project {
             output_root_to_root_path: self.node_root_to_root_path(),
             environment: self.edge_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
-            export_usage: self.export_usage(),
+            export_usage: self.export_usage().await?,
             unused_references: self.unused_references(),
             turbo_minify: self.next_config().turbo_minify(self.next_mode()),
             turbo_source_maps: self.next_config().server_source_maps(),
@@ -2358,63 +2333,6 @@ impl Project {
         Ok(Vc::cell(modules))
     }
 
-    /// Gets the module id strategy for the project.
-    #[turbo_tasks::function]
-    pub async fn module_ids(self: Vc<Self>) -> Result<Vc<ModuleIdStrategy>> {
-        let module_id_strategy = *self.next_config().module_ids(self.next_mode()).await?;
-        match module_id_strategy {
-            ModuleIdStrategyConfig::Named => Ok(ModuleIdStrategy {
-                module_id_map: None,
-                fallback: ModuleIdFallback::Ident,
-            }
-            .cell()),
-            ModuleIdStrategyConfig::Deterministic => {
-                let module_graphs = self.whole_app_module_graphs().await?;
-                Ok(get_global_module_id_strategy(*module_graphs.full))
-            }
-        }
-    }
-
-    /// Compute the used exports and unused imports for each module.
-    #[turbo_tasks::function]
-    async fn binding_usage_info(self: Vc<Self>) -> Result<Vc<BindingUsageInfo>> {
-        let module_graphs = self.whole_app_module_graphs().await?;
-        Ok(module_graphs
-            .binding_usage_info
-            .context("No binding usage info")?
-            .connect())
-    }
-
-    /// Compute the used exports for each module.
-    #[turbo_tasks::function]
-    pub async fn export_usage(self: Vc<Self>) -> Result<Vc<OptionBindingUsageInfo>> {
-        if *self
-            .next_config()
-            .turbopack_remove_unused_exports(self.next_mode())
-            .await?
-        {
-            Ok(Vc::cell(Some(
-                self.binding_usage_info().to_resolved().await?,
-            )))
-        } else {
-            Ok(Vc::cell(None))
-        }
-    }
-
-    /// Compute the unused references that were removed (inner graph tree shaking).
-    #[turbo_tasks::function]
-    pub async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>> {
-        if *self
-            .next_config()
-            .turbopack_remove_unused_imports(self.next_mode())
-            .await?
-        {
-            Ok(self.binding_usage_info().unused_references())
-        } else {
-            Ok(Vc::cell(Default::default()))
-        }
-    }
-
     #[turbo_tasks::function]
     pub async fn with_next_config(&self, next_config: Vc<NextConfig>) -> Result<Vc<Self>> {
         Ok(Self {
@@ -2422,6 +2340,134 @@ impl Project {
             ..(*self).clone()
         }
         .cell())
+    }
+}
+
+impl Project {
+    /// Gets the module graph for a single entry module.
+    pub fn module_graph_operation(
+        self: ResolvedVc<Self>,
+        entry: ResolvedVc<Box<dyn Module>>,
+    ) -> OperationVc<ModuleGraph> {
+        get_module_graph_operation(self, entry)
+    }
+
+    /// Gets the module graph for a set of evaluatable assets.
+    pub fn module_graph_for_modules_operation(
+        self: ResolvedVc<Self>,
+        evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+    ) -> OperationVc<ModuleGraph> {
+        get_module_graph_for_modules_operation(self, evaluatable_assets)
+    }
+
+    /// Gets the module id strategy for the project.
+    pub fn module_ids(self: ResolvedVc<Self>) -> OperationVc<ModuleIdStrategy> {
+        get_project_module_ids(self)
+    }
+
+    /// Compute the unused references that were removed (inner graph tree shaking).
+    pub fn unused_references(self: ResolvedVc<Self>) -> OperationVc<UnusedReferences> {
+        get_project_unused_references(self)
+    }
+
+    /// Compute the used exports for each module.
+    pub async fn export_usage(
+        self: ResolvedVc<Self>,
+    ) -> Result<Option<OperationVc<BindingUsageInfo>>> {
+        if *self
+            .next_config()
+            .turbopack_remove_unused_exports(self.next_mode())
+            .await?
+        {
+            let module_graphs = self.whole_app_module_graphs().await?;
+            Ok(module_graphs.binding_usage_info)
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+/// Gets the module id strategy for the project.
+#[turbo_tasks::function(operation)]
+async fn get_project_module_ids(project: ResolvedVc<Project>) -> Result<Vc<ModuleIdStrategy>> {
+    let module_id_strategy = *project
+        .next_config()
+        .module_ids(project.next_mode())
+        .await?;
+    match module_id_strategy {
+        ModuleIdStrategyConfig::Named => Ok(ModuleIdStrategy {
+            module_id_map: None,
+            fallback: ModuleIdFallback::Ident,
+        }
+        .cell()),
+        ModuleIdStrategyConfig::Deterministic => {
+            let module_graphs = project.whole_app_module_graphs().await?;
+            Ok(get_global_module_id_strategy(module_graphs.full).connect())
+        }
+    }
+}
+
+/// Gets the module graph for a single entry module.
+#[turbo_tasks::function(operation)]
+pub async fn get_module_graph_operation(
+    project: ResolvedVc<Project>,
+    entry: ResolvedVc<Box<dyn Module>>,
+) -> Result<Vc<ModuleGraph>> {
+    Ok(if *project.per_page_module_graph().await? {
+        let is_production = project.next_mode().await?.is_production();
+        ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entry(
+            ChunkGroupEntry::Entry(vec![entry]),
+            is_production,
+            is_production,
+        ))
+        .connect()
+    } else {
+        project.whole_app_module_graphs().await?.full.connect()
+    })
+}
+
+/// Gets the module graph for a set of evaluatable assets.
+#[turbo_tasks::function(operation)]
+pub async fn get_module_graph_for_modules_operation(
+    project: ResolvedVc<Project>,
+    evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+) -> Result<Vc<ModuleGraph>> {
+    Ok(if *project.per_page_module_graph().await? {
+        let is_production = project.next_mode().await?.is_production();
+        let entries = evaluatable_assets
+            .await?
+            .iter()
+            .copied()
+            .map(ResolvedVc::upcast)
+            .collect();
+        ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+            ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entries)]),
+            is_production,
+            is_production,
+        ))
+        .connect()
+    } else {
+        project.whole_app_module_graphs().await?.full.connect()
+    })
+}
+
+/// Compute the unused references that were removed (inner graph tree shaking).
+#[turbo_tasks::function(operation)]
+async fn get_project_unused_references(
+    project: ResolvedVc<Project>,
+) -> Result<Vc<UnusedReferences>> {
+    if *project
+        .next_config()
+        .turbopack_remove_unused_imports(project.next_mode())
+        .await?
+    {
+        let module_graphs = project.whole_app_module_graphs().await?;
+        let binding_usage_info = module_graphs
+            .binding_usage_info
+            .context("No binding usage info")?;
+        Ok(get_unused_references(binding_usage_info).connect())
+    } else {
+        Ok(Vc::cell(Default::default()))
     }
 }
 
@@ -2506,8 +2552,8 @@ async fn whole_app_module_graph_operation(
         };
 
         Ok(BaseAndFullModuleGraph {
-            base: base.connect().to_resolved().await?,
-            full: full.connect().to_resolved().await?,
+            base,
+            full,
             binding_usage_info,
         }
         .cell())
@@ -2519,9 +2565,9 @@ async fn whole_app_module_graph_operation(
 #[turbo_tasks::value(shared)]
 pub struct BaseAndFullModuleGraph {
     /// The base module graph generated from the entry points.
-    pub base: ResolvedVc<ModuleGraph>,
+    pub base: OperationVc<ModuleGraph>,
     /// `full_with_unused_references` but with unused references removed.
-    pub full: ResolvedVc<ModuleGraph>,
+    pub full: OperationVc<ModuleGraph>,
     /// Information about binding usage in the module graph.
     pub binding_usage_info: Option<OperationVc<BindingUsageInfo>>,
 }

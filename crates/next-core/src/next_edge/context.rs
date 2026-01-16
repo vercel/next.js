@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{OperationVc, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
@@ -13,7 +13,7 @@ use turbopack_core::{
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
     issue::IssueSeverity,
-    module_graph::binding_usage_info::OptionBindingUsageInfo,
+    module_graph::binding_usage_info::BindingUsageInfo,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -191,9 +191,9 @@ pub struct EdgeChunkingContextOptions {
     pub node_root: FileSystemPath,
     pub output_root_to_root_path: Vc<RcStr>,
     pub environment: Vc<Environment>,
-    pub module_id_strategy: Vc<ModuleIdStrategy>,
-    pub export_usage: Vc<OptionBindingUsageInfo>,
-    pub unused_references: Vc<UnusedReferences>,
+    pub module_id_strategy: OperationVc<ModuleIdStrategy>,
+    pub export_usage: Option<OperationVc<BindingUsageInfo>>,
+    pub unused_references: OperationVc<UnusedReferences>,
     pub turbo_minify: Vc<bool>,
     pub turbo_source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
@@ -253,11 +253,14 @@ pub async fn get_edge_chunking_context_with_client_assets(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
-    .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .export_usage(*export_usage.await?)
-    .unused_references(unused_references.to_resolved().await?)
+    .module_id_strategy(module_id_strategy)
+    .unused_references(unused_references)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
+
+    if let Some(export_usage) = export_usage {
+        builder = builder.export_usage(export_usage);
+    }
 
     if !next_mode.is_development() {
         builder = builder
@@ -344,11 +347,14 @@ pub async fn get_edge_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
-    .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .export_usage(*export_usage.await?)
-    .unused_references(unused_references.to_resolved().await?)
+    .module_id_strategy(module_id_strategy)
+    .unused_references(unused_references)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
+
+    if let Some(export_usage) = export_usage {
+        builder = builder.export_usage(export_usage);
+    }
 
     if !next_mode.is_development() {
         builder = builder
