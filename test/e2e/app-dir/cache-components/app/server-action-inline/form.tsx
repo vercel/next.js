@@ -1,9 +1,9 @@
 'use client'
 
-import { useActionState } from 'react'
+import { ReactNode, useActionState } from 'react'
 import { getSentinelValue } from '../getSentinelValue'
 
-export function Form({ action }) {
+export function Form({ action }: { action: () => Promise<ReactNode> }) {
   const [result, formAction] = useActionState(action, 'initial')
 
   return (

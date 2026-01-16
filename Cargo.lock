@@ -9620,6 +9620,7 @@ dependencies = [
  "anyhow",
  "futures",
  "rustc-hash 2.1.1",
+ "smallvec",
  "tokio",
  "turbo-tasks",
 ]
@@ -10164,6 +10165,7 @@ name = "turbopack-resolve"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "next-taskless",
  "regex",
  "serde",

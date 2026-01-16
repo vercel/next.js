@@ -3,6 +3,7 @@ mod cleanup_old_edges;
 mod connect_child;
 mod connect_children;
 mod invalidate;
+mod leaf_distance_update;
 mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
@@ -15,7 +16,8 @@ use std::{
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    CellId, FxIndexMap, KeyValuePair, TaskId, TurboTasksBackendApi, TypedSharedReference,
+    CellId, FxIndexMap, KeyValuePair, TaskId, TaskPriority, TurboTasksBackendApi,
+    TypedSharedReference,
 };
 
 use crate::{
@@ -77,8 +79,9 @@ pub trait ExecuteContext<'e>: Sized {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
-    fn schedule(&mut self, task_id: TaskId);
-    fn schedule_task(&self, task: Self::TaskGuardImpl);
+    fn schedule(&mut self, task_id: TaskId, parent_priority: TaskPriority);
+    fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority);
+    fn get_current_task_priority(&self) -> TaskPriority;
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
@@ -243,6 +246,8 @@ where
                 if id.is_transient() {
                     if call_prepared_task_callback_for_transient_tasks {
                         let mut task = self.backend.storage.access_mut(id);
+                        // TODO add is_restoring and avoid concurrent restores and duplicates tasks
+                        // ids in `task_ids`
                         if !task.state().is_restored(category) {
                             task.state_mut().set_restored(TaskDataCategory::All);
                         }
@@ -555,13 +560,28 @@ where
         )
     }
 
-    fn schedule(&mut self, task_id: TaskId) {
+    fn schedule(&mut self, task_id: TaskId, parent_priority: TaskPriority) {
         let task = self.task(task_id, TaskDataCategory::All);
-        self.schedule_task(task);
+        self.schedule_task(task, parent_priority);
     }
 
-    fn schedule_task(&self, task: Self::TaskGuardImpl) {
-        self.turbo_tasks.schedule(task.id());
+    fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
+        let priority = if get!(task, Output).is_some() {
+            TaskPriority::invalidation(
+                get!(task, LeafDistance)
+                    .copied()
+                    .unwrap_or_default()
+                    .distance,
+            )
+        } else {
+            TaskPriority::initial()
+        };
+        self.turbo_tasks
+            .schedule(task.id(), priority.in_parent(parent_priority));
+    }
+
+    fn get_current_task_priority(&self) -> TaskPriority {
+        self.turbo_tasks.get_current_task_priority()
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
@@ -665,15 +685,21 @@ pub trait TaskGuard: Debug {
     fn is_immutable(&self) -> bool {
         self.has_key(&CachedDataItemKey::Immutable {})
     }
-    fn is_dirty(&self) -> bool {
-        get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
-            Dirtyness::Dirty => true,
-            Dirtyness::SessionDependent => get!(self, CurrentSessionClean).is_none(),
+    fn is_dirty(&self) -> Option<TaskPriority> {
+        get!(self, Dirty).and_then(|dirtyness| match dirtyness {
+            Dirtyness::Dirty(priority) => Some(*priority),
+            Dirtyness::SessionDependent => {
+                if get!(self, CurrentSessionClean).is_none() {
+                    Some(TaskPriority::leaf())
+                } else {
+                    None
+                }
+            }
         })
     }
     fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
         match get!(self, Dirty)? {
-            Dirtyness::Dirty => Some((Dirtyness::Dirty, false)),
+            Dirtyness::Dirty(priority) => Some((Dirtyness::Dirty(*priority), false)),
             Dirtyness::SessionDependent => Some((
                 Dirtyness::SessionDependent,
                 get!(self, CurrentSessionClean).is_some(),
@@ -684,7 +710,7 @@ pub trait TaskGuard: Debug {
     fn dirty(&self) -> (bool, bool) {
         match get!(self, Dirty) {
             None => (false, false),
-            Some(Dirtyness::Dirty) => (true, false),
+            Some(Dirtyness::Dirty(_)) => (true, false),
             Some(Dirtyness::SessionDependent) => (true, get!(self, CurrentSessionClean).is_some()),
         }
     }
@@ -1003,7 +1029,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
         self.task.state_mut().set_prefetched(true);
         let map = iter_many!(self, OutputDependency { target } => (target, TaskDataCategory::Meta))
-            .chain(iter_many!(self, CellDependency { target } => (target.task, TaskDataCategory::All)))
+            .chain(iter_many!(self, CellDependency { target, key: _ } => (target.task, TaskDataCategory::All)))
             .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, TaskDataCategory::All)))
             .chain(iter_many!(self, Child { task } => (task, TaskDataCategory::All)))
             .collect::<FxIndexMap<_, _>>();
@@ -1041,6 +1067,7 @@ pub enum AnyOperation {
     UpdateCell(update_cell::UpdateCellOperation),
     CleanupOldEdges(cleanup_old_edges::CleanupOldEdgesOperation),
     AggregationUpdate(aggregation_update::AggregationUpdateQueue),
+    LeafDistanceUpdate(leaf_distance_update::LeafDistanceUpdateQueue),
     Nested(Vec<AnyOperation>),
 }
 
@@ -1052,6 +1079,7 @@ impl AnyOperation {
             AnyOperation::UpdateCell(op) => op.execute(ctx),
             AnyOperation::CleanupOldEdges(op) => op.execute(ctx),
             AnyOperation::AggregationUpdate(op) => op.execute(ctx),
+            AnyOperation::LeafDistanceUpdate(op) => op.execute(ctx),
             AnyOperation::Nested(ops) => {
                 for op in ops {
                     op.execute(ctx);
@@ -1066,6 +1094,7 @@ impl_operation!(Invalidate invalidate::InvalidateOperation);
 impl_operation!(UpdateCell update_cell::UpdateCellOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
+impl_operation!(LeafDistanceUpdate leaf_distance_update::LeafDistanceUpdateQueue);
 
 #[cfg(feature = "trace_task_dirty")]
 pub use self::invalidate::TaskDirtyCause;
