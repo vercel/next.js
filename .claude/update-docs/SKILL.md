@@ -135,8 +135,11 @@ Brief introduction to the feature.
 ### Props
 
 <div style={{ overflowX: 'auto', width: '100%' }}>
-  | Prop | Example | Type | Status | | ---- | ------- | ---- | ------ | |
-  [`propName`](#propname) | `propName="value"` | String | Required |
+
+| Prop                    | Example            | Type   | Status   |
+| ----------------------- | ------------------ | ------ | -------- |
+| [`propName`](#propname) | `propName="value"` | String | Required |
+
 </div>
 
 #### `propName`

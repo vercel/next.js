@@ -161,10 +161,13 @@ Use HTML table wrapper for horizontal scroll on mobile:
 
 ```mdx
 <div style={{ overflowX: 'auto', width: '100%' }}>
-  | Prop | Example | Type | Status | | ---- | ------- | ---- | ------ | |
-  [`src`](#src) | `src="/image.png"` | String | Required | | [`alt`](#alt) |
-  `alt="Description"` | String | Required | | [`width`](#width) | `width={500}`
-  | Integer | - |
+
+| Prop              | Example             | Type    | Status   |
+| ----------------- | ------------------- | ------- | -------- |
+| [`src`](#src)     | `src="/image.png"`  | String  | Required |
+| [`alt`](#alt)     | `alt="Description"` | String  | Required |
+| [`width`](#width) | `width={500}`       | Integer | -        |
+
 </div>
 ```
 
