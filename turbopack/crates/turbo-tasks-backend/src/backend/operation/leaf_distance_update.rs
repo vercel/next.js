@@ -35,7 +35,7 @@ struct LeafDistanceUpdate {
     dependencies_max_distance_in_buffer: u32,
     done: bool,
     #[cfg(feature = "trace_leaf_distance_update")]
-    #[bincode(skip, default)]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 

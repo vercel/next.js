@@ -14,8 +14,8 @@ use rustc_hash::FxBuildHasher;
 
 use super::traits::VcValueType;
 use crate::{
-    ReadRawVcFuture, ReadRef, VcCast, VcValueTrait, VcValueTraitCast, VcValueTypeCast,
-    keyed::Keyed, keyed_read_ref::MappedReadRef,
+    MappedReadRef, ReadRawVcFuture, ReadRef, VcCast, VcValueTrait, VcValueTraitCast,
+    VcValueTypeCast, keyed::Keyed,
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;

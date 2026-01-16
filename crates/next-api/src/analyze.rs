@@ -425,7 +425,7 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
     let mut all_edges = FxIndexSet::default();
     let mut all_async_edges = FxIndexSet::default();
     for &module_graph in module_graphs.await? {
-        let module_graph = module_graph.read_graphs().await?;
+        let module_graph = module_graph.await?;
         module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent_node, reference)) = parent {
                 all_modules.insert(parent_node);

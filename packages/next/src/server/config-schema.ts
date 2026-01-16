@@ -340,7 +340,9 @@ export const experimentalSchema = {
   browserDebugInfoInTerminal: z
     .union([
       z.boolean(),
+      z.enum(['error', 'warn', 'verbose']),
       z.object({
+        level: z.enum(['error', 'warn', 'verbose']).optional(),
         depthLimit: z.number().int().positive().optional(),
         edgeLimit: z.number().int().positive().optional(),
         showSourceLocation: z.boolean().optional(),
