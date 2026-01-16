@@ -5,8 +5,7 @@ use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
-    trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -53,7 +52,7 @@ pub enum RewriteSourcePath {
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
     pub source_map: Option<Rope>,
-    pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: RewriteSourcePath,
     pub placeholder_for_future_extensions: (),
@@ -122,8 +121,8 @@ impl EcmascriptChunkItemContent {
 impl EcmascriptChunkItemContent {
     async fn module_factory(&self) -> Result<ResolvedVc<Code>> {
         let mut code = CodeBuilder::default();
-        for additional_id in self.additional_ids.iter().try_join().await? {
-            writeln!(code, "{}, ", StringifyJs(&*additional_id))?;
+        for additional_id in self.additional_ids.iter() {
+            writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }
         if self.options.module_and_exports {
             code += "((__turbopack_context__, module, exports) => {\n";

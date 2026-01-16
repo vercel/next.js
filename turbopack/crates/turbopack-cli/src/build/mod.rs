@@ -319,11 +319,9 @@ async fn build_internal(
     module_graph =
         ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
     let module_graph = module_graph.connect();
-    let module_id_strategy = ResolvedVc::upcast(
-        get_global_module_id_strategy(module_graph)
-            .to_resolved()
-            .await?,
-    );
+    let module_id_strategy = get_global_module_id_strategy(module_graph)
+        .to_resolved()
+        .await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
         Target::Browser => {

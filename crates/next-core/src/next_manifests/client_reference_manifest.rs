@@ -346,7 +346,7 @@ async fn build_manifest(
                     get_client_reference_module_key(&server_path, "*"),
                     ManifestNodeEntry {
                         name: rcstr!("*"),
-                        id: (&*client_chunk_item_id).into(),
+                        id: (&client_chunk_item_id).into(),
                         chunks: client_chunks_paths,
                         // This should of course be client_is_async, but SSR can become
                         // async due to ESM externals, and
@@ -361,7 +361,7 @@ async fn build_manifest(
                     rcstr!("*"),
                     ManifestNodeEntry {
                         name: rcstr!("*"),
-                        id: (&*ssr_chunk_item_id).into(),
+                        id: (&ssr_chunk_item_id).into(),
                         chunks: ssr_chunks_paths,
                         // See above
                         r#async: client_is_async || ssr_is_async,
@@ -373,7 +373,7 @@ async fn build_manifest(
                     rcstr!("*"),
                     ManifestNodeEntry {
                         name: rcstr!("*"),
-                        id: (&*rsc_chunk_item_id).into(),
+                        id: (&rsc_chunk_item_id).into(),
                         chunks: vec![],
                         r#async: rsc_is_async,
                     },
@@ -383,18 +383,18 @@ async fn build_manifest(
                     NextRuntime::NodeJs => {
                         entry_manifest
                             .ssr_module_mapping
-                            .insert((&*client_chunk_item_id).into(), ssr_manifest_node);
+                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
                         entry_manifest
                             .rsc_module_mapping
-                            .insert((&*client_chunk_item_id).into(), rsc_manifest_node);
+                            .insert((&client_chunk_item_id).into(), rsc_manifest_node);
                     }
                     NextRuntime::Edge => {
                         entry_manifest
                             .edge_ssr_module_mapping
-                            .insert((&*client_chunk_item_id).into(), ssr_manifest_node);
+                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
                         entry_manifest
                             .edge_rsc_module_mapping
-                            .insert((&*client_chunk_item_id).into(), rsc_manifest_node);
+                            .insert((&client_chunk_item_id).into(), rsc_manifest_node);
                     }
                 }
             }

@@ -155,7 +155,7 @@ where
                 .await?;
             Ok(WebpackStatsModule {
                 name: chunk_item.asset_ident().path().await?.path.clone(),
-                id: chunk_item.id().owned().await?,
+                id: chunk_item.id().await?,
                 identifier: chunk_item.asset_ident().to_string().owned().await?,
                 chunks: chunks.into_iter().collect(),
                 size,

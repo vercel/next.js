@@ -1577,6 +1577,7 @@ impl AppEndpoint {
 
                     let loadable_manifest_output = create_react_loadable_manifest(
                         *dynamic_import_entries,
+                        *client_chunking_context,
                         client_relative_path.clone(),
                         node_root.join(&format!(
                             "server/app{}/react-loadable-manifest",
@@ -1692,6 +1693,7 @@ impl AppEndpoint {
 
                     let loadable_manifest_output = create_react_loadable_manifest(
                         *dynamic_import_entries,
+                        *client_chunking_context,
                         client_relative_path.clone(),
                         node_root.join(&format!(
                             "server/app{}/react-loadable-manifest",

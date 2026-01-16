@@ -193,7 +193,12 @@ impl EcmascriptChunkItem for HmrEntryChunkItem {
         let this = self.module.await?;
         let module = this.module;
         let chunk_item = module.as_chunk_item(*self.module_graph, *self.chunking_context);
-        let id = self.chunking_context.chunk_item_id(chunk_item).await?;
+        let id = self
+            .chunking_context
+            .chunk_item_id_strategy()
+            .await?
+            .get_id(chunk_item)
+            .await?;
 
         let mut code = RopeBuilder::default();
         writeln!(code, "{TURBOPACK_REQUIRE}({});", StringifyJs(&id))?;

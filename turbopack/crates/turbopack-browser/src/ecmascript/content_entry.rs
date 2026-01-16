@@ -1,6 +1,6 @@
 use anyhow::Result;
 use either::Either;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItemExt, ModuleId},
     code_builder::Code,
@@ -39,7 +39,7 @@ impl EcmascriptDevChunkContentEntry {
 #[turbo_tasks::value(transparent)]
 pub struct EcmascriptBrowserChunkContentEntries(
     #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<ReadRef<ModuleId>, EcmascriptDevChunkContentEntry>,
+    FxIndexMap<ModuleId, EcmascriptDevChunkContentEntry>,
 );
 
 #[turbo_tasks::value_impl]

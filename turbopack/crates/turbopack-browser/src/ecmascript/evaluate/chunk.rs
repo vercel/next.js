@@ -5,7 +5,7 @@ use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -314,5 +314,5 @@ struct EcmascriptBrowserChunkRuntimeParams<'a, T> {
     /// instantiated.
     other_chunks: &'a [T],
     /// List of module IDs that this chunk should instantiate when executed.
-    runtime_module_ids: Vec<ReadRef<ModuleId>>,
+    runtime_module_ids: Vec<ModuleId>,
 }
