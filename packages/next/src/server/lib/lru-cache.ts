@@ -50,10 +50,16 @@ export class LRUCache<T> {
   private totalSize: number = 0
   private readonly maxSize: number
   private readonly calculateSize: ((value: T) => number) | undefined
+  private readonly onEvict: ((key: string, value: T) => void) | undefined
 
-  constructor(maxSize: number, calculateSize?: (value: T) => number) {
+  constructor(
+    maxSize: number,
+    calculateSize?: (value: T) => number,
+    onEvict?: (key: string, value: T) => void
+  ) {
     this.maxSize = maxSize
     this.calculateSize = calculateSize
+    this.onEvict = onEvict
 
     // Create sentinel nodes to simplify doubly-linked list operations
     // HEAD <-> TAIL (empty list)
@@ -144,6 +150,7 @@ export class LRUCache<T> {
       const tail = this.removeTail()
       this.cache.delete(tail.key)
       this.totalSize -= tail.size
+      this.onEvict?.(tail.key, tail.data)
     }
   }
 

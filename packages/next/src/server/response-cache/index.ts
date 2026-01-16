@@ -8,6 +8,7 @@ import type {
 
 import { Batcher } from '../../lib/batcher'
 import { LRUCache } from '../lib/lru-cache'
+import { warnOnce } from '../../build/output/log'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import {
   fromResponseCacheEntry,
@@ -53,6 +54,18 @@ export default class ResponseCache implements ResponseCacheBase {
     invocationID: string | undefined
   }>
 
+  /**
+   * Set of invocation IDs that have had cache entries evicted.
+   * Used to detect when the cache size may be too small.
+   * Bounded to prevent memory growth.
+   */
+  private readonly evictedInvocationIDs: Set<string> = new Set()
+
+  /**
+   * The configured max cache size, stored for logging recommendations.
+   */
+  private readonly maxCacheSize: number
+
   // we don't use minimal_mode name here as this.minimal_mode is
   // statically replace for server runtimes but we need it to
   // be dynamic here
@@ -60,7 +73,21 @@ export default class ResponseCache implements ResponseCacheBase {
 
   constructor(minimal_mode: boolean, maxSize: number = 5) {
     this.minimal_mode = minimal_mode
-    this.previousCacheItems = new LRUCache(maxSize)
+    this.maxCacheSize = maxSize
+    this.previousCacheItems = new LRUCache(
+      maxSize,
+      undefined,
+      (_key, value) => {
+        if (!value.invocationID) return
+
+        // Bound to 100 entries to prevent memory growth
+        if (this.evictedInvocationIDs.size >= 100) {
+          const first = this.evictedInvocationIDs.values().next().value
+          if (first) this.evictedInvocationIDs.delete(first)
+        }
+        this.evictedInvocationIDs.add(value.invocationID)
+      }
+    )
   }
 
   /**
@@ -104,6 +131,17 @@ export default class ResponseCache implements ResponseCacheBase {
       const cachedItem = this.previousCacheItems.get(key)
       if (cachedItem && cachedItem.invocationID === context.invocationID) {
         return toResponseCacheEntry(cachedItem.entry)
+      }
+
+      // Warn if this invocation had entries evicted - indicates cache may be too small
+      if (
+        context.invocationID &&
+        this.evictedInvocationIDs.has(context.invocationID)
+      ) {
+        warnOnce(
+          `Response cache entry was evicted for invocation ${context.invocationID}. ` +
+            `Consider increasing \`experimental.maxResponseCacheSize\` (current: ${this.maxCacheSize}).`
+        )
       }
     }
 
