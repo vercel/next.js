@@ -2035,7 +2035,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             );
             old_edges.extend(
                 task.iter_output_dependencies()
-                    .map(|target| OutdatedEdge::OutputDependency(target)),
+                    .map(OutdatedEdge::OutputDependency),
             );
         }
 

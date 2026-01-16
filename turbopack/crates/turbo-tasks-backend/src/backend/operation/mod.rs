@@ -1022,34 +1022,29 @@ impl<B: BackingStorage> TaskGuardImpl<'_, B> {
     /// before accessing the data.
     #[inline]
     #[track_caller]
-    fn check_access(&self, category: TaskDataCategory) {
-        {
-            match category {
-                TaskDataCategory::All => {
-                    // This category is used for non-persisted data
-                }
-                TaskDataCategory::Data => {
-                    #[cfg(debug_assertions)]
-                    debug_assert!(
-                        self.category == TaskDataCategory::Data
-                            || self.category == TaskDataCategory::All,
-                        "To read data of {:?} the task need to be accessed with this category \
-                         (It's accessed with {:?})",
-                        category,
-                        self.category
-                    );
-                }
-                TaskDataCategory::Meta => {
-                    #[cfg(debug_assertions)]
-                    debug_assert!(
-                        self.category == TaskDataCategory::Meta
-                            || self.category == TaskDataCategory::All,
-                        "To read data of {:?} the task need to be accessed with this category \
-                         (It's accessed with {:?})",
-                        category,
-                        self.category
-                    );
-                }
+    fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory) {
+        match category {
+            SpecificTaskDataCategory::Data => {
+                #[cfg(debug_assertions)]
+                debug_assert!(
+                    self.category == TaskDataCategory::Data
+                        || self.category == TaskDataCategory::All,
+                    "To read data of {:?} the task need to be accessed with this category (It's \
+                     accessed with {:?})",
+                    category,
+                    self.category
+                );
+            }
+            SpecificTaskDataCategory::Meta => {
+                #[cfg(debug_assertions)]
+                debug_assert!(
+                    self.category == TaskDataCategory::Meta
+                        || self.category == TaskDataCategory::All,
+                    "To read data of {:?} the task need to be accessed with this category (It's \
+                     accessed with {:?})",
+                    category,
+                    self.category
+                );
             }
         }
     }
@@ -1203,7 +1198,7 @@ impl<B: BackingStorage> TaskStorageAccessors for TaskGuardImpl<'_, B> {
         }
     }
 
-    fn check_access(&self, category: crate::backend::TaskDataCategory) {
+    fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory) {
         self.check_access(category);
     }
 }

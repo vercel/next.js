@@ -74,21 +74,33 @@ impl FieldInfo {
 
     /// Generate the full `self.check_access(...)` call for this field.
     fn check_access_call(&self) -> TokenStream {
-        if self.is_transient() {
-            quote! { self.check_access(crate::backend::TaskDataCategory::All); }
-        } else if self.category == Category::Meta {
-            quote! { self.check_access(crate::backend::TaskDataCategory::Meta); }
-        } else {
-            quote! { self.check_access(crate::backend::TaskDataCategory::Data); }
+        match self.category {
+            Category::Data => {
+                quote! { self.check_access(crate::backend::SpecificTaskDataCategory::Data); }
+            }
+            Category::Meta => {
+                quote! { self.check_access(crate::backend::SpecificTaskDataCategory::Meta); }
+            }
+            Category::Transient => quote! {
+            // transient tasks don't need to check access
+            },
         }
     }
 
     /// Generate the full `self.track_modification(...)` call for this field.
     fn track_modification_call(&self) -> TokenStream {
-        if self.category == Category::Meta {
-            quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); }
-        } else {
-            quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data); }
+        match self.category {
+            Category::Data => {
+                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data); }
+            }
+            Category::Meta => {
+                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); }
+            }
+            Category::Transient => {
+                quote! {
+                    // We don't track modifications to transient data
+                }
+            }
         }
     }
 
@@ -1181,12 +1193,11 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
             /// This is a debug assertion that catches bugs where code tries to access data
             /// without having restored it from storage first.
             ///
-            /// The category parameter uses `TaskDataCategory`:
+            /// The category parameter uses `SpecificTaskDataCategory`:
             /// - `Data` or `Meta`: Checks that the task was accessed with that category
-            /// - `All`: Used for transient data - no check is performed
             ///
             /// Implementors should check that the provided category matches how the task was accessed.
-            fn check_access(&self, category: crate::backend::TaskDataCategory);
+            fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory);
 
             /// Shrink all collection fields to fit their current contents.
             ///
@@ -1214,7 +1225,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
     let check_access = field.check_access_call();
     let ref_expr = field.collection_ref_expr();
-    let mut_expr = field.collection_mut_expr();
     let is_option = field.is_option_ref();
 
     match field.storage_type {
@@ -1226,7 +1236,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             // For AutoSet types, generate read-only accessor, mutable accessor, and
             // add/remove/has/iter/len/is_empty
             let ref_name = field.ref_ident();
-            let mut_name = field.mut_ident();
 
             let (return_type, doc_comment) = if is_option {
                 (
@@ -1241,23 +1250,11 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                 )
             };
 
-            let track_modification = field.track_modification_call();
-
             let base_accessor = quote! {
                 #[doc = #doc_comment]
                 fn #ref_name(&self) -> #return_type {
                     #check_access
                     #ref_expr
-                }
-
-                /// Get a mutable reference to the collection (allocates if needed for lazy fields).
-                ///
-                /// Tracks modification pessimistically - assumes caller will mutate.
-                /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic
-                fn #mut_name(&mut self) -> &mut #field_type {
-                    #check_access
-                    #track_modification
-                    #mut_expr
                 }
             };
 
@@ -1274,7 +1271,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             // For CounterMap types, generate read-only accessor, mutable accessor, and typed
             // mutation methods
             let ref_name = field.ref_ident();
-            let mut_name = field.mut_ident();
 
             let (return_type, doc_comment) = if is_option {
                 (
@@ -1289,23 +1285,11 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                 )
             };
 
-            let track_modification = field.track_modification_call();
-
             let base_accessor = quote! {
                 #[doc = #doc_comment]
                 fn #ref_name(&self) -> #return_type {
                     #check_access
                     #ref_expr
-                }
-
-                /// Get a mutable reference to the collection (allocates if needed for lazy fields).
-                ///
-                /// Tracks modification pessimistically - assumes caller will mutate.
-                /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic
-                fn #mut_name(&mut self) -> &mut #field_type {
-                    #check_access
-                    #track_modification
-                    #mut_expr
                 }
             };
 
@@ -1321,7 +1305,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
         StorageType::AutoMap => {
             // For AutoMap types, generate immutable and mutable accessors plus operation methods
             let ref_name = field.ref_ident();
-            let mut_name = field.mut_ident();
 
             let (return_type, ref_doc) = if is_option {
                 (
@@ -1335,8 +1318,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                 )
             };
 
-            let track_modification = field.track_modification_call();
-
             let base_accessor = quote! {
                 #[doc = #ref_doc]
                 fn #ref_name(&self) -> #return_type {
@@ -1344,15 +1325,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                     #ref_expr
                 }
 
-                /// Get a mutable reference to the collection (allocates if needed for lazy fields).
-                ///
-                /// Tracks modification pessimistically - assumes caller will mutate.
-                /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic
-                fn #mut_name(&mut self) -> &mut #field_type {
-                    #check_access
-                    #track_modification
-                    #mut_expr
-                }
             };
 
             let automap_ops = generate_automap_ops(field);
@@ -1406,29 +1378,45 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         quote! { #field_type }
     };
 
-    // Generate get_mut accessor for all direct fields
+    // Generate get_mut accessor for all direct transient fields
+    // We don't allow
     let get_mut_accessor = {
         let get_mut_name = field.get_mut_ident();
-        if field.is_inline() {
-            // For inline fields, access the field directly
-            let field_name = &field.field_name;
-            if field.use_default {
-                // For fields with default semantics, always return Some(&mut self.field)
-                quote! {
-                    /// Get a mutable reference to the field value.
-                    ///
-                    /// Tracks modification pessimistically - assumes caller will mutate.
-                    /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic.
-                    /// If this is needed then we need to use a guard struct that tracks `DerefMut` calls and calls track_modification
-                    /// in Drop
-                    fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
-                        #check_access
-                        #track_modification
-                        Some(&mut self.typed_mut().#field_name)
+        if field.is_transient() {
+            if field.is_inline() {
+                // For inline fields, access the field directly
+                let field_name = &field.field_name;
+                if field.use_default {
+                    // For fields with default semantics, always return Some(&mut self.field)
+                    quote! {
+                        /// Get a mutable reference to the field value.
+                        ///
+                        /// Tracks modification pessimistically - assumes caller will mutate.
+                        /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic.
+                        /// If this is needed then we need to use a guard struct that tracks `DerefMut` calls and calls track_modification
+                        /// in Drop
+                        fn #get_mut_name(&mut self) -> &mut #value_type {
+                            #check_access
+                            #track_modification
+                            &mut self.typed_mut().#field_name
+                        }
+                    }
+                } else {
+                    // For Option fields, return as_mut()
+                    quote! {
+                        /// Get a mutable reference to the field value (if present).
+                        ///
+                        /// Tracks modification pessimistically - assumes caller will mutate.
+                        fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
+                            #check_access
+                            #track_modification
+                            self.typed_mut().#field_name.as_mut()
+                        }
                     }
                 }
             } else {
-                // For Option fields, return as_mut()
+                // For lazy fields, use the existing get_mut expression
+                let get_mut_expr = field.direct_get_mut_expr();
                 quote! {
                     /// Get a mutable reference to the field value (if present).
                     ///
@@ -1436,22 +1424,13 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                     fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
                         #check_access
                         #track_modification
-                        self.typed_mut().#field_name.as_mut()
+                        #get_mut_expr
                     }
                 }
             }
         } else {
-            // For lazy fields, use the existing get_mut expression
-            let get_mut_expr = field.direct_get_mut_expr();
             quote! {
-                /// Get a mutable reference to the field value (if present).
-                ///
-                /// Tracks modification pessimistically - assumes caller will mutate.
-                fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
-                    #check_access
-                    #track_modification
-                    #get_mut_expr
-                }
+                // Persistent fields don't allow direct mutable access as it interferes with mutation tracking
             }
         }
     };
