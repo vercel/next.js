@@ -499,10 +499,7 @@ mod tests {
     use turbo_tasks::{CellId, TaskId};
 
     use super::*;
-    use crate::{
-        backend::storage::SpecificTaskDataCategory,
-        data::{AggregationNumber, CellRef, Dirtyness, OutputValue},
-    };
+    use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
 
     #[test]
     fn test_accessors() {

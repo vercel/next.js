@@ -1691,9 +1691,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         let _ = task.insert_outdated_collectible(collectible, value);
                     }
                     Collectible::Outdated(collectible) => {
-                        if !task
+                        if task
                             .collectibles()
-                            .is_some_and(|m| m.get(&collectible).is_some())
+                            .is_none_or(|m| m.get(&collectible).is_none())
                         {
                             task.remove_outdated_collectibles(&collectible);
                         }
