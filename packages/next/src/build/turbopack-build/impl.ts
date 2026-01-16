@@ -134,6 +134,8 @@ export async function turbopackBuild(): Promise<{
       buildId,
       distDir,
       encryptionKey,
+      dev: false,
+      deploymentId: config.deploymentId,
     })
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(

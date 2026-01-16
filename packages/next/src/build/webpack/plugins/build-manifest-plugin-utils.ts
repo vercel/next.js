@@ -50,13 +50,12 @@ export function normalizeRewritesForBuildManifest(
 }
 
 export function createEdgeRuntimeManifest(
-  originAssetMap: Partial<BuildManifest>
+  originAssetMap: Partial<BuildManifest>,
+  lowPriorityFiles: string[] | undefined
 ): string {
-  const manifestFilenames = ['_buildManifest.js', '_ssgManifest.js']
-
   const assetMap: Partial<BuildManifest> = {
     ...originAssetMap,
-    lowPriorityFiles: [],
+    lowPriorityFiles: lowPriorityFiles ?? [],
   }
 
   // we use globalThis here because middleware can be node
@@ -66,16 +65,21 @@ export function createEdgeRuntimeManifest(
     null,
     2
   )};\n`
-  // edge lowPriorityFiles item: '"/static/" + process.env.__NEXT_BUILD_ID + "/low-priority.js"'.
-  // Since lowPriorityFiles is not fixed and relying on `process.env.__NEXT_BUILD_ID`, we'll produce code creating it dynamically.
-  const lowPriorityFilesCode =
-    `globalThis.__BUILD_MANIFEST.lowPriorityFiles = [\n` +
-    manifestFilenames
-      .map((filename) => {
-        return `"/static/" + process.env.__NEXT_BUILD_ID + "/${filename}"`
-      })
-      .join(',\n') +
-    `\n];`
 
-  return manifestDefCode + lowPriorityFilesCode
+  if (!lowPriorityFiles) {
+    const manifestFilenames = ['_buildManifest.js', '_ssgManifest.js']
+    // edge lowPriorityFiles item: '"/static/" + process.env.__NEXT_BUILD_ID + "/low-priority.js"'.
+    // Since lowPriorityFiles is not fixed and relying on `process.env.__NEXT_BUILD_ID`, we'll produce code creating it dynamically.
+    const lowPriorityFilesCode =
+      `globalThis.__BUILD_MANIFEST.lowPriorityFiles = [\n` +
+      manifestFilenames
+        .map((filename) => {
+          return `"/static/" + process.env.__NEXT_BUILD_ID + "/${filename}"`
+        })
+        .join(',\n') +
+      `\n];`
+    return manifestDefCode + lowPriorityFilesCode
+  } else {
+    return manifestDefCode
+  }
 }

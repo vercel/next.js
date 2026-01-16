@@ -238,6 +238,7 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 import { generateRoutesManifest } from './generate-routes-manifest'
 import { validateAppPaths } from './validate-app-paths'
+import { createHash } from 'crypto'
 
 type Fallback = null | boolean | string
 
@@ -553,12 +554,16 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
+    bundler,
+    deploymentId,
   }: {
     buildId: string
     distDir: string
     locales: readonly string[] | undefined
+    bundler: Bundler
+    deploymentId: string
   }
-) {
+): Promise<string> {
   const ssgPages = new Set<string>(
     [
       ...Object.entries(prerenderManifest.routes)
@@ -573,10 +578,22 @@ async function writeClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
+  // When skew protection is enabled, we instead just rely on the deployment id query string to
+  // load the correct manifests, to avoid the build id.
+  let ssgManifestPath =
+    bundler === Bundler.Turbopack && deploymentId
+      ? path.join(
+          'static',
+          `_ssgManifest-${createHash('sha1').update(clientSsgManifestContent).digest('hex').substring(0, 16)}.js`
+        )
+      : path.join(CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js')
+
   await writeFileUtf8(
-    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    path.join(distDir, ssgManifestPath),
     clientSsgManifestContent
   )
+
+  return ssgManifestPath
 }
 
 export interface FunctionsConfigManifest {
@@ -4041,11 +4058,58 @@ export default async function build(
           config.experimental.allowedRevalidateHeaderKeys
 
         await writePrerenderManifest(distDir, prerenderManifest)
-        await writeClientSsgManifest(prerenderManifest, {
+
+        let ssgManifestPath = await writeClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
           locales: config.i18n?.locales,
+          bundler,
+          deploymentId:
+            config.experimental.assetDeploymentId || config.deploymentId,
         })
+
+        if (
+          bundler === Bundler.Turbopack &&
+          (config.experimental.assetDeploymentId || config.deploymentId)
+        ) {
+          // TODO properly do this, without reading and patching
+
+          // The bundlers write an empty _ssgManifest.js file. We need to update build-manifest.json to
+          // reference the correct file now.
+          let oldEntry = buildManifest.lowPriorityFiles.findIndex((file) =>
+            file.includes('/_ssgManifest-')
+          )
+          if (oldEntry === -1) {
+            throw new Error(
+              "Couldn't find _ssgManifest-* in lowPriorityFiles of build-manifest.json: " +
+                JSON.stringify(buildManifest.lowPriorityFiles)
+            )
+          }
+          // @ts-expect-error lowPriorityFiles is a readonly array
+          buildManifest.lowPriorityFiles[oldEntry] = ssgManifestPath
+          // Flush the changes
+          await writeManifest(buildManifestPath, buildManifest)
+
+          let middleware = await readFileUtf8(
+            path.join(
+              distDir,
+              SERVER_DIRECTORY,
+              MIDDLEWARE_BUILD_MANIFEST + '.js'
+            )
+          )
+          middleware = middleware.replace(
+            /static\/_ssgManifest-([a-f0-9]+)\.js/,
+            ssgManifestPath
+          )
+          await fs.writeFile(
+            path.join(
+              distDir,
+              SERVER_DIRECTORY,
+              MIDDLEWARE_BUILD_MANIFEST + '.js'
+            ),
+            middleware
+          )
+        }
       } else {
         await writePrerenderManifest(distDir, {
           version: 4,

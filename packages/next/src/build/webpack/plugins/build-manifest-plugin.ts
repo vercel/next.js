@@ -240,7 +240,9 @@ export default class BuildManifestPlugin {
 
       compilation.emitAsset(
         `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
-        new sources.RawSource(`${createEdgeRuntimeManifest(assetMap)}`)
+        new sources.RawSource(
+          `${createEdgeRuntimeManifest(assetMap, undefined)}`
+        )
       )
 
       if (!this.isDevFallback) {
