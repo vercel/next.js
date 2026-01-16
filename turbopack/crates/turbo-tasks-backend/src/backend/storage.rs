@@ -9,6 +9,7 @@ use turbo_tasks::{FxDashMap, TaskId, parallel};
 
 use crate::{
     backend::storage_schema::TaskStorage,
+    database::key_value_database::KeySpace,
     utils::{
         dash_map_drop_contents::drop_contents,
         dash_map_multi::{RefMut, get_multiple_mut},
@@ -44,6 +45,16 @@ impl TaskDataCategory {
 pub enum SpecificTaskDataCategory {
     Meta,
     Data,
+}
+
+impl SpecificTaskDataCategory {
+    /// Returns the KeySpace for storing data of this category
+    pub fn key_space(self) -> KeySpace {
+        match self {
+            SpecificTaskDataCategory::Meta => KeySpace::TaskMeta,
+            SpecificTaskDataCategory::Data => KeySpace::TaskData,
+        }
+    }
 }
 
 enum ModifiedState {
@@ -271,58 +282,47 @@ impl StorageWriteGuard<'_> {
     /// Tracks mutation of this task
     pub fn track_modification(&mut self, category: SpecificTaskDataCategory) {
         let flags = &self.inner.flags;
-        let snapshot = match category {
-            SpecificTaskDataCategory::Meta => flags.meta_snapshot(),
-            SpecificTaskDataCategory::Data => flags.data_snapshot(),
-        };
-        if !snapshot {
-            let modified = match category {
-                SpecificTaskDataCategory::Meta => flags.meta_modified(),
-                SpecificTaskDataCategory::Data => flags.data_modified(),
-            };
-            match (self.storage.snapshot_mode(), modified) {
-                (false, false) => {
-                    // Not in snapshot mode and item is unmodified
-                    if !flags.any_snapshot() && !flags.any_modified() {
-                        self.storage
-                            .modified
-                            .insert(*self.inner.key(), ModifiedState::Modified);
-                    }
-                    match category {
-                        SpecificTaskDataCategory::Meta => self.inner.flags.set_meta_modified(true),
-                        SpecificTaskDataCategory::Data => self.inner.flags.set_data_modified(true),
-                    }
+        if flags.is_snapshot(category) {
+            return;
+        }
+        let modified = flags.is_modified(category);
+        match (self.storage.snapshot_mode(), modified) {
+            (false, false) => {
+                // Not in snapshot mode and item is unmodified
+                if !flags.any_snapshot() && !flags.any_modified() {
+                    self.storage
+                        .modified
+                        .insert(*self.inner.key(), ModifiedState::Modified);
                 }
-                (false, true) => {
-                    // Not in snapshot mode and item is already modified
-                    // Do nothing
+                self.inner.flags.set_modified(category, true);
+            }
+            (false, true) => {
+                // Not in snapshot mode and item is already modified
+                // Do nothing
+            }
+            (true, false) => {
+                // In snapshot mode and item is unmodified (so it's not part of the snapshot)
+                if !flags.any_snapshot() {
+                    self.storage
+                        .modified
+                        .insert(*self.inner.key(), ModifiedState::Snapshot(None));
                 }
-                (true, false) => {
-                    // In snapshot mode and item is unmodified (so it's not part of the snapshot)
-                    if !flags.any_snapshot() {
-                        self.storage
-                            .modified
-                            .insert(*self.inner.key(), ModifiedState::Snapshot(None));
-                    }
-                    match category {
-                        SpecificTaskDataCategory::Meta => self.inner.flags.set_meta_snapshot(true),
-                        SpecificTaskDataCategory::Data => self.inner.flags.set_data_snapshot(true),
-                    }
+                self.inner.flags.set_snapshot(category, true);
+            }
+            (true, true) => {
+                // In snapshot mode and item is modified (so it's part of the snapshot)
+                // We need to store the original version that is part of the snapshot
+                if !flags.any_snapshot() {
+                    // Snapshot all non-transient fields but keep the modified bits.
+                    let mut snapshot = self.inner.clone_snapshot();
+                    snapshot.flags.set_data_modified(flags.data_modified());
+                    snapshot.flags.set_meta_modified(flags.meta_modified());
+                    self.storage.modified.insert(
+                        *self.inner.key(),
+                        ModifiedState::Snapshot(Some(Box::new(snapshot))),
+                    );
                 }
-                (true, true) => {
-                    // In snapshot mode and item is modified (so it's part of the snapshot)
-                    // We need to store the original version that is part of the snapshot
-                    if !flags.any_snapshot() {
-                        self.storage.modified.insert(
-                            *self.inner.key(),
-                            ModifiedState::Snapshot(Some(Box::new(*self.inner.clone()))),
-                        );
-                    }
-                    match category {
-                        SpecificTaskDataCategory::Meta => self.inner.flags.set_meta_snapshot(true),
-                        SpecificTaskDataCategory::Data => self.inner.flags.set_data_snapshot(true),
-                    }
-                }
+                self.inner.flags.set_snapshot(category, true);
             }
         }
     }
@@ -342,6 +342,7 @@ impl DerefMut for StorageWriteGuard<'_> {
     }
 }
 
+// TODO: this implementation is only needed to bootstrap new tasks
 impl super::storage_schema::TaskStorageAccessors for StorageWriteGuard<'_> {
     fn typed(&self) -> &super::storage_schema::TaskStorage {
         &self.inner
@@ -358,7 +359,7 @@ impl super::storage_schema::TaskStorageAccessors for StorageWriteGuard<'_> {
 
     fn check_access(&self, _category: super::TaskDataCategory) {
         // StorageWriteGuard doesn't have category tracking - that's handled by TaskGuardImpl.
-        // This is a no-op for StorageWriteGuard.
+        // This is a no-op for Stor
     }
 }
 

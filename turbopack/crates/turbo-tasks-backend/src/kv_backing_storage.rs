@@ -526,11 +526,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             category: SpecificTaskDataCategory,
             storage: &mut TaskStorage,
         ) -> Result<()> {
-            let Some(bytes) = database.get(
-                tx,
-                category_to_key_space(category),
-                IntKey::new(*task_id).as_ref(),
-            )?
+            let Some(bytes) =
+                database.get(tx, category.key_space(), IntKey::new(*task_id).as_ref())?
             else {
                 return Ok(());
             };
@@ -539,11 +536,9 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 turbo_bincode::TURBO_BINCODE_CONFIG,
                 (),
             );
-            match category {
-                SpecificTaskDataCategory::Meta => storage.decode_meta(&mut decoder),
-                SpecificTaskDataCategory::Data => storage.decode_data(&mut decoder),
-            }
-            .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))
+            storage
+                .decode(category, &mut decoder)
+                .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))
         }
         inner
             .with_tx(tx, |tx| {
@@ -567,8 +562,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         ) -> Result<Vec<TaskStorage>> {
             let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
             let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
-            let key_space = category_to_key_space(category);
-            let bytes = database.batch_get(tx, key_space, &keys)?;
+            let bytes = database.batch_get(tx, category.key_space(), &keys)?;
             bytes
                 .into_iter()
                 .map(|opt_bytes| {
@@ -579,18 +573,9 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                             turbo_bincode::TURBO_BINCODE_CONFIG,
                             (),
                         );
-                        match category {
-                            SpecificTaskDataCategory::Meta => {
-                                storage
-                                    .decode_meta(&mut decoder)
-                                    .map_err(|e| anyhow::anyhow!("Failed to decode meta: {e:?}"))?;
-                            }
-                            SpecificTaskDataCategory::Data => {
-                                storage
-                                    .decode_data(&mut decoder)
-                                    .map_err(|e| anyhow::anyhow!("Failed to decode data: {e:?}"))?;
-                            }
-                        }
+                        storage
+                            .decode(category, &mut decoder)
+                            .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
                     }
                     Ok(storage)
                 })
@@ -793,40 +778,18 @@ fn encode_task_data(
 ) -> Result<TurboBincodeBuffer> {
     let mut buffer = TurboBincodeBuffer::with_capacity(256);
     let mut encoder = new_turbo_bincode_encoder(&mut buffer);
-    match category {
-        SpecificTaskDataCategory::Meta => data.encode_meta(&mut encoder)?,
-        SpecificTaskDataCategory::Data => data.encode_data(&mut encoder)?,
-    }
+    data.encode(category, &mut encoder)?;
+
     if !cfg!(feature = "verify_serialization") {
         return Ok(buffer);
     }
 
-    match category {
-        SpecificTaskDataCategory::Meta => {
-            let copy = data.clone_meta_snapshot();
-            let mut deserialized = TaskStorage::new();
-            deserialized.decode_meta(&mut new_turbo_bincode_decoder(buffer.borrow()))?;
-            assert_eq!(
-                copy, deserialized,
-                "expected to be able to round trip 'meta' information for {task}"
-            );
-        }
-        SpecificTaskDataCategory::Data => {
-            let copy = data.clone_data_snapshot();
-            let mut deserialized = TaskStorage::new();
-            deserialized.decode_data(&mut new_turbo_bincode_decoder(buffer.borrow()))?;
-            assert_eq!(
-                copy, deserialized,
-                "expected to be able to round trip 'data' information {task}"
-            );
-        }
-    };
+    let copy = data.clone_category_snapshot(category);
+    let mut deserialized = TaskStorage::new();
+    deserialized.decode(category, &mut new_turbo_bincode_decoder(buffer.borrow()))?;
+    assert_eq!(
+        copy, deserialized,
+        "expected to be able to round trip '{category:?}' information for {task}"
+    );
     Ok(buffer)
-}
-
-fn category_to_key_space(category: SpecificTaskDataCategory) -> KeySpace {
-    match category {
-        SpecificTaskDataCategory::Meta => KeySpace::TaskMeta,
-        SpecificTaskDataCategory::Data => KeySpace::TaskData,
-    }
 }

@@ -402,7 +402,7 @@ struct TaskStorageSchema {
 // TaskFlags helper methods (for InnerStorageState compatibility)
 // =============================================================================
 
-use crate::backend::TaskDataCategory;
+use crate::backend::{TaskDataCategory, storage::SpecificTaskDataCategory};
 
 impl TaskFlags {
     /// Set restored flags based on category
@@ -438,6 +438,38 @@ impl TaskFlags {
     /// Check if any modified flag is set
     pub fn any_modified(&self) -> bool {
         self.meta_modified() || self.data_modified()
+    }
+
+    /// Check if the specified category is modified
+    pub fn is_modified(&self, category: SpecificTaskDataCategory) -> bool {
+        match category {
+            SpecificTaskDataCategory::Meta => self.meta_modified(),
+            SpecificTaskDataCategory::Data => self.data_modified(),
+        }
+    }
+
+    /// Set the modified flag for the specified category
+    pub fn set_modified(&mut self, category: SpecificTaskDataCategory, value: bool) {
+        match category {
+            SpecificTaskDataCategory::Meta => self.set_meta_modified(value),
+            SpecificTaskDataCategory::Data => self.set_data_modified(value),
+        }
+    }
+
+    /// Check if the specified category has a snapshot
+    pub fn is_snapshot(&self, category: SpecificTaskDataCategory) -> bool {
+        match category {
+            SpecificTaskDataCategory::Meta => self.meta_snapshot(),
+            SpecificTaskDataCategory::Data => self.data_snapshot(),
+        }
+    }
+
+    /// Set the snapshot flag for the specified category
+    pub fn set_snapshot(&mut self, category: SpecificTaskDataCategory, value: bool) {
+        match category {
+            SpecificTaskDataCategory::Meta => self.set_meta_snapshot(value),
+            SpecificTaskDataCategory::Data => self.set_data_snapshot(value),
+        }
     }
 }
 
@@ -531,6 +563,38 @@ impl TaskStorage {
         } else {
             self.lazy.push(new_value);
             None
+        }
+    }
+
+    /// Encode fields for the specified category
+    pub fn encode<E: bincode::enc::Encoder>(
+        &self,
+        category: SpecificTaskDataCategory,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        match category {
+            SpecificTaskDataCategory::Meta => self.encode_meta(encoder),
+            SpecificTaskDataCategory::Data => self.encode_data(encoder),
+        }
+    }
+
+    /// Decode fields for the specified category
+    pub fn decode<D: bincode::de::Decoder>(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        decoder: &mut D,
+    ) -> Result<(), bincode::error::DecodeError> {
+        match category {
+            SpecificTaskDataCategory::Meta => self.decode_meta(decoder),
+            SpecificTaskDataCategory::Data => self.decode_data(decoder),
+        }
+    }
+
+    /// Clone only the fields for the specified category
+    pub fn clone_category_snapshot(&self, category: SpecificTaskDataCategory) -> TaskStorage {
+        match category {
+            SpecificTaskDataCategory::Meta => self.clone_meta_snapshot(),
+            SpecificTaskDataCategory::Data => self.clone_data_snapshot(),
         }
     }
 }

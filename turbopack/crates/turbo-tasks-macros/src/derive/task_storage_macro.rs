@@ -1080,7 +1080,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         /// Unified typed storage containing all task fields.
         /// This is designed to be embedded in the actual InnerStorage for incremental migration.
         #[automatically_derived]
-        #[derive(Debug, Clone, Default, PartialEq, turbo_tasks::ShrinkToFit)]
+        #[derive(Debug, Default, PartialEq, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
         pub struct TaskStorage {
             #(#field_defs,)*
