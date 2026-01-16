@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_input_d58c2398._.js",
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_input_1f8151c3._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 module.exports = 'turbopack';
@@ -6,7 +6,7 @@ module.exports = 'turbopack';
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.v("/static/vercel.242d4ff2.cjs");}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js { worker => \"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)\" } (worker loader)", ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)", ((__turbopack_context__) => {
 
 __turbopack_context__.v(__turbopack_context__.b("output/6642e_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_output_2867ca5f._.js", ["output/bf321_tests_snapshot_imports_ignore-comments_input_vercel_cjs_422a38f6._.js","output/ad3e4_tests_snapshot_imports_ignore-comments_input_vercel_cjs_6f11dd5d._.js"], false));
 }),
@@ -28,7 +28,7 @@ const __TURBOPACK__import$2e$meta__ = {
 __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)").then(console.log);
 __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)").then(console.log);
 console.log(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)"));
-new Worker(__turbopack_context__.r('[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js { worker => "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)" } (worker loader)'));
+new Worker(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)"));
 // turbopack shouldn't attempt to bundle these, and they should be preserved in the output
 import(/* webpackIgnore: true */ './ignore.mjs');
 import(/* turbopackIgnore: true */ './ignore.mjs');
@@ -43,4 +43,4 @@ function foo(plugin) {
 }),
 ]);
 
-//# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_input_d58c2398._.js.map
+//# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_input_1f8151c3._.js.map
