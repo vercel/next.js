@@ -2060,8 +2060,7 @@ pub mod tests {
             let child_graph = module_graph
                 .iter_graphs()
                 .await?
-                .iter()
-                .nth(1)
+                .get(1)
                 .unwrap()
                 .connect()
                 .await?;
