@@ -183,7 +183,7 @@ program
   )
   .option(
     '--debug-build-paths <patterns>',
-    'Comma-separated glob patterns or explicit paths for selective builds. Examples: "app/*", "app/page.tsx", "app/**/page.tsx"'
+    'Comma-separated glob patterns or explicit paths for selective builds. Use "!" prefix to exclude. Examples: "app/*", "app/page.tsx", "app/**/page.tsx", "app/**,!app/[slug]/**"'
   )
   .option(
     '--experimental-cpu-prof',
