@@ -2,6 +2,7 @@ import {
   DEFAULT_FILES,
   FULL_EXAMPLE_PATH,
   projectFilesShouldExist,
+  projectFilesShouldNotExist,
   run,
   useTempDir,
 } from '../utils'
@@ -82,6 +83,68 @@ describe('create-next-app with package manager pnpm', () => {
         cwd,
         projectName,
         files,
+      })
+    })
+  })
+
+  it('should create pnpm-workspace.yaml for pnpm v10+', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'pnpm-v10-workspace'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-turbopack',
+          '--no-linter',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--no-react-compiler',
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+          env: { npm_config_user_agent: 'pnpm/10.0.0 npm/? node/v20.0.0' },
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: [...files, 'pnpm-workspace.yaml'],
+      })
+    })
+  })
+
+  it('should NOT create pnpm-workspace.yaml for pnpm v9', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'pnpm-v9-no-workspace'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-turbopack',
+          '--no-linter',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--no-react-compiler',
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+          env: { npm_config_user_agent: 'pnpm/9.13.2 npm/? node/v20.0.0' },
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldNotExist({
+        cwd,
+        projectName,
+        files: ['pnpm-workspace.yaml'],
       })
     })
   })
