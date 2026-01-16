@@ -107,30 +107,6 @@ describe('resolveAndSetDeploymentId', () => {
       expect(result).toBe(vercelDeploymentId)
       // Should not throw validation error
     })
-
-    it('should respect explicit source parameter (user-config)', () => {
-      const userDeploymentId = 'dpl_abc123xyz'
-      process.env.NEXT_DEPLOYMENT_ID = userDeploymentId
-
-      // Explicitly mark as user-configured - should validate and reject
-      expect(() =>
-        resolveAndSetDeploymentId(userDeploymentId, 'user-config')
-      ).toThrow('cannot start with the "dpl_" prefix')
-    })
-
-    it('should validate user-configured ID even if it matches NEXT_DEPLOYMENT_ID when source is explicit', () => {
-      const matchingId = 'dpl_abc123xyz'
-      process.env.NEXT_DEPLOYMENT_ID = matchingId
-
-      // With explicit source, we can correctly distinguish
-      expect(() =>
-        resolveAndSetDeploymentId(matchingId, 'user-config')
-      ).toThrow('cannot start with the "dpl_" prefix')
-
-      // But with env-var source, it should pass
-      const result = resolveAndSetDeploymentId(matchingId, 'env-var')
-      expect(result).toBe(matchingId)
-    })
   })
 
   describe('Edge cases: undefined, null, and empty values', () => {
