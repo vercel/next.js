@@ -1,5 +1,9 @@
 # Next.js Development Guide
 
+## Conductor Worktrees
+
+If your current working directory is inside a `.conductor/` folder (e.g., `.conductor/west-monroe/`), you are working in a git worktree. **Always edit and work with files within the worktree directory, not the parent repository.** Each worktree is an isolated workspace with its own branch and working tree.
+
 ## Codebase structure
 
 ### Monorepo Overview
@@ -164,6 +168,19 @@ pnpm test-dev-turbo test/development/
 - `pnpm test-unit` - Run unit tests only (fast, no browser)
 - `pnpm testonly <path>` - Run tests without rebuilding (faster iteration)
 - `pnpm new-test` - Generate a new test file from template (interactive)
+
+**Always pipe test output to a file:**
+
+When running tests, always pipe output to a file so you can grep/analyze without re-running:
+
+```bash
+# Run tests and save output for analysis
+pnpm testonly test/path/to/test.ts 2>&1 | tee /tmp/test-output.log
+
+# Then grep the output without re-running
+grep -E "✓|✕" /tmp/test-output.log
+grep "Error" /tmp/test-output.log
+```
 
 **Generate tests non-interactively (for AI agents):**
 

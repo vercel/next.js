@@ -71,6 +71,8 @@ import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-st
 import type { CacheLife } from './cache-life'
 import { RenderStage } from '../app-render/staged-rendering'
 import * as Log from '../../build/output/log'
+import { getTracer } from '../lib/trace/tracer'
+import { UseCacheSpan } from '../lib/trace/constants'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -144,14 +146,21 @@ function generateCacheEntry(
   // might include request specific things like cookies() inside a React.cache().
   // Note: It is important that we await at least once before this because it lets us
   // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
-  return workStore.runInCleanSnapshot(
-    generateCacheEntryWithRestoredWorkStore,
-    workStore,
-    cacheContext,
-    clientReferenceManifest,
-    encodedArguments,
-    fn,
-    timeoutError
+  return getTracer().trace(
+    UseCacheSpan.generateCacheEntry,
+    {
+      spanName: 'use cache generate entry',
+    },
+    () =>
+      workStore.runInCleanSnapshot(
+        generateCacheEntryWithRestoredWorkStore,
+        workStore,
+        cacheContext,
+        clientReferenceManifest,
+        encodedArguments,
+        fn,
+        timeoutError
+      )
   )
 }
 
@@ -405,13 +414,27 @@ async function collectResult(
   const buffer: Uint8Array[] = []
   const reader = savedStream.getReader()
 
-  try {
-    for (let entry; !(entry = await reader.read()).done; ) {
-      buffer.push(entry.value)
+  await getTracer().trace(
+    UseCacheSpan.collectCacheResult,
+    {
+      spanName: 'use cache collect result',
+    },
+    async () => {
+      try {
+        for (let entry; !(entry = await reader.read()).done; ) {
+          buffer.push(entry.value)
+        }
+      } catch (error) {
+        errors.push(error)
+      }
     }
-  } catch (error) {
-    errors.push(error)
-  }
+  )
+
+  // Calculate and log buffer size
+  const totalSize = buffer.reduce((sum, chunk) => sum + chunk.length, 0)
+  console.log(
+    `[use-cache] collectResult: buffer size = ${totalSize} bytes (${(totalSize / 1024).toFixed(2)} KB) for ${buffer.length} chunks`
+  )
 
   let idx = 0
   const bufferStream = new ReadableStream<Uint8Array>({
@@ -588,7 +611,15 @@ async function generateCacheEntryImpl(
   // though, until React awaits the promise so that React's request store (ALS)
   // is available when the function is invoked. This allows us, for example, to
   // capture logs so that we can later replay them.
-  const resultPromise = createLazyResult(fn.bind(null, ...args))
+  const tracedFn = () =>
+    getTracer().trace(
+      UseCacheSpan.executeCacheHandler,
+      {
+        spanName: 'use cache execute handler',
+      },
+      () => fn(...args)
+    )
+  const resultPromise = createLazyResult(tracedFn)
 
   let errors: Array<unknown> = []
 
@@ -640,22 +671,25 @@ async function generateCacheEntryImpl(
           ])
         : timeoutAbortController.signal
 
-      const { prelude } = await prerender(
-        resultPromise,
-        clientReferenceManifest.clientModules,
+      const { prelude } = await getTracer().trace(
+        UseCacheSpan.renderCacheStream,
         {
-          environmentName: 'Cache',
-          filterStackFrame,
-          signal: abortSignal,
-          temporaryReferences,
-          onError(error) {
-            if (abortSignal.aborted && abortSignal.reason === error) {
-              return undefined
-            }
+          spanName: 'use cache render stream (prerender)',
+        },
+        () =>
+          prerender(resultPromise, clientReferenceManifest.clientModules, {
+            environmentName: 'Cache',
+            filterStackFrame,
+            signal: abortSignal,
+            temporaryReferences,
+            onError(error) {
+              if (abortSignal.aborted && abortSignal.reason === error) {
+                return undefined
+              }
 
-            return handleError(error)
-          },
-        }
+              return handleError(error)
+            },
+          })
       )
 
       clearTimeout(timer)
@@ -1474,9 +1508,19 @@ export async function cache(
 
     // We ignore existing cache entries when force revalidating.
     if (cacheHandler && !shouldForceRevalidate(workStore, workUnitStore)) {
-      entry = await cacheHandler.get(
-        serializedCacheKey,
-        workUnitStore?.implicitTags?.tags ?? []
+      entry = await getTracer().trace(
+        UseCacheSpan.cacheGet,
+        {
+          spanName: 'use cache GET',
+          attributes: {
+            'next.cache.key': serializedCacheKey,
+          },
+        },
+        () =>
+          cacheHandler.get(
+            serializedCacheKey,
+            workUnitStore?.implicitTags?.tags ?? []
+          )
       )
     }
 
@@ -1645,10 +1689,35 @@ export async function cache(
         }
 
         if (cacheHandler) {
-          const promise = cacheHandler.set(serializedCacheKey, savedCacheEntry)
+          const setStartTime = performance.now()
+          console.log(
+            `[use-cache] SET (miss) starting at ${setStartTime.toFixed(2)}ms for key: ${serializedCacheKey.slice(0, 50)}...`
+          )
+          const promise = getTracer()
+            .trace(
+              UseCacheSpan.cacheSet,
+              {
+                spanName: 'use cache SET',
+                attributes: {
+                  'next.cache.key': serializedCacheKey,
+                  'next.cache.async': true,
+                  'next.cache.reason': 'miss',
+                },
+              },
+              () => cacheHandler.set(serializedCacheKey, savedCacheEntry)
+            )
+            .then(() => {
+              const setEndTime = performance.now()
+              console.log(
+                `[use-cache] SET (miss) completed in ${(setEndTime - setStartTime).toFixed(2)}ms for key: ${serializedCacheKey.slice(0, 50)}...`
+              )
+            })
 
           workStore.pendingRevalidateWrites ??= []
           workStore.pendingRevalidateWrites.push(promise)
+          console.log(
+            `[use-cache] SET (miss) pushed to pendingRevalidateWrites (total: ${workStore.pendingRevalidateWrites.length})`
+          )
         }
       }
 
@@ -1718,13 +1787,35 @@ export async function cache(
           }
 
           if (cacheHandler) {
-            const promise = cacheHandler.set(
-              serializedCacheKey,
-              savedCacheEntry
+            const setStartTime = performance.now()
+            console.log(
+              `[use-cache] SET (stale) starting at ${setStartTime.toFixed(2)}ms for key: ${serializedCacheKey.slice(0, 50)}...`
             )
+            const promise = getTracer()
+              .trace(
+                UseCacheSpan.cacheSet,
+                {
+                  spanName: 'use cache SET',
+                  attributes: {
+                    'next.cache.key': serializedCacheKey,
+                    'next.cache.async': true,
+                    'next.cache.reason': 'stale',
+                  },
+                },
+                () => cacheHandler.set(serializedCacheKey, savedCacheEntry)
+              )
+              .then(() => {
+                const setEndTime = performance.now()
+                console.log(
+                  `[use-cache] SET (stale) completed in ${(setEndTime - setStartTime).toFixed(2)}ms for key: ${serializedCacheKey.slice(0, 50)}...`
+                )
+              })
 
             workStore.pendingRevalidateWrites ??= []
             workStore.pendingRevalidateWrites.push(promise)
+            console.log(
+              `[use-cache] SET (stale) pushed to pendingRevalidateWrites (total: ${workStore.pendingRevalidateWrites.length})`
+            )
           }
 
           await ignoredStream.cancel()

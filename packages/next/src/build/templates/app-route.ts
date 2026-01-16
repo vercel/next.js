@@ -318,6 +318,7 @@ export async function handler(
           // if it's not we fallback to sendResponse's handling
           if (pendingWaitUntil) {
             if (ctx.waitUntil) {
+              console.log('[waitUntil] app-route template pendingWaitUntil')
               ctx.waitUntil(pendingWaitUntil)
               pendingWaitUntil = undefined
             }

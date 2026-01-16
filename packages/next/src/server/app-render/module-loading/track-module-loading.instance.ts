@@ -6,6 +6,11 @@ import { isThenable } from '../../../shared/lib/is-thenable'
  * Initialized lazily, because we don't want this to error in case it gets pulled into an edge runtime module.
  */
 let _moduleLoadingSignal: CacheSignal | null
+let _totalChunkCount = 0
+let _totalImportCount = 0
+let _activeChunkCount = 0
+let _activeImportCount = 0
+
 function getModuleLoadingSignal() {
   if (!_moduleLoadingSignal) {
     _moduleLoadingSignal = new CacheSignal()
@@ -13,9 +18,28 @@ function getModuleLoadingSignal() {
   return _moduleLoadingSignal
 }
 
+export function getModuleLoadingStats() {
+  return {
+    totalChunks: _totalChunkCount,
+    totalImports: _totalImportCount,
+    activeChunks: _activeChunkCount,
+    activeImports: _activeImportCount,
+  }
+}
+
 export function trackPendingChunkLoad(promise: Promise<unknown>) {
   const moduleLoadingSignal = getModuleLoadingSignal()
-  moduleLoadingSignal.trackRead(promise)
+  _totalChunkCount++
+  _activeChunkCount++
+  const trackedPromise = moduleLoadingSignal.trackRead(promise)
+  trackedPromise.then(
+    () => {
+      _activeChunkCount--
+    },
+    () => {
+      _activeChunkCount--
+    }
+  )
 }
 
 export function trackPendingImport(exportsOrPromise: unknown) {
@@ -27,7 +51,17 @@ export function trackPendingImport(exportsOrPromise: unknown) {
     // A client reference proxy might look like a promise, but we can only call `.then()` on it, not e.g. `.finally()`.
     // Turn it into a real promise to avoid issues elsewhere.
     const promise = Promise.resolve(exportsOrPromise)
-    moduleLoadingSignal.trackRead(promise)
+    _totalImportCount++
+    _activeImportCount++
+    const trackedPromise = moduleLoadingSignal.trackRead(promise)
+    trackedPromise.then(
+      () => {
+        _activeImportCount--
+      },
+      () => {
+        _activeImportCount--
+      }
+    )
   }
 }
 

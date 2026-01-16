@@ -95,7 +95,13 @@ export class CacheSignal {
   }
 
   beginRead() {
+    const wasZero = this.count === 0
     this.count++
+    if (wasZero) {
+      console.log(
+        `[CacheSignal] beginRead: first pending read started, count is now ${this.count} at ${performance.now().toFixed(2)}ms`
+      )
+    }
 
     // There's a new pending cache, so if there's a `noMorePendingCaches` timeout running,
     // we should cancel it.
@@ -126,6 +132,9 @@ export class CacheSignal {
     // If intervening reads happen before the scheduled task runs they will never observe count 1 preventing reentrency
     this.count--
     if (this.count === 0) {
+      console.log(
+        `[CacheSignal] endRead: all pending reads complete, count is now 0 at ${performance.now().toFixed(2)}ms`
+      )
       this.noMorePendingCaches()
     }
 

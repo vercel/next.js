@@ -1,6 +1,8 @@
 import type { WorkStore } from './app-render/work-async-storage.external'
 import type { IncrementalCache } from './lib/incremental-cache'
 import { getCacheHandlers } from './use-cache/handlers'
+import { getTracer } from './lib/trace/tracer'
+import { RevalidationSpan } from './lib/trace/constants'
 
 /** Run a callback, and execute any *new* revalidations added during its runtime. */
 export async function withExecuteRevalidates<T>(
@@ -217,5 +219,26 @@ export function executeRevalidates(
     return false
   }
 
-  return Promise.all(promises).then(() => undefined)
+  const startTime = performance.now()
+  console.log(
+    `[revalidation] executeRevalidates starting with ${promises.length} promises at ${startTime.toFixed(2)}ms`
+  )
+
+  return getTracer()
+    .trace(
+      RevalidationSpan.executeRevalidates,
+      {
+        spanName: 'flush pending cache writes',
+        attributes: {
+          'next.revalidation.count': promises.length,
+        },
+      },
+      () => Promise.all(promises)
+    )
+    .then(() => {
+      const endTime = performance.now()
+      console.log(
+        `[revalidation] executeRevalidates completed in ${(endTime - startTime).toFixed(2)}ms`
+      )
+    })
 }

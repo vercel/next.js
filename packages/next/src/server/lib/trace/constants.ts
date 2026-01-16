@@ -87,6 +87,9 @@ enum AppRenderSpan {
   renderToReadableStream = 'AppRender.renderToReadableStream',
   getBodyResult = 'AppRender.getBodyResult',
   fetch = 'AppRender.fetch',
+  getRSCPayload = 'AppRender.getRSCPayload',
+  createMetadataComponents = 'AppRender.createMetadataComponents',
+  getGlobalErrorStyles = 'AppRender.getGlobalErrorStyles',
 }
 
 enum RouterSpan {
@@ -110,6 +113,19 @@ enum MiddlewareSpan {
   execute = 'Middleware.execute',
 }
 
+enum UseCacheSpan {
+  cacheGet = 'UseCache.get',
+  cacheSet = 'UseCache.set',
+  generateCacheEntry = 'UseCache.generateCacheEntry',
+  executeCacheHandler = 'UseCache.executeCacheHandler',
+  collectCacheResult = 'UseCache.collectCacheResult',
+  renderCacheStream = 'UseCache.renderCacheStream',
+}
+
+enum RevalidationSpan {
+  executeRevalidates = 'Revalidation.executeRevalidates',
+}
+
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
@@ -123,6 +139,8 @@ type SpanTypes =
   | `${AppRouteRouteHandlersSpan}`
   | `${ResolveMetadataSpan}`
   | `${MiddlewareSpan}`
+  | `${UseCacheSpan}`
+  | `${RevalidationSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = new Set([
@@ -132,6 +150,9 @@ export const NextVanillaSpanAllowlist = new Set([
   RenderSpan.getStaticProps,
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
+  AppRenderSpan.getRSCPayload,
+  AppRenderSpan.createMetadataComponents,
+  AppRenderSpan.getGlobalErrorStyles,
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
@@ -142,6 +163,13 @@ export const NextVanillaSpanAllowlist = new Set([
   NextNodeServerSpan.getLayoutOrPageModule,
   NextNodeServerSpan.startResponse,
   NextNodeServerSpan.clientComponentLoading,
+  UseCacheSpan.cacheGet,
+  UseCacheSpan.cacheSet,
+  UseCacheSpan.generateCacheEntry,
+  UseCacheSpan.executeCacheHandler,
+  UseCacheSpan.collectCacheResult,
+  UseCacheSpan.renderCacheStream,
+  RevalidationSpan.executeRevalidates,
 ])
 
 // These Spans are allowed to be always logged
@@ -165,6 +193,8 @@ export {
   AppRouteRouteHandlersSpan,
   ResolveMetadataSpan,
   MiddlewareSpan,
+  UseCacheSpan,
+  RevalidationSpan,
 }
 
 export type { SpanTypes }

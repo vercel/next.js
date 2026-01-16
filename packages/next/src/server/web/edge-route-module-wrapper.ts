@@ -129,6 +129,7 @@ export class EdgeRouteModuleWrapper {
     if (context.renderOpts.pendingWaitUntil) {
       waitUntilPromises.push(context.renderOpts.pendingWaitUntil)
     }
+    console.log('[waitUntil] edge-route-module-wrapper')
     evt.waitUntil(Promise.all(waitUntilPromises))
 
     if (!res.body) {

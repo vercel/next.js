@@ -41,6 +41,7 @@ export class AfterContext {
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
       }
+      console.log('[waitUntil] after-context thenable task')
       this.waitUntil(
         task.catch((error) => this.reportTaskError('promise', error))
       )
@@ -76,6 +77,7 @@ export class AfterContext {
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
       this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
+      console.log('[waitUntil] after-context runCallbacksOnClose')
       this.waitUntil(this.runCallbacksOnClosePromise)
     }
 

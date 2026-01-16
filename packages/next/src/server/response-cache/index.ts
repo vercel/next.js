@@ -137,7 +137,10 @@ export default class ResponseCache implements ResponseCacheBase {
         )
 
         // We need to ensure background revalidates are passed to waitUntil.
-        if (waitUntil) waitUntil(promise)
+        if (waitUntil) {
+          console.log('[waitUntil] response-cache get():', key)
+          waitUntil(promise)
+        }
 
         return promise
       }
@@ -266,7 +269,10 @@ export default class ResponseCache implements ResponseCacheBase {
       )
 
       // We need to ensure background revalidates are passed to waitUntil.
-      if (waitUntil) waitUntil(promise)
+      if (waitUntil) {
+        console.log('[waitUntil] response-cache revalidate():', key)
+        waitUntil(promise)
+      }
 
       return promise
     })

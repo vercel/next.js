@@ -200,6 +200,7 @@ import {
   trackPendingChunkLoad,
   trackPendingImport,
   trackPendingModules,
+  getModuleLoadingStats,
 } from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
@@ -1423,6 +1424,23 @@ async function getRSCPayload(
   ctx: AppRenderContext,
   is404: boolean
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
+  return getTracer().trace(
+    AppRenderSpan.getRSCPayload,
+    {
+      spanName: 'get RSC payload',
+      attributes: {
+        'next.route': ctx.pagePath,
+      },
+    },
+    () => getRSCPayloadImpl(tree, ctx, is404)
+  )
+}
+
+async function getRSCPayloadImpl(
+  tree: LoaderTree,
+  ctx: AppRenderContext,
+  is404: boolean
+): Promise<InitialRSCPayload & { P: ReactNode }> {
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
@@ -1450,21 +1468,28 @@ async function getRSCPayload(
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
-  const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
-    tree,
-    // When it's using global-not-found, metadata errorType is undefined, which will retrieve the
-    // metadata from the page.
-    // When it's using not-found, metadata errorType is 'not-found', which will retrieve the
-    // metadata from the not-found.js boundary.
-    // TODO: remove this condition and keep it undefined when global-not-found is stabilized.
-    errorType: is404 && !hasGlobalNotFound ? 'not-found' : undefined,
-    parsedQuery: query,
-    pathname: url.pathname,
-    metadataContext: createMetadataContext(ctx.renderOpts),
-    getDynamicParamFromSegment,
-    workStore,
-    serveStreamingMetadata,
-  })
+  const { Viewport, Metadata, MetadataOutlet } = getTracer().trace(
+    AppRenderSpan.createMetadataComponents,
+    {
+      spanName: 'create metadata components',
+    },
+    () =>
+      createMetadataComponents({
+        tree,
+        // When it's using global-not-found, metadata errorType is undefined, which will retrieve the
+        // metadata from the page.
+        // When it's using not-found, metadata errorType is 'not-found', which will retrieve the
+        // metadata from the not-found.js boundary.
+        // TODO: remove this condition and keep it undefined when global-not-found is stabilized.
+        errorType: is404 && !hasGlobalNotFound ? 'not-found' : undefined,
+        parsedQuery: query,
+        pathname: url.pathname,
+        metadataContext: createMetadataContext(ctx.renderOpts),
+        getDynamicParamFromSegment,
+        workStore,
+        serveStreamingMetadata,
+      })
+  )
 
   const preloadCallbacks: PreloadCallbacks = []
 
@@ -1510,9 +1535,12 @@ async function getRSCPayload(
       : null
   )
 
-  const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
-    tree,
-    ctx
+  const { GlobalError, styles: globalErrorStyles } = await getTracer().trace(
+    AppRenderSpan.getGlobalErrorStyles,
+    {
+      spanName: 'get global error styles',
+    },
+    () => getGlobalErrorStyles(tree, ctx)
   )
 
   // Assume the head we're rendering contains only partial data if PPR is
@@ -2063,6 +2091,11 @@ async function renderToHTMLOrFlightImpl(
       prerenderToStream
     )
 
+    const prerenderStartTime = performance.now()
+    console.log(
+      `[app-render] prerender: starting prerenderToStream at ${prerenderStartTime.toFixed(2)}ms`
+    )
+
     const response = await prerenderToStreamWithTracing(
       req,
       res,
@@ -2070,6 +2103,11 @@ async function renderToHTMLOrFlightImpl(
       metadata,
       loaderTree,
       fallbackRouteParams
+    )
+
+    const prerenderEndTime = performance.now()
+    console.log(
+      `[app-render] prerender: prerenderToStream completed in ${(prerenderEndTime - prerenderStartTime).toFixed(2)}ms`
     )
 
     // If we're debugging partial prerendering, print all the dynamic API accesses
@@ -2104,24 +2142,40 @@ async function renderToHTMLOrFlightImpl(
       if (buildFailingError) throw buildFailingError
     }
 
+    const postErrorCheckTime = performance.now()
+    console.log(
+      `[app-render] prerender: error checking completed at ${postErrorCheckTime.toFixed(2)}ms (took ${(postErrorCheckTime - prerenderEndTime).toFixed(2)}ms)`
+    )
+
     const options: RenderResultOptions = {
       metadata,
       contentType: HTML_CONTENT_TYPE_HEADER,
     }
 
     // If we have pending revalidates, wait until they are all resolved.
+    const prerenderRevalidateStart = performance.now()
+    console.log(
+      `[app-render] prerender: calling executeRevalidates at ${prerenderRevalidateStart.toFixed(2)}ms for ${url.href}`
+    )
     const maybeRevalidatesPromise = executeRevalidates(workStore)
     if (maybeRevalidatesPromise !== false) {
+      console.log(
+        `[app-render] prerender: has pending revalidates, passing to waitUntil`
+      )
       const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
-        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log('pending revalidates promise finished for:', url.href)
-        }
+        const revalidateEnd = performance.now()
+        console.log(
+          `[app-render] prerender: revalidates promise finished in ${(revalidateEnd - prerenderRevalidateStart).toFixed(2)}ms for ${url.href}`
+        )
       })
       if (renderOpts.waitUntil) {
+        console.log('[waitUntil] app-render prerender revalidates:', url.href)
         renderOpts.waitUntil(revalidatesPromise)
       } else {
         options.waitUntil = revalidatesPromise
       }
+    } else {
+      console.log(`[app-render] prerender: no pending revalidates`)
     }
 
     applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -2130,7 +2184,17 @@ async function renderToHTMLOrFlightImpl(
       metadata.renderResumeDataCache = response.renderResumeDataCache
     }
 
-    return new RenderResult(await streamToString(response.stream), options)
+    const streamToStringStart = performance.now()
+    console.log(
+      `[app-render] prerender: starting streamToString at ${streamToStringStart.toFixed(2)}ms`
+    )
+    const htmlString = await streamToString(response.stream)
+    const streamToStringEnd = performance.now()
+    console.log(
+      `[app-render] prerender: streamToString completed in ${(streamToStringEnd - streamToStringStart).toFixed(2)}ms`
+    )
+
+    return new RenderResult(htmlString, options)
   } else {
     // We're rendering dynamically
     const renderResumeDataCache =
@@ -2282,21 +2346,35 @@ async function renderToHTMLOrFlightImpl(
     }
 
     // If we have pending revalidates, wait until they are all resolved.
+    const dynamicRevalidateStart = performance.now()
+    console.log(
+      `[app-render] dynamic: calling executeRevalidates at ${dynamicRevalidateStart.toFixed(2)}ms for ${url.href}`
+    )
     const maybeRevalidatesPromise = executeRevalidates(workStore)
     if (maybeRevalidatesPromise !== false) {
+      console.log(
+        `[app-render] dynamic: has pending revalidates, passing to waitUntil`
+      )
       const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
-        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log('pending revalidates promise finished for:', url.href)
-        }
+        const revalidateEnd = performance.now()
+        console.log(
+          `[app-render] dynamic: revalidates promise finished in ${(revalidateEnd - dynamicRevalidateStart).toFixed(2)}ms for ${url.href}`
+        )
       })
       if (renderOpts.waitUntil) {
+        console.log('[waitUntil] app-render dynamic revalidates:', url.href)
         renderOpts.waitUntil(revalidatesPromise)
       } else {
         options.waitUntil = revalidatesPromise
       }
+    } else {
+      console.log(`[app-render] dynamic: no pending revalidates`)
     }
 
     // Create the new render result for the response.
+    console.log(
+      `[app-render] dynamic: returning RenderResult at ${performance.now().toFixed(2)}ms`
+    )
     return new RenderResult(stream, options)
   }
 }
@@ -4079,6 +4157,10 @@ async function prerenderToStream(
   tree: LoaderTree,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): Promise<PrerenderToStreamResult> {
+  const prerenderToStreamStartTime = performance.now()
+  console.log(
+    `[prerenderToStream] ENTRY at ${prerenderToStreamStartTime.toFixed(2)}ms`
+  )
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
   // more explicit than making it an optional function argument
@@ -4221,6 +4303,9 @@ async function prerenderToStream(
 
   try {
     if (cacheComponents) {
+      console.log(
+        `[prerenderToStream] entering cacheComponents branch at ${performance.now().toFixed(2)}ms`
+      )
       /**
        * cacheComponents with PPR
        *
@@ -4309,12 +4394,19 @@ async function prerenderToStream(
 
       // We're not going to use the result of this render because the only time it could be used
       // is if it completes in a microtask and that's likely very rare for any non-trivial app
+      const initialServerPayloadStartTime = performance.now()
+      console.log(
+        `[prerenderToStream] initialServerPayload starting at ${initialServerPayloadStartTime.toFixed(2)}ms`
+      )
       const initialServerPayload = await workUnitAsyncStorage.run(
         initialServerPayloadPrerenderStore,
         getRSCPayload,
         tree,
         ctx,
         res.statusCode === 404
+      )
+      console.log(
+        `[prerenderToStream] initialServerPayload completed in ${(performance.now() - initialServerPayloadStartTime).toFixed(2)}ms`
       )
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
@@ -4340,6 +4432,10 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
       })
 
+      const initialServerPrerenderStartTime = performance.now()
+      console.log(
+        `[prerenderToStream] initialServerPrerender starting at ${initialServerPrerenderStartTime.toFixed(2)}ms`
+      )
       const pendingInitialServerResult = workUnitAsyncStorage.run(
         initialServerPrerenderStore,
         ComponentMod.prerender,
@@ -4381,6 +4477,9 @@ async function prerenderToStream(
           signal: initialServerReactController.signal,
         }
       )
+      console.log(
+        `[prerenderToStream] initialServerPrerender started in ${(performance.now() - initialServerPrerenderStartTime).toFixed(2)}ms (pending result created)`
+      )
 
       // The listener to abort our own render controller must be added after
       // React has added its listener, to ensure that pending I/O is not
@@ -4396,7 +4495,14 @@ async function prerenderToStream(
 
       // Wait for all caches to be finished filling and for async imports to resolve
       trackPendingModules(cacheSignal)
+      const cacheReadyStartTime = performance.now()
+      console.log(
+        `[prerenderToStream] cacheSignal.cacheReady() starting at ${cacheReadyStartTime.toFixed(2)}ms`
+      )
       await cacheSignal.cacheReady()
+      console.log(
+        `[prerenderToStream] cacheSignal.cacheReady() completed in ${(performance.now() - cacheReadyStartTime).toFixed(2)}ms`
+      )
 
       initialServerReactController.abort()
 
@@ -4409,8 +4515,15 @@ async function prerenderToStream(
 
       let initialServerResult
       try {
+        const createInitialResultStartTime = performance.now()
+        console.log(
+          `[prerenderToStream] createReactServerPrerenderResult (initial) starting at ${createInitialResultStartTime.toFixed(2)}ms`
+        )
         initialServerResult = await createReactServerPrerenderResult(
           pendingInitialServerResult
+        )
+        console.log(
+          `[prerenderToStream] createReactServerPrerenderResult (initial) completed in ${(performance.now() - createInitialResultStartTime).toFixed(2)}ms`
         )
       } catch (err) {
         if (
@@ -4433,6 +4546,10 @@ async function prerenderToStream(
       }
 
       if (initialServerResult) {
+        const initialClientPrerenderStartTime = performance.now()
+        console.log(
+          `[prerenderToStream] initialClientPrerender starting at ${initialClientPrerenderStartTime.toFixed(2)}ms`
+        )
         const initialClientPrerenderController = new AbortController()
         const initialClientReactController = new AbortController()
         const initialClientRenderController = new AbortController()
@@ -4542,11 +4659,29 @@ async function prerenderToStream(
 
         // This is mostly needed for dynamic `import()`s in client components.
         // Promises passed to client were already awaited above (assuming that they came from cached functions)
+        const preTrackStats = getModuleLoadingStats()
+        console.log(
+          `[prerenderToStream] BEFORE trackPendingModules - Module stats: totalChunks=${preTrackStats.totalChunks}, totalImports=${preTrackStats.totalImports}, activeChunks=${preTrackStats.activeChunks}, activeImports=${preTrackStats.activeImports}`
+        )
         trackPendingModules(cacheSignal)
+        const clientCacheReadyStartTime = performance.now()
+        console.log(
+          `[prerenderToStream] cacheSignal.cacheReady() (client) starting at ${clientCacheReadyStartTime.toFixed(2)}ms`
+        )
         await cacheSignal.cacheReady()
+        const moduleStats = getModuleLoadingStats()
+        console.log(
+          `[prerenderToStream] cacheSignal.cacheReady() (client) completed in ${(performance.now() - clientCacheReadyStartTime).toFixed(2)}ms - Module loading stats: totalChunks=${moduleStats.totalChunks}, totalImports=${moduleStats.totalImports}, activeChunks=${moduleStats.activeChunks}, activeImports=${moduleStats.activeImports}`
+        )
         initialClientReactController.abort()
+        console.log(
+          `[prerenderToStream] initialClientPrerender completed in ${(performance.now() - initialClientPrerenderStartTime).toFixed(2)}ms`
+        )
       }
 
+      console.log(
+        `[prerenderToStream] initial prerender phase complete at ${performance.now().toFixed(2)}ms, starting final prerender`
+      )
       const finalServerReactController = new AbortController()
       const finalServerRenderController = new AbortController()
 
@@ -4576,12 +4711,19 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
       }
 
+      const finalPayloadStartTime = performance.now()
+      console.log(
+        `[prerenderToStream] finalAttemptRSCPayload starting at ${finalPayloadStartTime.toFixed(2)}ms`
+      )
       const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
         finalServerPayloadPrerenderStore,
         getRSCPayload,
         tree,
         ctx,
         res.statusCode === 404
+      )
+      console.log(
+        `[prerenderToStream] finalAttemptRSCPayload completed in ${(performance.now() - finalPayloadStartTime).toFixed(2)}ms`
       )
 
       const serverDynamicTracking = createDynamicTrackingState(
@@ -4611,6 +4753,10 @@ async function prerenderToStream(
       })
 
       let prerenderIsPending = true
+      const finalServerPrerenderStartTime = performance.now()
+      console.log(
+        `[prerenderToStream] finalServerPrerender starting at ${finalServerPrerenderStartTime.toFixed(2)}ms`
+      )
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResult(
           prerenderAndAbortInSequentialTasks(
@@ -4666,6 +4812,9 @@ async function prerenderToStream(
             }
           )
         ))
+      console.log(
+        `[prerenderToStream] finalServerPrerender completed in ${(performance.now() - finalServerPrerenderStartTime).toFixed(2)}ms`
+      )
 
       const clientDynamicTracking = createDynamicTrackingState(
         isDebugDynamicAccesses
@@ -4700,6 +4849,10 @@ async function prerenderToStream(
       const prerender = (
         require('react-dom/static') as typeof import('react-dom/static')
       ).prerender
+      const finalClientPrerenderStartTime = performance.now()
+      console.log(
+        `[prerenderToStream] finalClientPrerender starting at ${finalClientPrerenderStartTime.toFixed(2)}ms`
+      )
       let { prelude: unprocessedPrelude, postponed } =
         await prerenderAndAbortInSequentialTasks(
           () => {
@@ -4766,9 +4919,19 @@ async function prerenderToStream(
             finalClientReactController.abort()
           }
         )
+      console.log(
+        `[prerenderToStream] finalClientPrerender completed in ${(performance.now() - finalClientPrerenderStartTime).toFixed(2)}ms`
+      )
 
+      const processPreludeStartTime = performance.now()
+      console.log(
+        `[prerenderToStream] processPrelude starting at ${processPreludeStartTime.toFixed(2)}ms`
+      )
       const { prelude, preludeIsEmpty } =
         await processPrelude(unprocessedPrelude)
+      console.log(
+        `[prerenderToStream] processPrelude completed in ${(performance.now() - processPreludeStartTime).toFixed(2)}ms`
+      )
 
       // If we've disabled throwing on empty static shell, then we don't need to
       // track any dynamic access that occurs above the suspense boundary because
@@ -4790,13 +4953,27 @@ async function prerenderToStream(
         tracingMetadata: tracingMetadata,
       })
 
+      const streamToBufferStartTime = performance.now()
+      console.log(
+        `[prerenderToStream] streamToBuffer starting at ${streamToBufferStartTime.toFixed(2)}ms`
+      )
       const flightData = await streamToBuffer(reactServerResult.asStream())
+      console.log(
+        `[prerenderToStream] streamToBuffer completed in ${(performance.now() - streamToBufferStartTime).toFixed(2)}ms, flightData size: ${flightData.length} bytes`
+      )
       metadata.flightData = flightData
+      const collectSegmentStartTime = performance.now()
+      console.log(
+        `[prerenderToStream] collectSegmentData starting at ${collectSegmentStartTime.toFixed(2)}ms`
+      )
       metadata.segmentData = await collectSegmentData(
         flightData,
         finalServerPrerenderStore,
         ComponentMod,
         renderOpts
+      )
+      console.log(
+        `[prerenderToStream] collectSegmentData completed in ${(performance.now() - collectSegmentStartTime).toFixed(2)}ms`
       )
 
       if (serverIsDynamic) {
@@ -4824,13 +5001,24 @@ async function prerenderToStream(
           )
         }
         reactServerResult.consume()
+        const continueDynamicPrerenderStartTime = performance.now()
+        console.log(
+          `[prerenderToStream] continueDynamicPrerender starting at ${continueDynamicPrerenderStartTime.toFixed(2)}ms`
+        )
+        const dynamicStream = await continueDynamicPrerender(prelude, {
+          getServerInsertedHTML,
+          getServerInsertedMetadata,
+        })
+        console.log(
+          `[prerenderToStream] continueDynamicPrerender completed in ${(performance.now() - continueDynamicPrerenderStartTime).toFixed(2)}ms`
+        )
+        console.log(
+          `[prerenderToStream] dynamic case complete at ${performance.now().toFixed(2)}ms`
+        )
         return {
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
-          stream: await continueDynamicPrerender(prelude, {
-            getServerInsertedHTML,
-            getServerInsertedMetadata,
-          }),
+          stream: dynamicStream,
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
             clientDynamicTracking
@@ -4928,6 +5116,10 @@ async function prerenderToStream(
           })
         } else {
           // Normal static prerender case, no fallback param handling needed
+          const continueStaticPrerenderStartTime = performance.now()
+          console.log(
+            `[prerenderToStream] continueStaticPrerender starting at ${continueStaticPrerenderStartTime.toFixed(2)}ms`
+          )
           finalStream = await continueStaticPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
@@ -4940,8 +5132,14 @@ async function prerenderToStream(
               ctx.workStore.isBuildTimePrerendering === true,
             buildId: ctx.workStore.buildId,
           })
+          console.log(
+            `[prerenderToStream] continueStaticPrerender completed in ${(performance.now() - continueStaticPrerenderStartTime).toFixed(2)}ms`
+          )
         }
 
+        console.log(
+          `[prerenderToStream] static case complete at ${performance.now().toFixed(2)}ms`
+        )
         return {
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,

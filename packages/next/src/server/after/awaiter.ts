@@ -57,6 +57,7 @@ export class AwaiterOnce {
         'Cannot call waitUntil() on an AwaiterOnce that was already awaited'
       )
     }
+    console.log('[waitUntil] AwaiterOnce.waitUntil')
     return this.awaiter.waitUntil(promise)
   }
 
