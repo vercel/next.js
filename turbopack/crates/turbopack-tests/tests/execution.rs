@@ -437,6 +437,8 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         ResolveOptionsContext {
             enable_typescript: true,
             enable_node_modules: Some(project_root.clone()),
+            enable_node_native_modules: true,
+            enable_node_externals: true,
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
                 ContextCondition::InNodeModules,

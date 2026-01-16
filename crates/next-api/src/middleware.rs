@@ -14,10 +14,7 @@ use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{
-        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult,
-        availability_info::AvailabilityInfo,
-    },
+    chunk::{ChunkingContextExt, EntryChunkGroupResult, availability_info::AvailabilityInfo},
     context::AssetContext,
     module::Module,
     module_graph::{
@@ -138,7 +135,7 @@ impl MiddlewareEndpoint {
         };
 
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
-            .entry_chunk_group(
+            .root_entry_chunk_group(
                 this.project
                     .node_root()
                     .await?
@@ -147,7 +144,6 @@ impl MiddlewareEndpoint {
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
-                AvailabilityInfo::root(),
             )
             .await?;
         Ok(*chunk)
