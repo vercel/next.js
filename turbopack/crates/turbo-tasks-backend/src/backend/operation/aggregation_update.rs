@@ -15,6 +15,8 @@ use indexmap::map::Entry;
 use ringmap::RingSet;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use smallvec::{SmallVec, smallvec};
+#[cfg(feature = "trace_aggregation_update_queue")]
+use tracing::span::Span;
 #[cfg(any(
     feature = "trace_aggregation_update",
     feature = "trace_find_and_schedule"
@@ -683,8 +685,8 @@ impl AggregatedDataUpdate {
 struct AggregationNumberUpdate {
     base_aggregation_number: u32,
     distance: Option<NonZeroU32>,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[bincode(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -692,8 +694,8 @@ struct AggregationNumberUpdate {
 #[derive(Encode, Decode, Clone)]
 struct AggregationUpdateJobItem {
     job: AggregationUpdateJob,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[bincode(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -701,7 +703,7 @@ impl AggregationUpdateJobItem {
     fn new(job: AggregationUpdateJob) -> Self {
         Self {
             job,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
     }
@@ -709,7 +711,7 @@ impl AggregationUpdateJobItem {
     fn entered(self) -> AggregationUpdateJobGuard {
         AggregationUpdateJobGuard {
             job: self.job,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             _guard: self.span.map(|s| s.entered()),
         }
     }
@@ -717,7 +719,7 @@ impl AggregationUpdateJobItem {
 
 struct AggregationUpdateJobGuard {
     job: AggregationUpdateJob,
-    #[cfg(feature = "trace_aggregation_update")]
+    #[cfg(feature = "trace_aggregation_update_queue")]
     _guard: Option<tracing::span::EnteredSpan>,
 }
 
@@ -726,8 +728,8 @@ struct AggregationUpdateJobGuard {
 struct BalanceJob {
     upper_id: TaskId,
     task_id: TaskId,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[bincode(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -736,7 +738,7 @@ impl BalanceJob {
         Self {
             upper_id: upper,
             task_id: task,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
     }
@@ -761,8 +763,8 @@ impl Eq for BalanceJob {}
 #[derive(Encode, Decode, Clone)]
 struct OptimizeJob {
     task_id: TaskId,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[bincode(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -770,7 +772,7 @@ impl OptimizeJob {
     fn new(task: TaskId) -> Self {
         Self {
             task_id: task,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
     }
@@ -795,7 +797,7 @@ impl Eq for OptimizeJob {}
 struct FindAndScheduleJob {
     task_id: TaskId,
     #[cfg(feature = "trace_find_and_schedule")]
-    #[bincode(skip, default)]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -846,7 +848,7 @@ mod encode_jobs {
                 | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
                     AggregationUpdateJobItem {
                         job: AggregationUpdateJob::Noop,
-                        #[cfg(feature = "trace_aggregation_update")]
+                        #[cfg(feature = "trace_aggregation_update_queue")]
                         span: None,
                     }
                     .encode(encoder)?;
@@ -966,7 +968,7 @@ impl AggregationUpdateQueue {
                         entry.insert(AggregationNumberUpdate {
                             base_aggregation_number,
                             distance,
-                            #[cfg(feature = "trace_aggregation_update")]
+                            #[cfg(feature = "trace_aggregation_update_queue")]
                             span: Some(Span::current()),
                         });
                     }
@@ -1215,19 +1217,19 @@ impl AggregationUpdateQueue {
                     AggregationNumberUpdate {
                         base_aggregation_number,
                         distance,
-                        #[cfg(feature = "trace_aggregation_update")]
+                        #[cfg(feature = "trace_aggregation_update_queue")]
                         span,
                     },
                 )) = self.aggregation_number_updates.pop()
                 {
-                    #[cfg(feature = "trace_aggregation_update")]
+                    #[cfg(feature = "trace_aggregation_update_queue")]
                     let _guard = span.map(|s| s.entered());
                     self.done_aggregation_number_updates.insert(
                         task_id,
                         AggregationNumberUpdate {
                             base_aggregation_number,
                             distance,
-                            #[cfg(feature = "trace_aggregation_update")]
+                            #[cfg(feature = "trace_aggregation_update_queue")]
                             span: None,
                         },
                     );
@@ -1244,11 +1246,11 @@ impl AggregationUpdateQueue {
                 if let Some(BalanceJob {
                     upper_id: upper,
                     task_id: task,
-                    #[cfg(feature = "trace_aggregation_update")]
+                    #[cfg(feature = "trace_aggregation_update_queue")]
                     span,
                 }) = self.balance_queue.pop_front()
                 {
-                    #[cfg(feature = "trace_aggregation_update")]
+                    #[cfg(feature = "trace_aggregation_update_queue")]
                     let _guard = span.map(|s| s.entered());
                     self.balance_edge(ctx, upper, task);
                     remaining -= 1;
@@ -1259,14 +1261,14 @@ impl AggregationUpdateQueue {
             false
         } else if let Some(OptimizeJob {
             task_id,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span,
         }) = self.optimize_queue.pop_front()
         {
             // Note: We must process one optimization completely before starting with the next one.
             // Otherwise this could lead to optimizing every node of a subgraph of inner nodes, as
             // all have the same upper count. Optimizing the root first
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             let _guard = span.map(|s| s.entered());
             self.optimize_task(ctx, task_id);
             false
