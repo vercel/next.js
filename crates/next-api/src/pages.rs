@@ -1068,11 +1068,15 @@ impl PageEndpoint {
                     .is_production()
                 {
                     let additional_assets = if emit_manifests == EmitManifests::Full {
-                        self.react_loadable_manifest(*dynamic_import_entries, NextRuntime::NodeJs)
-                            .await?
-                            .iter()
-                            .map(|m| **m)
-                            .collect()
+                        self.react_loadable_manifest(
+                            *dynamic_import_entries,
+                            project.client_chunking_context(),
+                            NextRuntime::NodeJs,
+                        )
+                        .await?
+                        .iter()
+                        .map(|m| **m)
+                        .collect()
                     } else {
                         vec![]
                     };
@@ -1196,6 +1200,7 @@ impl PageEndpoint {
     async fn react_loadable_manifest(
         &self,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         runtime: NextRuntime,
     ) -> Result<Vc<OutputAssets>> {
         let node_root = self.pages_project.project().node_root().owned().await?;
@@ -1208,6 +1213,7 @@ impl PageEndpoint {
         let loadable_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
         Ok(create_react_loadable_manifest(
             dynamic_import_entries,
+            chunking_context,
             client_relative_path,
             node_root.join(&format!(
                 "server/pages{loadable_path_prefix}/react-loadable-manifest",
@@ -1388,8 +1394,11 @@ impl PageEndpoint {
                     server_assets.push(pages_manifest);
                 }
                 if emit_manifests == EmitManifests::Full {
-                    let loadable_manifest_output =
-                        self.react_loadable_manifest(*dynamic_import_entries, NextRuntime::NodeJs);
+                    let loadable_manifest_output = self.react_loadable_manifest(
+                        *dynamic_import_entries,
+                        this.pages_project.project().client_chunking_context(),
+                        NextRuntime::NodeJs,
+                    );
                     server_assets.extend(loadable_manifest_output.await?.iter().copied());
                 }
 
@@ -1453,7 +1462,11 @@ impl PageEndpoint {
 
                     if emit_manifests == EmitManifests::Full {
                         let loadable_manifest_output = self
-                            .react_loadable_manifest(*dynamic_import_entries, NextRuntime::Edge)
+                            .react_loadable_manifest(
+                                *dynamic_import_entries,
+                                this.pages_project.project().client_chunking_context(),
+                                NextRuntime::Edge,
+                            )
                             .await?;
                         if pages_structure.should_create_pages_entries {
                             server_assets.extend(loadable_manifest_output.iter().copied());
