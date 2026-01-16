@@ -1850,7 +1850,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         // the build isn't app-only. If the build is app-only (no user pages/api), we should still
         // expose the app global error so runtime errors render, but we shouldn't emit it otherwise.
         if matches!(*next_mode.await?, NextMode::Build) {
-            // Use built-in global-error.js to create a `_global-error/page` route.
+            // Create a `_global-error/page` route using user's global-error.js or built-in
+            // fallback.
             let next_package = get_next_package(app_dir.clone()).await?;
             let global_error_tree = AppPageLoaderTree {
                 page: app_page.clone(),
@@ -1869,11 +1870,10 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         static_siblings: Vec::new(),
                     }
                 },
-                // global-error is needed for getGlobalErrorStyles to work during rendering
+                // global-error is needed for getGlobalErrorStyles to work during rendering.
+                // Use user's custom global-error if defined, otherwise builtin fallback.
                 modules: AppDirModules {
-                    global_error: Some(
-                        next_package.join("dist/client/components/builtin/global-error.js")?,
-                    ),
+                    global_error: modules.global_error.clone(),
                     ..Default::default()
                 },
                 global_metadata,

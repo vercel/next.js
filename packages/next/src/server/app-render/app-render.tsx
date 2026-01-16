@@ -5542,22 +5542,17 @@ const getGlobalErrorStyles = async (
   GlobalError: GlobalErrorComponent
   styles: ReactNode | undefined
 }> => {
-  const {
-    modules: { 'global-error': globalErrorModule },
-  } = parseLoaderTree(tree)
+  const globalErrorModule = parseLoaderTree(tree).modules['global-error']
+
+  if (!globalErrorModule) {
+    throw new Error(
+      'Invariant: global-error module is required but not found in loader tree'
+    )
+  }
 
   const {
     componentMod: { createElement },
   } = ctx
-
-  // globalErrorModule should always be available as it's bundled by default
-  // (either user's custom global-error or the builtin one)
-  if (!globalErrorModule) {
-    // This shouldn't happen in normal circumstances, but handle gracefully
-    throw new Error(
-      'Invariant: globalErrorModule is required but not found in loader tree'
-    )
-  }
 
   // Get the GlobalError component and styles from the loader tree
   const [GlobalErrorComponent, styles] = await createComponentStylesAndScripts({
