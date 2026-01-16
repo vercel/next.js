@@ -71,7 +71,7 @@ function extract(
     const isNullUrl = url === null
 
     if (urlMatches || isNullUrl) {
-      const route = segments.length > 0 ? '/' + segments.join('/') : '/'
+      const route = '/' + segments.join('/')
       results.push(route)
     }
     // This page doesn't match or was added - return to continue searching other branches
