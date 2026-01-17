@@ -1413,6 +1413,20 @@ export interface NextConfig {
   _originalRewrites?: any
 }
 
+/**
+ * A promise that resolves to an object containing the dynamic route parameters from the root segment down to that page.
+ * 
+ * Read more: [Next.js Docs: `params (optional)`](https://nextjs.org/docs/app/api-reference/file-conventions/page#params-optional)
+ */
+export interface NextParams<T> { params: Promise<T> }
+
+/**
+ * A promise that resolves to an object containing the search parameters of the current URL. For example:
+ * 
+ * Read more [searchParams (optional)](https://nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)
+ */
+export interface NextSearchParams<T> { searchParams: T }
+
 export const defaultConfig = Object.freeze({
   env: {},
   webpack: null,
