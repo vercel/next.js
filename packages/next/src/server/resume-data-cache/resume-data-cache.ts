@@ -76,7 +76,7 @@ export interface PrerenderResumeDataCache {
   readonly decryptedBoundArgs: DecryptedBoundArgsCacheStore
 }
 
-export type ResumeStoreSerialized = {
+type ResumeStoreSerialized = {
   store: {
     cache: {
       [key: string]: any
@@ -141,52 +141,6 @@ export async function stringifyResumeDataCache(
 }
 
 /**
- * Serializes a resume data cache into a ResumeStoreSerialized object for IPC.
- * Unlike stringifyResumeDataCache, this doesn't compress the data - it returns
- * the raw object which can be passed between processes.
- * Use this for intermediate IPC during build; use stringifyResumeDataCache for
- * final storage (postponed state).
- *
- * @param resumeDataCache - The cache to serialize
- * @param isCacheComponentsEnabled - Whether cache components are enabled
- * @returns A Promise that resolves to the serialized cache object, or null if empty
- */
-export async function serializeResumeDataCache(
-  resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache,
-  isCacheComponentsEnabled: boolean
-): Promise<ResumeStoreSerialized | null> {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      '`serializeResumeDataCache` should not be called in edge runtime.'
-    )
-  }
-
-  if (resumeDataCache.fetch.size === 0 && resumeDataCache.cache.size === 0) {
-    return null
-  }
-
-  return {
-    store: {
-      fetch: Object.fromEntries(Array.from(resumeDataCache.fetch.entries())),
-      cache: Object.fromEntries(
-        (
-          await serializeUseCacheCacheStore(
-            resumeDataCache.cache.entries(),
-            isCacheComponentsEnabled
-          )
-        ).filter(
-          (entry): entry is [string, UseCacheCacheStoreSerialized] =>
-            entry !== null
-        )
-      ),
-      encryptedBoundArgs: Object.fromEntries(
-        Array.from(resumeDataCache.encryptedBoundArgs.entries())
-      ),
-    },
-  }
-}
-
-/**
  * Creates a new empty mutable resume data cache for pre-rendering.
  * Initializes fresh Map instances for both the 'use cache' and fetch caches.
  * Used at the start of pre-rendering to begin collecting cached values.
@@ -205,13 +159,11 @@ export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
 /**
  * Creates an immutable render resume data cache from either:
  * 1. An existing prerender cache instance
- * 2. A serialized cache string (compressed)
- * 3. A ResumeStoreSerialized object (uncompressed, for IPC)
+ * 2. A serialized cache string
  *
  * @param renderResumeDataCache - A RenderResumeDataCache instance to be used directly
  * @param prerenderResumeDataCache - A PrerenderResumeDataCache instance to convert to immutable
  * @param persistedCache - A serialized cache string to parse
- * @param serializedCache - A ResumeStoreSerialized object to convert
  * @param maxPostponedStateSizeBytes - The max compressed size limit in bytes (used to calculate 5x decompression limit)
  * @returns An immutable RenderResumeDataCache instance
  */
@@ -226,13 +178,9 @@ export function createRenderResumeDataCache(
   maxPostponedStateSizeBytes: number | undefined
 ): RenderResumeDataCache
 export function createRenderResumeDataCache(
-  serializedCache: ResumeStoreSerialized
-): RenderResumeDataCache
-export function createRenderResumeDataCache(
   resumeDataCacheOrPersistedCache:
     | RenderResumeDataCache
     | PrerenderResumeDataCache
-    | ResumeStoreSerialized
     | string,
   maxPostponedStateSizeBytes?: number | undefined
 ): RenderResumeDataCache {
@@ -241,66 +189,60 @@ export function createRenderResumeDataCache(
       '`createRenderResumeDataCache` should not be called in edge runtime.'
     )
   } else {
-    if (typeof resumeDataCacheOrPersistedCache === 'string') {
-      if (resumeDataCacheOrPersistedCache === 'null') {
-        return createPrerenderResumeDataCache()
+    if (typeof resumeDataCacheOrPersistedCache !== 'string') {
+      // If the cache is already a prerender or render cache, we can return it
+      // directly. For the former, we're just performing a type change.
+      return resumeDataCacheOrPersistedCache
+    }
+
+    if (resumeDataCacheOrPersistedCache === 'null') {
+      return {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
       }
+    }
 
-      // This should be a compressed string. Let's decompress it using zlib.
-      // As the data we already want to decompress is in memory, we use the
-      // synchronous inflateSync function.
-      const { inflateSync } = require('node:zlib') as typeof import('node:zlib')
+    // This should be a compressed string. Let's decompress it using zlib.
+    // As the data we already want to decompress is in memory, we use the
+    // synchronous inflateSync function.
+    const { inflateSync } = require('node:zlib') as typeof import('node:zlib')
 
-      // Limit decompressed size.
-      // Default is 500MB (5x the default 100MB compressed limit).
-      const maxDecompressedSize = maxPostponedStateSizeBytes
-        ? maxPostponedStateSizeBytes * 5
-        : 500 * 1024 * 1024
+    // Limit decompressed size to prevent zipbomb attacks. This is 5x the
+    // configured maxPostponedStateSize, allowing reasonable compression
+    // ratios while preventing extreme decompression bombs.
+    // Default is 500MB (5x the default 100MB compressed limit).
+    const maxDecompressedSize = maxPostponedStateSizeBytes
+      ? maxPostponedStateSizeBytes * 5
+      : 500 * 1024 * 1024
 
-      let json: ResumeStoreSerialized
-      try {
-        json = JSON.parse(
-          inflateSync(Buffer.from(resumeDataCacheOrPersistedCache, 'base64'), {
-            maxOutputLength: maxDecompressedSize,
-          }).toString('utf-8')
+    let json: ResumeStoreSerialized
+    try {
+      json = JSON.parse(
+        inflateSync(Buffer.from(resumeDataCacheOrPersistedCache, 'base64'), {
+          maxOutputLength: maxDecompressedSize,
+        }).toString('utf-8')
+      )
+    } catch (err: unknown) {
+      if (
+        err instanceof RangeError &&
+        (err as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE'
+      ) {
+        throw new Error(
+          `Decompressed resume data cache exceeded ${maxDecompressedSize} byte limit`
         )
-      } catch (err: unknown) {
-        if (
-          err instanceof RangeError &&
-          (err as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE'
-        ) {
-          throw new Error(
-            `Decompressed resume data cache exceeded ${maxDecompressedSize} byte limit`
-          )
-        }
-        throw err
       }
-
-      return {
-        cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
-        fetch: new Map(Object.entries(json.store.fetch)),
-        encryptedBoundArgs: new Map(
-          Object.entries(json.store.encryptedBoundArgs)
-        ),
-        decryptedBoundArgs: new Map(),
-      }
+      throw err
     }
 
-    // Check if this is a ResumeStoreSerialized object
-    if ('store' in resumeDataCacheOrPersistedCache) {
-      const json = resumeDataCacheOrPersistedCache
-      return {
-        cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
-        fetch: new Map(Object.entries(json.store.fetch)),
-        encryptedBoundArgs: new Map(
-          Object.entries(json.store.encryptedBoundArgs)
-        ),
-        decryptedBoundArgs: new Map(),
-      }
+    return {
+      cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
+      fetch: new Map(Object.entries(json.store.fetch)),
+      encryptedBoundArgs: new Map(
+        Object.entries(json.store.encryptedBoundArgs)
+      ),
+      decryptedBoundArgs: new Map(),
     }
-
-    // If the cache is already a prerender or render cache, we can return it
-    // directly. For the former, we're just performing a type change.
-    return resumeDataCacheOrPersistedCache
   }
 }

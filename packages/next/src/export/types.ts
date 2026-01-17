@@ -14,10 +14,7 @@ import type {
 } from '../build/turborepo-access-trace'
 import type { FetchMetrics } from '../server/base-http'
 import type { RouteMetadata } from './routes/types'
-import type {
-  RenderResumeDataCache,
-  ResumeStoreSerialized,
-} from '../server/resume-data-cache/resume-data-cache'
+import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import type { StaticWorker } from '../build'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
@@ -39,9 +36,7 @@ export interface ExportPagesInput {
   cacheHandler: string | undefined
   fetchCacheKeyPrefix: string | undefined
   options: ExportAppOptions
-  renderResumeDataCachesByPage:
-    | Record<string, ResumeStoreSerialized>
-    | undefined
+  renderResumeDataCachesByPage: Record<string, string> | undefined
 }
 
 export interface ExportPageInput {
@@ -73,7 +68,7 @@ export type ExportRouteResult =
       hasEmptyStaticShell?: boolean
       hasPostponed?: boolean
       fetchMetrics?: FetchMetrics
-      renderResumeDataCache?: ResumeStoreSerialized | null
+      renderResumeDataCache?: string
     }
   | {
       error: boolean

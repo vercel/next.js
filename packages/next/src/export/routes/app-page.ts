@@ -28,7 +28,7 @@ import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
-import { serializeResumeDataCache } from '../../server/resume-data-cache/resume-data-cache'
+import { stringifyResumeDataCache } from '../../server/resume-data-cache/resume-data-cache'
 import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
@@ -229,7 +229,7 @@ export async function exportAppPage(
       cacheControl,
       fetchMetrics,
       renderResumeDataCache: renderResumeDataCache
-        ? await serializeResumeDataCache(
+        ? await stringifyResumeDataCache(
             renderResumeDataCache,
             renderOpts.cacheComponents
           )

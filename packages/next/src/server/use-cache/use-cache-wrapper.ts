@@ -620,7 +620,6 @@ async function generateCacheEntryImpl(
     case 'prerender-runtime':
     case 'prerender':
       const timeoutAbortController = new AbortController()
-
       // If we're prerendering, we give you 50 seconds to fill a cache entry.
       // Otherwise we assume you stalled on hanging input and de-opt. This needs
       // to be lower than just the general timeout of 60 seconds.
@@ -1385,6 +1384,10 @@ export async function cache(
       if (existingEntry !== undefined) {
         debug?.('Resume Data Cache entry found', serializedCacheKey)
 
+        if (prerenderResumeDataCache) {
+          prerenderResumeDataCache.cache.set(serializedCacheKey, cachedEntry)
+        }
+
         // We want to make sure we only propagate cache life & tags if the
         // entry was *not* omitted from the prerender. So we only do this
         // after the above early returns.
@@ -1433,7 +1436,32 @@ export async function cache(
             // we do here, this also covers the case where params are
             // transformed with an async function, before being passed into
             // the "use cache" function, which escapes the instrumentation.
-            if (workUnitStore.allowEmptyStaticShell) {
+
+            // Any known root params. If present, misses should
+            // not force a hole during warmup for these params.
+            const hasRootParams =
+              Object.keys(workUnitStore.rootParams).length > 0
+            // Any fallback params that are not root params. These
+            // should still short-circuit to a hole to avoid cache timeouts.
+            const hasNonRootFallbackParams =
+              workUnitStore.fallbackRouteParams !== null &&
+              Array.from(workUnitStore.fallbackRouteParams.keys()).some(
+                (key) => !(key in workUnitStore.rootParams)
+              )
+            // Only root params are fallback params (no non-root fallbacks).
+            const hasRootFallbackParamsOnly =
+              workUnitStore.fallbackRouteParams !== null &&
+              !hasNonRootFallbackParams
+
+            if (
+              workUnitStore.allowEmptyStaticShell &&
+              // Final render (no cacheSignal): a miss is a real hole.
+              (!cacheSignal ||
+                // Warmup with only non-root fallbacks: still treat miss as hole.
+                (!hasRootParams && hasNonRootFallbackParams) ||
+                // Warmup where only root params are fallback params: treat as hole.
+                hasRootFallbackParamsOnly)
+            ) {
               return makeHangingPromise(
                 workUnitStore.renderSignal,
                 workStore.route,
