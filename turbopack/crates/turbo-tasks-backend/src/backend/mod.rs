@@ -1712,9 +1712,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task.outdated_cell_dependencies_extend(
                     outdated_cell_dependencies_to_add.into_iter(),
                 );
-                for item in outdated_cell_dependencies_to_remove {
-                    task.remove_outdated_cell_dependencies(&item);
-                }
+                task.outdated_cell_dependencies_remove_all(
+                    outdated_cell_dependencies_to_remove.iter(),
+                );
 
                 let outdated_output_dependencies_to_add = task
                     .iter_output_dependencies()
@@ -1726,9 +1726,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task.outdated_output_dependencies_extend(
                     outdated_output_dependencies_to_add.into_iter(),
                 );
-                for target in outdated_output_dependencies_to_remove {
-                    task.remove_outdated_output_dependencies(&target);
-                }
+                task.output_dependencies_remove_all(outdated_output_dependencies_to_remove.iter());
             }
         }
 
