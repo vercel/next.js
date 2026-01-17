@@ -18,7 +18,8 @@
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
 use turbo_tasks::{
-    CellId, SharedReference, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId, task_storage,
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
+    ValueTypeId, event::Event, task_storage,
 };
 
 use crate::{
@@ -462,11 +463,30 @@ impl TaskStorage {
         // Mark as fully restored since transient tasks don't need restoration from disk
         self.flags.set_restored(TaskDataCategory::All);
 
+        // Set aggregation number for transient tasks (max aggregation)
+        self.aggregation_number = AggregationNumber {
+            base: u32::MAX,
+            distance: 0,
+            effective: u32::MAX,
+        };
+
         // Only set activeness state if activeness tracking is enabled
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
             self.lazy.push(LazyField::Activeness(activeness));
         }
+
+        // Set the task as scheduled so it can be executed
+        let done_event = Event::new(move || {
+            move || match root_type {
+                RootType::RootTask => "Root Task".to_string(),
+                RootType::OnceTask => "Once Task".to_string(),
+            }
+        });
+        self.set_in_progress(InProgressState::Scheduled {
+            done_event,
+            reason: TaskExecutionReason::Initial,
+        });
     }
 }
 
