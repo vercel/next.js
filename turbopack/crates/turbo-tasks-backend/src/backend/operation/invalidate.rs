@@ -182,7 +182,7 @@ pub fn make_task_dirty(
     task_id: TaskId,
     #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext,
+    ctx: &mut impl ExecuteContext<'_>,
 ) {
     if ctx.is_once_task(task_id) {
         return;
@@ -207,7 +207,7 @@ pub fn make_task_dirty_internal(
     make_stale: bool,
     #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext,
+    ctx: &mut impl ExecuteContext<'_>,
 ) {
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.

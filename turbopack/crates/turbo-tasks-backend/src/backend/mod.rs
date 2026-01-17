@@ -2032,7 +2032,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .map(|(target, key)| OutdatedEdge::CellDependency(target, key)),
             );
             old_edges.extend(
-                task.iter_output_dependencies()
+                task.iter_outdated_output_dependencies()
                     .map(OutdatedEdge::OutputDependency),
             );
         }
