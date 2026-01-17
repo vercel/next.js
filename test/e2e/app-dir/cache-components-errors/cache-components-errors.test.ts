@@ -67,8 +67,7 @@ describe('Cache Components Errors', () => {
         '--experimental-build-mode',
         'generate',
         '--debug-build-paths',
-        // Escape square brackets for pathnames with dynamic segments.
-        `app${pathname.replace(/([[\]])/g, '\\$1')}/page.tsx`,
+        `app${pathname}/page.tsx`,
       ]
 
       if (isDebugPrerender) {
