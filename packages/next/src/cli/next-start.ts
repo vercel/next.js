@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+// Ensure NEXT_PRIVATE_START_TIME is set for accurate "Ready in" timing.
+// This should already be set by bin/next.ts, but we set it here as a fallback
+// in case the module is loaded through a different code path.
+if (!process.env.NEXT_PRIVATE_START_TIME) {
+  process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
+}
+
 import '../server/lib/cpu-profile'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'

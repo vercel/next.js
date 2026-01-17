@@ -61,6 +61,9 @@ type ChunkItemOrBatchWithAsyncModuleInfoByChunkType = Either<
     ReadRef<ChunkItemBatchWithAsyncModuleInfoByChunkType>,
 >;
 
+#[turbo_tasks::value(transparent)]
+pub struct ChunkItemOrBatchWithAsyncModuleInfos(Vec<ChunkItemOrBatchWithAsyncModuleInfo>);
+
 impl ChunkItemOrBatchWithAsyncModuleInfo {
     pub async fn from_chunkable_module_or_batch(
         chunkable_module_or_batch: ChunkableModuleOrBatch,
@@ -221,6 +224,9 @@ type ChunkItemBatchGroupByChunkTypeT = SmallVec<
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItemBatchGroupByChunkType(ChunkItemBatchGroupByChunkTypeT);
+
+#[turbo_tasks::value(transparent)]
+pub struct ChunkItemBatchGroups(Vec<ResolvedVc<ChunkItemBatchGroup>>);
 
 #[turbo_tasks::value]
 pub struct ChunkItemBatchGroup {

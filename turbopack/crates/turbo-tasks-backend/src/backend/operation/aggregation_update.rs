@@ -15,6 +15,8 @@ use indexmap::map::Entry;
 use ringmap::RingSet;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use smallvec::{SmallVec, smallvec};
+#[cfg(feature = "trace_aggregation_update_queue")]
+use tracing::span::Span;
 #[cfg(any(
     feature = "trace_aggregation_update",
     feature = "trace_find_and_schedule"
@@ -683,8 +685,8 @@ impl AggregatedDataUpdate {
 struct AggregationNumberUpdate {
     base_aggregation_number: u32,
     distance: Option<NonZeroU32>,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[bincode(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -692,8 +694,8 @@ struct AggregationNumberUpdate {
 #[derive(Encode, Decode, Clone)]
 struct AggregationUpdateJobItem {
     job: AggregationUpdateJob,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[bincode(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -701,7 +703,7 @@ impl AggregationUpdateJobItem {
     fn new(job: AggregationUpdateJob) -> Self {
         Self {
             job,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
     }
@@ -709,7 +711,7 @@ impl AggregationUpdateJobItem {
     fn entered(self) -> AggregationUpdateJobGuard {
         AggregationUpdateJobGuard {
             job: self.job,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             _guard: self.span.map(|s| s.entered()),
         }
     }
@@ -717,7 +719,7 @@ impl AggregationUpdateJobItem {
 
 struct AggregationUpdateJobGuard {
     job: AggregationUpdateJob,
-    #[cfg(feature = "trace_aggregation_update")]
+    #[cfg(feature = "trace_aggregation_update_queue")]
     _guard: Option<tracing::span::EnteredSpan>,
 }
 
@@ -726,8 +728,8 @@ struct AggregationUpdateJobGuard {
 struct BalanceJob {
     upper_id: TaskId,
     task_id: TaskId,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[bincode(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -736,7 +738,7 @@ impl BalanceJob {
         Self {
             upper_id: upper,
             task_id: task,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
     }
@@ -761,8 +763,8 @@ impl Eq for BalanceJob {}
 #[derive(Encode, Decode, Clone)]
 struct OptimizeJob {
     task_id: TaskId,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[bincode(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -770,7 +772,7 @@ impl OptimizeJob {
     fn new(task: TaskId) -> Self {
         Self {
             task_id: task,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
     }
@@ -795,7 +797,7 @@ impl Eq for OptimizeJob {}
 struct FindAndScheduleJob {
     task_id: TaskId,
     #[cfg(feature = "trace_find_and_schedule")]
-    #[bincode(skip, default)]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -846,7 +848,7 @@ mod encode_jobs {
                 | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
                     AggregationUpdateJobItem {
                         job: AggregationUpdateJob::Noop,
-                        #[cfg(feature = "trace_aggregation_update")]
+                        #[cfg(feature = "trace_aggregation_update_queue")]
                         span: None,
                     }
                     .encode(encoder)?;
@@ -883,8 +885,8 @@ pub struct AggregationUpdateQueue {
     #[bincode(with = "encode_jobs")]
     jobs: VecDeque<AggregationUpdateJobItem>,
     #[bincode(with = "turbo_bincode::indexmap")]
-    number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
-    done_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
+    aggregation_number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
+    done_aggregation_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
     #[bincode(with = "turbo_bincode::ringset")]
     find_and_schedule: FxRingSet<FindAndScheduleJob>,
     #[bincode(with = "turbo_bincode::ringset")]
@@ -898,8 +900,8 @@ impl AggregationUpdateQueue {
     pub fn new() -> Self {
         Self {
             jobs: VecDeque::with_capacity(0),
-            number_updates: FxIndexMap::default(),
-            done_number_updates: FxHashMap::default(),
+            aggregation_number_updates: FxIndexMap::default(),
+            done_aggregation_number_updates: FxHashMap::default(),
             find_and_schedule: FxRingSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
@@ -910,14 +912,14 @@ impl AggregationUpdateQueue {
     pub fn is_empty(&self) -> bool {
         let Self {
             jobs,
-            number_updates,
+            aggregation_number_updates,
             find_and_schedule,
             balance_queue,
             optimize_queue,
-            done_number_updates: _,
+            done_aggregation_number_updates: _,
         } = self;
         jobs.is_empty()
-            && number_updates.is_empty()
+            && aggregation_number_updates.is_empty()
             && find_and_schedule.is_empty()
             && balance_queue.is_empty()
             && optimize_queue.is_empty()
@@ -931,7 +933,7 @@ impl AggregationUpdateQueue {
                 base_aggregation_number,
                 distance,
             } => {
-                match self.number_updates.entry(task_id) {
+                match self.aggregation_number_updates.entry(task_id) {
                     Entry::Occupied(mut entry) => {
                         let update = entry.get_mut();
                         update.base_aggregation_number =
@@ -945,7 +947,7 @@ impl AggregationUpdateQueue {
                         }
                     }
                     Entry::Vacant(entry) => {
-                        match self.done_number_updates.entry(task_id) {
+                        match self.done_aggregation_number_updates.entry(task_id) {
                             HashMapEntry::Occupied(mut entry) => {
                                 let update = entry.get_mut();
                                 let change =
@@ -966,7 +968,7 @@ impl AggregationUpdateQueue {
                         entry.insert(AggregationNumberUpdate {
                             base_aggregation_number,
                             distance,
-                            #[cfg(feature = "trace_aggregation_update")]
+                            #[cfg(feature = "trace_aggregation_update_queue")]
                             span: Some(Span::current()),
                         });
                     }
@@ -1207,7 +1209,7 @@ impl AggregationUpdateQueue {
                 }
             }
             false
-        } else if !self.number_updates.is_empty() {
+        } else if !self.aggregation_number_updates.is_empty() {
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
                 if let Some((
@@ -1215,19 +1217,19 @@ impl AggregationUpdateQueue {
                     AggregationNumberUpdate {
                         base_aggregation_number,
                         distance,
-                        #[cfg(feature = "trace_aggregation_update")]
+                        #[cfg(feature = "trace_aggregation_update_queue")]
                         span,
                     },
-                )) = self.number_updates.pop()
+                )) = self.aggregation_number_updates.pop()
                 {
-                    #[cfg(feature = "trace_aggregation_update")]
+                    #[cfg(feature = "trace_aggregation_update_queue")]
                     let _guard = span.map(|s| s.entered());
-                    self.done_number_updates.insert(
+                    self.done_aggregation_number_updates.insert(
                         task_id,
                         AggregationNumberUpdate {
                             base_aggregation_number,
                             distance,
-                            #[cfg(feature = "trace_aggregation_update")]
+                            #[cfg(feature = "trace_aggregation_update_queue")]
                             span: None,
                         },
                     );
@@ -1244,11 +1246,11 @@ impl AggregationUpdateQueue {
                 if let Some(BalanceJob {
                     upper_id: upper,
                     task_id: task,
-                    #[cfg(feature = "trace_aggregation_update")]
+                    #[cfg(feature = "trace_aggregation_update_queue")]
                     span,
                 }) = self.balance_queue.pop_front()
                 {
-                    #[cfg(feature = "trace_aggregation_update")]
+                    #[cfg(feature = "trace_aggregation_update_queue")]
                     let _guard = span.map(|s| s.entered());
                     self.balance_edge(ctx, upper, task);
                     remaining -= 1;
@@ -1259,14 +1261,14 @@ impl AggregationUpdateQueue {
             false
         } else if let Some(OptimizeJob {
             task_id,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span,
         }) = self.optimize_queue.pop_front()
         {
             // Note: We must process one optimization completely before starting with the next one.
             // Otherwise this could lead to optimizing every node of a subgraph of inner nodes, as
             // all have the same upper count. Optimizing the root first
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             let _guard = span.map(|s| s.entered());
             self.optimize_task(ctx, task_id);
             false
@@ -1498,10 +1500,13 @@ impl AggregationUpdateQueue {
     ) {
         // Task need to be scheduled if it's dirty or doesn't have output
         let dirty = task.is_dirty();
-        let should_schedule = if dirty {
-            Some(TaskExecutionReason::ActivateDirty)
+        let should_schedule = if let Some(parent_priority) = dirty {
+            Some((TaskExecutionReason::ActivateDirty, parent_priority))
         } else if !task.has_key(&CachedDataItemKey::Output {}) {
-            Some(TaskExecutionReason::ActivateInitial)
+            Some((
+                TaskExecutionReason::ActivateInitial,
+                ctx.get_current_task_priority(),
+            ))
         } else {
             None
         };
@@ -1512,7 +1517,7 @@ impl AggregationUpdateQueue {
         if !is_active_until_clean {
             let mut dirty_containers = task.dirty_containers().peekable();
             let is_empty = dirty_containers.peek().is_none();
-            if !is_empty || dirty {
+            if !is_empty || dirty.is_some() {
                 self.extend_find_and_schedule_dirty(dirty_containers);
 
                 let activeness_state =
@@ -1520,11 +1525,11 @@ impl AggregationUpdateQueue {
                 activeness_state.set_active_until_clean();
             }
         }
-        if let Some(reason) = should_schedule {
+        if let Some((reason, parent_priority)) = should_schedule {
             let description = || ctx.get_task_desc_fn(task_id);
             if task.add(CachedDataItem::new_scheduled(reason, description)) {
                 drop(task);
-                ctx.schedule(task_id);
+                ctx.schedule(task_id, parent_priority);
             }
         }
     }

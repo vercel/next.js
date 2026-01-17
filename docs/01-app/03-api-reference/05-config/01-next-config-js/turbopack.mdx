@@ -213,7 +213,10 @@ module.exports = {
 ```
 
 - Supported boolean operators are `{all: [...]}`, `{any: [...]}` and `{not: ...}`.
-- Supported customizable operators are `{path: string | RegExp}` and `{content: RegExp}`. If `path` and `content` are specified in the same object, it acts as an implicit `and`.
+- Supported customizable operators are `{path: string | RegExp}`, `{content: RegExp}`, and `{query: string | RegExp}`. If multiple operators are specified in the same object, it acts as an implicit `and`.
+  - `path` matches against the project-relative file path. A string is treated as a glob pattern, while a RegExp matches anywhere in the path.
+  - `content` matches anywhere in the file content.
+  - `query` matches the import's query string (e.g., `?foo` in `import './file?foo'`). A string must match exactly, while a RegExp can match partially.
 
 In addition, a number of built-in conditions are supported:
 
@@ -308,6 +311,7 @@ The option automatically adds a polyfill for debug IDs to the JavaScript bundle 
 
 | Version  | Changes                                         |
 | -------- | ----------------------------------------------- |
+| `16.2.0` | `turbopack.rules.*.condition.query` was added.  |
 | `16.0.0` | `turbopack.debugIds` was added.                 |
 | `16.0.0` | `turbopack.rules.*.condition` was added.        |
 | `15.3.0` | `experimental.turbo` is changed to `turbopack`. |

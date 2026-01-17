@@ -5,8 +5,6 @@ use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use turbo_tasks::TaskId;
 
-#[cfg(feature = "trace_task_dirty")]
-use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
         TaskDataCategory, get, get_many,
@@ -16,7 +14,6 @@ use crate::{
                 AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
                 get_aggregation_number, get_uppers, is_aggregating_node,
             },
-            invalidate::make_task_dirty,
         },
         storage::update_count,
     },
@@ -45,11 +42,6 @@ pub enum OutdatedEdge {
     CellDependency(CellRef, Option<u64>),
     OutputDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
-    RemovedCellDependent {
-        task_id: TaskId,
-        #[cfg(feature = "trace_task_dirty")]
-        value_type_id: turbo_tasks::ValueTypeId,
-    },
 }
 
 impl CleanupOldEdgesOperation {
@@ -228,21 +220,6 @@ impl Operation for CleanupOldEdgesOperation {
                                         },
                                     });
                                 }
-                            }
-                            OutdatedEdge::RemovedCellDependent {
-                                task_id,
-                                #[cfg(feature = "trace_task_dirty")]
-                                value_type_id,
-                            } => {
-                                make_task_dirty(
-                                    task_id,
-                                    #[cfg(feature = "trace_task_dirty")]
-                                    TaskDirtyCause::CellRemoved {
-                                        value_type: value_type_id,
-                                    },
-                                    queue,
-                                    ctx,
-                                );
                             }
                         }
                     }
