@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -14,25 +14,25 @@ use turbopack_core::{
     resolve::ModuleResolveResult,
 };
 
-use super::chunk_item::WorkerLoaderChunkItem;
+use super::{chunk_item::WorkerLoaderChunkItem, worker_type::WorkerType};
 
 /// The WorkerLoaderModule is a module that creates a separate root chunk group for the given module
-/// and exports a URL to pass to the worker constructor.
+/// and exports a URL (for web workers) or file path (for Node.js workers) to pass to the worker
+/// constructor.
 #[turbo_tasks::value]
 pub struct WorkerLoaderModule {
     pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub worker_type: WorkerType,
 }
 
 #[turbo_tasks::value_impl]
 impl WorkerLoaderModule {
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn ChunkableModule>>) -> Vc<Self> {
-        Self::cell(WorkerLoaderModule { inner: module })
-    }
-
-    #[turbo_tasks::function]
-    pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(rcstr!("worker loader"))
+    pub fn new(module: ResolvedVc<Box<dyn ChunkableModule>>, worker_type: WorkerType) -> Vc<Self> {
+        Self::cell(WorkerLoaderModule {
+            inner: module,
+            worker_type,
+        })
     }
 }
 
@@ -40,7 +40,9 @@ impl WorkerLoaderModule {
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        Self::asset_ident_for(*self.inner)
+        self.inner
+            .ident()
+            .with_modifier(self.worker_type.modifier_str())
     }
 
     #[turbo_tasks::function]
@@ -50,8 +52,9 @@ impl Module for WorkerLoaderModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+        let this = self.await?;
         Ok(Vc::cell(vec![ResolvedVc::upcast(
-            WorkerModuleReference::new(*ResolvedVc::upcast(self.await?.inner))
+            WorkerModuleReference::new(*ResolvedVc::upcast(this.inner), this.worker_type)
                 .to_resolved()
                 .await?,
         )]))
@@ -67,48 +70,61 @@ impl Module for WorkerLoaderModule {
 impl Asset for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        panic!("content() should not be called");
+        // For content(), we delegate to the inner module to support some testing usecases that
+        // attempt to emit all assets. This follows the same pattern as other transform modules:
+        //    - TracedAsset: delegates to inner module (explicit tracing wrapper)
+        //    - EcmascriptModulePartAsset: delegates to full module (tree-shaking wrapper)
+        //    - CachedExternalModule: returns NotFound (build-time only, no source to trace)
+        self.inner.content()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WorkerLoaderModule {
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: ResolvedVc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        Ok(Vc::upcast(
             WorkerLoaderChunkItem {
                 module: self,
                 module_graph,
                 chunking_context,
+                worker_type: self.await?.worker_type,
             }
             .cell(),
-        )
+        ))
     }
 }
 
 #[turbo_tasks::value]
 struct WorkerModuleReference {
     module: ResolvedVc<Box<dyn Module>>,
+    worker_type: WorkerType,
 }
 
 #[turbo_tasks::value_impl]
 impl WorkerModuleReference {
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
-        Self::cell(WorkerModuleReference { module })
+    pub fn new(module: ResolvedVc<Box<dyn Module>>, worker_type: WorkerType) -> Vc<Self> {
+        Self::cell(WorkerModuleReference {
+            module,
+            worker_type,
+        })
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for WorkerModuleReference {
     #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Isolated {
-            _ty: ChunkGroupType::Evaluated,
+            _ty: match self.worker_type {
+                WorkerType::WebWorker => ChunkGroupType::Evaluated,
+                WorkerType::NodeWorkerThread => ChunkGroupType::Entry,
+            },
             merge_tag: None,
         }))
     }
@@ -126,6 +142,6 @@ impl ModuleReference for WorkerModuleReference {
 impl ValueToString for WorkerModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("worker module"))
+        Vc::cell(self.worker_type.reference_str())
     }
 }
