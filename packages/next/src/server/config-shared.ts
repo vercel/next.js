@@ -1421,11 +1421,11 @@ export interface NextConfig {
 export interface NextParams<T> { params: Promise<T> }
 
 /**
- * A promise that resolves to an object containing the search parameters of the current URL. For example:
+ * A promise that resolves to an object containing the search parameters of the current URL.
  * 
- * Read more [searchParams (optional)](https://nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)
+ * Read more: [Next.js Docs: `searchParams (optional)`](https://nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)
  */
-export interface NextSearchParams<T> { searchParams: T }
+export interface NextSearchParams<T> { searchParams: Promise<T> }
 
 export const defaultConfig = Object.freeze({
   env: {},
