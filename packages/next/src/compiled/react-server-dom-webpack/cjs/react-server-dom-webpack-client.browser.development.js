@@ -3731,7 +3731,7 @@
                       startTime$jscomp$2 = startTime$jscomp$1,
                       childrenEndTime$jscomp$1 = childrenEndTime$jscomp$0,
                       error = root.reason;
-                    if (supportsUserTiming) {
+                    if (supportsUserTiming && 0 <= childrenEndTime$jscomp$1) {
                       var env = componentInfo$jscomp$2.env,
                         name = componentInfo$jscomp$2.name,
                         entryName$jscomp$0 =
@@ -3994,7 +3994,7 @@
                     trackIdx$jscomp$4 = trackIdx$jscomp$6,
                     startTime$jscomp$5 = time,
                     childrenEndTime$jscomp$3 = childrenEndTime;
-                  if (supportsUserTiming) {
+                  if (supportsUserTiming && 0 <= childrenEndTime$jscomp$3) {
                     var env$jscomp$2 = componentInfo$jscomp$4.env,
                       name$jscomp$1 = componentInfo$jscomp$4.name,
                       entryName$jscomp$2 =
