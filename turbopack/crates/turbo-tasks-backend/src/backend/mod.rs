@@ -1726,7 +1726,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task.outdated_output_dependencies_extend(
                     outdated_output_dependencies_to_add.into_iter(),
                 );
-                task.output_dependencies_remove_all(outdated_output_dependencies_to_remove.iter());
+                task.outdated_output_dependencies_remove_all(
+                    outdated_output_dependencies_to_remove.iter(),
+                );
             }
         }
 
@@ -2027,6 +2029,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         );
 
         if self.should_track_dependencies() {
+            // IMPORTANT: Use iter_outdated_* here, NOT iter_* (active dependencies).
+            // At execution start, active deps are copied to outdated as a "before" snapshot.
+            // During execution, new deps are added to active.
+            // Here at completion, we clean up only the OUTDATED deps (the "before" snapshot).
+            // Using iter_* (active) instead would incorrectly clean up deps that are still valid,
+            // breaking dependency tracking.
             old_edges.extend(
                 task.iter_outdated_cell_dependencies()
                     .map(|(target, key)| OutdatedEdge::CellDependency(target, key)),
