@@ -2,7 +2,6 @@ import type ws from 'next/dist/compiled/ws'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import type {
-  DynamicParamTypesShort,
   FlightRouterState,
   FlightSegmentPath,
 } from '../../shared/lib/app-router-types'
@@ -48,6 +47,7 @@ import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
+import { convertDynamicParamType } from '../../shared/lib/convert-dynamic-param-type'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -79,30 +79,6 @@ function treePathToEntrypoint(
 
   const childSegmentPath = getNextFlightSegmentPath(segmentPath)
   return treePathToEntrypoint(childSegmentPath, path)
-}
-
-function convertDynamicParamTypeToSyntax(
-  dynamicParamTypeShort: DynamicParamTypesShort,
-  param: string
-) {
-  switch (dynamicParamTypeShort) {
-    case 'c':
-    case 'ci(..)(..)':
-    case 'ci(.)':
-    case 'ci(..)':
-    case 'ci(...)':
-      return `[...${param}]`
-    case 'oc':
-      return `[[...${param}]]`
-    case 'd':
-    case 'di(..)(..)':
-    case 'di(.)':
-    case 'di(..)':
-    case 'di(...)':
-      return `[${param}]`
-    default:
-      throw new Error('Unknown dynamic param type')
-  }
 }
 
 /**
@@ -143,7 +119,7 @@ function getEntrypointsFromTree(
   const [segment, parallelRoutes] = tree
 
   const currentSegment = Array.isArray(segment)
-    ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
+    ? convertDynamicParamType(segment[2], segment[0])
     : segment
 
   const isPageSegment = currentSegment.startsWith(PAGE_SEGMENT_KEY)
