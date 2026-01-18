@@ -88,4 +88,19 @@ describe('parseHostHeader', () => {
       )
     ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com' })
   })
+
+  it('lowercases host headers', () => {
+    expect(
+      parseHostHeader({
+        host: 'Example.com',
+      })
+    ).toEqual({ type: 'host', value: 'example.com' })
+
+    expect(
+      parseHostHeader({
+        host: 'www.foo.com',
+        'x-forwarded-host': 'Example.com',
+      })
+    ).toEqual({ type: 'x-forwarded-host', value: 'example.com' })
+  })
 })
