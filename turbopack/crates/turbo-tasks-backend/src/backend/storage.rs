@@ -75,7 +75,7 @@ enum ModifiedState {
 pub struct Storage {
     snapshot_mode: AtomicBool,
     modified: FxDashMap<TaskId, ModifiedState>,
-    map: FxDashMap<TaskId, Box<TaskStorage>>,
+    map: FxDashMap<TaskId, TaskStorage>,
 }
 
 impl Storage {
@@ -243,7 +243,7 @@ impl Storage {
     pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
         let inner = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
-            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(Box::new(TaskStorage::new())),
+            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(TaskStorage::new()),
         };
         StorageWriteGuard {
             storage: self,
@@ -256,7 +256,7 @@ impl Storage {
         key1: TaskId,
         key2: TaskId,
     ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
-        let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(TaskStorage::new()));
+        let (a, b) = get_multiple_mut(&self.map, key1, key2, TaskStorage::new);
         (
             StorageWriteGuard {
                 storage: self,
@@ -277,7 +277,7 @@ impl Storage {
 
 pub struct StorageWriteGuard<'a> {
     storage: &'a Storage,
-    inner: RefMut<'a, TaskId, Box<TaskStorage>>,
+    inner: RefMut<'a, TaskId, TaskStorage>,
 }
 
 impl StorageWriteGuard<'_> {
