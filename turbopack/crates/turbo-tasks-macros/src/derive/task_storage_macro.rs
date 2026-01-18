@@ -1064,7 +1064,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     let lazy_field = if has_lazy {
         quote! {
             /// Lazily-allocated fields stored in a single Vec for memory efficiency
-            pub(crate) lazy: Vec<LazyField>,
+            lazy: Vec<LazyField>,
         }
     } else {
         quote! {}
