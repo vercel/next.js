@@ -387,7 +387,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             ResolvedVc::upcast(css_module);
 
                         let module_id = placeable.chunk_item_id(*self.chunking_context).await?;
-                        let module_id = StringifyJs(&*module_id);
+                        let module_id = StringifyJs(&module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names
                             .push(format!("{TURBOPACK_IMPORT}({module_id})[{original_name}]"));

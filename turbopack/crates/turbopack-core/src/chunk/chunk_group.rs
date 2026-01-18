@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashSet, sync::atomic::AtomicBool};
+use std::{collections::HashSet, sync::atomic::AtomicBool};
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
@@ -6,12 +6,12 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use super::{
-    Chunk, ChunkGroupContent, ChunkItemWithAsyncModuleInfo, ChunkingContext,
+    ChunkGroupContent, ChunkItemWithAsyncModuleInfo, ChunkingContext,
     availability_info::AvailabilityInfo, chunking::make_chunks,
 };
 use crate::{
     chunk::{
-        ChunkableModule, ChunkingType,
+        ChunkableModule, ChunkingType, Chunks,
         available_modules::AvailableModuleItem,
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
@@ -35,7 +35,7 @@ use crate::{
 };
 
 pub struct MakeChunkGroupResult {
-    pub chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+    pub chunks: ResolvedVc<Chunks>,
     pub referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub references: Vec<ResolvedVc<Box<dyn OutputAssetsReference>>>,
     pub availability_info: AvailabilityInfo,
@@ -154,11 +154,12 @@ pub async fn make_chunk_group(
     // Pass chunk items to chunking algorithm
     let chunks = make_chunks(
         module_graph,
-        chunking_context,
-        chunk_items,
-        chunk_item_batch_groups,
+        *chunking_context,
+        Vc::cell(chunk_items),
+        Vc::cell(chunk_item_batch_groups),
         rcstr!(""),
     )
+    .to_resolved()
     .await?;
 
     Ok(MakeChunkGroupResult {
@@ -386,13 +387,16 @@ pub async fn chunk_group_content(
             .into_iter()
             .map(async |chunkable_module| match chunkable_module {
                 ChunkableModuleOrBatch::Module(module) => {
-                    if !merged_modules_ref.should_create_chunk_item_for(ResolvedVc::upcast(module))
+                    if !merged_modules_ref
+                        .should_create_chunk_item_for(ResolvedVc::upcast(module))
+                        .await?
                     {
                         return Ok(None);
                     }
 
-                    let module = if let Some(replacement) =
-                        merged_modules_ref.should_replace_module(ResolvedVc::upcast(module))
+                    let module = if let Some(replacement) = merged_modules_ref
+                        .should_replace_module(ResolvedVc::upcast(module))
+                        .await?
                     {
                         replacement
                     } else {
@@ -448,28 +452,34 @@ async fn map_module_batch(
     let merged_modules = merged_modules.await?;
     let batch_ref = batch.await?;
 
-    let modified = RefCell::new(false);
+    let modified = AtomicBool::new(false);
     let modules = batch_ref
         .modules
         .iter()
-        .flat_map(|&module| {
-            if !merged_modules.should_create_chunk_item_for(ResolvedVc::upcast(module)) {
-                *modified.borrow_mut() = true;
-                return None;
+        .copied()
+        .map(async |module| {
+            if !merged_modules
+                .should_create_chunk_item_for(ResolvedVc::upcast(module))
+                .await?
+            {
+                modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                return Ok(None);
             }
 
-            let module = if let Some(replacement) =
-                merged_modules.should_replace_module(ResolvedVc::upcast(module))
+            let module = if let Some(replacement) = merged_modules
+                .should_replace_module(ResolvedVc::upcast(module))
+                .await?
             {
-                *modified.borrow_mut() = true;
+                modified.store(true, std::sync::atomic::Ordering::Relaxed);
                 replacement
             } else {
                 module
             };
 
-            Some(module)
+            Ok(Some(module))
         })
-        .collect::<Vec<_>>();
+        .try_flat_join()
+        .await?;
 
     if modified.into_inner() {
         Ok(ModuleBatch::new(
@@ -496,18 +506,22 @@ async fn map_module_batch_group(
         .copied()
         .map(async |chunkable_module| match chunkable_module {
             ModuleOrBatch::Module(module) => {
-                if !merged_modules_ref.should_create_chunk_item_for(module) {
+                if !merged_modules_ref
+                    .should_create_chunk_item_for(module)
+                    .await?
+                {
                     modified.store(true, std::sync::atomic::Ordering::Relaxed);
                     return Ok(None);
                 }
 
-                let module =
-                    if let Some(replacement) = merged_modules_ref.should_replace_module(module) {
-                        modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                        ResolvedVc::upcast(replacement)
-                    } else {
-                        module
-                    };
+                let module = if let Some(replacement) =
+                    merged_modules_ref.should_replace_module(module).await?
+                {
+                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                    ResolvedVc::upcast(replacement)
+                } else {
+                    module
+                };
 
                 Ok(Some(ModuleOrBatch::Module(module)))
             }

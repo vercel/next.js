@@ -1,14 +1,26 @@
 import { Form } from './form'
 
 export default function Page() {
-  const value = 'result'
-
+  const simpleValue = 'result'
+  // JSX has debug info, which affects the serialized result
+  const jsxValue = <span>and more</span>
+  // Async components emit timing chunks
+  const timedValue = <HasTimingInfo />
   return (
     <Form
       action={async () => {
         'use server'
-        return value
+        return (
+          <>
+            {simpleValue} {jsxValue} {timedValue}
+          </>
+        )
       }}
     />
   )
+}
+
+async function HasTimingInfo() {
+  await Promise.resolve()
+  return 'and even more'
 }
