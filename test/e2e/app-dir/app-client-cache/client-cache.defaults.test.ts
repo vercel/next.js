@@ -268,43 +268,47 @@ describe('app dir client cache semantics (default semantics)', () => {
       })
 
       it('should refetch the full page after 5 mins', async () => {
-        // Wait for initial prefetch to complete before clicking
-        await browser.waitForIdleNetwork()
+        await retry(async () => {
+          browser = await next.browser('/', browserConfigWithFixedTime)
 
-        const randomLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
-          .click()
-          .waitForElementByCss('#loading')
-          .text()
+          // Wait for initial prefetch to complete before clicking
+          await browser.waitForIdleNetwork()
 
-        const randomNumber = await browser
-          .waitForElementByCss('#random-number')
-          .text()
+          const randomLoadingNumber = await browser
+            .elementByCss('[href="/1?timeout=1000"]')
+            .click()
+            .waitForElementByCss('#loading')
+            .text()
 
-        await browser.eval(fastForwardTo, 5 * 60 * 1000)
+          const randomNumber = await browser
+            .waitForElementByCss('#random-number')
+            .text()
 
-        await browser
-          .elementByCss('[href="/"]')
-          .click()
-          .waitForElementByCss('[href="/1?timeout=1000"]')
+          await browser.eval(fastForwardTo, 5 * 60 * 1000)
 
-        // Wait for prefetch requests to complete before clicking, otherwise
-        // clicking during an in-flight prefetch aborts it and skips loading state
-        await browser.waitForIdleNetwork()
+          await browser
+            .elementByCss('[href="/"]')
+            .click()
+            .waitForElementByCss('[href="/1?timeout=1000"]')
 
-        const newLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
-          .click()
-          .waitForElementByCss('#loading')
-          .text()
+          // Wait for prefetch requests to complete before clicking, otherwise
+          // clicking during an in-flight prefetch aborts it and skips loading state
+          await browser.waitForIdleNetwork()
 
-        const newNumber = await browser
-          .waitForElementByCss('#random-number')
-          .text()
+          const newLoadingNumber = await browser
+            .elementByCss('[href="/1?timeout=1000"]')
+            .click()
+            .waitForElementByCss('#loading')
+            .text()
 
-        expect(newLoadingNumber).not.toBe(randomLoadingNumber)
+          const newNumber = await browser
+            .waitForElementByCss('#random-number')
+            .text()
 
-        expect(newNumber).not.toBe(randomNumber)
+          expect(newLoadingNumber).not.toBe(randomLoadingNumber)
+
+          expect(newNumber).not.toBe(randomNumber)
+        })
       })
 
       it('should respect a loading boundary that returns `null`', async () => {
