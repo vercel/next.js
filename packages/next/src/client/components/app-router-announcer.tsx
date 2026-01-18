@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, startTransition } from 'react'
 import { createPortal } from 'react-dom'
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
 
@@ -32,7 +32,9 @@ export function AppRouterAnnouncer({ tree }: { tree: FlightRouterState }) {
 
   useEffect(() => {
     const announcer = getAnnouncerNode()
-    setPortalNode(announcer)
+    startTransition(() => {
+      setPortalNode(announcer)
+    })
     return () => {
       const container = document.getElementsByTagName(ANNOUNCER_TYPE)[0]
       if (container?.isConnected) {
@@ -61,7 +63,9 @@ export function AppRouterAnnouncer({ tree }: { tree: FlightRouterState }) {
       previousTitle.current !== undefined &&
       previousTitle.current !== currentTitle
     ) {
-      setRouteAnnouncement(currentTitle)
+      startTransition(() => {
+        setRouteAnnouncement(currentTitle)
+      })
     }
     previousTitle.current = currentTitle
   }, [tree])
