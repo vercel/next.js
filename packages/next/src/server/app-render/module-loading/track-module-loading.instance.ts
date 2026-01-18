@@ -36,7 +36,47 @@ export function trackPendingChunkLoad(
   }
 
   const moduleLoadingSignal = getModuleLoadingSignal()
-  moduleLoadingSignal.trackRead(promise)
+
+  // Use beginRead/endRead directly instead of trackRead to avoid promise deduplication.
+  // Chunk ID deduplication (above) is the appropriate deduplication level for chunk loads,
+  // because Turbopack's Node.js runtime caches chunk load promises by path, returning
+  // the same Promise object for multiple chunks loaded in the same render.
+  // See: turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/runtime.ts
+  //
+  // Root cause: Turbopack's Node.js runtime uses synchronous require() for chunk loading.
+  // Since require() is blocking, all successful loads return the same shared Promise:
+  //   const loadedChunk: Promise<void> = Promise.resolve(undefined)  // Single instance!
+  //   entry = loadedChunk  // Line 135 - ALL successful loads get this same reference
+  //
+  // Data flow showing the bug with trackRead():
+  //
+  //   Turbopack Runtime                 CacheSignal.trackRead()
+  //   ──────────────────                ───────────────────────
+  //   loadChunkAsync("A")
+  //     → require("A") ✓
+  //     → return loadedChunk (P) ────→ trackRead(P): trackedPromises.add(P), beginRead() → count=1
+  //
+  //   loadChunkAsync("B")
+  //     → require("B") ✓
+  //     → return loadedChunk (P) ────→ trackRead(P): has(P)=TRUE → early return, NO beginRead!
+  //
+  //   loadChunkAsync("C")
+  //     → return loadedChunk (P) ────→ trackRead(P): has(P)=TRUE → early return, NO beginRead!
+  //
+  //   Result: count=1, but 3 chunks are loading!
+  //
+  // Timeline of the bug:
+  //   0ms:    Chunks A, B, C load → same Promise P returned for all
+  //   0ms:    trackRead(P) for A → count=1 ✓
+  //   0ms:    trackRead(P) for B, C → deduplicated, skipped
+  //   15ms:   Promise P resolves → count=0, schedules setImmediate
+  //   15ms:   But chunks B and C are still doing work (untracked!)
+  //   200ms:  All chunks finish, React starts rendering (blocks event loop)
+  //   1500ms: React finishes, setImmediate fires → cacheReady() resolves
+  //   Result: 1500ms delay that appears as "waiting for caches" in traces
+  moduleLoadingSignal.beginRead()
+  const onSettled = () => moduleLoadingSignal.endRead()
+  promise.then(onSettled, onSettled)
 }
 
 export function trackPendingImport(exportsOrPromise: unknown) {
