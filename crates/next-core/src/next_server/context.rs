@@ -1079,7 +1079,7 @@ pub async fn get_server_chunking_context_with_client_assets(
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    max_merge_chunk_size: 500_000,
+                    max_merge_chunk_size: 100_000,
                     ..Default::default()
                 },
             )
@@ -1161,7 +1161,7 @@ pub async fn get_server_chunking_context(
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    max_merge_chunk_size: 500_000,
+                    max_merge_chunk_size: 100_000,
                     ..Default::default()
                 },
             )
