@@ -478,9 +478,9 @@ export function parseHostHeader(
   const forwardedHostHeader = headers['x-forwarded-host']
   const forwardedHostHeaderValue =
     forwardedHostHeader && Array.isArray(forwardedHostHeader)
-      ? forwardedHostHeader[0]
-      : forwardedHostHeader?.split(',')?.[0]?.trim()
-  const hostHeader = headers['host']
+      ? forwardedHostHeader[0]?.toLowerCase()
+      : forwardedHostHeader?.split(',')?.[0]?.trim()?.toLowerCase()
+  const hostHeader = headers['host']?.toLowerCase()
 
   if (originDomain) {
     return forwardedHostHeaderValue === originDomain
