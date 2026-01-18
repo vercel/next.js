@@ -527,12 +527,16 @@ type HandleActionResult =
   /** The request turned out not to be a server action. */
   | null
 
-export function isOriginMatchingHost(originDomain: string, host: Host) {
-  if (!host) {
-    return false
-  }
-
-  return originDomain === host.value
+/**
+ * Checks if the origin domain matches the host (case-insensitive),
+ * since parseHostHeader function and URL API both normalize to lowercase but this
+ * comparison is defensive.
+ */
+export function isOriginMatchingHost(
+  originDomain: string,
+  host: Host | undefined
+) {
+  return originDomain.toLowerCase() === host?.value?.toLowerCase()
 }
 
 export async function handleAction({
