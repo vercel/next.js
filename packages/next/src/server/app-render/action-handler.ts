@@ -527,6 +527,14 @@ type HandleActionResult =
   /** The request turned out not to be a server action. */
   | null
 
+export function isOriginMatchingHost(originDomain: string, host: Host) {
+  if (!host) {
+    return false
+  }
+
+  return originDomain === host.value
+}
+
 export async function handleAction({
   req,
   res,
@@ -634,7 +642,7 @@ export async function handleAction({
     // This might be an old browser that doesn't send `origin` header. We ignore
     // this case.
     warning = 'Missing `origin` header from a forwarded Server Actions request.'
-  } else if (!host || originDomain !== host.value) {
+  } else if (!host || !isOriginMatchingHost(originDomain, host)) {
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
