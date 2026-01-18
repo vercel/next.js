@@ -4,24 +4,14 @@ import { retry } from 'next-test-utils'
 const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('app-dir trailingSlash handling', () => {
-  const { next, isNextDeploy, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipStart: true,
-  })
-
-  beforeAll(async () => {
-    if (!isNextDev) {
-      await next.build({
-        args: [
-          '--debug-build-paths',
-          isCacheComponentsEnabled
-            ? '!app/[lang]/legacy/page.js'
-            : '!app/[lang]/cache-components/page.js',
-        ],
-      })
-    }
-
-    await next.start({ skipBuild: true })
+    buildArgs: [
+      '--debug-build-paths',
+      isCacheComponentsEnabled
+        ? '!app/[lang]/legacy/page.js'
+        : '!app/[lang]/cache-components/page.js',
+    ],
   })
 
   it('should redirect route when requesting it directly', async () => {
