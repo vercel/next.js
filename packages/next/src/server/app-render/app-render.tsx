@@ -201,6 +201,8 @@ import {
   trackPendingImport,
   trackPendingModules,
   getModuleLoadingStats,
+  logChunkLoadingSummary,
+  trackChunkDeduplicated,
 } from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
@@ -1903,18 +1905,54 @@ async function renderToHTMLOrFlightImpl(
     const __next_require__: typeof instrumented.require = (...args) => {
       const exportsOrPromise = instrumented.require(...args)
       if (shouldTrackModuleLoading()) {
-        // requiring an async module returns a promise.
-        trackPendingImport(exportsOrPromise)
+        const workUnitStore = workUnitAsyncStorage.getStore()
+        const renderContext = workUnitStore?.type ?? 'unknown'
+        // All work unit store types have a phase property
+        const phase = workUnitStore?.phase
+        trackPendingImport(exportsOrPromise, args[0], renderContext, phase)
       }
       return exportsOrPromise
     }
     // @ts-expect-error
     globalThis.__next_require__ = __next_require__
 
+    // Deduplication cache for in-flight chunk loads
+    // This prevents the same chunk from being loaded multiple times concurrently
+    const inFlightChunkLoads = new Map<string | number, Promise<unknown>>()
+
     const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
+      const chunkId = args[0]
+
+      // Check if this chunk is already being loaded
+      const existingPromise = inFlightChunkLoads.get(chunkId)
+      if (existingPromise) {
+        // Reuse the existing promise - this is a deduplication!
+        trackChunkDeduplicated(chunkId)
+        return existingPromise
+      }
+
+      // Load the chunk and cache the promise
       const loadingChunk = instrumented.loadChunk(...args)
+
+      // Cache the promise
+      inFlightChunkLoads.set(chunkId, loadingChunk)
+
+      // Clean up the cache when done (success or failure)
+      loadingChunk.then(
+        () => {
+          inFlightChunkLoads.delete(chunkId)
+        },
+        () => {
+          inFlightChunkLoads.delete(chunkId)
+        }
+      )
+
       if (shouldTrackModuleLoading()) {
-        trackPendingChunkLoad(loadingChunk)
+        const workUnitStore = workUnitAsyncStorage.getStore()
+        const renderContext = workUnitStore?.type ?? 'unknown'
+        // All work unit store types have a phase property
+        const phase = workUnitStore?.phase
+        trackPendingChunkLoad(loadingChunk, args[0], renderContext, phase)
       }
       return loadingChunk
     }
@@ -2194,6 +2232,9 @@ async function renderToHTMLOrFlightImpl(
       `[app-render] prerender: streamToString completed in ${(streamToStringEnd - streamToStringStart).toFixed(2)}ms`
     )
 
+    console.log(
+      `[app-render] prerender: RESPONSE READY at ${streamToStringEnd.toFixed(2)}ms (cache writes may still be pending in waitUntil)`
+    )
     return new RenderResult(htmlString, options)
   } else {
     // We're rendering dynamically
@@ -4495,13 +4536,25 @@ async function prerenderToStream(
 
       // Wait for all caches to be finished filling and for async imports to resolve
       trackPendingModules(cacheSignal)
-      const cacheReadyStartTime = performance.now()
-      console.log(
-        `[prerenderToStream] cacheSignal.cacheReady() starting at ${cacheReadyStartTime.toFixed(2)}ms`
-      )
-      await cacheSignal.cacheReady()
-      console.log(
-        `[prerenderToStream] cacheSignal.cacheReady() completed in ${(performance.now() - cacheReadyStartTime).toFixed(2)}ms`
+
+      await getTracer().trace(
+        AppRenderSpan.waitForCacheSettlement,
+        {
+          spanName: 'wait for cache settlement (server)',
+          attributes: {
+            'next.route': workStore.route,
+          },
+        },
+        async () => {
+          const cacheReadyStartTime = performance.now()
+          console.log(
+            `[prerenderToStream] cacheSignal.cacheReady() starting at ${cacheReadyStartTime.toFixed(2)}ms`
+          )
+          await cacheSignal.cacheReady()
+          console.log(
+            `[prerenderToStream] cacheSignal.cacheReady() completed in ${(performance.now() - cacheReadyStartTime).toFixed(2)}ms`
+          )
+        }
       )
 
       initialServerReactController.abort()
@@ -4664,15 +4717,30 @@ async function prerenderToStream(
           `[prerenderToStream] BEFORE trackPendingModules - Module stats: totalChunks=${preTrackStats.totalChunks}, totalImports=${preTrackStats.totalImports}, activeChunks=${preTrackStats.activeChunks}, activeImports=${preTrackStats.activeImports}`
         )
         trackPendingModules(cacheSignal)
-        const clientCacheReadyStartTime = performance.now()
-        console.log(
-          `[prerenderToStream] cacheSignal.cacheReady() (client) starting at ${clientCacheReadyStartTime.toFixed(2)}ms`
+
+        // Wait for cache settlement and module loading with tracing
+        await getTracer().trace(
+          AppRenderSpan.waitForCacheSettlement,
+          {
+            spanName: 'wait for cache settlement (client)',
+            attributes: {
+              'next.route': workStore.route,
+            },
+          },
+          async () => {
+            const clientCacheReadyStartTime = performance.now()
+            console.log(
+              `[prerenderToStream] cacheSignal.cacheReady() (client) starting at ${clientCacheReadyStartTime.toFixed(2)}ms`
+            )
+            await cacheSignal.cacheReady()
+            const moduleStats = getModuleLoadingStats()
+            console.log(
+              `[prerenderToStream] cacheSignal.cacheReady() (client) completed in ${(performance.now() - clientCacheReadyStartTime).toFixed(2)}ms - Module loading stats: totalChunks=${moduleStats.totalChunks}, totalImports=${moduleStats.totalImports}, activeChunks=${moduleStats.activeChunks}, activeImports=${moduleStats.activeImports}, maxConcurrentChunks=${moduleStats.maxConcurrentChunks}, maxConcurrentImports=${moduleStats.maxConcurrentImports}`
+            )
+            logChunkLoadingSummary()
+          }
         )
-        await cacheSignal.cacheReady()
-        const moduleStats = getModuleLoadingStats()
-        console.log(
-          `[prerenderToStream] cacheSignal.cacheReady() (client) completed in ${(performance.now() - clientCacheReadyStartTime).toFixed(2)}ms - Module loading stats: totalChunks=${moduleStats.totalChunks}, totalImports=${moduleStats.totalImports}, activeChunks=${moduleStats.activeChunks}, activeImports=${moduleStats.activeImports}`
-        )
+
         initialClientReactController.abort()
         console.log(
           `[prerenderToStream] initialClientPrerender completed in ${(performance.now() - initialClientPrerenderStartTime).toFixed(2)}ms`

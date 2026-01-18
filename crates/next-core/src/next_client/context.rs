@@ -496,9 +496,9 @@ pub async fn get_client_chunking_context(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 100_000,
-                    max_chunk_count_per_group: 20,
-                    max_merge_chunk_size: 500_000,
+                    min_chunk_size: 300_000,
+                    max_chunk_count_per_group: 5,
+                    max_merge_chunk_size: 2_000_000,
                     ..Default::default()
                 },
             )

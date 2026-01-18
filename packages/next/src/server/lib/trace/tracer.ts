@@ -174,9 +174,13 @@ type NextAttributeNames =
   | 'next.span_type'
   | 'next.clientComponentLoadCount'
   | 'next.cache.key'
+  | 'next.cache.id'
   | 'next.cache.async'
   | 'next.cache.reason'
   | 'next.cache.hit'
+  | 'next.cache.source'
+  | 'next.cache.miss_reason'
+  | 'next.cache.is_simple_key'
   | 'next.revalidation.count'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames

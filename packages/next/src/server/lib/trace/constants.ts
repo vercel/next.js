@@ -90,6 +90,9 @@ enum AppRenderSpan {
   getRSCPayload = 'AppRender.getRSCPayload',
   createMetadataComponents = 'AppRender.createMetadataComponents',
   getGlobalErrorStyles = 'AppRender.getGlobalErrorStyles',
+  clientPrerender = 'AppRender.clientPrerender',
+  waitForCacheSettlement = 'AppRender.waitForCacheSettlement',
+  waitForModuleLoading = 'AppRender.waitForModuleLoading',
 }
 
 enum RouterSpan {
@@ -120,6 +123,9 @@ enum UseCacheSpan {
   executeCacheHandler = 'UseCache.executeCacheHandler',
   collectCacheResult = 'UseCache.collectCacheResult',
   renderCacheStream = 'UseCache.renderCacheStream',
+  cacheLookup = 'UseCache.cacheLookup',
+  cacheKeySerialize = 'UseCache.cacheKeySerialize',
+  cacheEntryDecode = 'UseCache.cacheEntryDecode',
 }
 
 enum RevalidationSpan {
@@ -169,6 +175,12 @@ export const NextVanillaSpanAllowlist = new Set([
   UseCacheSpan.executeCacheHandler,
   UseCacheSpan.collectCacheResult,
   UseCacheSpan.renderCacheStream,
+  UseCacheSpan.cacheLookup,
+  UseCacheSpan.cacheKeySerialize,
+  UseCacheSpan.cacheEntryDecode,
+  AppRenderSpan.clientPrerender,
+  AppRenderSpan.waitForCacheSettlement,
+  AppRenderSpan.waitForModuleLoading,
   RevalidationSpan.executeRevalidates,
 ])
 

@@ -411,8 +411,19 @@ async function collectResult(
   // that the stream might also error for other reasons anyway such as losing
   // connection.
 
+  const collectStartTime = performance.now()
+  console.log(
+    `[use-cache] collectResult starting at ${collectStartTime.toFixed(2)}ms`
+  )
+
   const buffer: Uint8Array[] = []
   const reader = savedStream.getReader()
+
+  // Detailed timing for stream reads
+  let totalReadWaitTime = 0
+  let chunkCount = 0
+  let maxChunkWaitTime = 0
+  let totalBytes = 0
 
   await getTracer().trace(
     UseCacheSpan.collectCacheResult,
@@ -421,8 +432,27 @@ async function collectResult(
     },
     async () => {
       try {
+        let readStart = performance.now()
         for (let entry; !(entry = await reader.read()).done; ) {
+          const readEnd = performance.now()
+          const waitTime = readEnd - readStart
+          totalReadWaitTime += waitTime
+          chunkCount++
+          totalBytes += entry.value.length
+
+          if (waitTime > maxChunkWaitTime) {
+            maxChunkWaitTime = waitTime
+          }
+
+          // Log individual slow chunks (>50ms wait)
+          if (waitTime > 50) {
+            console.log(
+              `[use-cache] collectResult: slow chunk #${chunkCount} - waited ${waitTime.toFixed(2)}ms for ${entry.value.length} bytes`
+            )
+          }
+
           buffer.push(entry.value)
+          readStart = performance.now()
         }
       } catch (error) {
         errors.push(error)
@@ -430,10 +460,9 @@ async function collectResult(
     }
   )
 
-  // Calculate and log buffer size
-  const totalSize = buffer.reduce((sum, chunk) => sum + chunk.length, 0)
+  const collectDuration = performance.now() - collectStartTime
   console.log(
-    `[use-cache] collectResult: buffer size = ${totalSize} bytes (${(totalSize / 1024).toFixed(2)} KB) for ${buffer.length} chunks`
+    `[use-cache] collectResult: stream read complete - ${chunkCount} chunks, ${totalBytes} bytes (${(totalBytes / 1024).toFixed(2)} KB), totalWait=${totalReadWaitTime.toFixed(2)}ms, maxWait=${maxChunkWaitTime.toFixed(2)}ms, totalDuration=${collectDuration.toFixed(2)}ms`
   )
 
   let idx = 0
@@ -522,6 +551,11 @@ async function collectResult(
 
     const cacheSignal = getCacheSignal(outerWorkUnitStore)
     if (cacheSignal) {
+      const collectEndTime = performance.now()
+      const totalBufferSize = buffer.reduce((s, c) => s + c.length, 0)
+      console.log(
+        `[use-cache] collectResult completed, calling endRead() at ${collectEndTime.toFixed(2)}ms (buffer: ${totalBufferSize} bytes, duration: ${collectDuration.toFixed(2)}ms)`
+      )
       cacheSignal.endRead()
     }
   }
@@ -1249,12 +1283,22 @@ export async function cache(
       return workUnitStore satisfies never
   }
 
-  const serializedCacheKey =
-    typeof encodedCacheKeyParts === 'string'
-      ? // Fast path for the simple case for simple inputs. We let the CacheHandler
-        // Convert it to an ArrayBuffer if it wants to.
-        encodedCacheKeyParts
-      : await encodeFormData(encodedCacheKeyParts)
+  const serializedCacheKey = await getTracer().trace(
+    UseCacheSpan.cacheKeySerialize,
+    {
+      spanName: 'use cache key serialize',
+      attributes: {
+        'next.cache.id': id,
+        'next.cache.is_simple_key': typeof encodedCacheKeyParts === 'string',
+      },
+    },
+    async () =>
+      typeof encodedCacheKeyParts === 'string'
+        ? // Fast path for the simple case for simple inputs. We let the CacheHandler
+          // Convert it to an ArrayBuffer if it wants to.
+          encodedCacheKeyParts
+        : await encodeFormData(encodedCacheKeyParts)
+  )
 
   let stream: undefined | ReadableStream = undefined
 
@@ -1272,7 +1316,12 @@ export async function cache(
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
+    const rdcLookupStart = performance.now()
     const cachedEntry = renderResumeDataCache.cache.get(serializedCacheKey)
+    const rdcLookupTime = performance.now() - rdcLookupStart
+    console.log(
+      `[use-cache] RDC lookup completed in ${rdcLookupTime.toFixed(2)}ms - ${cachedEntry !== undefined ? 'HIT' : 'MISS'} for key: ${serializedCacheKey.slice(0, 50)}...`
+    )
     if (cachedEntry !== undefined) {
       let existingEntry: CacheEntry | undefined = await cachedEntry
 
@@ -1505,9 +1554,11 @@ export async function cache(
     }
 
     let entry: CacheEntry | undefined
+    let cacheHandlerMissReason: string | undefined
 
     // We ignore existing cache entries when force revalidating.
     if (cacheHandler && !shouldForceRevalidate(workStore, workUnitStore)) {
+      const cacheGetStart = performance.now()
       entry = await getTracer().trace(
         UseCacheSpan.cacheGet,
         {
@@ -1521,6 +1572,20 @@ export async function cache(
             serializedCacheKey,
             workUnitStore?.implicitTags?.tags ?? []
           )
+      )
+      const cacheGetTime = performance.now() - cacheGetStart
+      console.log(
+        `[use-cache] Cache handler GET completed in ${cacheGetTime.toFixed(2)}ms - ${entry !== undefined ? 'HIT' : 'MISS'} for key: ${serializedCacheKey.slice(0, 50)}...`
+      )
+      if (!entry) {
+        cacheHandlerMissReason = 'not_found'
+      }
+    } else if (!cacheHandler) {
+      cacheHandlerMissReason = 'no_handler'
+    } else {
+      cacheHandlerMissReason = 'force_revalidate'
+      console.log(
+        `[use-cache] Skipping cache lookup due to force revalidate for key: ${serializedCacheKey.slice(0, 50)}...`
       )
     }
 
@@ -1558,8 +1623,16 @@ export async function cache(
         )
       ) {
         debug?.('discarding expired entry', serializedCacheKey)
+        console.log(
+          `[use-cache] Discarding cache entry (expired) for key: ${serializedCacheKey.slice(0, 50)}...`
+        )
+        cacheHandlerMissReason = 'expired'
         entry = undefined
       }
+    } else if (cacheHandlerMissReason) {
+      console.log(
+        `[use-cache] Cache MISS - reason: ${cacheHandlerMissReason} for key: ${serializedCacheKey.slice(0, 50)}...`
+      )
     }
 
     const currentTime = performance.timeOrigin + performance.now()

@@ -7,6 +7,8 @@ import {
   trackPendingImport,
   trackPendingModules,
   getModuleLoadingStats,
+  logChunkLoadingSummary,
+  trackChunkDeduplicated,
 } from './track-module-loading.instance' with { 'turbopack-transition': 'next-shared' }
 
 export {
@@ -14,4 +16,6 @@ export {
   trackPendingImport,
   trackPendingModules,
   getModuleLoadingStats,
+  logChunkLoadingSummary,
+  trackChunkDeduplicated,
 }

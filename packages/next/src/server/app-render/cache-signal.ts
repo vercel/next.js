@@ -9,6 +9,8 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 
 export class CacheSignal {
   private count = 0
+  private maxCount = 0
+  private totalReads = 0
   private earlyListeners: Array<() => void> = []
   private listeners: Array<() => void> = []
   private tickPending = false
@@ -97,9 +99,15 @@ export class CacheSignal {
   beginRead() {
     const wasZero = this.count === 0
     this.count++
+    this.totalReads++
+
+    if (this.count > this.maxCount) {
+      this.maxCount = this.count
+    }
+
     if (wasZero) {
       console.log(
-        `[CacheSignal] beginRead: first pending read started, count is now ${this.count} at ${performance.now().toFixed(2)}ms`
+        `[CacheSignal] beginRead: first pending read started, count is now ${this.count}, totalReads=${this.totalReads} at ${performance.now().toFixed(2)}ms`
       )
     }
 
@@ -133,7 +141,7 @@ export class CacheSignal {
     this.count--
     if (this.count === 0) {
       console.log(
-        `[CacheSignal] endRead: all pending reads complete, count is now 0 at ${performance.now().toFixed(2)}ms`
+        `[CacheSignal] endRead: all pending reads complete, count is now 0, totalReads=${this.totalReads}, maxConcurrent=${this.maxCount} at ${performance.now().toFixed(2)}ms`
       )
       this.noMorePendingCaches()
     }
