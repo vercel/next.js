@@ -896,6 +896,11 @@ export abstract class RouteModule<
     for (const key of routeParamKeys) {
       if (!(key in originalQuery)) {
         delete query[key]
+        // handle the case where there's collision and we
+        // normalized nxtPid=123 -> id=123 but user also
+        // sends id=456 as separate key
+      } else if (originalQuery[key] !== query[key]) {
+        query[key] = originalQuery[key]
       }
     }
 
