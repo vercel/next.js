@@ -159,6 +159,7 @@ export interface RenderOptsPartial {
      */
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
+    optimisticRouting: boolean
     inlineCss: boolean
     authInterrupts: boolean
 

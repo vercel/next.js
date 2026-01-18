@@ -398,7 +398,8 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
  */
 function makeGetDynamicParamFromSegment(
   interpolatedParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  optimisticRouting: boolean
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(loaderTree: LoaderTree) {
     const [segment, , , staticSiblings] = loaderTree
@@ -408,12 +409,14 @@ function makeGetDynamicParamFromSegment(
     }
     const segmentKey = segmentParam.paramName
     const dynamicParamType = dynamicParamTypes[segmentParam.paramType]
+    // Static siblings are only included when optimistic routing is enabled
+    const siblings = optimisticRouting ? staticSiblings : null
     return getDynamicParam(
       interpolatedParams,
       segmentKey,
       dynamicParamType,
       fallbackRouteParams,
-      staticSiblings
+      siblings
     )
   }
 }
@@ -2012,7 +2015,8 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     interpolatedParams,
-    fallbackRouteParams
+    fallbackRouteParams,
+    renderOpts.experimental.optimisticRouting
   )
 
   const isPossibleActionRequest = getIsPossibleServerAction(req)
