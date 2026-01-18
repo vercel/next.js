@@ -16,6 +16,18 @@ describe('cache-components', () => {
     })
   })
 
+  it('should prerender pages with inline server actions', async () => {
+    let $ = await next.render$('/server-action-inline', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
+    }
+  })
+
   it('should not have cache components errors when encoding bound args for inline server actions', async () => {
     const browser = await next.browser('/server-action-inline')
     expect(await browser.elementByCss('p').text()).toBe('initial')
@@ -31,17 +43,5 @@ describe('cache-components', () => {
     })
 
     expect(next.cliOutput).not.toInclude('Error: Route "/server-action-inline"')
-  })
-
-  it('should prerender pages with inline server actions', async () => {
-    let $ = await next.render$('/server-action-inline', {})
-
-    if (isNextDev) {
-      expect($('#layout').text()).toBe('at runtime')
-      expect($('#page').text()).toBe('at runtime')
-    } else {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at buildtime')
-    }
   })
 })
