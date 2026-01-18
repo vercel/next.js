@@ -61,10 +61,6 @@ const myAdapter = {
               `Missing fallback file for prerender ${output.id}: ${JSON.stringify(output, null, 2)}`
             )
           }
-        } else if (!output.fallback.postponedState) {
-          console.error(
-            `Missing postponed state or filePath for prerender ${output.id} ${JSON.stringify(output, null, 2)}`
-          )
         }
       }
 
