@@ -617,7 +617,7 @@ export async function handleAction({
   const originHeader = req.headers['origin']
   const originDomain =
     typeof originHeader === 'string' && originHeader !== 'null'
-      ? new URL(originHeader).host
+      ? new URL(originHeader).host.toLowerCase()
       : undefined
   const host = parseHostHeader(req.headers)
 
