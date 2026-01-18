@@ -1,4 +1,4 @@
-import { parseHostHeader } from './action-handler'
+import { isOriginMatchingHost, parseHostHeader } from './action-handler'
 
 describe('parseHostHeader', () => {
   it('should return correct host', () => {
@@ -102,5 +102,37 @@ describe('parseHostHeader', () => {
         'x-forwarded-host': 'Example.com',
       })
     ).toEqual({ type: 'x-forwarded-host', value: 'example.com' })
+  })
+})
+
+describe('isOriginMatchingHost', () => {
+  it('should match origin case-insensitively', () => {
+    expect(
+      isOriginMatchingHost(
+        'example.com',
+        parseHostHeader({
+          host: 'Example.com',
+        })
+      )
+    ).toBe(true)
+
+    expect(
+      isOriginMatchingHost(
+        'example.com',
+        parseHostHeader({
+          host: 'www.foo.com',
+          'x-forwarded-host': 'Example.com',
+        })
+      )
+    ).toBe(true)
+
+    expect(
+      isOriginMatchingHost(
+        'example.com',
+        parseHostHeader({
+          host: 'other.com',
+        })
+      )
+    ).toBe(false)
   })
 })
