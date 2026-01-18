@@ -106,7 +106,7 @@ describe('parseHostHeader', () => {
 })
 
 describe('isOriginMatchingHost', () => {
-  it('should match origin case-insensitively', () => {
+  it('matches origin to host case-insensitively', () => {
     expect(
       isOriginMatchingHost(
         'example.com',
@@ -118,6 +118,17 @@ describe('isOriginMatchingHost', () => {
 
     expect(
       isOriginMatchingHost(
+        'Example.com',
+        parseHostHeader({
+          host: 'example.com',
+        })
+      )
+    ).toBe(true)
+  })
+
+  it('matches origin to x-forwarded-host case-insensitively', () => {
+    expect(
+      isOriginMatchingHost(
         'example.com',
         parseHostHeader({
           host: 'www.foo.com',
@@ -126,6 +137,18 @@ describe('isOriginMatchingHost', () => {
       )
     ).toBe(true)
 
+    expect(
+      isOriginMatchingHost(
+        'Example.com',
+        parseHostHeader({
+          host: 'www.foo.com',
+          'x-forwarded-host': 'example.com',
+        })
+      )
+    ).toBe(true)
+  })
+
+  it('returns false when host does not match origin', () => {
     expect(
       isOriginMatchingHost(
         'example.com',
