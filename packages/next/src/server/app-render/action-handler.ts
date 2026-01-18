@@ -631,7 +631,7 @@ export async function handleAction({
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
   if (!originDomain) {
-    // This might be an old browser that doesn't send `host` header. We ignore
+    // This might be an old browser that doesn't send `origin` header. We ignore
     // this case.
     warning = 'Missing `origin` header from a forwarded Server Actions request.'
   } else if (!host || originDomain !== host.value) {
