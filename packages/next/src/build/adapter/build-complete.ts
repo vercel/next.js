@@ -1545,7 +1545,7 @@ export async function handleBuildComplete({
                     ...meta.headers,
                   },
                   initialExpiration: fallbackExpire,
-                  initialRevalidate: fallbackRevalidate || 1,
+                  initialRevalidate: fallbackRevalidate ?? 1,
                 }
               : undefined,
           config: {
