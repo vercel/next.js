@@ -21,8 +21,6 @@ on:
         type: string
 
 env:
-  TURBO_TEAM: 'vercel'
-  TURBO_CACHE: 'remote:rw'
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
