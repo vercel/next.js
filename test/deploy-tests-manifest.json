@@ -46,10 +46,7 @@
     }
   },
   "rules": {
-    "include": [
-      "test/e2e/**/*.test.{t,j}s{,x}",
-      "test/production/**/*.test.{t,j}s{,x}"
-    ],
+    "include": ["test/e2e/**/*.test.{t,j}s{,x}"],
     "exclude": [
       "test/e2e/cancel-request/stream-cancel.test.ts",
       "test/e2e/new-link-behavior/material-ui.test.ts",

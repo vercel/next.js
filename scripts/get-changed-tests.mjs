@@ -17,7 +17,7 @@ export default async function getChangedTests() {
 
   if (isCanary) {
     console.log(`Skipping flake detection for canary`)
-    return { devTests: [], prodTests: [] }
+    return { devTests: [], prodTests: [], deployTests: [] }
   }
 
   const diffRevision = await getDiffRevision()
@@ -44,6 +44,7 @@ export default async function getChangedTests() {
   // and if any fail it's flakey
   const devTests = []
   const prodTests = []
+  const deployTests = []
 
   for (let file of changedFiles) {
     // normalize slashes
@@ -54,10 +55,11 @@ export default async function getChangedTests() {
       .catch(() => false)
 
     if (fileExists && file.match(/^test\/.*?\.test\.(js|ts|tsx)$/)) {
-      if (
-        file.startsWith('test/e2e/') ||
-        file.startsWith('test/integration/')
-      ) {
+      if (file.startsWith('test/e2e/')) {
+        devTests.push(file)
+        prodTests.push(file)
+        deployTests.push(file)
+      } else if (file.startsWith('test/integration/')) {
         devTests.push(file)
         prodTests.push(file)
       } else if (file.startsWith('test/prod')) {
@@ -74,11 +76,12 @@ export default async function getChangedTests() {
       {
         devTests,
         prodTests,
+        deployTests,
       },
       null,
       2
     )
   )
 
-  return { devTests, prodTests, commitSha }
+  return { devTests, prodTests, deployTests, commitSha }
 }
