@@ -1,5 +1,5 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { createAtomicTimerGroup } from './app-render-scheduling'
+import { createAtomicTaskGroup } from './app-render-scheduling'
 import {
   DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
   expectNoPendingImmediates,
@@ -19,10 +19,10 @@ export function prerenderAndAbortInSequentialTasks<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
-      const scheduleTimeout = createAtomicTimerGroup()
+      const scheduleTask = createAtomicTaskGroup()
 
       let pendingResult: Promise<R>
-      scheduleTimeout(() => {
+      scheduleTask(() => {
         try {
           DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           pendingResult = prerender()
@@ -31,7 +31,7 @@ export function prerenderAndAbortInSequentialTasks<R>(
           reject(err)
         }
       })
-      scheduleTimeout(() => {
+      scheduleTask(() => {
         try {
           expectNoPendingImmediates()
           abort()
@@ -59,10 +59,10 @@ export function prerenderAndAbortInSequentialTasksWithStages<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
-      const scheduleTimeout = createAtomicTimerGroup()
+      const scheduleTask = createAtomicTaskGroup()
 
       let pendingResult: Promise<R>
-      scheduleTimeout(() => {
+      scheduleTask(() => {
         try {
           DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           pendingResult = prerender()
@@ -71,7 +71,7 @@ export function prerenderAndAbortInSequentialTasksWithStages<R>(
           reject(err)
         }
       })
-      scheduleTimeout(() => {
+      scheduleTask(() => {
         try {
           DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           advanceStage()
@@ -79,7 +79,7 @@ export function prerenderAndAbortInSequentialTasksWithStages<R>(
           reject(err)
         }
       })
-      scheduleTimeout(() => {
+      scheduleTask(() => {
         try {
           expectNoPendingImmediates()
           abort()

@@ -4,7 +4,8 @@ import {
   DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
   expectNoPendingImmediates,
 } from './fast-set-immediate.external'
-import { createAtomicTimerGroup } from '../app-render/app-render-scheduling'
+import { createAtomicTaskGroup } from '../app-render/app-render-scheduling'
+import { scheduleTask } from '../app-render/sequential-tasks.external'
 
 function createLogger() {
   const logs: string[] = []
@@ -29,59 +30,59 @@ it('runs immediates after each task', async () => {
   const { log, logs } = createLogger()
   const done = createPromiseWithResolvers<void>()
 
-  setTimeout(() => {
+  scheduleTask(() => {
     DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-    log('timeout 1')
+    log('task 1')
     setImmediate(() => {
-      log('timeout 1 -> immediate 1')
+      log('task 1 -> immediate 1')
       process.nextTick(() => {
-        log('timeout 1 -> immediate 1 -> nextTick 1')
+        log('task 1 -> immediate 1 -> nextTick 1')
         queueMicrotask(() => {
-          log('timeout 1 -> immediate 1 -> nextTick 1 -> microtask 1')
+          log('task 1 -> immediate 1 -> nextTick 1 -> microtask 1')
         })
         queueMicrotask(() => {
           process.nextTick(() => {
             log(
-              'timeout 1 -> immediate 1 -> nextTick 1 -> microtask 2 -> nextTick'
+              'task 1 -> immediate 1 -> nextTick 1 -> microtask 2 -> nextTick'
             )
           })
         })
       })
     })
     setImmediate(() => {
-      log('timeout 1 -> immediate 2')
+      log('task 1 -> immediate 2')
     })
     process.nextTick(() => {
-      log('timeout 1 -> nextTick 1')
+      log('task 1 -> nextTick 1')
       queueMicrotask(() => {
-        log('timeout 1 -> nextTick 1 -> microtask 1')
+        log('task 1 -> nextTick 1 -> microtask 1')
       })
       queueMicrotask(() => {
         process.nextTick(() => {
-          log('timeout 1 -> nextTick 1 -> microtask 2 -> nextTick')
+          log('task 1 -> nextTick 1 -> microtask 2 -> nextTick')
         })
       })
       process.nextTick(() => {
-        log('timeout 1 -> nextTick 1 -> nextTick 1')
+        log('task 1 -> nextTick 1 -> nextTick 1')
       })
     })
   })
 
-  setTimeout(() => {
+  scheduleTask(() => {
     DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-    log('timeout 2')
+    log('task 2')
     setImmediate(() => {
-      log('timeout 2 -> immediate 1')
+      log('task 2 -> immediate 1')
       setImmediate(() => {
-        log('timeout 2 -> immediate 1 -> immediate 1')
+        log('task 2 -> immediate 1 -> immediate 1')
       })
     })
   })
 
-  setTimeout(() => {
-    log('timeout 3')
+  scheduleTask(() => {
+    log('task 3')
     try {
       expectNoPendingImmediates()
       done.resolve()
@@ -94,26 +95,26 @@ it('runs immediates after each task', async () => {
 
   expect(logs).toEqual([
     // ===================================
-    'timeout 1',
-    'timeout 1 -> nextTick 1',
-    'timeout 1 -> nextTick 1 -> nextTick 1',
-    'timeout 1 -> nextTick 1 -> microtask 1',
-    'timeout 1 -> nextTick 1 -> microtask 2 -> nextTick',
+    'task 1',
+    'task 1 -> nextTick 1',
+    'task 1 -> nextTick 1 -> nextTick 1',
+    'task 1 -> nextTick 1 -> microtask 1',
+    'task 1 -> nextTick 1 -> microtask 2 -> nextTick',
     // ======================
-    'timeout 1 -> immediate 1',
-    'timeout 1 -> immediate 1 -> nextTick 1',
-    'timeout 1 -> immediate 1 -> nextTick 1 -> microtask 1',
-    'timeout 1 -> immediate 1 -> nextTick 1 -> microtask 2 -> nextTick',
+    'task 1 -> immediate 1',
+    'task 1 -> immediate 1 -> nextTick 1',
+    'task 1 -> immediate 1 -> nextTick 1 -> microtask 1',
+    'task 1 -> immediate 1 -> nextTick 1 -> microtask 2 -> nextTick',
     // ======================
-    'timeout 1 -> immediate 2',
+    'task 1 -> immediate 2',
     // ===================================
-    'timeout 2',
+    'task 2',
     // ======================
-    'timeout 2 -> immediate 1',
+    'task 2 -> immediate 1',
     // ======================
-    'timeout 2 -> immediate 1 -> immediate 1',
+    'task 2 -> immediate 1 -> immediate 1',
     // ===================================
-    'timeout 3',
+    'task 3',
   ])
 })
 
@@ -123,22 +124,22 @@ it('only affects the task it is called in', async () => {
 
   // This test includes a native setImmediate, so we want to avoid
   // flakiness due to timer/immediate interleaving
-  const scheduleTimeout = createAtomicTimerGroup()
+  const scheduleTaskInGroup = createAtomicTaskGroup()
 
-  scheduleTimeout(() => {
+  scheduleTaskInGroup(() => {
     DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-    log('timeout 1')
+    log('task 1')
     setImmediate(() => {
-      log('timeout 1 -> immediate 1 (fast)')
+      log('task 1 -> immediate 1 (fast)')
       setImmediate(() => {
-        log('timeout 1 -> immediate 1 (fast) -> immediate 1 (fast)')
+        log('task 1 -> immediate 1 (fast) -> immediate 1 (fast)')
       })
     })
   })
 
-  scheduleTimeout(() => {
-    log('timeout 2')
+  scheduleTaskInGroup(() => {
+    log('task 2')
     try {
       expectNoPendingImmediates()
       // resolved elsewhere
@@ -148,13 +149,13 @@ it('only affects the task it is called in', async () => {
 
     // NOTE: native immediate
     setImmediate(() => {
-      log('timeout 2 -> immediate 1 (native)')
+      log('task 2 -> immediate 1 (native)')
       done.resolve()
     })
   })
 
-  scheduleTimeout(() => {
-    log('timeout 3')
+  scheduleTaskInGroup(() => {
+    log('task 3')
     try {
       expectNoPendingImmediates()
       // resolved elsewhere
@@ -167,17 +168,17 @@ it('only affects the task it is called in', async () => {
 
   expect(logs).toEqual([
     // ===================================
-    'timeout 1',
+    'task 1',
     // ======================
-    'timeout 1 -> immediate 1 (fast)',
+    'task 1 -> immediate 1 (fast)',
     // ======================
-    'timeout 1 -> immediate 1 (fast) -> immediate 1 (fast)',
+    'task 1 -> immediate 1 (fast) -> immediate 1 (fast)',
     // ===================================
-    'timeout 2',
+    'task 2',
     // ===================================
-    'timeout 3',
+    'task 3',
     // ======================
-    'timeout 2 -> immediate 1 (native)',
+    'task 2 -> immediate 1 (native)',
   ])
 })
 
@@ -187,26 +188,26 @@ it('does not run immediates scheduled before it was called', async () => {
 
   // This test includes a native setImmediate, so we want to avoid
   // flakiness due to timer/immediate interleaving
-  const scheduleTimeout = createAtomicTimerGroup()
+  const scheduleTaskInGroup = createAtomicTaskGroup()
 
-  scheduleTimeout(() => {
-    log('timeout 1')
+  scheduleTaskInGroup(() => {
+    log('task 1')
 
     // NOTE: native immediate
     setImmediate(() => {
-      log('timeout 1 -> immediate 1 (native)')
+      log('task 1 -> immediate 1 (native)')
       done.resolve()
     })
 
     DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
     setImmediate(() => {
-      log('timeout 1 -> immediate 2 (fast)')
+      log('task 1 -> immediate 2 (fast)')
     })
   })
 
-  scheduleTimeout(() => {
-    log('timeout 2')
+  scheduleTaskInGroup(() => {
+    log('task 2')
     try {
       expectNoPendingImmediates()
       // resolved elsewhere
@@ -219,13 +220,13 @@ it('does not run immediates scheduled before it was called', async () => {
 
   expect(logs).toEqual([
     // ===================================
-    'timeout 1',
+    'task 1',
     // ======================
-    'timeout 1 -> immediate 2 (fast)',
+    'task 1 -> immediate 2 (fast)',
     // ===================================
-    'timeout 2',
+    'task 2',
     // ======================
-    'timeout 1 -> immediate 1 (native)',
+    'task 1 -> immediate 1 (native)',
   ])
 })
 
@@ -233,26 +234,24 @@ it('runs immediates scheduled in nextTick', async () => {
   const { log, logs } = createLogger()
   const done = createPromiseWithResolvers<void>()
 
-  setTimeout(() => {
+  scheduleTask(() => {
     DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-    log('timeout 1')
+    log('task 1')
     process.nextTick(() => {
       setImmediate(() => {
-        log('timeout 1 -> nextTick -> immediate 1')
+        log('task 1 -> nextTick -> immediate 1')
         process.nextTick(() => {
           setImmediate(() => {
-            log(
-              'timeout 1 -> nextTick -> immediate 1 -> nextTick -> immediate 1'
-            )
+            log('task 1 -> nextTick -> immediate 1 -> nextTick -> immediate 1')
           })
         })
       })
     })
   })
 
-  setTimeout(() => {
-    log('timeout 2')
+  scheduleTask(() => {
+    log('task 2')
     try {
       expectNoPendingImmediates()
       done.resolve()
@@ -265,13 +264,13 @@ it('runs immediates scheduled in nextTick', async () => {
 
   expect(logs).toEqual([
     // ===================================
-    'timeout 1',
+    'task 1',
     // ======================
-    'timeout 1 -> nextTick -> immediate 1',
+    'task 1 -> nextTick -> immediate 1',
     // ======================
-    'timeout 1 -> nextTick -> immediate 1 -> nextTick -> immediate 1',
+    'task 1 -> nextTick -> immediate 1 -> nextTick -> immediate 1',
     // ===================================
-    'timeout 2',
+    'task 2',
   ])
 })
 
@@ -279,29 +278,29 @@ it('runs ticks and microtasks from immediates before moving onto the next task',
   const { log, logs } = createLogger()
   const done = createPromiseWithResolvers<void>()
 
-  setTimeout(() => {
+  scheduleTask(() => {
     DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-    log('timeout 1')
+    log('task 1')
     setImmediate(() => {
-      log('timeout 1 -> immediate 1')
+      log('task 1 -> immediate 1')
       queueMicrotask(() => {
-        log('timeout 1 -> immediate 1 -> microtask 1')
+        log('task 1 -> immediate 1 -> microtask 1')
         queueMicrotask(() => {
-          log('timeout 1 -> immediate 1 -> microtask 1 -> microtask 1')
+          log('task 1 -> immediate 1 -> microtask 1 -> microtask 1')
         })
         process.nextTick(() => {
-          log('timeout 1 -> immediate 1 -> microtask 1 -> nextTick')
+          log('task 1 -> immediate 1 -> microtask 1 -> nextTick')
         })
       })
       process.nextTick(() => {
-        log('timeout 1 -> immediate 1 -> nextTick')
+        log('task 1 -> immediate 1 -> nextTick')
       })
     })
   })
 
-  setTimeout(() => {
-    log('timeout 2')
+  scheduleTask(() => {
+    log('task 2')
     try {
       expectNoPendingImmediates()
       done.resolve()
@@ -314,15 +313,15 @@ it('runs ticks and microtasks from immediates before moving onto the next task',
 
   expect(logs).toEqual([
     // ===================================
-    'timeout 1',
+    'task 1',
     // ======================
-    'timeout 1 -> immediate 1',
-    'timeout 1 -> immediate 1 -> nextTick',
-    'timeout 1 -> immediate 1 -> microtask 1',
-    'timeout 1 -> immediate 1 -> microtask 1 -> microtask 1',
-    'timeout 1 -> immediate 1 -> microtask 1 -> nextTick',
+    'task 1 -> immediate 1',
+    'task 1 -> immediate 1 -> nextTick',
+    'task 1 -> immediate 1 -> microtask 1',
+    'task 1 -> immediate 1 -> microtask 1 -> microtask 1',
+    'task 1 -> immediate 1 -> microtask 1 -> nextTick',
     // ===================================
-    'timeout 2',
+    'task 2',
   ])
 })
 
@@ -335,17 +334,17 @@ describe('alternate sources of immediates', () => {
     const { promisify } = require('node:util') as typeof import('node:util')
     const promisifiedSetImmediate = promisify(setImmediate)
 
-    setTimeout(() => {
+    scheduleTask(() => {
       DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-      log('timeout 1')
+      log('task 1')
       promisifiedSetImmediate().then(() => {
-        log('timeout 1 -> immediate 1')
+        log('task 1 -> immediate 1')
       })
     })
 
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       try {
         expectNoPendingImmediates()
         done.resolve()
@@ -358,11 +357,11 @@ describe('alternate sources of immediates', () => {
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
+      'task 1',
       // ======================
-      'timeout 1 -> immediate 1',
+      'task 1 -> immediate 1',
       // ======================
-      'timeout 2',
+      'task 2',
     ])
   })
 
@@ -372,17 +371,17 @@ describe('alternate sources of immediates', () => {
 
     const timers = require('node:timers') as typeof import('node:timers')
 
-    setTimeout(() => {
+    scheduleTask(() => {
       DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-      log('timeout 1')
+      log('task 1')
       timers.setImmediate(() => {
-        log('timeout 1 -> immediate 1')
+        log('task 1 -> immediate 1')
       })
     })
 
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       try {
         expectNoPendingImmediates()
         done.resolve()
@@ -395,11 +394,11 @@ describe('alternate sources of immediates', () => {
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
+      'task 1',
       // ======================
-      'timeout 1 -> immediate 1',
+      'task 1 -> immediate 1',
       // ======================
-      'timeout 2',
+      'task 2',
     ])
   })
 
@@ -410,17 +409,17 @@ describe('alternate sources of immediates', () => {
     const timersPromises =
       require('node:timers/promises') as typeof import('node:timers/promises')
 
-    setTimeout(() => {
+    scheduleTask(() => {
       DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-      log('timeout 1')
+      log('task 1')
       timersPromises.setImmediate().then(() => {
-        log('timeout 1 -> immediate 1')
+        log('task 1 -> immediate 1')
       })
     })
 
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       try {
         expectNoPendingImmediates()
         done.resolve()
@@ -433,11 +432,11 @@ describe('alternate sources of immediates', () => {
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
+      'task 1',
       // ======================
-      'timeout 1 -> immediate 1',
+      'task 1 -> immediate 1',
       // ======================
-      'timeout 2',
+      'task 2',
     ])
   })
 })
@@ -448,7 +447,7 @@ describe('patched function behavior', () => {
       const done = createPromiseWithResolvers<void>()
       const passedArgs = [1, 2, 3]
 
-      setTimeout(() => {
+      scheduleTask(() => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
         setImmediate(
@@ -470,7 +469,7 @@ describe('patched function behavior', () => {
     it('validates the first argument', async () => {
       const done = createPromiseWithResolvers<void>()
 
-      setTimeout(() => {
+      scheduleTask(() => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
         try {
@@ -495,7 +494,7 @@ describe('patched function behavior', () => {
       const done = createPromiseWithResolvers<void>()
       const passedArgs = [1, 2, 3]
 
-      setTimeout(() => {
+      scheduleTask(() => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
         process.nextTick(
@@ -517,7 +516,7 @@ describe('patched function behavior', () => {
     it('validates the first argument', async () => {
       const done = createPromiseWithResolvers<void>()
 
-      setTimeout(() => {
+      scheduleTask(() => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
         try {
@@ -545,28 +544,26 @@ describe('async context propagation', () => {
     const Ctx = new AsyncLocalStorage<string>()
 
     Ctx.run('outer', () => {
-      setTimeout(() => {
+      scheduleTask(() => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
-        log(`timeout 1 :: ${Ctx.getStore()}`)
+        log(`task 1 :: ${Ctx.getStore()}`)
         setImmediate(() => {
           // The outer context should be readable here
-          log(`timeout 1 -> immediate 1 :: ${Ctx.getStore()}`)
+          log(`task 1 -> immediate 1 :: ${Ctx.getStore()}`)
           // Shadow the outer context
           Ctx.run('inner', () => {
             setImmediate(() => {
               // The inner context should be readable here
-              log(
-                `timeout 1 -> immediate 1 -> immediate 1 :: ${Ctx.getStore()}`
-              )
+              log(`task 1 -> immediate 1 -> immediate 1 :: ${Ctx.getStore()}`)
             })
           })
         })
       })
     })
 
-    setTimeout(() => {
+    scheduleTask(() => {
       // The context should not be readable here
-      log(`timeout 2 :: ${Ctx.getStore()}`)
+      log(`task 2 :: ${Ctx.getStore()}`)
       try {
         expectNoPendingImmediates()
         done.resolve()
@@ -579,13 +576,13 @@ describe('async context propagation', () => {
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1 :: outer',
+      'task 1 :: outer',
       // ======================
-      'timeout 1 -> immediate 1 :: outer',
+      'task 1 -> immediate 1 :: outer',
       // ======================
-      'timeout 1 -> immediate 1 -> immediate 1 :: inner',
+      'task 1 -> immediate 1 -> immediate 1 :: inner',
       // ===================================
-      'timeout 2 :: undefined',
+      'task 2 :: undefined',
     ])
   })
 
@@ -599,20 +596,20 @@ describe('async context propagation', () => {
     const Ctx = new AsyncLocalStorage<string>()
 
     Ctx.run('hello', () => {
-      setTimeout(() => {
+      scheduleTask(() => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-        log(`timeout 1 :: ${Ctx.getStore()}`)
+        log(`task 1 :: ${Ctx.getStore()}`)
         process.nextTick(() => {
           // the context should be readable here
-          log(`timeout 1 -> nextTick :: ${Ctx.getStore()}`)
+          log(`task 1 -> nextTick :: ${Ctx.getStore()}`)
         })
       })
     })
 
-    setTimeout(() => {
+    scheduleTask(() => {
       // The context should not be readable here
-      log(`timeout 2 :: ${Ctx.getStore()}`)
+      log(`task 2 :: ${Ctx.getStore()}`)
       try {
         expectNoPendingImmediates()
         done.resolve()
@@ -625,11 +622,11 @@ describe('async context propagation', () => {
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1 :: hello',
+      'task 1 :: hello',
       // ======================
-      'timeout 1 -> nextTick :: hello',
+      'task 1 -> nextTick :: hello',
       // ===================================
-      'timeout 2 :: undefined',
+      'task 2 :: undefined',
     ])
   })
 })
@@ -640,21 +637,21 @@ describe('allows cancelling immediates', () => {
 
     const done = createPromiseWithResolvers<void>()
 
-    setTimeout(() => {
+    scheduleTask(() => {
       DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-      log('timeout 1')
+      log('task 1')
       setImmediate(() => {
-        log('timeout 1 -> immediate 1')
+        log('task 1 -> immediate 1')
       })
       const immediate2 = setImmediate(() => {
-        log('timeout 1 -> immediate 2')
+        log('task 1 -> immediate 2')
       })
       clearImmediate(immediate2)
     })
 
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       try {
         expectNoPendingImmediates()
         done.resolve()
@@ -667,11 +664,11 @@ describe('allows cancelling immediates', () => {
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
+      'task 1',
       // ======================
-      'timeout 1 -> immediate 1',
+      'task 1 -> immediate 1',
       // ===================================
-      'timeout 2',
+      'task 2',
     ])
   })
 
@@ -680,22 +677,22 @@ describe('allows cancelling immediates', () => {
 
     const done = createPromiseWithResolvers<void>()
 
-    setTimeout(() => {
+    scheduleTask(() => {
       DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-      log('timeout 1')
+      log('task 1')
       setImmediate(() => {
-        log('timeout 1 -> immediate 1')
+        log('task 1 -> immediate 1')
       })
       const immediate2 = setImmediate(() => {
-        log('timeout 1 -> immediate 2')
+        log('task 1 -> immediate 2')
       })
       process.nextTick(() => {
         clearImmediate(immediate2)
       })
     })
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       try {
         expectNoPendingImmediates()
         done.resolve()
@@ -708,11 +705,11 @@ describe('allows cancelling immediates', () => {
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
+      'task 1',
       // ======================
-      'timeout 1 -> immediate 1',
+      'task 1 -> immediate 1',
       // ===================================
-      'timeout 2',
+      'task 2',
     ])
   })
 
@@ -721,20 +718,20 @@ describe('allows cancelling immediates', () => {
 
     const done = createPromiseWithResolvers<void>()
 
-    setTimeout(() => {
+    scheduleTask(() => {
       DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-      log('timeout 1')
+      log('task 1')
       setImmediate(() => {
-        log('timeout 1 -> immediate 1')
+        log('task 1 -> immediate 1')
         clearImmediate(immediate2)
       })
       const immediate2 = setImmediate(() => {
-        log('timeout 1 -> immediate 2')
+        log('task 1 -> immediate 2')
       })
     })
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       try {
         expectNoPendingImmediates()
         done.resolve()
@@ -747,11 +744,11 @@ describe('allows cancelling immediates', () => {
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
+      'task 1',
       // ======================
-      'timeout 1 -> immediate 1',
+      'task 1 -> immediate 1',
       // ===================================
-      'timeout 2',
+      'task 2',
     ])
   })
 
@@ -766,12 +763,12 @@ describe('allows cancelling immediates', () => {
     const abortError = new Error('Stop right there')
     let thrownOnAbort: unknown
 
-    setTimeout(() => {
+    scheduleTask(() => {
       DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-      log('timeout 1')
+      log('task 1')
       setImmediate(() => {
-        log('timeout 1 -> immediate 1')
+        log('task 1 -> immediate 1')
       })
 
       const abortController = new AbortController()
@@ -780,7 +777,7 @@ describe('allows cancelling immediates', () => {
         signal: abortController.signal,
       }).then(
         () => {
-          log('timeout 1 -> immediate 2')
+          log('task 1 -> immediate 2')
         },
         (err) => {
           thrownOnAbort = err
@@ -789,8 +786,8 @@ describe('allows cancelling immediates', () => {
 
       abortController.abort(abortError)
     })
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       try {
         expectNoPendingImmediates()
         done.resolve()
@@ -803,11 +800,11 @@ describe('allows cancelling immediates', () => {
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
+      'task 1',
       // ======================
-      'timeout 1 -> immediate 1',
+      'task 1 -> immediate 1',
       // ===================================
-      'timeout 2',
+      'task 2',
     ])
     expect(thrownOnAbort).toBe(abortError)
   })
@@ -823,12 +820,12 @@ describe('allows cancelling immediates', () => {
     const abortError = new Error('Stop right there')
     let thrownOnAbort: unknown
 
-    setTimeout(() => {
+    scheduleTask(() => {
       DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
-      log('timeout 1')
+      log('task 1')
       setImmediate(() => {
-        log('timeout 1 -> immediate 1')
+        log('task 1 -> immediate 1')
       })
 
       const abortController = new AbortController()
@@ -838,15 +835,15 @@ describe('allows cancelling immediates', () => {
         signal: abortController.signal,
       }).then(
         () => {
-          log('timeout 1 -> immediate 2')
+          log('task 1 -> immediate 2')
         },
         (err) => {
           thrownOnAbort = err
         }
       )
     })
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       try {
         expectNoPendingImmediates()
         done.resolve()
@@ -859,11 +856,11 @@ describe('allows cancelling immediates', () => {
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
+      'task 1',
       // ======================
-      'timeout 1 -> immediate 1',
+      'task 1 -> immediate 1',
       // ===================================
-      'timeout 2',
+      'task 2',
     ])
     expect(thrownOnAbort).toBe(abortError)
   })
@@ -930,30 +927,30 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
     const error = new Error('kaboom')
 
     Ctx.run(contextValue, () => {
-      setTimeout(() => {
+      scheduleTask(() => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
-        log('timeout 1')
+        log('task 1')
 
         setImmediate(() => {
-          log('timeout 1 -> immediate 1')
+          log('task 1 -> immediate 1')
 
           // In the patch, we rethrow the synchronous error asynchronously,
           // so unfortunately ticks will run before uncaughtException.
           process.nextTick(() => {
-            log('timeout 1 -> immediate 1 -> nextTick')
+            log('task 1 -> immediate 1 -> nextTick')
           })
 
           throw error
         })
 
         setImmediate(() => {
-          log('timeout 1 -> immediate 2')
+          log('task 1 -> immediate 2')
         })
       })
     })
 
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       // This ensures that we don't fall into this task in an invalid state.
       try {
         expectNoPendingImmediates()
@@ -969,19 +966,19 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
+      'task 1',
       // ======================
-      'timeout 1 -> immediate 1',
-      'timeout 1 -> immediate 1 -> nextTick', // undesirable (too early) but acceptable
+      'task 1 -> immediate 1',
+      'task 1 -> immediate 1 -> nextTick', // undesirable (too early) but acceptable
 
       // FIXME: no async context in uncaughtException
       // `uncaughtException - ${contextValue}`,
       `uncaughtException - undefined`,
 
       // ======================
-      'timeout 1 -> immediate 2',
+      'task 1 -> immediate 2',
       // ===================================
-      'timeout 2',
+      'task 2',
     ])
   })
 
@@ -1002,24 +999,24 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
     const error = new Error('kaboom')
 
     Ctx.run(contextValue, () => {
-      setTimeout(() => {
+      scheduleTask(() => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
-        log('timeout 1')
+        log('task 1')
         setImmediate(() => {
-          log('timeout 1 -> immediate 1')
+          log('task 1 -> immediate 1')
           process.nextTick(() => {
-            log(`timeout 1 -> immediate 1 -> nextTick - ${Ctx.getStore()}`)
+            log(`task 1 -> immediate 1 -> nextTick - ${Ctx.getStore()}`)
             throw error
           })
         })
         setImmediate(() => {
-          log('timeout 1 -> immediate 2')
+          log('task 1 -> immediate 2')
         })
       })
     })
 
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       // This ensures that we don't fall into this task in an invalid state.
       try {
         expectNoPendingImmediates()
@@ -1035,19 +1032,19 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
+      'task 1',
       // ======================
-      'timeout 1 -> immediate 1',
-      `timeout 1 -> immediate 1 -> nextTick - ${contextValue}`,
+      'task 1 -> immediate 1',
+      `task 1 -> immediate 1 -> nextTick - ${contextValue}`,
 
       // FIXME: no async context in uncaughtException
       // `uncaughtException - ${contextValue}`,
       `uncaughtException - undefined`,
 
       // ======================
-      'timeout 1 -> immediate 2',
+      'task 1 -> immediate 2',
       // ===================================
-      'timeout 2',
+      'task 2',
     ])
   })
 
@@ -1063,23 +1060,23 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
 
     const error = new Error('kaboom')
 
-    setTimeout(() => {
+    scheduleTask(() => {
       DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
-      log('timeout 1')
+      log('task 1')
       process.nextTick(() => {
-        log('timeout 1 -> nextTick')
+        log('task 1 -> nextTick')
         throw error
       })
       setImmediate(() => {
-        log('timeout 1 -> immediate 1')
+        log('task 1 -> immediate 1')
       })
       setImmediate(() => {
-        log('timeout 1 -> immediate 2')
+        log('task 1 -> immediate 2')
       })
     })
 
-    setTimeout(() => {
-      log('timeout 2')
+    scheduleTask(() => {
+      log('task 2')
       // This ensures that we don't fall into this task in an invalid state.
       try {
         expectNoPendingImmediates()
@@ -1095,15 +1092,15 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
 
     expect(logs).toEqual([
       // ===================================
-      'timeout 1',
-      'timeout 1 -> nextTick',
+      'task 1',
+      'task 1 -> nextTick',
       'uncaughtException',
       // ======================
-      'timeout 1 -> immediate 1',
+      'task 1 -> immediate 1',
       // ======================
-      'timeout 1 -> immediate 2',
+      'task 1 -> immediate 2',
       // ===================================
-      'timeout 2',
+      'task 2',
     ])
   })
 
@@ -1175,20 +1172,20 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
       const error = new Error('kaboom')
 
       Ctx.run(contextValue, () => {
-        setTimeout(() => {
+        scheduleTask(() => {
           DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
-          log('timeout 1')
+          log('task 1')
           setImmediate(() => {
-            return immediate('timeout 1 -> immediate 1', error, log)
+            return immediate('task 1 -> immediate 1', error, log)
           })
           setImmediate(() => {
-            log('timeout 1 -> immediate 2')
+            log('task 1 -> immediate 2')
           })
         })
       })
 
-      setTimeout(() => {
-        log('timeout 2')
+      scheduleTask(() => {
+        log('task 2')
         // This ensures that we don't fall into this task in an invalid state.
         try {
           expectNoPendingImmediates()
@@ -1204,16 +1201,16 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
 
       expect(logs).toEqual([
         // ===================================
-        'timeout 1',
+        'task 1',
         // ======================
-        'timeout 1 -> immediate 1',
-        'timeout 1 -> immediate 1 :: erroring',
+        'task 1 -> immediate 1',
+        'task 1 -> immediate 1 :: erroring',
 
         // FIXME: we would like to observe the rejection here...
         // `unhandledRejection - ${contextValue}`,
 
         // ======================
-        'timeout 1 -> immediate 2',
+        'task 1 -> immediate 2',
 
         // FIXME: ...but it happens here, after the second immediate:
         `unhandledRejection - ${contextValue}`,
@@ -1222,7 +1219,7 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
         // and in our implementation, the second immediate is actually a nextTick.
 
         // ===================================
-        'timeout 2',
+        'task 2',
       ])
     })
   })
@@ -1234,25 +1231,25 @@ describe('error recovery', () => {
       const { log, logs } = createLogger()
       const done = createPromiseWithResolvers<void>()
 
-      setTimeout(() => {
+      scheduleTask(() => {
         try {
           DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
         } catch (err) {
           return done.reject(err)
         }
 
-        log('timeout 1')
+        log('task 1')
 
         setImmediate(() => {
-          log('timeout 1 -> immediate 1')
+          log('task 1 -> immediate 1')
         })
         setImmediate(() => {
-          log('timeout 1 -> immediate 2')
+          log('task 1 -> immediate 2')
         })
       })
 
-      setTimeout(() => {
-        log('timeout 2')
+      scheduleTask(() => {
+        log('task 2')
 
         try {
           expectNoPendingImmediates()
@@ -1265,10 +1262,10 @@ describe('error recovery', () => {
       await done.promise
 
       expect(logs).toEqual([
-        'timeout 1',
-        'timeout 1 -> immediate 1',
-        'timeout 1 -> immediate 2',
-        'timeout 2',
+        'task 1',
+        'task 1 -> immediate 1',
+        'task 1 -> immediate 2',
+        'task 2',
       ])
     }
 
@@ -1335,26 +1332,26 @@ describe('error recovery', () => {
 
           // This test includes a native setImmediate, so we want to avoid
           // flakiness due to timer/immediate interleaving
-          const scheduleTimeout = createAtomicTimerGroup()
+          const scheduleTaskInGroup = createAtomicTaskGroup()
 
-          scheduleTimeout(() => {
+          scheduleTaskInGroup(() => {
             // NOTE: native immediate
             setImmediate(() => {
               log('immediate 1 (native)')
               dones[0].resolve()
             })
           })
-          scheduleTimeout(() => {
+          scheduleTaskInGroup(() => {
             DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
-            log('timeout 1')
+            log('task 1')
 
             setImmediate(() => {
-              log('timeout 1 -> immediate 1 (patched)')
+              log('task 1 -> immediate 1 (patched)')
               dones[1].resolve()
             })
 
             setImmediate(() => {
-              log('timeout 1 -> immediate 2 (patched)')
+              log('task 1 -> immediate 2 (patched)')
               dones[2].resolve()
             })
 
@@ -1366,12 +1363,12 @@ describe('error recovery', () => {
           await Promise.all(dones.map((d) => d.promise))
 
           expect(logs).toEqual([
-            'timeout 1',
+            'task 1',
             // The queued immediates should be rescheduled using native `setImmediate`,
             // so we should observe them happening after the native one we scheduled earlier
             'immediate 1 (native)',
-            'timeout 1 -> immediate 1 (patched)',
-            'timeout 1 -> immediate 2 (patched)',
+            'task 1 -> immediate 1 (patched)',
+            'task 1 -> immediate 2 (patched)',
           ])
 
           // The next run should work correctly
@@ -1393,33 +1390,33 @@ describe('error recovery', () => {
 
           // This test includes a native setImmediate, so we want to avoid
           // flakiness due to timer/immediate interleaving
-          const scheduleTimeout = createAtomicTimerGroup()
+          const scheduleTaskInGroup = createAtomicTaskGroup()
 
-          scheduleTimeout(() => {
+          scheduleTaskInGroup(() => {
             // NOTE: native immediate
             setImmediate(() => {
               log('immediate 1 (native)')
               dones[0].resolve()
             })
           })
-          scheduleTimeout(() => {
+          scheduleTaskInGroup(() => {
             DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
-            log('timeout 1')
+            log('task 1')
 
             setImmediate(() => {
-              log('timeout 1 -> immediate 1 (patched)')
+              log('task 1 -> immediate 1 (patched)')
               dones[1].resolve()
             })
 
             setImmediate(() => {
-              log('timeout 1 -> immediate 2 (patched)')
+              log('task 1 -> immediate 2 (patched)')
               scheduleCrash(() => {
                 expect(() => expectNoPendingImmediates()).toThrow()
               })
             })
 
             setImmediate(() => {
-              log('timeout 1 -> immediate 3 (patched)')
+              log('task 1 -> immediate 3 (patched)')
               dones[2].resolve()
             })
           })
@@ -1427,13 +1424,13 @@ describe('error recovery', () => {
           await Promise.all(dones.map((d) => d.promise))
 
           expect(logs).toEqual([
-            'timeout 1',
-            'timeout 1 -> immediate 1 (patched)',
-            'timeout 1 -> immediate 2 (patched)',
+            'task 1',
+            'task 1 -> immediate 1 (patched)',
+            'task 1 -> immediate 2 (patched)',
             // The remaining queued immediate should be rescheduled using native `setImmediate`,
             // so we should observe it happening after the native one we scheduled earlier
             'immediate 1 (native)',
-            'timeout 1 -> immediate 3 (patched)',
+            'task 1 -> immediate 3 (patched)',
           ])
 
           // The next run should work correctly
