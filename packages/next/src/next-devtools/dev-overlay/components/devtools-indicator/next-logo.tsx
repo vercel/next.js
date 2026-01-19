@@ -237,10 +237,6 @@ export function NextLogo({
             &:has([data-issues-collapse]) {
               padding-right: calc(var(--padding-left) / 2);
             }
-
-            [data-cross] {
-              translate: 0px -1px;
-            }
           }
 
           [data-issues-open] {
@@ -265,6 +261,9 @@ export function NextLogo({
           [data-issues-collapse] {
             width: var(--size-24);
             height: var(--size-24);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
