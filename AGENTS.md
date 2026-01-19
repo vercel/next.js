@@ -98,14 +98,14 @@ gt submit --no-edit
 ## Build Commands
 
 ```bash
-# Build the Next.js package (dev server only - faster)
-pnpm --filter=next build:dev-server
+# Build the Next.js package
+pnpm --filter=next build
 
 # Build everything
 pnpm build
 
 # Run specific task
-pnpm --filter=next taskfile <task>
+pnpm --filter=next exec taskr <task>
 ```
 
 ## Fast Local Development
