@@ -34,8 +34,6 @@ import { setManifestsSingleton } from './app-render/manifests-singleton'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../lib/metadata/is-metadata-route'
-import { getDeploymentId } from '../shared/lib/deployment-id'
-import { appendSuffixToClientReferenceManifest } from './app-render/client-reference-manifest'
 
 export type ManifestItem = {
   id: number | string
@@ -293,14 +291,6 @@ async function loadComponentsImpl<
     // manifests to our global store so Server Action's encryption util can access
     // to them at the top level of the page module.
     if (serverActionsManifest && clientReferenceManifest) {
-      const deploymentId = getDeploymentId()
-      if (deploymentId) {
-        clientReferenceManifest = appendSuffixToClientReferenceManifest(
-          clientReferenceManifest,
-          `?dpl=${deploymentId}`
-        )
-      }
-
       setManifestsSingleton({
         page,
         clientReferenceManifest,

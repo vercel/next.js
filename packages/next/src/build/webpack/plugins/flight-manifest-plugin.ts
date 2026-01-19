@@ -19,6 +19,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
+import { getDeploymentIdQueryOrEmptyString } from '../../../shared/lib/deployment-id'
 import {
   formatBarrelOptimizedResource,
   getModuleReferencesInOrder,
@@ -31,6 +32,7 @@ interface Options {
   dev: boolean
   appDir: string
   experimentalInlineCss: boolean
+  runtimeServerDeploymentId: boolean
 }
 
 /**
@@ -116,8 +118,13 @@ export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
 
 function getAppPathRequiredChunks(
   chunkGroup: webpack.ChunkGroup,
-  excludedFiles: Set<string>
+  excludedFiles: Set<string>,
+  runtimeServerDeploymentId: boolean
 ) {
+  const deploymentIdChunkQuery = runtimeServerDeploymentId
+    ? ''
+    : getDeploymentIdQueryOrEmptyString()
+
   const chunks: Array<string> = []
   chunkGroup.chunks.forEach((chunk) => {
     if (SYSTEM_ENTRYPOINTS.has(chunk.name || '')) {
@@ -139,10 +146,10 @@ function getAppPathRequiredChunks(
         // previously done for dynamic chunks by patching the webpack runtime but we want
         // these filenames to be managed by React's Flight runtime instead and so we need
         // to implement any special handling of the file name here.
-        //
-        // Intentionally doesn't include the suffix (containing the deployment
-        // id query param) to make the manifest more determinstic.
-        return chunks.push(chunkId, encodeURIPath(file))
+        return chunks.push(
+          chunkId,
+          encodeURIPath(file) + deploymentIdChunkQuery
+        )
       })
     }
   })
@@ -208,12 +215,14 @@ export class ClientReferenceManifestPlugin {
   appDir: Options['appDir']
   appDirBase: string
   experimentalInlineCss: Options['experimentalInlineCss']
+  runtimeServerDeploymentId: Options['runtimeServerDeploymentId']
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.appDirBase = path.dirname(this.appDir) + path.sep
     this.experimentalInlineCss = options.experimentalInlineCss
+    this.runtimeServerDeploymentId = options.runtimeServerDeploymentId
   }
 
   apply(compiler: webpack.Compiler) {
@@ -314,7 +323,11 @@ export class ClientReferenceManifestPlugin {
           }
         })
 
-      const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
+      const requiredChunks = getAppPathRequiredChunks(
+        entrypoint,
+        rootMainFiles,
+        this.runtimeServerDeploymentId
+      )
       const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
         let resource =
           mod.type === 'css/mini-extract'
@@ -602,12 +615,21 @@ export class ClientReferenceManifestPlugin {
 
       const pagePath = pageName.replace(/%5F/g, '_')
       const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
+      const key = JSON.stringify(pagePath.slice('app'.length))
       compilation.emitAsset(
         'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js',
         new sources.RawSource(
-          `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-            pagePath.slice('app'.length)
-          )}]=${json}`
+          `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${
+            key
+          }]=${json};\n` + this.runtimeServerDeploymentId
+            ? `for (const key in globalThis.__RSC_MANIFEST[${key}].clientModules) {
+  const val = { ...globalThis.__RSC_MANIFEST[${key}].clientModules[key] }
+  globalThis.__RSC_MANIFEST[${key}].clientModules[key] = val
+  val.chunks = val.chunks.map((c) => {
+    return c.endsWith('.js') || c.endsWith('.css') ? \`\${c}?dpl=\${process.env.NEXT_DEPLOYMENT_ID}\` : c
+  })
+}`
+            : ''
         ) as unknown as webpack.sources.RawSource
       )
     }
