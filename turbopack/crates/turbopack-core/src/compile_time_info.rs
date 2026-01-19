@@ -1,5 +1,8 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use indexmap::Equivalent;
+use rustc_hash::FxHashSet;
+use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
@@ -157,6 +160,7 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
 #[derive(Debug, Clone, Hash, PartialOrd, Ord)]
 pub enum DefinableNameSegment {
     Name(RcStr),
+    Call(RcStr),
     TypeOf,
 }
 
@@ -178,18 +182,46 @@ impl From<String> for DefinableNameSegment {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[derive(Hash, PartialEq, Eq)]
+pub enum DefinableNameSegmentRef<'a> {
+    Name(&'a str),
+    Call(&'a str),
+    TypeOf,
+}
+
+impl Equivalent<DefinableNameSegment> for DefinableNameSegmentRef<'_> {
+    fn equivalent(&self, key: &DefinableNameSegment) -> bool {
+        match (self, key) {
+            (DefinableNameSegmentRef::Name(a), DefinableNameSegment::Name(b)) => **a == *b.as_str(),
+            (DefinableNameSegmentRef::Call(a), DefinableNameSegment::Call(b)) => **a == *b.as_str(),
+            (DefinableNameSegmentRef::TypeOf, DefinableNameSegment::TypeOf) => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Hash, PartialEq, Eq)]
+pub struct DefinableNameSegmentRefs<'a>(pub SmallVec<[DefinableNameSegmentRef<'a>; 4]>);
+
+impl Equivalent<Vec<DefinableNameSegment>> for DefinableNameSegmentRefs<'_> {
+    fn equivalent(&self, key: &Vec<DefinableNameSegment>) -> bool {
+        if self.0.len() != key.len() {
+            return false;
+        }
+        for (a, b) in self.0.iter().zip(key.iter()) {
+            if !a.equivalent(b) {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
 #[derive(Debug, Clone)]
 pub struct CompileTimeDefines(
     #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<Vec<DefinableNameSegment>, CompileTimeDefineValue>,
-);
-
-#[turbo_tasks::value(transparent)]
-#[derive(Debug, Clone)]
-pub struct CompileTimeDefinesIndividual(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub  FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<CompileTimeDefineValue>>,
 );
 
 impl IntoIterator for CompileTimeDefines {
@@ -206,20 +238,6 @@ impl CompileTimeDefines {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
         Vc::cell(FxIndexMap::default())
-    }
-
-    #[turbo_tasks::function]
-    pub fn individual(&self) -> Vc<CompileTimeDefinesIndividual> {
-        let mut map: FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<CompileTimeDefineValue>> =
-            self.0
-                .iter()
-                .map(|(key, value)| (key.clone(), value.clone().resolved_cell()))
-                .collect();
-
-        // Sort keys to make order as deterministic as possible
-        map.sort_keys();
-
-        Vc::cell(map)
     }
 }
 
@@ -275,26 +293,15 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, cell = "keyed")]
 #[derive(Debug, Clone)]
 pub struct FreeVarReferences(
     #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<Vec<DefinableNameSegment>, FreeVarReference>,
 );
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
-pub struct FreeVarReferenceVcs(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub  FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
-);
-
-/// A map from the last element (the member prop) to a map of the rest of the name to the value.
-#[turbo_tasks::value(transparent)]
-#[derive(Debug, Clone)]
-pub struct FreeVarReferencesIndividual(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub  FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs>,
-);
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct FreeVarReferencesMembers(FxHashSet<RcStr>);
 
 #[turbo_tasks::value_impl]
 impl FreeVarReferences {
@@ -304,24 +311,17 @@ impl FreeVarReferences {
     }
 
     #[turbo_tasks::function]
-    pub fn individual(&self) -> Vc<FreeVarReferencesIndividual> {
-        let mut result: FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs> =
-            FxIndexMap::default();
-
-        for (key, value) in &self.0 {
-            let (last_key, key) = key.split_last().unwrap();
-            result
-                .entry(last_key.clone())
-                .or_default()
-                .0
-                .insert(key.to_vec(), value.clone().resolved_cell());
+    pub fn members(&self) -> Vc<FreeVarReferencesMembers> {
+        let mut members = FxHashSet::default();
+        for (key, _) in self.0.iter() {
+            if let Some(DefinableNameSegment::Name(name)) = key
+                .iter()
+                .rfind(|segment| matches!(segment, DefinableNameSegment::Name(_)))
+            {
+                members.insert(name.clone());
+            }
         }
-
-        // Sort keys to make order as deterministic as possible
-        result.sort_keys();
-        result.iter_mut().for_each(|(_, inner)| inner.0.sort_keys());
-
-        Vc::cell(result)
+        Vc::cell(members)
     }
 }
 
