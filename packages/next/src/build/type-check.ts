@@ -32,7 +32,7 @@ function verifyTypeScriptSetup(
   isolatedDevBuild: boolean | undefined,
   appDir: string | undefined,
   pagesDir: string | undefined,
-  debugBuildPaths: { app?: string[]; pages?: string[] } | undefined
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 ) {
   const typeCheckWorker = new Worker(
     require.resolve('../lib/verify-typescript-setup'),
@@ -93,7 +93,7 @@ export async function startTypeChecking({
   pagesDir?: string
   telemetry: Telemetry
   appDir?: string
-  debugBuildPaths?: { app?: string[]; pages?: string[] }
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 }) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
 

@@ -84,6 +84,7 @@ export async function turbopackBuild(): Promise<{
       writeRoutesHashesManifest:
         !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
       currentNodeJsVersion,
+      debugBuildPaths: NextBuildContext.debugBuildPaths,
     },
     {
       persistentCaching,

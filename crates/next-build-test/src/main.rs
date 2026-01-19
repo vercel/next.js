@@ -184,6 +184,7 @@ fn main() {
                 no_mangling: false,
                 write_routes_hashes_manifest: false,
                 current_node_js_version: rcstr!("18.0.0"),
+                debug_build_paths: None,
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();
