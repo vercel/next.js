@@ -281,6 +281,9 @@ export class NextInstance {
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
+                    (this.buildArgs?.length
+                      ? ` ${this.buildArgs.join(' ')}`
+                      : '') +
                     ' && pnpm post-build',
                 },
               },
