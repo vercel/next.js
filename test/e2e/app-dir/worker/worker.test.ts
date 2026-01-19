@@ -69,7 +69,7 @@ describe('app dir - workers', () => {
     )
   })
 
-it('should have access to NEXT_DEPLOYMENT_ID in web worker', async () => {
+  it('should have access to NEXT_DEPLOYMENT_ID in web worker', async () => {
     const browser = await next.browser('/deployment-id', {
       beforePageLoad,
     })

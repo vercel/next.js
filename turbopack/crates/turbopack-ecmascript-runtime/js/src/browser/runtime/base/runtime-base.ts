@@ -13,8 +13,9 @@
 
 // Used in WebWorkers to tell the runtime about the chunk suffix
 declare var TURBOPACK_CHUNK_SUFFIX: string
-// Used in WebWorkers to tell the runtime about the current chunk url since it can't be detected via document.currentScript
-// Note it's stored in reversed order to use push and pop
+// Used in WebWorkers to tell the runtime about the current chunk url since it
+// can't be detected via `document.currentScript`. Note it's stored in reversed
+// order to use `push` and `pop`
 declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 
 // Injected by rust code
@@ -330,7 +331,8 @@ function getWorkerURL(
 
   const params = {
     S: CHUNK_SUFFIX,
-    NC: moduleChunks.map((chunk) => getChunkRelativeUrl(chunk)).reverse(),
+    N: (globalThis as any).NEXT_DEPLOYMENT_ID,
+    NC: moduleChunks.map((chunk) => getChunkRelativeUrl(chunk)),
   }
 
   const paramsJson = JSON.stringify(params)

@@ -694,7 +694,8 @@ browserContextPrototype.P = resolveAbsolutePath;
     const url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
     const params = {
         S: CHUNK_SUFFIX,
-        NC: moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk)).reverse()
+        N: globalThis.NEXT_DEPLOYMENT_ID,
+        NC: moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk))
     };
     const paramsJson = JSON.stringify(params);
     if (shared) {

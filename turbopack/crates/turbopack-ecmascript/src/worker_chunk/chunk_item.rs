@@ -30,8 +30,8 @@ pub struct WorkerLoaderChunkItem {
     pub module: ResolvedVc<WorkerLoaderModule>,
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    pub worker_type: WorkerReferenceSubType,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub worker_type: WorkerReferenceSubType,
 }
 
 #[turbo_tasks::value_impl]
@@ -39,13 +39,12 @@ impl WorkerLoaderChunkItem {
     #[turbo_tasks::function]
     async fn chunk_group(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let module = self.module.await?;
-        let worker = self.chunking_context.evaluated_chunk_group_assets(
+        Ok(self.chunking_context.evaluated_chunk_group_assets(
             module.inner.ident().with_modifier(rcstr!("worker")),
             ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
             AvailabilityInfo::root(),
-        );
-        Ok(worker)
+        ))
     }
 
     #[turbo_tasks::function]
@@ -114,11 +113,9 @@ impl OutputAssetsReference for WorkerLoaderChunkItem {
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         let asset_context = *this.asset_context;
-        Ok(self.chunk_group().concatenate(
-            this.chunking_context
-                .worker_entrypoint(asset_context)
-                .references(),
-        ))
+        Ok(self
+            .chunk_group()
+            .concatenate_asset(this.chunking_context.worker_entrypoint(asset_context)))
     }
 }
 

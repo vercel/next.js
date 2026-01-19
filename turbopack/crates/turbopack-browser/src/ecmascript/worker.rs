@@ -31,7 +31,7 @@ impl EcmascriptBrowserWorkerEntrypoint {
     ) -> Result<Vc<Self>> {
         Ok(EcmascriptBrowserWorkerEntrypoint {
             chunking_context,
-            asset_context
+            asset_context,
         }
         .cell())
     }
@@ -45,7 +45,9 @@ impl EcmascriptBrowserWorkerEntrypoint {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
 
-        let mut code = get_worker_runtime_code(*this.asset_context, source_maps)?.owned().await?;
+        let mut code = get_worker_runtime_code(*this.asset_context, source_maps)?
+            .owned()
+            .await?;
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;
@@ -85,11 +87,9 @@ impl ValueToString for EcmascriptBrowserWorkerEntrypoint {
 impl OutputAssetsReference for EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let mut references = Vec::new();
-        references.push(ResolvedVc::upcast(self.to_resolved().await?));
-        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
-            references,
-        )))
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![
+            ResolvedVc::upcast(self.source_map().to_resolved().await?),
+        ])))
     }
 }
 
