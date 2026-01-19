@@ -557,9 +557,9 @@ interface Metadata extends DeprecatedMetadataFields {
    * ```
    */
   other?:
-    | ({
+    | {
         [name: string]: string | number | Array<string | number>
-      } & DeprecatedMetadataFields)
+      }
     | undefined
 }
 

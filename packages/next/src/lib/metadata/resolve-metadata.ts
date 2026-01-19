@@ -387,6 +387,18 @@ async function mergeMetadata(
           newResolvedMetadata.other,
           metadata.other
         )
+        if (metadata.other) {
+          if ('apple-touch-fullscreen' in metadata.other) {
+            buildState.warnings.add(
+              `Use appleWebApp instead\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata`
+            )
+          }
+          if ('apple-touch-icon-precomposed' in metadata.other) {
+            buildState.warnings.add(
+              `Use icons.apple instead\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata`
+            )
+          }
+        }
         break
       case 'metadataBase':
         newResolvedMetadata.metadataBase = metadataBase
