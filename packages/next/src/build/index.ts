@@ -934,6 +934,7 @@ export default async function build(
   let loadedConfig: NextConfigComplete | undefined
   let staticWorker: StaticWorker
   try {
+    // #region Prepare config
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
       version: process.env.__NEXT_VERSION as string,
@@ -1729,6 +1730,7 @@ export default async function build(
         )
       }
 
+      // #region Compile
       Log.info('Creating an optimized production build ...')
       traceMemoryUsage('Starting build', nextBuildSpan)
 
@@ -1907,6 +1909,7 @@ export default async function build(
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
+      // #region required-server-files
       const requiredServerFilesManifest = await nextBuildSpan
         .traceChild('generate-required-server-files')
         .traceAsyncFn(async () => {
@@ -2086,6 +2089,8 @@ export default async function build(
         distDir,
         requiredServerFilesManifest
       )
+
+      // #region Collect page data
 
       const numberOfWorkers = getNumberOfWorkers(config)
       const collectingPageDataStart = process.hrtime()
@@ -2681,6 +2686,8 @@ export default async function build(
       )
       let hasNodeMiddleware = false
 
+      // #region Middleware routes
+
       if (middlewareFile) {
         // Is format of `(/src)/(proxy|middleware).<ext>`, so split by
         // "." and get the first part, regard rest of the extensions
@@ -2940,6 +2947,8 @@ export default async function build(
       })
 
       const hasGSPAndRevalidateZero = new Set<string>()
+
+      // #region SSG
 
       // we need to trigger automatic exporting when we have
       // - static 404/500
