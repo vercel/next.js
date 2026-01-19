@@ -35,7 +35,7 @@ export const expectedWhenTrailingSlashTrue = [
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
   ...(process.env.IS_TURBOPACK_TEST
-    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.js']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',
   '_not-found/__next._full.txt',
@@ -110,7 +110,7 @@ const expectedWhenTrailingSlashFalse = [
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
   ...(process.env.IS_TURBOPACK_TEST
-    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.js']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',
   '_not-found.html',

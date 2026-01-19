@@ -553,10 +553,12 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
+    deploymentId,
   }: {
     buildId: string
     distDir: string
     locales: readonly string[] | undefined
+    deploymentId: string
   }
 ) {
   const ssgPages = new Set<string>(
@@ -573,8 +575,14 @@ async function writeClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
+  // When skew protection is enabled, we instead just rely on the deployment id query string to
+  // load the correct manifests, to avoid the build id.
+  let ssgManifestPath = deploymentId
+    ? path.join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
+    : path.join(CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js')
+
   await writeFileUtf8(
-    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    path.join(distDir, ssgManifestPath),
     clientSsgManifestContent
   )
 }
@@ -1712,6 +1720,8 @@ export default async function build(
         )
       }
 
+      // #region Compile
+
       Log.info('Creating an optimized production build ...')
       traceMemoryUsage('Starting build', nextBuildSpan)
 
@@ -1881,6 +1891,8 @@ export default async function build(
         })
       }
 
+      // #endregion
+
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
         await updateBuildDiagnostics({
@@ -1890,6 +1902,7 @@ export default async function build(
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
+      // #region required-server-files
       const requiredServerFilesManifest = await nextBuildSpan
         .traceChild('generate-required-server-files')
         .traceAsyncFn(async () => {
@@ -2069,6 +2082,9 @@ export default async function build(
         distDir,
         requiredServerFilesManifest
       )
+
+      // #endregion
+      // #region Collect data
 
       const numberOfWorkers = getNumberOfWorkers(config)
       const collectingPageDataStart = process.hrtime()
@@ -2697,20 +2713,35 @@ export default async function build(
           }
 
           if (bundler === Bundler.Turbopack) {
-            await writeManifest(
-              path.join(
-                distDir,
-                'static',
-                buildId,
-                TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-              ),
-              functionsConfigManifest.functions['/_middleware'].matchers || []
+            const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(
+              functionsConfigManifest.functions['/_middleware'].matchers || [],
+              null,
+              2
+            )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
+
+            let clientMiddlewareManifestPath = config.deploymentId
+              ? path.join(
+                  CLIENT_STATIC_FILES_PATH,
+                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+                )
+              : path.join(
+                  CLIENT_STATIC_FILES_PATH,
+                  buildId,
+                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+                )
+
+            await writeFileUtf8(
+              path.join(distDir, clientMiddlewareManifestPath),
+              clientMiddlewareManifestJs
             )
           }
         }
       }
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
+
+      // #endregion
+      // #region NFT
 
       if (
         bundler !== Bundler.Turbopack &&
@@ -2868,6 +2899,9 @@ export default async function build(
       })
 
       const hasGSPAndRevalidateZero = new Set<string>()
+
+      // #endregion
+      // #region SSG
 
       // we need to trigger automatic exporting when we have
       // - static 404/500
@@ -4045,6 +4079,7 @@ export default async function build(
           distDir,
           buildId,
           locales: config.i18n?.locales,
+          deploymentId: config.deploymentId,
         })
       } else {
         await writePrerenderManifest(distDir, {
@@ -4055,6 +4090,8 @@ export default async function build(
           notFoundRoutes: [],
         })
       }
+
+      // #endregion
 
       await writeImagesManifest(distDir, config)
       await writeManifest(path.join(distDir, EXPORT_MARKER), {
