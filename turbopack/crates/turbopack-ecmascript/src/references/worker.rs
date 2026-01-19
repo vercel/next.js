@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use swc_core::{
     common::util::take::Take,
@@ -9,91 +9,79 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext, EvaluatableAsset},
-    context::AssetContext,
+    chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
+    module::Module,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
-    resolve::{
-        ModuleResolveResult, ModuleResolveResultItem, handle_resolve_error, origin::ResolveOrigin,
-        parse::Request, pattern::Pattern, resolve_raw, url_resolve,
-    },
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
 use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{
-        AstPath,
-        pattern_mapping::{PatternMapping, ResolveType},
-    },
-    worker_chunk::{WorkerType, module::WorkerLoaderModule},
+    references::AstPath,
+    runtime_functions::TURBOPACK_REQUIRE,
+    utils::module_id_to_lit,
+    worker_chunk::module::WorkerLoaderModule,
 };
 
-/// A unified reference to a Worker (web or Node.js) that creates an isolated chunk group
-/// for the worker module.
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct WorkerAssetReference {
-    pub worker_type: WorkerType,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    pub request: WorkerRequest,
+    pub request: ResolvedVc<Request>,
     pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
-/// The request type varies between web and Node.js workers
-#[turbo_tasks::value]
-#[derive(Hash, Debug, Clone)]
-pub enum WorkerRequest {
-    /// Web workers use Request (URLs)
-    Url(ResolvedVc<Request>),
-    /// Node.js workers use Pattern (file paths) with a context directory that should be the server
-    /// working directory
-    Pattern {
-        context_dir: FileSystemPath,
-        path: ResolvedVc<Pattern>,
-        collect_affecting_sources: bool,
-    },
-}
-
 impl WorkerAssetReference {
-    pub fn new_web_worker(
+    pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         in_try: bool,
     ) -> Self {
         WorkerAssetReference {
-            worker_type: WorkerType::WebWorker,
             origin,
-            request: WorkerRequest::Url(request),
+            request,
             issue_source,
             in_try,
         }
     }
+}
 
-    pub fn new_node_worker_thread(
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        context_dir: FileSystemPath,
-        path: ResolvedVc<Pattern>,
-        collect_affecting_sources: bool,
-        issue_source: IssueSource,
-        in_try: bool,
-    ) -> Self {
-        WorkerAssetReference {
-            worker_type: WorkerType::NodeWorkerThread,
-            origin,
-            request: WorkerRequest::Pattern {
-                context_dir,
-                path,
-                collect_affecting_sources,
-            },
-            issue_source,
-            in_try,
-        }
+impl WorkerAssetReference {
+    async fn worker_loader_module(
+        self: &WorkerAssetReference,
+    ) -> Result<Option<Vc<WorkerLoaderModule>>> {
+        let module = url_resolve(
+            *self.origin,
+            *self.request,
+            // TODO support more worker types
+            ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
+            Some(self.issue_source),
+            self.in_try,
+        );
+
+        let Some(module) = *module.first_module().await? else {
+            return Ok(None);
+        };
+        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
+            CodeGenerationIssue {
+                severity: IssueSeverity::Bug,
+                title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
+                message: StyledString::Text(rcstr!("asset is not placeable in ESM chunks"))
+                    .resolved_cell(),
+                path: self.origin.origin_path().owned().await?,
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(None);
+        };
+
+        Ok(Some(WorkerLoaderModule::new(*chunkable)))
     }
 }
 
@@ -101,120 +89,13 @@ impl WorkerAssetReference {
 impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let result = match (&self.worker_type, &self.request) {
-            (WorkerType::WebWorker, WorkerRequest::Url(request)) => {
-                // Web worker resolution uses url_resolve
-                url_resolve(
-                    *self.origin,
-                    **request,
-                    ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
-                    Some(self.issue_source),
-                    self.in_try,
-                )
-            }
-            (
-                WorkerType::NodeWorkerThread,
-                WorkerRequest::Pattern {
-                    context_dir,
-                    path,
-                    collect_affecting_sources,
-                },
-            ) => {
-                let asset_context = self.origin.asset_context();
-
-                // Node.js worker resolution uses resolve_raw
-                let result = resolve_raw(
-                    context_dir.clone(),
-                    **path,
-                    *collect_affecting_sources,
-                    /* force_in_lookup_dir */ false,
-                );
-                let reference_type = ReferenceType::Worker(WorkerReferenceSubType::NodeWorker);
-                let result = asset_context.process_resolve_result(result, reference_type.clone());
-
-                // Report an error if we cannot resolve
-                handle_resolve_error(
-                    result,
-                    reference_type.clone(),
-                    *self.origin,
-                    Request::parse(path.owned().await?),
-                    self.origin.resolve_options(reference_type),
-                    self.in_try,
-                    Some(self.issue_source),
-                )
-                .await?
-            }
-            _ => {
-                // This should never happen due to our constructor functions
-                unreachable!("WorkerType and WorkerRequest mismatch");
-            }
-        };
-
-        // Wrap each resolved module in a WorkerLoaderModule
-        let result_ref = result.await?;
-        let mut primary = Vec::new();
-
-        for (request_key, resolve_item) in result_ref.primary.iter() {
-            match resolve_item {
-                ModuleResolveResultItem::Module(module) => {
-                    let Some(chunkable) =
-                        ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
-                    else {
-                        CodeGenerationIssue {
-                            severity: IssueSeverity::Bug,
-                            title: StyledString::Text(rcstr!("non-chunkable module"))
-                                .resolved_cell(),
-                            message: StyledString::Text(rcstr!("asset is not chunkable"))
-                                .resolved_cell(),
-                            path: self.origin.origin_path().owned().await?,
-                        }
-                        .resolved_cell()
-                        .emit();
-                        continue;
-                    };
-
-                    // For Node.js worker threads, the module must also be evaluatable since
-                    // it becomes an entry point
-                    if matches!(self.worker_type, WorkerType::NodeWorkerThread)
-                        && ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(chunkable)
-                            .is_none()
-                    {
-                        CodeGenerationIssue {
-                            severity: IssueSeverity::Bug,
-                            title: StyledString::Text(rcstr!("non-evaluatable module"))
-                                .resolved_cell(),
-                            message: StyledString::Text(rcstr!(
-                                "Worker thread module must be evaluatable"
-                            ))
-                            .resolved_cell(),
-                            path: self.origin.origin_path().owned().await?,
-                        }
-                        .resolved_cell()
-                        .emit();
-                        continue;
-                    }
-
-                    let loader = WorkerLoaderModule::new(*chunkable, self.worker_type)
-                        .to_resolved()
-                        .await?;
-
-                    primary.push((
-                        request_key.clone(),
-                        ModuleResolveResultItem::Module(ResolvedVc::upcast(loader)),
-                    ));
-                }
-                // Pass through other result types (External, Ignore, etc.)
-                _ => {
-                    primary.push((request_key.clone(), resolve_item.clone()));
-                }
-            }
+        if let Some(worker_loader_module) = self.worker_loader_module().await? {
+            Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
+                worker_loader_module.to_resolved().await?,
+            )))
+        } else {
+            Ok(*ModuleResolveResult::unresolvable())
         }
-
-        Ok(ModuleResolveResult {
-            primary: primary.into_boxed_slice(),
-            affecting_sources: result_ref.affecting_sources.clone(),
-        }
-        .cell())
     }
 }
 
@@ -223,18 +104,7 @@ impl ValueToString for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
-            format!(
-                "new {}({})",
-                match self.worker_type {
-                    WorkerType::WebWorker => "WebWorker",
-                    WorkerType::NodeWorkerThread => "NodeWorkerThread",
-                },
-                match &self.request {
-                    WorkerRequest::Url(request) => request.to_string().await?,
-                    WorkerRequest::Pattern { path, .. } => path.to_string().await?,
-                }
-            )
-            .into(),
+            format!("new Worker {}", self.request.to_string().await?,).into(),
         ))
     }
 }
@@ -268,43 +138,29 @@ impl WorkerAssetReferenceCodeGen {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let reference = self.reference.await?;
-
-        // Build the request for PatternMapping
-        let request = match &reference.request {
-            WorkerRequest::Url(request) => **request,
-            WorkerRequest::Pattern { path, .. } => Request::parse(path.owned().await?),
+        let Some(loader) = self.reference.await?.worker_loader_module().await? else {
+            bail!("Worker loader could not be created");
         };
 
-        // Use PatternMapping to handle both single and multiple (dynamic) worker results
-        let pm = PatternMapping::resolve_request(
-            request,
-            *reference.origin,
-            chunking_context,
-            self.reference.resolve_reference(),
-            ResolveType::ChunkItem,
-        )
-        .await?;
+        let item_id = chunking_context
+            .chunk_item_id_strategy()
+            .await?
+            .get_id_from_ident(loader.ident())
+            .await?;
 
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::New(NewExpr { args, .. }) = expr {
                 if let Some(args) = args {
                     match args.first_mut() {
-                        Some(ExprOrSpread {
-                            spread: None,
-                            expr: key_expr,
-                        }) => {
-                            // Replace the first argument (the URL/path) with a turbopack_require
-                            // call that uses the pattern mapping to resolve to the correct loader
-                            // module
-                            *key_expr = quote_expr!(
-                                "$require",
-                                require: Expr = pm.create_require(*key_expr.take())
+                        Some(ExprOrSpread { spread: None, expr }) => {
+                            let item_id = module_id_to_lit(&item_id);
+                            *expr = quote_expr!(
+                                "$turbopack_require($item_id)",
+                                turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
+                                item_id: Expr = item_id
                             );
 
-                            // For web workers, modify the options to set type: undefined
-                            if reference.worker_type == WorkerType::WebWorker
-                                && let Some(opts) = args.get_mut(1)
+                            if let Some(opts) = args.get_mut(1)
                                 && opts.spread.is_none()
                             {
                                 *opts.expr = *quote_expr!(
