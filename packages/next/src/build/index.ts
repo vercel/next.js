@@ -925,7 +925,6 @@ export default async function build(
   let loadedConfig: NextConfigComplete | undefined
   let staticWorker: StaticWorker
   try {
-    // #region Prepare config
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
       version: process.env.__NEXT_VERSION as string,
@@ -1722,6 +1721,7 @@ export default async function build(
       }
 
       // #region Compile
+
       Log.info('Creating an optimized production build ...')
       traceMemoryUsage('Starting build', nextBuildSpan)
 
@@ -1890,6 +1890,8 @@ export default async function build(
           },
         })
       }
+
+      // #endregion
 
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
@@ -2081,7 +2083,8 @@ export default async function build(
         requiredServerFilesManifest
       )
 
-      // #region Collect page data
+      // #endregion
+      // #region Collect data
 
       const numberOfWorkers = getNumberOfWorkers(config)
       const collectingPageDataStart = process.hrtime()
@@ -2677,8 +2680,6 @@ export default async function build(
       )
       let hasNodeMiddleware = false
 
-      // #region Middleware routes
-
       if (middlewareFile) {
         // Is format of `(/src)/(proxy|middleware).<ext>`, so split by
         // "." and get the first part, regard rest of the extensions
@@ -2738,6 +2739,9 @@ export default async function build(
       }
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
+
+      // #endregion
+      // #region NFT
 
       if (
         bundler !== Bundler.Turbopack &&
@@ -2896,6 +2900,7 @@ export default async function build(
 
       const hasGSPAndRevalidateZero = new Set<string>()
 
+      // #endregion
       // #region SSG
 
       // we need to trigger automatic exporting when we have
@@ -4085,6 +4090,8 @@ export default async function build(
           notFoundRoutes: [],
         })
       }
+
+      // #endregion
 
       await writeImagesManifest(distDir, config)
       await writeManifest(path.join(distDir, EXPORT_MARKER), {
