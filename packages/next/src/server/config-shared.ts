@@ -1705,6 +1705,11 @@ export interface NextConfigRuntime {
 export function getNextConfigRuntime(
   config: NextConfigComplete | NextConfigRuntime
 ): NextConfigRuntime {
+  // This config filter is a breaking change, so only do it if experimental.runtimeServerDeploymentId is enabled
+  if (!config.experimental.runtimeServerDeploymentId) {
+    return config
+  }
+
   let ex = config.experimental
 
   type Requiredish<T> = {
