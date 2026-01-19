@@ -15,6 +15,7 @@ describe('browser-log-forwarding verbose level', () => {
       expect(output).toContain('browser error:')
       expect(output).toContain('browser warn:')
       expect(output).toContain('browser log:')
+      expect(output).toContain('browser debug:')
     })
 
     // Get final output after logs are forwarded
