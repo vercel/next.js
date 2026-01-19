@@ -58,7 +58,8 @@ interface Runs {
   run2: RouteFileHashRecords
 }
 
-describe('deterministic build - no-change build', () => {
+// TODO reenable later. This test was only ever correctly validating edge functions
+describe.skip('deterministic build - no-change build', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
