@@ -139,7 +139,7 @@ use crate::{
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
         member::MemberReplacement,
-        node::PackageJsonReference,
+        node::{FilePathModuleReference, PackageJsonReference},
         raw::{DirAssetReference, FileSourceReference},
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
@@ -1935,7 +1935,7 @@ where
 
                     if *compile_time_info.environment().rendering().await? == Rendering::Client {
                         analysis.add_reference_code_gen(
-                            WorkerAssetReference::new_web_worker(
+                            WorkerAssetReference::new(
                                 origin,
                                 Request::parse(pat).to_resolved().await?,
                                 issue_source(source, span),
@@ -1950,7 +1950,8 @@ where
                 // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
                 return Ok(());
             }
-            WellKnownFunctionKind::NodeWorkerConstructor => {
+            WellKnownFunctionKind::NodeWorkerConstructor if analysis.analyze_mode.is_tracing() => {
+                // Only for tracing, not for bundling (yet?)
                 let args = linked_args().await?;
                 if !args.is_empty() {
                     let pat = js_value_to_pattern(&args[0]);
@@ -1967,20 +1968,17 @@ where
                             return Ok(());
                         }
                     }
-
-                    analysis.add_reference_code_gen(
-                        WorkerAssetReference::new_node_worker_thread(
-                            origin,
-                            // WorkerThreads resolve filepaths relative to the process root
+                    analysis.add_reference(
+                        FilePathModuleReference::new(
+                            origin.asset_context(),
                             get_traced_project_dir().await?,
-                            Pattern::new(pat).to_resolved().await?,
+                            Pattern::new(pat),
                             collect_affecting_sources,
                             get_issue_source(),
-                            in_try,
-                        ),
-                        ast_path.to_vec().into(),
+                        )
+                        .to_resolved()
+                        .await?,
                     );
-
                     return Ok(());
                 }
                 let (args, hints) = explain_args(args);

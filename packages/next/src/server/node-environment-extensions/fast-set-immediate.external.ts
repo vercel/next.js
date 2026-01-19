@@ -23,8 +23,12 @@ const originalSetImmediate = globalThis.setImmediate
 const originalClearImmediate = globalThis.clearImmediate
 const originalNextTick = process.nextTick
 const originalSetImmediatePromisify: (typeof setImmediate)['__promisify__'] =
-  // @ts-expect-error: the types for `promisify.custom` are strange
-  originalSetImmediate[promisify.custom]
+  typeof originalSetImmediate === 'function'
+    ? // @ts-expect-error: the types for `promisify.custom` are strange
+      originalSetImmediate[promisify.custom]
+    : // if setImmediate is not defined, we must be in the edge runtime,
+      // and won't ever enable the patch, so this can be a dummy value
+      undefined!
 
 export { originalSetImmediate as unpatchedSetImmediate }
 
