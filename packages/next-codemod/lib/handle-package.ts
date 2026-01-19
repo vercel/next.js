@@ -146,7 +146,9 @@ export async function runInstallation(
         // --production=false is not implemented by every package manager.
         NODE_ENV: 'development',
       },
-      stdio: 'inherit',
+      // Use stdio array to inherit stdout (for real-time display) but pipe stderr
+      // so we can capture and analyze it for peer dependency conflict patterns
+      stdio: ['inherit', 'inherit', 'pipe'],
       shell: true,
     })
   } catch (error: any) {
