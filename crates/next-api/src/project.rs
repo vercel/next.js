@@ -25,7 +25,7 @@ use next_core::{
     segment_config::ParseSegmentMode,
     util::{NextRuntime, OptionEnvMap},
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
@@ -164,6 +164,47 @@ pub struct WatchOptions {
 pub struct DebugBuildPaths {
     pub app: Vec<RcStr>,
     pub pages: Vec<RcStr>,
+}
+
+/// Pre-converted route keys from debug build paths for O(1) lookups.
+struct DebugBuildPathsRouteKeys {
+    app: FxHashSet<RcStr>,
+    pages: FxHashSet<RcStr>,
+}
+
+impl DebugBuildPathsRouteKeys {
+    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Self {
+        Self {
+            app: paths
+                .app
+                .iter()
+                .map(|path| {
+                    // App router: "/blog/[slug]/page.tsx" -> "/blog/[slug]"
+                    if let Some(last_slash_idx) = path.rfind('/') {
+                        if last_slash_idx == 0 {
+                            "/".into() // Root: "/page.tsx" -> "/"
+                        } else {
+                            path[..last_slash_idx].into()
+                        }
+                    } else {
+                        path.clone()
+                    }
+                })
+                .collect(),
+            pages: paths
+                .pages
+                .iter()
+                .map(|path| {
+                    // Pages router: "/foo.tsx" -> "/foo"
+                    if let Some(dot_idx) = path.rfind('.') {
+                        path[..dot_idx].into()
+                    } else {
+                        path.clone()
+                    }
+                })
+                .collect(),
+        }
+    }
 }
 
 #[derive(
@@ -435,60 +476,22 @@ fn define_env_diff_report(old: &DefineEnv, new: &DefineEnv) -> String {
     report
 }
 
-/// Checks if an app router route should be included based on debug build paths.
-///
-/// App router debug paths have the format "/blog/[slug]/page.tsx".
-/// Route keys have the format "/blog/[slug]".
-/// Conversion: strip the filename (everything after last /).
-fn should_include_app_route(route_key: &RcStr, debug_paths: &[RcStr]) -> bool {
+/// Checks if an app router route should be included based on pre-converted route keys.
+fn should_include_app_route(route_key: &RcStr, route_keys: &FxHashSet<RcStr>) -> bool {
     // Special app router framework routes
     if matches!(route_key.as_str(), "/_not-found" | "/_global-error") {
         return true;
     }
-
-    for path in debug_paths {
-        // Strip filename: "/blog/[slug]/page.tsx" -> "/blog/[slug]"
-        let route_from_path = if let Some(last_slash_idx) = path.rfind('/') {
-            if last_slash_idx == 0 {
-                "/" // Root: "/page.tsx" -> "/"
-            } else {
-                &path[..last_slash_idx]
-            }
-        } else {
-            path.as_str()
-        };
-
-        if route_key.as_str() == route_from_path {
-            return true;
-        }
-    }
-    false
+    route_keys.contains(route_key)
 }
 
-/// Checks if a pages router route should be included based on debug build paths.
-///
-/// Pages router debug paths have the format "/foo.tsx" or "/api/hello.ts".
-/// Route keys have the format "/foo" or "/api/hello".
-/// Conversion: strip the file extension (everything after last .).
-fn should_include_pages_route(route_key: &RcStr, debug_paths: &[RcStr]) -> bool {
+/// Checks if a pages router route should be included based on pre-converted route keys.
+fn should_include_pages_route(route_key: &RcStr, route_keys: &FxHashSet<RcStr>) -> bool {
     // Special pages router framework routes
     if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
         return true;
     }
-
-    for path in debug_paths {
-        // Strip extension: "/foo.tsx" -> "/foo"
-        let route_from_path = if let Some(dot_idx) = path.rfind('.') {
-            &path[..dot_idx]
-        } else {
-            path.as_str()
-        };
-
-        if route_key.as_str() == route_from_path {
-            return true;
-        }
-    }
-    false
+    route_keys.contains(route_key)
 }
 
 impl ProjectContainer {
@@ -1547,25 +1550,32 @@ impl Project {
         let app_project = self.app_project();
         let pages_project = self.pages_project();
 
+        // Convert debug build paths to route keys once for O(1) lookups
+        let debug_build_paths_route_keys = this
+            .debug_build_paths
+            .as_ref()
+            .map(DebugBuildPathsRouteKeys::from_debug_build_paths);
+
         if let Some(app_project) = &*app_project.await? {
             let app_routes = app_project.routes();
-            for (k, v) in app_routes.await?.iter() {
-                if let Some(ref paths) = this.debug_build_paths
-                    && !should_include_app_route(k, &paths.app)
-                {
-                    continue;
-                }
-                routes.insert(k.clone(), v.clone());
-            }
+            routes.extend(
+                app_routes
+                    .await?
+                    .iter()
+                    .filter(|(k, _)| {
+                        debug_build_paths_route_keys
+                            .as_ref()
+                            .is_none_or(|keys| should_include_app_route(k, &keys.app))
+                    })
+                    .map(|(k, v)| (k.clone(), v.clone())),
+            );
         }
 
-        for (pathname, page_route) in pages_project.routes().await?.iter() {
-            if let Some(ref paths) = this.debug_build_paths
-                && !should_include_pages_route(pathname, &paths.pages)
-            {
-                continue;
-            }
-
+        for (pathname, page_route) in pages_project.routes().await?.iter().filter(|(k, _)| {
+            debug_build_paths_route_keys
+                .as_ref()
+                .is_none_or(|keys| should_include_pages_route(k, &keys.pages))
+        }) {
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
                     ConflictIssue {
