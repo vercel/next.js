@@ -936,6 +936,17 @@ export abstract class RouteModule<
       throw new Error("Invariant: nextConfig couldn't be loaded")
     }
 
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      const { installProcessErrorHandlers } = await import(
+        '../node-environment-extensions/process-error-handlers'
+      )
+      installProcessErrorHandlers(
+        Boolean(
+          nextConfig.experimental.removeUncaughtErrorAndRejectionListeners
+        )
+      )
+    }
+
     let resolvedPathname = normalizedSrcPage
     if (isDynamicRoute(resolvedPathname) && params) {
       resolvedPathname = serverUtils.interpolateDynamicPath(
