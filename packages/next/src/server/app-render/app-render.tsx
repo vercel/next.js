@@ -2023,9 +2023,8 @@ async function renderToHTMLOrFlightImpl(
   // fetch cache. Using the destination path ensures that
   // revalidatePath('/dest') invalidates cache entries for pages rewritten to
   // that destination.
-  // TODO: simplify getImplicitTags to accept pathname instead of url object,
-  // and rename 'rewroteURL' to 'rewrittenPathname' in request-meta.ts.
-  const rewrittenPathname = getRequestMeta(req, 'rewroteURL')
+  // TODO: simplify getImplicitTags to accept pathname instead of url object.
+  const rewrittenPathname = getRequestMeta(req, 'rewrittenPathname')
   const implicitTagsUrl = rewrittenPathname
     ? { ...url, pathname: rewrittenPathname }
     : url
