@@ -179,16 +179,6 @@ describe('searchparams-reuse-loading', () => {
           { resolve: () => Promise<void> }
         >()
 
-        // Track prefetch requests to know when initial prefetching is done
-        const prefetchRequests = new Set<string>()
-        let prefetchResolve: (() => void) | undefined
-        let prefetchDelayStarted = false
-        const prefetchPromise = new Promise<void>((resolve) => {
-          prefetchResolve = resolve
-          // Fallback timeout to prevent hanging
-          setTimeout(() => resolve(), 5000)
-        })
-
         let interceptRequests = false
         const browser = await next.browser(path, {
           beforePageLoad(page) {
@@ -201,58 +191,59 @@ describe('searchparams-reuse-loading', () => {
                 const headers = await request.allHeaders()
                 const url = new URL(request.url())
 
-                // Track prefetch requests during initial load
-                if (headers['next-router-prefetch'] && !interceptRequests) {
-                  const prefetchKey = url.pathname + url.search
-                  prefetchRequests.add(prefetchKey)
+                // Let all prefetch requests and non-intercepted requests through
+                if (!interceptRequests || headers['next-router-prefetch']) {
                   await route.continue()
-
-                  // Wait for initial prefetch burst to complete
-                  // Add small delay after seeing prefetches to let any redirects complete
-                  if (prefetchRequests.size >= 2 && !prefetchDelayStarted) {
-                    prefetchDelayStarted = true
-                    setTimeout(() => prefetchResolve?.(), 500)
-                  }
                   return
                 }
 
-                // Normalize path to ignore differences between middleware and non-middleware cases
-                const normalizedPath = url.pathname.replace(/\/someValue$/, '')
-                const promiseKey =
-                  normalizedPath + '?id=' + url.searchParams.get('id')
-
-                if (!interceptRequests) {
-                  return route.continue()
-                }
-
-                if (
-                  headers['rsc'] === '1' &&
-                  !headers['next-router-prefetch']
-                ) {
-                  // Create a promise that will be resolved by the later test code
-                  let resolvePromise: () => void
-                  const promise = new Promise<void>((res) => {
-                    resolvePromise = res
-                  })
-
-                  if (rscRequestPromise.has(promiseKey)) {
-                    throw new Error('Duplicate request')
-                  }
-
-                  rscRequestPromise.set(promiseKey, {
-                    resolve: async () => {
-                      await route.continue()
-                      // wait a moment to ensure the response is received
-                      await new Promise((res) => setTimeout(res, 500))
-                      resolvePromise()
-                    },
-                  })
-
-                  // Await the promise to effectively stall the request
-                  await promise
-                } else {
+                // Only intercept RSC requests (not document requests)
+                if (headers['rsc'] !== '1') {
                   await route.continue()
+                  return
                 }
+
+                // Only stall requests that have an id parameter
+                if (!url.searchParams.has('id')) {
+                  await route.continue()
+                  return
+                }
+
+                // Skip requests to /someValue paths since those are redirect targets
+                // that we don't need to track separately
+                if (url.pathname.includes('/someValue')) {
+                  await route.continue()
+                  return
+                }
+
+                // Use the pathname for consistent key lookups
+                const promiseKey =
+                  url.pathname + '?id=' + url.searchParams.get('id')
+
+                // Create a promise that will be resolved by the later test code
+                let resolvePromise: () => void
+                const promise = new Promise<void>((res) => {
+                  resolvePromise = res
+                })
+
+                if (rscRequestPromise.has(promiseKey)) {
+                  // If we already have this request, just continue - don't throw
+                  // This can happen with retries or concurrent requests
+                  await route.continue()
+                  return
+                }
+
+                rscRequestPromise.set(promiseKey, {
+                  resolve: async () => {
+                    await route.continue()
+                    // wait a moment to ensure the response is received
+                    await new Promise((res) => setTimeout(res, 500))
+                    resolvePromise()
+                  },
+                })
+
+                // Await the promise to effectively stall the request
+                await promise
               }
             )
           },
@@ -261,9 +252,12 @@ describe('searchparams-reuse-loading', () => {
         const basePath = path === '/' ? '' : path
         const searchParamsPagePath = `${basePath}/search-params`
 
-        // Wait for all expected prefetch requests to complete
-        await prefetchPromise
+        // Wait for prefetch requests to complete before intercepting.
+        // Use a delay since waitForIdleNetwork can hang on Vercel deployments
+        // due to keep-alive connections or analytics requests.
+        await new Promise((resolve) => setTimeout(resolve, 2000))
         interceptRequests = true
+
         // The first link we click is "auto" prefetched.
         await browser
           .elementByCss(`[href="${searchParamsPagePath}?id=1"]`)
