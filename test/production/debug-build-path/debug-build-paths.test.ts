@@ -162,6 +162,67 @@ describe('debug-build-paths', () => {
       // Should not build pages routes
       expect(buildResult.cliOutput).not.toContain('Route (pages)')
     })
+
+    it('should exclude paths matching negation patterns', async () => {
+      const buildResult = await next.build({
+        args: [
+          '--debug-build-paths',
+          'app/**/page.tsx,!app/with-type-error/**',
+        ],
+      })
+      expect(buildResult.exitCode).toBe(0)
+
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      expect(buildResult.cliOutput).toContain('○ /')
+      expect(buildResult.cliOutput).toContain('○ /about')
+      expect(buildResult.cliOutput).toContain('○ /dashboard')
+      expect(buildResult.cliOutput).toContain('/blog/[slug]')
+      expect(buildResult.cliOutput).not.toContain('/with-type-error')
+    })
+
+    it('should exclude dynamic route paths with negation', async () => {
+      const buildResult = await next.build({
+        args: [
+          '--debug-build-paths',
+          'app/blog/**/page.tsx,!app/blog/[slug]/comments/**',
+        ],
+      })
+      expect(buildResult.exitCode).toBe(0)
+
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      expect(buildResult.cliOutput).toContain('/blog/[slug]')
+      expect(buildResult.cliOutput).not.toContain('/blog/[slug]/comments')
+    })
+
+    it('should support multiple negation patterns', async () => {
+      const buildResult = await next.build({
+        args: [
+          '--debug-build-paths',
+          'app/**/page.tsx,!app/with-type-error/**,!app/dashboard/**',
+        ],
+      })
+      expect(buildResult.exitCode).toBe(0)
+
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      expect(buildResult.cliOutput).toContain('○ /')
+      expect(buildResult.cliOutput).toContain('○ /about')
+      expect(buildResult.cliOutput).not.toContain('/with-type-error')
+      expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+    })
+
+    it('should build everything except excluded paths when only negation patterns are provided', async () => {
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', '!app/with-type-error/**'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      expect(buildResult.cliOutput).toContain('Route (pages)')
+      expect(buildResult.cliOutput).toContain('○ /')
+      expect(buildResult.cliOutput).toContain('○ /about')
+      expect(buildResult.cliOutput).toContain('○ /foo')
+      expect(buildResult.cliOutput).not.toContain('/with-type-error')
+    })
   })
 
   describe('typechecking with debug-build-paths', () => {
