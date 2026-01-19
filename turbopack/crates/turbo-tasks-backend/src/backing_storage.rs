@@ -84,12 +84,6 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         task_id: TaskId,
     ) -> Result<Option<Arc<CachedTaskType>>>;
 
-    // =========================================================================
-    // TaskStorage serialization methods
-    // These methods provide direct serialization to/from TaskStorage without
-    // the intermediate CachedDataItem representation.
-    // =========================================================================
-
     /// Lookup and decode fields directly into TaskStorage.
     /// # Safety
     ///
@@ -161,8 +155,8 @@ where
         I: Iterator<
                 Item = (
                     TaskId,
-                    Option<TurboBincodeBuffer>,
-                    Option<TurboBincodeBuffer>,
+                    Option<SmallVec<[u8; 16]>>,
+                    Option<SmallVec<[u8; 16]>>,
                 ),
             > + Send
             + Sync,
