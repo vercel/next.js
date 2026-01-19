@@ -64,6 +64,13 @@ export default function transformSource(
   buildInfo.rsc = {
     type: RSC_MODULE_TYPES.client,
   }
+  if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
+    const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
+    return (
+      `/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */\n` +
+      code
+    )
+  }
 
   return code
 }

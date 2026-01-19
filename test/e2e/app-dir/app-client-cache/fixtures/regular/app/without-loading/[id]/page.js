@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
-export default async function Page({ searchParams: { timeout } }) {
+export default async function Page({ searchParams }) {
+  const timeout = (await searchParams).timeout
   const randomNumber = await new Promise((resolve) => {
     setTimeout(
       () => {

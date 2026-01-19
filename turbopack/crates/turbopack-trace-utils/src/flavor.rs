@@ -1,23 +1,25 @@
 use postcard::ser_flavors::Flavor;
 
-pub struct BufFlavor {
-    pub buf: Vec<u8>,
+use crate::trace_writer::WriteGuard;
+
+pub struct WriteGuardFlavor<'l> {
+    pub guard: WriteGuard<'l>,
 }
 
-impl Flavor for BufFlavor {
-    type Output = Vec<u8>;
+impl Flavor for WriteGuardFlavor<'_> {
+    type Output = ();
 
     fn try_push(&mut self, data: u8) -> postcard::Result<()> {
-        self.buf.push(data);
+        self.guard.push(data);
         Ok(())
     }
 
     fn finalize(self) -> postcard::Result<Self::Output> {
-        Ok(self.buf)
+        Ok(())
     }
 
     fn try_extend(&mut self, data: &[u8]) -> postcard::Result<()> {
-        self.buf.extend_from_slice(data);
+        self.guard.extend(data);
         Ok(())
     }
 }

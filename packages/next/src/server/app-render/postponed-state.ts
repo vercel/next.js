@@ -1,5 +1,16 @@
-import type { FallbackRouteParams } from '../../client/components/fallback-params'
-import type { Params } from '../../client/components/params'
+import type {
+  OpaqueFallbackRouteParamEntries,
+  OpaqueFallbackRouteParams,
+} from '../../server/request/fallback-params'
+import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param'
+import type { Params } from '../request/params'
+import {
+  createPrerenderResumeDataCache,
+  createRenderResumeDataCache,
+  type PrerenderResumeDataCache,
+  type RenderResumeDataCache,
+} from '../resume-data-cache/resume-data-cache'
+import { stringifyResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 export enum DynamicState {
   /**
@@ -21,6 +32,11 @@ export type DynamicDataPostponedState = {
    * The type of dynamic state.
    */
   readonly type: DynamicState.DATA
+
+  /**
+   * The immutable resume data cache.
+   */
+  readonly renderResumeDataCache: RenderResumeDataCache
 }
 
 /**
@@ -35,84 +51,168 @@ export type DynamicHTMLPostponedState = {
   /**
    * The postponed data used by React.
    */
-  readonly data: object
+  readonly data: [
+    preludeState: DynamicHTMLPreludeState,
+    postponed: ReactPostponed,
+  ]
+
+  /**
+   * The immutable resume data cache.
+   */
+  readonly renderResumeDataCache: RenderResumeDataCache
 }
+
+export const enum DynamicHTMLPreludeState {
+  Empty = 0,
+  Full = 1,
+}
+
+type ReactPostponed = NonNullable<
+  import('react-dom/static').PrerenderResult['postponed']
+>
 
 export type PostponedState =
   | DynamicDataPostponedState
   | DynamicHTMLPostponedState
 
-export function getDynamicHTMLPostponedState(
-  data: object,
-  fallbackRouteParams: FallbackRouteParams | null
-): string {
+export async function getDynamicHTMLPostponedState(
+  postponed: ReactPostponed,
+  preludeState: DynamicHTMLPreludeState,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache,
+  isCacheComponentsEnabled: boolean
+): Promise<string> {
+  const data: DynamicHTMLPostponedState['data'] = [preludeState, postponed]
+  const dataString = JSON.stringify(data)
+
+  // If there are no fallback route params, we can just serialize the postponed
+  // state as is.
   if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
-    return JSON.stringify(data)
+    // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
+    return `${dataString.length}:${dataString}${await stringifyResumeDataCache(
+      createRenderResumeDataCache(resumeDataCache),
+      isCacheComponentsEnabled
+    )}`
   }
 
-  const replacements: Array<[string, string]> = Array.from(fallbackRouteParams)
+  const replacements: OpaqueFallbackRouteParamEntries = Array.from(
+    fallbackRouteParams.entries()
+  )
   const replacementsString = JSON.stringify(replacements)
 
-  // Serialized as `<length><replacements><data>`
-  return `${replacementsString.length}${replacementsString}${JSON.stringify(data)}`
+  // Serialized as `<replacements.length><replacements><data>`
+  const postponedString = `${replacementsString.length}${replacementsString}${dataString}`
+
+  // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
+  return `${postponedString.length}:${postponedString}${await stringifyResumeDataCache(resumeDataCache, isCacheComponentsEnabled)}`
 }
 
-export function getDynamicDataPostponedState(): string {
-  return 'null'
+export async function getDynamicDataPostponedState(
+  resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache,
+  isCacheComponentsEnabled: boolean
+): Promise<string> {
+  return `4:null${await stringifyResumeDataCache(createRenderResumeDataCache(resumeDataCache), isCacheComponentsEnabled)}`
 }
 
 export function parsePostponedState(
   state: string,
-  params: Params | undefined
+  interpolatedParams: Params,
+  maxPostponedStateSizeBytes: number | undefined
 ): PostponedState {
   try {
-    if (state === 'null') {
-      return { type: DynamicState.DATA }
+    const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
+    if (!postponedStringLengthMatch) {
+      throw new Error(`Invariant: invalid postponed state ${state}`)
     }
 
-    if (/^[0-9]/.test(state)) {
-      const match = state.match(/^([0-9]*)/)?.[1]
-      if (!match) {
-        throw new Error(`Invariant: invalid postponed state ${state}`)
+    const postponedStringLength = parseInt(postponedStringLengthMatch)
+
+    // We add a `:` to the end of the length as the first character of the
+    // postponed string is the length of the replacement entries.
+    const postponedString = state.slice(
+      postponedStringLengthMatch.length + 1,
+      postponedStringLengthMatch.length + postponedStringLength + 1
+    )
+
+    const renderResumeDataCache = createRenderResumeDataCache(
+      state.slice(
+        postponedStringLengthMatch.length + postponedStringLength + 1
+      ),
+      maxPostponedStateSizeBytes
+    )
+
+    try {
+      if (postponedString === 'null') {
+        return { type: DynamicState.DATA, renderResumeDataCache }
       }
 
-      // This is the length of the replacements entries.
-      const length = parseInt(match)
-      const replacements = JSON.parse(
-        state.slice(
-          match.length,
-          // We then go to the end of the string.
-          match.length + length
-        )
-      ) as ReadonlyArray<[string, string]>
+      if (/^[0-9]/.test(postponedString)) {
+        const match = postponedString.match(/^([0-9]*)/)?.[1]
+        if (!match) {
+          throw new Error(
+            `Invariant: invalid postponed state ${JSON.stringify(postponedString)}`
+          )
+        }
 
-      let postponed = state.slice(match.length + length)
-      for (const [key, searchValue] of replacements) {
-        const value = params?.[key] ?? ''
-        const replaceValue = Array.isArray(value) ? value.join('/') : value
-        postponed = postponed.replaceAll(searchValue, replaceValue)
+        // This is the length of the replacements entries.
+        const length = parseInt(match)
+        const replacements = JSON.parse(
+          postponedString.slice(
+            match.length,
+            // We then go to the end of the string.
+            match.length + length
+          )
+        ) as OpaqueFallbackRouteParamEntries
+
+        let postponed = postponedString.slice(match.length + length)
+        for (const [
+          segmentKey,
+          [searchValue, dynamicParamType],
+        ] of replacements) {
+          const {
+            treeSegment: [
+              ,
+              // This is the same value that'll be used in the postponed state
+              // as it's part of the tree data. That's why we use it as the
+              // replacement value.
+              value,
+            ],
+          } = getDynamicParam(
+            interpolatedParams,
+            segmentKey,
+            dynamicParamType,
+            null
+          )
+
+          postponed = postponed.replaceAll(searchValue, value)
+        }
+
+        return {
+          type: DynamicState.HTML,
+          data: JSON.parse(postponed),
+          renderResumeDataCache,
+        }
       }
 
       return {
         type: DynamicState.HTML,
-        data: JSON.parse(postponed),
+        data: JSON.parse(postponedString),
+        renderResumeDataCache,
       }
-    }
-
-    return {
-      type: DynamicState.HTML,
-      data: JSON.parse(state),
+    } catch (err) {
+      console.error('Failed to parse postponed state', err)
+      return { type: DynamicState.DATA, renderResumeDataCache }
     }
   } catch (err) {
     console.error('Failed to parse postponed state', err)
-    return { type: DynamicState.DATA }
+    return {
+      type: DynamicState.DATA,
+      renderResumeDataCache: createPrerenderResumeDataCache(),
+    }
   }
 }
 
-export function getPostponedFromState(state: PostponedState): any {
-  if (state.type === DynamicState.DATA) {
-    return null
-  }
-
-  return state.data
+export function getPostponedFromState(state: DynamicHTMLPostponedState) {
+  const [preludeState, postponed] = state.data
+  return { preludeState, postponed }
 }

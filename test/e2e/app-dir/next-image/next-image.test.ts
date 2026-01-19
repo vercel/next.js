@@ -16,9 +16,9 @@ describe('app dir - next-image', () => {
 
       const layout = $('#app-layout')
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(layout.attr('src')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=85"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=85"`
         )
       } else {
         expect(layout.attr('src')).toMatchInlineSnapshot(
@@ -26,9 +26,9 @@ describe('app dir - next-image', () => {
         )
       }
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(layout.attr('srcset')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=85 2x"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=85 2x"`
         )
       } else {
         expect(layout.attr('srcset')).toMatchInlineSnapshot(
@@ -38,9 +38,9 @@ describe('app dir - next-image', () => {
 
       const page = $('#app-page')
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(page.attr('src')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=90"`
         )
       } else {
         expect(page.attr('src')).toMatchInlineSnapshot(
@@ -48,9 +48,9 @@ describe('app dir - next-image', () => {
         )
       }
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(page.attr('srcset')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90 2x"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=90 2x"`
         )
       } else {
         expect(page.attr('srcset')).toMatchInlineSnapshot(
@@ -60,9 +60,9 @@ describe('app dir - next-image', () => {
 
       const comp = $('#app-comp')
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(comp.attr('src')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=80"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=80"`
         )
       } else {
         expect(comp.attr('src')).toMatchInlineSnapshot(
@@ -70,9 +70,9 @@ describe('app dir - next-image', () => {
         )
       }
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(comp.attr('srcset')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=80 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=80 2x"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=640&q=80 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=80 2x"`
         )
       } else {
         expect(comp.attr('srcset')).toMatchInlineSnapshot(
@@ -160,9 +160,9 @@ describe('app dir - next-image', () => {
 
       const layout = await browser.elementById('app-layout')
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(await layout.getAttribute('src')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=85"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=85"`
         )
       } else {
         expect(await layout.getAttribute('src')).toMatchInlineSnapshot(
@@ -170,9 +170,9 @@ describe('app dir - next-image', () => {
         )
       }
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(await layout.getAttribute('srcset')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=85 2x"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=85 2x"`
         )
       } else {
         expect(await layout.getAttribute('srcset')).toMatchInlineSnapshot(
@@ -182,9 +182,9 @@ describe('app dir - next-image', () => {
 
       const page = await browser.elementById('app-page')
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(await page.getAttribute('src')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=90"`
         )
       } else {
         expect(await page.getAttribute('src')).toMatchInlineSnapshot(
@@ -192,9 +192,9 @@ describe('app dir - next-image', () => {
         )
       }
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(await page.getAttribute('srcset')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90 2x"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=90 2x"`
         )
       } else {
         expect(await page.getAttribute('srcset')).toMatchInlineSnapshot(
@@ -204,9 +204,9 @@ describe('app dir - next-image', () => {
 
       const comp = await browser.elementById('app-comp')
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(await comp.getAttribute('src')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=80"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=80"`
         )
       } else {
         expect(await comp.getAttribute('src')).toMatchInlineSnapshot(
@@ -214,9 +214,9 @@ describe('app dir - next-image', () => {
         )
       }
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(await comp.getAttribute('srcset')).toMatchInlineSnapshot(
-          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=80 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=80 2x"`
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=640&q=80 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=80 2x"`
         )
       } else {
         expect(await comp.getAttribute('srcset')).toMatchInlineSnapshot(

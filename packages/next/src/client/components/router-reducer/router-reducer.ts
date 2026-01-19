@@ -3,7 +3,6 @@ import {
   ACTION_SERVER_PATCH,
   ACTION_RESTORE,
   ACTION_REFRESH,
-  ACTION_PREFETCH,
   ACTION_HMR_REFRESH,
   ACTION_SERVER_ACTION,
 } from './router-reducer-types'
@@ -16,7 +15,6 @@ import { navigateReducer } from './reducers/navigate-reducer'
 import { serverPatchReducer } from './reducers/server-patch-reducer'
 import { restoreReducer } from './reducers/restore-reducer'
 import { refreshReducer } from './reducers/refresh-reducer'
-import { prefetchReducer } from './reducers/prefetch-reducer'
 import { hmrRefreshReducer } from './reducers/hmr-refresh-reducer'
 import { serverActionReducer } from './reducers/server-action-reducer'
 
@@ -38,13 +36,10 @@ function clientReducer(
       return restoreReducer(state, action)
     }
     case ACTION_REFRESH: {
-      return refreshReducer(state, action)
+      return refreshReducer(state)
     }
     case ACTION_HMR_REFRESH: {
-      return hmrRefreshReducer(state, action)
-    }
-    case ACTION_PREFETCH: {
-      return prefetchReducer(state, action)
+      return hmrRefreshReducer(state)
     }
     case ACTION_SERVER_ACTION: {
       return serverActionReducer(state, action)

@@ -1,28 +1,28 @@
 use std::{
     fmt::{Debug, Display},
     future::Future,
-    hash::Hash,
     pin::Pin,
-    sync::Arc,
     task::Poll,
 };
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    CollectiblesSource, ReadCellOptions, ReadConsistency, ReadOutputOptions, ResolvedVc, TaskId,
+    TaskPersistence, TraitTypeId, ValueType, ValueTypeId, VcValueTrait,
     backend::{CellContent, TypedCellContent},
     event::EventListener,
-    id::{ExecutionId, LocalCellId, LocalTaskId},
+    id::{ExecutionId, LocalTaskId},
     manager::{
-        assert_execution_id, current_task, read_local_cell, read_local_output, read_task_cell,
-        read_task_output, TurboTasksApi,
+        ReadCellTracking, ReadTracking, read_local_output, read_task_cell, read_task_output,
+        with_turbo_tasks,
     },
     registry::{self, get_value_type},
-    turbo_tasks, CollectiblesSource, ReadConsistency, TaskId, TraitTypeId, ValueType, ValueTypeId,
-    Vc, VcValueTrait,
+    turbo_tasks,
 };
 
 #[derive(Error, Debug)]
@@ -37,7 +37,7 @@ pub enum ResolveTypeError {
     ReadError { source: anyhow::Error },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct CellId {
     pub type_id: ValueTypeId,
     pub index: u32,
@@ -54,68 +54,111 @@ impl Display for CellId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// A type-erased representation of [`Vc`][crate::Vc].
+///
+/// Type erasure reduces the [monomorphization] (and therefore binary size and compilation time)
+/// required to support [`Vc`][crate::Vc].
+///
+/// This type is heavily used within the [`Backend`][crate::backend::Backend] trait, but should
+/// otherwise be treated as an internal implementation detail of `turbo-tasks`.
+///
+/// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum RawVc {
+    /// The synchronous return value of a task (after argument resolution). This is the
+    /// representation used by [`OperationVc`][crate::OperationVc].
     TaskOutput(TaskId),
+    /// A pointer to a specific [`Vc::cell`][crate::Vc::cell] or `.cell()` call within a task. This
+    /// is the representation used by [`ResolvedVc`].
+    ///
+    /// [`CellId`] contains the [`ValueTypeId`], which can be useful for efficient downcasting.
     TaskCell(TaskId, CellId),
-    LocalOutput(TaskId, LocalTaskId),
-    #[serde(skip)]
-    LocalCell(ExecutionId, LocalCellId),
+    /// The synchronous return value of a local task. This is created when a function is called
+    /// with unresolved arguments or more explicitly with
+    /// [`#[turbo_tasks::function(local)]`][crate::function].
+    ///
+    /// Local outputs are only valid within the context of their parent "non-local" task. Turbo
+    /// Task's APIs are designed to prevent escapes of local [`Vc`]s, but [`ExecutionId`] is used
+    /// for a fallback runtime assertion.
+    LocalOutput(ExecutionId, LocalTaskId, TaskPersistence),
+}
+
+impl Debug for RawVc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RawVc::TaskOutput(task_id) => f
+                .debug_tuple("RawVc::TaskOutput")
+                .field(&**task_id)
+                .finish(),
+            RawVc::TaskCell(task_id, cell_id) => f
+                .debug_tuple("RawVc::TaskCell")
+                .field(&**task_id)
+                .field(&cell_id.to_string())
+                .finish(),
+            RawVc::LocalOutput(execution_id, local_task_id, task_persistence) => f
+                .debug_tuple("RawVc::LocalOutput")
+                .field(&**execution_id)
+                .field(&**local_task_id)
+                .field(task_persistence)
+                .finish(),
+        }
+    }
+}
+
+impl Display for RawVc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RawVc::TaskOutput(task_id) => write!(f, "output of task {}", **task_id),
+            RawVc::TaskCell(task_id, cell_id) => {
+                write!(f, "{} of task {}", cell_id, **task_id)
+            }
+            RawVc::LocalOutput(execution_id, local_task_id, task_persistence) => write!(
+                f,
+                "output of local task {} ({}, {})",
+                **local_task_id, **execution_id, task_persistence
+            ),
+        }
+    }
 }
 
 impl RawVc {
-    pub(crate) fn is_resolved(&self) -> bool {
+    pub fn is_resolved(&self) -> bool {
         match self {
-            RawVc::TaskOutput(_) => false,
-            RawVc::TaskCell(_, _) => true,
-            RawVc::LocalOutput(_, _) => false,
-            RawVc::LocalCell(_, _) => false,
+            RawVc::TaskOutput(..) => false,
+            RawVc::TaskCell(..) => true,
+            RawVc::LocalOutput(..) => false,
         }
     }
 
-    pub(crate) fn is_local(&self) -> bool {
+    pub fn is_local(&self) -> bool {
         match self {
-            RawVc::TaskOutput(_) => false,
-            RawVc::TaskCell(_, _) => false,
-            RawVc::LocalOutput(_, _) => true,
-            RawVc::LocalCell(_, _) => true,
+            RawVc::TaskOutput(..) => false,
+            RawVc::TaskCell(..) => false,
+            RawVc::LocalOutput(..) => true,
         }
     }
 
+    /// Returns `true` if the task this `RawVc` reads from cannot be serialized and will not be
+    /// stored in the filesystem cache.
+    ///
+    /// See [`TaskPersistence`] for more details.
     pub fn is_transient(&self) -> bool {
         match self {
-            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) => task.is_transient(),
-            RawVc::LocalOutput(_, _) | RawVc::LocalCell(_, _) => true,
+            RawVc::TaskOutput(task) | RawVc::TaskCell(task, ..) => task.is_transient(),
+            RawVc::LocalOutput(_, _, persistence) => *persistence == TaskPersistence::Transient,
         }
     }
 
-    pub(crate) fn into_read(self) -> ReadRawVcFuture {
+    pub(crate) fn into_read(self, is_serializable_cell_content: bool) -> ReadRawVcFuture {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
-        ReadRawVcFuture::new(self)
+        ReadRawVcFuture::new(self, Some(is_serializable_cell_content))
     }
 
-    pub(crate) fn into_strongly_consistent_read(self) -> ReadRawVcFuture {
-        ReadRawVcFuture::new_strongly_consistent(self)
-    }
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    pub(crate) fn into_read_untracked(self) -> ReadRawVcFuture {
-        ReadRawVcFuture::new_untracked(self)
-    }
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    pub(crate) fn into_read_untracked_with_turbo_tasks(
-        self,
-        turbo_tasks: &dyn TurboTasksApi,
-    ) -> ReadRawVcFuture {
-        ReadRawVcFuture::new_untracked_with_turbo_tasks(self, turbo_tasks)
-    }
-
-    pub(crate) fn into_strongly_consistent_read_untracked(self) -> ReadRawVcFuture {
-        ReadRawVcFuture::new_strongly_consistent_untracked(self)
+    pub(crate) fn into_read_with_unknown_is_serializable_cell_content(self) -> ReadRawVcFuture {
+        // returns a custom future to have something concrete and sized
+        // this avoids boxing in IntoFuture
+        ReadRawVcFuture::new(self, None)
     }
 
     pub(crate) async fn resolve_trait(
@@ -149,47 +192,42 @@ impl RawVc {
         conditional: impl FnOnce(ValueTypeId) -> (bool, Option<&'static ValueType>),
     ) -> Result<Option<RawVc>, ResolveTypeError> {
         let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
         let mut current = self;
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    current = read_task_output(&*tt, task, ReadConsistency::Eventual)
+                    current = read_task_output(&*tt, task, ReadOutputOptions::default())
                         .await
                         .map_err(|source| ResolveTypeError::TaskError { source })?;
                 }
                 RawVc::TaskCell(task, index) => {
-                    let content = read_task_cell(&*tt, task, index)
-                        .await
-                        .map_err(|source| ResolveTypeError::ReadError { source })?;
-                    if let TypedCellContent(value_type, CellContent(Some(_))) = content {
-                        return Ok(if conditional(value_type).0 {
-                            Some(RawVc::TaskCell(task, index))
-                        } else {
-                            None
-                        });
+                    let (ok, value_type) = conditional(index.type_id);
+                    if !ok {
+                        return Ok(None);
+                    }
+                    let value_type =
+                        value_type.unwrap_or_else(|| registry::get_value_type(index.type_id));
+                    let content = read_task_cell(
+                        &*tt,
+                        task,
+                        index,
+                        ReadCellOptions {
+                            is_serializable_cell_content: value_type.bincode.is_some(),
+                            ..Default::default()
+                        },
+                    )
+                    .await
+                    .map_err(|source| ResolveTypeError::ReadError { source })?;
+                    if let TypedCellContent(_, CellContent(Some(_))) = content {
+                        return Ok(Some(RawVc::TaskCell(task, index)));
                     } else {
                         return Err(ResolveTypeError::NoContent);
                     }
                 }
-                RawVc::LocalOutput(task_id, local_cell_id) => {
-                    current =
-                        read_local_output(&*tt, task_id, local_cell_id, ReadConsistency::Eventual)
-                            .await
-                            .map_err(|source| ResolveTypeError::TaskError { source })?;
-                }
-                RawVc::LocalCell(execution_id, local_cell_id) => {
-                    let shared_reference = read_local_cell(execution_id, local_cell_id);
-                    return Ok(
-                        if let (true, value_type) = conditional(shared_reference.0) {
-                            // re-use the `ValueType` lookup from `conditional`, if it exists
-                            let value_type =
-                                value_type.unwrap_or_else(|| get_value_type(shared_reference.0));
-                            Some((value_type.raw_cell)(shared_reference))
-                        } else {
-                            None
-                        },
-                    );
+                RawVc::LocalOutput(execution_id, local_task_id, ..) => {
+                    current = read_local_output(&*tt, execution_id, local_task_id)
+                        .await
+                        .map_err(|source| ResolveTypeError::TaskError { source })?;
                 }
             }
         }
@@ -197,143 +235,197 @@ impl RawVc {
 
     /// See [`crate::Vc::resolve`].
     pub(crate) async fn resolve(self) -> Result<RawVc> {
-        self.resolve_inner(ReadConsistency::Eventual).await
+        self.resolve_inner(ReadOutputOptions {
+            consistency: ReadConsistency::Eventual,
+            ..Default::default()
+        })
+        .await
     }
 
     /// See [`crate::Vc::resolve_strongly_consistent`].
     pub(crate) async fn resolve_strongly_consistent(self) -> Result<RawVc> {
-        self.resolve_inner(ReadConsistency::Strong).await
+        self.resolve_inner(ReadOutputOptions {
+            consistency: ReadConsistency::Strong,
+            ..Default::default()
+        })
+        .await
     }
 
-    async fn resolve_inner(self, consistency: ReadConsistency) -> Result<RawVc> {
+    async fn resolve_inner(self, mut options: ReadOutputOptions) -> Result<RawVc> {
         let tt = turbo_tasks();
         let mut current = self;
-        let mut notified = false;
-        let mut lazily_notify = || {
-            if !notified {
-                tt.notify_scheduled_tasks();
-                notified = true;
-            }
-        };
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    lazily_notify();
-                    current = read_task_output(&*tt, task, consistency).await?;
+                    current = read_task_output(&*tt, task, options).await?;
+                    // We no longer need to read strongly consistent, as any Vc returned
+                    // from the first task will be inside of the scope of the first
+                    // task. So it's already strongly consistent.
+                    options.consistency = ReadConsistency::Eventual;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
-                RawVc::LocalOutput(task_id, local_cell_id) => {
-                    lazily_notify();
-                    current = read_local_output(&*tt, task_id, local_cell_id, consistency).await?;
-                }
-                RawVc::LocalCell(execution_id, local_cell_id) => {
-                    let shared_reference = read_local_cell(execution_id, local_cell_id);
-                    let value_type = get_value_type(shared_reference.0);
-                    return Ok((value_type.raw_cell)(shared_reference));
+                RawVc::LocalOutput(execution_id, local_task_id, ..) => {
+                    debug_assert_eq!(options.consistency, ReadConsistency::Eventual);
+                    current = read_local_output(&*tt, execution_id, local_task_id).await?;
                 }
             }
         }
     }
 
-    pub(crate) fn connect(&self) {
-        let tt = turbo_tasks();
-        tt.connect_task(self.get_task_id());
+    /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
+    /// resolution, because the returned `RawVc` can be a `TaskOutput`.
+    pub(crate) async fn to_non_local(self) -> Result<RawVc> {
+        Ok(match self {
+            RawVc::LocalOutput(execution_id, local_task_id, ..) => {
+                let tt = turbo_tasks();
+                let local_output = read_local_output(&*tt, execution_id, local_task_id).await?;
+                debug_assert!(
+                    !matches!(local_output, RawVc::LocalOutput(_, _, _)),
+                    "a LocalOutput cannot point at other LocalOutputs"
+                );
+                local_output
+            }
+            non_local => non_local,
+        })
     }
 
-    pub fn get_task_id(&self) -> TaskId {
+    pub(crate) fn connect(&self) {
+        let RawVc::TaskOutput(task_id) = self else {
+            panic!("RawVc::connect() must only be called on a RawVc::TaskOutput");
+        };
+        let tt = turbo_tasks();
+        tt.connect_task(*task_id);
+    }
+
+    pub fn try_get_task_id(&self) -> Option<TaskId> {
         match self {
-            RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) | RawVc::LocalOutput(t, _) => *t,
-            RawVc::LocalCell(execution_id, _) => {
-                assert_execution_id(*execution_id);
-                current_task("RawVc::get_task_id")
+            RawVc::TaskOutput(t) | RawVc::TaskCell(t, ..) => Some(*t),
+            RawVc::LocalOutput(..) => None,
+        }
+    }
+
+    pub fn try_get_type_id(&self) -> Option<ValueTypeId> {
+        match self {
+            RawVc::TaskCell(_, CellId { type_id, .. }) => Some(*type_id),
+            RawVc::TaskOutput(..) | RawVc::LocalOutput(..) => None,
+        }
+    }
+
+    /// For a cell that's already resolved, synchronously check if it implements a trait using the
+    /// type information in `RawVc::TaskCell` (we don't actually need to read the cell!).
+    pub(crate) fn resolved_has_trait(&self, trait_id: TraitTypeId) -> bool {
+        match self {
+            RawVc::TaskCell(_task_id, cell_id) => {
+                get_value_type(cell_id.type_id).has_trait(&trait_id)
             }
+            _ => unreachable!("resolved_has_trait must be called with a RawVc::TaskCell"),
+        }
+    }
+
+    /// For a cell that's already resolved, synchronously check if it is a given type using the type
+    /// information in `RawVc::TaskCell` (we don't actually need to read the cell!).
+    pub(crate) fn resolved_is_type(&self, type_id: ValueTypeId) -> bool {
+        match self {
+            RawVc::TaskCell(_task_id, cell_id) => cell_id.type_id == type_id,
+            _ => unreachable!("resolved_is_type must be called with a RawVc::TaskCell"),
         }
     }
 }
 
+/// This implementation of `CollectiblesSource` assumes that `self` is a `RawVc::TaskOutput`.
 impl CollectiblesSource for RawVc {
-    fn peek_collectibles<T: VcValueTrait + Send>(self) -> AutoSet<Vc<T>> {
+    fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
+        let RawVc::TaskOutput(task_id) = self else {
+            panic!(
+                "<RawVc as CollectiblesSource>::peek_collectibles() must only be called on a \
+                 RawVc::TaskOutput"
+            );
+        };
         let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
-        let map = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
+        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
         map.into_iter()
-            .filter_map(|(raw, count)| (count > 0).then_some(raw.into()))
+            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
             .collect()
     }
 
-    fn take_collectibles<T: VcValueTrait + Send>(self) -> AutoSet<Vc<T>> {
+    fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
+        let RawVc::TaskOutput(task_id) = self else {
+            panic!(
+                "<RawVc as CollectiblesSource>::take_collectibles() must only be called on a \
+                 RawVc::TaskOutput"
+            );
+        };
         let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
-        let map = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
+        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
         tt.unemit_collectibles(T::get_trait_type_id(), &map);
         map.into_iter()
-            .filter_map(|(raw, count)| (count > 0).then_some(raw.into()))
+            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
             .collect()
+    }
+
+    fn drop_collectibles<T: VcValueTrait + ?Sized>(self) {
+        let RawVc::TaskOutput(task_id) = self else {
+            panic!(
+                "<RawVc as CollectiblesSource>::drop_collectibles() must only be called on a \
+                 RawVc::TaskOutput"
+            );
+        };
+        let tt = turbo_tasks();
+        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
+        tt.unemit_collectibles(T::get_trait_type_id(), &map);
     }
 }
 
 pub struct ReadRawVcFuture {
-    turbo_tasks: Arc<dyn TurboTasksApi>,
-    consistency: ReadConsistency,
     current: RawVc,
-    untracked: bool,
+    read_output_options: ReadOutputOptions,
+    read_cell_options: ReadCellOptions,
+    is_serializable_cell_content_unknown: bool,
     listener: Option<EventListener>,
 }
 
 impl ReadRawVcFuture {
-    pub(crate) fn new(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
+    pub(crate) fn new(vc: RawVc, is_serializable_cell_content: Option<bool>) -> Self {
         ReadRawVcFuture {
-            turbo_tasks: tt,
-            consistency: ReadConsistency::Eventual,
             current: vc,
-            untracked: false,
+            read_output_options: ReadOutputOptions::default(),
+            read_cell_options: ReadCellOptions {
+                is_serializable_cell_content: is_serializable_cell_content.unwrap_or(false),
+                ..Default::default()
+            },
+            is_serializable_cell_content_unknown: is_serializable_cell_content.is_none(),
             listener: None,
         }
     }
 
-    fn new_untracked_with_turbo_tasks(vc: RawVc, turbo_tasks: &dyn TurboTasksApi) -> Self {
-        let tt = turbo_tasks.pin();
-        ReadRawVcFuture {
-            turbo_tasks: tt,
-            consistency: ReadConsistency::Eventual,
-            current: vc,
-            untracked: true,
-            listener: None,
-        }
+    /// Make reads strongly consistent.
+    pub fn strongly_consistent(mut self) -> Self {
+        self.read_output_options.consistency = ReadConsistency::Strong;
+        self
     }
 
-    fn new_untracked(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
-        ReadRawVcFuture {
-            turbo_tasks: tt,
-            consistency: ReadConsistency::Eventual,
-            current: vc,
-            untracked: true,
-            listener: None,
-        }
+    /// Track the value as a dependency with an key.
+    pub fn track_with_key(mut self, key: u64) -> Self {
+        self.read_output_options.tracking = ReadTracking::Tracked;
+        self.read_cell_options.tracking = ReadCellTracking::Tracked { key: Some(key) };
+        self
     }
 
-    fn new_strongly_consistent(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
-        ReadRawVcFuture {
-            turbo_tasks: tt,
-            consistency: ReadConsistency::Strong,
-            current: vc,
-            untracked: false,
-            listener: None,
-        }
+    /// This will not track the value as dependency, but will still track the error as dependency,
+    /// if there is an error.
+    ///
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    pub fn untracked(mut self) -> Self {
+        self.read_output_options.tracking = ReadTracking::TrackOnlyError;
+        self.read_cell_options.tracking = ReadCellTracking::TrackOnlyError;
+        self
     }
 
-    fn new_strongly_consistent_untracked(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
-        ReadRawVcFuture {
-            turbo_tasks: tt,
-            consistency: ReadConsistency::Strong,
-            current: vc,
-            untracked: true,
-            listener: None,
-        }
+    /// Hint that this is the final read of the cell content.
+    pub fn final_read_hint(mut self) -> Self {
+        self.read_cell_options.final_read_hint = true;
+        self
     }
 }
 
@@ -341,96 +433,78 @@ impl Future for ReadRawVcFuture {
     type Output = Result<TypedCellContent>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        self.turbo_tasks.notify_scheduled_tasks();
-        // SAFETY: we are not moving this
-        let this = unsafe { self.get_unchecked_mut() };
-        'outer: loop {
-            if let Some(listener) = &mut this.listener {
+        with_turbo_tasks(|tt| {
+            // SAFETY: we are not moving this
+            let this = unsafe { self.get_unchecked_mut() };
+            'outer: loop {
+                if let Some(listener) = &mut this.listener {
+                    // SAFETY: listener is from previous pinned this
+                    let listener = unsafe { Pin::new_unchecked(listener) };
+                    if listener.poll(cx).is_pending() {
+                        return Poll::Pending;
+                    }
+                    this.listener = None;
+                }
+                let mut listener = match this.current {
+                    RawVc::TaskOutput(task) => {
+                        let read_result = tt.try_read_task_output(task, this.read_output_options);
+                        match read_result {
+                            Ok(Ok(vc)) => {
+                                // We no longer need to read strongly consistent, as any Vc returned
+                                // from the first task will be inside of the scope of the first
+                                // task. So it's already strongly consistent.
+                                this.read_output_options.consistency = ReadConsistency::Eventual;
+                                this.current = vc;
+                                continue 'outer;
+                            }
+                            Ok(Err(listener)) => listener,
+                            Err(err) => return Poll::Ready(Err(err)),
+                        }
+                    }
+                    RawVc::TaskCell(task, index) => {
+                        if this.is_serializable_cell_content_unknown {
+                            let value_type = registry::get_value_type(index.type_id);
+                            this.read_cell_options.is_serializable_cell_content =
+                                value_type.bincode.is_some();
+                        }
+                        let read_result =
+                            tt.try_read_task_cell(task, index, this.read_cell_options);
+                        match read_result {
+                            Ok(Ok(content)) => {
+                                // SAFETY: Constructor ensures that T and U are binary identical
+                                return Poll::Ready(Ok(content));
+                            }
+                            Ok(Err(listener)) => listener,
+                            Err(err) => return Poll::Ready(Err(err)),
+                        }
+                    }
+                    RawVc::LocalOutput(execution_id, local_output_id, ..) => {
+                        debug_assert_eq!(
+                            this.read_output_options.consistency,
+                            ReadConsistency::Eventual
+                        );
+                        let read_result = tt.try_read_local_output(execution_id, local_output_id);
+                        match read_result {
+                            Ok(Ok(vc)) => {
+                                this.current = vc;
+                                continue 'outer;
+                            }
+                            Ok(Err(listener)) => listener,
+                            Err(err) => return Poll::Ready(Err(err)),
+                        }
+                    }
+                };
                 // SAFETY: listener is from previous pinned this
-                let listener = unsafe { Pin::new_unchecked(listener) };
-                if listener.poll(cx).is_pending() {
-                    return Poll::Pending;
-                }
-                this.listener = None;
+                match unsafe { Pin::new_unchecked(&mut listener) }.poll(cx) {
+                    Poll::Ready(_) => continue,
+                    Poll::Pending => {
+                        this.listener = Some(listener);
+                        return Poll::Pending;
+                    }
+                };
             }
-            let mut listener = match this.current {
-                RawVc::TaskOutput(task) => {
-                    let read_result = if this.untracked {
-                        this.turbo_tasks
-                            .try_read_task_output_untracked(task, this.consistency)
-                    } else {
-                        this.turbo_tasks
-                            .try_read_task_output(task, this.consistency)
-                    };
-                    match read_result {
-                        Ok(Ok(vc)) => {
-                            // We no longer need to read strongly consistent, as any Vc returned
-                            // from the first task will be inside of the scope of the first task. So
-                            // it's already strongly consistent.
-                            this.consistency = ReadConsistency::Eventual;
-                            this.current = vc;
-                            continue 'outer;
-                        }
-                        Ok(Err(listener)) => listener,
-                        Err(err) => return Poll::Ready(Err(err)),
-                    }
-                }
-                RawVc::TaskCell(task, index) => {
-                    let read_result = if this.untracked {
-                        this.turbo_tasks.try_read_task_cell_untracked(task, index)
-                    } else {
-                        this.turbo_tasks.try_read_task_cell(task, index)
-                    };
-                    match read_result {
-                        Ok(Ok(content)) => {
-                            // SAFETY: Constructor ensures that T and U are binary identical
-                            return Poll::Ready(Ok(content));
-                        }
-                        Ok(Err(listener)) => listener,
-                        Err(err) => return Poll::Ready(Err(err)),
-                    }
-                }
-                RawVc::LocalOutput(task_id, local_output_id) => {
-                    let read_result = if this.untracked {
-                        this.turbo_tasks.try_read_local_output_untracked(
-                            task_id,
-                            local_output_id,
-                            this.consistency,
-                        )
-                    } else {
-                        this.turbo_tasks.try_read_local_output(
-                            task_id,
-                            local_output_id,
-                            this.consistency,
-                        )
-                    };
-                    match read_result {
-                        Ok(Ok(vc)) => {
-                            this.consistency = ReadConsistency::Eventual;
-                            this.current = vc;
-                            continue 'outer;
-                        }
-                        Ok(Err(listener)) => listener,
-                        Err(err) => return Poll::Ready(Err(err)),
-                    }
-                }
-                RawVc::LocalCell(execution_id, local_cell_id) => {
-                    return Poll::Ready(Ok(read_local_cell(execution_id, local_cell_id).into()));
-                }
-            };
-            // SAFETY: listener is from previous pinned this
-            match unsafe { Pin::new_unchecked(&mut listener) }.poll(cx) {
-                Poll::Ready(_) => continue,
-                Poll::Pending => {
-                    this.listener = Some(listener);
-                    return Poll::Pending;
-                }
-            };
-        }
+        })
     }
 }
-
-unsafe impl Send for ReadRawVcFuture {}
-unsafe impl Sync for ReadRawVcFuture {}
 
 impl Unpin for ReadRawVcFuture {}

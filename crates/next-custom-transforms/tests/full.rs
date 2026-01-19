@@ -6,8 +6,8 @@ use swc_core::{
     base::Compiler,
     common::{comments::SingleThreadedComments, Mark},
     ecma::{
+        ast::noop_pass,
         parser::{Syntax, TsSyntax},
-        transforms::base::pass::noop,
     },
 };
 use testing::{NormalizedOutput, Tester};
@@ -32,6 +32,7 @@ fn test(input: &Path, minify: bool) {
             let fm = cm.load_file(input).expect("failed to load file");
 
             let options = TransformOptions {
+                lint_codemod_comments: true,
                 swc: swc_core::base::config::Options {
                     swcrc: true,
                     output_path: Some(output.clone()),
@@ -57,7 +58,6 @@ fn test(input: &Path, minify: bool) {
                     ..Default::default()
                 },
                 disable_next_ssg: false,
-                disable_page_config: false,
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,
@@ -80,6 +80,8 @@ fn test(input: &Path, minify: bool) {
                 optimize_server_react: None,
                 prefer_esm: false,
                 debug_function_name: false,
+                css_env: None,
+                track_dynamic_imports: false,
             };
 
             let unresolved_mark = Mark::new();
@@ -101,9 +103,10 @@ fn test(input: &Path, minify: bool) {
                         comments.clone(),
                         Default::default(),
                         unresolved_mark,
+                        Default::default(),
                     )
                 },
-                |_| noop(),
+                |_| noop_pass(),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)

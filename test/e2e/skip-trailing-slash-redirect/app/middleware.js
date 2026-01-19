@@ -35,11 +35,11 @@ export default function handler(req) {
     }
 
     console.log(
-      `rewriting to https://middleware-external-rewrite-target-epsp8idgo-uncurated-tests.vercel.app${pathname}`
+      `rewriting to https://middleware-external-rewrite-target.vercel.app${pathname}`
     )
 
     return NextResponse.rewrite(
-      `https://middleware-external-rewrite-target-epsp8idgo-uncurated-tests.vercel.app${pathname}`
+      `https://middleware-external-rewrite-target.vercel.app${pathname}`
     )
   }
 

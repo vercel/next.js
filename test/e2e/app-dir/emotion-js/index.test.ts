@@ -26,5 +26,15 @@ describe('app dir - emotion-js', () => {
         ),
       'rgb(0, 0, 255)'
     )
+
+    const el2 = browser.elementByCss('p')
+    expect(await el2.text()).toBe('Red')
+    await check(
+      async () =>
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('p')).color`
+        ),
+      'rgb(255, 0, 0)'
+    )
   })
 })

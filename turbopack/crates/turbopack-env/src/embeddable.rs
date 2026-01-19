@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbopack_ecmascript::utils::StringifyJs;
 
@@ -7,14 +8,14 @@ use turbopack_ecmascript::utils::StringifyJs;
 /// output.
 #[turbo_tasks::value]
 pub struct EmbeddableProcessEnv {
-    prior: Vc<Box<dyn ProcessEnv>>,
+    prior: ResolvedVc<Box<dyn ProcessEnv>>,
 }
 
 #[turbo_tasks::value_impl]
 impl EmbeddableProcessEnv {
     #[turbo_tasks::function]
-    pub fn new(prior: Vc<Box<dyn ProcessEnv>>) -> Vc<Self> {
-        EmbeddableProcessEnv { prior }.cell()
+    pub fn new(prior: ResolvedVc<Box<dyn ProcessEnv>>) -> Result<Vc<Self>> {
+        Ok(EmbeddableProcessEnv { prior }.cell())
     }
 }
 

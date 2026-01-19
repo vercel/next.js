@@ -21,6 +21,11 @@ import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
 import { intervalsManager, timeoutsManager } from './resource-managers'
+import { createLocalRequestContext } from '../../after/builtin-request-context'
+import {
+  patchErrorInspectEdgeLite,
+  patchErrorInspectNodeJS,
+} from '../../patch-error-inspect'
 
 interface ModuleContext {
   runtime: EdgeRuntime
@@ -28,17 +33,19 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware').getServerError
+let getServerError: typeof import('../../dev/node-stack-frames').getServerError
 let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
-  const middleware = require('../../../client/components/react-dev-overlay/server/middleware')
-  getServerError = middleware.getServerError
-  decorateServerError =
-    require('../../../shared/lib/error-source').decorateServerError
+  getServerError = (
+    require('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames')
+  ).getServerError
+  decorateServerError = (
+    require('../../../shared/lib/error-source') as typeof import('../../../shared/lib/error-source')
+  ).decorateServerError
 } else {
-  getServerError = (error: Error, _: string) => error
-  decorateServerError = (_: Error, __: string) => {}
+  getServerError = (error) => error
+  decorateServerError = () => {}
 }
 
 /**
@@ -98,6 +105,7 @@ async function loadWasm(
   await Promise.all(
     wasm.map(async (binding) => {
       const module = await WebAssembly.compile(
+        // @ts-expect-error - Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.
         await fs.readFile(binding.filePath)
       )
       modules[binding.name] = module
@@ -110,12 +118,11 @@ async function loadWasm(
 function buildEnvironmentVariablesFrom(
   injectedEnvironments: Record<string, string>
 ): Record<string, string | undefined> {
-  const pairs = Object.keys(process.env).map((key) => [key, process.env[key]])
-  const env = Object.fromEntries(pairs)
-  for (const key of Object.keys(injectedEnvironments)) {
-    env[key] = injectedEnvironments[key]
-  }
-  env.NEXT_RUNTIME = 'edge'
+  let env = Object.fromEntries([
+    ...Object.entries(process.env),
+    ...Object.entries(injectedEnvironments),
+    ['NEXT_RUNTIME', 'edge'],
+  ])
   return env
 }
 
@@ -243,6 +250,8 @@ export const requestStore = new AsyncLocalStorage<{
   headers: Headers
 }>()
 
+export const edgeSandboxNextRequestContext = createLocalRequestContext()
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -354,23 +363,6 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
         init.headers = new Headers(init.headers ?? {})
 
-        // Forward subrequest header from incoming request to outgoing request
-        const store = requestStore.getStore()
-        if (
-          store?.headers.has('x-middleware-subrequest') &&
-          !init.headers.has('x-middleware-subrequest')
-        ) {
-          init.headers.set(
-            'x-middleware-subrequest',
-            store.headers.get('x-middleware-subrequest') ?? ''
-          )
-        }
-
-        const prevs =
-          init.headers.get(`x-middleware-subrequest`)?.split(':') || []
-        const value = prevs.concat(options.moduleName).join(':')
-        init.headers.set('x-middleware-subrequest', value)
-
         if (!init.headers.has('user-agent')) {
           init.headers.set(`user-agent`, `Next.js Middleware`)
         }
@@ -414,8 +406,14 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
             typeof input !== 'string' && 'url' in input
               ? input.url
               : String(input)
-          validateURL(url)
-          super(url, init)
+
+          if (typeof input === 'string') {
+            validateURL(url)
+            super(input, init)
+          } else {
+            super(input, init)
+            validateURL(url)
+          }
           this.next = init?.next
         }
       }
@@ -452,6 +450,16 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       context.clearTimeout = (timeout: number) =>
         timeoutsManager.remove(timeout)
 
+      // Duplicated from packages/next/src/server/after/builtin-request-context.ts
+      // because we need to use the sandboxed `Symbol.for`, not the one from the outside
+      const NEXT_REQUEST_CONTEXT_SYMBOL = context.Symbol.for(
+        '@next/request-context'
+      )
+      Object.defineProperty(context, NEXT_REQUEST_CONTEXT_SYMBOL, {
+        enumerable: false,
+        value: edgeSandboxNextRequestContext,
+      })
+
       return context
     },
   })
@@ -463,6 +471,11 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
     'unhandledrejection',
     decorateUnhandledRejection
   )
+
+  patchErrorInspectEdgeLite(runtime.context.Error)
+  // An Error from within the Edge Runtime could also bubble up into the Node.js process.
+  // For example, uncaught errors are handled in the Node.js runtime.
+  patchErrorInspectNodeJS(runtime.context.Error)
 
   return {
     runtime,

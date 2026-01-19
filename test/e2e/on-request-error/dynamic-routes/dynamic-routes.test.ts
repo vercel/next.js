@@ -23,6 +23,7 @@ describe('on-request-error - dynamic-routes', () => {
       expect(recordLogLines).toEqual(
         expect.arrayContaining([expect.stringContaining(errorMessage)])
       )
+      // TODO: remove custom duration in case we increase the default.
     }, 5000)
 
     const json = await getOutputLogJson(next, outputLogPath)

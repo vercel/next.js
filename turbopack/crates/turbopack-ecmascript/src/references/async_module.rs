@@ -1,26 +1,31 @@
 use anyhow::Result;
-use indexmap::IndexSet;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{ArrayLit, ArrayPat, Expr, Ident, Program},
+    ecma::ast::{ArrayLit, ArrayPat, Expr, Ident},
     quote,
 };
-use turbo_tasks::{trace::TraceRawVcs, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{
+    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    trace::TraceRawVcs,
+};
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-    },
+    chunk::{AsyncModuleInfo, ChunkableModuleReference, ChunkingContext, ChunkingType},
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
 
-use super::esm::base::ReferencedAsset;
-use crate::{code_gen::CodeGeneration, create_visitor, references::esm::base::insert_hoisted_stmt};
+use crate::{
+    ScopeHoistingContext,
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    references::esm::base::ReferencedAsset,
+    utils::AstSyntaxContext,
+};
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
-#[derive(PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct AsyncModuleOptions {
     pub has_top_level_await: bool,
 }
@@ -50,7 +55,7 @@ pub struct AsyncModule {
 
 /// Option<[AsyncModule]>.
 #[turbo_tasks::value(transparent)]
-pub struct OptionAsyncModule(Option<Vc<AsyncModule>>);
+pub struct OptionAsyncModule(Option<ResolvedVc<AsyncModule>>);
 
 #[turbo_tasks::value_impl]
 impl OptionAsyncModule {
@@ -61,31 +66,41 @@ impl OptionAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_options(
-        self: Vc<Self>,
+    pub fn module_options(
+        &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<OptionAsyncModuleOptions>> {
-        if let Some(async_module) = &*self.await? {
-            return Ok(async_module.module_options(async_module_info));
+    ) -> Vc<OptionAsyncModuleOptions> {
+        if let Some(async_module) = &self.0 {
+            return async_module.module_options(async_module_info);
         }
 
-        Ok(OptionAsyncModuleOptions::none())
+        OptionAsyncModuleOptions::none()
     }
 }
 
+/// The identifiers (and their corresponding syntax context) of all async modules referenced by the
+/// current module.
 #[turbo_tasks::value(transparent)]
-struct AsyncModuleIdents(IndexSet<String>);
+struct AsyncModuleIdents(
+    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<(String, AstSyntaxContext)>,
+);
 
 async fn get_inherit_async_referenced_asset(
-    r: Vc<Box<dyn ModuleReference>>,
+    r: ResolvedVc<Box<dyn ModuleReference>>,
 ) -> Result<Option<ReadRef<ReferencedAsset>>> {
-    let Some(r) = Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(r).await? else {
+    let Some(r) = ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(r) else {
         return Ok(None);
     };
-    let Some(ty) = *r.chunking_type().await? else {
+    let Some(ty) = &*r.chunking_type().await? else {
         return Ok(None);
     };
-    if !matches!(ty, ChunkingType::ParallelInheritAsync) {
+    if !matches!(
+        ty,
+        ChunkingType::Parallel {
+            inherit_async: true,
+            ..
+        }
+    ) {
         return Ok(None);
     };
     let referenced_asset: turbo_tasks::ReadRef<ReferencedAsset> =
@@ -98,9 +113,9 @@ impl AsyncModule {
     #[turbo_tasks::function]
     async fn get_async_idents(
         &self,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Vc<AsyncModuleInfo>,
         references: Vc<ModuleReferences>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<AsyncModuleIdents>> {
         let async_module_info = async_module_info.await?;
 
@@ -114,33 +129,37 @@ impl AsyncModule {
                 Ok(match &*referenced_asset {
                     ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
-                            referenced_asset.get_ident().await?
+                            referenced_asset
+                                .get_ident(chunking_context, None, ScopeHoistingContext::None)
+                                .await?
+                                .map(|i| i.into_module_namespace_ident().unwrap())
+                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
                         } else {
                             None
                         }
                     }
                     ReferencedAsset::Some(placeable) => {
-                        let chunk_item = placeable
-                            .as_chunk_item(Vc::upcast(chunking_context))
-                            .resolve()
-                            .await?;
                         if async_module_info
                             .referenced_async_modules
-                            .contains(&chunk_item)
+                            .contains(&ResolvedVc::upcast(*placeable))
                         {
-                            referenced_asset.get_ident().await?
+                            referenced_asset
+                                .get_ident(chunking_context, None, ScopeHoistingContext::None)
+                                .await?
+                                .map(|i| i.into_module_namespace_ident().unwrap())
+                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
                         } else {
                             None
                         }
                     }
                     ReferencedAsset::External(..) => None,
-                    ReferencedAsset::None => None,
+                    ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
                 })
             })
             .try_flat_join()
             .await?;
 
-        Ok(Vc::cell(IndexSet::from_iter(reference_idents)))
+        Ok(Vc::cell(FxIndexSet::from_iter(reference_idents)))
     }
 
     #[turbo_tasks::function]
@@ -173,77 +192,70 @@ impl AsyncModule {
 
     /// Returns
     #[turbo_tasks::function]
-    pub async fn module_options(
-        self: Vc<Self>,
+    pub fn module_options(
+        &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<OptionAsyncModuleOptions>> {
+    ) -> Vc<OptionAsyncModuleOptions> {
         if async_module_info.is_none() {
-            return Ok(Vc::cell(None));
+            return Vc::cell(None);
         }
 
-        Ok(Vc::cell(Some(AsyncModuleOptions {
-            has_top_level_await: self.await?.has_top_level_await,
-        })))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn code_generation(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-        references: Vc<ModuleReferences>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let mut visitors = Vec::new();
-
-        if let Some(async_module_info) = async_module_info {
-            let async_idents = self
-                .get_async_idents(chunking_context, async_module_info, references)
-                .await?;
-
-            if !async_idents.is_empty() {
-                visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-                    add_async_dependency_handler(program, &async_idents);
-                }));
-            }
-        }
-
-        Ok(CodeGeneration { visitors }.into())
+        Vc::cell(Some(AsyncModuleOptions {
+            has_top_level_await: self.has_top_level_await,
+        }))
     }
 }
 
-fn add_async_dependency_handler(program: &mut Program, idents: &IndexSet<String>) {
-    let idents = idents
-        .iter()
-        .map(|ident| Ident::new(ident.clone().into(), DUMMY_SP, Default::default()))
-        .collect::<Vec<_>>();
+impl AsyncModule {
+    pub async fn code_generation(
+        self: Vc<Self>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        references: Vc<ModuleReferences>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        if let Some(async_module_info) = async_module_info {
+            let async_idents = self
+                .get_async_idents(async_module_info, references, chunking_context)
+                .await?;
 
-    let stmt = quote!(
-        "var __turbopack_async_dependencies__ = __turbopack_handle_async_dependencies__($deps);"
-            as Stmt,
-        deps: Expr = Expr::Array(ArrayLit {
-            span: DUMMY_SP,
-            elems: idents
-                .iter()
-                .map(|ident| { Some(Expr::Ident(ident.clone()).into()) })
-                .collect(),
-        }),
-    );
+            if !async_idents.is_empty() {
+                let idents = async_idents
+                    .iter()
+                    .map(|(ident, ctxt)| Ident::new(ident.clone().into(), DUMMY_SP, **ctxt))
+                    .collect::<Vec<_>>();
 
-    insert_hoisted_stmt(program, stmt);
+                return Ok(CodeGeneration::hoisted_stmts([
+                    CodeGenerationHoistedStmt::new(rcstr!("__turbopack_async_dependencies__"),
+                        quote!(
+                            "var __turbopack_async_dependencies__ = __turbopack_handle_async_dependencies__($deps);"
+                                as Stmt,
+                            deps: Expr = Expr::Array(ArrayLit {
+                                span: DUMMY_SP,
+                                elems: idents
+                                    .iter()
+                                    .map(|ident| { Some(Expr::Ident(ident.clone()).into()) })
+                                    .collect(),
+                            })
+                        )
+                    ),
+                    CodeGenerationHoistedStmt::new(rcstr!("__turbopack_async_dependencies__ await"),
+                        quote!(
+                            "($deps = __turbopack_async_dependencies__.then ? (await \
+                            __turbopack_async_dependencies__)() : __turbopack_async_dependencies__);" as Stmt,
+                            deps: AssignTarget = ArrayPat {
+                                span: DUMMY_SP,
+                                elems: idents
+                                    .into_iter()
+                                    .map(|ident| { Some(ident.into()) })
+                                    .collect(),
+                                optional: false,
+                                type_ann: None,
+                            }.into(),
+                        )),
+                ].to_vec()));
+            }
+        }
 
-    let stmt = quote!(
-        "($deps = __turbopack_async_dependencies__.then ? (await \
-         __turbopack_async_dependencies__)() : __turbopack_async_dependencies__);" as Stmt,
-        deps: AssignTarget = ArrayPat {
-            span: DUMMY_SP,
-            elems: idents
-                .into_iter()
-                .map(|ident| { Some(ident.into()) })
-                .collect(),
-            optional: false,
-            type_ann: None,
-        }.into(),
-    );
-
-    insert_hoisted_stmt(program, stmt);
+        Ok(CodeGeneration::empty())
+    }
 }

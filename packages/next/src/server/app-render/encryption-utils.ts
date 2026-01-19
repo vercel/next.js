@@ -1,16 +1,11 @@
-import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
-import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { InvariantError } from '../../shared/lib/invariant-error'
+import { getServerActionsManifest } from './manifests-singleton'
 
-// Keep the key in memory as it should never change during the lifetime of the server in
-// both development and production.
-let __next_encryption_key_generation_promise: Promise<
-  [CryptoKey, string]
-> | null = null
 let __next_loaded_action_key: CryptoKey
-let __next_internal_development_raw_action_key: string
 
-export function arrayBufferToString(buffer: ArrayBuffer) {
+export function arrayBufferToString(
+  buffer: ArrayBuffer | Uint8Array<ArrayBufferLike>
+) {
   const bytes = new Uint8Array(buffer)
   const len = bytes.byteLength
 
@@ -39,7 +34,11 @@ export function stringToUint8Array(binary: string) {
   return arr
 }
 
-export function encrypt(key: CryptoKey, iv: Uint8Array, data: Uint8Array) {
+export function encrypt(
+  key: CryptoKey,
+  iv: Uint8Array<ArrayBuffer>,
+  data: Uint8Array<ArrayBuffer>
+) {
   return crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
@@ -50,7 +49,11 @@ export function encrypt(key: CryptoKey, iv: Uint8Array, data: Uint8Array) {
   )
 }
 
-export function decrypt(key: CryptoKey, iv: Uint8Array, data: Uint8Array) {
+export function decrypt(
+  key: CryptoKey,
+  iv: Uint8Array<ArrayBuffer>,
+  data: Uint8Array<ArrayBuffer>
+) {
   return crypto.subtle.decrypt(
     {
       name: 'AES-GCM',
@@ -61,143 +64,19 @@ export function decrypt(key: CryptoKey, iv: Uint8Array, data: Uint8Array) {
   )
 }
 
-export async function generateEncryptionKeyBase64(dev?: boolean) {
-  // For development, we just keep one key in memory for all actions.
-  // This makes things faster.
-  if (dev) {
-    if (typeof __next_internal_development_raw_action_key !== 'undefined') {
-      return __next_internal_development_raw_action_key
-    }
-  }
-
-  // This avoids it being generated multiple times in parallel.
-  if (!__next_encryption_key_generation_promise) {
-    __next_encryption_key_generation_promise = new Promise(
-      async (resolve, reject) => {
-        try {
-          const key = await crypto.subtle.generateKey(
-            {
-              name: 'AES-GCM',
-              length: 256,
-            },
-            true,
-            ['encrypt', 'decrypt']
-          )
-          const exported = await crypto.subtle.exportKey('raw', key)
-          const b64 = btoa(arrayBufferToString(exported))
-
-          resolve([key, b64])
-        } catch (error) {
-          reject(error)
-        }
-      }
-    )
-  }
-
-  const [key, b64] = await __next_encryption_key_generation_promise
-
-  __next_loaded_action_key = key
-  if (dev) {
-    __next_internal_development_raw_action_key = b64
-  }
-
-  return b64
-}
-
-// This is a global singleton that is used to encode/decode the action bound args from
-// the closure. This can't be using a AsyncLocalStorage as it might happen on the module
-// level. Since the client reference manifest won't be mutated, let's use a global singleton
-// to keep it.
-const SERVER_ACTION_MANIFESTS_SINGLETON = Symbol.for(
-  'next.server.action-manifests'
-)
-
-export function setReferenceManifestsSingleton({
-  clientReferenceManifest,
-  serverActionsManifest,
-  serverModuleMap,
-}: {
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
-  serverActionsManifest: DeepReadonly<ActionManifest>
-  serverModuleMap: {
-    [id: string]: {
-      id: string
-      chunks: string[]
-      name: string
-    }
-  }
-}) {
-  // @ts-ignore
-  globalThis[SERVER_ACTION_MANIFESTS_SINGLETON] = {
-    clientReferenceManifest,
-    serverActionsManifest,
-    serverModuleMap,
-  }
-}
-
-export function getServerModuleMap() {
-  const serverActionsManifestSingleton = (globalThis as any)[
-    SERVER_ACTION_MANIFESTS_SINGLETON
-  ] as {
-    serverModuleMap: {
-      [id: string]: {
-        id: string
-        chunks: string[]
-        name: string
-      }
-    }
-  }
-
-  if (!serverActionsManifestSingleton) {
-    throw new Error(
-      'Missing manifest for Server Actions. This is a bug in Next.js'
-    )
-  }
-
-  return serverActionsManifestSingleton.serverModuleMap
-}
-
-export function getClientReferenceManifestSingleton() {
-  const serverActionsManifestSingleton = (globalThis as any)[
-    SERVER_ACTION_MANIFESTS_SINGLETON
-  ] as {
-    clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
-    serverActionsManifest: DeepReadonly<ActionManifest>
-  }
-
-  if (!serverActionsManifestSingleton) {
-    throw new Error(
-      'Missing manifest for Server Actions. This is a bug in Next.js'
-    )
-  }
-
-  return serverActionsManifestSingleton.clientReferenceManifest
-}
-
 export async function getActionEncryptionKey() {
   if (__next_loaded_action_key) {
     return __next_loaded_action_key
   }
 
-  const serverActionsManifestSingleton = (globalThis as any)[
-    SERVER_ACTION_MANIFESTS_SINGLETON
-  ] as {
-    clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
-    serverActionsManifest: DeepReadonly<ActionManifest>
-  }
-
-  if (!serverActionsManifestSingleton) {
-    throw new Error(
-      'Missing manifest for Server Actions. This is a bug in Next.js'
-    )
-  }
+  const serverActionsManifest = getServerActionsManifest()
 
   const rawKey =
     process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY ||
-    serverActionsManifestSingleton.serverActionsManifest.encryptionKey
+    serverActionsManifest.encryptionKey
 
   if (rawKey === undefined) {
-    throw new Error('Missing encryption key for Server Actions')
+    throw new InvariantError('Missing encryption key for Server Actions')
   }
 
   __next_loaded_action_key = await crypto.subtle.importKey(

@@ -1,6 +1,6 @@
 import { fetchRetry } from '../../../lib/fetch-retry'
 
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'
 
 export default async function Page() {
   const data = await fetchRetry(

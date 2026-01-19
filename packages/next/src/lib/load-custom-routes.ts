@@ -9,7 +9,7 @@ import { isFullStringUrl } from './url'
 
 export type RouteHas =
   | {
-      type: 'header' | 'query' | 'cookie'
+      type: 'header' | 'cookie' | 'query'
       key: string
       value?: string
     }
@@ -31,6 +31,11 @@ export type Rewrite = {
    * @internal - used internally for routing
    */
   internal?: boolean
+
+  /**
+   * @internal - used internally for routing
+   */
+  regex?: string
 }
 
 export type Header = {
@@ -55,6 +60,7 @@ export type Redirect = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  priority?: boolean
 
   /**
    * @internal - used internally for routing
@@ -596,19 +602,28 @@ async function loadRewrites(config: NextConfig) {
   // If assetPrefix is set, add a rewrite for `/${assetPrefix}/_next/*`
   // requests so that they are handled in any of dev, start, or deploy
   // automatically without the user having to configure this.
-  // If the assetPrefix is an absolute URL, we can't add an automatic rewrite.
+  // If the assetPrefix is an absolute URL, we still consider the path for automatic rewrite.
+  // but hostname routing must be handled by the user
   let maybeAssetPrefixRewrite: Rewrite[] = []
-  if (config.assetPrefix && !isFullStringUrl(config.assetPrefix)) {
-    const assetPrefix = config.assetPrefix.startsWith('/')
-      ? config.assetPrefix
-      : `/${config.assetPrefix}`
-    const basePath = config.basePath || ''
-    // If these are the same, then this would result in an infinite rewrite.
-    if (assetPrefix !== basePath) {
-      maybeAssetPrefixRewrite.push({
-        source: `${assetPrefix}/_next/:path+`,
-        destination: `${basePath}/_next/:path+`,
-      })
+  if (config.assetPrefix) {
+    let prefix = config.assetPrefix
+    if (
+      isFullStringUrl(config.assetPrefix) &&
+      URL.canParse(config.assetPrefix)
+    ) {
+      prefix = new URL(config.assetPrefix).pathname
+    }
+
+    if (prefix && prefix !== '/') {
+      const assetPrefix = prefix.startsWith('/') ? prefix : `/${prefix}`
+      const basePath = config.basePath || ''
+      // If these are the same, then this would result in an infinite rewrite.
+      if (assetPrefix !== basePath) {
+        maybeAssetPrefixRewrite.push({
+          source: `${assetPrefix}/_next/:path+`,
+          destination: `${basePath}/_next/:path+`,
+        })
+      }
     }
   }
 
@@ -710,6 +725,39 @@ export default async function loadCustomRoutes(
     )
   }
 
+  const cacheControlSources: string[] = []
+  for (const headerRoute of headers) {
+    if (!headerRoute.source.startsWith('/_next/')) {
+      continue
+    }
+    for (const header of headerRoute.headers) {
+      if (header.key.toLowerCase() === 'cache-control') {
+        cacheControlSources.push(headerRoute.source)
+        break
+      }
+    }
+  }
+  if (cacheControlSources.length > 0) {
+    console.warn(
+      bold(yellow(`Warning: `)) +
+        `Custom Cache-Control headers detected for the following routes:\n` +
+        cacheControlSources.map((source) => `  - ${source}`).join('\n') +
+        `\n\nSetting a custom Cache-Control header can break Next.js development behavior.`
+    )
+  }
+
+  if (config.experimental?.useSkewCookie && config.deploymentId) {
+    headers.unshift({
+      source: '/:path*',
+      headers: [
+        {
+          key: 'Set-Cookie',
+          value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+        },
+      ],
+    })
+  }
+
   if (!config.skipTrailingSlashRedirect) {
     if (config.trailingSlash) {
       redirects.unshift(
@@ -719,6 +767,7 @@ export default async function loadCustomRoutes(
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
           // don't run this redirect for _next/data requests
           missing: [
             {
@@ -733,6 +782,7 @@ export default async function loadCustomRoutes(
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         }
       )
       if (config.basePath) {
@@ -743,6 +793,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         })
       }
     } else {
@@ -752,6 +803,7 @@ export default async function loadCustomRoutes(
         permanent: true,
         locale: config.i18n ? false : undefined,
         internal: true,
+        priority: true,
       })
       if (config.basePath) {
         redirects.unshift({
@@ -761,6 +813,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         })
       }
     }

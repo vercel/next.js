@@ -1,21 +1,35 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::BTreeSet};
 
-use anyhow::{anyhow, bail, Context, Result};
-use indexmap::{indexset, IndexSet};
-use turbo_tasks::RcStr;
+use anyhow::{Context, Result, bail};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::FxIndexSet;
 
 use super::options::{FontData, FontWeights};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub(super) struct FontAxes {
-    pub(super) wght: IndexSet<RcStr>,
-    pub(super) ital: IndexSet<FontStyle>,
+    pub(super) wght: FontAxesWeights,
+    pub(super) ital: FxIndexSet<FontStyle>,
     pub(super) variable_axes: Option<Vec<(RcStr, RcStr)>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
+pub(super) enum FontAxesWeights {
+    Variable(Option<RcStr>),
+    // A list of fixed weights. Sorted in ascending order as a BTreeSet.
+    Fixed(BTreeSet<u16>),
+}
+
+impl Default for FontAxesWeights {
+    fn default() -> Self {
+        FontAxesWeights::Fixed(Default::default())
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Hash)]
 pub(super) enum FontStyle {
     Italic,
+    #[default]
     Normal,
 }
 
@@ -33,9 +47,9 @@ pub(super) fn get_font_axes(
         .axes;
 
     let ital = {
-        let has_italic = styles.contains(&"italic".into());
-        let has_normal = styles.contains(&"normal".into());
-        let mut set = IndexSet::new();
+        let has_italic = styles.contains(&rcstr!("italic"));
+        let has_normal = styles.contains(&rcstr!("normal"));
+        let mut set = FxIndexSet::default();
         if has_normal {
             set.insert(FontStyle::Normal);
         }
@@ -47,62 +61,87 @@ pub(super) fn get_font_axes(
 
     match weights {
         FontWeights::Variable => {
-            let Some(defineable_axes) = all_axes else {
+            let Some(definable_axes) = all_axes else {
                 bail!("Font {} has no definable `axes`", font_family);
             };
 
             if let Some(selected_variable_axes) = selected_variable_axes {
-                let definable_axes_tags = defineable_axes
+                let definable_axes_tags = definable_axes
                     .iter()
                     .map(|axis| axis.tag.to_owned())
                     .collect::<Vec<RcStr>>();
 
                 for tag in selected_variable_axes {
                     if !definable_axes_tags.contains(tag) {
-                        return Err(anyhow!(
+                        bail!(
                             "Invalid axes value {} for font {}.\nAvailable axes: {}",
                             tag,
                             font_family,
                             definable_axes_tags.join(", ")
-                        ));
+                        )
                     }
                 }
             }
 
             let mut weight_axis = None;
             let mut variable_axes = vec![];
-            for axis in defineable_axes {
+            for axis in definable_axes {
                 if axis.tag == "wght" {
                     weight_axis = Some(format!("{}..{}", axis.min, axis.max).into());
-                } else if let Some(selected_variable_axes) = selected_variable_axes {
-                    if selected_variable_axes.contains(&axis.tag) {
-                        variable_axes.push((
-                            axis.tag.clone(),
-                            format!("{}..{}", axis.min, axis.max).into(),
-                        ));
-                    }
+                } else if let Some(selected_variable_axes) = selected_variable_axes
+                    && selected_variable_axes.contains(&axis.tag)
+                {
+                    variable_axes.push((
+                        axis.tag.clone(),
+                        format!("{}..{}", axis.min, axis.max).into(),
+                    ));
                 }
             }
 
-            let wght = match weight_axis {
-                Some(weight_axis) => {
-                    indexset! {weight_axis}
-                }
-                None => indexset! {},
-            };
-
             Ok(FontAxes {
-                wght,
+                wght: FontAxesWeights::Variable(weight_axis),
                 ital,
                 variable_axes: Some(variable_axes),
             })
         }
 
         FontWeights::Fixed(weights) => Ok(FontAxes {
-            wght: IndexSet::from_iter(weights.iter().map(|w| w.to_string().into())),
+            wght: FontAxesWeights::Fixed(weights.iter().copied().collect()),
             ital,
             variable_axes: None,
         }),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum VariantValue {
+    String(RcStr),
+    U16(u16),
+}
+
+impl PartialOrd for VariantValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for VariantValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (VariantValue::String(a), VariantValue::String(b)) => a.cmp(b),
+            (VariantValue::U16(a), VariantValue::U16(b)) => a.cmp(b),
+            (VariantValue::String(_), VariantValue::U16(_)) => Ordering::Less,
+            (VariantValue::U16(_), VariantValue::String(_)) => Ordering::Greater,
+        }
+    }
+}
+
+impl From<VariantValue> for RcStr {
+    fn from(val: VariantValue) -> Self {
+        match val {
+            VariantValue::String(s) => s,
+            VariantValue::U16(u) => u.to_string().into(),
+        }
     }
 }
 
@@ -115,48 +154,62 @@ pub(super) fn get_stylesheet_url(
 ) -> Result<String> {
     // Variants are all combinations of weight and style, each variant will result
     // in a separate font file
-    let mut variants: Vec<Vec<(&str, &str)>> = vec![];
-    if axes.wght.is_empty() {
+    let mut variants: Vec<Vec<(&str, VariantValue)>> = vec![];
+
+    let weights = match &axes.wght {
+        FontAxesWeights::Variable(Some(wght)) => {
+            vec![VariantValue::String(wght.clone())]
+        }
+        FontAxesWeights::Variable(None) => {
+            vec![]
+        }
+        FontAxesWeights::Fixed(wghts) => wghts.iter().map(|w| VariantValue::U16(*w)).collect(),
+    };
+
+    if weights.is_empty() {
         let mut variant = vec![];
-        if let Some(variable_axes) = &axes.variable_axes {
-            if !variable_axes.is_empty() {
-                for (key, val) in variable_axes {
-                    variant.push((key.as_str(), &val[..]));
-                }
-                variants.push(variant);
+        if let Some(variable_axes) = &axes.variable_axes
+            && !variable_axes.is_empty()
+        {
+            for (key, val) in variable_axes {
+                variant.push((key.as_str(), VariantValue::String(val.clone())));
             }
+            variants.push(variant);
         }
     } else {
-        for wght in &axes.wght {
+        for wght in &weights {
             if axes.ital.is_empty() {
                 let mut variant = vec![];
-                variant.push(("wght", &wght[..]));
+                variant.push(("wght", wght.clone()));
                 if let Some(variable_axes) = &axes.variable_axes {
                     for (key, val) in variable_axes {
-                        variant.push((key, &val[..]));
+                        variant.push((key, VariantValue::String(val.clone())));
                     }
                 }
                 variants.push(variant);
             } else {
                 for ital in &axes.ital {
-                    let mut variant = vec![];
+                    let mut variant: Vec<(&str, VariantValue)> = vec![];
 
                     // If Normal is the only requested variant, it's safe to omit the ital axis
                     // entirely. Otherwise, include all variants.
                     if matches!(ital, FontStyle::Italic) || axes.ital.len() > 1 {
                         variant.push((
                             "ital",
-                            match ital {
-                                FontStyle::Normal => "0",
-                                FontStyle::Italic => "1",
-                            },
+                            VariantValue::String(
+                                match ital {
+                                    FontStyle::Normal => "0",
+                                    FontStyle::Italic => "1",
+                                }
+                                .into(),
+                            ),
                         ));
                     }
 
-                    variant.push(("wght", &wght[..]));
+                    variant.push(("wght", wght.clone()));
                     if let Some(variable_axes) = &axes.variable_axes {
                         for (key, val) in variable_axes {
-                            variant.push((key, &val[..]));
+                            variant.push((key, VariantValue::String(val.clone())));
                         }
                     }
                     variants.push(variant);
@@ -203,20 +256,23 @@ pub(super) fn get_stylesheet_url(
 
             let mut variant_values = variants
                 .iter()
-                .map(|variant| {
-                    variant
-                        .iter()
-                        .map(|pair| pair.1)
-                        .collect::<Vec<&str>>()
-                        .join(",")
-                })
-                .collect::<Vec<String>>();
+                .map(|variant| variant.iter().map(|pair| &pair.1).collect::<Vec<_>>())
+                .collect::<Vec<Vec<_>>>();
             variant_values.sort();
 
             // An encoding of the series of sorted variant values, with variants delimited
             // by `;` and the values within a variant delimited by `,` e.g.
             // `"0,10..100,500;1,10.100;500"`
-            let variant_values_str = variant_values.join(";");
+            let variant_values_str = variant_values
+                .iter()
+                .map(|v| {
+                    v.iter()
+                        .map(|vv| RcStr::from((*vv).clone()))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                })
+                .collect::<Vec<_>>()
+                .join(";");
 
             Ok(format!(
                 "{}?family={}:{}@{}&display={}",
@@ -232,15 +288,18 @@ pub(super) fn get_stylesheet_url(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use anyhow::Result;
-    use indexmap::indexset;
+    use turbo_rcstr::rcstr;
+    use turbo_tasks::fxindexset;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::get_font_axes;
     use crate::next_font::google::{
-        options::{FontData, FontWeights},
-        util::{get_stylesheet_url, FontAxes, FontStyle},
         GOOGLE_FONTS_STYLESHEET_URL,
+        options::{FontData, FontWeights},
+        util::{FontAxes, FontAxesWeights, FontStyle, get_stylesheet_url},
     };
 
     #[test]
@@ -323,12 +382,12 @@ mod tests {
                 "Inter",
                 &FontWeights::Variable,
                 &[],
-                &Some(vec!["slnt".into()]),
+                &Some(vec![rcstr!("slnt")]),
             )?,
             FontAxes {
-                wght: indexset! {"100..900".into()},
-                ital: indexset! {},
-                variable_axes: Some(vec![("slnt".into(), "-10..0".into())])
+                wght: FontAxesWeights::Variable(Some(rcstr!("100..900"))),
+                ital: fxindexset! {},
+                variable_axes: Some(vec![(rcstr!("slnt"), rcstr!("-10..0"))])
             }
         );
         Ok(())
@@ -364,12 +423,12 @@ mod tests {
                 "Inter",
                 &FontWeights::Variable,
                 &[],
-                &Some(vec!["slnt".into()]),
+                &Some(vec![rcstr!("slnt")]),
             )?,
             FontAxes {
-                wght: indexset! {},
-                ital: indexset! {},
-                variable_axes: Some(vec![("slnt".into(), "-10..0".into())])
+                variable_axes: Some(vec![(rcstr!("slnt"), rcstr!("-10..0"))]),
+                wght: FontAxesWeights::Variable(None),
+                ..Default::default()
             }
         );
         Ok(())
@@ -399,9 +458,8 @@ mod tests {
         assert_eq!(
             get_font_axes(&data, "Hind", &FontWeights::Fixed(vec![500]), &[], &None)?,
             FontAxes {
-                wght: indexset! {"500".into()},
-                ital: indexset! {},
-                variable_axes: None
+                wght: FontAxesWeights::Fixed(BTreeSet::from([500])),
+                ..Default::default()
             }
         );
         Ok(())
@@ -414,8 +472,8 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Mono",
                 &FontAxes {
-                    wght: indexset! {"500".into()},
-                    ital: indexset! {FontStyle::Normal},
+                    wght: FontAxesWeights::Fixed(BTreeSet::from([500])),
+                    ital: fxindexset! {FontStyle::Normal},
                     variable_axes: None
                 },
                 "optional"
@@ -433,17 +491,36 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Serif",
                 &FontAxes {
-                    wght: indexset! {"500".into()},
-                    ital: indexset! {FontStyle::Normal},
+                    wght: FontAxesWeights::Fixed(BTreeSet::from([500])),
+                    ital: fxindexset! {FontStyle::Normal},
                     variable_axes: Some(vec![
-                        ("GRAD".into(), "-50..100".into()),
-                        ("opsz".into(), "8..144".into()),
-                        ("wdth".into(), "50..150".into()),
+                        (rcstr!("GRAD"), rcstr!("-50..100")),
+                        (rcstr!("opsz"), rcstr!("8..144")),
+                        (rcstr!("wdth"), rcstr!("50..150")),
                     ])
                 },
                 "optional"
             )?,
             "https://fonts.googleapis.com/css2?family=Roboto+Serif:opsz,wdth,wght,GRAD@8..144,50..150,500,-50..100&display=optional"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_stylesheet_url_sorts_weights_numerically() -> Result<()> {
+        assert_eq!(
+            get_stylesheet_url(
+                GOOGLE_FONTS_STYLESHEET_URL,
+                "Roboto Serif",
+                &FontAxes {
+                    wght: FontAxesWeights::Fixed(BTreeSet::from([1000, 500, 200])),
+                    ital: fxindexset! {FontStyle::Normal},
+                    variable_axes: None
+                },
+                "optional"
+            )?,
+            "https://fonts.googleapis.com/css2?family=Roboto+Serif:wght@200;500;1000&display=optional"
         );
 
         Ok(())
@@ -456,12 +533,12 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Serif",
                 &FontAxes {
-                    wght: indexset! {"500".into(), "300".into()},
-                    ital: indexset! {FontStyle::Normal, FontStyle::Italic},
+                    wght: FontAxesWeights::Fixed(BTreeSet::from([500, 300])),
+                    ital: fxindexset! {FontStyle::Normal, FontStyle::Italic},
                     variable_axes: Some(vec![
-                        ("GRAD".into(), "-50..100".into()),
-                        ("opsz".into(), "8..144".into()),
-                        ("wdth".into(), "50..150".into()),
+                        (rcstr!("GRAD"), rcstr!("-50..100")),
+                        (rcstr!("opsz"), rcstr!("8..144")),
+                        (rcstr!("wdth"), rcstr!("50..150")),
                     ])
                 },
                 "optional"
@@ -480,12 +557,11 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Nabla",
                 &FontAxes {
-                    wght: indexset! {},
-                    ital: indexset! {},
                     variable_axes: Some(vec![
-                        ("EDPT".into(), "0..200".into()),
-                        ("EHLT".into(), "0..24".into()),
-                    ])
+                        (rcstr!("EDPT"), rcstr!("0..200")),
+                        (rcstr!("EHLT"), rcstr!("0..24")),
+                    ]),
+                    ..Default::default()
                 },
                 "optional"
             )?,
@@ -501,11 +577,7 @@ mod tests {
             get_stylesheet_url(
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Nabla",
-                &FontAxes {
-                    wght: indexset! {},
-                    ital: indexset! {},
-                    variable_axes: None,
-                },
+                &Default::default(),
                 "swap"
             )?,
             "https://fonts.googleapis.com/css2?family=Nabla&display=swap"
@@ -521,9 +593,8 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Nabla",
                 &FontAxes {
-                    wght: indexset! {},
-                    ital: indexset! {},
                     variable_axes: Some(vec![]),
+                    ..Default::default()
                 },
                 "swap"
             )?,
@@ -540,9 +611,8 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Hind",
                 &FontAxes {
-                    wght: indexset! {"500".into()},
-                    ital: indexset! {},
-                    variable_axes: None
+                    wght: FontAxesWeights::Fixed(BTreeSet::from([500])),
+                    ..Default::default()
                 },
                 "optional"
             )?,

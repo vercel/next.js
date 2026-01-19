@@ -1,7 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, findAllTelemetryEvents } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
-describe('ppr', () => {
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('ppr', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
     env: {
@@ -12,7 +14,7 @@ describe('ppr', () => {
   it('should indicate the feature is experimental', async () => {
     await retry(() => {
       expect(next.cliOutput).toContain('Experiments (use with caution)')
-      expect(next.cliOutput).toContain('ppr')
+      expect(stripAnsi(next.cliOutput)).toContain('✓ ppr')
     })
   })
   if (isNextStart) {
@@ -59,7 +61,10 @@ describe('ppr', () => {
     if (isNextDev) {
       it('should have the dynamic part', async () => {
         let $ = await next.render$(pathname)
-        let dynamic = $('#container > #dynamic > #state')
+        // asserting this flushes in a single pass in dev is not reliable
+        // so we just assert that the nodes are somewhere in the document
+        // even if they aren't in position
+        let dynamic = $('#dynamic > #state')
 
         expect(dynamic.length).toBe(1)
         expect(dynamic.text()).toBe('Not Signed In')
@@ -73,7 +78,7 @@ describe('ppr', () => {
             },
           }
         )
-        dynamic = $('#container > #dynamic > #state')
+        dynamic = $('#dynamic > #state')
         expect(dynamic.length).toBe(1)
         expect(dynamic.text()).toBe('Signed In')
       })

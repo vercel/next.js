@@ -1,0 +1,17 @@
+_ (const after eval) = (...) => parent
+
+i = (0 | ???*0*)
+- *0* updated with update expression
+  ⚠️  This value might have side effects
+
+key = (keys[i] | undefined)
+
+keys = FreeVar(Object)["keys"](namespace)
+
+namespace = arguments[0]
+
+parent = arguments[2]
+
+path = arguments[1]
+
+root (const after eval) = {}

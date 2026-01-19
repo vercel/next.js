@@ -1,7 +1,4 @@
-use std::hash::BuildHasherDefault;
-
-use indexmap::IndexSet;
-use rustc_hash::{FxHashSet, FxHasher};
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::SyntaxContext,
     ecma::{
@@ -11,9 +8,10 @@ use swc_core::{
             Function, Id, Ident, ImportSpecifier, MemberExpr, MemberProp, NamedExport, Param, Pat,
             Prop, PropName, VarDeclarator, *,
         },
-        visit::{noop_visit_type, Visit, VisitWith},
+        visit::{Visit, VisitWith, noop_visit_type},
     },
 };
+use turbo_tasks::FxIndexSet;
 
 use crate::TURBOPACK_HELPER;
 
@@ -194,9 +192,9 @@ impl Visit for IdentUsageCollector<'_> {
 #[derive(Debug, Default)]
 pub(crate) struct Vars {
     /// Variables which are read.
-    pub read: IndexSet<Id, BuildHasherDefault<FxHasher>>,
+    pub read: FxIndexSet<Id>,
     /// Variables which are written.
-    pub write: IndexSet<Id, BuildHasherDefault<FxHasher>>,
+    pub write: FxIndexSet<Id>,
 
     pub found_unresolved: bool,
 }
@@ -361,10 +359,10 @@ impl Visit for TopLevelBindingCollector {
     fn visit_pat(&mut self, node: &Pat) {
         node.visit_children_with(self);
 
-        if self.is_pat_decl {
-            if let Pat::Ident(i) = node {
-                self.add(&i.id)
-            }
+        if self.is_pat_decl
+            && let Pat::Ident(i) = node
+        {
+            self.add(&i.id)
         }
     }
 
@@ -393,63 +391,75 @@ where
 }
 
 pub fn should_skip_tree_shaking(m: &Program) -> bool {
-    if let Program::Module(m) = m {
-        for item in m.body.iter() {
-            match item {
-                // Skip turbopack helpers.
-                ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    with, specifiers, ..
-                })) => {
-                    if let Some(with) = with.as_deref().and_then(|v| v.as_import_with()) {
-                        for item in with.values.iter() {
-                            if item.key.sym == *TURBOPACK_HELPER {
-                                // Skip tree shaking if the import is from turbopack-helper
-                                return true;
-                            }
-                        }
-                    }
+    let Program::Module(m) = m else {
+        return true;
+    };
 
-                    // TODO(PACK-3150): Tree shaking has a bug related to ModuleExportName::Str
-                    for s in specifiers.iter() {
-                        if let ImportSpecifier::Named(is) = s {
-                            if matches!(is.imported, Some(ModuleExportName::Str(..))) {
-                                return true;
-                            }
-                        }
-                    }
-                }
+    // If there's no export, we will result in module evaluation containing all code, so just we
+    // skip tree shaking.
+    if m.body.iter().all(|item| {
+        matches!(
+            item,
+            ModuleItem::ModuleDecl(ModuleDecl::Import(..)) | ModuleItem::Stmt(..)
+        )
+    }) {
+        return true;
+    }
 
-                // Tree shaking has a bug related to ModuleExportName::Str
-                ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(NamedExport {
-                    src: Some(..),
-                    specifiers,
-                    ..
-                })) => {
-                    for s in specifiers {
-                        if let ExportSpecifier::Named(es) = s {
-                            if matches!(es.orig, ModuleExportName::Str(..))
-                                || matches!(es.exported, Some(ModuleExportName::Str(..)))
-                            {
-                                return true;
-                            }
+    for item in m.body.iter() {
+        match item {
+            // Skip turbopack helpers.
+            ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                with, specifiers, ..
+            })) => {
+                if let Some(with) = with.as_deref().and_then(|v| v.as_import_with()) {
+                    for item in with.values.iter() {
+                        if item.key.sym == *TURBOPACK_HELPER {
+                            // Skip tree shaking if the import is from turbopack-helper
+                            return true;
                         }
                     }
                 }
 
-                _ => {}
+                // TODO(PACK-3150): Tree shaking has a bug related to ModuleExportName::Str
+                for s in specifiers.iter() {
+                    if let ImportSpecifier::Named(is) = s
+                        && matches!(is.imported, Some(ModuleExportName::Str(..)))
+                    {
+                        return true;
+                    }
+                }
             }
-        }
 
-        let mut visitor = ShouldSkip::default();
-        m.visit_with(&mut visitor);
-        if visitor.skip {
-            return true;
-        }
-
-        for item in m.body.iter() {
-            if item.is_module_decl() {
-                return false;
+            // Tree shaking has a bug related to ModuleExportName::Str
+            ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(NamedExport {
+                src: Some(..),
+                specifiers,
+                ..
+            })) => {
+                for s in specifiers {
+                    if let ExportSpecifier::Named(es) = s
+                        && (matches!(es.orig, ModuleExportName::Str(..))
+                            || matches!(es.exported, Some(ModuleExportName::Str(..))))
+                    {
+                        return true;
+                    }
+                }
             }
+
+            _ => {}
+        }
+    }
+
+    let mut visitor = ShouldSkip::default();
+    m.visit_with(&mut visitor);
+    if visitor.skip {
+        return true;
+    }
+
+    for item in m.body.iter() {
+        if item.is_module_decl() {
+            return false;
         }
     }
 
@@ -462,14 +472,6 @@ struct ShouldSkip {
 }
 
 impl Visit for ShouldSkip {
-    fn visit_stmt(&mut self, n: &Stmt) {
-        if self.skip {
-            return;
-        }
-
-        n.visit_children_with(self);
-    }
-
     fn visit_await_expr(&mut self, n: &AwaitExpr) {
         // __turbopack_wasm_module__ is not analyzable because __turbopack_wasm_module__
         // is injected global.
@@ -477,11 +479,26 @@ impl Visit for ShouldSkip {
             callee: Callee::Expr(expr),
             ..
         }) = &*n.arg
+            && expr.is_ident_ref_to("__turbopack_wasm_module__")
         {
-            if expr.is_ident_ref_to("__turbopack_wasm_module__") {
-                self.skip = true;
-                return;
-            }
+            self.skip = true;
+            return;
+        }
+
+        n.visit_children_with(self);
+    }
+
+    fn visit_expr(&mut self, n: &Expr) {
+        if self.skip {
+            return;
+        }
+
+        n.visit_children_with(self);
+    }
+
+    fn visit_stmt(&mut self, n: &Stmt) {
+        if self.skip {
+            return;
         }
 
         n.visit_children_with(self);

@@ -1,6 +1,6 @@
 # Items
 
-Count: 6
+Count: 5
 
 ## Item 1: Stmt 0, `Normal`
 
@@ -43,11 +43,9 @@ graph TD
     Item2;
     Item3;
     Item4;
-    Item4["ModuleEvaluation"];
+    Item4["export effects"];
     Item5;
-    Item5["export effects"];
-    Item6;
-    Item6["export effect"];
+    Item5["export effect"];
 ```
 # Phase 2
 ```mermaid
@@ -56,13 +54,11 @@ graph TD
     Item2;
     Item3;
     Item4;
-    Item4["ModuleEvaluation"];
+    Item4["export effects"];
     Item5;
-    Item5["export effects"];
-    Item6;
-    Item6["export effect"];
-    Item5 --> Item2;
-    Item6 --> Item3;
+    Item5["export effect"];
+    Item4 --> Item2;
+    Item5 --> Item3;
 ```
 # Phase 3
 ```mermaid
@@ -71,15 +67,13 @@ graph TD
     Item2;
     Item3;
     Item4;
-    Item4["ModuleEvaluation"];
+    Item4["export effects"];
     Item5;
-    Item5["export effects"];
-    Item6;
-    Item6["export effect"];
-    Item5 --> Item2;
-    Item6 --> Item3;
+    Item5["export effect"];
+    Item4 --> Item2;
+    Item5 --> Item3;
     Item3 --> Item2;
-    Item3 -.-> Item5;
+    Item3 -.-> Item4;
 ```
 # Phase 4
 ```mermaid
@@ -88,31 +82,19 @@ graph TD
     Item2;
     Item3;
     Item4;
-    Item4["ModuleEvaluation"];
+    Item4["export effects"];
     Item5;
-    Item5["export effects"];
-    Item6;
-    Item6["export effect"];
-    Item5 --> Item2;
-    Item6 --> Item3;
+    Item5["export effect"];
+    Item4 --> Item2;
+    Item5 --> Item3;
     Item3 --> Item2;
-    Item3 -.-> Item5;
-    Item4 --> Item1;
+    Item3 -.-> Item4;
 ```
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(0, Normal)]"];
-    N1["Items: [ItemId(ModuleEvaluation)]"];
-    N2["Items: [ItemId(1, VarDeclarator(0))]"];
-    N3["Items: [ItemId(Export((&quot;effects&quot;, #2), &quot;effects&quot;))]"];
-    N4["Items: [ItemId(2, Normal)]"];
-    N5["Items: [ItemId(Export((&quot;effect&quot;, #2), &quot;effect&quot;))]"];
-    N3 --> N2;
-    N5 --> N4;
-    N4 --> N2;
-    N4 -.-> N3;
-    N1 --> N0;
+    N0["Items: [ItemId(1, VarDeclarator(0)), ItemId(2, Normal), ItemId(Export((&quot;effect&quot;, #2), &quot;effect&quot;)), ItemId(Export((&quot;effects&quot;, #2), &quot;effects&quot;))]"];
+    N1["Items: [ItemId(0, Normal)]"];
 ```
 # Entrypoints
 
@@ -121,11 +103,11 @@ graph TD
     ModuleEvaluation: 1,
     Export(
         "effect",
-    ): 5,
-    Exports: 6,
+    ): 0,
     Export(
         "effects",
-    ): 3,
+    ): 0,
+    Exports: 2,
 }
 ```
 
@@ -133,96 +115,54 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-await Promise.resolve();
-
-```
-## Part 1
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-"module evaluation";
-
-```
-## Part 2
-```js
 const effects = [];
-export { effects as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-export { effects };
-
-```
-## Part 4
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 function effect(name) {
     effects.push(name);
 }
+export { effect };
+export { effects };
+export { effects as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { effect as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 5
+## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { b as effect } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-export { effect };
+await Promise.resolve();
+export { };
 
 ```
-## Part 6
+## Part 2
 ```js
-export { effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export effects"
-};
 export { effect } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export effect"
+};
+export { effects } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export effects"
 };
 
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-"module evaluation";
+await Promise.resolve();
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 1,
+    ModuleEvaluation: 3,
     Export(
         "effect",
-    ): 4,
-    Exports: 6,
+    ): 1,
     Export(
         "effects",
-    ): 5,
+    ): 2,
+    Exports: 4,
 }
 ```
 
@@ -230,64 +170,41 @@ import "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-await Promise.resolve();
-
-```
-## Part 1
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-"module evaluation";
-
-```
-## Part 2
-```js
 const effects = [];
 export { effects as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 3
+## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -0
 };
 function effect(name) {
     effects.push(name);
 }
+export { effect };
 export { effect as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 4
+## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import { b as effect } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-export { effect };
-
-```
-## Part 5
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -0
 };
 export { effects };
 
 ```
-## Part 6
+## Part 3
+```js
+await Promise.resolve();
+export { };
+
+```
+## Part 4
 ```js
 export { effect } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export effect"
@@ -299,9 +216,7 @@ export { effects } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-"module evaluation";
+await Promise.resolve();
+export { };
 
 ```

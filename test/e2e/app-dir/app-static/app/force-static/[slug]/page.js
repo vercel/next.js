@@ -13,7 +13,8 @@ function Dynamic({ params }) {
   return <p id="params">{JSON.stringify(params)}</p>
 }
 
-export default function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   return (
     <Suspense>
       <p id="page">/force-static/[slug]</p>

@@ -7,6 +7,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
   check,
+  createNowRouteMatches,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
@@ -29,12 +30,23 @@ describe('required server files', () => {
   const setupNext = async ({ nextEnv }: { nextEnv?: boolean }) => {
     // test build against environment with next support
     process.env.NOW_BUILDER = nextEnv ? '1' : ''
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'pages')),
         lib: new FileRef(join(__dirname, 'lib')),
-        'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
+        'middleware.js': new FileRef(
+          join(
+            __dirname,
+            process.env.TEST_NODE_MIDDLEWARE
+              ? 'middleware-node.js'
+              : 'middleware.js'
+          )
+        ),
+        'instrumentation.js': new FileRef(
+          join(__dirname, 'instrumentation.js')
+        ),
         'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
@@ -44,9 +56,6 @@ describe('required server files', () => {
       nextConfig: {
         cacheHandler: './cache-handler.js',
         cacheMaxMemorySize: 0,
-        eslint: {
-          ignoreDuringBuilds: true,
-        },
         output: 'standalone',
         async rewrites() {
           return {
@@ -78,8 +87,11 @@ describe('required server files', () => {
           }
         },
       },
+      skipStart: true,
     })
-    await next.stop()
+
+    let { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
 
     requiredFilesManifest = JSON.parse(
       await next.readFile('.next/required-server-files.json')
@@ -152,6 +164,8 @@ describe('required server files', () => {
   })
 
   afterAll(async () => {
+    delete process.env.NOW_BUILDER
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
   })
 
@@ -205,13 +219,13 @@ describe('required server files', () => {
       case: 'redirect no revalidate',
       path: '/optional-ssg/redirect-1',
       dest: '/somewhere',
-      cacheControl: 's-maxage=31536000, stale-while-revalidate',
+      cacheControl: 's-maxage=31536000',
     },
     {
       case: 'redirect with revalidate',
       path: '/optional-ssg/redirect-2',
       dest: '/somewhere-else',
-      cacheControl: 's-maxage=5, stale-while-revalidate',
+      cacheControl: 's-maxage=5, stale-while-revalidate=31535995',
     },
   ])(
     `should have correct cache-control for $case`,
@@ -233,26 +247,62 @@ describe('required server files', () => {
           redirect: 'manual',
         }
       )
-      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
       expect((await dataRes.json()).pageProps).toEqual({
         __N_REDIRECT: dest,
         __N_REDIRECT_STATUS: 307,
       })
+      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
     }
   )
+
+  it('should handle data routes with optional catch-all params', async () => {
+    let res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/catch-all.json`,
+      {},
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all.json`,
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+
+    let json = await res.json()
+    expect(json.pageProps.params).toEqual({
+      rest: undefined,
+    })
+
+    res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/catch-all/next.js.json`,
+      {},
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all/next.js.json`,
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+
+    json = await res.json()
+    expect(json.pageProps.params).toEqual({
+      rest: ['next.js'],
+    })
+  })
 
   it.each([
     {
       case: 'notFound no revalidate',
       path: '/optional-ssg/not-found-1',
       dest: '/somewhere',
-      cacheControl: 's-maxage=31536000, stale-while-revalidate',
+      cacheControl: 's-maxage=31536000',
     },
     {
       case: 'notFound with revalidate',
       path: '/optional-ssg/not-found-2',
       dest: '/somewhere-else',
-      cacheControl: 's-maxage=5, stale-while-revalidate',
+      cacheControl: 's-maxage=5, stale-while-revalidate=31535995',
     },
   ])(
     `should have correct cache-control for $case`,
@@ -278,9 +328,7 @@ describe('required server files', () => {
   it('should have the correct cache-control for props with no revalidate', async () => {
     const res = await fetchViaHTTP(appPort, '/optional-ssg/props-no-revalidate')
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=31536000, stale-while-revalidate'
-    )
+    expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
     const $ = cheerio.load(await res.text())
     expect(JSON.parse($('#props').text()).params).toEqual({
       rest: ['props-no-revalidate'],
@@ -292,21 +340,23 @@ describe('required server files', () => {
       undefined
     )
     expect(dataRes.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=31536000, stale-while-revalidate'
-    )
+    expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
     expect((await dataRes.json()).pageProps.params).toEqual({
       rest: ['props-no-revalidate'],
     })
   })
 
-  it('should warn when "next" is imported directly', async () => {
-    await renderViaHTTP(appPort, '/gssp')
-    await check(
-      () => stderr,
-      /"next" should not be imported directly, imported in/
-    )
-  })
+  // TODO(mischnic) do we still want to do this?
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
+    'should warn when "next" is imported directly',
+    async () => {
+      await renderViaHTTP(appPort, '/gssp')
+      await check(
+        () => stderr,
+        /"next" should not be imported directly, imported in/
+      )
+    }
+  )
 
   it('`compress` should be `false` in nextEnv', async () => {
     expect(
@@ -331,16 +381,33 @@ describe('required server files', () => {
   })
 
   it('should output middleware correctly', async () => {
-    expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
+    if (process.env.TEST_NODE_MIDDLEWARE) {
+      expect(
+        await fs.pathExists(
+          join(next.testDir, 'standalone/.next/server/middleware.js')
+        )
+      ).toBe(true)
+    } else {
+      let manifest = await fs.readJSON(
+        join(next.testDir, 'standalone/.next/server/middleware-manifest.json')
       )
-    ).toBe(true)
-    expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/middleware.js')
-      )
-    ).toBe(true)
+      let middleware = manifest.middleware['/']
+      let files = [
+        ...middleware.files,
+        ...middleware.wasm.map((f) => f.filePath),
+        ...middleware.assets.map((f) => f.filePath),
+      ]
+      console.log(files)
+      for (const file of files) {
+        try {
+          expect(
+            await fs.pathExists(join(next.testDir, 'standalone/.next', file))
+          ).toBe(true)
+        } catch (err) {
+          throw new Error('Missing file ' + file)
+        }
+      }
+    }
   })
 
   it('should output required-server-files manifest correctly', async () => {
@@ -348,12 +415,18 @@ describe('required server files', () => {
     expect(Array.isArray(requiredFilesManifest.files)).toBe(true)
     expect(Array.isArray(requiredFilesManifest.ignore)).toBe(true)
     expect(requiredFilesManifest.files.length).toBeGreaterThan(0)
-    expect(requiredFilesManifest.ignore.length).toBeGreaterThan(0)
+    expect(requiredFilesManifest.ignore.length).toBe(0)
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
     expect(typeof requiredFilesManifest.appDir).toBe('string')
     // not in a monorepo so relative app dir is empty string
     expect(requiredFilesManifest.relativeAppDir).toBe('')
+
+    expect(
+      requiredFilesManifest.files.filter(
+        (f) => !fs.pathExistsSync(join(next.testDir, 'standalone', f))
+      )
+    ).toBeEmpty()
   })
 
   it('should de-dupe HTML/data requests', async () => {
@@ -461,7 +534,7 @@ describe('required server files', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
 
     await waitFor(2000)
@@ -472,7 +545,7 @@ describe('required server files', () => {
     })
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
   })
 
@@ -484,7 +557,7 @@ describe('required server files', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
 
     await next.patchFile('standalone/data.txt', 'hide')
@@ -496,7 +569,7 @@ describe('required server files', () => {
 
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
   })
 
@@ -657,7 +730,9 @@ describe('required server files', () => {
     const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
       headers: {
         'x-matched-path': '/fallback/first',
-        'x-now-route-matches': '1=first',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
       },
     })
     const $ = cheerio.load(html)
@@ -670,7 +745,9 @@ describe('required server files', () => {
     const html2 = await renderViaHTTP(appPort, `/fallback/[slug]`, undefined, {
       headers: {
         'x-matched-path': '/fallback/[slug]',
-        'x-now-route-matches': '1=second',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'second',
+        }).toString(),
       },
     })
     const $2 = cheerio.load(html2)
@@ -686,7 +763,9 @@ describe('required server files', () => {
     const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
       headers: {
         'x-matched-path': '/fallback/first',
-        'x-now-route-matches': '1=fallback%2ffirst',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'fallback/first',
+        }).toString(),
       },
     })
     const $ = cheerio.load(html)
@@ -699,7 +778,9 @@ describe('required server files', () => {
     const html2 = await renderViaHTTP(appPort, `/fallback/second`, undefined, {
       headers: {
         'x-matched-path': '/fallback/[slug]',
-        'x-now-route-matches': '1=fallback%2fsecond',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'fallback/second',
+        }).toString(),
       },
     })
     const $2 = cheerio.load(html2)
@@ -715,7 +796,7 @@ describe('required server files', () => {
     const html = await renderViaHTTP(appPort, '/optional-ssg', undefined, {
       headers: {
         'x-matched-path': '/optional-ssg',
-        'x-now-route-matches': '1=optional-ssg',
+        'x-now-route-matches': '',
       },
     })
     const $ = cheerio.load(html)
@@ -725,7 +806,9 @@ describe('required server files', () => {
     const html2 = await renderViaHTTP(appPort, `/optional-ssg`, undefined, {
       headers: {
         'x-matched-path': '/optional-ssg',
-        'x-now-route-matches': '1=optional-ssg%2fanother',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'another',
+        }).toString(),
       },
     })
     const $2 = cheerio.load(html2)
@@ -738,7 +821,9 @@ describe('required server files', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json?nxtPslug=first`,
+      `/_next/data/${next.buildId}/dynamic/first.json?${createNowRouteMatches({
+        slug: 'first',
+      }).toString()}`,
       undefined,
       {
         headers: {
@@ -759,7 +844,9 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/fallback/[slug].json`,
-          'x-now-route-matches': '1=second',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'second',
+          }).toString(),
         },
       }
     )
@@ -796,7 +883,9 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello&nxtPcatchAll=hello',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello',
+          }).toString(),
         },
       }
     )
@@ -815,7 +904,9 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello/world&nxtPcatchAll=hello/world',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello/world',
+          }).toString(),
         },
       }
     )
@@ -853,7 +944,9 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello&nxtPrest=hello',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello',
+          }).toString(),
         },
       }
     )
@@ -870,7 +963,9 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello/world&nxtPrest=hello/world',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello/world',
+          }).toString(),
         },
       }
     )
@@ -922,7 +1017,9 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/to-dynamic/%c0.%c0.',
-      '?path=%c0.%c0.',
+      {
+        path: '%c0.%c0.',
+      },
       {
         headers: {
           'x-matched-path': '/dynamic/[slug]',
@@ -1016,7 +1113,7 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/optional-ssp',
-      { rest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/optional-ssp/[[...rest]]',
@@ -1035,7 +1132,7 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/optional-ssg',
-      { rest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
@@ -1080,7 +1177,9 @@ describe('required server files', () => {
         path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
-          'x-now-route-matches': '1=',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: '',
+          }).toString(),
         },
       },
       {
@@ -1137,8 +1236,7 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
-          'x-now-route-matches':
-            '1=en%2Fes%2Fhello%252Fworld&nxtPrest=en%2Fes%2Fhello%252Fworld',
+          'x-now-route-matches': 'nxtPrest=en%2Fes%2Fhello%252Fworld',
         },
       }
     )
@@ -1155,7 +1253,7 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/api/optional',
-      { rest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/api/optional/[[...rest]]',
@@ -1181,7 +1279,7 @@ describe('required server files', () => {
     )
 
     const json = await res.json()
-    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.query).toEqual({ another: 'value' })
     expect(json.url).toBe('/api/optional/index?another=value')
   })
 
@@ -1293,9 +1391,17 @@ describe('required server files', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('index page')
 
-      expect(
-        fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
-      ).toBe(true)
+      if (!process.env.TEST_NODE_MIDDLEWARE) {
+        if (process.env.IS_TURBOPACK_TEST) {
+          expect(
+            fs.existsSync(join(standaloneDir, '.next/server/edge/chunks'))
+          ).toBe(true)
+        } else {
+          expect(
+            fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
+          ).toBe(true)
+        }
+      }
 
       const resImageResponse = await fetchViaHTTP(
         appPort,

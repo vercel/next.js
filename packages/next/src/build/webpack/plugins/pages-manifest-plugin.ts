@@ -43,7 +43,7 @@ export default class PagesManifestPlugin
     this.appDirEnabled = appDirEnabled
   }
 
-  async createAssets(compilation: any, assets: any) {
+  async createAssets(compilation: any) {
     const entrypoints = compilation.entrypoints
     const pages: PagesManifest = {}
     const appPaths: PagesManifest = {}
@@ -134,14 +134,17 @@ export default class PagesManifestPlugin
     } else {
       const pagesManifestPath =
         (!this.dev && !this.isEdgeRuntime ? '../' : '') + PAGES_MANIFEST
-      assets[pagesManifestPath] = new sources.RawSource(
-        JSON.stringify(
-          {
-            ...edgeServerPages,
-            ...nodeServerPages,
-          },
-          null,
-          2
+      compilation.emitAsset(
+        pagesManifestPath,
+        new sources.RawSource(
+          JSON.stringify(
+            {
+              ...edgeServerPages,
+              ...nodeServerPages,
+            },
+            null,
+            2
+          )
         )
       )
     }
@@ -158,17 +161,18 @@ export default class PagesManifestPlugin
           ...nodeServerAppPaths,
         })
       } else {
-        assets[
-          (!this.dev && !this.isEdgeRuntime ? '../' : '') + APP_PATHS_MANIFEST
-        ] = new sources.RawSource(
-          JSON.stringify(
-            {
-              ...edgeServerAppPaths,
-              ...nodeServerAppPaths,
-            },
-            null,
-            2
-          )
+        compilation.emitAsset(
+          (!this.dev && !this.isEdgeRuntime ? '../' : '') + APP_PATHS_MANIFEST,
+          new sources.RawSource(
+            JSON.stringify(
+              {
+                ...edgeServerAppPaths,
+                ...nodeServerAppPaths,
+              },
+              null,
+              2
+            )
+          ) as unknown as webpack.sources.RawSource
         )
       }
     }
@@ -181,7 +185,7 @@ export default class PagesManifestPlugin
           name: 'NextJsPagesManifest',
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets) => this.createAssets(compilation, assets)
+        () => this.createAssets(compilation)
       )
     })
   }

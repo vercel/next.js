@@ -1,6 +1,6 @@
 # Items
 
-Count: 7
+Count: 6
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -154,9 +154,7 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
-    Item7;
-    Item7["export run"];
+    Item6["export run"];
 ```
 # Phase 2
 ```mermaid
@@ -167,14 +165,12 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
-    Item7;
-    Item7["export run"];
+    Item6["export run"];
     Item3 --> Item2;
     Item5 --> Item3;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item7 --> Item5;
+    Item6 --> Item5;
 ```
 # Phase 3
 ```mermaid
@@ -185,14 +181,12 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
-    Item7;
-    Item7["export run"];
+    Item6["export run"];
     Item3 --> Item2;
     Item5 --> Item3;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item7 --> Item5;
+    Item6 --> Item5;
 ```
 # Phase 4
 ```mermaid
@@ -203,44 +197,31 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
-    Item7;
-    Item7["export run"];
+    Item6["export run"];
     Item3 --> Item2;
     Item5 --> Item3;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item7 --> Item5;
-    Item6 --> Item1;
     Item6 --> Item5;
 ```
 # Final
 ```mermaid
 graph TD
     N0["Items: [ItemId(0, ImportOfModule)]"];
-    N1["Items: [ItemId(2, VarDeclarator(0))]"];
-    N2["Items: [ItemId(0, ImportBinding(0))]"];
-    N3["Items: [ItemId(1, VarDeclarator(0))]"];
-    N4["Items: [ItemId(3, VarDeclarator(0))]"];
-    N5["Items: [ItemId(ModuleEvaluation)]"];
-    N6["Items: [ItemId(Export((&quot;run&quot;, #2), &quot;run&quot;))]"];
-    N3 --> N2;
-    N4 --> N3;
-    N4 --> N1;
-    N4 --> N0;
-    N6 --> N4;
-    N5 --> N0;
-    N5 --> N4;
+    N1["Items: [ItemId(0, ImportBinding(0))]"];
+    N2["Items: [ItemId(1, VarDeclarator(0)), ItemId(2, VarDeclarator(0)), ItemId(3, VarDeclarator(0)), ItemId(Export((&quot;run&quot;, #2), &quot;run&quot;))]"];
+    N1 --> N0;
+    N2 --> N0;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 5,
-    Exports: 7,
+    ModuleEvaluation: 2,
     Export(
         "run",
-    ): 6,
+    ): 2,
+    Exports: 3,
 }
 ```
 
@@ -253,51 +234,22 @@ import "./index";
 ```
 ## Part 1
 ```js
-const queue = [];
-export { queue as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
 
 ```
 ## Part 2
 ```js
-import { IPC } from "./index";
-export { IPC as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { b as IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-const ipc = IPC;
-export { ipc as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { c as ipc } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+import { IPC } from "./index";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
-import { a as queue } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
+const ipc = IPC;
+const queue = [];
 const run = async (moduleFactory)=>{
     let nextId = 1;
     const requests = new Map();
@@ -389,34 +341,20 @@ const run = async (moduleFactory)=>{
         }
     }
 };
-export { run as d } from "__TURBOPACK_VAR__" assert {
+export { run };
+export { ipc as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { queue as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { run as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
-## Part 5
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-"module evaluation";
-
-```
-## Part 6
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { d as run } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-export { run };
-
-```
-## Part 7
+## Part 3
 ```js
 export { run } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export run"
@@ -428,21 +366,122 @@ export { run } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+import { IPC } from "./index";
+const ipc = IPC;
+const queue = [];
+const run = async (moduleFactory)=>{
+    let nextId = 1;
+    const requests = new Map();
+    const internalIpc = {
+        sendInfo: (message)=>ipc.send({
+                type: "info",
+                data: message
+            }),
+        sendRequest: (message)=>{
+            const id = nextId++;
+            let resolve, reject;
+            const promise = new Promise((res, rej)=>{
+                resolve = res;
+                reject = rej;
+            });
+            requests.set(id, {
+                resolve,
+                reject
+            });
+            return ipc.send({
+                type: "request",
+                id,
+                data: message
+            }).then(()=>promise);
+        },
+        sendError: (error)=>{
+            return ipc.sendError(error);
+        }
+    };
+    let getValue;
+    try {
+        const module = await moduleFactory();
+        if (typeof module.init === "function") {
+            await module.init();
+        }
+        getValue = module.default;
+        await ipc.sendReady();
+    } catch (err) {
+        await ipc.sendReady();
+        await ipc.sendError(err);
+    }
+    let isRunning = false;
+    const run = async ()=>{
+        while(queue.length > 0){
+            const args = queue.shift();
+            try {
+                const value = await getValue(internalIpc, ...args);
+                await ipc.send({
+                    type: "end",
+                    data: value === undefined ? undefined : JSON.stringify(value, null, 2),
+                    duration: 0
+                });
+            } catch (e) {
+                await ipc.sendError(e);
+            }
+        }
+        isRunning = false;
+    };
+    while(true){
+        const msg = await ipc.recv();
+        switch(msg.type){
+            case "evaluate":
+                {
+                    queue.push(msg.args);
+                    if (!isRunning) {
+                        isRunning = true;
+                        run();
+                    }
+                    break;
+                }
+            case "result":
+                {
+                    const request = requests.get(msg.id);
+                    if (request) {
+                        requests.delete(msg.id);
+                        if (msg.error) {
+                            request.reject(new Error(msg.error));
+                        } else {
+                            request.resolve(msg.data);
+                        }
+                    }
+                    break;
+                }
+            default:
+                {
+                    console.error("unexpected message type", msg.type);
+                    process.exit(1);
+                }
+        }
+    }
 };
-"module evaluation";
+export { run };
+export { ipc as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { queue as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { run as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 5,
-    Exports: 7,
+    ModuleEvaluation: 2,
     Export(
         "run",
-    ): 6,
+    ): 2,
+    Exports: 3,
 }
 ```
 
@@ -455,51 +494,22 @@ import "./index";
 ```
 ## Part 1
 ```js
-const queue = [];
-export { queue as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
 
 ```
 ## Part 2
 ```js
-import { IPC } from "./index";
-export { IPC as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { b as IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-const ipc = IPC;
-export { ipc as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { c as ipc } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+import { IPC } from "./index";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
-import { a as queue } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
+const ipc = IPC;
+const queue = [];
 const run = async (moduleFactory)=>{
     let nextId = 1;
     const requests = new Map();
@@ -591,34 +601,20 @@ const run = async (moduleFactory)=>{
         }
     }
 };
-export { run as d } from "__TURBOPACK_VAR__" assert {
+export { run };
+export { ipc as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { queue as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { run as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
-## Part 5
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-"module evaluation";
-
-```
-## Part 6
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { d as run } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-export { run };
-
-```
-## Part 7
+## Part 3
 ```js
 export { run } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export run"
@@ -630,9 +626,110 @@ export { run } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+import { IPC } from "./index";
+const ipc = IPC;
+const queue = [];
+const run = async (moduleFactory)=>{
+    let nextId = 1;
+    const requests = new Map();
+    const internalIpc = {
+        sendInfo: (message)=>ipc.send({
+                type: "info",
+                data: message
+            }),
+        sendRequest: (message)=>{
+            const id = nextId++;
+            let resolve, reject;
+            const promise = new Promise((res, rej)=>{
+                resolve = res;
+                reject = rej;
+            });
+            requests.set(id, {
+                resolve,
+                reject
+            });
+            return ipc.send({
+                type: "request",
+                id,
+                data: message
+            }).then(()=>promise);
+        },
+        sendError: (error)=>{
+            return ipc.sendError(error);
+        }
+    };
+    let getValue;
+    try {
+        const module = await moduleFactory();
+        if (typeof module.init === "function") {
+            await module.init();
+        }
+        getValue = module.default;
+        await ipc.sendReady();
+    } catch (err) {
+        await ipc.sendReady();
+        await ipc.sendError(err);
+    }
+    let isRunning = false;
+    const run = async ()=>{
+        while(queue.length > 0){
+            const args = queue.shift();
+            try {
+                const value = await getValue(internalIpc, ...args);
+                await ipc.send({
+                    type: "end",
+                    data: value === undefined ? undefined : JSON.stringify(value, null, 2),
+                    duration: 0
+                });
+            } catch (e) {
+                await ipc.sendError(e);
+            }
+        }
+        isRunning = false;
+    };
+    while(true){
+        const msg = await ipc.recv();
+        switch(msg.type){
+            case "evaluate":
+                {
+                    queue.push(msg.args);
+                    if (!isRunning) {
+                        isRunning = true;
+                        run();
+                    }
+                    break;
+                }
+            case "result":
+                {
+                    const request = requests.get(msg.id);
+                    if (request) {
+                        requests.delete(msg.id);
+                        if (msg.error) {
+                            request.reject(new Error(msg.error));
+                        } else {
+                            request.resolve(msg.data);
+                        }
+                    }
+                    break;
+                }
+            default:
+                {
+                    console.error("unexpected message type", msg.type);
+                    process.exit(1);
+                }
+        }
+    }
 };
-"module evaluation";
+export { run };
+export { ipc as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { queue as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { run as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

@@ -30,10 +30,13 @@ const cli = require.resolve('create-next-app/dist/index.js')
 export const createNextApp = (
   args: string[],
   options?: SpawnOptions,
-  testVersion?: string
+  testVersion?: string,
+  clearPreferences: boolean = true
 ) => {
   const conf = new Conf({ projectName: 'create-next-app' })
-  conf.clear()
+  if (clearPreferences) {
+    conf.clear()
+  }
 
   console.log(`[TEST] $ ${cli} ${args.join(' ')}`, { options })
 
@@ -138,7 +141,7 @@ export const shouldBeTemplateProject = ({
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  // Tailwind templates share the same files (tailwind.config.js, postcss.config.mjs)
+  // Tailwind templates share the same files (tailwind.config.mjs, postcss.config.mjs)
   if (
     !['app-tw', 'app-tw-empty', 'default-tw', 'default-tw-empty'].includes(
       template

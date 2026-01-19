@@ -27,8 +27,8 @@ async function main() {
 
   await exec(`node ${SCRIPT}`)
 
-  await exec(`git config user.name "vercel-release-bot"`)
-  await exec(`git config user.email "infra+release@vercel.com"`)
+  await exec(`git config user.name "nextjs-bot"`)
+  await exec(`git config user.email "it+nextjs-bot@vercel.com"`)
   await exec(`git checkout -b ${branchName}`)
   await exec(`git add -A`)
   await exec(`git commit --message ${branchName}`)
@@ -66,10 +66,17 @@ async function main() {
     body: PR_BODY,
   })
 
+  await octokit.rest.issues.addLabels({
+    owner,
+    repo,
+    issue_number: pullRequest.data.number,
+    labels: ['run-react-18-tests'],
+  })
+
   console.log('Created pull request', pullRequest.url)
 
   const previousPullRequests = pullRequests.filter(({ title, user }) => {
-    return title.includes(PR_TITLE) && user.login === 'vercel-release-bot'
+    return title.includes(PR_TITLE) && user.login === 'nextjs-bot'
   })
 
   if (previousPullRequests.length) {

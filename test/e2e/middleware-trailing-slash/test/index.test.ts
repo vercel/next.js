@@ -114,7 +114,7 @@ describe('Middleware Runtime trailing slash', () => {
         }
         delete middlewareWithoutEnvs.env
         expect(middlewareWithoutEnvs).toEqual({
-          files: process.env.TURBOPACK
+          files: process.env.IS_TURBOPACK_TEST
             ? expect.toBeArray()
             : expect.arrayContaining([
                 'server/edge-runtime-webpack.js',
@@ -124,7 +124,7 @@ describe('Middleware Runtime trailing slash', () => {
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: process.env.TURBOPACK ? expect.toBeArray() : [],
+          assets: process.env.IS_TURBOPACK_TEST ? expect.toBeArray() : [],
         })
       })
 
@@ -134,7 +134,7 @@ describe('Middleware Runtime trailing slash', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          if (!process.env.TURBOPACK) {
+          if (!process.env.IS_TURBOPACK_TEST) {
             expect(middleware.files).toContainEqual(
               expect.stringContaining('server/edge-runtime-webpack')
             )

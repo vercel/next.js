@@ -1,11 +1,11 @@
-import { revalidateTag, unstable_cache } from 'next/cache'
+import { updateTag, unstable_cache } from 'next/cache'
 import { getUncachedRandomData } from '../no-store-fn'
 import { RevalidateButton } from '../revalidate-button'
 
 export default async function Page() {
   async function revalidate() {
     'use server'
-    await revalidateTag('no-store-fn')
+    await updateTag('no-store-fn')
   }
 
   const cachedData = await unstable_cache(

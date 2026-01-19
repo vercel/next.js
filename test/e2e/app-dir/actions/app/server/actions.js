@@ -25,4 +25,5 @@ export async function redirectAction(formData) {
 }
 
 // Test case for https://github.com/vercel/next.js/issues/61183
-export const dummyServerAction = () => new Promise((r) => setTimeout(r, 2000))
+export const dummyServerAction = async () =>
+  new Promise((r) => setTimeout(r, 2000))

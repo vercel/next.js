@@ -1,3 +1,3 @@
-import { order } from "./module";
+import { order } from './module'
 
-export default order;
+export default order

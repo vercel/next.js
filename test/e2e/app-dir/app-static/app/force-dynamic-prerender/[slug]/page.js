@@ -8,8 +8,11 @@ export const generateStaticParams = async () => {
   return [{ slug: 'frameworks' }]
 }
 
-export default function Page({ params }) {
-  const result = cookies().get('session')?.value ? 'has cookie' : 'no cookie'
+export default async function Page(props) {
+  const params = await props.params
+  const result = (await cookies()).get('session')?.value
+    ? 'has cookie'
+    : 'no cookie'
   return (
     <div>
       <div id="slug">{params.slug}</div>

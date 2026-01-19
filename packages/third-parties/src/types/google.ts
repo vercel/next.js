@@ -11,8 +11,7 @@ type JSONValue =
   | JSONValue[]
   | { [key: string]: JSONValue }
 
-export type GTMParams = {
-  gtmId: string
+type GTMParamsBaseParams = {
   dataLayer?: { [key: string]: JSONValue }
   dataLayerName?: string
   auth?: string
@@ -20,9 +19,22 @@ export type GTMParams = {
   nonce?: string
 }
 
+type GTMParamsWithId = GTMParamsBaseParams & {
+  gtmId: string
+  gtmScriptUrl?: string
+}
+
+type GTMParamsWithScriptUrl = GTMParamsBaseParams & {
+  gtmId?: string
+  gtmScriptUrl: string
+}
+
+export type GTMParams = GTMParamsWithId | GTMParamsWithScriptUrl
+
 export type GAParams = {
   gaId: string
   dataLayerName?: string
+  debugMode?: boolean
   nonce?: string
 }
 

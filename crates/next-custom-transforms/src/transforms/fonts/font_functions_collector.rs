@@ -1,24 +1,24 @@
 use swc_core::{
+    atoms::Wtf8Atom,
     common::errors::HANDLER,
     ecma::{
         ast::*,
-        atoms::JsWord,
         visit::{noop_visit_type, Visit},
     },
 };
 
 pub struct FontFunctionsCollector<'a> {
-    pub font_loaders: &'a [JsWord],
+    pub font_loaders: &'a [Wtf8Atom],
     pub state: &'a mut super::State,
 }
 
-impl<'a> Visit for FontFunctionsCollector<'a> {
+impl Visit for FontFunctionsCollector<'_> {
     noop_visit_type!();
 
     fn visit_import_decl(&mut self, import_decl: &ImportDecl) {
         if self.font_loaders.contains(&import_decl.src.value) {
             self.state
-                .removeable_module_items
+                .removable_module_items
                 .insert(import_decl.span.lo);
             for specifier in &import_decl.specifiers {
                 let (local, function_name) = match specifier {

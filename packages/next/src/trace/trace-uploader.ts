@@ -2,12 +2,10 @@ import findUp from 'next/dist/compiled/find-up'
 import fsPromise from 'fs/promises'
 import child_process from 'child_process'
 import assert from 'assert'
-import fetch from 'next/dist/compiled/node-fetch'
 import os from 'os'
 import { createInterface } from 'readline'
 import { createReadStream } from 'fs'
 import path from 'path'
-import { Telemetry } from '../telemetry/storage'
 
 const COMMON_ALLOWED_EVENTS = ['memory-usage']
 
@@ -30,6 +28,7 @@ const DEV_ALLOWED_EVENTS = new Set([
 const BUILD_ALLOWED_EVENTS = new Set([
   ...COMMON_ALLOWED_EVENTS,
   'next-build',
+  'run-turbopack',
   'webpack-compilation',
   'run-webpack-compiler',
   'create-entrypoints',
@@ -51,14 +50,14 @@ const BUILD_ALLOWED_EVENTS = new Set([
   'node-file-trace-build',
   'static-generation',
   'next-export',
-  'verify-typescript-setup',
-  'verify-and-lint',
+  'run-typescript',
+  'run-eslint',
 ])
 
 const {
   NEXT_TRACE_UPLOAD_DEBUG,
   // An external env to allow to upload full trace without picking up the relavant spans.
-  // This is mainly for the debugging purpose, to allwo manual audit for full trace for the given build.
+  // This is mainly for the debugging purpose, to allow manual audit for full trace for the given build.
   // [NOTE] This may fail if build is large and generated trace is excessively large.
   NEXT_TRACE_UPLOAD_FULL,
 } = process.env
@@ -66,7 +65,19 @@ const {
 const isDebugEnabled = !!NEXT_TRACE_UPLOAD_DEBUG || !!NEXT_TRACE_UPLOAD_FULL
 const shouldUploadFullTrace = !!NEXT_TRACE_UPLOAD_FULL
 
-const [, , traceUploadUrl, mode, projectDir, distDir] = process.argv
+const [
+  ,
+  ,
+  traceUploadUrl,
+  mode,
+  projectDir,
+  distDir,
+  _isTurboSession,
+  traceId,
+  anonymousId,
+  sessionId,
+] = process.argv
+const isTurboSession = _isTurboSession === 'true'
 
 type TraceRequestBody = {
   metadata: TraceMetadata
@@ -105,8 +116,6 @@ interface TraceMetadata {
     )
   ).version
 
-  const telemetry = new Telemetry({ distDir })
-
   const projectPkgJsonPath = await findUp('package.json')
   assert(projectPkgJsonPath)
 
@@ -129,11 +138,15 @@ interface TraceMetadata {
     crlfDelay: Infinity,
   })
 
-  let isTurboSession = false
-  const traces = new Map<string, TraceEvent[]>()
+  const sessionTrace = []
   for await (const line of readLineInterface) {
     const lineEvents: TraceEvent[] = JSON.parse(line)
     for (const event of lineEvents) {
+      if (event.traceId !== traceId) {
+        // Only consider events for the current session
+        continue
+      }
+
       if (
         // Always include root spans
         event.parentId === undefined ||
@@ -142,22 +155,14 @@ interface TraceMetadata {
           ? DEV_ALLOWED_EVENTS.has(event.name)
           : BUILD_ALLOWED_EVENTS.has(event.name))
       ) {
-        let trace = traces.get(event.traceId)
-        if (trace === undefined) {
-          trace = []
-          traces.set(event.traceId, trace)
-        }
-        if (typeof event.tags.isTurbopack === 'boolean') {
-          isTurboSession = event.tags.isTurbopack
-        }
-        trace.push(event)
+        sessionTrace.push(event)
       }
     }
   }
 
   const body: TraceRequestBody = {
     metadata: {
-      anonymousId: telemetry.anonymousId,
+      anonymousId,
       arch: os.arch(),
       commit,
       cpus: os.cpus().length,
@@ -166,9 +171,12 @@ interface TraceMetadata {
       nextVersion,
       pkgName,
       platform: os.platform(),
-      sessionId: telemetry.sessionId,
+      sessionId,
     },
-    traces: [...traces.values()],
+    // The trace file can contain events spanning multiple sessions.
+    // Only submit traces for the current session, as the metadata we send is
+    // intended for this session only.
+    traces: [sessionTrace],
   }
 
   if (isDebugEnabled) {

@@ -1,6 +1,7 @@
 import type { TraceEvent } from '../types'
 import reportToTelemetry from './to-telemetry'
 import reportToJson from './to-json'
+import reportToJsonBuild from './to-json-build'
 import type { Reporter } from './types'
 
 class MultiReporter implements Reporter {
@@ -10,8 +11,8 @@ class MultiReporter implements Reporter {
     this.reporters = reporters
   }
 
-  async flushAll() {
-    await Promise.all(this.reporters.map((reporter) => reporter.flushAll()))
+  async flushAll(opts?: { end: boolean }) {
+    await Promise.all(this.reporters.map((reporter) => reporter.flushAll(opts)))
   }
 
   report(event: TraceEvent) {
@@ -20,4 +21,8 @@ class MultiReporter implements Reporter {
 }
 
 // JSON is always reported to allow for diagnostics
-export const reporter = new MultiReporter([reportToJson, reportToTelemetry])
+export const reporter = new MultiReporter([
+  reportToJson,
+  reportToJsonBuild,
+  reportToTelemetry,
+])

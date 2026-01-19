@@ -1,19 +1,22 @@
 use std::borrow::Cow;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Expr, Ident},
     quote,
 };
-use turbo_tasks::Vc;
+use turbo_rcstr::rcstr;
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::{as_abs_path, esm::base::insert_hoisted_stmt, AstPath},
+    references::AstPath,
+    runtime_functions::TURBOPACK_RESOLVE_ABSOLUTE_PATH,
 };
 
 /// Responsible for initializing the `import.meta` object binding, so that it
@@ -21,28 +24,29 @@ use crate::{
 ///
 /// There can be many references to import.meta, and they appear at any nesting
 /// in the file. But we must only initialize the binding a single time.
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+///
+/// This singleton behavior must be enforced by the caller!
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
 pub struct ImportMetaBinding {
-    path: Vc<FileSystemPath>,
+    path: FileSystemPath,
 }
 
-#[turbo_tasks::value_impl]
 impl ImportMetaBinding {
-    #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
-        ImportMetaBinding { path }.cell()
+    pub fn new(path: FileSystemPath) -> Self {
+        ImportMetaBinding { path }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for ImportMetaBinding {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let path = as_abs_path(self.path).await?.as_str().map_or_else(
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let rel_path = chunking_context
+            .root_path()
+            .await?
+            .get_relative_path_to(&self.path);
+        let path = rel_path.map_or_else(
             || {
                 quote!(
                     "(() => { throw new Error('could not convert import.meta.url to filepath') })()"
@@ -50,67 +54,66 @@ impl CodeGenerateable for ImportMetaBinding {
                 )
             },
             |path| {
-                let formatted = encode_path(path).trim_start_matches("/ROOT/").to_string();
+                let formatted = encode_path(path.trim_start_matches("./")).to_string();
                 quote!(
-                    "`file://${__turbopack_resolve_absolute_path__($formatted)}`" as Expr,
+                    "`file://${$turbopack_resolve_absolute_path($formatted)}`" as Expr,
+                    turbopack_resolve_absolute_path: Expr = TURBOPACK_RESOLVE_ABSOLUTE_PATH.into(),
                     formatted: Expr = formatted.into()
                 )
             },
         );
 
-        let visitor = create_visitor!(visit_mut_program(program: &mut Program) {
-            // [NOTE] url property is lazy-evaluated, as it should be computed once turbopack_runtime injects a function
-            // to calculate an absolute path.
-            let meta = quote!(
+        Ok(CodeGeneration::hoisted_stmt(
+            rcstr!("import.meta"),
+            // [NOTE] url property is lazy-evaluated, as it should be computed once
+            // turbopack_runtime injects a function to calculate an absolute path.
+            quote!(
                 "const $name = { get url() { return $path } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path.clone(),
-            );
-            insert_hoisted_stmt(program, meta);
-        });
+            ),
+        ))
+    }
+}
 
-        Ok(CodeGeneration {
-            visitors: vec![visitor],
-        }
-        .into())
+impl From<ImportMetaBinding> for CodeGen {
+    fn from(val: ImportMetaBinding) -> Self {
+        CodeGen::ImportMetaBinding(val)
     }
 }
 
 /// Handles rewriting `import.meta` references into the injected binding created
-/// by ImportMetaBindi ImportMetaBinding.
+/// by ImportMetaBinding.
 ///
 /// There can be many references to import.meta, and they appear at any nesting
 /// in the file. But all references refer to the same mutable object.
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct ImportMetaRef {
-    ast_path: Vc<AstPath>,
+    ast_path: AstPath,
 }
 
-#[turbo_tasks::value_impl]
 impl ImportMetaRef {
-    #[turbo_tasks::function]
-    pub fn new(ast_path: Vc<AstPath>) -> Vc<Self> {
-        ImportMetaRef { ast_path }.cell()
+    pub fn new(ast_path: AstPath) -> Self {
+        ImportMetaRef { ast_path }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for ImportMetaRef {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let ast_path = &self.ast_path.await?;
-        let visitor = create_visitor!(ast_path, visit_mut_expr(expr: &mut Expr) {
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let visitor = create_visitor!(self.ast_path, visit_mut_expr, |expr: &mut Expr| {
             *expr = Expr::Ident(meta_ident());
         });
 
-        Ok(CodeGeneration {
-            visitors: vec![visitor],
-        }
-        .into())
+        Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl From<ImportMetaRef> for CodeGen {
+    fn from(val: ImportMetaRef) -> Self {
+        CodeGen::ImportMetaRef(val)
     }
 }
 
@@ -119,7 +122,7 @@ impl CodeGenerateable for ImportMetaRef {
 fn encode_path(path: &'_ str) -> Cow<'_, str> {
     let mut encoded = String::new();
     let mut start = 0;
-    for (i, c) in path.chars().enumerate() {
+    for (i, c) in path.char_indices() {
         let mapping = match c {
             '%' => "%25",
             '\\' => "%5C",

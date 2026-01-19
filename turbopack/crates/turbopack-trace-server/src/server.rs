@@ -4,18 +4,19 @@ use std::{
     thread::spawn,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use tungstenite::{accept, Message};
+use tungstenite::{Message, accept};
 
 use crate::{
     store::SpanId,
     store_container::StoreContainer,
+    timestamp::Timestamp,
     u64_string,
     viewer::{Update, ViewLineUpdate, ViewMode, Viewer},
 };
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
 pub enum ServerToClientMessage {
@@ -32,10 +33,10 @@ pub enum ServerToClientMessage {
         #[serde(with = "u64_string")]
         id: SpanId,
         is_graph: bool,
-        start: u64,
-        end: u64,
-        duration: u64,
-        cpu: u64,
+        start: Timestamp,
+        end: Timestamp,
+        duration: Timestamp,
+        cpu: Timestamp,
         allocations: u64,
         deallocations: u64,
         allocation_count: u64,
@@ -45,7 +46,7 @@ pub enum ServerToClientMessage {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
 pub enum ClientToServerMessage {
@@ -71,29 +72,20 @@ pub enum ClientToServerMessage {
     CheckForMoreData,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct SpanViewEvent {
-    pub start: u64,
-    pub duration: u64,
-    pub name: String,
-    pub id: Option<SpanId>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Filter {
     pub op: Op,
     pub value: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Op {
     Gt,
     Lt,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewRect {
     pub x: u64,
@@ -127,7 +119,7 @@ pub fn serve(store: Arc<StoreContainer>, port: u16) {
         spawn(move || {
             let websocket = accept(stream.unwrap()).unwrap();
             if let Err(err) = handle_connection(websocket, store) {
-                eprintln!("Error: {:?}", err);
+                eprintln!("Error: {err:?}");
             }
         });
     }
@@ -312,10 +304,10 @@ fn handle_connection(
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph: false,
-                                    start: 0,
-                                    end: 0,
-                                    duration: 0,
-                                    cpu: 0,
+                                    start: Timestamp::ZERO,
+                                    end: Timestamp::ZERO,
+                                    duration: Timestamp::ZERO,
+                                    cpu: Timestamp::ZERO,
                                     allocations: 0,
                                     deallocations: 0,
                                     allocation_count: 0,

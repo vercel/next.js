@@ -17,7 +17,6 @@ const RECORD_SPAN_THRESHOLD_MS = parseInt(
 )
 
 // eslint typescript has a bug with TS enums
-/* eslint-disable no-shadow */
 export enum SpanStatus {
   Started = 'started',
   Stopped = 'stopped',
@@ -52,10 +51,6 @@ export class Span {
     this.name = name
     this.parentId = parentId ?? defaultParentSpanId
     this.attrs = attrs ? { ...attrs } : {}
-    if (this.parentId === undefined) {
-      // Attach additional information to root spans
-      this.attrs.isTurbopack = Boolean(process.env.TURBOPACK)
-    }
 
     this.status = SpanStatus.Started
     this.id = getId()
@@ -159,7 +154,8 @@ export const trace = (
   return new Span({ name, parentId, attrs })
 }
 
-export const flushAllTraces = () => reporter.flushAll()
+export const flushAllTraces = (opts?: { end: boolean }) =>
+  reporter.flushAll(opts)
 
 // This code supports workers by serializing the state of tracers when the
 // worker is initialized, and serializing the trace events from the worker back

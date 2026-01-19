@@ -1,8 +1,11 @@
 import { nextBuild } from 'next-test-utils'
+// In order for the global isNextStart to be set
+import 'e2e-utils'
 
-describe('ppr build errors', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('ppr build errors', () => {
+  ;(Boolean((global as any).isNextStart) ? describe : describe.skip)(
+    'production only',
     () => {
       let stderr: string
       let stdout: string

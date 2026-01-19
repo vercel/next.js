@@ -1,12 +1,17 @@
 import path from '../../../shared/lib/isomorphic/path'
 import type { MetadataContext } from '../types/resolvers'
 
+export type MetadataBaseURL = URL | null
+
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
 }
 
 function createLocalMetadataBase() {
-  return new URL(`http://localhost:${process.env.PORT || 3000}`)
+  // Check if experimental HTTPS is enabled
+  const isExperimentalHttps = Boolean(process.env.__NEXT_EXPERIMENTAL_HTTPS)
+  const protocol = isExperimentalHttps ? 'https' : 'http'
+  return new URL(`${protocol}://localhost:${process.env.PORT || 3000}`)
 }
 
 function getPreviewDeploymentUrl(): URL | undefined {
@@ -19,13 +24,17 @@ function getProductionDeploymentUrl(): URL | undefined {
   return origin ? new URL(`https://${origin}`) : undefined
 }
 
-// For deployment url for metadata routes, prefer to use the deployment url if possible
-// as these routes are unique to the deployments url.
-export function getSocialImageFallbackMetadataBase(metadataBase: URL | null): {
-  fallbackMetadataBase: URL
-  isMetadataBaseMissing: boolean
-} {
-  const isMetadataBaseMissing = !metadataBase
+/**
+ * Given an optional user-provided metadataBase, this determines what the metadataBase should
+ * fallback to. Specifically:
+ * - In dev, it should always be localhost
+ * - In Vercel preview builds, it should be the preview build ID
+ * - In start, it should be the user-provided metadataBase value. Otherwise,
+ * it'll fall back to the Vercel production deployment, and localhost as a last resort.
+ */
+export function getSocialImageMetadataBaseFallback(
+  metadataBase: MetadataBaseURL
+): URL {
   const defaultMetadataBase = createLocalMetadataBase()
   const previewDeploymentUrl = getPreviewDeploymentUrl()
   const productionDeploymentUrl = getProductionDeploymentUrl()
@@ -42,22 +51,19 @@ export function getSocialImageFallbackMetadataBase(metadataBase: URL | null): {
         : metadataBase || productionDeploymentUrl || defaultMetadataBase
   }
 
-  return {
-    fallbackMetadataBase,
-    isMetadataBaseMissing,
-  }
+  return fallbackMetadataBase
 }
 
-function resolveUrl(url: null | undefined, metadataBase: URL | null): null
-function resolveUrl(url: string | URL, metadataBase: URL | null): URL
+function resolveUrl(url: null | undefined, metadataBase: MetadataBaseURL): null
+function resolveUrl(url: string | URL, metadataBase: MetadataBaseURL): URL
 function resolveUrl(
-  url: string | URL | null | undefined,
-  metadataBase: URL | null
-): URL | null
+  url: string | MetadataBaseURL | undefined,
+  metadataBase: MetadataBaseURL
+): MetadataBaseURL
 function resolveUrl(
-  url: string | URL | null | undefined,
-  metadataBase: URL | null
-): URL | null {
+  url: string | MetadataBaseURL | undefined,
+  metadataBase: MetadataBaseURL
+): MetadataBaseURL {
   if (url instanceof URL) return url
   if (!url) return null
 
@@ -72,8 +78,8 @@ function resolveUrl(
   }
 
   // Handle relative or absolute paths
-  const basePath = metadataBase.pathname || ''
-  const joinedPath = path.posix.join(basePath, url)
+  const pathname = metadataBase.pathname || ''
+  const joinedPath = path.posix.join(pathname, url)
 
   return new URL(joinedPath, metadataBase)
 }
@@ -96,8 +102,9 @@ function isFilePattern(pathname: string): boolean {
 // Resolve `pathname` if `url` is a relative path the compose with `metadataBase`.
 function resolveAbsoluteUrlWithPathname(
   url: string | URL,
-  metadataBase: URL | null,
-  { trailingSlash, pathname }: MetadataContext
+  metadataBase: MetadataBaseURL,
+  pathname: string,
+  { trailingSlash }: MetadataContext
 ): string {
   // Resolve url with pathname that always starts with `/`
   url = resolveRelativeUrl(url, pathname)
@@ -109,7 +116,10 @@ function resolveAbsoluteUrlWithPathname(
   if (typeof result === 'string') {
     resolvedUrl = result
   } else {
-    resolvedUrl = result.pathname === '/' ? result.origin : result.href
+    resolvedUrl =
+      result.pathname === '/' && result.searchParams.size === 0
+        ? result.origin
+        : result.href
   }
 
   // Add trailing slash if it's enabled for urls matches the condition

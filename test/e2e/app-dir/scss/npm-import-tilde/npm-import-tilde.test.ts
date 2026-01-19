@@ -3,12 +3,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 const nextConfig = {
-  experimental: {
-    turbo: {
-      resolveAlias: {
-        '/*': './*',
-        '~*': '*',
-      },
+  turbopack: {
+    resolveAlias: {
+      '/*': './*',
+      '~*': '*',
     },
   },
 }

@@ -1,3 +1,4 @@
-export default function _writeOnlyError(name) {
-  throw new TypeError("\"" + name + "\" is write-only");
+function _writeOnlyError(r) {
+  throw new TypeError('"' + r + '" is write-only');
 }
+export { _writeOnlyError as default };

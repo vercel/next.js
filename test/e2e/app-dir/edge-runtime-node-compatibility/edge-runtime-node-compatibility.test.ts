@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('edge runtime node compatibility', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
@@ -46,4 +46,12 @@ describe('edge runtime node compatibility', () => {
       ]),
     })
   })
+
+  if (isNextStart) {
+    it('does not warn when using supported node modules', () => {
+      expect(next.cliOutput).not.toMatch(
+        /A Node.js module is loaded \('async_hooks' at line \d+\) which is not supported in the Edge Runtime./
+      )
+    })
+  }
 })

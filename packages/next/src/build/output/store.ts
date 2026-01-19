@@ -1,10 +1,9 @@
 import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { type Span, flushAllTraces, trace } from '../../trace'
-import { teardownHeapProfiler, teardownTraceSubscriber } from '../swc'
+import { teardownTraceSubscriber } from '../swc'
 import * as Log from './log'
 
-const MAX_LOG_SKIP_DURATION = 500 // 500ms
+const MAX_LOG_SKIP_DURATION_MS = 3000
 
 export type OutputState =
   | {
@@ -110,7 +109,7 @@ store.subscribe((state) => {
           trigger: trigger,
         })
         if (!loadingLogTimer) {
-          // Only log compiling if compiled is not finished in 3 seconds
+          // Only log compiling if compiled is not finished quickly
           loadingLogTimer = setTimeout(() => {
             if (
               triggerUrl &&
@@ -121,7 +120,7 @@ store.subscribe((state) => {
             } else {
               Log.wait(`Compiling ${trigger} ...`)
             }
-          }, MAX_LOG_SKIP_DURATION)
+          }, MAX_LOG_SKIP_DURATION_MS)
         }
       }
     }
@@ -135,24 +134,10 @@ store.subscribe((state) => {
     // Log compilation errors
     Log.error(state.errors[0])
 
-    const cleanError = stripAnsi(state.errors[0])
-    if (cleanError.indexOf('SyntaxError') > -1) {
-      const matches = cleanError.match(/\[.*\]=/)
-      if (matches) {
-        for (const match of matches) {
-          const prop = (match.split(']').shift() || '').slice(1)
-          console.log(
-            `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://nextjs.org/docs/messages/amp-bind-jsx-alt`
-          )
-        }
-        return
-      }
-    }
     startTime = 0
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     teardownTraceSubscriber()
-    teardownHeapProfiler()
     return
   }
 
@@ -176,7 +161,6 @@ store.subscribe((state) => {
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     teardownTraceSubscriber()
-    teardownHeapProfiler()
     return
   }
 
@@ -198,14 +182,10 @@ store.subscribe((state) => {
       traceSpan.stop()
       traceSpan = null
     }
-    Log.event(
-      `Compiled${trigger ? ' ' + trigger : ''}${timeMessage}${modulesMessage}`
-    )
     trigger = ''
   }
 
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
   teardownTraceSubscriber()
-  teardownHeapProfiler()
 })

@@ -5,14 +5,19 @@ const createJestConfig = nextJest()
 // Any custom config you want to pass to Jest
 /** @type {import('jest').Config} */
 const customJestConfig = {
+  displayName: process.env.IS_WEBPACK_TEST ? 'webpack' : 'Turbopack',
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
+  globalSetup: '<rootDir>/jest-global-setup.ts',
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
   rootDir: 'test',
   roots: [
     '<rootDir>',
     '<rootDir>/../packages/next/src/',
+    '<rootDir>/../packages/next-codemod/',
+    '<rootDir>/../packages/eslint-plugin-internal/',
     '<rootDir>/../packages/font/src/',
+    '<rootDir>/../packages/next-routing/',
   ],
   modulePathIgnorePatterns: ['/\\.next/'],
   modulePaths: ['<rootDir>/lib'],
@@ -20,12 +25,6 @@ const customJestConfig = {
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
-  // Re-add support for inline snapshots using prettier v2:
-  prettierPath: require.resolve('prettier-2'),
-}
-
-if (process.env.RECORD_REPLAY) {
-  customJestConfig.testRunner = '@replayio/jest/runner'
 }
 
 // Check if the environment variable is set to enable test report,
@@ -40,9 +39,14 @@ if (enableTestReport) {
     customJestConfig.reporters = ['default']
   }
 
-  const outputDirectory = process.env.TURBOPACK
-    ? '<rootDir>/turbopack-test-junit-report'
-    : '<rootDir>/test-junit-report'
+  let outputDirectory
+  if (process.env.IS_TURBOPACK_TEST) {
+    outputDirectory = '<rootDir>/turbopack-test-junit-report'
+  } else if (process.env.NEXT_RSPACK) {
+    outputDirectory = '<rootDir>/rspack-test-junit-report'
+  } else {
+    outputDirectory = '<rootDir>/test-junit-report'
+  }
 
   customJestConfig.reporters.push([
     'jest-junit',

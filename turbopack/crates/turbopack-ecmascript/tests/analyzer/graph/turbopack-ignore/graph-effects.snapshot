@@ -7,7 +7,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "w_i",
                         ),
                     ),
@@ -16,12 +16,15 @@
         ],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     0,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -38,25 +41,32 @@
                 Init,
             ),
             Expr(
+                Await,
+            ),
+            AwaitExpr(
+                Arg,
+            ),
+            Expr(
                 Call,
             ),
         ],
-        span: 13..52,
+        span: 19..58,
         in_try: false,
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     1,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -85,8 +95,7 @@
                 Ident,
             ),
         ],
-        span: 65..72,
-        in_try: false,
+        span: 71..78,
     },
     Call {
         func: FreeVar(
@@ -96,7 +105,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "w_i_f",
                         ),
                     ),
@@ -105,12 +114,15 @@
         ],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     1,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -130,7 +142,7 @@
                 Call,
             ),
         ],
-        span: 65..108,
+        span: 71..114,
         in_try: false,
         new: false,
     },
@@ -142,7 +154,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "t_i",
                         ),
                     ),
@@ -151,12 +163,15 @@
         ],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     2,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -173,25 +188,32 @@
                 Init,
             ),
             Expr(
+                Await,
+            ),
+            AwaitExpr(
+                Arg,
+            ),
+            Expr(
                 Call,
             ),
         ],
-        span: 121..162,
+        span: 133..174,
         in_try: false,
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     3,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -220,8 +242,7 @@
                 Ident,
             ),
         ],
-        span: 175..182,
-        in_try: false,
+        span: 187..194,
     },
     Call {
         func: FreeVar(
@@ -231,7 +252,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "t_i_f",
                         ),
                     ),
@@ -240,12 +261,15 @@
         ],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     3,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -265,22 +289,23 @@
                 Call,
             ),
         ],
-        span: 175..220,
+        span: 187..232,
         in_try: false,
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     4,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -309,8 +334,7 @@
                 Ident,
             ),
         ],
-        span: 233..240,
-        in_try: false,
+        span: 245..252,
     },
     Call {
         func: FreeVar(
@@ -320,7 +344,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "w_r_t",
                         ),
                     ),
@@ -329,12 +353,15 @@
         ],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     4,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -354,22 +381,23 @@
                 Call,
             ),
         ],
-        span: 233..275,
+        span: 245..287,
         in_try: false,
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     5,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -398,8 +426,7 @@
                 Ident,
             ),
         ],
-        span: 288..295,
-        in_try: false,
+        span: 300..307,
     },
     Call {
         func: FreeVar(
@@ -409,7 +436,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "w_r_f",
                         ),
                     ),
@@ -418,12 +445,15 @@
         ],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     5,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -443,22 +473,23 @@
                 Call,
             ),
         ],
-        span: 288..331,
+        span: 300..343,
         in_try: false,
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     6,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -487,8 +518,7 @@
                 Ident,
             ),
         ],
-        span: 344..351,
-        in_try: false,
+        span: 356..363,
     },
     Call {
         func: FreeVar(
@@ -498,7 +528,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "t_r_t",
                         ),
                     ),
@@ -507,12 +537,15 @@
         ],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     6,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -532,22 +565,23 @@
                 Call,
             ),
         ],
-        span: 344..388,
+        span: 356..400,
         in_try: false,
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     7,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -576,8 +610,7 @@
                 Ident,
             ),
         ],
-        span: 401..408,
-        in_try: false,
+        span: 413..420,
     },
     Call {
         func: FreeVar(
@@ -587,7 +620,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "t_r_f",
                         ),
                     ),
@@ -596,12 +629,15 @@
         ],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     7,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Decl,
@@ -621,7 +657,105 @@
                 Call,
             ),
         ],
-        span: 401..446,
+        span: 413..458,
+        in_try: false,
+        new: false,
+    },
+    FreeVar {
+        var: "require",
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    8,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 488..495,
+    },
+    Call {
+        func: FreeVar(
+            "require",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "exported_t_r",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    8,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 488..539,
         in_try: false,
         new: false,
     },

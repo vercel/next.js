@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers'
 import { unstable_rethrow } from 'next/navigation'
 
-function someFunction() {
+async function someFunction() {
   try {
-    cookies()
+    await cookies()
   } catch (err) {
     throw new Error('Oopsy', { cause: err })
   }
@@ -11,7 +11,7 @@ function someFunction() {
 
 export default async function Page() {
   try {
-    someFunction()
+    await someFunction()
   } catch (err) {
     console.log('[test assertion]: checking error')
     unstable_rethrow(err)

@@ -2,8 +2,13 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use swc_core::{
+    atoms::{atom, Atom, Wtf8Atom},
     common::DUMMY_SP,
-    ecma::{ast::*, utils::private_ident, visit::Fold},
+    ecma::{
+        ast::*,
+        utils::private_ident,
+        visit::{fold_pass, Fold},
+    },
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -11,10 +16,10 @@ pub struct Config {
     pub wildcard: bool,
 }
 
-pub fn optimize_barrel(config: Config) -> impl Fold {
-    OptimizeBarrel {
+pub fn optimize_barrel(config: Config) -> impl Pass {
+    fold_pass(OptimizeBarrel {
         wildcard: config.wildcard,
-    }
+    })
 }
 
 #[derive(Debug, Default)]
@@ -32,32 +37,26 @@ impl Fold for OptimizeBarrel {
         for item in &items {
             if let ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)) = item {
                 for spec in &import_decl.specifiers {
-                    let src = import_decl.src.value.to_string();
+                    let src = import_decl.src.value.clone();
                     match spec {
                         ImportSpecifier::Named(s) => {
                             local_idents.insert(
-                                s.local.sym.to_string(),
+                                s.local.sym.clone(),
                                 (
                                     src.clone(),
                                     match &s.imported {
-                                        Some(n) => match &n {
-                                            ModuleExportName::Ident(n) => n.sym.to_string(),
-                                            ModuleExportName::Str(n) => n.value.to_string(),
-                                        },
-                                        None => s.local.sym.to_string(),
+                                        Some(n) => n.atom().into_owned(),
+                                        None => s.local.sym.clone(),
                                     },
                                 ),
                             );
                         }
                         ImportSpecifier::Namespace(s) => {
-                            local_idents
-                                .insert(s.local.sym.to_string(), (src.clone(), "*".to_string()));
+                            local_idents.insert(s.local.sym.clone(), (src.clone(), atom!("*")));
                         }
                         ImportSpecifier::Default(s) => {
-                            local_idents.insert(
-                                s.local.sym.to_string(),
-                                (src.clone(), "default".to_string()),
-                            );
+                            local_idents
+                                .insert(s.local.sym.clone(), (src.clone(), atom!("default")));
                         }
                     }
                 }
@@ -90,21 +89,18 @@ impl Fold for OptimizeBarrel {
                             for spec in &export_named.specifiers {
                                 match spec {
                                     ExportSpecifier::Namespace(s) => {
-                                        let name_str = match &s.name {
-                                            ModuleExportName::Ident(n) => n.sym.to_string(),
-                                            ModuleExportName::Str(n) => n.value.to_string(),
-                                        };
+                                        let name_str = s.name.atom().into_owned();
                                         if let Some(src) = &export_named.src {
                                             export_map.push((
                                                 name_str.clone(),
-                                                src.value.to_string(),
-                                                "*".to_string(),
+                                                src.value.clone(),
+                                                atom!("*"),
                                             ));
                                         } else if self.wildcard {
                                             export_map.push((
                                                 name_str.clone(),
-                                                "".into(),
-                                                "*".to_string(),
+                                                Wtf8Atom::default(),
+                                                atom!("*"),
                                             ));
                                         } else {
                                             is_barrel = false;
@@ -112,22 +108,16 @@ impl Fold for OptimizeBarrel {
                                         }
                                     }
                                     ExportSpecifier::Named(s) => {
-                                        let orig_str = match &s.orig {
-                                            ModuleExportName::Ident(n) => n.sym.to_string(),
-                                            ModuleExportName::Str(n) => n.value.to_string(),
-                                        };
-                                        let name_str = match &s.exported {
-                                            Some(n) => match &n {
-                                                ModuleExportName::Ident(n) => n.sym.to_string(),
-                                                ModuleExportName::Str(n) => n.value.to_string(),
-                                            },
-                                            None => orig_str.clone(),
-                                        };
+                                        let orig_str = s.orig.atom().into_owned();
+                                        let name_str = s.exported.as_ref().map_or_else(
+                                            || orig_str.clone(),
+                                            |i| i.atom().into_owned(),
+                                        );
 
                                         if let Some(src) = &export_named.src {
                                             export_map.push((
                                                 name_str.clone(),
-                                                src.value.to_string(),
+                                                src.value.clone(),
                                                 orig_str.clone(),
                                             ));
                                         } else if let Some((src, orig)) =
@@ -141,7 +131,7 @@ impl Fold for OptimizeBarrel {
                                         } else if self.wildcard {
                                             export_map.push((
                                                 name_str.clone(),
-                                                "".into(),
+                                                Wtf8Atom::default(),
                                                 orig_str.clone(),
                                             ));
                                         } else {
@@ -159,7 +149,8 @@ impl Fold for OptimizeBarrel {
                             }
                         }
                         ModuleDecl::ExportAll(export_all) => {
-                            export_wildcards.push(export_all.src.value.to_string());
+                            export_wildcards
+                                .push(export_all.src.value.to_string_lossy().into_owned());
                         }
                         ModuleDecl::ExportDecl(export_decl) => {
                             // Export declarations are not allowed in barrel files.
@@ -171,22 +162,22 @@ impl Fold for OptimizeBarrel {
                             match &export_decl.decl {
                                 Decl::Class(class) => {
                                     export_map.push((
-                                        class.ident.sym.to_string(),
-                                        "".into(),
-                                        "".into(),
+                                        class.ident.sym.clone(),
+                                        Wtf8Atom::default(),
+                                        Atom::default(),
                                     ));
                                 }
                                 Decl::Fn(func) => {
                                     export_map.push((
-                                        func.ident.sym.to_string(),
-                                        "".into(),
-                                        "".into(),
+                                        func.ident.sym.clone(),
+                                        Wtf8Atom::default(),
+                                        Atom::default(),
                                     ));
                                 }
                                 Decl::Var(var) => {
                                     let ids = collect_idents_in_var_decls(&var.decls);
                                     for id in ids {
-                                        export_map.push((id, "".into(), "".into()));
+                                        export_map.push((id, Wtf8Atom::default(), Atom::default()));
                                     }
                                 }
                                 _ => {}
@@ -206,7 +197,7 @@ impl Fold for OptimizeBarrel {
                         Expr::Lit(l) => {
                             if let Lit::Str(s) = l {
                                 if allowed_directives && s.value.starts_with("use ") {
-                                    directives.push(s.value.to_string());
+                                    directives.push(&s.value);
                                 }
                             } else {
                                 allowed_directives = false;
@@ -302,13 +293,13 @@ impl Fold for OptimizeBarrel {
     }
 }
 
-fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<String> {
+fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<Atom> {
     let mut ids = Vec::new();
 
     for elem in elems.iter().flatten() {
         match elem {
             Pat::Ident(ident) => {
-                ids.push(ident.sym.to_string());
+                ids.push(ident.sym.clone());
             }
             Pat::Array(array) => {
                 ids.extend(collect_idents_in_array_pat(&array.elems));
@@ -318,7 +309,7 @@ fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<String> {
             }
             Pat::Rest(rest) => {
                 if let Pat::Ident(ident) = &*rest.arg {
-                    ids.push(ident.sym.to_string());
+                    ids.push(ident.sym.clone());
                 }
             }
             _ => {}
@@ -328,19 +319,19 @@ fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<String> {
     ids
 }
 
-fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<String> {
+fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<Atom> {
     let mut ids = Vec::new();
 
     for prop in props {
         match prop {
             ObjectPatProp::KeyValue(KeyValuePatProp { key, value }) => {
                 if let PropName::Ident(ident) = key {
-                    ids.push(ident.sym.to_string());
+                    ids.push(ident.sym.clone());
                 }
 
                 match &**value {
                     Pat::Ident(ident) => {
-                        ids.push(ident.sym.to_string());
+                        ids.push(ident.sym.clone());
                     }
                     Pat::Array(array) => {
                         ids.extend(collect_idents_in_array_pat(&array.elems));
@@ -352,11 +343,11 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<String> {
                 }
             }
             ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
-                ids.push(key.to_string());
+                ids.push(key.sym.clone());
             }
             ObjectPatProp::Rest(RestPat { arg, .. }) => {
                 if let Pat::Ident(ident) = &**arg {
-                    ids.push(ident.sym.to_string());
+                    ids.push(ident.sym.clone());
                 }
             }
         }
@@ -365,13 +356,13 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<String> {
     ids
 }
 
-fn collect_idents_in_var_decls(decls: &[VarDeclarator]) -> Vec<String> {
+fn collect_idents_in_var_decls(decls: &[VarDeclarator]) -> Vec<Atom> {
     let mut ids = Vec::new();
 
     for decl in decls {
         match &decl.name {
             Pat::Ident(ident) => {
-                ids.push(ident.sym.to_string());
+                ids.push(ident.sym.clone());
             }
             Pat::Array(array) => {
                 ids.extend(collect_idents_in_array_pat(&array.elems));

@@ -91,23 +91,3 @@ export function parseStaticPathsResult(
     return FallbackMode.NOT_FOUND
   }
 }
-
-/**
- * Converts the fallback mode to a static paths result.
- *
- * @param fallback The fallback mode.
- * @returns The static paths fallback result.
- */
-export function fallbackModeToStaticPathsResult(
-  fallback: FallbackMode
-): GetStaticPathsFallback {
-  switch (fallback) {
-    case FallbackMode.PRERENDER:
-      return true
-    case FallbackMode.BLOCKING_STATIC_RENDER:
-      return 'blocking'
-    case FallbackMode.NOT_FOUND:
-    default:
-      return false
-  }
-}

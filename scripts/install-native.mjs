@@ -10,6 +10,9 @@ import fsp from 'fs/promises'
     )
     return
   }
+
+  const preferOffline = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
+
   let cwd = process.cwd()
   const { version: nextVersion } = JSON.parse(
     fs.readFileSync(path.join(cwd, 'packages', 'next', 'package.json'))
@@ -43,24 +46,25 @@ import fsp from 'fs/promises'
       name: 'dummy-package',
       version: '1.0.0',
       optionalDependencies: {
-        '@next/swc-darwin-arm64': 'canary',
-        '@next/swc-darwin-x64': 'canary',
-        '@next/swc-linux-arm64-gnu': 'canary',
-        '@next/swc-linux-arm64-musl': 'canary',
-        '@next/swc-linux-x64-gnu': 'canary',
-        '@next/swc-linux-x64-musl': 'canary',
-        '@next/swc-win32-arm64-msvc': 'canary',
-        '@next/swc-win32-ia32-msvc': 'canary',
-        '@next/swc-win32-x64-msvc': 'canary',
+        '@next/swc-darwin-arm64': nextVersion,
+        '@next/swc-darwin-x64': nextVersion,
+        '@next/swc-linux-arm64-gnu': nextVersion,
+        '@next/swc-linux-arm64-musl': nextVersion,
+        '@next/swc-linux-x64-gnu': nextVersion,
+        '@next/swc-linux-x64-musl': nextVersion,
+        '@next/swc-win32-arm64-msvc': nextVersion,
+        '@next/swc-win32-x64-msvc': nextVersion,
       },
       packageManager,
     }
     fs.writeFileSync(path.join(tmpdir, 'package.json'), JSON.stringify(pkgJson))
     fs.writeFileSync(path.join(tmpdir, '.npmrc'), 'node-linker=hoisted')
 
-    let { stdout } = await execa('pnpm', ['add', 'next@canary'], {
-      cwd: tmpdir,
-    })
+    const args = ['add', `next@${nextVersion}`]
+    if (preferOffline) {
+      args.push('--prefer-offline')
+    }
+    let { stdout } = await execa('pnpm', args, { cwd: tmpdir })
     console.log(stdout)
 
     let pkgs = fs.readdirSync(path.join(tmpdir, 'node_modules/@next'))

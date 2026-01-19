@@ -1,8 +1,9 @@
 import { cookies } from 'next/headers'
 
-export default function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   if (params.id.includes('static-bailout')) {
-    console.log('calling cookies', cookies())
+    console.log('calling cookies', await cookies())
   }
 
   return (

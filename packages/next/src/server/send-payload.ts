@@ -1,12 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type RenderResult from './render-result'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
 import fresh from 'next/dist/compiled/fresh'
-import { formatRevalidate } from './lib/revalidate'
-import { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
+import { getCacheControlHeader } from './lib/cache-control'
+import { HTML_CONTENT_TYPE_HEADER } from '../lib/constants'
 
 export function sendEtagResponse(
   req: IncomingMessage,
@@ -36,40 +36,31 @@ export async function sendRenderResult({
   req,
   res,
   result,
-  type,
   generateEtags,
   poweredByHeader,
-  revalidate,
-  swrDelta,
+  cacheControl,
 }: {
   req: IncomingMessage
   res: ServerResponse
   result: RenderResult
-  type: 'html' | 'json' | 'rsc'
   generateEtags: boolean
   poweredByHeader: boolean
-  revalidate: Revalidate | undefined
-  swrDelta: SwrDelta | undefined
+  cacheControl: CacheControl | undefined
 }): Promise<void> {
   if (isResSent(res)) {
     return
   }
 
-  if (poweredByHeader && type === 'html') {
+  if (poweredByHeader && result.contentType === HTML_CONTENT_TYPE_HEADER) {
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
   // If cache control is already set on the response we don't
   // override it to allow users to customize it via next.config
-  if (typeof revalidate !== 'undefined' && !res.getHeader('Cache-Control')) {
-    res.setHeader(
-      'Cache-Control',
-      formatRevalidate({
-        revalidate,
-        swrDelta,
-      })
-    )
+  if (cacheControl && !res.getHeader('Cache-Control')) {
+    res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
   }
+
   const payload = result.isDynamic ? null : result.toUnchunkedString()
 
   if (generateEtags && payload !== null) {
@@ -79,17 +70,8 @@ export async function sendRenderResult({
     }
   }
 
-  if (!res.getHeader('Content-Type')) {
-    res.setHeader(
-      'Content-Type',
-      result.contentType
-        ? result.contentType
-        : type === 'rsc'
-          ? RSC_CONTENT_TYPE_HEADER
-          : type === 'json'
-            ? 'application/json'
-            : 'text/html; charset=utf-8'
-    )
+  if (!res.getHeader('Content-Type') && result.contentType) {
+    res.setHeader('Content-Type', result.contentType)
   }
 
   if (payload) {

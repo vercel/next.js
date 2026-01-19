@@ -1,6 +1,4 @@
-import fs from 'fs'
 import { nextTestSetup } from 'e2e-utils'
-import { join } from 'path'
 
 describe('app-dir client-components-tree-shaking', () => {
   const { next, skipped } = nextTestSetup({
@@ -10,22 +8,19 @@ describe('app-dir client-components-tree-shaking', () => {
   if (skipped) return
 
   it('should only include imported components 3rd party package in browser bundle with direct imports', async () => {
-    const clientChunksDir = join(
-      next.testDir,
-      '.next',
-      'static',
-      'chunks',
-      'app',
-      'third-party-dep'
+    const $ = await next.render$('/third-party-dep')
+    const chunkContents = await Promise.all(
+      $('script[src]')
+        .toArray()
+        .map(async (el) => {
+          const href = $(el).attr('src')
+
+          const file = await next.fetch(href).then((res) => res.text())
+
+          return file
+        })
     )
-    const staticChunksDirents = fs.readdirSync(clientChunksDir, {
-      withFileTypes: true,
-    })
-    const chunkContents = staticChunksDirents
-      .filter((dirent) => dirent.isFile())
-      .map((chunkDirent) =>
-        fs.readFileSync(join(chunkDirent.path, chunkDirent.name), 'utf8')
-      )
+
     expect(
       chunkContents.some((content) => content.includes('client-dep-bar:esm'))
     ).toBe(true)
@@ -40,23 +35,18 @@ describe('app-dir client-components-tree-shaking', () => {
   })
 
   it('should only include the imported identifier of CJS module in browser bundle', async () => {
-    const clientChunksDir = join(
-      next.testDir,
-      '.next',
-      'static',
-      'chunks',
-      'app',
-      'cjs-dep'
-    )
+    const $ = await next.render$('/cjs-dep')
+    const chunkContents = await Promise.all(
+      $('script[src]')
+        .toArray()
+        .map(async (el) => {
+          const href = $(el).attr('src')
 
-    const chunkContents = fs
-      .readdirSync(clientChunksDir, {
-        withFileTypes: true,
-      })
-      .filter((dirent) => dirent.isFile())
-      .map((chunkDirent) =>
-        fs.readFileSync(join(chunkDirent.path, chunkDirent.name), 'utf8')
-      )
+          const file = await next.fetch(href).then((res) => res.text())
+
+          return file
+        })
+    )
 
     expect(
       chunkContents.some((content) => content.includes('cjs-client:default'))
@@ -87,22 +77,19 @@ describe('app-dir client-components-tree-shaking', () => {
   })
 
   it('should only include imported relative components in browser bundle with direct imports', async () => {
-    const clientChunksDir = join(
-      next.testDir,
-      '.next',
-      'static',
-      'chunks',
-      'app',
-      'relative-dep'
+    const $ = await next.render$('/relative-dep')
+    const chunkContents = await Promise.all(
+      $('script[src]')
+        .toArray()
+        .map(async (el) => {
+          const href = $(el).attr('src')
+
+          const file = await next.fetch(href).then((res) => res.text())
+
+          return file
+        })
     )
-    const staticChunksDirents = fs.readdirSync(clientChunksDir, {
-      withFileTypes: true,
-    })
-    const chunkContents = staticChunksDirents
-      .filter((dirent) => dirent.isFile())
-      .map((chunkDirent) =>
-        fs.readFileSync(join(chunkDirent.path, chunkDirent.name), 'utf8')
-      )
+
     expect(
       chunkContents.some((content) => content.includes('client-comp-imported'))
     ).toBe(true)

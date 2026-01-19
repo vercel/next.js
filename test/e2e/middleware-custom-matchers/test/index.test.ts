@@ -1,5 +1,4 @@
 /* eslint-env jest */
-/* eslint-disable jest/no-standalone-expect */
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { fetchViaHTTP } from 'next-test-utils'
@@ -13,9 +12,20 @@ const isModeDeploy = process.env.NEXT_TEST_MODE === 'deploy'
 describe('Middleware custom matchers', () => {
   let next: NextInstance
 
+  if ((global as any).isNextDeploy && process.env.TEST_NODE_MIDDLEWARE) {
+    return it('should skip deploy for now', () => {})
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(join(__dirname, '../app')),
+      overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+        ? {
+            'middleware.js': new FileRef(
+              join(__dirname, '../app/middleware-node.js')
+            ),
+          }
+        : {},
     })
   })
   afterAll(() => next.destroy())

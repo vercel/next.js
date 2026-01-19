@@ -7,7 +7,6 @@
 import type { Agent as HttpAgent } from 'http'
 import type { Agent as HttpsAgent } from 'https'
 
-import type React from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { IncomingMessage, ServerResponse } from 'http'
 
@@ -29,6 +28,8 @@ export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from './server/config'
 
+export type { NextAdapter, AdapterOutput } from './build/adapter/build-complete'
+
 export type {
   Metadata,
   MetadataRoute,
@@ -43,7 +44,7 @@ export type { Instrumentation } from './server/instrumentation/types'
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run
- * @link https://nextjs.org/docs/app/building-your-application/configuring/typescript#statically-typed-links
+ * @link https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links
  * @example
  * ```ts
  * import type { Route } from 'next'
@@ -53,17 +54,12 @@ export type { Instrumentation } from './server/instrumentation/types'
  */
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
-// isn't generated yet. It will be replaced when the webpack plugin runs.
+// isn't generated yet. It will be replaced when type generation runs.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type Route<RouteInferType = any> = string & {}
 
 // Extend the React types with missing properties
 declare module 'react' {
-  // <html amp=""> support
-  interface HtmlHTMLAttributes<T> extends React.HTMLAttributes<T> {
-    amp?: string
-  }
-
   // <img fetchPriority=""> support
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- It's actually required for module augmentation to work.
   interface ImgHTMLAttributes<T> {
@@ -112,7 +108,6 @@ export type ResponseLimit = SizeLimit | boolean
  * `Config` type, use it for export const config
  */
 export type PageConfig = {
-  amp?: boolean | 'hybrid'
   api?: {
     /**
      * Configures or disables body size limit warning. Can take a number or
@@ -186,8 +181,8 @@ export type GetStaticPropsResult<Props> =
 
 /**
  * Static Site Generation feature for Next.js.
- * @link https://nextjs.org/docs/basic-features/data-fetching/get-static-props
- * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @link https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-props
+ * @link https://nextjs.org/docs/pages/api-reference/config/typescript#static-generation-and-server-side-rendering
  * @example
  * ```ts
  * export const getStaticProps: GetStaticProps = async (context) => {
@@ -226,8 +221,8 @@ export type GetStaticPathsResult<
 
 /**
  * Define a list of paths to be statically generated if dynamic routes exist.
- * @link https://nextjs.org/docs/basic-features/data-fetching/get-static-paths
- * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @link https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-paths
+ * @link https://nextjs.org/docs/pages/api-reference/config/typescript#static-generation-and-server-side-rendering
  * @example
  * ```ts
  * export const getStaticPaths: GetStaticPaths = async () => {
@@ -241,7 +236,7 @@ export type GetStaticPaths<Params extends ParsedUrlQuery = ParsedUrlQuery> = (
 
 /**
  * Context object passed into `getServerSideProps`.
- * @link https://nextjs.org/docs/api-reference/data-fetching/get-server-side-props#context-parameter
+ * @link https://nextjs.org/docs/pages/api-reference/functions/get-server-side-props#context-parameter
  */
 export type GetServerSidePropsContext<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
@@ -273,8 +268,8 @@ export type GetServerSidePropsResult<Props> =
 
 /**
  * Server-side Rendering feature for Next.js.
- * @link https://nextjs.org/docs/basic-features/data-fetching/get-server-side-props
- * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @link https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props
+ * @link https://nextjs.org/docs/pages/api-reference/config/typescript#static-generation-and-server-side-rendering
  * @example
  * ```ts
  * export const getServerSideProps: GetServerSideProps = async (context) => {

@@ -1,14 +1,34 @@
 use std::{collections::BTreeMap, hash::Hash, ops::DerefMut};
 
-use serde::{Deserialize, Serialize};
-use turbo_tasks::trace::TraceRawVcs;
+use bincode::{Decode, Encode};
+use serde::Deserialize;
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
-use super::ContentSourceDataFilter;
+use crate::source::ContentSourceDataFilter;
 
 /// A parsed query string from a http request
-#[derive(Clone, Debug, PartialEq, Eq, Default, Hash, TraceRawVcs, Serialize, Deserialize)]
-#[serde(transparent)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Default,
+    Hash,
+    TraceRawVcs,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub struct Query(BTreeMap<String, QueryValue>);
+
+// This type contains no VCs so the default implementation works.
+// Query is also recursive through QueryValue so the derive macro doesnt work
+impl TaskInput for Query {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
 
 impl Query {
     pub fn filter_with(&mut self, filter: &ContentSourceDataFilter) {
@@ -34,7 +54,9 @@ impl DerefMut for Query {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Deserialize, NonLocalValue, Encode, Decode,
+)]
 #[serde(untagged)]
 pub enum QueryValue {
     /// Simple string value, might be an empty string when there is no value

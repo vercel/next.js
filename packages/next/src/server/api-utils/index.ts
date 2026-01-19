@@ -25,7 +25,7 @@ export function wrapApiHandler<T extends (...args: any[]) => any>(
   handler: T
 ): T {
   return ((...args) => {
-    getTracer().getRootSpanAttributes()?.set('next.route', page)
+    getTracer().setRootSpanAttribute('next.route', page)
     // Call API route method
     return getTracer().trace(
       NodeSpan.runHandler,
@@ -114,7 +114,7 @@ export function clearPreviewData<T>(
   }
 
   const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+    require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'

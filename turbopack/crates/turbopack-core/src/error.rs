@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter, Result};
 /// Puts a summary first and details after that.
 pub struct PrettyPrintError<'a>(pub &'a anyhow::Error);
 
-impl<'a> Display for PrettyPrintError<'a> {
+impl Display for PrettyPrintError<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut i = 0;
         let mut has_details = false;
@@ -16,7 +16,7 @@ impl<'a> Display for PrettyPrintError<'a> {
             .collect::<Vec<_>>();
 
         for description in &descriptions {
-            // see turbo-tasks-memory/src/task.rs for the error message
+            // see turbo-tasks-backend/src/backend/operation/update_output.rs for the error message
             let hidden = description.starts_with("Execution of ");
             if !hidden {
                 let header =
@@ -27,9 +27,9 @@ impl<'a> Display for PrettyPrintError<'a> {
                             header
                         });
                 match i {
-                    0 => write!(f, "{}", header)?,
-                    1 => write!(f, "\n\nCaused by:\n- {}", header)?,
-                    _ => write!(f, "\n- {}", header)?,
+                    0 => write!(f, "{header}")?,
+                    1 => write!(f, "\n\nCaused by:\n- {header}")?,
+                    _ => write!(f, "\n- {header}")?,
                 }
                 i += 1;
             } else {
@@ -50,14 +50,14 @@ impl<'a> Display for PrettyPrintError<'a> {
 /// Indents all lines after the first one. Puts a dash before the first line.
 struct WithDash<'a>(&'a str);
 
-impl<'a> Display for WithDash<'a> {
+impl Display for WithDash<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut lines = self.0.lines();
         if let Some(line) = lines.next() {
-            write!(f, "- {}", line)?;
+            write!(f, "- {line}")?;
         }
         for line in lines {
-            write!(f, "\n  {}", line)?;
+            write!(f, "\n  {line}")?;
         }
         Ok(())
     }

@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -9,22 +10,17 @@ use turbopack_core::{
 
 use crate::utils::StringifyJs;
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("text content".into())
-}
-
 /// A source asset that exports the string content of an asset as the default
 /// export of a JS module.
 #[turbo_tasks::value]
 pub struct TextContentFileSource {
-    pub source: Vc<Box<dyn Source>>,
+    pub source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
 impl TextContentFileSource {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
         TextContentFileSource { source }.cell()
     }
 }
@@ -35,8 +31,8 @@ impl Source for TextContentFileSource {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source
             .ident()
-            .with_modifier(modifier())
-            .rename_as("*.mjs".into())
+            .with_modifier(rcstr!("text content"))
+            .rename_as(rcstr!("*.mjs"))
     }
 }
 

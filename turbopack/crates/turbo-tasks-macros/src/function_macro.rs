@@ -1,10 +1,13 @@
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, ExprPath, ItemFn};
-use turbo_tasks_macros_shared::{get_native_function_id_ident, get_native_function_ident};
+use syn::{ItemFn, parse_macro_input};
 
-use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
+use crate::{
+    func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes},
+    global_name::global_name,
+    ident::get_native_function_ident,
+    self_filter::is_self_used,
+};
 
 /// This macro generates the virtual function that powers turbo tasks.
 /// An annotated task is replaced with a stub function that returns a
@@ -38,9 +41,9 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = syn::parse::<FunctionArguments>(args)
         .inspect_err(|err| errors.push(err.to_compile_error()))
         .unwrap_or_default();
-    let local_cells = args.local_cells.is_some();
+    let is_self_used = args.operation.is_some() || is_self_used(&block);
 
-    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
+    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args, is_self_used) else {
         return quote! {
             // An error occurred while parsing the function signature.
         }
@@ -49,41 +52,42 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let ident = &sig.ident;
 
-    let inline_function_ident = Ident::new(&format!("{ident}_inline_function"), ident.span());
-    let inline_function_path: ExprPath = parse_quote! { #inline_function_ident };
-    let mut inline_signature = sig.clone();
-    inline_signature.ident = inline_function_ident;
+    let inline_function_ident = turbo_fn.inline_ident();
+    let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(&block);
+    let inline_attrs = filter_inline_attributes(&attrs[..]);
+    let function_path_string = ident.to_string();
 
-    let native_fn = NativeFn::new(
-        &ident.to_string(),
-        &inline_function_path,
-        turbo_fn.is_method(),
-        local_cells,
-    );
+    let native_fn = NativeFn {
+        function_global_name: global_name(&function_path_string),
+        function_path_string,
+        function_path: quote! { #inline_function_ident },
+        is_method: turbo_fn.is_method(),
+        is_self_used,
+        filter_trait_call_args: None, // not a trait method
+    };
     let native_function_ident = get_native_function_ident(ident);
     let native_function_ty = native_fn.ty();
     let native_function_def = native_fn.definition();
 
-    let native_function_id_ident = get_native_function_id_ident(ident);
-    let native_function_id_ty = native_fn.id_ty();
-    let native_function_id_def = native_fn.id_definition(&native_function_ident.clone().into());
-
     let exposed_signature = turbo_fn.signature();
-    let exposed_block = turbo_fn.static_block(&native_function_id_ident);
+    let exposed_block = turbo_fn.static_block(&native_function_ident);
 
     quote! {
         #(#attrs)*
         #vis #exposed_signature #exposed_block
 
-        #(#attrs)*
+        #(#inline_attrs)*
         #[doc(hidden)]
-        #inline_signature #block
+        #inline_signature #inline_block
 
-        #[doc(hidden)]
-        pub(crate) static #native_function_ident: #native_function_ty = #native_function_def;
+        static #native_function_ident:
+            turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
+                turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
 
-        #[doc(hidden)]
-        pub(crate) static #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
+        // Register the function for deserialization
+        turbo_tasks::macro_helpers::inventory_submit! {
+            turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
+        }
 
         #(#errors)*
     }

@@ -1,19 +1,12 @@
-use std::path::PathBuf;
-
 use anyhow::Result;
 use async_trait::async_trait;
-use swc_core::{
-    common::{comments::NoopComments, FileName},
-    ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith},
-};
+use serde::Deserialize;
+use swc_core::{atoms::Wtf8Atom, common::comments::NoopComments, ecma::ast::Program};
 use turbo_tasks::{ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionStyledComponentsTransformConfig(Option<Vc<StyledComponentsTransformConfig>>);
-
-#[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct StyledComponentsTransformConfig {
     pub display_name: bool,
@@ -76,7 +69,7 @@ impl StyledComponentsTransformer {
         if !top_level_import_paths.is_empty() {
             options.top_level_import_paths = top_level_import_paths
                 .iter()
-                .map(|s| JsWord::from(s.clone()))
+                .map(|s| Wtf8Atom::from(s.clone()))
                 .collect();
         }
         let meaningless_file_names = &config.meaningless_file_names;
@@ -94,10 +87,10 @@ impl StyledComponentsTransformer {
 impl CustomTransformer for StyledComponentsTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_components", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
-        program.visit_mut_with(&mut styled_components::styled_components(
-            FileName::Real(PathBuf::from(ctx.file_path_str)).into(),
+        program.mutate(styled_components::styled_components(
+            Some(ctx.file_path_str),
             ctx.file_name_hash,
-            self.config.clone(),
+            &self.config,
             NoopComments,
         ));
 

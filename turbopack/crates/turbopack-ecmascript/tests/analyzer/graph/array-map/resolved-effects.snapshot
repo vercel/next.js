@@ -17,7 +17,7 @@
 8 -> 11 member call = require*0*["resolve"](???*1*)
 - *0* require: The require method from CommonJS
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 8 -> 12 unreachable = ???*0*
 - *0* unreachable
@@ -28,7 +28,7 @@
 0 -> 15 member call = require*0*["resolve"](???*1*)
 - *0* require: The require method from CommonJS
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 16 unreachable = ???*0*
 - *0* unreachable

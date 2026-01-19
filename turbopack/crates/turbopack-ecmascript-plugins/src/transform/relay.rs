@@ -2,20 +2,17 @@ use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use swc_core::{
-    common::{util::take::Take, FileName},
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
+use bincode::{Decode, Encode};
+use serde::Deserialize;
+use swc_core::{common::FileName, ecma::ast::Program};
 use swc_relay::RelayLanguageConfig;
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{NonLocalValue, OperationValue, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct RelayConfig {
     pub src: String,
@@ -23,7 +20,9 @@ pub struct RelayConfig {
     pub language: Option<RelayLanguage>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum RelayLanguage {
     TypeScript,
@@ -68,13 +67,11 @@ impl CustomTransformer for RelayTransformer {
         let path_to_proj = PathBuf::from(
             ctx.file_path
                 .parent()
-                .await?
                 .get_relative_path_to(&self.project_path)
                 .context("Expected relative path to relay artifact")?,
         );
 
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
-        *program = p.fold_with(&mut swc_relay::relay(
+        program.mutate(swc_relay::relay(
             self.config.clone(),
             FileName::Real(PathBuf::from(ctx.file_name_str)),
             path_to_proj,

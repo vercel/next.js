@@ -4,17 +4,6 @@ export function isBlockedPage(page: string): boolean {
   return BLOCKED_PAGES.includes(page)
 }
 
-export function cleanAmpPath(pathname: string): string {
-  if (pathname.match(/\?amp=(y|yes|true|1)/)) {
-    pathname = pathname.replace(/\?amp=(y|yes|true|1)&?/, '?')
-  }
-  if (pathname.match(/&amp=(y|yes|true|1)/)) {
-    pathname = pathname.replace(/&amp=(y|yes|true|1)/, '')
-  }
-  pathname = pathname.replace(/\?$/, '')
-  return pathname
-}
-
 type AnyFunc<T> = (this: T, ...args: any) => any
 export function debounce<T, F extends AnyFunc<T>>(
   fn: F,

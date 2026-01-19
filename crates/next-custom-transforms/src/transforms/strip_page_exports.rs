@@ -7,6 +7,7 @@ use std::{cell::RefCell, mem::take, rc::Rc};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},
@@ -14,7 +15,7 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        visit::{noop_fold_type, noop_visit_type, Fold, FoldWith, Visit, VisitWith},
+        visit::{fold_pass, noop_fold_type, noop_visit_type, Fold, FoldWith, Visit, VisitWith},
     },
 };
 
@@ -57,9 +58,9 @@ impl PageMode {
 /// Note: This transform requires running `resolver` **before** running it.
 pub fn next_transform_strip_page_exports(
     filter: ExportFilter,
-    ssr_removed_packages: Rc<RefCell<FxHashSet<String>>>,
-) -> impl Fold {
-    Repeat::new(NextSsg {
+    ssr_removed_packages: Rc<RefCell<FxHashSet<Atom>>>,
+) -> impl Pass {
+    fold_pass(Repeat::new(NextSsg {
         state: State {
             ssr_removed_packages,
             filter,
@@ -67,7 +68,7 @@ pub fn next_transform_strip_page_exports(
         },
         in_lhs_of_var: false,
         remove_expression: false,
-    })
+    }))
 }
 
 /// State of the transforms. Shared by the analyzer and the transform.
@@ -103,7 +104,7 @@ struct State {
 
     /// Track the import packages which are removed alongside
     /// `getServerSideProps` in SSR.
-    ssr_removed_packages: Rc<RefCell<FxHashSet<String>>>,
+    ssr_removed_packages: Rc<RefCell<FxHashSet<Atom>>>,
 }
 
 /// The type of export associated to an identifier.
@@ -728,12 +729,12 @@ impl Fold for NextSsg {
                         && matches!(self.state.filter, ExportFilter::StripDataExports)
                         // filter out non-packages import
                         // third part packages must start with `a-z` or `@`
-                        && import_src.starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
+                        && import_src.as_str().unwrap_or_default().starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
                     {
                         self.state
                             .ssr_removed_packages
                             .borrow_mut()
-                            .insert(import_src.to_string());
+                            .insert(import_src.clone().to_atom_lossy().into_owned());
                     }
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",
@@ -788,7 +789,7 @@ impl Fold for NextSsg {
 
         match &i {
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if e.specifiers.is_empty() => {
-                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }))
+                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) => match &e.decl {
                 Decl::Fn(f) => {

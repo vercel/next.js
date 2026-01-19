@@ -1,8 +1,13 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createAtomicTimerGroup } from './app-render-scheduling'
+import {
+  DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
+  expectNoPendingImmediates,
+} from '../node-environment-extensions/fast-set-immediate.external'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
- * We schedule on the same queue (setImmediate) at the same time to ensure no other events can sneak in between.
+ * We schedule on the same queue (setTimeout) at the same time to ensure no other events can sneak in between.
  */
 export function prerenderAndAbortInSequentialTasks<R>(
   prerender: () => Promise<R>,
@@ -14,17 +19,74 @@ export function prerenderAndAbortInSequentialTasks<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let pendingResult: Promise<R>
-      setImmediate(() => {
+      scheduleTimeout(() => {
         try {
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           pendingResult = prerender()
+          pendingResult.catch(() => {})
         } catch (err) {
           reject(err)
         }
       })
-      setImmediate(() => {
-        abort()
-        resolve(pendingResult)
+      scheduleTimeout(() => {
+        try {
+          expectNoPendingImmediates()
+          abort()
+          resolve(pendingResult)
+        } catch (err) {
+          reject(err)
+        }
+      })
+    })
+  }
+}
+
+/**
+ * Like `prerenderAndAbortInSequentialTasks`, but with another task between `prerender` and `abort`,
+ * which allows us to move a part of the render into a separate task.
+ */
+export function prerenderAndAbortInSequentialTasksWithStages<R>(
+  prerender: () => Promise<R>,
+  advanceStage: () => void,
+  abort: () => void
+): Promise<R> {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      '`prerenderAndAbortInSequentialTasksWithStages` should not be called in edge runtime.'
+    )
+  } else {
+    return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
+      let pendingResult: Promise<R>
+      scheduleTimeout(() => {
+        try {
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+          pendingResult = prerender()
+          pendingResult.catch(() => {})
+        } catch (err) {
+          reject(err)
+        }
+      })
+      scheduleTimeout(() => {
+        try {
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+          advanceStage()
+        } catch (err) {
+          reject(err)
+        }
+      })
+      scheduleTimeout(() => {
+        try {
+          expectNoPendingImmediates()
+          abort()
+          resolve(pendingResult)
+        } catch (err) {
+          reject(err)
+        }
       })
     })
   }
@@ -77,12 +139,11 @@ export async function createReactServerPrerenderResult(
   while (true) {
     const { done, value } = await reader.read()
     if (done) {
-      break
+      return new ReactServerPrerenderResult(chunks)
     } else {
       chunks.push(value)
     }
   }
-  return new ReactServerPrerenderResult(chunks)
 }
 
 export async function createReactServerPrerenderResultFromRender(
@@ -176,4 +237,18 @@ function createClosingStream(
       }
     },
   })
+}
+
+export async function processPrelude(
+  unprocessedPrelude: ReadableStream<Uint8Array>
+) {
+  const [prelude, peek] = unprocessedPrelude.tee()
+
+  const reader = peek.getReader()
+  const firstResult = await reader.read()
+  reader.cancel()
+
+  const preludeIsEmpty = firstResult.done === true
+
+  return { prelude, preludeIsEmpty }
 }

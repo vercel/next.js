@@ -3,19 +3,45 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   Segment,
-} from '../../../server/app-render/types'
-import type {
-  CacheNode,
-  ChildSegmentMap,
-  ReadyCacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+} from '../../../shared/lib/app-router-types'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
+import type { HeadData } from '../../../shared/lib/app-router-types'
 import {
-  DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
+  DEFAULT_SEGMENT_KEY,
+  NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
-import { createRouterCacheKey } from './create-router-cache-key'
-import type { FetchServerResponseResult } from './fetch-server-response'
+import { createHrefFromUrl } from './create-href-from-url'
+import { fetchServerResponse } from './fetch-server-response'
+import { dispatchAppRouterAction } from '../use-action-queue'
+import {
+  ACTION_SERVER_PATCH,
+  type ServerPatchAction,
+} from './router-reducer-types'
+import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
+import {
+  convertServerPatchToFullTree,
+  type NavigationSeed,
+} from '../segment-cache/navigation'
+import {
+  type RouteTree,
+  type RefreshState,
+  convertReusedFlightRouterStateToRouteTree,
+  readSegmentCacheEntry,
+  waitForSegmentCacheEntry,
+  EntryStatus,
+} from '../segment-cache/cache'
+import type { NormalizedSearch } from '../segment-cache/cache-key'
+import {
+  getRenderedSearchFromVaryPath,
+  type PageVaryPath,
+} from '../segment-cache/vary-path'
+import {
+  readFromBFCache,
+  readFromBFCacheDuringRegularNavigation,
+  writeToBFCache,
+} from '../segment-cache/bfcache'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -23,14 +49,91 @@ import type { FetchServerResponseResult } from './fetch-server-response'
 // request. We can't use the Cache Node tree or Route State tree directly
 // because those include reused nodes, too. This tree is discarded as soon as
 // the navigation response is received.
-type Task = {
+export type NavigationTask = {
+  status: NavigationTaskStatus
   // The router state that corresponds to the tree that this Task represents.
   route: FlightRouterState
-  // This is usually non-null. It represents a brand new Cache Node tree whose
-  // data is still pending. If it's null, it means there's no pending data but
-  // the client patched the router state.
-  node: CacheNode | null
-  children: Map<string, Task> | null
+  // The CacheNode that corresponds to the tree that this Task represents.
+  node: CacheNode
+  // The tree sent to the server during the dynamic request. If all the segments
+  // are static, then this will be null, and no server request is required.
+  // Otherwise, this is the same as `route`, except with the `refetch` marker
+  // set on the top-most segment that needs to be fetched.
+  dynamicRequestTree: FlightRouterState | null
+  // The URL that should be used to fetch the dynamic data. This is only set
+  // when the segment cannot be refetched from the current route, because it's
+  // part of a "default" parallel slot that was reused during a navigation.
+  refreshState: RefreshState | null
+  children: Map<string, NavigationTask> | null
+}
+
+export const enum FreshnessPolicy {
+  Default,
+  Hydration,
+  HistoryTraversal,
+  RefreshAll,
+  HMRRefresh,
+}
+
+const enum NavigationTaskStatus {
+  Pending,
+  Fulfilled,
+  Rejected,
+}
+
+/**
+ * When a NavigationTask finishes, there may or may not be data still missing,
+ * necessitating a retry.
+ */
+const enum NavigationTaskExitStatus {
+  /**
+   * No additional navigation is required.
+   */
+  Done = 0,
+  /**
+   * Some data failed to load, presumably due to a route tree mismatch. Perform
+   * a soft retry to reload the entire tree.
+   */
+  SoftRetry = 1,
+  /**
+   * Some data failed to load in an unrecoverable way, e.g. in an inactive
+   * parallel route. Fall back to a hard (MPA-style) retry.
+   */
+  HardRetry = 2,
+}
+
+export type NavigationRequestAccumulation = {
+  scrollableSegments: Array<FlightSegmentPath> | null
+  separateRefreshUrls: Set<string> | null
+}
+
+const noop = () => {}
+
+export function createInitialCacheNodeForHydration(
+  navigatedAt: number,
+  initialTree: RouteTree,
+  seedData: CacheNodeSeedData | null,
+  seedHead: HeadData
+): NavigationTask {
+  // Create the initial cache node tree, using the data embedded into the
+  // HTML document.
+  const accumulation: NavigationRequestAccumulation = {
+    scrollableSegments: null,
+    separateRefreshUrls: null,
+  }
+  const task = createCacheNodeOnNavigation(
+    navigatedAt,
+    initialTree,
+    null,
+    FreshnessPolicy.Hydration,
+    seedData,
+    seedHead,
+    null,
+    null,
+    false,
+    accumulation
+  )
+  return task
 }
 
 // Creates a new Cache Node tree (i.e. copy-on-write) that represents the
@@ -62,33 +165,228 @@ type Task = {
 //
 // A return value of `null` means there were no changes, and the previous tree
 // can be reused without initiating a server request.
-export function updateCacheNodeOnNavigation(
-  oldCacheNode: CacheNode,
+export function startPPRNavigation(
+  navigatedAt: number,
+  oldUrl: URL,
+  oldRenderedSearch: string,
+  oldCacheNode: CacheNode | null,
   oldRouterState: FlightRouterState,
-  newRouterState: FlightRouterState,
-  prefetchData: CacheNodeSeedData,
-  prefetchHead: React.ReactNode,
-  onlyHashChange: boolean
-): Task | null {
-  // Diff the old and new trees to reuse the shared layouts.
+  newRouteTree: RouteTree,
+  newMetadataVaryPath: PageVaryPath | null,
+  freshness: FreshnessPolicy,
+  seedData: CacheNodeSeedData | null,
+  seedHead: HeadData | null,
+  isSamePageNavigation: boolean,
+  accumulation: NavigationRequestAccumulation
+): NavigationTask | null {
+  const didFindRootLayout = false
+  const parentNeedsDynamicRequest = false
+  const parentRefreshState = null
+  const oldRootRefreshState: RefreshState = {
+    canonicalUrl: createHrefFromUrl(oldUrl),
+    renderedSearch: oldRenderedSearch as NormalizedSearch,
+  }
+  return updateCacheNodeOnNavigation(
+    navigatedAt,
+    oldUrl,
+    oldCacheNode !== null ? oldCacheNode : undefined,
+    oldRouterState,
+    newRouteTree,
+    newMetadataVaryPath,
+    freshness,
+    didFindRootLayout,
+    seedData,
+    seedHead,
+    isSamePageNavigation,
+    null,
+    null,
+    parentNeedsDynamicRequest,
+    oldRootRefreshState,
+    parentRefreshState,
+    accumulation
+  )
+}
+
+function updateCacheNodeOnNavigation(
+  navigatedAt: number,
+  oldUrl: URL,
+  oldCacheNode: CacheNode | void,
+  oldRouterState: FlightRouterState,
+  newRouteTree: RouteTree,
+  newMetadataVaryPath: PageVaryPath | null,
+  freshness: FreshnessPolicy,
+  didFindRootLayout: boolean,
+  seedData: CacheNodeSeedData | null,
+  seedHead: HeadData | null,
+  isSamePageNavigation: boolean,
+  parentSegmentPath: FlightSegmentPath | null,
+  parentParallelRouteKey: string | null,
+  parentNeedsDynamicRequest: boolean,
+  oldRootRefreshState: RefreshState,
+  parentRefreshState: RefreshState | null,
+  accumulation: NavigationRequestAccumulation
+): NavigationTask | null {
+  // Check if this segment matches the one in the previous route.
+  const oldSegment = oldRouterState[0]
+  const newSegment = createSegmentFromRouteTree(newRouteTree)
+  if (!matchSegment(newSegment, oldSegment)) {
+    // This segment does not match the previous route. We're now entering the
+    // new part of the target route. Switch to the "create" path.
+    if (
+      // Check if the route tree changed before we reached a layout. (The
+      // highest-level layout in a route tree is referred to as the "root"
+      // layout.) This could mean that we're navigating between two different
+      // root layouts. When this happens, we perform a full-page (MPA-style)
+      // navigation.
+      //
+      // However, the algorithm for deciding where to start rendering a route
+      // (i.e. the one performed in order to reach this function) is stricter
+      // than the one used to detect a change in the root layout. So just
+      // because we're re-rendering a segment outside of the root layout does
+      // not mean we should trigger a full-page navigation.
+      //
+      // Specifically, we handle dynamic parameters differently: two segments
+      // are considered the same even if their parameter values are different.
+      //
+      // Refer to isNavigatingToNewRootLayout for details.
+      //
+      // Note that we only have to perform this extra traversal if we didn't
+      // already discover a root layout in the part of the tree that is
+      // unchanged. We also only need to compare the subtree that is not
+      // shared. In the common case, this branch is skipped completely.
+      (!didFindRootLayout &&
+        isNavigatingToNewRootLayout(oldRouterState, newRouteTree)) ||
+      // The global Not Found route (app/global-not-found.tsx) is a special
+      // case, because it acts like a root layout, but in the router tree, it
+      // is rendered in the same position as app/layout.tsx.
+      //
+      // Any navigation to the global Not Found route should trigger a
+      // full-page navigation.
+      //
+      // TODO: We should probably model this by changing the key of the root
+      // segment when this happens. Then the root layout check would work
+      // as expected, without a special case.
+      newSegment === NOT_FOUND_SEGMENT_KEY
+    ) {
+      return null
+    }
+    if (parentSegmentPath === null || parentParallelRouteKey === null) {
+      // The root should never mismatch. If it does, it suggests an internal
+      // Next.js error, or a malformed server response. Trigger a full-
+      // page navigation.
+      return null
+    }
+    return createCacheNodeOnNavigation(
+      navigatedAt,
+      newRouteTree,
+      newMetadataVaryPath,
+      freshness,
+      seedData,
+      seedHead,
+      parentSegmentPath,
+      parentParallelRouteKey,
+      parentNeedsDynamicRequest,
+      accumulation
+    )
+  }
+
+  // TODO: The segment paths are tracked so that LayoutRouter knows which
+  // segments to scroll to after a navigation. But we should just mark this
+  // information on the CacheNode directly. It used to be necessary to do this
+  // separately because CacheNodes were created lazily during render, not when
+  // rather than when creating the route tree.
+  const segmentPath =
+    parentParallelRouteKey !== null && parentSegmentPath !== null
+      ? parentSegmentPath.concat([parentParallelRouteKey, newSegment])
+      : // NOTE: The root segment is intentionally omitted from the segment path
+        []
+
+  const newSlots = newRouteTree.slots
   const oldRouterStateChildren = oldRouterState[1]
-  const newRouterStateChildren = newRouterState[1]
-  const prefetchDataChildren = prefetchData[2]
+  const seedDataChildren = seedData !== null ? seedData[1] : null
 
-  const oldParallelRoutes = oldCacheNode.parallelRoutes
+  // We're currently traversing the part of the tree that was also part of
+  // the previous route. If we discover a root layout, then we don't need to
+  // trigger an MPA navigation.
+  const childDidFindRootLayout = didFindRootLayout || newRouteTree.isRootLayout
 
-  // Clone the current set of segment children, even if they aren't active in
-  // the new tree.
-  // TODO: We currently retain all the inactive segments indefinitely, until
-  // there's an explicit refresh, or a parent layout is lazily refreshed. We
-  // rely on this for popstate navigations, which update the Router State Tree
-  // but do not eagerly perform a data fetch, because they expect the segment
-  // data to already be in the Cache Node tree. For highly static sites that
-  // are mostly read-only, this may happen only rarely, causing memory to
-  // leak. We should figure out a better model for the lifetime of inactive
-  // segments, so we can maintain instant back/forward navigations without
-  // leaking memory indefinitely.
-  const prefetchParallelRoutes = new Map(oldParallelRoutes)
+  let shouldRefreshDynamicData: boolean = false
+  switch (freshness) {
+    case FreshnessPolicy.Default:
+    case FreshnessPolicy.HistoryTraversal:
+    case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav
+      // We should never drop dynamic data in shared layouts, except during
+      // a refresh.
+      shouldRefreshDynamicData = false
+      break
+    case FreshnessPolicy.RefreshAll:
+    case FreshnessPolicy.HMRRefresh:
+      shouldRefreshDynamicData = true
+      break
+    default:
+      freshness satisfies never
+      break
+  }
+
+  // TODO: We're not consistent about how we do this check. Some places
+  // check if the segment starts with PAGE_SEGMENT_KEY, but most seem to
+  // check if there any any children, which is why I'm doing it here. We
+  // should probably encode an empty children set as `null` though. Either
+  // way, we should update all the checks to be consistent.
+  const isLeafSegment = newSlots === null
+
+  // Get the data for this segment. Since it was part of the previous route,
+  // usually we just clone the data from the old CacheNode. However, during a
+  // refresh or a revalidation, there won't be any existing CacheNode. So we
+  // may need to consult the prefetch cache, like we would for a new segment.
+  let newCacheNode: CacheNode
+  let needsDynamicRequest: boolean
+  if (
+    oldCacheNode !== undefined &&
+    !shouldRefreshDynamicData &&
+    // During a same-page navigation, we always refetch the page segments
+    !(isLeafSegment && isSamePageNavigation)
+  ) {
+    // Reuse the existing CacheNode
+    const dropPrefetchRsc = false
+    newCacheNode = reuseSharedCacheNode(dropPrefetchRsc, oldCacheNode)
+    needsDynamicRequest = false
+  } else {
+    // If this is part of a refresh, ignore the existing CacheNode and create a
+    // new one.
+    const seedRsc = seedData !== null ? seedData[0] : null
+    const result = createCacheNodeForSegment(
+      navigatedAt,
+      newRouteTree,
+      seedRsc,
+      newMetadataVaryPath,
+      seedHead,
+      freshness
+    )
+    newCacheNode = result.cacheNode
+    needsDynamicRequest = result.needsDynamicRequest
+  }
+
+  // During a refresh navigation, there's a special case that happens when
+  // entering a "default" slot. The default slot may not be part of the
+  // current route; it may have been reused from an older route. If so,
+  // we need to fetch its data from the old route's URL rather than current
+  // route's URL. Keep track of this as we traverse the tree.
+  const maybeRefreshState = newRouteTree.refreshState
+  const refreshState =
+    maybeRefreshState !== undefined && maybeRefreshState !== null
+      ? // This segment is not present in the current route. Track its
+        // refresh URL as we continue traversing the tree.
+        maybeRefreshState
+      : // Inherit the refresh URL from the parent.
+        parentRefreshState
+
+  // If this segment itself needs to fetch new data from the server, then by
+  // definition it is being refreshed. Track its refresh URL so we know which
+  // URL to request the data from.
+  if (needsDynamicRequest && refreshState !== null) {
+    accumulateRefreshUrl(accumulation, refreshState)
+  }
 
   // As we diff the trees, we may sometimes modify (copy-on-write, not mutate)
   // the Route Tree that was returned by the server — for example, in the case
@@ -100,183 +398,320 @@ export function updateCacheNodeOnNavigation(
   } = {}
   let taskChildren = null
 
-  // For most navigations, we need to issue a "dynamic" request to fetch the
-  // full RSC data from the server since during rendering, we'll only serve
-  // the prefetch shell. For some navigations, we re-use the existing cache node
-  // (via `spawnReusedTask`), and don't actually need fresh data from the server.
-  // In those cases, we use this `needsDynamicRequest` flag to return a `null`
-  // cache node, which signals to the caller that we don't need to issue a
-  // dynamic request. We start off with a `false` value, and then for each parallel
-  // route, we set it to `true` if we encounter a segment that needs a dynamic request.
-  let needsDynamicRequest = false
+  // Most navigations require a request to fetch additional data from the
+  // server, either because the data was not already prefetched, or because the
+  // target route contains dynamic data that cannot be prefetched.
+  //
+  // However, if the target route is fully static, and it's already completely
+  // loaded into the segment cache, then we can skip the server request.
+  //
+  // This starts off as `false`, and is set to `true` if any of the child
+  // routes requires a dynamic request.
+  let childNeedsDynamicRequest = false
+  // As we traverse the children, we'll construct a FlightRouterState that can
+  // be sent to the server to request the dynamic data. If it turns out that
+  // nothing in the subtree is dynamic (i.e. childNeedsDynamicRequest is false
+  // at the end), then this will be discarded.
+  // TODO: We can probably optimize the format of this data structure to only
+  // include paths that are dynamic. Instead of reusing the
+  // FlightRouterState type.
+  let dynamicRequestTreeChildren: {
+    [parallelRouteKey: string]: FlightRouterState
+  } = {}
 
-  for (let parallelRouteKey in newRouterStateChildren) {
-    const newRouterStateChild: FlightRouterState =
-      newRouterStateChildren[parallelRouteKey]
-    const oldRouterStateChild: FlightRouterState | void =
-      oldRouterStateChildren[parallelRouteKey]
-    const oldSegmentMapChild = oldParallelRoutes.get(parallelRouteKey)
-    const prefetchDataChild: CacheNodeSeedData | void | null =
-      prefetchDataChildren[parallelRouteKey]
+  let newCacheNodeSlots: Record<string, CacheNode> | null = null
+  if (newSlots !== null) {
+    const oldCacheNodeSlots =
+      oldCacheNode !== undefined ? oldCacheNode.slots : null
 
-    const newSegmentChild = newRouterStateChild[0]
-    const newSegmentKeyChild = createRouterCacheKey(newSegmentChild)
-
-    const oldSegmentChild =
-      oldRouterStateChild !== undefined ? oldRouterStateChild[0] : undefined
-
-    // A dynamic segment will be an array, and doesn't correspond with a page segment.
-    const isPageSegment = Array.isArray(newSegmentChild)
-      ? false
-      : // A page segment might contain search parameters, so we verify that it starts with the page segment key.
-        newSegmentChild.startsWith(PAGE_SEGMENT_KEY)
-
-    const oldCacheNodeChild =
-      oldSegmentMapChild !== undefined
-        ? oldSegmentMapChild.get(newSegmentKeyChild)
-        : undefined
-
-    let taskChild: Task | null
-    if (onlyHashChange && oldRouterStateChild !== undefined) {
-      // If only the hash fragment changed, we can re-use the existing cache.
-      // We spawn a "task" just to keep track of the updated router state; unlike most, it's
-      // already fulfilled and won't be affected by the dynamic response.
-      taskChild = spawnReusedTask(oldRouterStateChild)
-    } else if (isPageSegment) {
-      // This is a leaf segment — a page, not a shared layout. We always apply
-      // its data.
-      taskChild = spawnPendingTask(
-        newRouterStateChild,
-        prefetchDataChild !== undefined ? prefetchDataChild : null,
-        prefetchHead
-      )
-    } else if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
-      // This is another kind of leaf segment — a default route.
-      //
-      // Default routes have special behavior. When there's no matching segment
-      // for a parallel route, Next.js preserves the currently active segment
-      // during a client navigation — but not for initial render. The server
-      // leaves it to the client to account for this. So we need to handle
-      // it here.
-      if (oldRouterStateChild !== undefined) {
-        // Reuse the existing Router State for this segment. We spawn a "task"
-        // just to keep track of the updated router state; unlike most, it's
-        // already fulfilled and won't be affected by the dynamic response.
-        taskChild = spawnReusedTask(oldRouterStateChild)
-      } else {
-        // There's no currently active segment. Switch to the "create" path.
-        taskChild = spawnPendingTask(
-          newRouterStateChild,
-          prefetchDataChild !== undefined ? prefetchDataChild : null,
-          prefetchHead
-        )
+    newCacheNode.slots = newCacheNodeSlots = {}
+    taskChildren = new Map()
+    for (let parallelRouteKey in newSlots) {
+      let newRouteTreeChild: RouteTree = newSlots[parallelRouteKey]
+      const oldRouterStateChild: FlightRouterState | void =
+        oldRouterStateChildren[parallelRouteKey]
+      if (oldRouterStateChild === undefined) {
+        // This should never happen, but if it does, it suggests a malformed
+        // server response. Trigger a full-page navigation.
+        return null
       }
-    } else if (
-      oldSegmentChild !== undefined &&
-      matchSegment(newSegmentChild, oldSegmentChild)
-    ) {
+
+      let seedDataChild: CacheNodeSeedData | void | null =
+        seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
+
+      const oldSegmentChild = oldRouterStateChild[0]
+      let newSegmentChild = createSegmentFromRouteTree(newRouteTreeChild)
+      let seedHeadChild = seedHead
       if (
-        oldCacheNodeChild !== undefined &&
-        oldRouterStateChild !== undefined
+        // Skip this branch during a history traversal. We restore the tree that
+        // was stashed in the history entry as-is.
+        freshness !== FreshnessPolicy.HistoryTraversal &&
+        newSegmentChild === DEFAULT_SEGMENT_KEY &&
+        oldSegmentChild !== DEFAULT_SEGMENT_KEY
       ) {
-        // This segment exists in both the old and new trees.
-        if (prefetchDataChild !== undefined && prefetchDataChild !== null) {
-          // Recursively update the children.
-          taskChild = updateCacheNodeOnNavigation(
-            oldCacheNodeChild,
-            oldRouterStateChild,
-            newRouterStateChild,
-            prefetchDataChild,
-            prefetchHead,
-            onlyHashChange
-          )
-        } else {
-          // The server didn't send any prefetch data for this segment. This
-          // shouldn't happen because the Route Tree and the Seed Data tree
-          // should always be the same shape, but until we unify those types
-          // it's still possible. For now we're going to deopt and trigger a
-          // lazy fetch during render.
-          taskChild = spawnTaskForMissingData(newRouterStateChild)
-        }
-      } else {
-        // Either there's no existing Cache Node for this segment, or this
-        // segment doesn't exist in the old Router State tree. Switch to the
-        // "create" path.
-        taskChild = spawnPendingTask(
-          newRouterStateChild,
-          prefetchDataChild !== undefined ? prefetchDataChild : null,
-          prefetchHead
+        // This is a "default" segment. These are never sent by the server during
+        // a soft navigation; instead, the client reuses whatever segment was
+        // already active in that slot on the previous route.
+        newRouteTreeChild = reuseActiveSegmentInDefaultSlot(
+          newRouteTree,
+          parallelRouteKey,
+          oldRootRefreshState,
+          oldRouterStateChild
         )
-      }
-    } else {
-      // This is a new tree. Switch to the "create" path.
-      taskChild = spawnPendingTask(
-        newRouterStateChild,
-        prefetchDataChild !== undefined ? prefetchDataChild : null,
-        prefetchHead
-      )
-    }
+        newSegmentChild = createSegmentFromRouteTree(newRouteTreeChild)
 
-    if (taskChild !== null) {
-      // Something changed in the child tree. Keep track of the child task.
-      if (taskChildren === null) {
-        taskChildren = new Map()
+        // Since we're switching to a different route tree, these are no
+        // longer valid, because they correspond to the outer tree.
+        seedDataChild = null
+        seedHeadChild = null
       }
+
+      const oldCacheNodeChild =
+        oldCacheNodeSlots !== null
+          ? oldCacheNodeSlots[parallelRouteKey]
+          : undefined
+
+      const taskChild = updateCacheNodeOnNavigation(
+        navigatedAt,
+        oldUrl,
+        oldCacheNodeChild,
+        oldRouterStateChild,
+        newRouteTreeChild,
+        newMetadataVaryPath,
+        freshness,
+        childDidFindRootLayout,
+        seedDataChild ?? null,
+        seedHeadChild,
+        isSamePageNavigation,
+        segmentPath,
+        parallelRouteKey,
+        parentNeedsDynamicRequest || needsDynamicRequest,
+        oldRootRefreshState,
+        refreshState,
+        accumulation
+      )
+
+      if (taskChild === null) {
+        // One of the child tasks discovered a change to the root layout.
+        // Immediately unwind from this recursive traversal. This will trigger a
+        // full-page navigation.
+        return null
+      }
+
+      // Recursively propagate up the child tasks.
       taskChildren.set(parallelRouteKey, taskChild)
-      const newCacheNodeChild = taskChild.node
-      if (newCacheNodeChild !== null) {
-        const newSegmentMapChild: ChildSegmentMap = new Map(oldSegmentMapChild)
-        newSegmentMapChild.set(newSegmentKeyChild, newCacheNodeChild)
-        prefetchParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
-        // a non-null taskChild.node means we're waiting for a dynamic request to
-        // fill in the missing data
-        needsDynamicRequest = true
-      }
+      newCacheNodeSlots[parallelRouteKey] = taskChild.node
 
       // The child tree's route state may be different from the prefetched
       // route sent by the server. We need to clone it as we traverse back up
       // the tree.
-      patchedRouterStateChildren[parallelRouteKey] = taskChild.route
-    } else {
-      // The child didn't change. We can use the prefetched router state.
-      patchedRouterStateChildren[parallelRouteKey] = newRouterStateChild
+      const taskChildRoute = taskChild.route
+      patchedRouterStateChildren[parallelRouteKey] = taskChildRoute
+
+      const dynamicRequestTreeChild = taskChild.dynamicRequestTree
+      if (dynamicRequestTreeChild !== null) {
+        // Something in the child tree is dynamic.
+        childNeedsDynamicRequest = true
+        dynamicRequestTreeChildren[parallelRouteKey] = dynamicRequestTreeChild
+      } else {
+        dynamicRequestTreeChildren[parallelRouteKey] = taskChildRoute
+      }
     }
   }
 
-  if (taskChildren === null) {
-    // No new tasks were spawned.
-    return null
-  }
-
-  const newCacheNode: ReadyCacheNode = {
-    lazyData: null,
-    rsc: oldCacheNode.rsc,
-    // We intentionally aren't updating the prefetchRsc field, since this node
-    // is already part of the current tree, because it would be weird for
-    // prefetch data to be newer than the final data. It probably won't ever be
-    // observable anyway, but it could happen if the segment is unmounted then
-    // mounted again, because LayoutRouter will momentarily switch to rendering
-    // prefetchRsc, via useDeferredValue.
-    prefetchRsc: oldCacheNode.prefetchRsc,
-    head: oldCacheNode.head,
-    prefetchHead: oldCacheNode.prefetchHead,
-    loading: oldCacheNode.loading,
-
-    // Everything is cloned except for the children, which we computed above.
-    parallelRoutes: prefetchParallelRoutes,
-  }
+  const newFlightRouterState: FlightRouterState = [
+    createSegmentFromRouteTree(newRouteTree),
+    patchedRouterStateChildren,
+    refreshState !== null
+      ? [refreshState.canonicalUrl, refreshState.renderedSearch]
+      : null,
+    null,
+    newRouteTree.isRootLayout,
+  ]
 
   return {
-    // Return a cloned copy of the router state with updated children.
-    route: patchRouterStateWithNewChildren(
-      newRouterState,
-      patchedRouterStateChildren
+    status: needsDynamicRequest
+      ? NavigationTaskStatus.Pending
+      : NavigationTaskStatus.Fulfilled,
+    route: newFlightRouterState,
+    node: newCacheNode,
+    dynamicRequestTree: createDynamicRequestTree(
+      newFlightRouterState,
+      dynamicRequestTreeChildren,
+      needsDynamicRequest,
+      childNeedsDynamicRequest,
+      parentNeedsDynamicRequest
     ),
-    // Only return the new cache node if there are pending tasks that need to be resolved
-    // by the dynamic data from the server. If they don't, we don't need to trigger a dynamic request.
-    node: needsDynamicRequest ? newCacheNode : null,
+    refreshState,
     children: taskChildren,
   }
+}
+
+function createCacheNodeOnNavigation(
+  navigatedAt: number,
+  newRouteTree: RouteTree,
+  newMetadataVaryPath: PageVaryPath | null,
+  freshness: FreshnessPolicy,
+  seedData: CacheNodeSeedData | null,
+  seedHead: HeadData | null,
+  parentSegmentPath: FlightSegmentPath | null,
+  parentParallelRouteKey: string | null,
+  parentNeedsDynamicRequest: boolean,
+  accumulation: NavigationRequestAccumulation
+): NavigationTask {
+  // Same traversal as updateCacheNodeNavigation, but simpler. We switch to this
+  // path once we reach the part of the tree that was not in the previous route.
+  // We don't need to diff against the old tree, we just need to create a new
+  // one. We also don't need to worry about any refresh-related logic.
+  //
+  // For the most part, this is a subset of updateCacheNodeOnNavigation, so any
+  // change that happens in this function likely needs to be applied to that
+  // one, too. However there are some places where the behavior intentionally
+  // diverges, which is why we keep them separate.
+
+  const newSegment = createSegmentFromRouteTree(newRouteTree)
+  const segmentPath =
+    parentParallelRouteKey !== null && parentSegmentPath !== null
+      ? parentSegmentPath.concat([parentParallelRouteKey, newSegment])
+      : // NOTE: The root segment is intentionally omitted from the segment path
+        []
+
+  const newSlots = newRouteTree.slots
+  const seedDataChildren = seedData !== null ? seedData[1] : null
+
+  const isLeafSegment = newSlots === null
+
+  if (isLeafSegment) {
+    // The segment path of every leaf segment (i.e. page) is collected into
+    // a result array. This is used by the LayoutRouter to scroll to ensure that
+    // new pages are visible after a navigation.
+    //
+    // This only happens for new pages, not for refreshed pages.
+    //
+    // TODO: We should use a string to represent the segment path instead of
+    // an array. We already use a string representation for the path when
+    // accessing the Segment Cache, so we can use the same one.
+    if (accumulation.scrollableSegments === null) {
+      accumulation.scrollableSegments = []
+    }
+    accumulation.scrollableSegments.push(segmentPath)
+  }
+
+  const seedRsc = seedData !== null ? seedData[0] : null
+  const result = createCacheNodeForSegment(
+    navigatedAt,
+    newRouteTree,
+    seedRsc,
+    newMetadataVaryPath,
+    seedHead,
+    freshness
+  )
+  const newCacheNode = result.cacheNode
+  const needsDynamicRequest = result.needsDynamicRequest
+
+  let patchedRouterStateChildren: {
+    [parallelRouteKey: string]: FlightRouterState
+  } = {}
+  let taskChildren = null
+
+  let childNeedsDynamicRequest = false
+  let dynamicRequestTreeChildren: {
+    [parallelRouteKey: string]: FlightRouterState
+  } = {}
+
+  let newCacheNodeSlots: Record<string, CacheNode> | null = null
+  if (newSlots !== null) {
+    newCacheNode.slots = newCacheNodeSlots = {}
+    taskChildren = new Map()
+    for (let parallelRouteKey in newSlots) {
+      const newRouteTreeChild: RouteTree = newSlots[parallelRouteKey]
+      const seedDataChild: CacheNodeSeedData | void | null =
+        seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
+
+      const taskChild = createCacheNodeOnNavigation(
+        navigatedAt,
+        newRouteTreeChild,
+        newMetadataVaryPath,
+        freshness,
+        seedDataChild ?? null,
+        seedHead,
+        segmentPath,
+        parallelRouteKey,
+        parentNeedsDynamicRequest || needsDynamicRequest,
+        accumulation
+      )
+
+      taskChildren.set(parallelRouteKey, taskChild)
+      newCacheNodeSlots[parallelRouteKey] = taskChild.node
+
+      const taskChildRoute = taskChild.route
+      patchedRouterStateChildren[parallelRouteKey] = taskChildRoute
+
+      const dynamicRequestTreeChild = taskChild.dynamicRequestTree
+      if (dynamicRequestTreeChild !== null) {
+        childNeedsDynamicRequest = true
+        dynamicRequestTreeChildren[parallelRouteKey] = dynamicRequestTreeChild
+      } else {
+        dynamicRequestTreeChildren[parallelRouteKey] = taskChildRoute
+      }
+    }
+  }
+
+  const newFlightRouterState: FlightRouterState = [
+    newSegment,
+    patchedRouterStateChildren,
+    null,
+    null,
+    newRouteTree.isRootLayout,
+  ]
+
+  return {
+    status: needsDynamicRequest
+      ? NavigationTaskStatus.Pending
+      : NavigationTaskStatus.Fulfilled,
+    route: newFlightRouterState,
+    node: newCacheNode,
+    dynamicRequestTree: createDynamicRequestTree(
+      newFlightRouterState,
+      dynamicRequestTreeChildren,
+      needsDynamicRequest,
+      childNeedsDynamicRequest,
+      parentNeedsDynamicRequest
+    ),
+    // This route is not part of the current tree, so there's no reason to
+    // track the refresh URL.
+    refreshState: null,
+    children: taskChildren,
+  }
+}
+
+function createSegmentFromRouteTree(newRouteTree: RouteTree): Segment {
+  if (newRouteTree.isPage) {
+    // In a dynamic server response, the server embeds the search params into
+    // the segment key, but in a static one it's omitted. The client handles
+    // this inconsistency by adding the search params back right at the end.
+    //
+    // TODO: The only thing this is used for is to create a cache key for
+    // ChildSegmentMap. But we already track the `renderedSearch` everywhere as
+    // part of the varyPath. The plan is get rid of ChildSegmentMap and
+    // store the page data in a CacheMap using the varyPath, like we do
+    // for prefetches. Then we can remove it from the segment key.
+    //
+    // As an incremental step, we can grab the search params from the varyPath.
+    const renderedSearch = getRenderedSearchFromVaryPath(newRouteTree.varyPath)
+    if (renderedSearch === null) {
+      return PAGE_SEGMENT_KEY
+    }
+    // This is based on equivalent logic in addSearchParamsIfPageSegment, used
+    // on the server.
+    const stringifiedQuery = JSON.stringify(
+      Object.fromEntries(new URLSearchParams(renderedSearch))
+    )
+    return stringifiedQuery !== '{}'
+      ? PAGE_SEGMENT_KEY + '?' + stringifiedQuery
+      : PAGE_SEGMENT_KEY
+  }
+  return newRouteTree.segment
 }
 
 function patchRouterStateWithNewChildren(
@@ -299,45 +734,421 @@ function patchRouterStateWithNewChildren(
   return clone
 }
 
-function spawnPendingTask(
-  routerState: FlightRouterState,
-  prefetchData: CacheNodeSeedData | null,
-  prefetchHead: React.ReactNode
-): Task {
-  // Create a task that will later be fulfilled by data from the server.
-  const pendingCacheNode = createPendingCacheNode(
-    routerState,
-    prefetchData,
-    prefetchHead
+function createDynamicRequestTree(
+  newRouterState: FlightRouterState,
+  dynamicRequestTreeChildren: Record<string, FlightRouterState>,
+  needsDynamicRequest: boolean,
+  childNeedsDynamicRequest: boolean,
+  parentNeedsDynamicRequest: boolean
+): FlightRouterState | null {
+  // Create a FlightRouterState that instructs the server how to render the
+  // requested segment.
+  //
+  // Or, if neither this segment nor any of the children require a new data,
+  // then we return `null` to skip the request.
+  let dynamicRequestTree: FlightRouterState | null = null
+  if (needsDynamicRequest) {
+    dynamicRequestTree = patchRouterStateWithNewChildren(
+      newRouterState,
+      dynamicRequestTreeChildren
+    )
+    // The "refetch" marker is set on the top-most segment that requires new
+    // data. We can omit it if a parent was already marked.
+    if (!parentNeedsDynamicRequest) {
+      dynamicRequestTree[3] = 'refetch'
+    }
+  } else if (childNeedsDynamicRequest) {
+    // This segment does not request new data, but at least one of its
+    // children does.
+    dynamicRequestTree = patchRouterStateWithNewChildren(
+      newRouterState,
+      dynamicRequestTreeChildren
+    )
+  } else {
+    dynamicRequestTree = null
+  }
+  return dynamicRequestTree
+}
+
+function accumulateRefreshUrl(
+  accumulation: NavigationRequestAccumulation,
+  refreshState: RefreshState
+) {
+  // This is a refresh navigation, and we're inside a "default" slot that's
+  // not part of the current route; it was reused from an older route. In
+  // order to get fresh data for this reused route, we need to issue a
+  // separate request using the old route's URL.
+  //
+  // Track these extra URLs in the accumulated result. Later, we'll construct
+  // an appropriate request for each unique URL in the final set. The reason
+  // we don't do it immediately here is so we can deduplicate multiple
+  // instances of the same URL into a single request. See
+  // listenForDynamicRequest for more details.
+  const refreshUrl = refreshState.canonicalUrl
+  const separateRefreshUrls = accumulation.separateRefreshUrls
+  if (separateRefreshUrls === null) {
+    accumulation.separateRefreshUrls = new Set([refreshUrl])
+  } else {
+    separateRefreshUrls.add(refreshUrl)
+  }
+}
+
+function reuseActiveSegmentInDefaultSlot(
+  parentRouteTree: RouteTree,
+  parallelRouteKey: string,
+  oldRootRefreshState: RefreshState,
+  oldRouterState: FlightRouterState
+): RouteTree {
+  // This is a "default" segment. These are never sent by the server during a
+  // soft navigation; instead, the client reuses whatever segment was already
+  // active in that slot on the previous route. This means if we later need to
+  // refresh the segment, it will have to be refetched from the previous route's
+  // URL. We store it in the Flight Router State.
+
+  let reusedUrl: string
+  let reusedRenderedSearch: NormalizedSearch
+  const oldRefreshState = oldRouterState[2]
+  if (oldRefreshState !== undefined && oldRefreshState !== null) {
+    // This segment was already reused from an even older route. Keep its
+    // existing URL and refresh state.
+    reusedUrl = oldRefreshState[0]
+    reusedRenderedSearch = oldRefreshState[1] as NormalizedSearch
+  } else {
+    // Since this route didn't already have a refresh state, it must have been
+    // reachable from the root of the old route. So we use the refresh state
+    // that represents the old route.
+    reusedUrl = oldRootRefreshState.canonicalUrl
+    reusedRenderedSearch = oldRootRefreshState.renderedSearch
+  }
+
+  const acc = { metadataVaryPath: null }
+  const reusedRouteTree = convertReusedFlightRouterStateToRouteTree(
+    parentRouteTree,
+    parallelRouteKey,
+    oldRouterState,
+    reusedRenderedSearch,
+    acc
   )
+  reusedRouteTree.refreshState = {
+    canonicalUrl: reusedUrl,
+    renderedSearch: reusedRenderedSearch,
+  }
+  return reusedRouteTree
+}
+
+function reuseSharedCacheNode(
+  dropPrefetchRsc: boolean,
+  existingCacheNode: CacheNode
+): CacheNode {
+  // Clone the CacheNode that was already present in the previous tree
+  return createCacheNode(
+    existingCacheNode.rsc,
+    dropPrefetchRsc ? null : existingCacheNode.prefetchRsc,
+    existingCacheNode.head,
+    dropPrefetchRsc ? null : existingCacheNode.prefetchHead
+  )
+}
+
+function createCacheNodeForSegment(
+  now: number,
+  tree: RouteTree,
+  seedRsc: React.ReactNode | null,
+  metadataVaryPath: PageVaryPath | null,
+  seedHead: HeadData | null,
+  freshness: FreshnessPolicy
+): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
+  // Construct a new CacheNode using data from the BFCache, the client's
+  // Segment Cache, or seeded from a server response.
+  //
+  // If there's a cache miss, or if we only have a partial hit, we'll render
+  // the partial state immediately, and spawn a request to the server to fill
+  // in the missing data.
+  //
+  // If the segment is fully cached on the client already, we can omit this
+  // segment from the server request.
+  //
+  // If we already have a dynamic data response associated with this navigation,
+  // as in the case of a Server Action-initiated redirect or refresh, we may
+  // also be able to use that data without spawning a new request. (This is
+  // referred to as the "seed" data.)
+
+  const isPage = tree.isPage
+
+  // During certain kinds of navigations, we may be able to render from
+  // the BFCache.
+  switch (freshness) {
+    case FreshnessPolicy.Default: {
+      // When experimental.staleTimes.dynamic config is set, we read from the
+      // BFCache even during regular navigations.
+      const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
+        now,
+        tree.varyPath
+      )
+      if (bfcacheEntry !== null) {
+        return {
+          cacheNode: createCacheNode(
+            bfcacheEntry.rsc,
+            bfcacheEntry.prefetchRsc,
+            bfcacheEntry.head,
+            bfcacheEntry.prefetchHead
+          ),
+          needsDynamicRequest: false,
+        }
+      }
+      break
+    }
+    case FreshnessPolicy.Hydration: {
+      // This is not related to the BFCache but it is a special case.
+      //
+      // We should never spawn network requests during hydration. We must treat
+      // the initial payload as authoritative, because the initial page load is
+      // used as a last-ditch mechanism for recovering the app.
+      //
+      // This is also an important safety check because if this leaks into the
+      // server rendering path (which theoretically it never should because the
+      // server payload should be consistent), the server would hang because these
+      // promises would never resolve.
+      //
+      // TODO: There is an existing case where the global "not found" boundary
+      // triggers this path. But it does render correctly despite that. That's an
+      // unusual render path so it's not surprising, but we should look into
+      // modeling it in a more consistent way. See also the /_notFound special
+      // case in updateCacheNodeOnNavigation.
+      const rsc = seedRsc
+      const prefetchRsc = null
+      const head = isPage ? seedHead : null
+      const prefetchHead = null
+      writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+      return {
+        cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
+        needsDynamicRequest: false,
+      }
+    }
+    case FreshnessPolicy.HistoryTraversal:
+      const bfcacheEntry = readFromBFCache(tree.varyPath)
+      if (bfcacheEntry !== null) {
+        // Only show prefetched data if the dynamic data is still pending. This
+        // avoids a flash back to the prefetch state in a case where it's highly
+        // likely to have already streamed in.
+        //
+        // Tehnically, what we're actually checking is whether the dynamic
+        // network response was received. But since it's a streaming response,
+        // this does not mean that all the dynamic data has fully streamed in.
+        // It just means that _some_ of the dynamic data was received. But as a
+        // heuristic, we assume that the rest dynamic data will stream in
+        // quickly, so it's still better to skip the prefetch state.
+        const oldRsc = bfcacheEntry.rsc
+        const oldRscDidResolve =
+          !isDeferredRsc(oldRsc) || oldRsc.status !== 'pending'
+        const dropPrefetchRsc = oldRscDidResolve
+        return {
+          cacheNode: createCacheNode(
+            bfcacheEntry.rsc,
+            dropPrefetchRsc ? null : bfcacheEntry.prefetchRsc,
+            bfcacheEntry.head,
+            dropPrefetchRsc ? null : bfcacheEntry.prefetchHead
+          ),
+          needsDynamicRequest: false,
+        }
+      }
+      break
+    case FreshnessPolicy.RefreshAll:
+    case FreshnessPolicy.HMRRefresh:
+      // Don't consult the BFCache.
+      break
+    default:
+      freshness satisfies never
+      break
+  }
+
+  let cachedRsc: React.ReactNode | null = null
+  let isCachedRscPartial: boolean = true
+
+  const segmentEntry = readSegmentCacheEntry(now, tree.varyPath)
+  if (segmentEntry !== null) {
+    switch (segmentEntry.status) {
+      case EntryStatus.Fulfilled: {
+        // Happy path: a cache hit
+        cachedRsc = segmentEntry.rsc
+        isCachedRscPartial = segmentEntry.isPartial
+        break
+      }
+      case EntryStatus.Pending: {
+        // We haven't received data for this segment yet, but there's already
+        // an in-progress request. Since it's extremely likely to arrive
+        // before the dynamic data response, we might as well use it.
+        const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
+        cachedRsc = promiseForFulfilledEntry.then((entry) =>
+          entry !== null ? entry.rsc : null
+        )
+        // Because the request is still pending, we typically don't know yet
+        // whether the response will be partial. We shouldn't skip this segment
+        // during the dynamic navigation request. Otherwise, we might need to
+        // do yet another request to fill in the remaining data, creating
+        // a waterfall.
+        //
+        // The one exception is if this segment is being fetched with via
+        // prefetch={true} (i.e. the "force stale" or "full" strategy). If so,
+        // we can assume the response will be full. This field is set to `false`
+        // for such segments.
+        isCachedRscPartial = segmentEntry.isPartial
+        break
+      }
+      case EntryStatus.Empty:
+      case EntryStatus.Rejected: {
+        break
+      }
+      default: {
+        segmentEntry satisfies never
+        break
+      }
+    }
+  }
+
+  // Now combine the cached data with the seed data to determine what we can
+  // render immediately, versus what needs to stream in later.
+
+  // A partial state to show immediately while we wait for the final data to
+  // arrive. If `rsc` is already a complete value (not partial), or if we
+  // don't have any useful partial state, this will be `null`.
+  let prefetchRsc: React.ReactNode | null
+  // The final, resolved segment data. If the data is missing, this will be a
+  // promise that resolves to the eventual data. A resolved value of `null`
+  // means the data failed to load; the LayoutRouter will suspend indefinitely
+  // until the router updates again (refer to finishNavigationTask).
+  let rsc: React.ReactNode | null
+  let doesSegmentNeedDynamicRequest: boolean
+
+  if (seedRsc !== null) {
+    // We already have a dynamic server response for this segment.
+    if (isCachedRscPartial) {
+      // The seed data may still be streaming in, so it's worth showing the
+      // partial cached state in the meantime.
+      prefetchRsc = cachedRsc
+      rsc = seedRsc
+    } else {
+      // We already have a completely cached segment. Ignore the seed data,
+      // which may still be streaming in. This shouldn't happen in the normal
+      // case because the client will inform the server which segments are
+      // already fully cached, and the server will skip rendering them.
+      prefetchRsc = null
+      rsc = cachedRsc
+    }
+    doesSegmentNeedDynamicRequest = false
+  } else {
+    if (isCachedRscPartial) {
+      // The cached data contains dynamic holes, or it's missing entirely. We'll
+      // show the partial state immediately (if available), and stream in the
+      // final data.
+      //
+      // Create a pending promise that we can later write to when the
+      // data arrives from the server.
+      prefetchRsc = cachedRsc
+      rsc = createDeferredRsc()
+    } else {
+      // The data is fully cached.
+      prefetchRsc = null
+      rsc = cachedRsc
+    }
+    doesSegmentNeedDynamicRequest = isCachedRscPartial
+  }
+
+  // If this is a page segment, we need to do the same for the head. This
+  // follows analogous logic to the segment data above.
+  // TODO: We don't need to store the head on the page segment's CacheNode; we
+  // can lift it to the main state object. Then we can also delete
+  // findHeadCache.
+
+  let prefetchHead: HeadData | null = null
+  let head: React.ReactNode | null = null
+  let doesHeadNeedDynamicRequest: boolean = isPage
+
+  if (isPage) {
+    let cachedHead: HeadData | null = null
+    let isCachedHeadPartial: boolean = true
+    if (metadataVaryPath !== null) {
+      const metadataEntry = readSegmentCacheEntry(now, metadataVaryPath)
+      if (metadataEntry !== null) {
+        switch (metadataEntry.status) {
+          case EntryStatus.Fulfilled: {
+            cachedHead = metadataEntry.rsc
+            isCachedHeadPartial = metadataEntry.isPartial
+            break
+          }
+          case EntryStatus.Pending: {
+            cachedHead = waitForSegmentCacheEntry(metadataEntry).then(
+              (entry) => (entry !== null ? entry.rsc : null)
+            )
+            isCachedHeadPartial = metadataEntry.isPartial
+            break
+          }
+          case EntryStatus.Empty:
+          case EntryStatus.Rejected: {
+            break
+          }
+          default: {
+            metadataEntry satisfies never
+            break
+          }
+        }
+      }
+    }
+
+    if (seedHead !== null) {
+      if (isCachedHeadPartial) {
+        prefetchHead = cachedHead
+        head = seedHead
+      } else {
+        prefetchHead = null
+        head = cachedHead
+      }
+      doesHeadNeedDynamicRequest = false
+    } else {
+      if (isCachedHeadPartial) {
+        prefetchHead = cachedHead
+        head = createDeferredRsc()
+      } else {
+        prefetchHead = null
+        head = cachedHead
+      }
+      doesHeadNeedDynamicRequest = isCachedHeadPartial
+    }
+  }
+
+  // Now that we're creating a new segment, write its data to the BFCache. A
+  // subsequent back/forward navigation will reuse this same data, until or
+  // unless it's cleared by a refresh/revalidation.
+  writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+
   return {
-    route: routerState,
-    node: pendingCacheNode,
-    children: null,
+    cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
+    // TODO: We should store this field on the CacheNode itself. I think we can
+    // probably unify NavigationTask, CacheNode, and DeferredRsc into a
+    // single type. Or at least CacheNode and DeferredRsc.
+    needsDynamicRequest:
+      doesSegmentNeedDynamicRequest || doesHeadNeedDynamicRequest,
   }
 }
 
-function spawnReusedTask(reusedRouterState: FlightRouterState): Task {
-  // Create a task that reuses an existing segment, e.g. when reusing
-  // the current active segment in place of a default route.
+function createCacheNode(
+  rsc: React.ReactNode | null,
+  prefetchRsc: React.ReactNode | null,
+  head: React.ReactNode | null,
+  prefetchHead: HeadData | null
+): CacheNode {
   return {
-    route: reusedRouterState,
-    node: null,
-    children: null,
+    rsc,
+    prefetchRsc,
+    head,
+    prefetchHead,
+    slots: null,
   }
 }
 
-function spawnTaskForMissingData(routerState: FlightRouterState): Task {
-  // Create a task for a new subtree that wasn't prefetched by the server.
-  // This shouldn't really ever happen but it's here just in case the Seed Data
-  // Tree and the Router State Tree disagree unexpectedly.
-  const pendingCacheNode = createPendingCacheNode(routerState, null, null)
-  return {
-    route: routerState,
-    node: pendingCacheNode,
-    children: null,
-  }
-}
+// Represents whether the previuos navigation resulted in a route tree mismatch.
+// A mismatch results in a refresh of the page. If there are two successive
+// mismatches, we will fall back to an MPA navigation, to prevent a retry loop.
+let previousNavigationDidMismatch = false
 
 // Writes a dynamic server response into the tree created by
 // updateCacheNodeOnNavigation. All pending promises that were spawned by the
@@ -354,223 +1165,391 @@ function spawnTaskForMissingData(routerState: FlightRouterState): Task {
 //
 // This does _not_ create a new tree; it modifies the existing one in place.
 // Which means it must follow the Suspense rules of cache safety.
-export function listenForDynamicRequest(
-  task: Task,
-  responsePromise: Promise<FetchServerResponseResult>
-) {
-  responsePromise.then(
-    ({ flightData }: FetchServerResponseResult) => {
-      for (const normalizedFlightData of flightData) {
-        if (typeof normalizedFlightData === 'string') {
-          // Happens when navigating to page in `pages` from `app`. We shouldn't
-          // get here because should have already handled this during
-          // the prefetch.
-          continue
-        }
-
-        const {
-          segmentPath,
-          tree: serverRouterState,
-          seedData: dynamicData,
-          head: dynamicHead,
-        } = normalizedFlightData
-
-        if (!dynamicData) {
-          // This shouldn't happen. PPR should always send back a response.
-          // However, `FlightDataPath` is a shared type and the pre-PPR handling of
-          // this might return null.
-          continue
-        }
-
-        writeDynamicDataIntoPendingTask(
-          task,
-          segmentPath,
-          serverRouterState,
-          dynamicData,
-          dynamicHead
-        )
-      }
-
-      // Now that we've exhausted all the data we received from the server, if
-      // there are any remaining pending tasks in the tree, abort them now.
-      // If there's any missing data, it will trigger a lazy fetch.
-      abortTask(task, null)
-    },
-    (error: any) => {
-      // This will trigger an error during render
-      abortTask(task, error)
-    }
-  )
-}
-
-function writeDynamicDataIntoPendingTask(
-  rootTask: Task,
-  segmentPath: FlightSegmentPath,
-  serverRouterState: FlightRouterState,
-  dynamicData: CacheNodeSeedData,
-  dynamicHead: React.ReactNode
-) {
-  // The data sent by the server represents only a subtree of the app. We need
-  // to find the part of the task tree that matches the server response, and
-  // fulfill it using the dynamic data.
-  //
-  // segmentPath represents the parent path of subtree. It's a repeating pattern
-  // of parallel route key and segment:
-  //
-  //   [string, Segment, string, Segment, string, Segment, ...]
-  //
-  // Iterate through the path and finish any tasks that match this payload.
-  let task = rootTask
-  for (let i = 0; i < segmentPath.length; i += 2) {
-    const parallelRouteKey: string = segmentPath[i]
-    const segment: Segment = segmentPath[i + 1]
-    const taskChildren = task.children
-    if (taskChildren !== null) {
-      const taskChild = taskChildren.get(parallelRouteKey)
-      if (taskChild !== undefined) {
-        const taskSegment = taskChild.route[0]
-        if (matchSegment(segment, taskSegment)) {
-          // Found a match for this task. Keep traversing down the task tree.
-          task = taskChild
-          continue
-        }
-      }
-    }
-    // We didn't find a child task that matches the server data. Exit. We won't
-    // abort the task, though, because a different FlightDataPath may be able to
-    // fulfill it (see loop in listenForDynamicRequest). We only abort tasks
-    // once we've run out of data.
+export function spawnDynamicRequests(
+  task: NavigationTask,
+  primaryUrl: URL,
+  nextUrl: string | null,
+  freshnessPolicy: FreshnessPolicy,
+  accumulation: NavigationRequestAccumulation
+): void {
+  const dynamicRequestTree = task.dynamicRequestTree
+  if (dynamicRequestTree === null) {
+    // This navigation was fully cached. There are no dynamic requests to spawn.
+    previousNavigationDidMismatch = false
     return
   }
 
-  finishTaskUsingDynamicDataPayload(
+  // This is intentionally not an async function to discourage the caller from
+  // awaiting the result. Any subsequent async operations spawned by this
+  // function should result in a separate navigation task, rather than
+  // block the original one.
+  //
+  // In this function we spawn (but do not await) all the network requests that
+  // block the navigation, and collect the promises. The next function,
+  // `finishNavigationTask`, can await the promises in any order without
+  // accidentally introducing a network waterfall.
+  const primaryRequestPromise = fetchMissingDynamicData(
     task,
-    serverRouterState,
-    dynamicData,
-    dynamicHead
+    dynamicRequestTree,
+    primaryUrl,
+    nextUrl,
+    freshnessPolicy
   )
-}
 
-function finishTaskUsingDynamicDataPayload(
-  task: Task,
-  serverRouterState: FlightRouterState,
-  dynamicData: CacheNodeSeedData,
-  dynamicHead: React.ReactNode
-) {
-  // dynamicData may represent a larger subtree than the task. Before we can
-  // finish the task, we need to line them up.
-  const taskChildren = task.children
-  const taskNode = task.node
-  if (taskChildren === null) {
-    // We've reached the leaf node of the pending task. The server data tree
-    // lines up the pending Cache Node tree. We can now switch to the
-    // normal algorithm.
-    if (taskNode !== null) {
-      finishPendingCacheNode(
-        taskNode,
-        task.route,
-        serverRouterState,
-        dynamicData,
-        dynamicHead
-      )
-      // Null this out to indicate that the task is complete.
-      task.node = null
-    }
-    return
-  }
-  // The server returned more data than we need to finish the task. Skip over
-  // the extra segments until we reach the leaf task node.
-  const serverChildren = serverRouterState[1]
-  const dynamicDataChildren = dynamicData[2]
+  const separateRefreshUrls = accumulation.separateRefreshUrls
+  let refreshRequestPromises: Array<
+    ReturnType<typeof fetchMissingDynamicData>
+  > | null = null
+  if (separateRefreshUrls !== null) {
+    // There are multiple URLs that we need to request the data from. This
+    // happens when a "default" parallel route slot is present in the tree, and
+    // its data cannot be fetched from the current route. We need to split the
+    // combined dynamic request tree into separate requests per URL.
 
-  for (const parallelRouteKey in serverRouterState) {
-    const serverRouterStateChild: FlightRouterState =
-      serverChildren[parallelRouteKey]
-    const dynamicDataChild: CacheNodeSeedData | null | void =
-      dynamicDataChildren[parallelRouteKey]
+    // TODO: Create a scoped dynamic request tree that omits anything that
+    // is not relevant to the given URL. Without doing this, the server may
+    // sometimes render more data than necessary; this is not a regression
+    // compared to the pre-Segment Cache implementation, though, just an
+    // optimization we can make in the future.
 
-    const taskChild = taskChildren.get(parallelRouteKey)
-    if (taskChild !== undefined) {
-      const taskSegment = taskChild.route[0]
-      if (
-        matchSegment(serverRouterStateChild[0], taskSegment) &&
-        dynamicDataChild !== null &&
-        dynamicDataChild !== undefined
-      ) {
-        // Found a match for this task. Keep traversing down the task tree.
-        return finishTaskUsingDynamicDataPayload(
-          taskChild,
-          serverRouterStateChild,
-          dynamicDataChild,
-          dynamicHead
+    // Construct a request tree for each additional refresh URL. This will
+    // prune away everything except the parts of the tree that match the
+    // given refresh URL.
+    refreshRequestPromises = []
+    const canonicalUrl = createHrefFromUrl(primaryUrl)
+    for (const refreshUrl of separateRefreshUrls) {
+      if (refreshUrl === canonicalUrl) {
+        // We already initiated a request for the this URL, above. Skip it.
+        // TODO: This only happens because the main URL is not tracked as
+        // part of the separateRefreshURLs set. There's probably a better way
+        // to structure this so this case doesn't happen.
+        continue
+      }
+      // TODO: Create a scoped dynamic request tree that omits anything that
+      // is not relevant to the given URL. Without doing this, the server may
+      // sometimes render more data than necessary; this is not a regression
+      // compared to the pre-Segment Cache implementation, though, just an
+      // optimization we can make in the future.
+      // const scopedDynamicRequestTree = splitTaskByURL(task, refreshUrl)
+      const scopedDynamicRequestTree = dynamicRequestTree
+      if (scopedDynamicRequestTree !== null) {
+        refreshRequestPromises.push(
+          fetchMissingDynamicData(
+            task,
+            scopedDynamicRequestTree,
+            new URL(refreshUrl, location.origin),
+            // TODO: Just noticed that this should actually the Next-Url at the
+            // time the refresh URL was set, not the current Next-Url. Need to
+            // start tracking this alongside the refresh URL. In the meantime,
+            // if a refresh fails due to a mismatch, it will trigger a
+            // hard refresh.
+            nextUrl,
+            freshnessPolicy
+          )
         )
       }
     }
-    // We didn't find a child task that matches the server data. We won't abort
-    // the task, though, because a different FlightDataPath may be able to
-    // fulfill it (see loop in listenForDynamicRequest). We only abort tasks
-    // once we've run out of data.
+  }
+
+  // Further async operations are moved into this separate function to
+  // discourage sequential network requests.
+  const voidPromise = finishNavigationTask(
+    task,
+    nextUrl,
+    primaryRequestPromise,
+    refreshRequestPromises
+  )
+  // `finishNavigationTask` is responsible for error handling, so we can attach
+  // noop callbacks to this promise.
+  voidPromise.then(noop, noop)
+}
+
+async function finishNavigationTask(
+  task: NavigationTask,
+  nextUrl: string | null,
+  primaryRequestPromise: ReturnType<typeof fetchMissingDynamicData>,
+  refreshRequestPromises: Array<
+    ReturnType<typeof fetchMissingDynamicData>
+  > | null
+): Promise<void> {
+  // Wait for all the requests to finish, or for the first one to fail.
+  let exitStatus = await waitForRequestsToFinish(
+    primaryRequestPromise,
+    refreshRequestPromises
+  )
+
+  // Once the all the requests have finished, check the tree for any remaining
+  // pending tasks. If anything is still pending, it means the server response
+  // does not match the client, and we must refresh to get back to a consistent
+  // state. We can skip this step if we already detected a mismatch during the
+  // first phase; it doesn't matter in that case because we're going to refresh
+  // the whole tree regardless.
+  if (exitStatus === NavigationTaskExitStatus.Done) {
+    exitStatus = abortRemainingPendingTasks(task, null, null)
+  }
+
+  switch (exitStatus) {
+    case NavigationTaskExitStatus.Done: {
+      // The task has completely finished. There's no missing data. Exit.
+      previousNavigationDidMismatch = false
+      return
+    }
+    case NavigationTaskExitStatus.SoftRetry: {
+      // Some data failed to finish loading. Trigger a soft retry.
+      // TODO: As an extra precaution against soft retry loops, consider
+      // tracking whether a navigation was itself triggered by a retry. If two
+      // happen in a row, fall back to a hard retry.
+      const isHardRetry = false
+      const primaryRequestResult = await primaryRequestPromise
+      dispatchRetryDueToTreeMismatch(
+        isHardRetry,
+        primaryRequestResult.url,
+        nextUrl,
+        primaryRequestResult.seed,
+        task.route
+      )
+      return
+    }
+    case NavigationTaskExitStatus.HardRetry: {
+      // Some data failed to finish loading in a non-recoverable way, such as a
+      // network error. Trigger an MPA navigation.
+      //
+      // Hard navigating/refreshing is how we prevent an infinite retry loop
+      // caused by a network error — when the network fails, we fall back to the
+      // browser behavior for offline navigations. In the future, Next.js may
+      // introduce its own custom handling of offline navigations, but that
+      // doesn't exist yet.
+      const isHardRetry = true
+      const primaryRequestResult = await primaryRequestPromise
+      dispatchRetryDueToTreeMismatch(
+        isHardRetry,
+        primaryRequestResult.url,
+        nextUrl,
+        primaryRequestResult.seed,
+        task.route
+      )
+      return
+    }
+    default: {
+      return exitStatus satisfies never
+    }
   }
 }
 
-function createPendingCacheNode(
-  routerState: FlightRouterState,
-  prefetchData: CacheNodeSeedData | null,
-  prefetchHead: React.ReactNode
-): ReadyCacheNode {
-  const routerStateChildren = routerState[1]
-  const prefetchDataChildren = prefetchData !== null ? prefetchData[2] : null
+function waitForRequestsToFinish(
+  primaryRequestPromise: ReturnType<typeof fetchMissingDynamicData>,
+  refreshRequestPromises: Array<
+    ReturnType<typeof fetchMissingDynamicData>
+  > | null
+) {
+  // Custom async combinator logic. This could be replaced by Promise.any but
+  // we don't assume that's available.
+  //
+  // Each promise resolves once the server responsds and the data is written
+  // into the CacheNode tree. Resolve the combined promise once all the
+  // requests finish.
+  //
+  // Or, resolve as soon as one of the requests fails, without waiting for the
+  // others to finish.
+  return new Promise<NavigationTaskExitStatus>((resolve) => {
+    const onFulfill = (result: { exitStatus: NavigationTaskExitStatus }) => {
+      if (result.exitStatus === NavigationTaskExitStatus.Done) {
+        remainingCount--
+        if (remainingCount === 0) {
+          // All the requests finished successfully.
+          resolve(NavigationTaskExitStatus.Done)
+        }
+      } else {
+        // One of the requests failed. Exit with a failing status.
+        // NOTE: It's possible for one of the requests to fail with SoftRetry
+        // and a later one to fail with HardRetry. In this case, we choose to
+        // retry immediately, rather than delay the retry until all the requests
+        // finish. If it fails again, we will hard retry on the next
+        // attempt, anyway.
+        resolve(result.exitStatus)
+      }
+    }
+    // onReject shouldn't ever be called because fetchMissingDynamicData's
+    // entire body is wrapped in a try/catch. This is just defensive.
+    const onReject = () => resolve(NavigationTaskExitStatus.HardRetry)
 
-  const parallelRoutes = new Map()
-  for (let parallelRouteKey in routerStateChildren) {
-    const routerStateChild: FlightRouterState =
-      routerStateChildren[parallelRouteKey]
-    const prefetchDataChild: CacheNodeSeedData | null | void =
-      prefetchDataChildren !== null
-        ? prefetchDataChildren[parallelRouteKey]
-        : null
+    // Attach the listeners to the promises.
+    let remainingCount = 1
+    primaryRequestPromise.then(onFulfill, onReject)
+    if (refreshRequestPromises !== null) {
+      remainingCount += refreshRequestPromises.length
+      refreshRequestPromises.forEach((refreshRequestPromise) =>
+        refreshRequestPromise.then(onFulfill, onReject)
+      )
+    }
+  })
+}
 
-    const segmentChild = routerStateChild[0]
-    const segmentKeyChild = createRouterCacheKey(segmentChild)
+function dispatchRetryDueToTreeMismatch(
+  isHardRetry: boolean,
+  retryUrl: URL,
+  retryNextUrl: string | null,
+  seed: NavigationSeed | null,
+  baseTree: FlightRouterState
+) {
+  // If this is the second time in a row that a navigation resulted in a
+  // mismatch, fall back to a hard (MPA) refresh.
+  isHardRetry = isHardRetry || previousNavigationDidMismatch
+  previousNavigationDidMismatch = true
+  const retryAction: ServerPatchAction = {
+    type: ACTION_SERVER_PATCH,
+    previousTree: baseTree,
+    url: retryUrl,
+    nextUrl: retryNextUrl,
+    seed,
+    mpa: isHardRetry,
+  }
+  dispatchAppRouterAction(retryAction)
+}
 
-    const newCacheNodeChild = createPendingCacheNode(
-      routerStateChild,
-      prefetchDataChild === undefined ? null : prefetchDataChild,
-      prefetchHead
+async function fetchMissingDynamicData(
+  task: NavigationTask,
+  dynamicRequestTree: FlightRouterState,
+  url: URL,
+  nextUrl: string | null,
+  freshnessPolicy: FreshnessPolicy
+): Promise<{
+  exitStatus: NavigationTaskExitStatus
+  url: URL
+  seed: NavigationSeed | null
+}> {
+  try {
+    const result = await fetchServerResponse(url, {
+      flightRouterState: dynamicRequestTree,
+      nextUrl,
+      isHmrRefresh: freshnessPolicy === FreshnessPolicy.HMRRefresh,
+    })
+    if (typeof result === 'string') {
+      // fetchServerResponse will return an href to indicate that the SPA
+      // navigation failed. For example, if the server triggered a hard
+      // redirect, or the fetch request errored. Initiate an MPA navigation
+      // to the given href.
+      return {
+        exitStatus: NavigationTaskExitStatus.HardRetry,
+        url: new URL(result, location.origin),
+        seed: null,
+      }
+    }
+    const seed = convertServerPatchToFullTree(
+      task.route,
+      result.flightData,
+      result.renderedSearch
     )
+    const didReceiveUnknownParallelRoute = writeDynamicDataIntoNavigationTask(
+      task,
+      seed.routeTree,
+      seed.data,
+      seed.head,
+      result.debugInfo
+    )
+    return {
+      exitStatus: didReceiveUnknownParallelRoute
+        ? NavigationTaskExitStatus.SoftRetry
+        : NavigationTaskExitStatus.Done,
+      url: new URL(result.canonicalUrl, location.origin),
+      seed,
+    }
+  } catch {
+    // This shouldn't happen because fetchServerResponse's entire body is
+    // wrapped in a try/catch. If it does, though, it implies the server failed
+    // to respond with any tree at all. So we must fall back to a hard retry.
+    return {
+      exitStatus: NavigationTaskExitStatus.HardRetry,
+      url: url,
+      seed: null,
+    }
+  }
+}
 
-    const newSegmentMapChild: ChildSegmentMap = new Map()
-    newSegmentMapChild.set(segmentKeyChild, newCacheNodeChild)
-    parallelRoutes.set(parallelRouteKey, newSegmentMapChild)
+function writeDynamicDataIntoNavigationTask(
+  task: NavigationTask,
+  serverRouteTree: RouteTree,
+  dynamicData: CacheNodeSeedData | null,
+  dynamicHead: HeadData,
+  debugInfo: Array<any> | null
+): boolean {
+  if (task.status === NavigationTaskStatus.Pending && dynamicData !== null) {
+    task.status = NavigationTaskStatus.Fulfilled
+    finishPendingCacheNode(task.node, dynamicData, dynamicHead, debugInfo)
   }
 
-  // The head is assigned to every leaf segment delivered by the server. Based
-  // on corresponding logic in fill-lazy-items-till-leaf-with-head.ts
-  const isLeafSegment = parallelRoutes.size === 0
+  const taskChildren = task.children
+  const serverChildren = serverRouteTree.slots
+  const dynamicDataChildren = dynamicData !== null ? dynamicData[1] : null
 
-  const maybePrefetchRsc = prefetchData !== null ? prefetchData[1] : null
-  const maybePrefetchLoading = prefetchData !== null ? prefetchData[3] : null
-  return {
-    lazyData: null,
-    parallelRoutes: parallelRoutes,
+  // Detect whether the server sends a parallel route slot that the client
+  // doesn't know about.
+  let didReceiveUnknownParallelRoute = false
 
-    prefetchRsc: maybePrefetchRsc !== undefined ? maybePrefetchRsc : null,
-    prefetchHead: isLeafSegment ? prefetchHead : null,
-    loading: maybePrefetchLoading !== undefined ? maybePrefetchLoading : null,
+  if (taskChildren !== null) {
+    if (serverChildren !== null) {
+      for (const parallelRouteKey in serverChildren) {
+        const serverRouteTreeChild: RouteTree = serverChildren[parallelRouteKey]
+        const dynamicDataChild: CacheNodeSeedData | null | void =
+          dynamicDataChildren !== null
+            ? dynamicDataChildren[parallelRouteKey]
+            : null
 
-    // Create a deferred promise. This will be fulfilled once the dynamic
-    // response is received from the server.
-    rsc: createDeferredRsc() as React.ReactNode,
-    head: isLeafSegment ? (createDeferredRsc() as React.ReactNode) : null,
+        const taskChild = taskChildren.get(parallelRouteKey)
+        if (taskChild === undefined) {
+          // The server sent a child segment that the client doesn't know about.
+          //
+          // When we receive an unknown parallel route, we must consider it a
+          // mismatch. This is unlike the case where the segment itself
+          // mismatches, because multiple routes can be active simultaneously.
+          // But a given layout should never have a mismatching set of
+          // child slots.
+          //
+          // Theoretically, this should only happen in development during an HMR
+          // refresh, because the set of parallel routes for a layout does not
+          // change over the lifetime of a build/deployment. In production, we
+          // should have already mismatched on either the build id or the segment
+          // path. But as an extra precaution, we validate in prod, too.
+          didReceiveUnknownParallelRoute = true
+        } else {
+          const taskSegment = taskChild.route[0]
+          const serverSegment = createSegmentFromRouteTree(serverRouteTreeChild)
+          if (
+            matchSegment(serverSegment, taskSegment) &&
+            dynamicDataChild !== null &&
+            dynamicDataChild !== undefined
+          ) {
+            // Found a match for this task. Keep traversing down the task tree.
+            const childDidReceiveUnknownParallelRoute =
+              writeDynamicDataIntoNavigationTask(
+                taskChild,
+                serverRouteTreeChild,
+                dynamicDataChild,
+                dynamicHead,
+                debugInfo
+              )
+            if (childDidReceiveUnknownParallelRoute) {
+              didReceiveUnknownParallelRoute = true
+            }
+          }
+        }
+      }
+    } else {
+      if (serverChildren !== null) {
+        // The server sent a child segment that the client doesn't know about.
+        didReceiveUnknownParallelRoute = true
+      }
+    }
   }
+
+  return didReceiveUnknownParallelRoute
 }
 
 function finishPendingCacheNode(
   cacheNode: CacheNode,
-  taskState: FlightRouterState,
-  serverState: FlightRouterState,
   dynamicData: CacheNodeSeedData,
-  dynamicHead: React.ReactNode
+  dynamicHead: HeadData,
+  debugInfo: Array<any> | null
 ): void {
   // Writes a dynamic response into an existing Cache Node tree. This does _not_
   // create a new tree, it updates the existing tree in-place. So it must follow
@@ -582,69 +1561,19 @@ function finishPendingCacheNode(
   // We must resolve every promise in the tree, or else it will suspend
   // indefinitely. If we did not receive data for a segment, we will resolve its
   // data promise to `null` to trigger a lazy fetch during render.
-  const taskStateChildren = taskState[1]
-  const serverStateChildren = serverState[1]
-  const dataChildren = dynamicData[2]
-
-  // The router state that we traverse the tree with (taskState) is the same one
-  // that we used to construct the pending Cache Node tree. That way we're sure
-  // to resolve all the pending promises.
-  const parallelRoutes = cacheNode.parallelRoutes
-  for (let parallelRouteKey in taskStateChildren) {
-    const taskStateChild: FlightRouterState =
-      taskStateChildren[parallelRouteKey]
-    const serverStateChild: FlightRouterState | void =
-      serverStateChildren[parallelRouteKey]
-    const dataChild: CacheNodeSeedData | null | void =
-      dataChildren[parallelRouteKey]
-
-    const segmentMapChild = parallelRoutes.get(parallelRouteKey)
-    const taskSegmentChild = taskStateChild[0]
-    const taskSegmentKeyChild = createRouterCacheKey(taskSegmentChild)
-
-    const cacheNodeChild =
-      segmentMapChild !== undefined
-        ? segmentMapChild.get(taskSegmentKeyChild)
-        : undefined
-
-    if (cacheNodeChild !== undefined) {
-      if (
-        serverStateChild !== undefined &&
-        matchSegment(taskSegmentChild, serverStateChild[0])
-      ) {
-        if (dataChild !== undefined && dataChild !== null) {
-          // This is the happy path. Recursively update all the children.
-          finishPendingCacheNode(
-            cacheNodeChild,
-            taskStateChild,
-            serverStateChild,
-            dataChild,
-            dynamicHead
-          )
-        } else {
-          // The server never returned data for this segment. Trigger a lazy
-          // fetch during render. This shouldn't happen because the Route Tree
-          // and the Seed Data tree sent by the server should always be the same
-          // shape when part of the same server response.
-          abortPendingCacheNode(taskStateChild, cacheNodeChild, null)
-        }
-      } else {
-        // The server never returned data for this segment. Trigger a lazy
-        // fetch during render.
-        abortPendingCacheNode(taskStateChild, cacheNodeChild, null)
-      }
-    } else {
-      // The server response matches what was expected to receive, but there's
-      // no matching Cache Node in the task tree. This is a bug in the
-      // implementation because we should have created a node for every
-      // segment in the tree that's associated with this task.
-    }
-  }
 
   // Use the dynamic data from the server to fulfill the deferred RSC promise
   // on the Cache Node.
   const rsc = cacheNode.rsc
-  const dynamicSegmentData = dynamicData[1]
+  const dynamicSegmentData = dynamicData[0]
+
+  if (dynamicSegmentData === null) {
+    // This is an empty CacheNode; this particular server request did not
+    // render this segment. There may be a separate pending request that will,
+    // though, so we won't abort the task until all pending requests finish.
+    return
+  }
+
   if (rsc === null) {
     // This is a lazy cache node. We can overwrite it. This is only safe
     // because we know that the LayoutRouter suspends if `rsc` is `null`.
@@ -653,7 +1582,7 @@ function finishPendingCacheNode(
     // This is a deferred RSC promise. We can fulfill it with the data we just
     // received from the server. If it was already resolved by a different
     // navigation, then this does nothing because we can't overwrite data.
-    rsc.resolve(dynamicSegmentData)
+    rsc.resolve(dynamicSegmentData, debugInfo)
   } else {
     // This is not a deferred RSC promise, nor is it empty, so it must have
     // been populated by a different navigation. We must not overwrite it.
@@ -664,73 +1593,84 @@ function finishPendingCacheNode(
   // the server.
   const head = cacheNode.head
   if (isDeferredRsc(head)) {
-    head.resolve(dynamicHead)
+    head.resolve(dynamicHead, debugInfo)
   }
 }
 
-export function abortTask(task: Task, error: any): void {
-  const cacheNode = task.node
-  if (cacheNode === null) {
-    // This indicates the task is already complete.
-    return
+function abortRemainingPendingTasks(
+  task: NavigationTask,
+  error: any,
+  debugInfo: Array<any> | null
+): NavigationTaskExitStatus {
+  let exitStatus
+  if (task.status === NavigationTaskStatus.Pending) {
+    // The data for this segment is still missing.
+    task.status = NavigationTaskStatus.Rejected
+    abortPendingCacheNode(task.node, error, debugInfo)
+
+    // If the server failed to fulfill the data for this segment, it implies
+    // that the route tree received from the server mismatched the tree that
+    // was previously prefetched.
+    //
+    // In an app with fully static routes and no proxy-driven redirects or
+    // rewrites, this should never happen, because the route for a URL would
+    // always be the same across multiple requests. So, this implies that some
+    // runtime routing condition changed, likely in a proxy, without being
+    // pushed to the client.
+    //
+    // When this happens, we treat this the same as a refresh(). The entire
+    // tree will be re-rendered from the root.
+    if (task.refreshState === null) {
+      // Trigger a "soft" refresh. Essentially the same as calling `refresh()`
+      // in a Server Action.
+      exitStatus = NavigationTaskExitStatus.SoftRetry
+    } else {
+      // The mismatch was discovered inside an inactive parallel route. This
+      // implies the inactive parallel route is no longer reachable at the URL
+      // that originally rendered it. Fall back to an MPA refresh.
+      // TODO: An alternative could be to trigger a soft refresh but to _not_
+      // re-use the inactive parallel routes this time. Similar to what would
+      // happen if were to do a hard refrehs, but without the HTML page.
+      exitStatus = NavigationTaskExitStatus.HardRetry
+    }
+  } else {
+    // This segment finished. (An error here is treated as Done because they are
+    // surfaced to the application during render.)
+    exitStatus = NavigationTaskExitStatus.Done
   }
 
   const taskChildren = task.children
-  if (taskChildren === null) {
-    // Reached the leaf task node. This is the root of a pending cache
-    // node tree.
-    abortPendingCacheNode(task.route, cacheNode, error)
-  } else {
-    // This is an intermediate task node. Keep traversing until we reach a
-    // task node with no children. That will be the root of the cache node tree
-    // that needs to be resolved.
-    for (const taskChild of taskChildren.values()) {
-      abortTask(taskChild, error)
+  if (taskChildren !== null) {
+    for (const [, taskChild] of taskChildren) {
+      const childExitStatus = abortRemainingPendingTasks(
+        taskChild,
+        error,
+        debugInfo
+      )
+      // Propagate the exit status up the tree. The statuses are ordered by
+      // their precedence.
+      if (childExitStatus > exitStatus) {
+        exitStatus = childExitStatus
+      }
     }
   }
 
-  // Null this out to indicate that the task is complete.
-  task.node = null
+  return exitStatus
 }
 
 function abortPendingCacheNode(
-  routerState: FlightRouterState,
   cacheNode: CacheNode,
-  error: any
+  error: any,
+  debugInfo: Array<any> | null
 ): void {
-  // For every pending segment in the tree, resolve its `rsc` promise to `null`
-  // to trigger a lazy fetch during render.
-  //
-  // Or, if an error object is provided, it will error instead.
-  const routerStateChildren = routerState[1]
-  const parallelRoutes = cacheNode.parallelRoutes
-  for (let parallelRouteKey in routerStateChildren) {
-    const routerStateChild: FlightRouterState =
-      routerStateChildren[parallelRouteKey]
-    const segmentMapChild = parallelRoutes.get(parallelRouteKey)
-    if (segmentMapChild === undefined) {
-      // This shouldn't happen because we're traversing the same tree that was
-      // used to construct the cache nodes in the first place.
-      continue
-    }
-    const segmentChild = routerStateChild[0]
-    const segmentKeyChild = createRouterCacheKey(segmentChild)
-    const cacheNodeChild = segmentMapChild.get(segmentKeyChild)
-    if (cacheNodeChild !== undefined) {
-      abortPendingCacheNode(routerStateChild, cacheNodeChild, error)
-    } else {
-      // This shouldn't happen because we're traversing the same tree that was
-      // used to construct the cache nodes in the first place.
-    }
-  }
   const rsc = cacheNode.rsc
   if (isDeferredRsc(rsc)) {
     if (error === null) {
       // This will trigger a lazy fetch during render.
-      rsc.resolve(null)
+      rsc.resolve(null, debugInfo)
     } else {
       // This will trigger an error during rendering.
-      rsc.reject(error)
+      rsc.reject(error, debugInfo)
     }
   }
 
@@ -740,134 +1680,102 @@ function abortPendingCacheNode(
   // the app. We want the segment to error, not the entire app.
   const head = cacheNode.head
   if (isDeferredRsc(head)) {
-    head.resolve(null)
-  }
-}
-
-export function updateCacheNodeOnPopstateRestoration(
-  oldCacheNode: CacheNode,
-  routerState: FlightRouterState
-) {
-  // A popstate navigation reads data from the local cache. It does not issue
-  // new network requests (unless the cache entries have been evicted). So, we
-  // update the cache to drop the prefetch  data for any segment whose dynamic
-  // data was already received. This prevents an unnecessary flash back to PPR
-  // state during a back/forward navigation.
-  //
-  // This function clones the entire cache node tree and sets the `prefetchRsc`
-  // field to `null` to prevent it from being rendered. We can't mutate the node
-  // in place because this is a concurrent data structure.
-
-  const routerStateChildren = routerState[1]
-  const oldParallelRoutes = oldCacheNode.parallelRoutes
-  const newParallelRoutes = new Map(oldParallelRoutes)
-  for (let parallelRouteKey in routerStateChildren) {
-    const routerStateChild: FlightRouterState =
-      routerStateChildren[parallelRouteKey]
-    const segmentChild = routerStateChild[0]
-    const segmentKeyChild = createRouterCacheKey(segmentChild)
-    const oldSegmentMapChild = oldParallelRoutes.get(parallelRouteKey)
-    if (oldSegmentMapChild !== undefined) {
-      const oldCacheNodeChild = oldSegmentMapChild.get(segmentKeyChild)
-      if (oldCacheNodeChild !== undefined) {
-        const newCacheNodeChild = updateCacheNodeOnPopstateRestoration(
-          oldCacheNodeChild,
-          routerStateChild
-        )
-        const newSegmentMapChild = new Map(oldSegmentMapChild)
-        newSegmentMapChild.set(segmentKeyChild, newCacheNodeChild)
-        newParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
-      }
-    }
-  }
-
-  // Only show prefetched data if the dynamic data is still pending.
-  //
-  // Tehnically, what we're actually checking is whether the dynamic network
-  // response was received. But since it's a streaming response, this does not
-  // mean that all the dynamic data has fully streamed in. It just means that
-  // _some_ of the dynamic data was received. But as a heuristic, we assume that
-  // the rest dynamic data will stream in quickly, so it's still better to skip
-  // the prefetch state.
-  const rsc = oldCacheNode.rsc
-  const shouldUsePrefetch = isDeferredRsc(rsc) && rsc.status === 'pending'
-
-  return {
-    lazyData: null,
-    rsc,
-    head: oldCacheNode.head,
-
-    prefetchHead: shouldUsePrefetch ? oldCacheNode.prefetchHead : null,
-    prefetchRsc: shouldUsePrefetch ? oldCacheNode.prefetchRsc : null,
-    loading: oldCacheNode.loading,
-
-    // These are the cloned children we computed above
-    parallelRoutes: newParallelRoutes,
+    head.resolve(null, debugInfo)
   }
 }
 
 const DEFERRED = Symbol()
 
-type PendingDeferredRsc = Promise<React.ReactNode> & {
+type PendingDeferredRsc<T> = Promise<T> & {
   status: 'pending'
-  resolve: (value: React.ReactNode) => void
-  reject: (error: any) => void
+  resolve: (value: T, debugInfo: Array<any> | null) => void
+  reject: (error: any, debugInfo: Array<any> | null) => void
   tag: Symbol
+  _debugInfo: Array<any>
 }
 
-type FulfilledDeferredRsc = Promise<React.ReactNode> & {
+type FulfilledDeferredRsc<T> = Promise<T> & {
   status: 'fulfilled'
-  value: React.ReactNode
-  resolve: (value: React.ReactNode) => void
-  reject: (error: any) => void
+  value: T
+  resolve: (value: T, debugInfo: Array<any> | null) => void
+  reject: (error: any, debugInfo: Array<any> | null) => void
   tag: Symbol
+  _debugInfo: Array<any>
 }
 
-type RejectedDeferredRsc = Promise<React.ReactNode> & {
+type RejectedDeferredRsc<T> = Promise<T> & {
   status: 'rejected'
   reason: any
-  resolve: (value: React.ReactNode) => void
-  reject: (error: any) => void
+  resolve: (value: T, debugInfo: Array<any> | null) => void
+  reject: (error: any, debugInfo: Array<any> | null) => void
   tag: Symbol
+  _debugInfo: Array<any>
 }
 
-type DeferredRsc =
-  | PendingDeferredRsc
-  | FulfilledDeferredRsc
-  | RejectedDeferredRsc
+type DeferredRsc<T extends React.ReactNode = React.ReactNode> =
+  | PendingDeferredRsc<T>
+  | FulfilledDeferredRsc<T>
+  | RejectedDeferredRsc<T>
 
 // This type exists to distinguish a DeferredRsc from a Flight promise. It's a
 // compromise to avoid adding an extra field on every Cache Node, which would be
 // awkward because the pre-PPR parts of codebase would need to account for it,
 // too. We can remove it once type Cache Node type is more settled.
-function isDeferredRsc(value: any): value is DeferredRsc {
-  return value && value.tag === DEFERRED
+export function isDeferredRsc(value: any): value is DeferredRsc {
+  return value && typeof value === 'object' && value.tag === DEFERRED
 }
 
-function createDeferredRsc(): PendingDeferredRsc {
+function createDeferredRsc<
+  T extends React.ReactNode = React.ReactNode,
+>(): PendingDeferredRsc<T> {
+  // Create an unresolved promise that represents data derived from a Flight
+  // response. The promise will be resolved later as soon as we start receiving
+  // data from the server, i.e. as soon as the Flight client decodes and returns
+  // the top-level response object.
+
+  // The `_debugInfo` field contains profiling information. Promises that are
+  // created by Flight already have this info added by React; for any derived
+  // promise created by the router, we need to transfer the Flight debug info
+  // onto the derived promise.
+  //
+  // The debug info represents the latency between the start of the navigation
+  // and the start of rendering. (It does not represent the time it takes for
+  // whole stream to finish.)
+  const debugInfo: Array<any> = []
+
   let resolve: any
   let reject: any
-  const pendingRsc = new Promise<React.ReactNode>((res, rej) => {
+  const pendingRsc = new Promise<T>((res, rej) => {
     resolve = res
     reject = rej
-  }) as PendingDeferredRsc
+  }) as PendingDeferredRsc<T>
   pendingRsc.status = 'pending'
-  pendingRsc.resolve = (value: React.ReactNode) => {
+  pendingRsc.resolve = (value: T, responseDebugInfo: Array<any> | null) => {
     if (pendingRsc.status === 'pending') {
-      const fulfilledRsc: FulfilledDeferredRsc = pendingRsc as any
+      const fulfilledRsc: FulfilledDeferredRsc<T> = pendingRsc as any
       fulfilledRsc.status = 'fulfilled'
       fulfilledRsc.value = value
+      if (responseDebugInfo !== null) {
+        // Transfer the debug info to the derived promise.
+        debugInfo.push.apply(debugInfo, responseDebugInfo)
+      }
       resolve(value)
     }
   }
-  pendingRsc.reject = (error: any) => {
+  pendingRsc.reject = (error: any, responseDebugInfo: Array<any> | null) => {
     if (pendingRsc.status === 'pending') {
-      const rejectedRsc: RejectedDeferredRsc = pendingRsc as any
+      const rejectedRsc: RejectedDeferredRsc<T> = pendingRsc as any
       rejectedRsc.status = 'rejected'
       rejectedRsc.reason = error
+      if (responseDebugInfo !== null) {
+        // Transfer the debug info to the derived promise.
+        debugInfo.push.apply(debugInfo, responseDebugInfo)
+      }
       reject(error)
     }
   }
   pendingRsc.tag = DEFERRED
+  pendingRsc._debugInfo = debugInfo
+
   return pendingRsc
 }

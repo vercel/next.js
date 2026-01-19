@@ -7,6 +7,5 @@ if (process.env.NODE_ENV === 'production') {
   s = require('./cjs/react-server-dom-turbopack-server.node.development.js');
 }
 
-if (s.prerenderToNodeStream) {
-  exports.prerenderToNodeStream = s.prerenderToNodeStream;
-}
+exports.prerender = s.prerender;
+exports.prerenderToNodeStream = s.prerenderToNodeStream;

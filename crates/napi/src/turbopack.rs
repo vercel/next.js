@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use next_build::{
-    build_options::{BuildContext, DefineEnv},
     BuildOptions as NextBuildOptions,
+    build_options::{BuildContext, DefineEnv},
 };
 use next_core::next_config::{Rewrite, Rewrites, RouteHas};
 
@@ -13,7 +14,7 @@ use crate::next_api::project::NapiDefineEnv;
 #[napi(object, object_to_js = false)]
 #[derive(Debug)]
 pub struct NextBuildContext {
-    // Added by Next.js for next build --turbo specifically.
+    // Added by Next.js for next build --turbopack specifically.
     /// The root directory of the workspace.
     pub root: Option<String>,
 
@@ -159,7 +160,7 @@ pub enum NapiRouteHas {
 
 impl FromNapiValue for NapiRouteHas {
     unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
-        let object = Object::from_napi_value(env, napi_val)?;
+        let object = unsafe { Object::from_napi_value(env, napi_val)? };
         let type_ = object.get_named_property::<String>("type")?;
         Ok(match type_.as_str() {
             "header" => NapiRouteHas::Header {
@@ -180,8 +181,8 @@ impl FromNapiValue for NapiRouteHas {
             _ => {
                 return Err(napi::Error::new(
                     Status::GenericFailure,
-                    format!("invalid type for RouteHas: {}", type_),
-                ))
+                    format!("invalid type for RouteHas: {type_}"),
+                ));
             }
         })
     }
@@ -207,9 +208,4 @@ impl From<NapiRouteHas> for RouteHas {
             },
         }
     }
-}
-
-#[napi]
-pub async fn experimental_turbo(_unused: Buffer) -> napi::Result<()> {
-    unimplemented!("__experimental_turbo is not yet implemented");
 }

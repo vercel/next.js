@@ -1,7 +1,7 @@
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, Vc, mark_session_dependent};
 
-use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
+use crate::{EnvMap, GLOBAL_ENV_LOCK, ProcessEnv, sorted_env_vars};
 
 /// Load the environment variables defined via command line.
 #[turbo_tasks::value]
@@ -15,8 +15,8 @@ impl CommandLineProcessEnv {
     }
 }
 
-/// Clones the current env vars into a IndexMap.
-fn env_snapshot() -> IndexMap<RcStr, RcStr> {
+/// Clones the current env vars into a FxIndexMap.
+fn env_snapshot() -> FxIndexMap<RcStr, RcStr> {
     let _lock = GLOBAL_ENV_LOCK.lock().unwrap();
     sorted_env_vars()
 }
@@ -25,6 +25,7 @@ fn env_snapshot() -> IndexMap<RcStr, RcStr> {
 impl ProcessEnv for CommandLineProcessEnv {
     #[turbo_tasks::function]
     fn read_all(&self) -> Vc<EnvMap> {
+        mark_session_dependent();
         Vc::cell(env_snapshot())
     }
 }

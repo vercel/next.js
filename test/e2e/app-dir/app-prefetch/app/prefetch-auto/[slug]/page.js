@@ -4,12 +4,13 @@ function getData() {
   const res = new Promise((resolve) => {
     setTimeout(() => {
       resolve({ message: 'Page Data!' })
-    }, 2000)
+    }, 1000)
   })
   return res
 }
 
-export default async function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   const result = await getData()
 
   return (

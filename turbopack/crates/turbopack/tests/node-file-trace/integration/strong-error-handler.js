@@ -1,1 +1,0 @@
-require("strong-error-handler");

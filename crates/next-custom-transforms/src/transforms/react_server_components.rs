@@ -1,9 +1,17 @@
-use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
+use std::{
+    fmt::{self, Display},
+    iter::FromIterator,
+    path::PathBuf,
+    rc::Rc,
+    sync::Arc,
+};
 
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
+    atoms::{atom, Atom, Wtf8Atom},
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -12,16 +20,16 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        atoms::{js_word, JsWord},
         utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
         visit::{
-            as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
+            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
             VisitWith,
         },
     },
 };
 
-use super::cjs_finder::contains_cjs;
+use super::{cjs_finder::contains_cjs, import_analyzer::ImportMap};
+use crate::FxIndexMap;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -43,6 +51,10 @@ impl Config {
 #[serde(rename_all = "camelCase")]
 pub struct Options {
     pub is_react_server_layer: bool,
+    pub cache_components_enabled: bool,
+    pub use_cache_enabled: bool,
+    #[serde(default)]
+    pub taint_enabled: bool,
 }
 
 /// A visitor that transforms given module to use module proxy if it's a React
@@ -51,31 +63,64 @@ pub struct Options {
 /// same purpose, so does not run this transform.
 struct ReactServerComponents<C: Comments> {
     is_react_server_layer: bool,
+    cache_components_enabled: bool,
+    use_cache_enabled: bool,
+    taint_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
-    directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
 }
 
 #[derive(Clone, Debug)]
 struct ModuleImports {
-    source: (JsWord, Span),
-    specifiers: Vec<(JsWord, Span)>,
+    source: (Wtf8Atom, Span),
+    specifiers: Vec<(Atom, Span)>,
+}
+
+#[allow(clippy::enum_variant_names)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ModuleDirective {
+    UseClient,
+    UseServer,
+    UseCache,
 }
 
 enum RSCErrorKind {
-    /// When `use client` and `use server` are in the same file.
-    /// It's not possible to have both directives in the same file.
-    RedundantDirectives(Span),
+    UseClientWithUseServer(Span),
+    UseClientWithUseCache(Span),
     NextRscErrServerImport((String, Span)),
     NextRscErrClientImport((String, Span)),
     NextRscErrClientDirective(Span),
     NextRscErrReactApi((String, Span)),
     NextRscErrErrorFileServerComponent(Span),
     NextRscErrClientMetadataExport((String, Span)),
-    NextRscErrConflictMetadataExport(Span),
+    NextRscErrConflictMetadataExport((Span, Span)),
     NextRscErrInvalidApi((String, Span)),
     NextRscErrDeprecatedApi((String, String, Span)),
+    NextSsrDynamicFalseNotAllowed(Span),
+    NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
+    NextRscErrTaintWithoutConfig((String, Span)),
+}
+
+#[derive(Clone, Debug, Copy)]
+enum NextConfigProperty {
+    CacheComponents,
+    UseCache,
+}
+
+impl Display for NextConfigProperty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NextConfigProperty::CacheComponents => write!(f, "cacheComponents"),
+            NextConfigProperty::UseCache => write!(f, "experimental.useCache"),
+        }
+    }
+}
+
+enum InvalidExportKind {
+    General,
+    Metadata,
+    RouteSegmentConfig(NextConfigProperty),
 }
 
 impl<C: Comments> VisitMut for ReactServerComponents<C> {
@@ -85,18 +130,17 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
         // Run the validator first to assert, collect directives and imports.
         let mut validator = ReactServerComponentValidator::new(
             self.is_react_server_layer,
+            self.cache_components_enabled,
+            self.use_cache_enabled,
+            self.taint_enabled,
             self.filepath.clone(),
             self.app_dir.clone(),
         );
 
         module.visit_with(&mut validator);
-        self.directive_import_collection = validator.directive_import_collection;
 
-        let is_client_entry = self
-            .directive_import_collection
-            .as_ref()
-            .expect("directive_import_collection must be set")
-            .0;
+        let is_client_entry = validator.module_directive == Some(ModuleDirective::UseClient);
+        let export_names = validator.export_names;
 
         self.remove_top_level_directive(module);
 
@@ -104,11 +148,11 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
 
         if self.is_react_server_layer {
             if is_client_entry {
-                self.to_module_ref(module, is_cjs);
+                self.to_module_ref(module, is_cjs, &export_names);
                 return;
             }
         } else if is_client_entry {
-            self.prepend_comment_node(module, is_cjs);
+            self.prepend_comment_node(module, is_cjs, &export_names);
         }
         module.visit_mut_children_with(self)
     }
@@ -117,7 +161,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
 impl<C: Comments> ReactServerComponents<C> {
     /// removes specific directive from the AST.
     fn remove_top_level_directive(&mut self, module: &mut Module) {
-        let _ = &module.body.retain(|item| {
+        module.body.retain(|item| {
             if let ModuleItem::Stmt(stmt) = item {
                 if let Some(expr_stmt) = stmt.as_expr() {
                     if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr_stmt.expr {
@@ -134,7 +178,7 @@ impl<C: Comments> ReactServerComponents<C> {
 
     // Convert the client module to the module reference code and add a special
     // comment to the top of the file.
-    fn to_module_ref(&self, module: &mut Module, is_cjs: bool) {
+    fn to_module_ref(&self, module: &mut Module, is_cjs: bool, export_names: &[Atom]) {
         // Clear all the statements and module declarations.
         module.body.clear();
 
@@ -192,16 +236,10 @@ impl<C: Comments> ReactServerComponents<C> {
             .into_iter(),
         );
 
-        self.prepend_comment_node(module, is_cjs);
+        self.prepend_comment_node(module, is_cjs, export_names);
     }
 
-    fn prepend_comment_node(&self, module: &Module, is_cjs: bool) {
-        let export_names = &self
-            .directive_import_collection
-            .as_ref()
-            .expect("directive_import_collection must be set")
-            .3;
-
+    fn prepend_comment_node(&self, module: &Module, is_cjs: bool, export_names: &[Atom]) {
         // Prepend a special comment to the top of the file that contains
         // module export names and the detected module type.
         self.comments.add_leading(
@@ -211,7 +249,7 @@ impl<C: Comments> ReactServerComponents<C> {
                 kind: CommentKind::Block,
                 text: format!(
                     " __next_internal_client_entry_do_not_use__ {} {} ",
-                    export_names.join(","),
+                    join_atoms(export_names),
                     if is_cjs { "cjs" } else { "auto" }
                 )
                 .into(),
@@ -220,32 +258,46 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 }
 
+fn join_atoms(atoms: &[Atom]) -> String {
+    atoms
+        .iter()
+        .map(|atom| atom.as_ref())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 /// Consolidated place to parse, generate error messages for the RSC parsing
 /// errors.
 fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorKind) {
-    let (msg, span) = match error_kind {
-        RSCErrorKind::RedundantDirectives(span) => (
-            "It's not possible to have both `use client` and `use server` directives in the \
+    let (msg, spans) = match error_kind {
+        RSCErrorKind::UseClientWithUseServer(span) => (
+            "It's not possible to have both \"use client\" and \"use server\" directives in the \
              same file."
                 .to_string(),
-            span,
+            vec![span],
+        ),
+        RSCErrorKind::UseClientWithUseCache(span) => (
+            "It's not possible to have both \"use client\" and \"use cache\" directives in the \
+             same file."
+                .to_string(),
+            vec![span],
         ),
         RSCErrorKind::NextRscErrClientDirective(span) => (
             "The \"use client\" directive must be placed before other expressions. Move it to \
              the top of the file to resolve this issue."
                 .to_string(),
-            span,
+            vec![span],
         ),
         RSCErrorKind::NextRscErrServerImport((source, span)) => {
             let msg = match source.as_str() {
                 // If importing "react-dom/server", we should show a different error.
-                "react-dom/server" => "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials".to_string(),
+                "react-dom/server" => "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering".to_string(),
                 // If importing "next/router", we should tell them to use "next/navigation".
-                "next/router" => r#"You have a Server Component that imports next/router. Use next/navigation instead.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/use-router"#.to_string(),
-                _ => format!(r#"You're importing a component that imports {source}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n"#)
+                "next/router" => "You have a Server Component that imports next/router. Use next/navigation instead.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/use-router".to_string(),
+                _ => format!("You're importing a component that imports {source}. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering")
             };
 
-            (msg, span)
+            (msg, vec![span])
         }
         RSCErrorKind::NextRscErrClientImport((source, span)) => {
             let is_app_dir = app_dir
@@ -260,62 +312,77 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 .unwrap_or_default();
 
             let msg = if !is_app_dir {
-                format!("You're importing a component that needs \"{source}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n")
+                format!("You're importing a component that needs \"{source}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
             } else {
-                format!("You're importing a component that needs \"{source}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n")
+                format!("You're importing a component that needs \"{source}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n")
             };
-            (msg, span)
+            (msg, vec![span])
         }
         RSCErrorKind::NextRscErrReactApi((source, span)) => {
             let msg = if source == "Component" {
-                "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n".to_string()
+                "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n".to_string()
             } else {
-                format!("You're importing a component that needs `{source}`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n")
+                format!("You're importing a component that needs `{source}`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n")
             };
 
-            (msg,span)
+            (msg, vec![span])
         },
         RSCErrorKind::NextRscErrErrorFileServerComponent(span) => {
             (
-                format!("{filepath} must be a Client Component. Add the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n"),
-                span
+                format!("{filepath} must be a Client Component. Add the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n"),
+                vec![span]
             )
         },
         RSCErrorKind::NextRscErrClientMetadataExport((source, span)) => {
-            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/getting-started/react-essentials#the-use-client-directive\n\n"), span)
+            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. \"{source}\" must be resolved on the server before the page component is rendered. Keep your page as a Server Component and move Client Component logic to a separate file. Read more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata#why-generatemetadata-is-server-component-only\n\n"), vec![span])
         },
-        RSCErrorKind::NextRscErrConflictMetadataExport(span) => (
+        RSCErrorKind::NextRscErrConflictMetadataExport((span1, span2)) => (
             "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
-            span
+            vec![span1, span2]
         ),
-        //NEXT_RSC_ERR_INVALID_API
         RSCErrorKind::NextRscErrInvalidApi((source, span)) => (
-            format!("\"{source}\" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n"), span
+            format!("\"{source}\" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n"), vec![span]
         ),
         RSCErrorKind::NextRscErrDeprecatedApi((source, item, span)) => match (&*source, &*item) {
             ("next/server", "ImageResponse") => (
                 "ImageResponse moved from \"next/server\" to \"next/og\" since Next.js 14, please \
                  import from \"next/og\" instead"
                     .to_string(),
-                span,
+                vec![span],
             ),
-            _ => (format!("\"{source}\" is deprecated."), span),
+            _ => (format!("\"{source}\" is deprecated."), vec![span]),
         },
+        RSCErrorKind::NextSsrDynamicFalseNotAllowed(span) => (
+            "`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component."
+                .to_string(),
+            vec![span],
+        ),
+        RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
+            format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
+            vec![span],
+        ),
+        RSCErrorKind::NextRscErrTaintWithoutConfig((api_name, span)) => (
+            format!(
+                "You're importing `{api_name}` from React which requires `experimental.taint: true` in your Next.js config. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/taint"
+            ),
+            vec![span],
+        ),
     };
 
-    HANDLER.with(|handler| handler.struct_span_err(span, msg.as_str()).emit())
+    HANDLER.with(|handler| handler.struct_span_err(spans, msg.as_str()).emit())
 }
 
-/// Collects top level directives and imports
-fn collect_top_level_directives_and_imports(
+/// Collects module directive, imports, and exports from top-level statements
+fn collect_module_info(
     app_dir: &Option<PathBuf>,
     filepath: &str,
     module: &Module,
-) -> (bool, bool, Vec<ModuleImports>, Vec<String>) {
+) -> (Option<ModuleDirective>, Vec<ModuleImports>, Vec<Atom>) {
     let mut imports: Vec<ModuleImports> = vec![];
     let mut finished_directives = false;
     let mut is_client_entry = false;
     let mut is_action_file = false;
+    let mut is_cache_file = false;
 
     let mut export_names = vec![];
 
@@ -339,7 +406,15 @@ fn collect_top_level_directives_and_imports(
                                             report_error(
                                                 app_dir,
                                                 filepath,
-                                                RSCErrorKind::RedundantDirectives(expr_stmt.span),
+                                                RSCErrorKind::UseClientWithUseServer(
+                                                    expr_stmt.span,
+                                                ),
+                                            );
+                                        } else if is_cache_file {
+                                            report_error(
+                                                app_dir,
+                                                filepath,
+                                                RSCErrorKind::UseClientWithUseCache(expr_stmt.span),
                                             );
                                         }
                                     } else {
@@ -356,7 +431,20 @@ fn collect_top_level_directives_and_imports(
                                         report_error(
                                             app_dir,
                                             filepath,
-                                            RSCErrorKind::RedundantDirectives(expr_stmt.span),
+                                            RSCErrorKind::UseClientWithUseServer(expr_stmt.span),
+                                        );
+                                    }
+                                } else if (&**value == "use cache"
+                                    || value.starts_with("use cache: "))
+                                    && !finished_directives
+                                {
+                                    is_cache_file = true;
+
+                                    if is_client_entry {
+                                        report_error(
+                                            app_dir,
+                                            filepath,
+                                            RSCErrorKind::UseClientWithUseCache(expr_stmt.span),
                                         );
                                     }
                                 }
@@ -408,14 +496,11 @@ fn collect_top_level_directives_and_imports(
                     })
                     .map(|specifier| match specifier {
                         ImportSpecifier::Named(named) => match &named.imported {
-                            Some(imported) => match &imported {
-                                ModuleExportName::Ident(i) => (i.to_id().0, i.span),
-                                ModuleExportName::Str(s) => (s.value.clone(), s.span),
-                            },
+                            Some(imported) => (imported.atom().into_owned(), imported.span()),
                             None => (named.local.to_id().0, named.local.span),
                         },
-                        ImportSpecifier::Default(d) => (js_word!(""), d.span),
-                        ImportSpecifier::Namespace(n) => ("*".into(), n.span),
+                        ImportSpecifier::Default(d) => (atom!(""), d.span),
+                        ImportSpecifier::Namespace(n) => (atom!("*"), n.span),
                     })
                     .collect();
 
@@ -430,18 +515,14 @@ fn collect_top_level_directives_and_imports(
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) => {
                 for specifier in &e.specifiers {
                     export_names.push(match specifier {
-                        ExportSpecifier::Default(_) => "default".to_string(),
-                        ExportSpecifier::Namespace(_) => "*".to_string(),
-                        ExportSpecifier::Named(named) => match &named.exported {
-                            Some(exported) => match &exported {
-                                ModuleExportName::Ident(i) => i.sym.to_string(),
-                                ModuleExportName::Str(s) => s.value.to_string(),
-                            },
-                            _ => match &named.orig {
-                                ModuleExportName::Ident(i) => i.sym.to_string(),
-                                ModuleExportName::Str(s) => s.value.to_string(),
-                            },
-                        },
+                        ExportSpecifier::Default(_) => atom!("default"),
+                        ExportSpecifier::Namespace(_) => atom!("*"),
+                        ExportSpecifier::Named(named) => named
+                            .exported
+                            .as_ref()
+                            .unwrap_or(&named.orig)
+                            .atom()
+                            .into_owned(),
                     })
                 }
                 finished_directives = true;
@@ -449,15 +530,15 @@ fn collect_top_level_directives_and_imports(
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
                 match decl {
                     Decl::Class(ClassDecl { ident, .. }) => {
-                        export_names.push(ident.sym.to_string());
+                        export_names.push(ident.sym.clone());
                     }
                     Decl::Fn(FnDecl { ident, .. }) => {
-                        export_names.push(ident.sym.to_string());
+                        export_names.push(ident.sym.clone());
                     }
                     Decl::Var(var) => {
                         for decl in &var.decls {
                             if let Pat::Ident(ident) = &decl.name {
-                                export_names.push(ident.id.sym.to_string());
+                                export_names.push(ident.id.sym.clone());
                             }
                         }
                     }
@@ -469,18 +550,18 @@ fn collect_top_level_directives_and_imports(
                 decl: _,
                 ..
             })) => {
-                export_names.push("default".to_string());
+                export_names.push(atom!("default"));
                 finished_directives = true;
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
                 expr: _,
                 ..
             })) => {
-                export_names.push("default".to_string());
+                export_names.push(atom!("default"));
                 finished_directives = true;
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportAll(_)) => {
-                export_names.push("*".to_string());
+                export_names.push(atom!("*"));
             }
             _ => {
                 finished_directives = true;
@@ -488,38 +569,63 @@ fn collect_top_level_directives_and_imports(
         }
     });
 
-    (is_client_entry, is_action_file, imports, export_names)
+    let directive = if is_client_entry {
+        Some(ModuleDirective::UseClient)
+    } else if is_action_file {
+        Some(ModuleDirective::UseServer)
+    } else if is_cache_file {
+        Some(ModuleDirective::UseCache)
+    } else {
+        None
+    };
+
+    (directive, imports, export_names)
 }
 
 /// A visitor to assert given module file is a valid React server component.
 struct ReactServerComponentValidator {
     is_react_server_layer: bool,
+    cache_components_enabled: bool,
+    use_cache_enabled: bool,
+    taint_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
-    invalid_server_imports: Vec<JsWord>,
-    invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
-    deprecated_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
-    invalid_client_imports: Vec<JsWord>,
-    invalid_client_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
-    pub directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
+    invalid_server_imports: Vec<Wtf8Atom>,
+    invalid_server_lib_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
+    deprecated_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
+    invalid_client_imports: Vec<Wtf8Atom>,
+    invalid_client_lib_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
+    /// React taint APIs that require `experimental.taint` config
+    react_taint_apis: Vec<&'static str>,
+    pub module_directive: Option<ModuleDirective>,
+    pub export_names: Vec<Atom>,
+    imports: ImportMap,
 }
 
-// A type to workaround a clippy warning.
-type RcVec<T> = Rc<Vec<T>>;
-
 impl ReactServerComponentValidator {
-    pub fn new(is_react_server_layer: bool, filename: String, app_dir: Option<PathBuf>) -> Self {
+    pub fn new(
+        is_react_server_layer: bool,
+        cache_components_enabled: bool,
+        use_cache_enabled: bool,
+        taint_enabled: bool,
+        filename: String,
+        app_dir: Option<PathBuf>,
+    ) -> Self {
         Self {
             is_react_server_layer,
+            cache_components_enabled,
+            use_cache_enabled,
+            taint_enabled,
             filepath: filename,
             app_dir,
-            directive_import_collection: None,
+            module_directive: None,
+            export_names: vec![],
             // react -> [apis]
             // react-dom -> [apis]
             // next/navigation -> [apis]
-            invalid_server_lib_apis_mapping: [
+            invalid_server_lib_apis_mapping: FxHashMap::from_iter([
                 (
-                    "react",
+                    atom!("react").into(),
                     vec![
                         "Component",
                         "createContext",
@@ -537,10 +643,11 @@ impl ReactServerComponentValidator {
                         "useTransition",
                         "useOptimistic",
                         "useActionState",
+                        "experimental_useOptimistic",
                     ],
                 ),
                 (
-                    "react-dom",
+                    atom!("react-dom").into(),
                     vec![
                         "flushSync",
                         "unstable_batchedUpdates",
@@ -549,7 +656,7 @@ impl ReactServerComponentValidator {
                     ],
                 ),
                 (
-                    "next/navigation",
+                    atom!("next/navigation").into(),
                     vec![
                         "useSearchParams",
                         "usePathname",
@@ -559,22 +666,50 @@ impl ReactServerComponentValidator {
                         "useRouter",
                         "useServerInsertedHTML",
                         "ServerInsertedHTMLContext",
+                        "unstable_isUnrecognizedActionError",
                     ],
                 ),
-            ]
-            .into(),
-            deprecated_apis_mapping: [("next/server", vec!["ImageResponse"])].into(),
+                (atom!("next/link").into(), vec!["useLinkStatus"]),
+            ]),
+            deprecated_apis_mapping: FxHashMap::from_iter([(
+                atom!("next/server").into(),
+                vec!["ImageResponse"],
+            )]),
 
             invalid_server_imports: vec![
-                JsWord::from("client-only"),
-                JsWord::from("react-dom/client"),
-                JsWord::from("react-dom/server"),
-                JsWord::from("next/router"),
+                atom!("client-only").into(),
+                atom!("react-dom/client").into(),
+                atom!("react-dom/server").into(),
+                atom!("next/router").into(),
             ],
 
-            invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
+            invalid_client_imports: vec![
+                atom!("server-only").into(),
+                atom!("next/headers").into(),
+                atom!("next/root-params").into(),
+            ],
 
-            invalid_client_lib_apis_mapping: [("next/server", vec!["unstable_after"])].into(),
+            invalid_client_lib_apis_mapping: FxHashMap::from_iter([
+                (atom!("next/server").into(), vec!["after"]),
+                (
+                    atom!("next/cache").into(),
+                    vec![
+                        "revalidatePath",
+                        "revalidateTag",
+                        // "unstable_cache", // useless in client, but doesn't technically error
+                        "cacheLife",
+                        "unstable_cacheLife",
+                        "cacheTag",
+                        "unstable_cacheTag",
+                        // "unstable_noStore" // no-op in client, but allowed for legacy reasons
+                    ],
+                ),
+            ]),
+            react_taint_apis: vec![
+                "experimental_taintObjectReference",
+                "experimental_taintUniqueValue",
+            ],
+            imports: ImportMap::default(),
         }
     }
 
@@ -583,12 +718,19 @@ impl ReactServerComponentValidator {
         RE.is_match(filepath)
     }
 
+    fn is_callee_next_dynamic(&self, callee: &Callee) -> bool {
+        match callee {
+            Callee::Expr(expr) => self.imports.is_import(expr, "next/dynamic", "default"),
+            _ => false,
+        }
+    }
+
     // Asserts the server lib apis
     // e.g.
     // assert_invalid_server_lib_apis("react", import)
     // assert_invalid_server_lib_apis("react-dom", import)
-    fn assert_invalid_server_lib_apis(&self, import_source: String, import: &ModuleImports) {
-        let deprecated_apis = self.deprecated_apis_mapping.get(import_source.as_str());
+    fn assert_invalid_server_lib_apis(&self, import_source: &Wtf8Atom, import: &ModuleImports) {
+        let deprecated_apis = self.deprecated_apis_mapping.get(import_source);
         if let Some(deprecated_apis) = deprecated_apis {
             for specifier in &import.specifiers {
                 if deprecated_apis.contains(&specifier.0.as_str()) {
@@ -596,7 +738,7 @@ impl ReactServerComponentValidator {
                         &self.app_dir,
                         &self.filepath,
                         RSCErrorKind::NextRscErrDeprecatedApi((
-                            import_source.clone(),
+                            import_source.to_string_lossy().into_owned(),
                             specifier.0.to_string(),
                             specifier.1,
                         )),
@@ -605,9 +747,7 @@ impl ReactServerComponentValidator {
             }
         }
 
-        let invalid_apis = self
-            .invalid_server_lib_apis_mapping
-            .get(import_source.as_str());
+        let invalid_apis = self.invalid_server_lib_apis_mapping.get(import_source);
         if let Some(invalid_apis) = invalid_apis {
             for specifier in &import.specifiers {
                 if invalid_apis.contains(&specifier.0.as_str()) {
@@ -621,23 +761,54 @@ impl ReactServerComponentValidator {
         }
     }
 
+    /// Check for React taint API imports when taint is not enabled
+    fn assert_react_taint_apis(&self, imports: &[ModuleImports]) {
+        // Skip check if taint is enabled or if file is from node_modules
+        if self.taint_enabled || self.is_from_node_modules(&self.filepath) {
+            return;
+        }
+
+        for import in imports {
+            let source = &import.source.0;
+            // Only check imports from 'react'
+            if source.as_str() != Some("react") {
+                continue;
+            }
+
+            for specifier in &import.specifiers {
+                if self.react_taint_apis.contains(&specifier.0.as_str()) {
+                    report_error(
+                        &self.app_dir,
+                        &self.filepath,
+                        RSCErrorKind::NextRscErrTaintWithoutConfig((
+                            specifier.0.to_string(),
+                            specifier.1,
+                        )),
+                    );
+                }
+            }
+        }
+    }
+
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
         // If the
         if self.is_from_node_modules(&self.filepath) {
             return;
         }
         for import in imports {
-            let source = import.source.0.clone();
-            let source_str = source.to_string();
-            if self.invalid_server_imports.contains(&source) {
+            let source = &import.source.0;
+            if self.invalid_server_imports.contains(source) {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
-                    RSCErrorKind::NextRscErrServerImport((source_str.clone(), import.source.1)),
+                    RSCErrorKind::NextRscErrServerImport((
+                        source.to_string_lossy().into_owned(),
+                        import.source.1,
+                    )),
                 );
             }
 
-            self.assert_invalid_server_lib_apis(source_str, import);
+            self.assert_invalid_server_lib_apis(source, import);
         }
 
         self.assert_invalid_api(module, false);
@@ -685,11 +856,14 @@ impl ReactServerComponentValidator {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
-                    RSCErrorKind::NextRscErrClientImport((source.to_string(), import.source.1)),
+                    RSCErrorKind::NextRscErrClientImport((
+                        source.to_string_lossy().into_owned(),
+                        import.source.1,
+                    )),
                 );
             }
 
-            let invalid_apis = self.invalid_client_lib_apis_mapping.get(source.as_str());
+            let invalid_apis = self.invalid_client_lib_apis_mapping.get(source);
             if let Some(invalid_apis) = invalid_apis {
                 for specifier in &import.specifiers {
                     if invalid_apis.contains(&specifier.0.as_str()) {
@@ -712,63 +886,80 @@ impl ReactServerComponentValidator {
             return;
         }
         static RE: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"[\\/](page|layout)\.(ts|js)x?$").unwrap());
-        let is_layout_or_page = RE.is_match(&self.filepath);
+            Lazy::new(|| Regex::new(r"[\\/](page|layout|route)\.(ts|js)x?$").unwrap());
+        let is_app_entry = RE.is_match(&self.filepath);
 
-        if is_layout_or_page {
-            let mut span = DUMMY_SP;
-            let mut invalid_export_name = String::new();
-            let mut invalid_exports: HashMap<String, bool> = HashMap::new();
+        if is_app_entry {
+            let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
+                FxIndexMap::default();
 
-            fn invalid_exports_matcher(
-                export_name: &str,
-                invalid_exports: &mut HashMap<String, bool>,
-            ) -> bool {
-                match export_name {
-                    "getServerSideProps" | "getStaticProps" | "generateMetadata" | "metadata" => {
-                        invalid_exports.insert(export_name.to_string(), true);
-                        true
+            let mut collect_possibly_invalid_exports =
+                |export_name: &Atom, span: &Span| match &**export_name {
+                    "getServerSideProps" | "getStaticProps" => {
+                        possibly_invalid_exports
+                            .insert(export_name.clone(), (InvalidExportKind::General, *span));
                     }
-                    _ => false,
-                }
-            }
+                    "generateMetadata" | "metadata" => {
+                        possibly_invalid_exports
+                            .insert(export_name.clone(), (InvalidExportKind::Metadata, *span));
+                    }
+                    "runtime" => {
+                        if self.cache_components_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.clone(),
+                                (
+                                    InvalidExportKind::RouteSegmentConfig(
+                                        NextConfigProperty::CacheComponents,
+                                    ),
+                                    *span,
+                                ),
+                            );
+                        } else if self.use_cache_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.clone(),
+                                (
+                                    InvalidExportKind::RouteSegmentConfig(
+                                        NextConfigProperty::UseCache,
+                                    ),
+                                    *span,
+                                ),
+                            );
+                        }
+                    }
+                    "dynamicParams" | "dynamic" | "fetchCache" | "revalidate"
+                    | "experimental_ppr" => {
+                        if self.cache_components_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.clone(),
+                                (
+                                    InvalidExportKind::RouteSegmentConfig(
+                                        NextConfigProperty::CacheComponents,
+                                    ),
+                                    *span,
+                                ),
+                            );
+                        }
+                    }
+                    _ => (),
+                };
 
             for export in &module.body {
                 match export {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
                         for specifier in &export.specifiers {
                             if let ExportSpecifier::Named(named) = specifier {
-                                match &named.orig {
-                                    ModuleExportName::Ident(i) => {
-                                        if invalid_exports_matcher(&i.sym, &mut invalid_exports) {
-                                            span = named.span;
-                                            invalid_export_name = i.sym.to_string();
-                                        }
-                                    }
-                                    ModuleExportName::Str(s) => {
-                                        if invalid_exports_matcher(&s.value, &mut invalid_exports) {
-                                            span = named.span;
-                                            invalid_export_name = s.value.to_string();
-                                        }
-                                    }
-                                }
+                                collect_possibly_invalid_exports(&named.orig.atom(), &named.span);
                             }
                         }
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => match &export.decl {
                         Decl::Fn(f) => {
-                            if invalid_exports_matcher(&f.ident.sym, &mut invalid_exports) {
-                                span = f.ident.span;
-                                invalid_export_name = f.ident.sym.to_string();
-                            }
+                            collect_possibly_invalid_exports(&f.ident.sym, &f.ident.span);
                         }
                         Decl::Var(v) => {
                             for decl in &v.decls {
                                 if let Pat::Ident(i) = &decl.name {
-                                    if invalid_exports_matcher(&i.sym, &mut invalid_exports) {
-                                        span = i.span;
-                                        invalid_export_name = i.sym.to_string();
-                                    }
+                                    collect_possibly_invalid_exports(&i.sym, &i.span);
                                 }
                             }
                         }
@@ -778,43 +969,97 @@ impl ReactServerComponentValidator {
                 }
             }
 
-            // Assert invalid metadata and generateMetadata exports.
-            let has_gm_export = invalid_exports.contains_key("generateMetadata");
-            let has_metadata_export = invalid_exports.contains_key("metadata");
-
-            // Client entry can't export `generateMetadata` or `metadata`.
-            if is_client_entry {
-                if has_gm_export || has_metadata_export {
-                    report_error(
-                        &self.app_dir,
-                        &self.filepath,
-                        RSCErrorKind::NextRscErrClientMetadataExport((
-                            invalid_export_name.clone(),
-                            span,
-                        )),
-                    );
-                }
-            } else {
-                // Server entry can't export `generateMetadata` and `metadata` together.
-                if has_gm_export && has_metadata_export {
-                    report_error(
-                        &self.app_dir,
-                        &self.filepath,
-                        RSCErrorKind::NextRscErrConflictMetadataExport(span),
-                    );
+            for (export_name, (kind, span)) in &possibly_invalid_exports {
+                match kind {
+                    InvalidExportKind::RouteSegmentConfig(property) => {
+                        report_error(
+                            &self.app_dir,
+                            &self.filepath,
+                            RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(
+                                *span,
+                                export_name.to_string(),
+                                *property,
+                            ),
+                        );
+                    }
+                    InvalidExportKind::Metadata => {
+                        // Client entry can't export `generateMetadata` or `metadata`.
+                        if is_client_entry
+                            && (export_name == "generateMetadata" || export_name == "metadata")
+                        {
+                            report_error(
+                                &self.app_dir,
+                                &self.filepath,
+                                RSCErrorKind::NextRscErrClientMetadataExport((
+                                    export_name.to_string(),
+                                    *span,
+                                )),
+                            );
+                        }
+                        // Server entry can't export `generateMetadata` and `metadata` together,
+                        // which is handled separately below.
+                    }
+                    InvalidExportKind::General => {
+                        report_error(
+                            &self.app_dir,
+                            &self.filepath,
+                            RSCErrorKind::NextRscErrInvalidApi((export_name.to_string(), *span)),
+                        );
+                    }
                 }
             }
-            // Assert `getServerSideProps` and `getStaticProps` exports.
-            if invalid_export_name == "getServerSideProps"
-                || invalid_export_name == "getStaticProps"
-            {
-                report_error(
-                    &self.app_dir,
-                    &self.filepath,
-                    RSCErrorKind::NextRscErrInvalidApi((invalid_export_name.clone(), span)),
-                );
+
+            // Server entry can't export `generateMetadata` and `metadata` together.
+            if !is_client_entry {
+                let export1 = possibly_invalid_exports.get(&atom!("generateMetadata"));
+                let export2 = possibly_invalid_exports.get(&atom!("metadata"));
+
+                if let (Some((_, span1)), Some((_, span2))) = (export1, export2) {
+                    report_error(
+                        &self.app_dir,
+                        &self.filepath,
+                        RSCErrorKind::NextRscErrConflictMetadataExport((*span1, *span2)),
+                    );
+                }
             }
         }
+    }
+
+    /// ```js
+    /// import dynamic from 'next/dynamic'
+    ///
+    /// dynamic(() => import(...)) // ✅
+    /// dynamic(() => import(...), { ssr: true }) // ✅
+    /// dynamic(() => import(...), { ssr: false }) // ❌
+    /// ```
+    fn check_for_next_ssr_false(&self, node: &CallExpr) -> Option<()> {
+        if !self.is_callee_next_dynamic(&node.callee) {
+            return None;
+        }
+
+        let ssr_arg = node.args.get(1)?;
+        let obj = ssr_arg.expr.as_object()?;
+
+        for prop in obj.props.iter().filter_map(|v| v.as_prop()?.as_key_value()) {
+            let is_ssr = match &prop.key {
+                PropName::Ident(IdentName { sym, .. }) => sym == "ssr",
+                PropName::Str(s) => s.value == "ssr",
+                _ => false,
+            };
+
+            if is_ssr {
+                let value = prop.value.as_lit()?;
+                if let Lit::Bool(Bool { value: false, .. }) = value {
+                    report_error(
+                        &self.app_dir,
+                        &self.filepath,
+                        RSCErrorKind::NextSsrDynamicFalseNotAllowed(node.span),
+                    );
+                }
+            }
+        }
+
+        None
     }
 }
 
@@ -829,21 +1074,29 @@ impl Visit for ReactServerComponentValidator {
         }
     }
 
-    fn visit_module(&mut self, module: &Module) {
-        let (is_client_entry, is_action_file, imports, export_names) =
-            collect_top_level_directives_and_imports(&self.app_dir, &self.filepath, module);
-        let imports = Rc::new(imports);
-        let export_names = Rc::new(export_names);
-
-        self.directive_import_collection = Some((
-            is_client_entry,
-            is_action_file,
-            imports.clone(),
-            export_names,
-        ));
+    fn visit_call_expr(&mut self, node: &CallExpr) {
+        node.visit_children_with(self);
 
         if self.is_react_server_layer {
-            if is_client_entry {
+            self.check_for_next_ssr_false(node);
+        }
+    }
+
+    fn visit_module(&mut self, module: &Module) {
+        self.imports = ImportMap::analyze(module);
+
+        let (directive, imports, export_names) =
+            collect_module_info(&self.app_dir, &self.filepath, module);
+        let imports = Rc::new(imports);
+
+        self.module_directive = directive;
+        self.export_names = export_names;
+
+        // Check for taint API usage without config (runs for all files)
+        self.assert_react_taint_apis(&imports);
+
+        if self.is_react_server_layer {
+            if directive == Some(ModuleDirective::UseClient) {
                 return;
             } else {
                 // Only assert server graph if file's bundle target is "server", e.g.
@@ -854,11 +1107,13 @@ impl Visit for ReactServerComponentValidator {
                 self.assert_server_graph(&imports, module);
             }
         } else {
-            // Only assert client graph if the file is not an action file,
+            // Only assert client graph if the file is not an action or cache file,
             // and bundle target is "client" e.g.
             // * client components pages
             // * pages bundles on browser layer
-            if !is_action_file {
+            if directive != Some(ModuleDirective::UseServer)
+                && directive != Some(ModuleDirective::UseCache)
+            {
                 self.assert_client_graph(&imports);
                 self.assert_invalid_api(module, true);
             }
@@ -870,8 +1125,10 @@ impl Visit for ReactServerComponentValidator {
 
 /// Returns a visitor to assert react server components without any transform.
 /// This is for the Turbopack which have its own transform phase for the server
-/// components proxy. Also this returns a visitor instead of fold, performs
-/// better than running whole transform as a folder.
+/// components proxy.
+///
+/// This also returns a visitor instead of fold and performs better than running
+/// whole transform as a folder.
 pub fn server_components_assert(
     filename: FileName,
     config: Config,
@@ -881,12 +1138,30 @@ pub fn server_components_assert(
         Config::WithOptions(x) => x.is_react_server_layer,
         _ => false,
     };
-
+    let cache_components_enabled: bool = match &config {
+        Config::WithOptions(x) => x.cache_components_enabled,
+        _ => false,
+    };
+    let use_cache_enabled: bool = match &config {
+        Config::WithOptions(x) => x.use_cache_enabled,
+        _ => false,
+    };
+    let taint_enabled: bool = match &config {
+        Config::WithOptions(x) => x.taint_enabled,
+        _ => false,
+    };
     let filename = match filename {
         FileName::Custom(path) => format!("<{path}>"),
         _ => filename.to_string(),
     };
-    ReactServerComponentValidator::new(is_react_server_layer, filename, app_dir)
+    ReactServerComponentValidator::new(
+        is_react_server_layer,
+        cache_components_enabled,
+        use_cache_enabled,
+        taint_enabled,
+        filename,
+        app_dir,
+    )
 }
 
 /// Runs react server component transform for the module proxy, as well as
@@ -896,19 +1171,33 @@ pub fn server_components<C: Comments>(
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
-) -> impl Fold + VisitMut {
+) -> impl Pass + VisitMut {
     let is_react_server_layer: bool = match &config {
         Config::WithOptions(x) => x.is_react_server_layer,
         _ => false,
     };
-    as_folder(ReactServerComponents {
+    let cache_components_enabled: bool = match &config {
+        Config::WithOptions(x) => x.cache_components_enabled,
+        _ => false,
+    };
+    let use_cache_enabled: bool = match &config {
+        Config::WithOptions(x) => x.use_cache_enabled,
+        _ => false,
+    };
+    let taint_enabled: bool = match &config {
+        Config::WithOptions(x) => x.taint_enabled,
+        _ => false,
+    };
+    visit_mut_pass(ReactServerComponents {
         is_react_server_layer,
+        cache_components_enabled,
+        use_cache_enabled,
+        taint_enabled,
         comments,
         filepath: match &*filename {
             FileName::Custom(path) => format!("<{path}>"),
             _ => filename.to_string(),
         },
         app_dir,
-        directive_import_collection: None,
     })
 }

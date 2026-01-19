@@ -1,19 +1,20 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunksData},
     ident::AssetIdent,
     module::Module,
-    reference::{ModuleReferences, SingleOutputAssetReference},
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use super::chunk_asset::ManifestAsyncModule;
 use crate::{
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkType,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
+        data::EcmascriptChunkData,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -22,29 +23,23 @@ use crate::{
 /// __turbopack_import__ the actual module that was dynamically imported.
 #[turbo_tasks::value(shared)]
 pub(super) struct ManifestChunkItem {
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub manifest: Vc<ManifestAsyncModule>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub manifest: ResolvedVc<ManifestAsyncModule>,
 }
 
 #[turbo_tasks::value_impl]
 impl ManifestChunkItem {
     #[turbo_tasks::function]
-    async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
-        let this = self.await?;
+    async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         Ok(ChunkData::from_assets(
-            this.chunking_context.output_root(),
-            this.manifest.chunks(),
+            self.chunking_context.output_root().owned().await?,
+            *self.manifest.chunk_group().await?.assets,
         ))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestChunkItem {
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
-    }
-
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunks_data = self.chunks_data().await?;
@@ -56,7 +51,7 @@ impl EcmascriptChunkItem for ManifestChunkItem {
 
         let code = formatdoc! {
             r#"
-                __turbopack_export_value__({:#});
+                {TURBOPACK_EXPORT_VALUE}({:#});
             "#,
             StringifyJs(&chunks_data)
         };
@@ -65,7 +60,15 @@ impl EcmascriptChunkItem for ManifestChunkItem {
             inner_code: code.into(),
             ..Default::default()
         }
-        .into())
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ManifestChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        self.manifest.chunk_group()
     }
 }
 
@@ -82,24 +85,8 @@ impl ChunkItem for ManifestChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let this = self.await?;
-        let mut references = this.manifest.references().await?.clone_value();
-
-        let key = Vc::cell("chunk data reference".into());
-
-        for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleOutputAssetReference::new(output_asset, key))
-            }));
-        }
-
-        Ok(Vc::cell(references))
-    }
-
-    #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -111,6 +98,6 @@ impl ChunkItem for ManifestChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.manifest)
+        *ResolvedVc::upcast(self.manifest)
     }
 }

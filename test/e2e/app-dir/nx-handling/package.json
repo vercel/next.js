@@ -1,0 +1,32 @@
+{
+  "name": "@nx-next/source",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "build": "nx run next-nx-test:build",
+    "dev": "nx run next-nx-test:dev",
+    "start": "nx run next-nx-test:serve:production",
+    "repro": "rm -rf dist && npm run build && npm run start"
+  },
+  "private": true,
+  "dependencies": {
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "@nx/js": "21.1.3",
+    "@nx/next": "21.1.3",
+    "@nx/workspace": "21.1.3",
+    "@swc-node/register": "~1.9.1",
+    "@swc/cli": "~0.6.0",
+    "@swc/core": "~1.5.7",
+    "@swc/helpers": "~0.5.11",
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
+    "nx": "21.1.3",
+    "tslib": "^2.3.0",
+    "typescript": "~5.7.2"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+}

@@ -7,6 +7,7 @@ import type { FetchMetrics } from '../server/base-http'
 const DIAGNOSTICS_DIR = 'diagnostics'
 const DIAGNOSTICS_FILE = 'build-diagnostics.json'
 const FETCH_METRICS_FILE = 'fetch-metrics.json'
+const INCREMENTAL_BUILDS_FILE = 'incremental-build-diagnostics.json'
 const FRAMEWORK_VERSION_FILE = 'framework.json'
 
 interface BuildDiagnostics {
@@ -82,4 +83,34 @@ export async function recordFetchMetrics(
   }
 
   return writeFile(diagnosticsFile, JSON.stringify(fetchMetricsByPath, null, 2))
+}
+
+interface IncrementalBuildDiagnostics {
+  changedAppPaths?: string[]
+  unchangedAppPaths?: string[]
+  changedPagePaths?: string[]
+  unchangedPagePaths?: string[]
+  changedDependencies?: Record<string, string>
+  shuttleGitSha?: string
+  currentGitSha?: string
+}
+
+/**
+ * Writes incremental build metrics to a file.
+ */
+export async function updateIncrementalBuildMetrics(
+  diagnostics: IncrementalBuildDiagnostics
+): Promise<void> {
+  const diagnosticsDir = await getDiagnosticsDir()
+  const diagnosticsFile = join(diagnosticsDir, INCREMENTAL_BUILDS_FILE)
+
+  const existingDiagnostics: IncrementalBuildDiagnostics = JSON.parse(
+    await readFile(diagnosticsFile, 'utf8').catch(() => '{}')
+  ) as IncrementalBuildDiagnostics
+
+  const updatedDiagnostics = {
+    ...existingDiagnostics,
+    ...diagnostics,
+  }
+  await writeFile(diagnosticsFile, JSON.stringify(updatedDiagnostics, null, 2))
 }

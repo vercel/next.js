@@ -8,7 +8,8 @@ export function generateStaticParams() {
   ]
 }
 
-export default function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   return (
     <>
       <p>/app-ssg/[slug]</p>

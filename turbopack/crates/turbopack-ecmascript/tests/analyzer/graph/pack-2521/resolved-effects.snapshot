@@ -20,6 +20,7 @@
       | "../src/build/Release/sharp-wasm32.node"
       | `@img/sharp-${???*2*}/sharp.node`
       | "@img/sharp-wasm32/sharp.node"
+      | ???*3*
     )
 )
 - *0* require: The require method from CommonJS
@@ -27,6 +28,8 @@
   ⚠️  nested operation
 - *2* module<./libvips, {}>["runtimePlatformArch"]()
   ⚠️  nested operation
+- *3* unknown mutation
+  ⚠️  This value might have side effects
 
 0 -> 10 member call = []["push"](???*0*)
 - *0* err

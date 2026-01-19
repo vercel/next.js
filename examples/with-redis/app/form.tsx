@@ -3,7 +3,6 @@
 import clsx from "clsx";
 import { useOptimistic, useRef, useTransition } from "react";
 import { saveFeature, upvote } from "./actions";
-import { v4 as uuidv4 } from "uuid";
 import { Feature } from "./types";
 
 function Item({
@@ -110,7 +109,7 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
   });
 
   let featureStub = {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     title: "", // will used value from form
     created_at: new Date().toISOString(),
     score: "1",

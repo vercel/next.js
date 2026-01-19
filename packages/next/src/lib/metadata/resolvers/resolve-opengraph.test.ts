@@ -38,13 +38,18 @@ describe('resolveImages', () => {
 })
 
 describe('resolveOpenGraph', () => {
-  it('should return null if the value is an empty string', () => {
+  it('should return null if the value is an empty string', async () => {
+    const pathname = Promise.resolve('')
     expect(
-      resolveOpenGraph(
+      await resolveOpenGraph(
         // pass authors as empty string
         { type: 'article', authors: '' },
         null,
-        { isStandaloneMode: false, trailingSlash: false, pathname: '' },
+        pathname,
+        {
+          trailingSlash: false,
+          isStaticMetadataRouteFile: false,
+        },
         ''
       )
     ).toEqual({
@@ -58,12 +63,17 @@ describe('resolveOpenGraph', () => {
     })
   })
 
-  it('should return null if the value is null', () => {
+  it('should return null if the value is null', async () => {
+    const pathname = Promise.resolve('')
     expect(
-      resolveOpenGraph(
+      await resolveOpenGraph(
         { type: 'article', authors: null },
         null,
-        { isStandaloneMode: false, trailingSlash: false, pathname: '' },
+        pathname,
+        {
+          trailingSlash: false,
+          isStaticMetadataRouteFile: false,
+        },
         ''
       )
     ).toEqual({

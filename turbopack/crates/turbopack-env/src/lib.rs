@@ -9,9 +9,9 @@
 //! cannot override it). Later dotenv files can reference variables prior
 //! defined variables.
 
-#![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 mod asset;
 pub mod dotenv;
@@ -23,12 +23,3 @@ pub use asset::ProcessEnvAsset;
 pub use embeddable::EmbeddableProcessEnv;
 pub use issue::ProcessEnvIssue;
 pub use try_env::TryDotenvProcessEnv;
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbo_tasks_env::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

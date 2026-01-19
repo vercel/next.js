@@ -1,10 +1,14 @@
 use std::{
     net::IpAddr,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
-use clap::{Args, Parser};
-use turbopack_cli_utils::issue::IssueSeverityCliOption;
+use anyhow::anyhow;
+use bincode::{Decode, Encode};
+use clap::{Args, Parser, ValueEnum};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbopack_core::issue::IssueSeverity;
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -21,6 +25,33 @@ impl Arguments {
             Arguments::Dev(args) => args.common.dir.as_deref(),
         }
     }
+
+    /// The number of worker threads to use. see [CommonArguments]::worker_threads
+    pub fn worker_threads(&self) -> Option<usize> {
+        match self {
+            Arguments::Build(args) => args.common.worker_threads,
+            Arguments::Dev(args) => args.common.worker_threads,
+        }
+    }
+}
+
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    ValueEnum,
+    PartialEq,
+    Eq,
+    Hash,
+    TaskInput,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
+)]
+pub enum Target {
+    Browser,
+    Node,
 }
 
 #[derive(Debug, Args, Clone)]
@@ -57,10 +88,17 @@ pub struct CommonArguments {
     #[clap(long)]
     pub full_stats: bool,
 
-    /// Enable experimental garbage collection with the provided memory limit in
-    /// MB.
+    /// Whether to build for the `browser` or `node`
     #[clap(long)]
-    pub memory_limit: Option<usize>,
+    pub target: Option<Target>,
+
+    /// Number of worker threads to use for parallel processing
+    #[clap(long)]
+    pub worker_threads: Option<usize>,
+    // Enable experimental garbage collection with the provided memory limit in
+    // MB.
+    // #[clap(long)]
+    // pub memory_limit: Option<usize>,
 }
 
 #[derive(Debug, Args)]
@@ -104,7 +142,52 @@ pub struct BuildArguments {
     #[clap(flatten)]
     pub common: CommonArguments,
 
+    /// Don't generate sourcemaps.
+    #[clap(long)]
+    pub no_sourcemap: bool,
+
     /// Don't minify build output.
     #[clap(long)]
     pub no_minify: bool,
+
+    /// Don't perform scope hoisting.
+    #[clap(long)]
+    pub no_scope_hoist: bool,
+
+    /// Drop the `TurboTasks` object upon exit. By default we intentionally leak this memory, as
+    /// we're about to exit the process anyways, but that can cause issues with valgrind or other
+    /// leak detectors.
+    #[clap(long, hide = true)]
+    pub force_memory_cleanup: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct IssueSeverityCliOption(pub IssueSeverity);
+
+impl ValueEnum for IssueSeverityCliOption {
+    fn value_variants<'a>() -> &'a [Self] {
+        const VARIANTS: [IssueSeverityCliOption; 8] = [
+            IssueSeverityCliOption(IssueSeverity::Bug),
+            IssueSeverityCliOption(IssueSeverity::Fatal),
+            IssueSeverityCliOption(IssueSeverity::Error),
+            IssueSeverityCliOption(IssueSeverity::Warning),
+            IssueSeverityCliOption(IssueSeverity::Hint),
+            IssueSeverityCliOption(IssueSeverity::Note),
+            IssueSeverityCliOption(IssueSeverity::Suggestion),
+            IssueSeverityCliOption(IssueSeverity::Info),
+        ];
+        &VARIANTS
+    }
+
+    fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
+        Some(clap::builder::PossibleValue::new(self.0.as_str()).help(self.0.as_help_str()))
+    }
+}
+
+impl FromStr for IssueSeverityCliOption {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <IssueSeverityCliOption as clap::ValueEnum>::from_str(s, true).map_err(|s| anyhow!("{}", s))
+    }
 }

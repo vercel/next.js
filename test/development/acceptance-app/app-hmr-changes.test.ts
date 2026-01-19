@@ -1,5 +1,5 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import path from 'path'
 
 jest.setTimeout(240 * 1000)
@@ -19,19 +19,20 @@ describe('Error overlay - RSC build errors', () => {
       'image-size': '^1.0.2',
       autoprefixer: '^10.4.13',
     },
+    skipStart: true,
   })
 
   // TODO: The error overlay is not closed when restoring the working code.
-  ;(process.env.TURBOPACK ? describe : describe.skip)(
+  ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
     'Skipped in webpack',
     () => {
       it('should handle successive HMR changes with errors correctly', async () => {
-        const { session, cleanup } = await sandbox(
+        await using sandbox = await createSandbox(
           next,
           undefined,
           '/2020/develop-preview-test'
         )
-
+        const { session } = sandbox
         expect(
           await session.evaluate('document.documentElement.innerHTML')
         ).toContain('A few years ago I tweeted')
@@ -51,19 +52,17 @@ describe('Error overlay - RSC build errors', () => {
           await session.patch(pagePath, break2.replace('break 3', '<Hello />'))
 
           await session.patch(pagePath, break2)
-          await session.assertHasRedbox()
+          await session.waitForRedbox()
 
           await session.patch(pagePath, break1)
 
           await session.patch(pagePath, originalPage)
-          await session.assertNoRedbox()
+          await session.waitForNoRedbox()
         }
 
         expect(
           await session.evaluate('document.documentElement.innerHTML')
         ).toContain('A few years ago I tweeted')
-
-        await cleanup()
       })
     }
   )

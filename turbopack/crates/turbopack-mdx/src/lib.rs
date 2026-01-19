@@ -1,29 +1,27 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use mdxjs::{compile, MdxParseOptions, Options};
-use turbo_tasks::{RcStr, ValueDefault, Vc};
-use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
+use mdxjs::{MdxParseOptions, Options, compile};
+use serde::Deserialize;
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     issue::{
-        Issue, IssueDescriptionExt, IssueExt, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
+        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+        StyledString,
     },
     source::Source,
     source_pos::SourcePos,
     source_transform::SourceTransform,
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("mdx".into())
-}
-
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug, Clone)]
+#[turbo_tasks::value(shared, operation)]
+#[derive(Hash, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MdxParseConstructs {
     Commonmark,
@@ -33,8 +31,8 @@ pub enum MdxParseConstructs {
 /// Subset of mdxjs::Options to allow to inherit turbopack's jsx-related configs
 /// into mdxjs. This is thin, near straightforward subset of mdxjs::Options to
 /// enable turbo tasks.
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug, Clone)]
+#[turbo_tasks::value(shared, operation)]
+#[derive(Hash, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MdxTransformOptions {
     pub development: Option<bool>,
@@ -78,13 +76,13 @@ impl ValueDefault for MdxTransformOptions {
 
 #[turbo_tasks::value]
 pub struct MdxTransform {
-    options: Vc<MdxTransformOptions>,
+    options: ResolvedVc<MdxTransformOptions>,
 }
 
 #[turbo_tasks::value_impl]
 impl MdxTransform {
     #[turbo_tasks::function]
-    pub fn new(options: Vc<MdxTransformOptions>) -> Vc<Self> {
+    pub fn new(options: ResolvedVc<MdxTransformOptions>) -> Vc<Self> {
         MdxTransform { options }.cell()
     }
 }
@@ -92,7 +90,7 @@ impl MdxTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for MdxTransform {
     #[turbo_tasks::function]
-    fn transform(&self, source: Vc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
+    fn transform(&self, source: ResolvedVc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
         Vc::upcast(
             MdxTransformedAsset {
                 options: self.options,
@@ -105,15 +103,15 @@ impl SourceTransform for MdxTransform {
 
 #[turbo_tasks::value]
 struct MdxTransformedAsset {
-    options: Vc<MdxTransformOptions>,
-    source: Vc<Box<dyn Source>>,
+    options: ResolvedVc<MdxTransformOptions>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
 impl Source for MdxTransformedAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().rename_as("*.tsx".into())
+        self.source.ident().rename_as(rcstr!("*.tsx"))
     }
 }
 
@@ -121,23 +119,16 @@ impl Source for MdxTransformedAsset {
 impl Asset for MdxTransformedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
-        Ok(self
-            .process()
-            .issue_file_path(this.source.ident().path(), "MDX processing")
-            .await?
-            .await?
-            .content)
+        Ok(*self.process().await?.content)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl MdxTransformedAsset {
     #[turbo_tasks::function]
-    async fn process(self: Vc<Self>) -> Result<Vc<MdxTransformResult>> {
-        let this = self.await?;
-        let content = this.source.content().await?;
-        let transform_options = this.options.await?;
+    async fn process(&self) -> Result<Vc<MdxTransformResult>> {
+        let content = self.source.content().await?;
+        let transform_options = self.options.await?;
 
         let AssetContent::File(file) = &*content else {
             anyhow::bail!("Unexpected mdx asset content");
@@ -175,7 +166,7 @@ impl MdxTransformedAsset {
                 .jsx_import_source
                 .clone()
                 .map(RcStr::into_owned),
-            filepath: Some(this.source.ident().path().await?.to_string()),
+            filepath: Some(self.source.ident().path().await?.to_string()),
             ..Default::default()
         };
 
@@ -183,48 +174,55 @@ impl MdxTransformedAsset {
 
         match result {
             Ok(mdx_jsx_component) => Ok(MdxTransformResult {
-                content: AssetContent::file(File::from(Rope::from(mdx_jsx_component)).into()),
+                content: AssetContent::file(
+                    FileContent::Content(File::from(Rope::from(mdx_jsx_component))).cell(),
+                )
+                .to_resolved()
+                .await?,
             }
             .cell()),
             Err(err) => {
-                let loc = Vc::cell(err.place.map(|p| {
-                    let (start, end) = match *p {
-                        // markdown's positions are 1-indexed, SourcePos is 0-indexed.
-                        // Both end positions point to the first character after the range
-                        markdown::message::Place::Position(p) => (
-                            SourcePos {
-                                line: p.start.line - 1,
-                                column: p.start.column - 1,
-                            },
-                            SourcePos {
-                                line: p.end.line - 1,
-                                column: p.end.column - 1,
-                            },
-                        ),
-                        markdown::message::Place::Point(p) => {
-                            let p = SourcePos {
-                                line: p.line - 1,
-                                column: p.column - 1,
-                            };
-                            (p, p)
-                        }
-                    };
+                let source = match err.place {
+                    Some(p) => {
+                        let (start, end) = match *p {
+                            // markdown's positions are 1-indexed, SourcePos is 0-indexed.
+                            // Both end positions point to the first character after the range
+                            markdown::message::Place::Position(p) => (
+                                SourcePos {
+                                    line: (p.start.line - 1) as u32,
+                                    column: (p.start.column - 1) as u32,
+                                },
+                                SourcePos {
+                                    line: (p.end.line - 1) as u32,
+                                    column: (p.end.column - 1) as u32,
+                                },
+                            ),
+                            markdown::message::Place::Point(p) => {
+                                let p = SourcePos {
+                                    line: (p.line - 1) as u32,
+                                    column: (p.column - 1) as u32,
+                                };
+                                (p, p)
+                            }
+                        };
 
-                    IssueSource::from_line_col(this.source, start, end)
-                }));
+                        IssueSource::from_line_col(self.source, start, end)
+                    }
+                    None => IssueSource::from_source_only(self.source),
+                };
 
                 MdxIssue {
-                    path: this.source.ident().path(),
-                    loc,
-                    reason: err.reason,
-                    mdx_rule_id: *err.rule_id,
-                    mdx_source: *err.source,
+                    source,
+                    reason: RcStr::from(err.reason),
+                    mdx_rule_id: RcStr::from(*err.rule_id),
+                    mdx_source: RcStr::from(*err.source),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
 
                 Ok(MdxTransformResult {
-                    content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                    content: AssetContent::File(FileContent::NotFound.resolved_cell())
+                        .resolved_cell(),
                 }
                 .cell())
             }
@@ -234,32 +232,31 @@ impl MdxTransformedAsset {
 
 #[turbo_tasks::value]
 struct MdxTransformResult {
-    content: Vc<AssetContent>,
+    content: ResolvedVc<AssetContent>,
 }
 
 #[turbo_tasks::value]
 struct MdxIssue {
     /// Place of message.
-    path: Vc<FileSystemPath>,
-    loc: Vc<OptionIssueSource>,
+    source: IssueSource,
     /// Reason for message (should use markdown).
-    reason: String,
+    reason: RcStr,
     /// Category of message.
-    mdx_rule_id: String,
+    mdx_rule_id: RcStr,
     /// Namespace of message.
-    mdx_source: String,
+    mdx_source: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for MdxIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        self.loc
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]
@@ -269,19 +266,13 @@ impl Issue for MdxIssue {
 
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<StyledString> {
-        StyledString::Text("MDX Parse Error".into()).cell()
+        StyledString::Text(rcstr!("MDX Parse Error")).cell()
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.reason.clone().into()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.reason.clone()).resolved_cell(),
+        ))
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

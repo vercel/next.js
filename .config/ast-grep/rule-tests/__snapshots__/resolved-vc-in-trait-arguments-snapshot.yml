@@ -1,0 +1,39 @@
+id: resolved-vc-in-trait-arguments
+snapshots:
+  ? |
+    #[turbo_tasks::value_trait]
+    pub trait Example {
+        fn write_to_disk(self: ResolvedVc<Self>);
+    }
+  : fixed: |
+      #[turbo_tasks::value_trait]
+      pub trait Example {
+          fn write_to_disk(self: Vc<Self>);
+      }
+    labels:
+      - source: ResolvedVc<Self>
+        style: primary
+        start: 75
+        end: 91
+      - source: '#[turbo_tasks::value_trait]'
+        style: secondary
+        start: 0
+        end: 27
+      - source: |-
+          pub trait Example {
+              fn write_to_disk(self: ResolvedVc<Self>);
+          }
+        style: secondary
+        start: 28
+        end: 95
+      - source: |-
+          pub trait Example {
+              fn write_to_disk(self: ResolvedVc<Self>);
+          }
+        style: secondary
+        start: 28
+        end: 95
+      - source: 'fn write_to_disk(self: ResolvedVc<Self>);'
+        style: secondary
+        start: 52
+        end: 93

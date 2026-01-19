@@ -1,4 +1,4 @@
-*arrow function 173* = (...) => (undefined | ???*0*)
+*arrow function 173* = (...) => (???*0* | undefined)
 - *0* spread in function calls is not supported
   ⚠️  This value might have side effects
 
@@ -12,9 +12,9 @@ clientComponentLoadTimes = (0 | (clientComponentLoadTimes + ???*0*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-getClientComponentLoaderMetrics = (...) => metrics
+getClientComponentLoaderMetrics (const after eval) = (...) => metrics
 
-metrics = ((clientComponentLoadTimes === 0) ? FreeVar(undefined) : {
+metrics = ((clientComponentLoadTimes === 0) ? undefined : {
     "clientComponentLoadTimes": clientComponentLoadTimes
 })
 
@@ -24,4 +24,4 @@ options = ???*0*
 
 startTime = FreeVar(performance)["now"]()
 
-wrapClientComponentLoader = (...) => {"loadChunk": *arrow function 173*}
+wrapClientComponentLoader (const after eval) = (...) => {"loadChunk": *arrow function 173*}

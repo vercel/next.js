@@ -40,7 +40,7 @@ describe('next/font/google with proxy', () => {
   })
 
   // Reqwest doesn't seem to fully work with https proxy
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'should use a proxy agent when proxy environment variable is set',
     async () => {
       await renderViaHTTP(next.url, '/')

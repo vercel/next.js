@@ -45,27 +45,15 @@ describe.each([
           .replace(/\/\*.*?\*\//g, '')
           .trim()
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           if (dependencies.sass) {
-            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(`
-              ".redText ::placeholder {
-                color: red;
-              }
-
-              .flex-parsing {
-                flex: 0 0 calc(50% - var(--vertical-gutter));
-              }"
-            `)
+            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+              `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+            )
           } else {
-            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(`
-              ".redText ::placeholder {
-                color: red;
-              }
-
-              .flex-parsing {
-                flex: 0 0 calc(50% - var(--vertical-gutter));
-              }"
-            `)
+            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+              `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+            )
           }
         } else {
           if (dependencies.sass) {
@@ -96,40 +84,24 @@ describe.each([
         delete sourceMapContentParsed.file
         delete sourceMapContentParsed.sources
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           if (dependencies.sass) {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
               {
-                "sections": [
-                  {
-                    "map": {
-                      "mappings": "AAAA;;;;AAAiC",
-                      "names": [],
-                      "sources": [
-                        "turbopack://[project]/styles/global.scss.css",
-                      ],
-                      "sourcesContent": [
-                        ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
-                      ],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 0,
-                      "line": 1,
-                    },
-                  },
-                  {
-                    "map": {
-                      "mappings": "A",
-                      "names": [],
-                      "sources": [],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 0,
-                      "line": 8,
-                    },
-                  },
+                "mappings": "AAEE,iCAKF",
+                "names": [],
+                "sourcesContent": [
+                  "$var: red;
+              .redText {
+                ::placeholder {
+                  color: $var;
+                }
+              }
+
+              .flex-parsing {
+                flex: 0 0 calc(50% - var(--vertical-gutter));
+              }
+              ",
                 ],
                 "version": 3,
               }
@@ -137,45 +109,74 @@ describe.each([
           } else {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
               {
-                "sections": [
-                  {
-                    "map": {
-                      "mappings": "AAAA;;;;AAAiC",
-                      "names": [],
-                      "sources": [
-                        "turbopack://[project]/styles/global.scss.css",
-                      ],
-                      "sourcesContent": [
-                        ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
-                      ],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 0,
-                      "line": 1,
-                    },
-                  },
-                  {
-                    "map": {
-                      "mappings": "A",
-                      "names": [],
-                      "sources": [],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 0,
-                      "line": 8,
-                    },
-                  },
+                "mappings": "AAEE,iCAKF",
+                "names": [],
+                "sourcesContent": [
+                  "$var: red;
+              .redText {
+                ::placeholder {
+                  color: $var;
+                }
+              }
+
+              .flex-parsing {
+                flex: 0 0 calc(50% - var(--vertical-gutter));
+              }
+              ",
                 ],
                 "version": 3,
               }
+            `)
+          }
+        } else if (process.env.NEXT_RSPACK) {
+          if (dependencies.sass) {
+            expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+             {
+               "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
+               "names": [],
+               "sourcesContent": [
+                 "$var: red;
+             .redText {
+               ::placeholder {
+                 color: $var;
+               }
+             }
+
+             .flex-parsing {
+               flex: 0 0 calc(50% - var(--vertical-gutter));
+             }
+             ",
+               ],
+               "version": 3,
+             }
+            `)
+          } else {
+            expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+             {
+               "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
+               "names": [],
+               "sourcesContent": [
+                 "$var: red;
+             .redText {
+               ::placeholder {
+                 color: $var;
+               }
+             }
+
+             .flex-parsing {
+               flex: 0 0 calc(50% - var(--vertical-gutter));
+             }
+             ",
+               ],
+               "version": 3,
+             }
             `)
           }
         } else {
           if (dependencies.sass) {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
               {
+                "ignoreList": [],
                 "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
                 "names": [],
                 "sourceRoot": "",
@@ -198,6 +199,7 @@ describe.each([
           } else {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
               {
+                "ignoreList": [],
                 "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
                 "names": [],
                 "sourceRoot": "",
