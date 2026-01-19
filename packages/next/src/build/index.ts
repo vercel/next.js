@@ -1904,11 +1904,15 @@ export default async function build(
             }
           }
 
+          // getNextConfigRuntime only filters if experimental.runtimeServerDeploymentId is true,
+          // but we unconditionally want to remove configFile for this manifest
+          let runtimeConfigWithoutFilePath = { ...runtimeConfig }
+          delete (runtimeConfigWithoutFilePath as NextConfigComplete).configFile
+
           const serverFilesManifest: RequiredServerFilesManifest = {
             version: 1,
             config: {
-              ...runtimeConfig,
-
+              ...runtimeConfigWithoutFilePath,
               ...(ciEnvironment.hasNextSupport
                 ? {
                     compress: false,
