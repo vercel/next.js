@@ -5411,6 +5411,144 @@ describe('Cache Components Errors', () => {
       }
     })
 
+    describe('IO accessed in Client Components', () => {
+      const pathname = '/client-awaited-io'
+
+      if (isNextDev) {
+        it('should show a collapsed redbox error', async () => {
+          const browser = await next.browser(pathname)
+
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+           To fix this, you can either:
+
+           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+           or
+
+           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/client-awaited-io/client.tsx (6:19) @ Client
+           > 6 |   const data = use(io)
+               |                   ^",
+             "stack": [
+               "Client app/client-awaited-io/client.tsx (6:19)",
+               "Page app/client-awaited-io/page.tsx (5:10)",
+             ],
+           }
+          `)
+        })
+      } else {
+        it('should error the build if IO is accessed in a Client Component', async () => {
+          try {
+            await prerender(pathname)
+          } catch {
+            // we expect the build to fail
+          }
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          if (isTurbopack) {
+            if (isDebugPrerender) {
+              expect(output).toMatchInlineSnapshot(`
+               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   at Client (app/client-awaited-io/client.tsx:5:26)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                 3 | import { use } from 'react'
+                 4 |
+               > 5 | export function Client({ io }: { io: Promise<string> }) {
+                   |                          ^
+                 6 |   const data = use(io)
+                 7 |   return <div>Data: {data}</div>
+                 8 | }
+               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
+               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
+
+               > Export encountered errors on following paths:
+               	/client-awaited-io/page: /client-awaited-io"
+              `)
+            } else {
+              expect(output).toMatchInlineSnapshot(`
+               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   at <unknown> (app/client-awaited-io/client.tsx:5:26)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                 3 | import { use } from 'react'
+                 4 |
+               > 5 | export function Client({ io }: { io: Promise<string> }) {
+                   |                          ^
+                 6 |   const data = use(io)
+                 7 |   return <div>Data: {data}</div>
+                 8 | }
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /client-awaited-io/page: /client-awaited-io, exiting the build."
+              `)
+            }
+          } else {
+            if (isDebugPrerender) {
+              expect(output).toMatchInlineSnapshot(`
+               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   at Client (webpack:///app/client-awaited-io/client.tsx:5:26)
+                   at <FIXME-library-internal>
+               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
+               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
+
+               > Export encountered errors on following paths:
+               	/client-awaited-io/page: /client-awaited-io"
+              `)
+            } else {
+              expect(output).toMatchInlineSnapshot(`
+               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
+                   at k (<next-dist-dir>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
+                   at r (<next-dist-dir>)
+                   at s (<next-dist-dir>)
+                   at t (<next-dist-dir>)
+                   at u (<next-dist-dir>)
+                   at v (<next-dist-dir>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /client-awaited-io/page: /client-awaited-io, exiting the build."
+              `)
+            }
+          }
+        })
+      }
+    })
+
     // TODO(restart-on-cache-miss): Figure out how to test this without flakiness
     describe.skip('Unhandled Rejection Suppression', () => {
       const pathname = '/unhandled-rejection'

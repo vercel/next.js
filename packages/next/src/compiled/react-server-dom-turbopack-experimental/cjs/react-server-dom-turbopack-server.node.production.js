@@ -672,9 +672,9 @@ var HooksDispatcher = {
   },
   useCacheRefresh: function () {
     return unsupportedRefresh;
-  }
+  },
+  useEffectEvent: unsupportedHook
 };
-HooksDispatcher.useEffectEvent = unsupportedHook;
 function unsupportedHook() {
   throw Error("This Hook is not supported in Server Components.");
 }
@@ -1608,10 +1608,16 @@ function renderModelDestructive(
       case REACT_LAZY_TYPE:
         if (3200 < serializedSize) return deferTask(request, task);
         task.thenableState = null;
-        parentPropertyName = value._init;
-        value = parentPropertyName(value._payload);
+        elementReference = value._init;
+        value = elementReference(value._payload);
         if (12 === request.status) throw null;
-        return renderModelDestructive(request, task, emptyRoot, "", value);
+        return renderModelDestructive(
+          request,
+          task,
+          parent,
+          parentPropertyName,
+          value
+        );
       case REACT_LEGACY_ELEMENT_TYPE:
         throw Error(
           'A React Element from an older version of React was rendered. This is not supported. It can happen if:\n- Multiple copies of the "react" package is used.\n- A library pre-bundled an old copy of "react" or "react/jsx-runtime".\n- A compiler tries to "inline" JSX instead of using the runtime.'
@@ -1773,9 +1779,9 @@ function renderModelDestructive(
     if (1024 <= value.length && null !== byteLengthOfChunk)
       return (
         request.pendingChunks++,
-        (task = request.nextChunkId++),
-        emitTextChunk(request, task, value, !1),
-        serializeByValueID(task)
+        (parentPropertyName = request.nextChunkId++),
+        emitTextChunk(request, parentPropertyName, value, !1),
+        serializeByValueID(parentPropertyName)
       );
     value = "$" === value[0] ? "$" + value : value;
     return value;
@@ -1802,21 +1808,18 @@ function renderModelDestructive(
       );
     if (value.$$typeof === SERVER_REFERENCE_TAG)
       return (
-        (task = request.writtenServerReferences),
-        (parentPropertyName = task.get(value)),
-        void 0 !== parentPropertyName
-          ? (value = "$h" + parentPropertyName.toString(16))
-          : ((parentPropertyName = value.$$bound),
-            (parentPropertyName =
-              null === parentPropertyName
-                ? null
-                : Promise.resolve(parentPropertyName)),
+        (parentPropertyName = request.writtenServerReferences),
+        (parent = parentPropertyName.get(value)),
+        void 0 !== parent
+          ? (value = "$h" + parent.toString(16))
+          : ((parent = value.$$bound),
+            (parent = null === parent ? null : Promise.resolve(parent)),
             (request = outlineModelWithFormatContext(
               request,
-              { id: value.$$id, bound: parentPropertyName },
+              { id: value.$$id, bound: parent },
               0
             )),
-            task.set(value, request),
+            parentPropertyName.set(value, request),
             (value = "$h" + request.toString(16))),
         value
       );

@@ -2757,8 +2757,8 @@
             return renderModelDestructive(
               request,
               task,
-              emptyRoot,
-              "",
+              parent,
+              parentPropertyName,
               elementReference
             );
           case REACT_LEGACY_ELEMENT_TYPE:
@@ -5812,22 +5812,22 @@
         },
         useCacheRefresh: function () {
           return unsupportedRefresh;
+        },
+        useEffectEvent: unsupportedHook
+      },
+      DefaultAsyncDispatcher = {
+        getCacheForType: function (resourceType) {
+          var cache = (cache = resolveRequest()) ? cache.cache : new Map();
+          var entry = cache.get(resourceType);
+          void 0 === entry &&
+            ((entry = resourceType()), cache.set(resourceType, entry));
+          return entry;
+        },
+        cacheSignal: function () {
+          var request = resolveRequest();
+          return request ? request.cacheController.signal : null;
         }
       };
-    HooksDispatcher.useEffectEvent = unsupportedHook;
-    var DefaultAsyncDispatcher = {
-      getCacheForType: function (resourceType) {
-        var cache = (cache = resolveRequest()) ? cache.cache : new Map();
-        var entry = cache.get(resourceType);
-        void 0 === entry &&
-          ((entry = resourceType()), cache.set(resourceType, entry));
-        return entry;
-      },
-      cacheSignal: function () {
-        var request = resolveRequest();
-        return request ? request.cacheController.signal : null;
-      }
-    };
     DefaultAsyncDispatcher.getOwner = resolveOwner;
     var ReactSharedInternalsServer =
       React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
