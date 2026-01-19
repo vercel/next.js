@@ -45,7 +45,7 @@ impl EcmascriptBrowserWorkerEntrypoint {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
 
-        let mut code = (*get_worker_runtime_code(*this.asset_context, source_maps)?.await?).clone();
+        let mut code = get_worker_runtime_code(*this.asset_context, source_maps)?.owned().await?;
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;
