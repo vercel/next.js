@@ -26,12 +26,12 @@ pub struct EcmascriptBrowserWorkerEntrypoint {
 impl EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
     pub async fn new(
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        asset_context: Vc<Box<dyn AssetContext>>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Self>> {
         Ok(EcmascriptBrowserWorkerEntrypoint {
-            chunking_context: chunking_context.to_resolved().await?,
-            asset_context: asset_context.to_resolved().await?,
+            chunking_context,
+            asset_context
         }
         .cell())
     }
