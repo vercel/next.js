@@ -65,6 +65,7 @@ import {
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
+import { appendSuffixToClientReferenceManifest } from '../app-render/client-reference-manifest'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -946,6 +947,13 @@ export abstract class RouteModule<
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
       deploymentId = nextConfig.deploymentId || ''
+    }
+
+    if (manifests.clientReferenceManifest && deploymentId) {
+      manifests.clientReferenceManifest = appendSuffixToClientReferenceManifest(
+        manifests.clientReferenceManifest,
+        `?dpl=${deploymentId}`
+      )
     }
 
     return {

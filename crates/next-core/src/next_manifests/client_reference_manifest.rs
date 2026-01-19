@@ -167,12 +167,7 @@ async fn build_manifest(
     async move {
         let mut entry_manifest: SerializedClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
-        let chunk_suffix_path = next_config.chunk_suffix_path().owned().await?;
         let prefix_path = next_config.computed_asset_prefix().owned().await?;
-        let suffix_path = chunk_suffix_path.unwrap_or_default();
-
-        // TODO: Add `suffix` to the manifest for React to use.
-        // entry_manifest.module_loading.prefix = prefix_path;
 
         entry_manifest.module_loading.cross_origin = next_config.cross_origin().owned().await?;
         let ClientReferencesChunks {
@@ -279,10 +274,11 @@ async fn build_manifest(
                     .filter(|path| path.ends_with(".js"))
                     .map(|path| {
                         format!(
-                            "{}{}{}",
+                            "{}{}",
                             prefix_path,
                             path.split('/').map(encode_uri_component).format("/"),
-                            suffix_path
+                            // Intentionally doesn't include the suffix (containing the deployment
+                            // id query param) to make the manifest more determinstic.
                         )
                     })
                     .map(RcStr::from)
