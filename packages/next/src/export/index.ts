@@ -69,9 +69,123 @@ import type { ActionManifest } from '../build/webpack/plugins/flight-client-entr
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
 import { getNextBuildDebuggerPortOffset } from '../lib/worker'
+import { getParams } from './helpers/get-params'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import type { Params } from '../server/request/params'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
+}
+
+/**
+ * Picks an RDC seed by matching on the params that are
+ * already known, so fallback shells use a seed that has already
+ * computed those known params.
+ */
+function buildRDCCacheByPage(
+  results: ExportPagesResult,
+  finalPhaseExportPaths: ExportPathEntry[]
+): Record<string, string> {
+  const renderResumeDataCachesByPage: Record<string, string> = {}
+  const seedCandidatesByPage = new Map<
+    string,
+    Array<{ path: string; renderResumeDataCache: string }>
+  >()
+
+  for (const { page, path, result } of results) {
+    if (!result) {
+      continue
+    }
+
+    if ('renderResumeDataCache' in result && result.renderResumeDataCache) {
+      // Collect all RDC seeds for this page so we can pick the best match
+      // for each fallback shell later (e.g. locale-specific variants).
+      const candidates = seedCandidatesByPage.get(page) ?? []
+      candidates.push({
+        path,
+        renderResumeDataCache: result.renderResumeDataCache,
+      })
+      seedCandidatesByPage.set(page, candidates)
+      // Remove the RDC string from the result so that it can be garbage
+      // collected, when there are more results for the same page.
+      result.renderResumeDataCache = undefined
+    }
+  }
+
+  const getKnownParamsKey = (
+    normalizedPage: string,
+    path: string,
+    fallbackParamNames: Set<string>
+  ): string | null => {
+    let params: Params
+    try {
+      params = getParams(normalizedPage, path)
+    } catch {
+      return null
+    }
+
+    // Only keep params that are known, then sort
+    // for a stable key so we can match a compatible seed.
+    const entries = Object.entries(params).filter(
+      ([key]) => !fallbackParamNames.has(key)
+    )
+
+    entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    return JSON.stringify(entries)
+  }
+
+  for (const exportPath of finalPhaseExportPaths) {
+    const { page, path, _fallbackRouteParams = [] } = exportPath
+    if (!isDynamicRoute(page)) {
+      continue
+    }
+
+    // Normalize app pages before param matching.
+    const normalizedPage = normalizeAppPath(page)
+    const pageKey = page !== path ? `${page}: ${path}` : path
+    const fallbackParamNames = new Set(
+      _fallbackRouteParams.map((param) => param.paramName)
+    )
+    // Build a key from the known params for this fallback shell so we can
+    // select a seed from a compatible prerendered route.
+    const targetKey = getKnownParamsKey(
+      normalizedPage,
+      path,
+      fallbackParamNames
+    )
+
+    if (!targetKey) {
+      continue
+    }
+
+    const candidates = seedCandidatesByPage.get(page)
+
+    // No suitable candidates, so there's no RDC seed to select
+    if (!candidates || candidates.length === 0) {
+      continue
+    }
+
+    let selected: string | null = null
+    for (const candidate of candidates) {
+      // Pick the seed whose known params match this fallback shell.
+      const candidateKey = getKnownParamsKey(
+        normalizedPage,
+        candidate.path,
+        fallbackParamNames
+      )
+      if (candidateKey === targetKey) {
+        selected = candidate.renderResumeDataCache
+        break
+      }
+    }
+
+    if (selected) {
+      renderResumeDataCachesByPage[pageKey] = selected
+    }
+  }
+
+  return renderResumeDataCachesByPage
 }
 
 async function exportAppImpl(
@@ -664,23 +778,10 @@ async function exportAppImpl(
     results = await exportPagesInBatches(worker, initialPhaseExportPaths)
 
     if (finalPhaseExportPaths.length > 0) {
-      const renderResumeDataCachesByPage: Record<string, string> = {}
-
-      for (const { page, result } of results) {
-        if (!result) {
-          continue
-        }
-
-        if ('renderResumeDataCache' in result && result.renderResumeDataCache) {
-          // The last RDC for each page is used. We only need one. It should have
-          // all the entries that the fallback shell also needs. We don't need to
-          // merge them per page.
-          renderResumeDataCachesByPage[page] = result.renderResumeDataCache
-          // Remove the RDC string from the result so that it can be garbage
-          // collected, when there are more results for the same page.
-          result.renderResumeDataCache = undefined
-        }
-      }
+      const renderResumeDataCachesByPage = buildRDCCacheByPage(
+        results,
+        finalPhaseExportPaths
+      )
 
       const finalPhaseResults = await exportPagesInBatches(
         worker,
