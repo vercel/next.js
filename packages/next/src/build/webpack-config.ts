@@ -2145,8 +2145,6 @@ export default async function getBaseWebpackConfig(
               dev,
               appDir,
               experimentalInlineCss: !!config.experimental.inlineCss,
-              runtimeServerDeploymentId:
-                !!config.experimental.runtimeServerDeploymentId,
             })
           : new FlightClientEntryPlugin({
               appDir,
