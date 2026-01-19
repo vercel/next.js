@@ -238,7 +238,6 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 import { generateRoutesManifest } from './generate-routes-manifest'
 import { validateAppPaths } from './validate-app-paths'
-import { createHash } from 'crypto'
 
 type Fallback = null | boolean | string
 
@@ -554,16 +553,14 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
-    bundler,
     deploymentId,
   }: {
     buildId: string
     distDir: string
     locales: readonly string[] | undefined
-    bundler: Bundler
     deploymentId: string
   }
-): Promise<string> {
+) {
   const ssgPages = new Set<string>(
     [
       ...Object.entries(prerenderManifest.routes)
@@ -580,20 +577,14 @@ async function writeClientSsgManifest(
 
   // When skew protection is enabled, we instead just rely on the deployment id query string to
   // load the correct manifests, to avoid the build id.
-  let ssgManifestPath =
-    bundler === Bundler.Turbopack && deploymentId
-      ? path.join(
-          'static',
-          `_ssgManifest-${createHash('sha1').update(clientSsgManifestContent).digest('hex').substring(0, 16)}.js`
-        )
-      : path.join(CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js')
+  let ssgManifestPath = deploymentId
+    ? path.join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
+    : path.join(CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js')
 
   await writeFileUtf8(
     path.join(distDir, ssgManifestPath),
     clientSsgManifestContent
   )
-
-  return ssgManifestPath
 }
 
 export interface FunctionsConfigManifest {
@@ -2727,64 +2718,21 @@ export default async function build(
               2
             )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
 
-            let clientMiddlewareManifestPath =
-              bundler === Bundler.Turbopack &&
-              (config.experimental.assetDeploymentId || config.deploymentId)
-                ? path.join(
-                    'static',
-                    `_clientMiddlewareManifest-${createHash('sha1').update(clientMiddlewareManifestJs).digest('hex').substring(0, 16)}.js`
-                  )
-                : path.join(
-                    CLIENT_STATIC_FILES_PATH,
-                    buildId,
-                    TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-                  )
+            let clientMiddlewareManifestPath = config.deploymentId
+              ? path.join(
+                  CLIENT_STATIC_FILES_PATH,
+                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+                )
+              : path.join(
+                  CLIENT_STATIC_FILES_PATH,
+                  buildId,
+                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+                )
 
             await writeFileUtf8(
               path.join(distDir, clientMiddlewareManifestPath),
               clientMiddlewareManifestJs
             )
-
-            if (config.experimental.assetDeploymentId || config.deploymentId) {
-              // TODO properly do this, without reading and patching
-
-              // Turbopack writes an empty _clientMiddlewareManifest.js file. We need to update build-manifest.json to
-              // reference the correct file now.
-              let oldEntry = buildManifest.lowPriorityFiles.findIndex((file) =>
-                file.includes('/_clientMiddlewareManifest-')
-              )
-              if (oldEntry === -1) {
-                throw new Error(
-                  "Couldn't find _clientMiddlewareManifest-* in lowPriorityFiles of build-manifest.json: " +
-                    JSON.stringify(buildManifest.lowPriorityFiles)
-                )
-              }
-              // @ts-expect-error lowPriorityFiles is a readonly array
-              buildManifest.lowPriorityFiles[oldEntry] =
-                clientMiddlewareManifestPath
-              // Flush the changes
-              await writeManifest(buildManifestPath, buildManifest)
-
-              let middleware = await readFileUtf8(
-                path.join(
-                  distDir,
-                  SERVER_DIRECTORY,
-                  MIDDLEWARE_BUILD_MANIFEST + '.js'
-                )
-              )
-              middleware = middleware.replace(
-                /static\/_clientMiddlewareManifest-([a-f0-9]+)\.js/,
-                clientMiddlewareManifestPath
-              )
-              await fs.writeFile(
-                path.join(
-                  distDir,
-                  SERVER_DIRECTORY,
-                  MIDDLEWARE_BUILD_MANIFEST + '.js'
-                ),
-                middleware
-              )
-            }
           }
         }
       }
@@ -4122,58 +4070,12 @@ export default async function build(
           config.experimental.allowedRevalidateHeaderKeys
 
         await writePrerenderManifest(distDir, prerenderManifest)
-
-        let ssgManifestPath = await writeClientSsgManifest(prerenderManifest, {
+        await writeClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
           locales: config.i18n?.locales,
-          bundler,
-          deploymentId:
-            config.experimental.assetDeploymentId || config.deploymentId,
+          deploymentId: config.deploymentId,
         })
-
-        if (
-          bundler === Bundler.Turbopack &&
-          (config.experimental.assetDeploymentId || config.deploymentId)
-        ) {
-          // TODO properly do this, without reading and patching
-
-          // The bundlers write an empty _ssgManifest.js file. We need to update build-manifest.json to
-          // reference the correct file now.
-          let oldEntry = buildManifest.lowPriorityFiles.findIndex((file) =>
-            file.includes('/_ssgManifest-')
-          )
-          if (oldEntry === -1) {
-            throw new Error(
-              "Couldn't find _ssgManifest-* in lowPriorityFiles of build-manifest.json: " +
-                JSON.stringify(buildManifest.lowPriorityFiles)
-            )
-          }
-          // @ts-expect-error lowPriorityFiles is a readonly array
-          buildManifest.lowPriorityFiles[oldEntry] = ssgManifestPath
-          // Flush the changes
-          await writeManifest(buildManifestPath, buildManifest)
-
-          let middleware = await readFileUtf8(
-            path.join(
-              distDir,
-              SERVER_DIRECTORY,
-              MIDDLEWARE_BUILD_MANIFEST + '.js'
-            )
-          )
-          middleware = middleware.replace(
-            /static\/_ssgManifest-([a-f0-9]+)\.js/,
-            ssgManifestPath
-          )
-          await fs.writeFile(
-            path.join(
-              distDir,
-              SERVER_DIRECTORY,
-              MIDDLEWARE_BUILD_MANIFEST + '.js'
-            ),
-            middleware
-          )
-        }
       } else {
         await writePrerenderManifest(distDir, {
           version: 4,

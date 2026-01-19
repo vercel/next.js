@@ -118,7 +118,9 @@ export default class PageLoader {
 
         return resolvePromiseWithTimeout(
           onClientMiddlewareManifest,
-          markAssetError(new Error('Failed to load client build manifest')),
+          markAssetError(
+            new Error('Failed to load client middleware manifest')
+          ),
           undefined
         )
       }
@@ -208,11 +210,5 @@ export default class PageLoader {
 
   prefetch(route: string): Promise<void> {
     return this.routeLoader.prefetch(route)
-  }
-}
-
-declare global {
-  interface Window {
-    __CLIENT_MIDDLEWARE_MANIFEST?: ProxyMatcher[]
   }
 }

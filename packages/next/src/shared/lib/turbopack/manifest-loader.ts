@@ -54,7 +54,6 @@ import {
   processRoute,
   createEdgeRuntimeManifest,
 } from '../../../build/webpack/plugins/build-manifest-plugin-utils'
-import { createHash } from 'crypto'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -459,7 +458,7 @@ export class TurbopackManifestLoader {
       // Something in next.js depends on these to exist even for app dir rendering
       devFiles: [],
       polyfillFiles: [],
-      lowPriorityFiles: lowPriorityFiles,
+      lowPriorityFiles,
       rootMainFiles: [],
     }
     for (const m of manifests) {
@@ -543,7 +542,7 @@ export class TurbopackManifestLoader {
     writeFileAtomic(buildManifestPath, JSON.stringify(buildManifest, null, 2))
     writeFileAtomic(
       middlewareBuildManifestPath,
-      createEdgeRuntimeManifest(buildManifest, lowPriorityFiles)
+      createEdgeRuntimeManifest(buildManifest)
     )
 
     // Write fallback build manifest
@@ -589,37 +588,13 @@ export class TurbopackManifestLoader {
 
     const sortedPageKeys = getSortedRoutes(pagesKeys)
 
-    if (
-      this.dev &&
-      !this.clientBuildManifests.takeChanged({ rewrites, sortedPageKeys })
-    ) {
-      return ['_buildManifest.js', '_ssgManifest.js']
-    }
-
-    const clientBuildManifest = this.mergeClientBuildManifests(
-      this.clientBuildManifests.values(),
-      rewrites,
-      sortedPageKeys
-    )
-    const clientBuildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
-      clientBuildManifest,
-      null,
-      2
-    )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
-
     let buildManifestPath
     let ssgManifestPath
     if (this.deploymentId && !this.dev) {
       // When skew protection is enabled, we instead just rely on the deployment id query string to
       // load the correct manifests, to avoid the build id.
-      buildManifestPath = join(
-        CLIENT_STATIC_FILES_PATH,
-        `_buildManifest-${createHash('sha1').update(clientBuildManifestJs).digest('hex').substring(0, 16)}.js`
-      )
-      ssgManifestPath = join(
-        CLIENT_STATIC_FILES_PATH,
-        `_ssgManifest-${createHash('sha1').update(srcEmptySsgManifest).digest('hex').substring(0, 16)}.js`
-      )
+      buildManifestPath = join(CLIENT_STATIC_FILES_PATH, '_buildManifest.js')
+      ssgManifestPath = join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
     } else {
       buildManifestPath = join(
         CLIENT_STATIC_FILES_PATH,
@@ -632,6 +607,24 @@ export class TurbopackManifestLoader {
         '_ssgManifest.js'
       )
     }
+
+    if (
+      this.dev &&
+      !this.clientBuildManifests.takeChanged({ rewrites, sortedPageKeys })
+    ) {
+      return [buildManifestPath, ssgManifestPath]
+    }
+
+    const clientBuildManifest = this.mergeClientBuildManifests(
+      this.clientBuildManifests.values(),
+      rewrites,
+      sortedPageKeys
+    )
+    const clientBuildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
+      clientBuildManifest,
+      null,
+      2
+    )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
 
     writeFileAtomic(
       join(this.distDir, buildManifestPath),
@@ -804,13 +797,18 @@ export class TurbopackManifestLoader {
   private writeMiddlewareManifest(): {
     clientMiddlewareManifestPath: string
   } {
+    let clientMiddlewareManifestPath =
+      this.deploymentId && !this.dev
+        ? join(CLIENT_STATIC_FILES_PATH, TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST)
+        : join(
+            CLIENT_STATIC_FILES_PATH,
+            this.buildId,
+            TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+          )
+
     if (this.dev && !this.middlewareManifests.takeChanged()) {
       return {
-        clientMiddlewareManifestPath: join(
-          'static',
-          this.buildId,
-          `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
-        ),
+        clientMiddlewareManifestPath,
       }
     }
     const middlewareManifest = this.mergeMiddlewareManifests(
@@ -843,7 +841,8 @@ export class TurbopackManifestLoader {
       JSON.stringify(middlewareManifest, null, 2)
     )
 
-    // Client middleware manifest
+    // Client middleware manifest This is only used in dev though, packages/next/src/build/index.ts
+    // writes the mainfest again for builds.
     const matchers = middlewareManifest?.middleware['/']?.matchers || []
 
     const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(
@@ -851,18 +850,6 @@ export class TurbopackManifestLoader {
       null,
       2
     )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
-
-    let clientMiddlewareManifestPath =
-      this.deploymentId && !this.dev
-        ? join(
-            CLIENT_STATIC_FILES_PATH,
-            `_clientMiddlewareManifest-${createHash('sha1').update(clientMiddlewareManifestJs).digest('hex').substring(0, 16)}.js`
-          )
-        : join(
-            CLIENT_STATIC_FILES_PATH,
-            this.buildId,
-            `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
-          )
 
     deleteCache(clientMiddlewareManifestPath)
     writeFileAtomic(
