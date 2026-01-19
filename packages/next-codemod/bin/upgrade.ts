@@ -517,99 +517,111 @@ export async function runUpgrade(
     )
 
     if (upgradeEslint) {
-      // Find the latest ESLint version that satisfies the requirement
-      const targetEslintVersion = await loadHighestNPMVersionMatching(
-        `eslint@${eslintConflict.requiredRange}`
-      )
-
-      if (appPackageJson.devDependencies?.['eslint']) {
-        addPackageDependency(
-          appPackageJson,
-          'eslint',
-          targetEslintVersion,
-          true
+      try {
+        // Find the latest ESLint version that satisfies the requirement
+        const targetEslintVersion = await loadHighestNPMVersionMatching(
+          `eslint@${eslintConflict.requiredRange}`
         )
-        devDependenciesToInstall.push(['eslint', targetEslintVersion])
-      } else if (appPackageJson.dependencies?.['eslint']) {
-        addPackageDependency(
-          appPackageJson,
-          'eslint',
-          targetEslintVersion,
-          false
-        )
-        dependenciesToInstall.push(['eslint', targetEslintVersion])
-      }
 
-      console.log(
-        `${pc.green('✔')} Will upgrade ESLint to v${targetEslintVersion}`
-      )
-
-      // When upgrading to ESLint 9+, also upgrade @typescript-eslint packages
-      // because v7.x only supports ESLint 8.x, v8.x+ supports ESLint 9.x
-      if (major(targetEslintVersion) >= 9) {
-        const typescriptEslintPackages = [
-          '@typescript-eslint/parser',
-          '@typescript-eslint/eslint-plugin',
-        ]
-
-        for (const tsEslintPkg of typescriptEslintPackages) {
-          const hasPackage = allDependencies[tsEslintPkg]
-          if (!hasPackage) continue
-
-          // Check if the installed version is < 8 (v8+ supports ESLint 9)
-          let installedVersion = hasPackage
-          try {
-            const pkgJsonPath = require.resolve(`${tsEslintPkg}/package.json`, {
-              paths: [cwd],
-            })
-            installedVersion = require(pkgJsonPath).version
-          } catch {
-            // Use the semver range to extract version
-            const match = hasPackage.match(/[\d.]+/)
-            if (match) installedVersion = match[0]
-          }
-
-          // Only upgrade if current version is < 8
-          if (major(installedVersion) < 8) {
-            const targetTsEslintVersion = await loadHighestNPMVersionMatching(
-              `${tsEslintPkg}@^8`
-            )
-
-            if (appPackageJson.devDependencies?.[tsEslintPkg]) {
-              addPackageDependency(
-                appPackageJson,
-                tsEslintPkg,
-                targetTsEslintVersion,
-                true
-              )
-              devDependenciesToInstall.push([
-                tsEslintPkg,
-                targetTsEslintVersion,
-              ])
-            } else if (appPackageJson.dependencies?.[tsEslintPkg]) {
-              addPackageDependency(
-                appPackageJson,
-                tsEslintPkg,
-                targetTsEslintVersion,
-                false
-              )
-              dependenciesToInstall.push([tsEslintPkg, targetTsEslintVersion])
-            }
-
-            console.log(
-              `${pc.green('✔')} Will upgrade ${tsEslintPkg} to v${targetTsEslintVersion}`
-            )
-          }
+        if (appPackageJson.devDependencies?.['eslint']) {
+          addPackageDependency(
+            appPackageJson,
+            'eslint',
+            targetEslintVersion,
+            true
+          )
+          devDependenciesToInstall.push(['eslint', targetEslintVersion])
+        } else if (appPackageJson.dependencies?.['eslint']) {
+          addPackageDependency(
+            appPackageJson,
+            'eslint',
+            targetEslintVersion,
+            false
+          )
+          dependenciesToInstall.push(['eslint', targetEslintVersion])
         }
 
-        // Check if user needs to migrate ESLint config to flat config format
-        await suggestEslintConfigMigration(cwd, codemods)
-      }
+        console.log(
+          `${pc.green('✔')} Will upgrade ESLint to v${targetEslintVersion}`
+        )
 
-      // Remove this conflict from the list since we're handling it
-      const conflictIndex = conflicts.indexOf(eslintConflict)
-      if (conflictIndex > -1) {
-        conflicts.splice(conflictIndex, 1)
+        // When upgrading to ESLint 9+, also upgrade @typescript-eslint packages
+        // because v7.x only supports ESLint 8.x, v8.x+ supports ESLint 9.x
+        if (major(targetEslintVersion) >= 9) {
+          const typescriptEslintPackages = [
+            '@typescript-eslint/parser',
+            '@typescript-eslint/eslint-plugin',
+          ]
+
+          for (const tsEslintPkg of typescriptEslintPackages) {
+            const hasPackage = allDependencies[tsEslintPkg]
+            if (!hasPackage) continue
+
+            // Check if the installed version is < 8 (v8+ supports ESLint 9)
+            let installedVersion = hasPackage
+            try {
+              const pkgJsonPath = require.resolve(`${tsEslintPkg}/package.json`, {
+                paths: [cwd],
+              })
+              installedVersion = require(pkgJsonPath).version
+            } catch {
+              // Use the semver range to extract version
+              const match = hasPackage.match(/[\d.]+/)
+              if (match) installedVersion = match[0]
+            }
+
+            // Only upgrade if current version is < 8
+            if (major(installedVersion) < 8) {
+              try {
+                const targetTsEslintVersion = await loadHighestNPMVersionMatching(
+                  `${tsEslintPkg}@^8`
+                )
+
+                if (appPackageJson.devDependencies?.[tsEslintPkg]) {
+                  addPackageDependency(
+                    appPackageJson,
+                    tsEslintPkg,
+                    targetTsEslintVersion,
+                    true
+                  )
+                  devDependenciesToInstall.push([
+                    tsEslintPkg,
+                    targetTsEslintVersion,
+                  ])
+                } else if (appPackageJson.dependencies?.[tsEslintPkg]) {
+                  addPackageDependency(
+                    appPackageJson,
+                    tsEslintPkg,
+                    targetTsEslintVersion,
+                    false
+                  )
+                  dependenciesToInstall.push([tsEslintPkg, targetTsEslintVersion])
+                }
+
+                console.log(
+                  `${pc.green('✔')} Will upgrade ${tsEslintPkg} to v${targetTsEslintVersion}`
+                )
+              } catch (e) {
+                console.error(
+                  `${pc.red('✖')} Failed to find compatible ${tsEslintPkg} version: ${e instanceof Error ? e.message : String(e)}`
+                )
+              }
+            }
+          }
+
+          // Check if user needs to migrate ESLint config to flat config format
+          await suggestEslintConfigMigration(cwd, codemods)
+        }
+
+        // Remove this conflict from the list since we're handling it
+        const conflictIndex = conflicts.indexOf(eslintConflict)
+        if (conflictIndex > -1) {
+          conflicts.splice(conflictIndex, 1)
+        }
+      } catch (e) {
+        console.error(
+          `${pc.red('✖')} Failed to upgrade ESLint: ${e instanceof Error ? e.message : String(e)}`
+        )
       }
     } else {
       console.log()
