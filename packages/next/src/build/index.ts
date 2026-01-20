@@ -956,6 +956,8 @@ export default async function build(
         NextBuildContext.preservedDeploymentId || process.env.NEXT_DEPLOYMENT_ID
       if (preservedDeploymentId) {
         NextBuildContext.preservedDeploymentId = preservedDeploymentId
+        // Ensure it's in process.env so loadEnvConfig can see it
+        process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
       }
 
       const { loadedEnvFiles, combinedEnv } = nextBuildSpan
