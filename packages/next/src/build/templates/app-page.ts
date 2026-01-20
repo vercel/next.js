@@ -1003,7 +1003,10 @@ export async function handler(
             // We want to schedule this on the next tick to ensure that the
             // render is not blocked on it.
             scheduleOnNextTick(async () => {
-              const responseCache = routeModule.getResponseCache(req)
+              const responseCache = routeModule.getResponseCache(
+                req,
+                nextConfig
+              )
 
               try {
                 await responseCache.revalidate(

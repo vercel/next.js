@@ -978,7 +978,7 @@ export abstract class RouteModule<
 
   public getResponseCache(
     req: IncomingMessage | BaseNextRequest,
-    nextConfig?: NextConfigRuntime
+    nextConfig: NextConfigRuntime
   ) {
     if (!this.responseCache) {
       const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
