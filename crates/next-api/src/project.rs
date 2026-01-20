@@ -745,10 +745,10 @@ impl ProjectContainer {
         self.project().entrypoints()
     }
 
-    /// See [Project::hmr_identifiers].
+    /// See [Project::client_hmr_identifiers].
     #[turbo_tasks::function]
-    pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<RcStr>> {
-        self.project().hmr_identifiers()
+    pub fn client_hmr_identifiers(self: Vc<Self>) -> Vc<Vec<RcStr>> {
+        self.project().client_hmr_identifiers()
     }
 
     /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
@@ -2051,7 +2051,10 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn hmr_content(self: Vc<Self>, identifier: RcStr) -> Result<Vc<OptionVersionedContent>> {
+    async fn client_hmr_content(
+        self: Vc<Self>,
+        identifier: RcStr,
+    ) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
             let content = map.get(self.client_relative_path().await?.join(&identifier)?);
             Ok(content)
@@ -2061,8 +2064,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
-        let content = self.hmr_content(identifier).await?;
+    async fn client_hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
+        let content = self.client_hmr_content(identifier).await?;
         if let Some(content) = &*content {
             Ok(content.version())
         } else {
@@ -2073,12 +2076,12 @@ impl Project {
     /// Get the version state for a session. Initialized with the first seen
     /// version in that session.
     #[turbo_tasks::function]
-    pub async fn hmr_version_state(
+    pub async fn client_hmr_version_state(
         self: Vc<Self>,
         identifier: RcStr,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
-        let version = self.hmr_version(identifier);
+        let version = self.client_hmr_version(identifier);
 
         // The session argument is important to avoid caching this function between
         // sessions.
@@ -2101,13 +2104,13 @@ impl Project {
     /// Emits opaque HMR events whenever a change is detected in the chunk group
     /// internally known as `identifier`.
     #[turbo_tasks::function]
-    pub async fn hmr_update(
+    pub async fn client_hmr_update(
         self: Vc<Self>,
         identifier: RcStr,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        let content = self.hmr_content(identifier).await?;
+        let content = self.client_hmr_content(identifier).await?;
         if let Some(content) = *content {
             Ok(content.update(from))
         } else {
@@ -2118,7 +2121,7 @@ impl Project {
     /// Gets a list of all HMR identifiers that can be subscribed to. This is
     /// only needed for testing purposes and isn't used in real apps.
     #[turbo_tasks::function]
-    pub async fn hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn client_hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {
             Ok(map.keys_in_path(self.client_relative_path().owned().await?))
         } else {
