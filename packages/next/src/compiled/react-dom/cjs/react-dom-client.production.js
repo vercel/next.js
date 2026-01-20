@@ -12918,6 +12918,7 @@ function flushLayoutEffects() {
 function flushSpawnedWork() {
   if (4 === pendingEffectsStatus || 3 === pendingEffectsStatus) {
     pendingEffectsStatus = 0;
+    var committedViewTransition = pendingViewTransition;
     pendingViewTransition = null;
     requestPaint();
     var root = pendingEffectsRoot,
@@ -12968,15 +12969,22 @@ function flushSpawnedWork() {
     recoverableErrors = pendingViewTransitionEvents;
     onRecoverableError = pendingTransitionTypes;
     pendingTransitionTypes = null;
-    if (null !== recoverableErrors)
+    if (
+      null !== recoverableErrors &&
+      ((pendingViewTransitionEvents = null),
+      null === onRecoverableError && (onRecoverableError = []),
+      null !== committedViewTransition)
+    )
       for (
-        pendingViewTransitionEvents = null,
-          null === onRecoverableError && (onRecoverableError = []),
-          recoverableError = 0;
+        recoverableError = 0;
         recoverableError < recoverableErrors.length;
         recoverableError++
       )
-        (0, recoverableErrors[recoverableError])(onRecoverableError);
+        (finishedWork = (0, recoverableErrors[recoverableError])(
+          onRecoverableError
+        )),
+          void 0 !== finishedWork &&
+            committedViewTransition.finished.finally(finishedWork);
     0 !== (pendingEffectsLanes & 3) && flushPendingEffects();
     ensureRootIsScheduled(root);
     passiveSubtreeMask = root.pendingLanes;
@@ -13452,20 +13460,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1692 = 0;
-  i$jscomp$inline_1692 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1692++
+  var i$jscomp$inline_1695 = 0;
+  i$jscomp$inline_1695 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1695++
 ) {
-  var eventName$jscomp$inline_1693 =
-      simpleEventPluginEvents[i$jscomp$inline_1692],
-    domEventName$jscomp$inline_1694 =
-      eventName$jscomp$inline_1693.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1695 =
-      eventName$jscomp$inline_1693[0].toUpperCase() +
-      eventName$jscomp$inline_1693.slice(1);
+  var eventName$jscomp$inline_1696 =
+      simpleEventPluginEvents[i$jscomp$inline_1695],
+    domEventName$jscomp$inline_1697 =
+      eventName$jscomp$inline_1696.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1698 =
+      eventName$jscomp$inline_1696[0].toUpperCase() +
+      eventName$jscomp$inline_1696.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1694,
-    "on" + capitalizedEvent$jscomp$inline_1695
+    domEventName$jscomp$inline_1697,
+    "on" + capitalizedEvent$jscomp$inline_1698
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -18024,16 +18032,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2041 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2044 = React.version;
 if (
-  "19.3.0-canary-41b3e9a6-20260119" !==
-  isomorphicReactPackageVersion$jscomp$inline_2041
+  "19.3.0-canary-d2908752-20260119" !==
+  isomorphicReactPackageVersion$jscomp$inline_2044
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2041,
-      "19.3.0-canary-41b3e9a6-20260119"
+      isomorphicReactPackageVersion$jscomp$inline_2044,
+      "19.3.0-canary-d2908752-20260119"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18053,24 +18061,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2631 = {
+var internals$jscomp$inline_2634 = {
   bundleType: 0,
-  version: "19.3.0-canary-41b3e9a6-20260119",
+  version: "19.3.0-canary-d2908752-20260119",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-41b3e9a6-20260119"
+  reconcilerVersion: "19.3.0-canary-d2908752-20260119"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2632 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2635 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2632.isDisabled &&
-    hook$jscomp$inline_2632.supportsFiber
+    !hook$jscomp$inline_2635.isDisabled &&
+    hook$jscomp$inline_2635.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2632.inject(
-        internals$jscomp$inline_2631
+      (rendererID = hook$jscomp$inline_2635.inject(
+        internals$jscomp$inline_2634
       )),
-        (injectedHook = hook$jscomp$inline_2632);
+        (injectedHook = hook$jscomp$inline_2635);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18156,4 +18164,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-41b3e9a6-20260119";
+exports.version = "19.3.0-canary-d2908752-20260119";
