@@ -531,11 +531,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             else {
                 return Ok(());
             };
-            let mut decoder = bincode::de::DecoderImpl::new(
-                turbo_bincode::TurboBincodeReader::new(bytes.borrow()),
-                turbo_bincode::TURBO_BINCODE_CONFIG,
-                (),
-            );
+            let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
             storage
                 .decode(category, &mut decoder)
                 .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))
@@ -568,11 +564,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 .map(|opt_bytes| {
                     let mut storage = TaskStorage::new();
                     if let Some(bytes) = opt_bytes {
-                        let mut decoder = bincode::de::DecoderImpl::new(
-                            turbo_bincode::TurboBincodeReader::new(bytes.borrow()),
-                            turbo_bincode::TURBO_BINCODE_CONFIG,
-                            (),
-                        );
+                        let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
                         storage
                             .decode(category, &mut decoder)
                             .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
@@ -776,7 +768,9 @@ fn encode_task_data(
     data: &TaskStorage,
     category: SpecificTaskDataCategory,
 ) -> Result<TurboBincodeBuffer> {
-    let mut buffer = TurboBincodeBuffer::with_capacity(256);
+    // TODO: see if the caller can pass us a buffer instead of us allocating a new one.
+    // This should be possible and save a lot of small allocations.
+    let mut buffer = TurboBincodeBuffer::new();
     let mut encoder = new_turbo_bincode_encoder(&mut buffer);
     data.encode(category, &mut encoder)?;
 

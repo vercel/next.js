@@ -837,7 +837,6 @@ impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
         if let Some(task_type) = self.backend.task_cache.lookup_reverse(&self.task_id) {
             d.field("task_type", &task_type);
         };
-        // Use TaskStorage's derived Debug impl
         d.field("storage", &*self.task);
         d.finish()
     }
