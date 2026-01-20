@@ -429,7 +429,7 @@ describe('required server files', () => {
   })
 
   it('should de-dupe HTML/data requests', async () => {
-    // Create a request group for /gsp - both HTML and JSON requests share same x-vercel-id
+    // Create a request group for /gsp - both HTML and JSON requests share same x-invocation-id
     const gspGroup = infra.group()
 
     const res = await gspGroup.fetch(appPort, '/gsp', undefined, {
@@ -460,7 +460,7 @@ describe('required server files', () => {
     const { pageProps: props2 } = await res2.json()
     expect(props2.gspCalls).toBe(props.gspCalls)
 
-    // Create a separate request group for /index - different x-vercel-id
+    // Create a separate request group for /index - different x-invocation-id
     const indexGroup = infra.group()
 
     const res3 = await indexGroup.fetch(appPort, '/index', undefined, {
@@ -1171,7 +1171,7 @@ describe('required server files', () => {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
           'x-now-route-matches': '',
-          'x-vercel-id': 'cle1::',
+          'x-invocation-id': 'cle1::',
         },
       },
       {
@@ -1179,7 +1179,7 @@ describe('required server files', () => {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
           'x-now-route-matches': '',
-          'x-vercel-id': 'cle1::',
+          'x-invocation-id': 'cle1::',
         },
       },
       {
@@ -1187,7 +1187,7 @@ describe('required server files', () => {
         headers: {
           'x-matched-path': `/optional-ssg/[[...rest]]`,
           'x-now-route-matches': '',
-          'x-vercel-id': 'cle1::',
+          'x-invocation-id': 'cle1::',
         },
       },
     ]

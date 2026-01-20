@@ -201,8 +201,8 @@ export function fetchViaHTTP(
 }
 
 /**
- * Creates a request group with a frozen x-vercel-id for testing cache
- * deduplication. All requests within a group share the same x-vercel-id.
+ * Creates a request group with a frozen x-invocation-id for testing cache
+ * deduplication. All requests within a group share the same x-invocation-id.
  */
 function createInfraGroup() {
   const invocationID = `test:${nanoid()}`
@@ -217,7 +217,7 @@ function createInfraGroup() {
       ...opts,
       headers: {
         ...opts?.headers,
-        'x-vercel-id': invocationID,
+        'x-invocation-id': invocationID,
       },
     })
   }
@@ -240,20 +240,20 @@ function createInfraGroup() {
  * Infrastructure helpers for testing Next.js in minimal/standalone mode.
  *
  * Usage:
- *   // Independent requests (each gets a fresh x-vercel-id)
+ *   // Independent requests (each gets a fresh x-invocation-id)
  *   const html = await infra.render(appPort, '/page')
- *   const html2 = await infra.render(appPort, '/page') // different x-vercel-id
+ *   const html2 = await infra.render(appPort, '/page') // different x-invocation-id
  *
  *   // Grouped requests (for testing cache deduplication)
  *   const group = infra.group()
  *   const res1 = await group.fetch(appPort, '/page')
  *   const res2 = await group.fetch(appPort, '/_next/data/.../page.json')
- *   // Both requests share the same x-vercel-id
+ *   // Both requests share the same x-invocation-id
  */
 export const infra = {
   /**
-   * Creates a request group with a frozen x-vercel-id. All requests made
-   * through the returned group share the same x-vercel-id, enabling testing
+   * Creates a request group with a frozen x-invocation-id. All requests made
+   * through the returned group share the same x-invocation-id, enabling testing
    * of cache deduplication behavior.
    *
    * @returns A group object with `fetch` and `render` methods
@@ -261,8 +261,8 @@ export const infra = {
   group: createInfraGroup,
 
   /**
-   * Makes an HTTP request with a fresh x-vercel-id. Each call generates a
-   * new x-vercel-id, so requests are independent and won't share cached data.
+   * Makes an HTTP request with a fresh x-invocation-id. Each call generates a
+   * new x-invocation-id, so requests are independent and won't share cached data.
    *
    * @param appPort - The port or URL of the app
    * @param pathname - The path to request
@@ -279,7 +279,7 @@ export const infra = {
 
   /**
    * Makes an HTTP request and returns the response body as text. Each call
-   * generates a new x-vercel-id, so requests are independent.
+   * generates a new x-invocation-id, so requests are independent.
    *
    * @param appPort - The port or URL of the app
    * @param pathname - The path to request

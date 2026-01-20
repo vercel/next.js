@@ -336,7 +336,7 @@ describe('required server files app router', () => {
     const $ = cheerio.load(html)
     const timestamp1 = $('#now').text()
 
-    // Second request: RSC for same page with same x-vercel-id
+    // Second request: RSC for same page with same x-invocation-id
     const rscRes = await group.fetch(appPort, '/isr/[slug].rsc', undefined, {
       headers: {
         'x-matched-path': '/isr/[slug]',
@@ -367,7 +367,7 @@ describe('required server files app router', () => {
     const $1 = cheerio.load(await res1.text())
     const data1 = $1('#data').text()
 
-    // Second group with different x-vercel-id
+    // Second group with different x-invocation-id
     const group2 = infra.group()
     const res2 = await group2.fetch(appPort, '/isr/[slug]', undefined, {
       headers: {

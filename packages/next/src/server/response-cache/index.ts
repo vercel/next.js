@@ -17,6 +17,18 @@ import {
 } from './utils'
 import type { RouteKind } from '../route-kind'
 
+/**
+ * Default TTL (in milliseconds) for minimal mode response cache entries when
+ * no invocation ID is provided. This handles providers that don't send the
+ * x-invocation-id header yet.
+ *
+ * 10 seconds chosen because:
+ * - Long enough to dedupe rapid successive requests (e.g., page + data)
+ * - Short enough to not serve stale data across unrelated requests
+ * - Reasonable default until providers implement invocation IDs
+ */
+const FALLBACK_TTL_MS = 10_000
+
 export * from './types'
 
 export default class ResponseCache implements ResponseCacheBase {
@@ -54,7 +66,7 @@ export default class ResponseCache implements ResponseCacheBase {
     invocationID: string | undefined
     /**
      * TTL expiration timestamp in milliseconds. Only set when invocationID is
-     * undefined (non-Vercel providers that don't send x-vercel-id yet).
+     * undefined (non-Vercel providers that don't send x-invocation-id yet).
      * When invocationID exists, cache scoping is handled by invocationID
      * matching instead of TTL.
      */
@@ -78,7 +90,7 @@ export default class ResponseCache implements ResponseCacheBase {
   // be dynamic here
   private minimal_mode?: boolean
 
-  constructor(minimal_mode: boolean, maxSize: number = 5) {
+  constructor(minimal_mode: boolean, maxSize: number = 10) {
     this.minimal_mode = minimal_mode
     this.maxCacheSize = maxSize
     this.previousCacheItems = new LRUCache(
@@ -376,16 +388,13 @@ export default class ResponseCache implements ResponseCacheBase {
       if (incrementalResponseCacheEntry.cacheControl) {
         if (this.minimal_mode) {
           // Set TTL expiration only when invocationID is undefined.
-          // This handles non-Vercel providers that don't send x-vercel-id yet.
+          // This handles non-Vercel providers that don't send x-invocation-id yet.
           // On Vercel, cache scoping is handled by invocationID matching, so TTL
           // is unnecessary.
-          //
-          // 10 second TTL chosen because:
-          // - Long enough to dedupe rapid successive requests (e.g., page + data)
-          // - Short enough to not serve stale data across unrelated requests
-          // - Reasonable default until providers implement invocation IDs
           const expiresAt =
-            invocationID === undefined ? Date.now() + 10_000 : undefined
+            invocationID === undefined
+              ? Date.now() + FALLBACK_TTL_MS
+              : undefined
 
           this.previousCacheItems.set(key, {
             entry: incrementalResponseCacheEntry,
