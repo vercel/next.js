@@ -41,11 +41,14 @@ export interface DefineEnvOptions {
   }
 }
 
+const DEFINE_ENV_EXPRESSION = Symbol('DEFINE_ENV_EXPRESSION')
+
 interface DefineEnv {
   [key: string]:
     | string
     | string[]
     | boolean
+    | { [DEFINE_ENV_EXPRESSION]: string }
     | ProxyMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
@@ -64,7 +67,9 @@ function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
   const defineEnvStringified: SerializedDefineEnv = Object.fromEntries(
     Object.entries(defineEnv).map(([key, value]) => [
       key,
-      JSON.stringify(value),
+      typeof value === 'object' && DEFINE_ENV_EXPRESSION in value
+        ? value[DEFINE_ENV_EXPRESSION]
+        : JSON.stringify(value),
     ])
   )
   return defineEnvStringified
@@ -165,23 +170,32 @@ export function getDefineEnv({
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
 
-    ...(isClient
+    ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {
-          // TODO use `globalThis.NEXT_DEPLOYMENT_ID` on client to still support accessing
-          // process.env.NEXT_DEPLOYMENT_ID in userland
-          'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
-            ? false
-            : config.deploymentId || false,
+          'process.env.NEXT_DEPLOYMENT_ID': false,
         }
-      : config.experimental?.runtimeServerDeploymentId
-        ? {
-            // Don't inline at all, keep process.env.NEXT_DEPLOYMENT_ID as is
-          }
-        : {
-            'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
-              ? false
-              : config.deploymentId || false,
-          }),
+      : isClient
+        ? isTurbopack
+          ? {
+              'process.env.NEXT_DEPLOYMENT_ID': {
+                [DEFINE_ENV_EXPRESSION]: 'globalThis.NEXT_DEPLOYMENT_ID',
+              },
+              // TODO replace with read from HTML document attribute
+              'process.env.NEXT_DEPLOYMENT_ID_COMPILE_TIME':
+                config.deploymentId,
+            }
+          : {
+              // For Webpack, we currently don't use the non-inlining globalThis.NEXT_DEPLOYMENT_ID
+              // approach because we cannot forward this global variable to web workers easily.
+              'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+            }
+        : config.experimental?.runtimeServerDeploymentId
+          ? {
+              // Don't inline at all, keep process.env.NEXT_DEPLOYMENT_ID as is
+            }
+          : {
+              'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+            }),
 
     // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
     // variable to the client.

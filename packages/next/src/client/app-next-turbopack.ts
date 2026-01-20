@@ -1,3 +1,4 @@
+import './register-deployment-id-global'
 import { appBootstrap } from './app-bootstrap'
 import { isRecoverableError } from './react-client-callbacks/on-recoverable-error'
 
