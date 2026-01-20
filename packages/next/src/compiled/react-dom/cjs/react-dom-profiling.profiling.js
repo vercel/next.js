@@ -14705,16 +14705,14 @@ function flushSpawnedWork() {
       1 !== pendingDelayedCommitReason && (pendingDelayedCommitReason = 3);
     }
     pendingEffectsStatus = 0;
+    startViewTransitionStartTime = pendingViewTransition;
     pendingViewTransition = null;
     requestPaint();
-    startViewTransitionStartTime = pendingEffectsRoot;
-    var finishedWork = pendingFinishedWork;
-    abortedViewTransition = pendingEffectsLanes;
-    var recoverableErrors = pendingRecoverableErrors,
-      passiveSubtreeMask =
-        (abortedViewTransition & 335544064) === abortedViewTransition
-          ? 10262
-          : 10256;
+    abortedViewTransition = pendingEffectsRoot;
+    var finishedWork = pendingFinishedWork,
+      lanes = pendingEffectsLanes,
+      recoverableErrors = pendingRecoverableErrors,
+      passiveSubtreeMask = (lanes & 335544064) === lanes ? 10262 : 10256;
     (passiveSubtreeMask =
       0 !== finishedWork.actualDuration ||
       0 !== (finishedWork.subtreeFlags & passiveSubtreeMask) ||
@@ -14723,12 +14721,12 @@ function flushSpawnedWork() {
       : ((pendingEffectsStatus = 0),
         (pendingFinishedWork = pendingEffectsRoot = null),
         releaseRootPooledCache(
-          startViewTransitionStartTime,
-          startViewTransitionStartTime.pendingLanes
+          abortedViewTransition,
+          abortedViewTransition.pendingLanes
         ));
-    var remainingLanes = startViewTransitionStartTime.pendingLanes;
+    var remainingLanes = abortedViewTransition.pendingLanes;
     0 === remainingLanes && (legacyErrorBoundariesThatAlreadyFailed = null);
-    remainingLanes = lanesToEventPriority(abortedViewTransition);
+    remainingLanes = lanesToEventPriority(lanes);
     finishedWork = finishedWork.stateNode;
     if (injectedHook && "function" === typeof injectedHook.onCommitFiberRoot)
       try {
@@ -14756,15 +14754,14 @@ function flushSpawnedWork() {
           didError
         );
       } catch (err) {}
-    isDevToolsPresent && startViewTransitionStartTime.memoizedUpdaters.clear();
+    isDevToolsPresent && abortedViewTransition.memoizedUpdaters.clear();
     if (null !== recoverableErrors) {
       didError = ReactSharedInternals.T;
       schedulerPriority = ReactDOMSharedInternals.p;
       ReactDOMSharedInternals.p = 2;
       ReactSharedInternals.T = null;
       try {
-        var onRecoverableError =
-          startViewTransitionStartTime.onRecoverableError;
+        var onRecoverableError = abortedViewTransition.onRecoverableError;
         for (
           finishedWork = 0;
           finishedWork < recoverableErrors.length;
@@ -14783,26 +14780,33 @@ function flushSpawnedWork() {
     onRecoverableError = pendingViewTransitionEvents;
     recoverableError = pendingTransitionTypes;
     pendingTransitionTypes = null;
-    if (null !== onRecoverableError)
+    if (
+      null !== onRecoverableError &&
+      ((pendingViewTransitionEvents = null),
+      null === recoverableError && (recoverableError = []),
+      null !== startViewTransitionStartTime)
+    )
       for (
-        pendingViewTransitionEvents = null,
-          null === recoverableError && (recoverableError = []),
-          recoverableErrors = 0;
+        recoverableErrors = 0;
         recoverableErrors < onRecoverableError.length;
         recoverableErrors++
       )
-        (0, onRecoverableError[recoverableErrors])(recoverableError);
+        (didError = (0, onRecoverableError[recoverableErrors])(
+          recoverableError
+        )),
+          void 0 !== didError &&
+            startViewTransitionStartTime.finished.finally(didError);
     0 !== (pendingEffectsLanes & 3) && flushPendingEffects();
-    ensureRootIsScheduled(startViewTransitionStartTime);
-    remainingLanes = startViewTransitionStartTime.pendingLanes;
-    0 !== (abortedViewTransition & 261930) && 0 !== (remainingLanes & 42)
+    ensureRootIsScheduled(abortedViewTransition);
+    remainingLanes = abortedViewTransition.pendingLanes;
+    0 !== (lanes & 261930) && 0 !== (remainingLanes & 42)
       ? ((nestedUpdateScheduled = !0),
-        startViewTransitionStartTime === rootWithNestedUpdates
+        abortedViewTransition === rootWithNestedUpdates
           ? nestedUpdateCount++
           : ((nestedUpdateCount = 0),
-            (rootWithNestedUpdates = startViewTransitionStartTime)))
+            (rootWithNestedUpdates = abortedViewTransition)))
       : (nestedUpdateCount = 0);
-    passiveSubtreeMask || finalizeRender(abortedViewTransition, commitEndTime);
+    passiveSubtreeMask || finalizeRender(lanes, commitEndTime);
     flushSyncWorkAcrossRoots_impl(0, !1);
   }
 }
@@ -15335,20 +15339,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1996 = 0;
-  i$jscomp$inline_1996 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1996++
+  var i$jscomp$inline_1999 = 0;
+  i$jscomp$inline_1999 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1999++
 ) {
-  var eventName$jscomp$inline_1997 =
-      simpleEventPluginEvents[i$jscomp$inline_1996],
-    domEventName$jscomp$inline_1998 =
-      eventName$jscomp$inline_1997.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1999 =
-      eventName$jscomp$inline_1997[0].toUpperCase() +
-      eventName$jscomp$inline_1997.slice(1);
+  var eventName$jscomp$inline_2000 =
+      simpleEventPluginEvents[i$jscomp$inline_1999],
+    domEventName$jscomp$inline_2001 =
+      eventName$jscomp$inline_2000.toLowerCase(),
+    capitalizedEvent$jscomp$inline_2002 =
+      eventName$jscomp$inline_2000[0].toUpperCase() +
+      eventName$jscomp$inline_2000.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1998,
-    "on" + capitalizedEvent$jscomp$inline_1999
+    domEventName$jscomp$inline_2001,
+    "on" + capitalizedEvent$jscomp$inline_2002
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -19957,16 +19961,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2345 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2348 = React.version;
 if (
-  "19.3.0-canary-41b3e9a6-20260119" !==
-  isomorphicReactPackageVersion$jscomp$inline_2345
+  "19.3.0-canary-d2908752-20260119" !==
+  isomorphicReactPackageVersion$jscomp$inline_2348
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2345,
-      "19.3.0-canary-41b3e9a6-20260119"
+      isomorphicReactPackageVersion$jscomp$inline_2348,
+      "19.3.0-canary-d2908752-20260119"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19986,24 +19990,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2948 = {
+var internals$jscomp$inline_2951 = {
   bundleType: 0,
-  version: "19.3.0-canary-41b3e9a6-20260119",
+  version: "19.3.0-canary-d2908752-20260119",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-41b3e9a6-20260119"
+  reconcilerVersion: "19.3.0-canary-d2908752-20260119"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2949 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2952 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2949.isDisabled &&
-    hook$jscomp$inline_2949.supportsFiber
+    !hook$jscomp$inline_2952.isDisabled &&
+    hook$jscomp$inline_2952.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2949.inject(
-        internals$jscomp$inline_2948
+      (rendererID = hook$jscomp$inline_2952.inject(
+        internals$jscomp$inline_2951
       )),
-        (injectedHook = hook$jscomp$inline_2949);
+        (injectedHook = hook$jscomp$inline_2952);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -20250,7 +20254,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-41b3e9a6-20260119";
+exports.version = "19.3.0-canary-d2908752-20260119";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
