@@ -841,7 +841,7 @@ export type ContinueStreamOptions = {
   isStaticGeneration: boolean
   isBuildTimePrerendering: boolean
   buildId: string
-  deploymentId: string
+  deploymentId: string | undefined
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   validateRootLayout?: boolean
@@ -916,7 +916,7 @@ export async function continueFizzStream(
 type ContinueDynamicPrerenderOptions = {
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
-  deploymentId: string
+  deploymentId: string | undefined
 }
 
 export async function continueDynamicPrerender(
@@ -946,7 +946,7 @@ type ContinueStaticPrerenderOptions = {
   getServerInsertedMetadata: () => Promise<string>
   isBuildTimePrerendering: boolean
   buildId: string
-  deploymentId: string
+  deploymentId: string | undefined
 }
 
 export async function continueStaticPrerender(
@@ -1017,7 +1017,7 @@ type ContinueResumeOptions = {
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   delayDataUntilFirstHtmlChunk: boolean
-  deploymentId: string
+  deploymentId: string | undefined
 }
 
 export async function continueDynamicHTMLResume(

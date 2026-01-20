@@ -2884,7 +2884,7 @@ async function renderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            deploymentId: ctx.renderOpts.deploymentId ?? '',
+            deploymentId: ctx.renderOpts.deploymentId,
           })
         }
       }
@@ -2962,7 +2962,7 @@ async function renderToStream(
         isStaticGeneration: generateStaticHTML,
         isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
         buildId: ctx.workStore.buildId,
-        deploymentId: ctx.renderOpts.deploymentId ?? '',
+        deploymentId: ctx.renderOpts.deploymentId,
         getServerInsertedHTML,
         getServerInsertedMetadata,
         validateRootLayout: dev,
@@ -3132,7 +3132,7 @@ async function renderToStream(
           isBuildTimePrerendering:
             ctx.workStore.isBuildTimePrerendering === true,
           buildId: ctx.workStore.buildId,
-          deploymentId: ctx.renderOpts.deploymentId ?? '',
+          deploymentId: ctx.renderOpts.deploymentId,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
             renderServerInsertedHTML,
@@ -4842,7 +4842,7 @@ async function prerenderToStream(
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            deploymentId: ctx.renderOpts.deploymentId ?? '',
+            deploymentId: ctx.renderOpts.deploymentId,
           }),
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
@@ -4938,7 +4938,7 @@ async function prerenderToStream(
             isBuildTimePrerendering:
               ctx.workStore.isBuildTimePrerendering === true,
             buildId: ctx.workStore.buildId,
-            deploymentId: ctx.renderOpts.deploymentId ?? '',
+            deploymentId: ctx.renderOpts.deploymentId,
           })
         } else {
           // Normal static prerender case, no fallback param handling needed
@@ -4953,7 +4953,7 @@ async function prerenderToStream(
             isBuildTimePrerendering:
               ctx.workStore.isBuildTimePrerendering === true,
             buildId: ctx.workStore.buildId,
-            deploymentId: ctx.renderOpts.deploymentId ?? '',
+            deploymentId: ctx.renderOpts.deploymentId,
           })
         }
 
@@ -5125,7 +5125,7 @@ async function prerenderToStream(
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            deploymentId: ctx.renderOpts.deploymentId ?? '',
+            deploymentId: ctx.renderOpts.deploymentId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -5147,7 +5147,7 @@ async function prerenderToStream(
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            deploymentId: ctx.renderOpts.deploymentId ?? '',
+            deploymentId: ctx.renderOpts.deploymentId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -5214,7 +5214,7 @@ async function prerenderToStream(
             isBuildTimePrerendering:
               ctx.workStore.isBuildTimePrerendering === true,
             buildId: ctx.workStore.buildId,
-            deploymentId: ctx.renderOpts.deploymentId ?? '',
+            deploymentId: ctx.renderOpts.deploymentId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -5315,7 +5315,7 @@ async function prerenderToStream(
           buildId: ctx.workStore.buildId,
           getServerInsertedHTML,
           getServerInsertedMetadata,
-          deploymentId: ctx.renderOpts.deploymentId ?? '',
+          deploymentId: ctx.renderOpts.deploymentId,
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
@@ -5501,7 +5501,7 @@ async function prerenderToStream(
           }),
           getServerInsertedMetadata,
           validateRootLayout: dev,
-          deploymentId: ctx.renderOpts.deploymentId ?? '',
+          deploymentId: ctx.renderOpts.deploymentId,
         }),
         dynamicAccess: null,
         collectedRevalidate:
