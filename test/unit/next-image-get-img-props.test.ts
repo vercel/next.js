@@ -623,30 +623,34 @@ describe('getImageProps()', () => {
     ])
   })
   it('should add query string for imported local image when NEXT_DEPLOYMENT_ID defined', async () => {
-    deploymentId = 'dpl_123'
-    const { props } = getImageProps({
-      alt: 'a nice desc',
-      src: '/_next/static/media/test.abc123.png',
-      width: 100,
-      height: 200,
-    })
-    expect(warningMessages).toStrictEqual([])
-    expect(Object.entries(props)).toStrictEqual([
-      ['alt', 'a nice desc'],
-      ['loading', 'lazy'],
-      ['width', 100],
-      ['height', 200],
-      ['decoding', 'async'],
-      ['style', { color: 'transparent' }],
-      [
-        'srcSet',
-        '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123 2x',
-      ],
-      [
-        'src',
-        '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123',
-      ],
-    ])
+    try {
+      deploymentId = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/_next/static/media/test.abc123.png',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        [
+          'srcSet',
+          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123 2x',
+        ],
+        [
+          'src',
+          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123',
+        ],
+      ])
+    } finally {
+      deploymentId = undefined
+    }
   })
   it('should add query string for imported local image from microfrontend when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
@@ -706,30 +710,34 @@ describe('getImageProps()', () => {
     }
   })
   it('should not add query string for absolute remote image when NEXT_DEPLOYMENT_ID defined', async () => {
-    deploymentId = 'dpl_123'
-    const { props } = getImageProps({
-      alt: 'a nice desc',
-      src: 'http://example.com/test.png',
-      width: 100,
-      height: 200,
-    })
-    expect(warningMessages).toStrictEqual([])
-    expect(Object.entries(props)).toStrictEqual([
-      ['alt', 'a nice desc'],
-      ['loading', 'lazy'],
-      ['width', 100],
-      ['height', 200],
-      ['decoding', 'async'],
-      ['style', { color: 'transparent' }],
-      [
-        'srcSet',
-        '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=128&q=75 1x, /_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75 2x',
-      ],
-      [
-        'src',
-        '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75',
-      ],
-    ])
+    try {
+      deploymentId = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: 'http://example.com/test.png',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        [
+          'srcSet',
+          '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=128&q=75 1x, /_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75 2x',
+        ],
+        [
+          'src',
+          '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75',
+        ],
+      ])
+    } finally {
+      deploymentId = undefined
+    }
   })
   it('should add query string with question mark for unoptimized relative svg when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
