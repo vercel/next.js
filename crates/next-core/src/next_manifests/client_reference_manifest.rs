@@ -483,11 +483,7 @@ async fn build_manifest(
                             for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
                                 const val = {{ ...globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] }}
                                 globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] = val
-                                val.chunks = val.chunks.map((c) => {{
-                                    return c.endsWith('.js') || c.endsWith('.css') ?
-                                        `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`
-                                        : c
-                                }})
+                                val.chunks = val.chunks.map((c) => `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`)
                             }}
                             "#,
                             entry_name = StringifyJs(&normalized_manifest_entry),
