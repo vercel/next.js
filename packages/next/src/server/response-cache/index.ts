@@ -109,7 +109,14 @@ export default class ResponseCache implements ResponseCacheBase {
       (_key, value) => {
         if (!value.invocationID) return
 
-        // Bound to 100 entries to prevent memory growth
+        // Bound to 100 entries to prevent unbounded memory growth.
+        // FIFO eviction is acceptable here because:
+        // 1. Invocations are short-lived (single request lifecycle), so older
+        //    invocations are unlikely to still be active after 100 newer ones
+        // 2. This warning mechanism is best-effort for developer guidance—
+        //    missing occasional eviction warnings doesn't affect correctness
+        // 3. If a long-running invocation is somehow evicted and then has
+        //    another cache entry evicted, it will simply be re-added
         if (this.evictedInvocationIDs.size >= 100) {
           const first = this.evictedInvocationIDs.values().next().value
           if (first) this.evictedInvocationIDs.delete(first)
