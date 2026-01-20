@@ -343,6 +343,8 @@ export function getDefineEnv({
       config.experimental.reactDebugChannel ?? false,
     'process.env.__NEXT_TRANSITION_INDICATOR':
       config.experimental.transitionIndicator ?? false,
+    'process.env.__NEXT_GESTURE_TRANSITION':
+      config.experimental.gestureTransition ?? false,
     'process.env.__NEXT_CACHE_LIFE': config.cacheLife,
     'process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS':
       config.experimental.clientParamParsingOrigins || [],
