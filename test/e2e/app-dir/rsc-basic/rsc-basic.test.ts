@@ -1,5 +1,10 @@
 import path from 'path'
-import { check, getDistDir } from 'next-test-utils'
+import {
+  check,
+  getClientReferenceManifest,
+  getDistDir,
+  retry,
+} from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 import {
@@ -37,25 +42,20 @@ describe('app dir - rsc basics', () => {
   if (isNextDev && !isTurbopack) {
     it('should have correct client references keys in manifest', async () => {
       await next.render('/')
-      await check(async () => {
+      await retry(() => {
         // Check that the client-side manifest is correct before any requests
-        const clientReferenceManifest = JSON.parse(
-          (
-            await next.readFile(
-              `${getDistDir()}/server/app/page_client-reference-manifest.js`
-            )
-          ).match(/]=(.+)$/)[1]
+        const clientReferenceManifest = getClientReferenceManifest(
+          next,
+          '/page'
         )
         const clientModulesNames = Object.keys(
           clientReferenceManifest.clientModules
         )
-        clientModulesNames.every((name) => {
+        expect(clientModulesNames).toSatisfyAll((name) => {
           const [, key] = name.split('#', 2)
           return key === undefined || key === '' || key === 'default'
         })
-
-        return 'success'
-      }, 'success')
+      })
     })
   }
 

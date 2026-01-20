@@ -610,7 +610,7 @@ export class ClientReferenceManifestPlugin {
         new sources.RawSource(
           `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
             pagePath.slice('app'.length)
-          )}]=${json}`
+          )}]=${json};`
         ) as unknown as webpack.sources.RawSource
       )
     }

@@ -167,12 +167,15 @@ async fn build_manifest(
     async move {
         let mut entry_manifest: SerializedClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
-        let chunk_suffix_path = next_config.chunk_suffix_path().owned().await?;
         let prefix_path = next_config.computed_asset_prefix().owned().await?;
-        let suffix_path = chunk_suffix_path.unwrap_or_default();
-
-        // TODO: Add `suffix` to the manifest for React to use.
-        // entry_manifest.module_loading.prefix = prefix_path;
+        let runtime_server_deployment_id_available =
+            *next_config.runtime_server_deployment_id_available().await?;
+        let suffix_path = if !runtime_server_deployment_id_available {
+            let chunk_suffix_path = next_config.chunk_suffix_path().owned().await?;
+            chunk_suffix_path.unwrap_or_default()
+        } else {
+            rcstr!("")
+        };
 
         entry_manifest.module_loading.cross_origin = next_config.cross_origin().owned().await?;
         let ClientReferencesChunks {
@@ -469,15 +472,28 @@ async fn build_manifest(
                 FileContent::Content(File::from(formatdoc! {
                     r#"
                         globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
-                        globalThis.__RSC_MANIFEST[{entry_name}] = {manifest}
+                        globalThis.__RSC_MANIFEST[{entry_name}] = {manifest};
+                        {suffix}
                     "#,
                     entry_name = StringifyJs(&normalized_manifest_entry),
-                    manifest = &client_reference_manifest_json
+                    manifest = &client_reference_manifest_json,
+                    suffix = if runtime_server_deployment_id_available {
+                        formatdoc!{
+                            r#"
+                            for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
+                                const val = {{ ...globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] }}
+                                globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] = val
+                                val.chunks = val.chunks.map((c) => `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`)
+                            }}
+                            "#,
+                            entry_name = StringifyJs(&normalized_manifest_entry),
+                        }
+                    } else {
+                        "".to_string()
+                    }
                 }))
                 .cell(),
-            )
-            .to_resolved()
-            .await?,
+            ).to_resolved().await?,
             references: ResolvedVc::cell(references.into_iter().collect()),
         }
         .cell())
