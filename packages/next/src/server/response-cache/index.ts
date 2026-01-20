@@ -19,7 +19,7 @@ import type { RouteKind } from '../route-kind'
 
 /**
  * Default TTL (in milliseconds) for minimal mode response cache entries.
- * Used for proactive eviction and as a fallback for providers that don't
+ * Used for cache hit validation as a fallback for providers that don't
  * send the x-invocation-id header yet.
  *
  * 10 seconds chosen because:
@@ -66,10 +66,9 @@ export default class ResponseCache implements ResponseCacheBase {
     entry: IncrementalResponseCacheEntry | null
     invocationID: string | undefined
     /**
-     * TTL expiration timestamp in milliseconds. Set for all cache entries
-     * to enable proactive eviction and reduce memory pressure.
-     * Cache hit validation still uses invocationID matching when available,
-     * with TTL as a fallback for providers that don't send x-invocation-id.
+     * TTL expiration timestamp in milliseconds. Used as a fallback for
+     * cache hit validation when providers don't send x-invocation-id.
+     * Memory pressure is managed by LRU eviction rather than timers.
      */
     expiresAt: number
   }>
@@ -161,7 +160,7 @@ export default class ResponseCache implements ResponseCacheBase {
       const cachedItem = this.previousCacheItems.get(key)
       if (cachedItem) {
         // Cache hit validation uses two strategies based on whether invocationID
-        // is provided:
+        // is provided by the infrastructure:
         //
         // 1. With invocationID: Match by exact invocationID
         //    - Each serverless invocation gets isolated cache scope
@@ -169,7 +168,13 @@ export default class ResponseCache implements ResponseCacheBase {
         //
         // 2. Without invocationID: Match by TTL expiration
         //    - Without invocationID, we can't scope by request
-        //    - Use time-based expiration (10s) to prevent indefinite caching
+        //    - Use time-based expiration (default 10s) to prevent indefinite caching
+        //
+        // Note: These two strategies are mutually exclusive by design. Entries
+        // created with an invocationID will only match requests with that same
+        // invocationID, and entries without invocationID will only match requests
+        // without one. This is intentional because infrastructure providers are
+        // consistent—they either always send x-invocation-id or never send it.
         const invocationMatch =
           cachedItem.invocationID !== undefined &&
           cachedItem.invocationID === context.invocationID
@@ -400,9 +405,9 @@ export default class ResponseCache implements ResponseCacheBase {
       // defined.
       if (incrementalResponseCacheEntry.cacheControl) {
         if (this.minimal_mode) {
-          // Set TTL expiration for all entries to enable proactive eviction.
-          // Cache hit validation uses invocationID matching when available,
-          // with TTL as a fallback for providers that don't send x-invocation-id.
+          // Set TTL expiration for cache hit validation. Entries are validated
+          // by invocationID when available, with TTL as a fallback for providers
+          // that don't send x-invocation-id. Memory is managed by LRU eviction.
           const expiresAt = Date.now() + this.ttl
 
           this.previousCacheItems.set(key, {
@@ -410,16 +415,6 @@ export default class ResponseCache implements ResponseCacheBase {
             invocationID,
             expiresAt,
           })
-
-          // Schedule automatic eviction to reduce memory pressure
-          setTimeout(() => {
-            // Use peek() to check without affecting LRU order
-            const item = this.previousCacheItems.peek(key)
-            // Only remove if this is still the same entry (not replaced)
-            if (item?.expiresAt === expiresAt) {
-              this.previousCacheItems.remove(key)
-            }
-          }, this.ttl)
         } else {
           await incrementalCache.set(key, incrementalResponseCacheEntry.value, {
             cacheControl: incrementalResponseCacheEntry.cacheControl,
