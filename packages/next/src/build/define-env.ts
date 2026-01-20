@@ -177,12 +177,10 @@ export function getDefineEnv({
       : isClient
         ? isTurbopack
           ? {
+              // This is set at runtime by packages/next/src/client/register-deployment-id-global.ts
               'process.env.NEXT_DEPLOYMENT_ID': {
                 [DEFINE_ENV_EXPRESSION]: 'globalThis.NEXT_DEPLOYMENT_ID',
               },
-              // TODO replace with read from HTML document attribute
-              'process.env.NEXT_DEPLOYMENT_ID_COMPILE_TIME':
-                config.deploymentId,
             }
           : {
               // For Webpack, we currently don't use the non-inlining globalThis.NEXT_DEPLOYMENT_ID
