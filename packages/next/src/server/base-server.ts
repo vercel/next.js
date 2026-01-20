@@ -726,9 +726,20 @@ export default abstract class Server<
         const localePathResult = this.i18nProvider.analyze(pathname)
 
         // If the locale is detected from the path, we need to remove it
-        // from the pathname.
+        // from the pathname UNLESS it's an App Router route with dynamic
+        // locale segments (e.g., /[lang]/test).
+        // GitHub Issue #86048: App Router routes with [lang] need to keep
+        // the locale prefix so the dynamic segment can capture it.
         if (localePathResult.detectedLocale) {
-          pathname = localePathResult.pathname
+          // Check if this path could belong to App Router with dynamic locale routing
+          const couldBeAppRouterPath = this.appPathRoutes
+            ? this.couldMatchAppRouterDynamicRoute(pathname)
+            : false
+
+          // Only strip the locale if this is NOT an App Router route
+          if (!couldBeAppRouterPath) {
+            pathname = localePathResult.pathname
+          }
         }
 
         // Update the query with the detected locale and default locale.
@@ -1502,7 +1513,18 @@ export default abstract class Server<
 
         if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
           parsedUrl.pathname = parsedMatchedPath.pathname
-          addRequestMeta(req, 'rewroteURL', invokePathnameInfo.pathname)
+
+          // Check if this could be an App Router route - if so, preserve the locale prefix
+          const couldBeAppRouterPath = this.appPathRoutes
+            ? this.couldMatchAppRouterDynamicRoute(parsedMatchedPath.pathname)
+            : false
+
+          // For App Router routes, use the full pathname with locale; otherwise use the stripped version
+          const rewroteURL = couldBeAppRouterPath
+            ? parsedMatchedPath.pathname
+            : invokePathnameInfo.pathname
+
+          addRequestMeta(req, 'rewroteURL', rewroteURL)
         }
         const normalizeResult = normalizeLocalePath(
           removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
@@ -1511,8 +1533,21 @@ export default abstract class Server<
 
         if (normalizeResult.detectedLocale) {
           addRequestMeta(req, 'locale', normalizeResult.detectedLocale)
+
+          // Check if this path could match an App Router route with dynamic locale segment
+          // If so, preserve the locale prefix instead of stripping it
+          const couldBeAppRouterPath = this.appPathRoutes
+            ? this.couldMatchAppRouterDynamicRoute(parsedUrl.pathname)
+            : false
+
+          if (!couldBeAppRouterPath) {
+            // Pages Router path - strip locale as usual
+            parsedUrl.pathname = normalizeResult.pathname
+          }
+          // else: App Router path - keep the full pathname with locale prefix
+        } else {
+          parsedUrl.pathname = normalizeResult.pathname
         }
-        parsedUrl.pathname = normalizeResult.pathname
 
         for (const key of Object.keys(parsedUrl.query)) {
           delete parsedUrl.query[key]
@@ -1708,6 +1743,48 @@ export default abstract class Server<
       appPathRoutes[normalizedPath].push(entry)
     })
     return appPathRoutes
+  }
+
+  // Cache for App Router patterns with dynamic locale segments
+  private appRouteLocalePatterns?: string[]
+
+  /**
+   * Checks if a pathname could match an App Router route with dynamic locale routing.
+   * This is used to prevent Pages Router i18n from stripping locale prefixes that
+   * are meant to be captured by App Router dynamic segments like [lang].
+   *
+   * @param pathname The pathname to check (e.g., /nl-NL/test)
+   * @returns true if this could be an App Router route with dynamic locale routing
+   */
+  protected couldMatchAppRouterDynamicRoute(pathname: string): boolean {
+    if (!this.appPathRoutes) return false
+
+    // Lazy initialize the patterns cache
+    if (!this.appRouteLocalePatterns) {
+      const patterns: string[] = []
+
+      // Extract patterns that start with a dynamic segment
+      for (const pattern of Object.keys(this.appPathRoutes)) {
+        if (!isDynamicRoute(pattern)) continue
+
+        const firstSegment = pattern.split('/').filter(Boolean)[0]
+        if (
+          firstSegment &&
+          firstSegment.startsWith('[') &&
+          firstSegment.endsWith(']')
+        ) {
+          patterns.push(pattern)
+        }
+      }
+
+      this.appRouteLocalePatterns = patterns
+    }
+
+    // Use the shared utility for matching
+    const {
+      couldMatchAppRouterLocaleRoute,
+    } = (require('./lib/i18n/detect-app-router-locale-route') as typeof import('./lib/i18n/detect-app-router-locale-route'))
+    return couldMatchAppRouterLocaleRoute(pathname, this.appRouteLocalePatterns)
   }
 
   protected async run(
@@ -2542,8 +2619,51 @@ export default abstract class Server<
     }
     delete query[NEXT_RSC_UNION_QUERY]
 
+    // Handle i18n with App Router compatibility
+    let i18nResult
+    if (this.i18nProvider) {
+      // Use the rewritten pathname if middleware rewrote it, otherwise use original
+      // Middleware rewrites use 'x-middleware-rewrite' header
+      const middlewareRewrite = req.headers['x-middleware-rewrite']
+      let pathnameToAnalyze = pathname
+
+      if (typeof middlewareRewrite === 'string') {
+        try {
+          const rewriteUrl = new URL(middlewareRewrite)
+          pathnameToAnalyze = rewriteUrl.pathname
+        } catch {
+          // If URL parsing fails, fall back to checking rewroteURL metadata
+          pathnameToAnalyze = getRequestMeta(req, 'rewroteURL') || pathname
+        }
+      } else {
+        pathnameToAnalyze = getRequestMeta(req, 'rewroteURL') || pathname
+      }
+      const localeAnalysis = this.i18nProvider.analyze(pathnameToAnalyze)
+
+      // Check if this could be an App Router route with dynamic locale routing
+      const couldBeAppRouterPath = this.appPathRoutes
+        ? this.couldMatchAppRouterDynamicRoute(pathnameToAnalyze)
+        : false
+
+      if (localeAnalysis.detectedLocale && !couldBeAppRouterPath) {
+        // Strip locale for Pages Router
+        i18nResult = {
+          pathname: localeAnalysis.pathname,
+          detectedLocale: localeAnalysis.detectedLocale,
+          inferredFromDefault: localeAnalysis.inferredFromDefault,
+        }
+      } else {
+        // Keep locale for App Router or no locale detected
+        i18nResult = {
+          pathname: pathnameToAnalyze,
+          detectedLocale: localeAnalysis.detectedLocale,
+          inferredFromDefault: localeAnalysis.inferredFromDefault,
+        }
+      }
+    }
+
     const options: MatchOptions = {
-      i18n: this.i18nProvider?.fromRequest(req, pathname),
+      i18n: i18nResult,
     }
 
     const existingMatch = getRequestMeta(ctx.req, 'match')
@@ -2576,7 +2696,15 @@ export default abstract class Server<
           isDynamicRoute(invokeOutput || '') &&
           invokeOutput !== match.definition.pathname
         ) {
-          continue
+          // For App Router routes with dynamic locale segments, allow child routes
+          // to match even if invokeOutput points to the parent route.
+          // GitHub Issue #86048: invokeOutput may be /[lang] while match is /[lang]/test/page
+          const isChildRoute = match.definition.pathname.startsWith(
+            invokeOutput + '/'
+          )
+          if (!isChildRoute) {
+            continue
+          }
         }
 
         const result = await this.renderPageComponent(

@@ -903,7 +903,15 @@ export default class NextNodeServer extends BaseServer<
   }): Promise<FindComponentsResult | null> {
     const pagePaths: string[] = [page]
 
-    if (locale) {
+    // For App Router routes with dynamic locale segments like /[lang]/...,
+    // we should NOT add the locale prefix because the locale is already
+    // handled by the dynamic segment. This fixes GitHub Issue #86048.
+    const isDynamicLocaleRoute =
+      isAppPath &&
+      page.split('/').filter(Boolean)[0]?.startsWith('[') &&
+      page.split('/').filter(Boolean)[0]?.endsWith(']')
+
+    if (locale && !isDynamicLocaleRoute) {
       pagePaths.unshift(
         ...pagePaths.map((path) => `/${locale}${path === '/' ? '' : path}`)
       )
@@ -1146,8 +1154,30 @@ export default class NextNodeServer extends BaseServer<
       // next.js core assumes page path without trailing slash
       pathname = removeTrailingSlash(pathname)
 
+      // Get i18n analysis result
+      let i18nResult = this.i18nProvider?.fromRequest(req, pathname)
+
+      // For App Router routes with dynamic locale segments (e.g., app/[lang]/...),
+      // we need to preserve the locale prefix in the pathname that the matcher sees.
+      // Otherwise, the Pages Router i18n system will strip it and cause incorrect matching.
+      if (i18nResult) {
+        const couldBeAppRouter =
+          this.couldMatchAppRouterDynamicRoute?.(pathname)
+        // Don't interfere with Pages Router root - if the stripped pathname is '/',
+        // it should be handled by Pages Router, not App Router
+        const isPageRouterRoot = i18nResult.pathname === '/'
+
+        if (couldBeAppRouter && !isPageRouterRoot) {
+          // Preserve the original pathname with locale prefix for App Router matching
+          i18nResult = {
+            ...i18nResult,
+            pathname: pathname,
+          }
+        }
+      }
+
       const options: MatchOptions = {
-        i18n: this.i18nProvider?.fromRequest(req, pathname),
+        i18n: i18nResult,
       }
       const match = await this.matchers.match(pathname, options)
 
