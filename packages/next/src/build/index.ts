@@ -2767,7 +2767,11 @@ export default async function build(
               2
             )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
 
-            let clientMiddlewareManifestPath = config.deploymentId
+            const evaluatedDeploymentId =
+              evaluateDeploymentId(config.deploymentId) ||
+              process.env.NEXT_DEPLOYMENT_ID ||
+              ''
+            let clientMiddlewareManifestPath = evaluatedDeploymentId
               ? path.join(
                   CLIENT_STATIC_FILES_PATH,
                   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
@@ -4127,7 +4131,7 @@ export default async function build(
           distDir,
           buildId,
           locales: config.i18n?.locales,
-          deploymentId: config.deploymentId,
+          deploymentId: evaluateDeploymentId(config.deploymentId),
         })
       } else {
         await writePrerenderManifest(distDir, {

@@ -51,6 +51,8 @@ const IGNORE_CONTENT = new RegExp(
     '.*\\.rsc',
     // These are not critical, as they aren't deployed to the serverless function itself
     '_buildManifest\\.js',
+    '_ssgManifest\\.js',
+    '_clientMiddlewareManifest\\.js',
     'client-build-manifest\\.json',
     'fallback-build-manifest\\.json',
     // Contains the deploymentId which is expected to change between deployments
