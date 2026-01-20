@@ -141,6 +141,7 @@ async fn rule_condition_from_webpack_condition(
                 }
                 None => {}
             }
+           // Add the content condition last since matching requires a more expensive file read.
             if let Some(content) = content {
                 rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
             }
