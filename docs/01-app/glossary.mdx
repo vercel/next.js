@@ -53,7 +53,21 @@ When a component is rendered at [request time](#request-time) rather than [build
 
 [Route segments](#route-segment) that are generated from data at runtime. Created by wrapping a folder name in square brackets (e.g., `[slug]`), they allow you to create routes from dynamic data like blog posts or product pages. Learn more in [Dynamic Route Segments](/docs/app/api-reference/file-conventions/dynamic-routes).
 
+# E
+
+## Environment Variables
+
+Configuration values accessible at build time or runtime. In Next.js, variables prefixed with `NEXT_PUBLIC_` are exposed to the browser, while others are only available server-side. Learn more in [Environment Variables](/docs/app/guides/environment-variables).
+
+## Error Boundary
+
+A React component that catches JavaScript errors in its child component tree and displays a fallback UI. In Next.js, create an [`error.js` file](/docs/app/api-reference/file-conventions/error) to automatically wrap a route segment in an error boundary. Learn more in [Error Handling](/docs/app/getting-started/error-handling).
+
 # F
+
+## Font Optimization
+
+Automatic font optimization using [`next/font`](/docs/app/api-reference/components/font). Next.js self-hosts fonts, eliminates layout shift, and applies best practices for performance. Works with Google Fonts and local font files. Learn more in [Fonts](/docs/app/getting-started/fonts).
 
 ## File-system caching
 
@@ -77,17 +91,35 @@ A technique that allows you to update static content without rebuilding the enti
 
 A routing pattern that allows loading a route from another part of your application within the current layout. Useful for displaying content (like modals) without the user switching context, while keeping the URL shareable. Learn more in [Intercepting Routes](/docs/app/api-reference/file-conventions/intercepting-routes).
 
+## Image Optimization
+
+Automatic image optimization using the [`<Image>` component](/docs/app/api-reference/components/image). Next.js optimizes images on-demand, serves them in modern formats like WebP, and automatically handles lazy loading and responsive sizing. Learn more in [Images](/docs/app/getting-started/images).
+
 # L
 
 ## Layout
 
 UI that is shared between multiple pages. Layouts preserve state, remain interactive, and do not re-render on navigation. Defined by exporting a React component from a [`layout.js` file](/docs/app/api-reference/file-conventions/layout). Learn more in [Layouts and Pages](/docs/app/getting-started/layouts-and-pages).
 
+## Loading UI
+
+Fallback UI shown while a [route segment](#route-segment) is loading. Created by adding a [`loading.js` file](/docs/app/api-reference/file-conventions/loading) to a folder, which automatically wraps the page in a [Suspense boundary](#suspense-boundary). Learn more in [Loading UI](/docs/app/api-reference/file-conventions/loading).
+
 # M
+
+## Metadata
+
+Information about a page used by browsers and search engines, such as title, description, and Open Graph images. In Next.js, define metadata using the [`metadata` export](/docs/app/api-reference/functions/generate-metadata) or [`generateMetadata` function](/docs/app/api-reference/functions/generate-metadata) in layout or page files. Learn more in [Metadata and OG Images](/docs/app/getting-started/metadata-and-og-images).
 
 ## Memoization
 
 Caching the return value of a function so that calling the same function multiple times during a render pass (request) only executes it once. In Next.js, fetch requests with the same URL and options are automatically memoized. Learn more about [React Cache](https://react.dev/reference/react/cache).
+
+# N
+
+## Not Found
+
+A special component shown when a route doesn't exist or when the [`notFound()` function](/docs/app/api-reference/functions/not-found) is called. Created by adding a [`not-found.js` file](/docs/app/api-reference/file-conventions/not-found) to your app directory. Learn more in [Error Handling](/docs/app/getting-started/error-handling#not-found-errors).
 
 # P
 
@@ -117,6 +149,10 @@ A file ([`proxy.js`](/docs/app/api-reference/file-conventions/proxy)) that runs 
 
 # R
 
+## Redirect
+
+Sending users from one URL to another. In Next.js, redirects can be configured in [`next.config.js`](/docs/app/api-reference/config/next-config-js/redirects), returned from [Proxy](/docs/app/api-reference/file-conventions/proxy), or triggered programmatically with the [`redirect()` function](/docs/app/api-reference/functions/redirect). Learn more in [Redirecting](/docs/app/guides/redirecting).
+
 ## Request time
 
 The time when a user makes a request to your application. At request time, dynamic routes are rendered, cookies and headers are accessible, and request-specific data can be used.
@@ -124,6 +160,14 @@ The time when a user makes a request to your application. At request time, dynam
 ## Revalidation
 
 The process of updating cached data. Can be time-based (using [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) to set cache duration) or on-demand (using [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) to tag data, then [`updateTag()`](/docs/app/api-reference/functions/updateTag) to invalidate). Learn more in [Caching and Revalidating](/docs/app/getting-started/caching-and-revalidating).
+
+## Rewrite
+
+Mapping an incoming request path to a different destination path without changing the URL in the browser. Configured in [`next.config.js`](/docs/app/api-reference/config/next-config-js/rewrites) or returned from [Proxy](/docs/app/api-reference/file-conventions/proxy). Useful for proxying to external services or legacy URLs.
+
+## Route Groups
+
+A way to organize routes without affecting the URL structure. Created by wrapping a folder name in parentheses (e.g., `(marketing)`), route groups help organize related routes and enable per-group [layouts](#layout). Learn more in [Route Groups](/docs/app/api-reference/file-conventions/route-groups).
 
 ## Route Handler
 
@@ -147,15 +191,31 @@ The default component type in the App Router. Server Components render on the se
 
 An asynchronous function that runs on the server, marked with the [`"use server"` directive](/docs/app/api-reference/directives/use-server). Server Functions can be invoked from Client Components and are commonly used for form submissions and data mutations. Learn more in [React Server Functions](https://react.dev/reference/rsc/server-functions).
 
+## Static Export
+
+A deployment mode that generates a fully static site with HTML, CSS, and JavaScript files. Enabled by setting `output: 'export'` in `next.config.js`. Static exports can be hosted on any static file server without a Node.js server. Learn more in [Static Exports](/docs/app/guides/static-exports).
+
 ## Static rendering
 
 When a component is rendered at [build time](#build-time) or in the background during [revalidation](#revalidation). The result is cached and can be served from a CDN. Static rendering is the default for components that don't use [Dynamic APIs](#dynamic-apis).
+
+## Static shell
+
+The pre-rendered HTML structure of a page that's served immediately to the browser. With [Partial Prerendering](#partial-prerendering-ppr), the static shell includes all statically renderable content plus [Suspense boundary](#suspense-boundary) fallbacks for dynamic content that streams in later.
 
 ## Streaming
 
 A technique that allows the server to send parts of a page to the client as they become ready, rather than waiting for the entire page to render. Enabled automatically with [`loading.js`](/docs/app/api-reference/file-conventions/loading) or manual `<Suspense>` boundaries. Learn more in [Linking and Navigating - Streaming](/docs/app/getting-started/linking-and-navigating#streaming).
 
+## Suspense boundary
+
+A React [`<Suspense>`](https://react.dev/reference/react/Suspense) component that wraps async content and displays fallback UI while it loads. In Next.js, Suspense boundaries define where the [static shell](#static-shell) ends and [streaming](#streaming) begins, enabling [Partial Prerendering](#partial-prerendering-ppr).
+
 # T
+
+## Turbopack
+
+A fast, Rust-based bundler built for Next.js. Turbopack is the default bundler for `next dev` and available for `next build`. It provides significantly faster compilation times compared to Webpack. Learn more in [Turbopack](/docs/app/api-reference/turbopack).
 
 ## Tree Shaking
 
