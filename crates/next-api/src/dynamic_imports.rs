@@ -30,24 +30,29 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
+    chunk::{ChunkGroupResult, ChunkableModule},
     module::Module,
-    module_graph::{ModuleGraph, ModuleGraphLayer},
+    module_graph::ModuleGraphLayer,
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use crate::module_graph::DynamicImportEntriesWithImporter;
 
 pub(crate) enum NextDynamicChunkAvailability<'a> {
-    /// In App Router, the client references
+    /// In App Router, the client references chunks contain the async loaders
     ClientReferences(&'a ClientReferencesChunks),
-    /// In Pages Router, the base page chunk group
-    AvailabilityInfo(AvailabilityInfo),
+    /// In Pages Router, the base page chunk group result
+    PageChunkGroup(&'a ChunkGroupResult),
 }
 
+/// Collects the chunk outputs for next/dynamic imports by looking up pre-computed
+/// async loaders from the chunk group results.
+///
+/// This function no longer recomputes chunks - instead it looks up the async loader
+/// outputs that were already computed by `make_chunk_group` when the parent chunk
+/// groups were created. This ensures consistency between the manifest and the actual
+/// chunks served at runtime.
 pub(crate) async fn collect_next_dynamic_chunks(
-    module_graph: Vc<ModuleGraph>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
     dynamic_import_entries: ReadRef<DynamicImportEntriesWithImporter>,
     chunking_availability: NextDynamicChunkAvailability<'_>,
 ) -> Result<ResolvedVc<DynamicImportedChunks>> {
@@ -57,48 +62,38 @@ pub(crate) async fn collect_next_dynamic_chunks(
         .map(|(dynamic_entry, parent_client_reference)| async move {
             let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
 
-            // This is the availability info for the parent chunk group, i.e. the client reference
-            // containing the next/dynamic imports
-            let availability_info = match chunking_availability {
+            // Look up the pre-computed async loader from the parent chunk group
+            let async_loader = match chunking_availability {
                 NextDynamicChunkAvailability::ClientReferences(client_reference_chunks) => {
-                    client_reference_chunks
+                    // For App Router: look up the chunk group for the parent client reference,
+                    // then find the async loader for this dynamic entry
+                    let parent_ref = parent_client_reference
+                        .context("Parent client reference not found for next/dynamic import")?;
+                    let chunk_group = client_reference_chunks
                         .client_component_client_chunks
-                        .get(
-                            &parent_client_reference.context(
-                                "Parent client reference not found for next/dynamic import",
-                            )?,
-                        )
+                        .get(&parent_ref)
                         .context("Client reference chunk group not found for next/dynamic import")?
-                        .await?
-                        .availability_info
+                        .await?;
+                    // Copy the ResolvedVc out of the map to avoid lifetime issues
+                    *chunk_group.async_loaders_by_module.get(&module).context(
+                        "Dynamic entry not found in async loaders - this may indicate the dynamic \
+                         import is not reachable from the client reference",
+                    )?
                 }
-                NextDynamicChunkAvailability::AvailabilityInfo(availability_info) => {
-                    *availability_info
+                NextDynamicChunkAvailability::PageChunkGroup(chunk_group) => {
+                    // For Pages Router: look up directly in the page's chunk group
+                    // Copy the ResolvedVc out of the map to avoid lifetime issues
+                    *chunk_group.async_loaders_by_module.get(&module).context(
+                        "Dynamic entry not found in async loaders - this may indicate the dynamic \
+                         import is not reachable from the page entry",
+                    )?
                 }
             };
 
-            // Apply the same .in_async_module() transformation that make_chunk_group applies
-            // in chunk_group.rs. This ensures the availability_info used for generating
-            // react-loadable-manifest.json matches the availability_info used when the
-            // actual chunks are created during runtime, producing consistent hashes.
-            // See: turbopack/crates/turbopack-core/src/chunk/chunk_group.rs:118-123
-            let is_nested_async_availability_enabled = *chunking_context
-                .is_nested_async_availability_enabled()
-                .await?;
-            let async_availability_info = if is_nested_async_availability_enabled
-                || !availability_info.is_in_async_module()
-            {
-                availability_info.in_async_module()
-            } else {
-                availability_info
-            };
-
-            let async_loader = chunking_context.async_loader_chunk_item(
-                *module,
-                module_graph,
-                async_availability_info,
-            );
-            let async_chunk_group = async_loader.references().to_resolved().await?;
+            // Get the output assets from the async loader reference
+            // Upcast to OutputAssetsReference to call references()
+            let async_loader_ref: Vc<Box<dyn OutputAssetsReference>> = Vc::upcast(*async_loader);
+            let async_chunk_group = async_loader_ref.references().to_resolved().await?;
 
             Ok((*dynamic_entry, (*dynamic_entry, async_chunk_group)))
         })
