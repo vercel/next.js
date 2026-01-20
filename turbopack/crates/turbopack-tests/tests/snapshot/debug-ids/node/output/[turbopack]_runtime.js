@@ -814,6 +814,12 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
  */ function isJs(chunkUrlOrPath) {
     return regexJsUrl.test(chunkUrlOrPath);
 }
+function __turbopack_server_hmr_apply__(_update) {
+    // TODO: Implement actual HMR logic to update module factories
+    // For now, just return true to indicate we "accepted" the update
+    return true;
+}
+globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__;
 module.exports = (sourcePath)=>({
         m: (id)=>getOrInstantiateRuntimeModule(sourcePath, id),
         c: (chunkData)=>loadRuntimeChunk(sourcePath, chunkData)

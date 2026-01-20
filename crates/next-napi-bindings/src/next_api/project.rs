@@ -1234,6 +1234,35 @@ fn project_client_hmr_update_operation(
     project.client_hmr_update(identifier, *state)
 }
 
+#[turbo_tasks::function(operation)]
+fn project_server_hmr_update_operation(
+    project: ResolvedVc<Project>,
+    identifier: RcStr,
+    state: ResolvedVc<VersionState>,
+) -> Vc<Update> {
+    project.server_hmr_update(identifier, *state)
+}
+
+#[turbo_tasks::function(operation)]
+async fn server_hmr_update_with_issues_operation(
+    project: ResolvedVc<Project>,
+    identifier: RcStr,
+    state: ResolvedVc<VersionState>,
+) -> Result<Vc<HmrUpdateWithIssues>> {
+    let update_op = project_server_hmr_update_operation(project, identifier, state);
+    let update = update_op.read_strongly_consistent().await?;
+    let issues = get_issues(update_op, NEXT_ISSUE_FILTER).await?;
+    let diagnostics = get_diagnostics(update_op).await?;
+    let effects = Arc::new(get_effects(update_op).await?);
+    Ok(HmrUpdateWithIssues {
+        update,
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
+}
+
 #[tracing::instrument(level = "info", name = "get HMR events", skip(project, func))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_client_hmr_events(
@@ -1261,6 +1290,91 @@ pub fn project_client_hmr_events(
 
                     let update_op =
                         client_hmr_update_with_issues_operation(project, identifier.clone(), state);
+                    let update = update_op.read_strongly_consistent().await?;
+                    let HmrUpdateWithIssues {
+                        update,
+                        issues,
+                        diagnostics,
+                        effects,
+                    } = &*update;
+                    effects.apply().await?;
+                    match &**update {
+                        Update::Missing | Update::None => {}
+                        Update::Total(TotalUpdate { to }) => {
+                            state.set(to.clone()).await?;
+                        }
+                        Update::Partial(PartialUpdate { to, .. }) => {
+                            state.set(to.clone()).await?;
+                        }
+                    }
+                    Ok((Some(update.clone()), issues.clone(), diagnostics.clone()))
+                }
+            }
+        },
+        move |ctx| {
+            let (update, issues, diags) = ctx.value;
+
+            let napi_issues = issues
+                .iter()
+                .map(|issue| NapiIssue::from(&**issue))
+                .collect();
+            let update_issues = issues
+                .iter()
+                .map(|issue| Issue::from(&**issue))
+                .collect::<Vec<_>>();
+
+            let identifier = ResourceIdentifier {
+                path: identifier.clone(),
+                headers: None,
+            };
+            let update = match update.as_deref() {
+                None | Some(Update::Missing) | Some(Update::Total(_)) => {
+                    ClientUpdateInstruction::restart(&identifier, &update_issues)
+                }
+                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
+                    &identifier,
+                    &update.instruction,
+                    &update_issues,
+                ),
+                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
+            };
+
+            Ok(vec![TurbopackResult {
+                result: ctx.env.to_js_value(&update)?,
+                issues: napi_issues,
+                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+            }])
+        },
+    )
+}
+
+#[tracing::instrument(level = "info", name = "get server HMR events", skip(project, func))]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn project_server_hmr_events(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    identifier: RcStr,
+    func: JsFunction,
+) -> napi::Result<External<RootTask>> {
+    let container = project.container;
+    let session = TransientInstance::new(());
+    subscribe(
+        project.turbopack_ctx.clone(),
+        func,
+        {
+            let outer_identifier = identifier.clone();
+            let session = session.clone();
+            move || {
+                let identifier: RcStr = outer_identifier.clone();
+                let session = session.clone();
+                async move {
+                    let project = container.project().to_resolved().await?;
+                    let state = project
+                        .server_hmr_version_state(identifier.clone(), session)
+                        .to_resolved()
+                        .await?;
+
+                    let update_op =
+                        server_hmr_update_with_issues_operation(project, identifier.clone(), state);
                     let update = update_op.read_strongly_consistent().await?;
                     let HmrUpdateWithIssues {
                         update,
@@ -1357,6 +1471,31 @@ fn project_container_client_hmr_identifiers_operation(
     container.client_hmr_identifiers()
 }
 
+#[turbo_tasks::function(operation)]
+fn project_server_hmr_identifiers_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Vc<Vec<RcStr>> {
+    container.project().server_hmr_identifiers()
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_server_hmr_identifiers_with_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<HmrIdentifiersWithIssues>> {
+    let hmr_identifiers_op = project_server_hmr_identifiers_operation(container);
+    let hmr_identifiers = hmr_identifiers_op.read_strongly_consistent().await?;
+    let issues = get_issues(hmr_identifiers_op, NEXT_ISSUE_FILTER).await?;
+    let diagnostics = get_diagnostics(hmr_identifiers_op).await?;
+    let effects = Arc::new(get_effects(hmr_identifiers_op).await?);
+    Ok(HmrIdentifiersWithIssues {
+        identifiers: hmr_identifiers,
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
+}
+
 #[tracing::instrument(level = "info", name = "get HMR identifiers", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_client_hmr_identifiers_subscribe(
@@ -1370,6 +1509,51 @@ pub fn project_client_hmr_identifiers_subscribe(
         move || async move {
             let hmr_identifiers_with_issues_op =
                 get_client_hmr_identifiers_with_issues_operation(container);
+            let HmrIdentifiersWithIssues {
+                identifiers,
+                issues,
+                diagnostics,
+                effects,
+            } = &*hmr_identifiers_with_issues_op
+                .read_strongly_consistent()
+                .await?;
+            effects.apply().await?;
+
+            Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
+        },
+        move |ctx| {
+            let (identifiers, issues, diagnostics) = ctx.value;
+
+            Ok(vec![TurbopackResult {
+                result: HmrIdentifiers {
+                    identifiers: ReadRef::into_owned(identifiers),
+                },
+                issues: issues
+                    .iter()
+                    .map(|issue| NapiIssue::from(&**issue))
+                    .collect(),
+                diagnostics: diagnostics
+                    .iter()
+                    .map(|d| NapiDiagnostic::from(d))
+                    .collect(),
+            }])
+        },
+    )
+}
+
+#[tracing::instrument(level = "info", name = "get server HMR identifiers", skip_all)]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn project_server_hmr_identifiers_subscribe(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    func: JsFunction,
+) -> napi::Result<External<RootTask>> {
+    let container = project.container;
+    subscribe(
+        project.turbopack_ctx.clone(),
+        func,
+        move || async move {
+            let hmr_identifiers_with_issues_op =
+                get_server_hmr_identifiers_with_issues_operation(container);
             let HmrIdentifiersWithIssues {
                 identifiers,
                 issues,

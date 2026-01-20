@@ -337,6 +337,14 @@ function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
   return regexJsUrl.test(chunkUrlOrPath)
 }
 
+function __turbopack_server_hmr_apply__(_update: any): boolean {
+  // TODO: Implement actual HMR logic to update module factories
+  // For now, just return true to indicate we "accepted" the update
+  return true
+}
+
+globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__
+
 module.exports = (sourcePath: ChunkPath) => ({
   m: (id: ModuleId) => getOrInstantiateRuntimeModule(sourcePath, id),
   c: (chunkData: ChunkData) => loadRuntimeChunk(sourcePath, chunkData),

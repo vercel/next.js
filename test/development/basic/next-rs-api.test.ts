@@ -667,12 +667,12 @@ describe('next.rs api', () => {
           }
         }
 
-        const result = await project.hmrIdentifiersSubscribe().next()
+        const result = await project.clientHmrIdentifiersSubscribe().next()
         expect(result.done).toBe(false)
         const identifiers = result.value.identifiers
         expect(identifiers).toHaveProperty('length', expect.toBePositive())
         const subscriptions = identifiers.map((identifier) =>
-          project.hmrEvents(identifier)
+          project.clientHmrEvents(identifier)
         )
         await Promise.all(
           subscriptions.map(async (subscription) => {
@@ -794,12 +794,12 @@ describe('next.rs api', () => {
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()
 
-    const result = await project.hmrIdentifiersSubscribe().next()
+    const result = await project.clientHmrIdentifiersSubscribe().next()
     expect(result.done).toBe(false)
     const identifiers = result.value.identifiers
 
     const subscriptions = identifiers.map((identifier) =>
-      project.hmrEvents(identifier)
+      project.clientHmrEvents(identifier)
     )
     await Promise.all(
       subscriptions.map(async (subscription) => {

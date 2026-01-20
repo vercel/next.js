@@ -24,6 +24,8 @@ import type {
   TurbopackResult,
   Project,
   Entrypoints,
+  NodeJsHmrUpdate,
+  NodeJsPartialHmrUpdate,
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
@@ -143,6 +145,90 @@ const isTestMode = !!(
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
+
+declare const __turbopack_server_hmr_apply__:
+  | ((update: NodeJsPartialHmrUpdate) => boolean)
+  | undefined
+
+function setupServerHmr(project: Project) {
+  const serverHmrSubscriptions = new Map<
+    string,
+    AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+  >()
+
+  function subscribeToServerHmr(identifier: string) {
+    if (serverHmrSubscriptions.has(identifier)) {
+      return
+    }
+
+    const subscription = project.serverHmrEvents(identifier)
+    serverHmrSubscriptions.set(identifier, subscription)
+
+    // Start listening for changes in background
+    ;(async () => {
+      // Skip initial state
+      await subscription.next()
+
+      for await (const result of subscription) {
+        const update = result as NodeJsHmrUpdate
+
+        // Only process partial updates with actual code changes
+        if (update.type !== 'partial') {
+          continue
+        }
+
+        const entries = update.instruction?.entries
+        if (!entries || Object.keys(entries).length === 0) {
+          continue
+        }
+
+        if (typeof __turbopack_server_hmr_apply__ === 'function') {
+          const applied = __turbopack_server_hmr_apply__(update as any)
+          if (applied) {
+            // TODO: Notify clients to refresh and get updated server content
+            // This will trigger the client to re-fetch the page with new server components
+          }
+        }
+      }
+    })().catch((err) => {
+      console.error('[Server HMR] Subscription error:', err)
+      serverHmrSubscriptions.delete(identifier)
+    })
+  }
+
+  // Listen to the Rust bindings update us on changing server HMR identifiers
+  ;(async () => {
+    const serverHmrIdentifiers = project.serverHmrIdentifiersSubscribe()
+
+    // Process identifiers (both initial and subsequent updates)
+    for await (const data of serverHmrIdentifiers) {
+      const currentIdentifiers = new Set(
+        data.identifiers.filter((id) => id.endsWith('.js'))
+      )
+
+      // Clean up subscriptions for removed identifiers (like when pages are deleted)
+      const identifiersToRemove = []
+      for (const identifier of serverHmrSubscriptions.keys()) {
+        if (!currentIdentifiers.has(identifier)) {
+          identifiersToRemove.push(identifier)
+        }
+      }
+
+      for (const identifier of identifiersToRemove) {
+        const subscription = serverHmrSubscriptions.get(identifier)
+        subscription?.return?.()
+        serverHmrSubscriptions.delete(identifier)
+      }
+
+      // Subscribe to HMR events for new server modules
+      for (const identifier of currentIdentifiers) {
+        if (!serverHmrSubscriptions.has(identifier)) {
+          subscribeToServerHmr(identifier)
+        }
+      }
+    }
+  })()
+}
 
 /**
  * Replaces turbopack:///[project] with the specified project in the `source` field.
@@ -513,6 +599,8 @@ export async function createHotReloaderTurbopack(
     }
   }
 
+  setupServerHmr(project)
+
   let hmrEventHappened = false
   let hmrHash = 0
 
@@ -606,7 +694,7 @@ export async function createHotReloaderTurbopack(
     sendEnqueuedMessagesDebounce()
   }
 
-  async function subscribeToChanges(
+  async function subscribeToClientChanges(
     key: EntryKey,
     includeIssues: boolean,
     endpoint: Endpoint,
@@ -648,7 +736,7 @@ export async function createHotReloaderTurbopack(
     changeSubscriptions.delete(key)
   }
 
-  async function unsubscribeFromChanges(key: EntryKey) {
+  async function unsubscribeFromClientChanges(key: EntryKey) {
     const subscription = await changeSubscriptions.get(key)
     if (subscription) {
       await subscription.return?.()
@@ -657,7 +745,7 @@ export async function createHotReloaderTurbopack(
     currentEntryIssues.delete(key)
   }
 
-  async function subscribeToHmrEvents(client: ws, id: string) {
+  async function subscribeToClientHmrEvents(client: ws, id: string) {
     const key = getEntryKey('assets', 'client', id)
     if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
       // maybe throw an error / force the client to reload?
@@ -698,7 +786,7 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  function unsubscribeFromHmrEvents(client: ws, id: string) {
+  function unsubscribeFromClientHmrEvents(client: ws, id: string) {
     const state = clientStates.get(client)
     if (!state) {
       return
@@ -775,9 +863,9 @@ export async function createHotReloaderTurbopack(
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
             startBuilding,
-            subscribeToChanges,
-            unsubscribeFromChanges,
-            unsubscribeFromHmrEvents,
+            subscribeToChanges: subscribeToClientChanges,
+            unsubscribeFromChanges: unsubscribeFromClientChanges,
+            unsubscribeFromHmrEvents: unsubscribeFromClientHmrEvents,
           },
         },
       })
@@ -1132,11 +1220,11 @@ export async function createHotReloaderTurbopack(
           // Turbopack messages
           switch (parsedData.type) {
             case 'turbopack-subscribe':
-              subscribeToHmrEvents(client, parsedData.path)
+              subscribeToClientHmrEvents(client, parsedData.path)
               break
 
             case 'turbopack-unsubscribe':
-              unsubscribeFromHmrEvents(client, parsedData.path)
+              unsubscribeFromClientHmrEvents(client, parsedData.path)
               break
 
             default:
@@ -1446,7 +1534,7 @@ export async function createHotReloaderTurbopack(
                 productionRewrites: undefined,
                 logErrors: true,
                 hooks: {
-                  subscribeToChanges,
+                  subscribeToChanges: subscribeToClientChanges,
                   handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result)
                     assetMapper.setPathsForKey(id, result.clientPaths)
@@ -1514,7 +1602,7 @@ export async function createHotReloaderTurbopack(
               logErrors: true,
 
               hooks: {
-                subscribeToChanges,
+                subscribeToChanges: subscribeToClientChanges,
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
