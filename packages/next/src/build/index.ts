@@ -956,7 +956,6 @@ export default async function build(
         NextBuildContext.preservedDeploymentId || process.env.NEXT_DEPLOYMENT_ID
       if (preservedDeploymentId) {
         NextBuildContext.preservedDeploymentId = preservedDeploymentId
-        process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
       }
 
       const { loadedEnvFiles, combinedEnv } = nextBuildSpan
@@ -970,6 +969,7 @@ export default async function build(
         NextBuildContext.preservedDeploymentId = process.env.NEXT_DEPLOYMENT_ID
       } else if (combinedEnv.NEXT_DEPLOYMENT_ID) {
         process.env.NEXT_DEPLOYMENT_ID = combinedEnv.NEXT_DEPLOYMENT_ID
+        NextBuildContext.preservedDeploymentId = combinedEnv.NEXT_DEPLOYMENT_ID
       }
 
       const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
