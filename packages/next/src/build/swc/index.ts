@@ -29,6 +29,7 @@ import type {
   Endpoint,
   HmrIdentifiers,
   Lockfile,
+  NodeJsHmrUpdate,
   PartialProjectOptions,
   Project,
   ProjectOptions,
@@ -750,6 +751,29 @@ function bindingToApi(
         false,
         async (callback) =>
           binding.projectClientHmrIdentifiersSubscribe(
+            this._nativeProject,
+            callback
+          )
+      )
+    }
+
+    serverHmrEvents(identifier: string) {
+      return subscribe<TurbopackResult<NodeJsHmrUpdate>>(
+        true,
+        async (callback) =>
+          binding.projectServerHmrEvents(
+            this._nativeProject,
+            identifier,
+            callback
+          )
+      )
+    }
+
+    serverHmrIdentifiersSubscribe() {
+      return subscribe<TurbopackResult<HmrIdentifiers>>(
+        false,
+        async (callback) =>
+          binding.projectServerHmrIdentifiersSubscribe(
             this._nativeProject,
             callback
           )
