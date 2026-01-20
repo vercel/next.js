@@ -165,12 +165,6 @@ describe('resolveAndSetDeploymentId', () => {
         'contains invalid characters'
       )
     })
-
-    it('should handle whitespace-only NEXT_DEPLOYMENT_ID when source is env-var', () => {
-      process.env.NEXT_DEPLOYMENT_ID = '   '
-      const result = resolveAndSetDeploymentId(undefined, 'env-var')
-      expect(result).toBe('   ')
-    })
   })
 
   describe('Character validation', () => {

@@ -3,6 +3,9 @@ import { NextInstance } from 'e2e-utils'
 
 describe('deploymentId function support', () => {
   let next: NextInstance | undefined
+  // Generate unique deployment IDs for each test run to avoid Vercel conflicts
+  // Use a short unique ID to stay within 32 character limit
+  const uniqueId = Date.now().toString(36).slice(-6)
 
   afterEach(async () => {
     if (next) {
@@ -30,7 +33,7 @@ describe('deploymentId function support', () => {
         `,
         'next.config.js': `
           module.exports = {
-            deploymentId: 'my-static-deployment-id'
+            deploymentId: 'my-static-deployment-id-${uniqueId}'
           }
         `,
       },
@@ -62,7 +65,7 @@ describe('deploymentId function support', () => {
         'next.config.js': `
           module.exports = {
             deploymentId: () => {
-              return 'my-function-deployment-id'
+              return 'my-function-deployment-id-${uniqueId}'
             }
           }
         `,
@@ -101,7 +104,7 @@ describe('deploymentId function support', () => {
         `,
       },
       env: {
-        CUSTOM_DEPLOYMENT_ID: 'env-deployment-id',
+        CUSTOM_DEPLOYMENT_ID: `env-deployment-id-${uniqueId}`,
       },
       dependencies: {},
     })
@@ -134,7 +137,7 @@ describe('deploymentId function support', () => {
               useSkewCookie: true
             },
             deploymentId: () => {
-              return 'skew-cookie-deployment-id'
+              return 'skew-cookie-deployment-id-${uniqueId}'
             }
           }
         `,
@@ -152,7 +155,9 @@ describe('deploymentId function support', () => {
       expect(setCookieHeader).toMatch(/__vdpl=dpl_[^;]+/)
     } else {
       // Prebuild mode: expect user-configured deployment ID
-      expect(setCookieHeader).toContain('__vdpl=skew-cookie-deployment-id')
+      expect(setCookieHeader).toContain(
+        `__vdpl=skew-cookie-deployment-id-${uniqueId}`
+      )
     }
   })
 

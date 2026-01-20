@@ -925,16 +925,9 @@ function assignDefaultsAndValidate(
     }
   }
 
-  // Evaluate deploymentId early if it's a function, so it's available as a string
-  // User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID env var
-  // This ensures the function is only called once and the result is cached
   if (result.deploymentId != null) {
     result.deploymentId = evaluateDeploymentId(result.deploymentId)
   }
-  // Don't set process.env['NEXT_DEPLOYMENT_ID'] here - resolveAndSetDeploymentId() in build/index.ts
-  // will validate and set it after validation to prevent invalid IDs from being set
-  // Don't set result.deploymentId from NEXT_DEPLOYMENT_ID to preserve distinction
-  // between user-configured and env-var-sourced IDs for validation in build/index.ts
 
   if (
     result.experimental.runtimeServerDeploymentId == null &&

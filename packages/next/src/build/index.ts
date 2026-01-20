@@ -10,7 +10,7 @@ import type { CacheControl, Revalidate } from '../server/lib/cache-control'
 
 import '../lib/setup-exception-listeners'
 
-import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
+import { loadEnvConfig, type LoadedEnvFiles, initialEnv } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
@@ -926,6 +926,11 @@ export default async function build(
   let loadedConfig: NextConfigComplete | undefined
   let staticWorker: StaticWorker
   try {
+    const preservedDeploymentIdAtStart = process.env.NEXT_DEPLOYMENT_ID
+    if (preservedDeploymentIdAtStart) {
+      NextBuildContext.preservedDeploymentId = preservedDeploymentIdAtStart
+    }
+
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
       version: process.env.__NEXT_VERSION as string,
@@ -939,11 +944,25 @@ export default async function build(
     NextBuildContext.debugPrerender = debugPrerender
 
     await nextBuildSpan.traceAsyncFn(async () => {
-      // attempt to load global env values so they are available in next.config.js
-      const { loadedEnvFiles } = nextBuildSpan
+      const preservedDeploymentId =
+        NextBuildContext.preservedDeploymentId || process.env.NEXT_DEPLOYMENT_ID
+      if (preservedDeploymentId) {
+        NextBuildContext.preservedDeploymentId = preservedDeploymentId
+        process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
+      }
+
+      const { loadedEnvFiles, combinedEnv } = nextBuildSpan
         .traceChild('load-dotenv')
         .traceFn(() => loadEnvConfig(dir, false, Log))
       NextBuildContext.loadedEnvFiles = loadedEnvFiles
+
+      if (preservedDeploymentId) {
+        process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
+      } else if (process.env.NEXT_DEPLOYMENT_ID) {
+        NextBuildContext.preservedDeploymentId = process.env.NEXT_DEPLOYMENT_ID
+      } else if (combinedEnv.NEXT_DEPLOYMENT_ID) {
+        process.env.NEXT_DEPLOYMENT_ID = combinedEnv.NEXT_DEPLOYMENT_ID
+      }
 
       const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
       let experimentalFeatures: ConfiguredExperimentalFeature[] = []
@@ -968,16 +987,37 @@ export default async function build(
         )
       loadedConfig = config
 
-      // Reading the config can modify environment variables that influence the bundler selection.
+      if (preservedDeploymentId) {
+        process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
+      } else if (process.env.NEXT_DEPLOYMENT_ID) {
+        NextBuildContext.preservedDeploymentId = process.env.NEXT_DEPLOYMENT_ID
+      } else if (combinedEnv.NEXT_DEPLOYMENT_ID) {
+        process.env.NEXT_DEPLOYMENT_ID = combinedEnv.NEXT_DEPLOYMENT_ID
+      }
+
       bundler = finalizeBundlerFromConfig(bundler)
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
-      // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
+
+      let currentDeploymentId =
+        NextBuildContext.preservedDeploymentId ||
+        preservedDeploymentId ||
+        process.env.NEXT_DEPLOYMENT_ID ||
+        initialEnv?.NEXT_DEPLOYMENT_ID ||
+        combinedEnv.NEXT_DEPLOYMENT_ID
+
+      if (!config.deploymentId && currentDeploymentId) {
+        process.env['NEXT_DEPLOYMENT_ID'] = currentDeploymentId
+      }
 
       config.deploymentId = resolveAndSetDeploymentId(
         config.deploymentId,
-        config.deploymentId != null ? 'user-config' : 'env-var'
+        config.deploymentId != null ? 'user-config' : 'env-var',
+        currentDeploymentId || undefined
       )
+      if (config.deploymentId) {
+        process.env['NEXT_DEPLOYMENT_ID'] = config.deploymentId
+      }
       NextBuildContext.config = config
 
       let configOutDir = 'out'

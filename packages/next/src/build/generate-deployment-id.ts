@@ -30,14 +30,37 @@ type DeploymentIdSource = 'user-config' | 'env-var'
  *
  * @param configDeploymentId - The deploymentId from config (can be string, function, or undefined)
  * @param source - Source indicator: 'user-config' treats as user-configured (validates), 'env-var' uses NEXT_DEPLOYMENT_ID
+ * @param fallbackDeploymentId - Optional fallback deployment ID to use if process.env.NEXT_DEPLOYMENT_ID is empty
  * @returns The resolved deploymentId string to use
  */
 export function resolveAndSetDeploymentId(
   configDeploymentId: string | (() => string) | undefined,
-  source: DeploymentIdSource
+  source: DeploymentIdSource,
+  fallbackDeploymentId?: string
 ): string {
   if (source === 'env-var') {
-    return process.env['NEXT_DEPLOYMENT_ID'] || ''
+    let envDeploymentId = process.env['NEXT_DEPLOYMENT_ID'] || ''
+
+    if (!envDeploymentId && fallbackDeploymentId) {
+      envDeploymentId = fallbackDeploymentId
+      process.env['NEXT_DEPLOYMENT_ID'] = fallbackDeploymentId
+    }
+    if (envDeploymentId.length > 0) {
+      if (envDeploymentId.length > 32) {
+        throw new Error(
+          `The deploymentId "${envDeploymentId}" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId. https://nextjs.org/docs/messages/deploymentid-too-long`
+        )
+      }
+      const validCharacterPattern = /^[a-zA-Z0-9_-]+$/
+      if (!validCharacterPattern.test(envDeploymentId)) {
+        throw new Error(
+          `The deploymentId "${envDeploymentId}" contains invalid characters. Only alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), and underscores (_) are allowed. https://nextjs.org/docs/messages/deploymentid-invalid-characters`
+        )
+      }
+      process.env['NEXT_DEPLOYMENT_ID'] = envDeploymentId
+      return envDeploymentId
+    }
+    return ''
   }
 
   let userConfiguredDeploymentId: string | undefined
@@ -48,14 +71,13 @@ export function resolveAndSetDeploymentId(
   }
 
   if (userConfiguredDeploymentId !== undefined) {
-    // Empty string is treated as "not configured" - fall back to env var
     if (userConfiguredDeploymentId.length === 0) {
       return process.env['NEXT_DEPLOYMENT_ID'] || ''
     }
 
     if (userConfiguredDeploymentId.length > 32) {
       throw new Error(
-        `The deploymentId "${userConfiguredDeploymentId}" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId in your next.config.js. https://nextjs.org/docs/messages/deploymentid-too-long`
+        `The deploymentId "${userConfiguredDeploymentId}" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId. https://nextjs.org/docs/messages/deploymentid-too-long`
       )
     }
     const validCharacterPattern = /^[a-zA-Z0-9_-]+$/

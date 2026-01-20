@@ -96,4 +96,5 @@ export const NextBuildContext: Partial<{
   isCompileMode?: boolean
   debugPrerender: boolean
   analyze: boolean
+  preservedDeploymentId?: string
 }> = {}
