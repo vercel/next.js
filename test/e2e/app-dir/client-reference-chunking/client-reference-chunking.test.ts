@@ -10,7 +10,7 @@ async function loadClientReferenceManifest(
       await next.readFile(
         `${next.distDir}/server/app${page}page_client-reference-manifest.js`
       )
-    ).match(/]\s*=\s*([\S\s]+)$/)[1]
+    ).match(/]\s*=\s*([\S\s]+);$/m)[1]
   )
 }
 
@@ -30,6 +30,9 @@ describe('client-reference-chunking', () => {
 
     let rootManifest = await loadClientReferenceManifest(next, '/')
     let issueManifest = await loadClientReferenceManifest(next, '/issue/')
+
+    expect(rootManifest.clientModules).toBeDefined()
+    expect(issueManifest.clientModules).toBeDefined()
 
     // These two routes have the same client component references, so these should be exactly the
     // same (especially the `chunks` field)
