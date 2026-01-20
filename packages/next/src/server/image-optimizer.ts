@@ -906,8 +906,34 @@ export async function fetchInternalImage(
       socket: _req.socket,
     })
 
-    await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
-    await mocked.res.hasStreamed
+    await new Promise<void>((resolve, reject) => {
+      const handleClose = () => {
+        _req.off('close', handleClose)
+        reject(
+          new ImageError(
+            499,
+            '"url" parameter is valid but internal response was aborted'
+          )
+        )
+      }
+      if (_req.destroyed) {
+        handleClose()
+        return
+      }
+
+      _req.on('close', handleClose)
+
+      handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
+        .then(() => mocked.res.hasStreamed)
+        .then(() => {
+          _req.off('close', handleClose)
+          resolve()
+        })
+        .catch((err) => {
+          _req.off('close', handleClose)
+          reject(err)
+        })
+    })
 
     if (!mocked.res.statusCode) {
       Log.error('image response failed for', href, mocked.res.statusCode)
