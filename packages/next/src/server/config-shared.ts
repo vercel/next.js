@@ -884,6 +884,13 @@ export interface ExperimentalConfig {
    * minimal mode (standalone deployments). Defaults to 30.
    */
   maxResponseCacheSize?: number
+
+  /**
+   * TTL (time-to-live) in milliseconds for response cache entries in minimal
+   * mode (standalone deployments). Entries are proactively evicted after this
+   * duration to reduce memory pressure. Defaults to 10000 (10 seconds).
+   */
+  responseCacheTTL?: number
 }
 
 export type ExportPathMap = {
@@ -1612,6 +1619,7 @@ export const defaultConfig = Object.freeze({
     turbopackInferModuleSideEffects: true,
     devCacheControlNoCache: false,
     maxResponseCacheSize: 30,
+    responseCacheTTL: 10_000, // 10 seconds
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -1710,6 +1718,7 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
     | 'maxResponseCacheSize'
+    | 'responseCacheTTL'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1774,6 +1783,7 @@ export function getNextConfigRuntime(
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
         maxResponseCacheSize: ex.maxResponseCacheSize,
+        responseCacheTTL: ex.responseCacheTTL,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

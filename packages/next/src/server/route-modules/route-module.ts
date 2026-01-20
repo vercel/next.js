@@ -983,7 +983,8 @@ export abstract class RouteModule<
     if (!this.responseCache) {
       const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
       const maxSize = nextConfig?.experimental?.maxResponseCacheSize
-      this.responseCache = new ResponseCache(minimalMode, maxSize)
+      const ttl = nextConfig?.experimental?.responseCacheTTL
+      this.responseCache = new ResponseCache(minimalMode, maxSize, ttl)
     }
     return this.responseCache
   }

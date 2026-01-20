@@ -209,6 +209,7 @@ export const experimentalSchema = {
     .optional(),
   maxPostponedStateSize: zSizeLimit.optional(),
   maxResponseCacheSize: z.number().int().optional(),
+  responseCacheTTL: z.number().int().optional(),
   // The original type was Record<string, any>
   extensionAlias: z.record(z.string(), z.any()).optional(),
   externalDir: z.boolean().optional(),
