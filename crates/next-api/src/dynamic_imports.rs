@@ -77,8 +77,25 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 }
             };
 
-            let async_loader =
-                chunking_context.async_loader_chunk_item(*module, module_graph, availability_info);
+            // Apply the same logic as make_chunk_group in chunk_group.rs to compute
+            // async_availability_info. This ensures the ManifestAsyncModule gets created with
+            // the same availability_info, resulting in consistent chunk hashes.
+            let is_nested_async_availability_enabled = *chunking_context
+                .is_nested_async_availability_enabled()
+                .await?;
+            let async_availability_info = if is_nested_async_availability_enabled
+                || !availability_info.is_in_async_module()
+            {
+                availability_info.in_async_module()
+            } else {
+                availability_info
+            };
+
+            let async_loader = chunking_context.async_loader_chunk_item(
+                *module,
+                module_graph,
+                async_availability_info,
+            );
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
             Ok((*dynamic_entry, (*dynamic_entry, async_chunk_group)))
