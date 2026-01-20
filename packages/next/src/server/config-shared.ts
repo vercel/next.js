@@ -401,6 +401,12 @@ export interface ExperimentalConfig {
   transitionIndicator?: boolean
 
   /**
+   * Enables experimental gesture transition APIs for optimistic client
+   * navigations. Requires experimental React.
+   */
+  gestureTransition?: boolean
+
+  /**
    * A target memory limit for turbo, in bytes.
    */
   turbopackMemoryLimit?: number
@@ -1583,6 +1589,7 @@ export const defaultConfig = Object.freeze({
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
+    gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,

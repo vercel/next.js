@@ -54,6 +54,12 @@ export interface AppRouterInstance {
    * Prefetch the provided href.
    */
   prefetch(href: string, options?: PrefetchOptions): void
+  /**
+   * Perform a gesture navigation using prefetched data.
+   * Only available when experimental.gestureTransition is enabled.
+   * @experimental
+   */
+  experimental_gesturePush?(href: string, options?: NavigateOptions): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(

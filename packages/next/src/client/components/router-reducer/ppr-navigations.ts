@@ -73,6 +73,7 @@ export const enum FreshnessPolicy {
   HistoryTraversal,
   RefreshAll,
   HMRRefresh,
+  Gesture,
 }
 
 const enum NavigationTaskStatus {
@@ -315,6 +316,7 @@ function updateCacheNodeOnNavigation(
     case FreshnessPolicy.Default:
     case FreshnessPolicy.HistoryTraversal:
     case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav
+    case FreshnessPolicy.Gesture:
       // We should never drop dynamic data in shared layouts, except during
       // a refresh.
       shouldRefreshDynamicData = false
@@ -954,6 +956,7 @@ function createCacheNodeForSegment(
       break
     case FreshnessPolicy.RefreshAll:
     case FreshnessPolicy.HMRRefresh:
+    case FreshnessPolicy.Gesture:
       // Don't consult the BFCache.
       break
     default:
@@ -1118,7 +1121,12 @@ function createCacheNodeForSegment(
   // Now that we're creating a new segment, write its data to the BFCache. A
   // subsequent back/forward navigation will reuse this same data, until or
   // unless it's cleared by a refresh/revalidation.
-  writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+  //
+  // Skip BFCache writes for optimistic navigations since they are transient
+  // and will be replaced by the canonical navigation.
+  if (freshness !== FreshnessPolicy.Gesture) {
+    writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+  }
 
   return {
     cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
