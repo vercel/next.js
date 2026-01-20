@@ -166,7 +166,6 @@ impl ChunkGroupResult {
 impl ChunkGroupResult {
     #[turbo_tasks::function]
     pub async fn output_assets_with_referenced(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
-        // Derive references from async_loaders_by_module
         let references: Vec<_> = self
             .async_loaders_by_module
             .values()
@@ -204,13 +203,6 @@ impl ChunkGroupResult {
 
     #[turbo_tasks::function]
     pub async fn all_assets(&self) -> Result<Vc<OutputAssets>> {
-        // Derive references from async_loaders_by_module
-        let references = self
-            .async_loaders_by_module
-            .values()
-            .copied()
-            .map(ResolvedVc::upcast);
-
         Ok(Vc::cell(
             expand_output_assets(
                 self.assets
@@ -219,7 +211,11 @@ impl ChunkGroupResult {
                     .chain(self.referenced_assets.await?.into_iter())
                     .copied()
                     .map(ExpandOutputAssetsInput::Asset)
-                    .chain(references.map(ExpandOutputAssetsInput::Reference)),
+                    .chain(
+                        self.async_loaders_by_module
+                            .values()
+                            .map(|v| ExpandOutputAssetsInput::Reference(ResolvedVc::upcast(*v))),
+                    ),
                 false,
             )
             .await?,

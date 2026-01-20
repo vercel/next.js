@@ -92,8 +92,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
 
             // Get the output assets from the async loader reference
             // Upcast to OutputAssetsReference to call references()
-            let async_loader_ref: Vc<Box<dyn OutputAssetsReference>> = Vc::upcast(*async_loader);
-            let async_chunk_group = async_loader_ref.references().to_resolved().await?;
+            let async_chunk_group = async_loader.references().to_resolved().await?;
 
             Ok((*dynamic_entry, (*dynamic_entry, async_chunk_group)))
         })

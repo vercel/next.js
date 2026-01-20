@@ -48,9 +48,7 @@ pub struct MakeChunkGroupResult {
 }
 
 impl MakeChunkGroupResult {
-    /// Derives the references (upcasted async loaders) from the async_loaders_by_module map.
-    /// This avoids storing redundant data since references are just upcasted versions of the map
-    /// values.
+    // Returns all the assets referenced by this chunk group.
     pub fn references(&self) -> Vec<ResolvedVc<Box<dyn OutputAssetsReference>>> {
         self.async_loaders_by_module
             .values()
