@@ -61,14 +61,36 @@ if (process.env.NODE_ENV === 'development') {
 declare global {
   var __next__clear_chunk_cache__: (() => void) | null | undefined
   var __turbopack_clear_chunk_cache__: () => void | null | undefined
+  // Server-side HMR apply function - applies module updates and returns whether they were accepted
+  var __next__server_hmr_apply__:
+    | ((update: ServerHmrUpdate) => boolean)
+    | null
+    | undefined
+  var __turbopack_server_hmr_apply__:
+    | ((update: ServerHmrUpdate) => boolean)
+    | null
+    | undefined
 }
+
+// Type for server HMR updates (matches EcmascriptMergedUpdate from the runtime)
+interface ServerHmrUpdate {
+  type: 'EcmascriptMergedUpdate'
+  entries: Record<
+    string,
+    { code: string; url: string; map?: string | undefined }
+  >
+  chunks?: Record<string, { type: 'partial' }>
+}
+
 // hot-reloader modules are not bundled so we need to inject `__next__clear_chunk_cache__`
 // into globalThis from this file which is bundled.
 if (process.env.TURBOPACK) {
   globalThis.__next__clear_chunk_cache__ = __turbopack_clear_chunk_cache__
+  globalThis.__next__server_hmr_apply__ = __turbopack_server_hmr_apply__
 } else {
   // Webpack does not have chunks on the server
   globalThis.__next__clear_chunk_cache__ = null
+  globalThis.__next__server_hmr_apply__ = null
 }
 
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
