@@ -756,6 +756,27 @@ function bindingToApi(
       )
     }
 
+    serverHmrEvents(identifier: string) {
+      return subscribe<TurbopackResult<Update>>(true, async (callback) =>
+        binding.projectServerHmrEvents(
+          this._nativeProject,
+          identifier,
+          callback
+        )
+      )
+    }
+
+    serverHmrIdentifiersSubscribe() {
+      return subscribe<TurbopackResult<HmrIdentifiers>>(
+        false,
+        async (callback) =>
+          binding.projectServerHmrIdentifiersSubscribe(
+            this._nativeProject,
+            callback
+          )
+      )
+    }
+
     traceSource(
       stackFrame: TurbopackStackFrame,
       currentDirectoryFileUrl: string

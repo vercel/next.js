@@ -1464,6 +1464,49 @@ export async function createHotReloaderTurbopack(
     process.exit(1)
   })
 
+  // DEBUG: Test server HMR identifiers subscription
+  const serverHmrSubscriptions = new Map<
+    string,
+    AsyncIterableIterator<unknown>
+  >()
+  ;(async () => {
+    const serverHmrIdentifiers = project.serverHmrIdentifiersSubscribe()
+    // Skip initial
+    await serverHmrIdentifiers.next()
+
+    for await (const data of serverHmrIdentifiers) {
+      console.log('[Server HMR] Identifiers updated:', data.identifiers.length)
+      // For testing, subscribe to page.js files
+      for (const identifier of data.identifiers) {
+        if (
+          identifier.includes('page.js') &&
+          !serverHmrSubscriptions.has(identifier)
+        ) {
+          console.log('[Server HMR] Subscribing to:', identifier)
+          const subscription = project.serverHmrEvents(identifier)
+          serverHmrSubscriptions.set(identifier, subscription)
+          // Start listening for changes in background
+          ;(async () => {
+            // Skip initial
+            await subscription.next()
+            for await (const update of subscription) {
+              console.log('[Server HMR] Update for', identifier, ':', update)
+            }
+          })().catch((err) => {
+            console.error(
+              '[Server HMR] Event subscription error for',
+              identifier,
+              ':',
+              err
+            )
+          })
+        }
+      }
+    }
+  })().catch((err) => {
+    console.error('[Server HMR] Identifiers subscription error:', err)
+  })
+
   // Write empty manifests
   await currentEntriesHandling
   await manifestLoader.writeManifests({

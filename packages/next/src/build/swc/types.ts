@@ -251,6 +251,14 @@ export interface Project {
     TurbopackResult<HmrIdentifiers>
   >
 
+  serverHmrEvents(
+    identifier: string
+  ): AsyncIterableIterator<TurbopackResult<Update>>
+
+  serverHmrIdentifiersSubscribe(): AsyncIterableIterator<
+    TurbopackResult<HmrIdentifiers>
+  >
+
   getSourceForAsset(filePath: string): Promise<string | null>
 
   getSourceMap(filePath: string): Promise<string | null>
