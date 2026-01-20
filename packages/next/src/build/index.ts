@@ -2767,10 +2767,9 @@ export default async function build(
               2
             )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
 
-            const evaluatedDeploymentId =
-              evaluateDeploymentId(config.deploymentId) ||
-              process.env.NEXT_DEPLOYMENT_ID ||
-              ''
+            const evaluatedDeploymentId = evaluateDeploymentId(
+              config.deploymentId
+            )
             let clientMiddlewareManifestPath = evaluatedDeploymentId
               ? path.join(
                   CLIENT_STATIC_FILES_PATH,
