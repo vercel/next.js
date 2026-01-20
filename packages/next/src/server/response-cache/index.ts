@@ -90,7 +90,7 @@ export default class ResponseCache implements ResponseCacheBase {
   // be dynamic here
   private minimal_mode?: boolean
 
-  constructor(minimal_mode: boolean, maxSize: number = 10) {
+  constructor(minimal_mode: boolean, maxSize: number = 30) {
     this.minimal_mode = minimal_mode
     this.maxCacheSize = maxSize
     this.previousCacheItems = new LRUCache(
