@@ -4,7 +4,7 @@ import { retry } from 'next-test-utils'
 const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('app-dir trailingSlash handling', () => {
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     buildArgs: [
       '--debug-build-paths',
@@ -64,12 +64,9 @@ describe('app-dir trailingSlash handling', () => {
     )
   })
 
-  // TODO: Likely needs an infrastructure fix to pass as a deploy test.
-  const itFailsWhenDeployed = isNextDeploy ? it.failing : it
-  /* eslint-disable jest/no-standalone-expect */
-  itFailsWhenDeployed(
-    'should revalidate a page with generated static params and trailing slash',
-    async () => {
+  it.each([{ withSlash: true }, { withSlash: false }])(
+    'should revalidate a page with generated static params (withSlash=$withSlash)',
+    async ({ withSlash }) => {
       const browser = await next.browser('/en')
       const initialGeneratedAt = await browser
         .elementById('generated-at')
@@ -87,7 +84,13 @@ describe('app-dir trailingSlash handling', () => {
         expect(refreshedGeneratedAt).toBe(initialGeneratedAt)
       }
 
-      await browser.elementById('revalidate-button').click()
+      await browser
+        .elementById(
+          withSlash
+            ? 'revalidate-button-with-slash'
+            : 'revalidate-button-no-slash'
+        )
+        .click()
 
       expect(await browser.elementById('revalidate-result').text()).toInclude(
         'Revalidated'
@@ -101,5 +104,4 @@ describe('app-dir trailingSlash handling', () => {
       })
     }
   )
-  /* eslint-enable jest/no-standalone-expect */
 })

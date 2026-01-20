@@ -6,12 +6,12 @@ export function RevalidateButton({ lang }) {
   const [isPending, startTransition] = useTransition()
   const [result, setResult] = useState(null)
 
-  function handleRevalidate() {
+  function handleRevalidate(withSlash) {
     startTransition(async () => {
       try {
-        const data = await fetch(`/api/revalidate/?lang=${lang}`).then((res) =>
-          res.json()
-        )
+        const data = await fetch(
+          `/api/revalidate/?lang=${lang}&withSlash=${withSlash}`
+        ).then((res) => res.json())
         startTransition(() => {
           setResult(`Revalidated at: ${data.timestamp}`)
         })
@@ -26,11 +26,18 @@ export function RevalidateButton({ lang }) {
   return (
     <div>
       <button
-        onClick={handleRevalidate}
+        onClick={handleRevalidate.bind(null, true)}
         disabled={isPending}
-        id="revalidate-button"
+        id="revalidate-button-with-slash"
       >
         {isPending ? 'Revalidating...' : `Revalidate /${lang}/`}
+      </button>
+      <button
+        onClick={handleRevalidate.bind(null, false)}
+        disabled={isPending}
+        id="revalidate-button-no-slash"
+      >
+        {isPending ? 'Revalidating...' : `Revalidate /${lang} (no slash)`}
       </button>
       {result && <pre id="revalidate-result">{result}</pre>}
     </div>
