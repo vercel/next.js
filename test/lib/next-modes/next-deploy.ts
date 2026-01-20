@@ -42,6 +42,8 @@ export class NextDeployInstance extends NextInstance {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
 
+    const existingDeployUrl = process.env.NEXT_TEST_DEPLOY_URL?.trim()
+
     // ensure Vercel CLI is installed
     try {
       const res = await execa('vercel', ['--version'])
@@ -84,89 +86,101 @@ export class NextDeployInstance extends NextInstance {
       )
       vercelFlags.push('--global-config', vcConfigDir)
     }
-    require('console').log(`Linking project at ${this.testDir}`)
-
-    // link the project
-    const linkRes = await execa(
-      'vercel',
-      ['link', '-p', TEST_PROJECT_NAME, '--yes', ...vercelFlags],
-      {
-        cwd: this.testDir,
-        env: vercelEnv,
-        reject: false,
+    if (existingDeployUrl) {
+      try {
+        this._url = new URL(existingDeployUrl).toString()
+      } catch (err) {
+        throw new Error(
+          `Invalid NEXT_TEST_DEPLOY_URL value: ${existingDeployUrl}`,
+          { cause: err }
+        )
       }
-    )
+      require('console').log(`Using existing deployment URL: ${this._url}`)
+    } else {
+      require('console').log(`Linking project at ${this.testDir}`)
 
-    if (linkRes.exitCode !== 0) {
-      throw new Error(
-        `Failed to link project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
+      // link the project
+      const linkRes = await execa(
+        'vercel',
+        ['link', '-p', TEST_PROJECT_NAME, '--yes', ...vercelFlags],
+        {
+          cwd: this.testDir,
+          env: vercelEnv,
+          reject: false,
+        }
       )
-    }
-    require('console').log(`Deploying project at ${this.testDir}`)
 
-    const additionalEnv: string[] = []
+      if (linkRes.exitCode !== 0) {
+        throw new Error(
+          `Failed to link project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
+        )
+      }
+      require('console').log(`Deploying project at ${this.testDir}`)
 
-    for (const key of Object.keys(this.env || {})) {
-      additionalEnv.push(`${key}=${this.env[key]}`)
-    }
+      const additionalEnv: string[] = []
 
-    additionalEnv.push(
-      `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
-    )
+      for (const key of Object.keys(this.env || {})) {
+        additionalEnv.push(`${key}=${this.env[key]}`)
+      }
 
-    // Add experimental feature flags
-
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
       additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
+        `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
       )
-    }
 
-    if (process.env.IS_TURBOPACK_TEST) {
-      additionalEnv.push(`IS_TURBOPACK_TEST=1`)
-    }
-    if (process.env.IS_WEBPACK_TEST) {
-      additionalEnv.push(`IS_WEBPACK_TEST=1`)
-    }
+      // Add experimental feature flags
 
-    const deployRes = await execa(
-      'vercel',
-      [
-        'deploy',
-        '--build-env',
-        'NEXT_PRIVATE_TEST_MODE=e2e',
-        '--build-env',
-        'NEXT_TELEMETRY_DISABLED=1',
-        '--build-env',
-        'VERCEL_NEXT_BUNDLED_SERVER=1',
-        ...additionalEnv.flatMap((pair) => [
-          '--env',
-          pair,
-          '--build-env',
-          pair,
-        ]),
-        '--force',
-        ...vercelFlags,
-      ],
-      {
-        cwd: this.testDir,
-        env: vercelEnv,
-        reject: false,
-        // This will print deployment information earlier to the console so we
-        // don't have to wait until the deployment is complete to get the
-        // inspect URL.
-        stderr: 'inherit',
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        additionalEnv.push(
+          `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
+        )
       }
-    )
 
-    if (deployRes.exitCode !== 0) {
-      throw new Error(
-        `Failed to deploy project ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
+      if (process.env.IS_TURBOPACK_TEST) {
+        additionalEnv.push(`IS_TURBOPACK_TEST=1`)
+      }
+      if (process.env.IS_WEBPACK_TEST) {
+        additionalEnv.push(`IS_WEBPACK_TEST=1`)
+      }
+
+      const deployRes = await execa(
+        'vercel',
+        [
+          'deploy',
+          '--build-env',
+          'NEXT_PRIVATE_TEST_MODE=e2e',
+          '--build-env',
+          'NEXT_TELEMETRY_DISABLED=1',
+          '--build-env',
+          'VERCEL_NEXT_BUNDLED_SERVER=1',
+          ...additionalEnv.flatMap((pair) => [
+            '--env',
+            pair,
+            '--build-env',
+            pair,
+          ]),
+          '--force',
+          ...vercelFlags,
+        ],
+        {
+          cwd: this.testDir,
+          env: vercelEnv,
+          reject: false,
+          // This will print deployment information earlier to the console so we
+          // don't have to wait until the deployment is complete to get the
+          // inspect URL.
+          stderr: 'inherit',
+        }
       )
-    }
 
-    // the CLI gives just the deployment URL back when not a TTY
-    this._url = deployRes.stdout
+      if (deployRes.exitCode !== 0) {
+        throw new Error(
+          `Failed to deploy project ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
+        )
+      }
+
+      // the CLI gives just the deployment URL back when not a TTY
+      this._url = deployRes.stdout
+    }
     this._parsedUrl = new URL(this._url)
 
     // If configured, we should configure the `/etc/hosts` file to point the
