@@ -703,7 +703,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const implicitTags = await getImplicitTags(
       this.definition.page,
-      req.nextUrl,
+      req.nextUrl.pathname,
       // App Routes don't support unknown route params.
       null
     )
