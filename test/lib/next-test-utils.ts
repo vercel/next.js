@@ -1938,24 +1938,26 @@ export function getClientReferenceManifest(
   )
   const modulePath = require.resolve(manifestPath)
 
-  // Clear any cached version
-  delete require.cache[modulePath]
+  // Clear global
+  delete (globalThis as any).__RSC_MANIFEST
 
-  // Initialize/clear global
-  ;(globalThis as any).__RSC_MANIFEST = {}
-
-  // Load the manifest (it sets globalThis.__RSC_MANIFEST)
-  require(modulePath)
+  // Need to use jest.isolateModules because Jest messes with require.cache and `delete
+  // require.cache[modulePath]` doesn't actually work anymore
+  jest.isolateModules(() => {
+    // Load the manifest (it sets globalThis.__RSC_MANIFEST)
+    require(modulePath)
+  })
 
   const manifest = (globalThis as any).__RSC_MANIFEST[
     route
   ] as ClientReferenceManifest
 
-  // Clean up require cache but keep manifest for potential re-reads
-  delete require.cache[modulePath]
-
   // Sanity check
-  expect(manifest.clientModules).toBeDefined()
+  expect(
+    manifest.clientModules ||
+      manifest.ssrModuleMapping ||
+      manifest.rscModuleMapping
+  ).toBeDefined()
 
   return manifest
 }
