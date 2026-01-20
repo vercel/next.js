@@ -1021,10 +1021,13 @@ function bindingToApi(
     for (const [glob, rule] of Object.entries(turbopackRules)) {
       if (Array.isArray(rule)) {
         serializedRules[glob] = rule.map((item) => {
-          if (typeof item !== 'string' && 'loaders' in item) {
-            return serializeConfigItem(item, glob)
+          if (
+            typeof item !== 'string' &&
+            ('loaders' in item || 'type' in item || 'condition' in item)
+          ) {
+            return serializeConfigItem(item as TurbopackRuleConfigItem, glob)
           } else {
-            checkLoaderItem(item, glob)
+            checkLoaderItem(item as TurbopackLoaderItem, glob)
             return item
           }
         })
@@ -1040,8 +1043,10 @@ function bindingToApi(
       glob: string
     ): any {
       if (!rule) return rule
-      for (const item of rule.loaders) {
-        checkLoaderItem(item, glob)
+      if (rule.loaders) {
+        for (const item of rule.loaders) {
+          checkLoaderItem(item, glob)
+        }
       }
       let serializedRule: any = rule
       if (rule.condition != null) {

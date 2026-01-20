@@ -176,3 +176,46 @@ impl Display for ModuleType {
         }
     }
 }
+
+impl ModuleType {
+    /// Creates a ModuleType from a string identifier.
+    /// This is used for user-configured module types in turbopack rules.
+    pub fn from_str_with_defaults(
+        type_str: &str,
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
+        options: ResolvedVc<EcmascriptOptions>,
+        environment: Option<ResolvedVc<Environment>>,
+    ) -> Option<Self> {
+        match type_str {
+            "asset" => Some(ModuleType::StaticUrlJs { tag: None }),
+            "ecmascript" => Some(ModuleType::Ecmascript {
+                preprocess,
+                main,
+                postprocess,
+                options,
+            }),
+            "typescript" => Some(ModuleType::Typescript {
+                preprocess,
+                main,
+                postprocess,
+                tsx: false,
+                analyze_types: false,
+                options,
+            }),
+            "css" => Some(ModuleType::Css {
+                ty: CssModuleAssetType::Default,
+                environment,
+            }),
+            "css-module" => Some(ModuleType::CssModule),
+            "wasm" => Some(ModuleType::WebAssembly {
+                source_ty: WebAssemblySourceType::Binary,
+            }),
+            "raw" => Some(ModuleType::Raw),
+            "node" => Some(ModuleType::NodeAddon),
+            "bytes" => Some(ModuleType::InlinedBytesJs),
+            _ => None,
+        }
+    }
+}
