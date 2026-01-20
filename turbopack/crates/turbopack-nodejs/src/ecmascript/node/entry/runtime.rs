@@ -65,17 +65,12 @@ impl EcmascriptBuildNodeRuntimeChunk {
             StringifyJs(asset_prefix),
         )?;
 
-        match *this.chunking_context.runtime_type().await? {
-            RuntimeType::Development => {
+        let runtime_type = *this.chunking_context.runtime_type().await?;
+        match runtime_type {
+            RuntimeType::Development | RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     this.chunking_context.environment(),
-                    generate_source_map,
-                );
-                code.push_code(&*runtime_code.await?);
-            }
-            RuntimeType::Production => {
-                let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
-                    this.chunking_context.environment(),
+                    runtime_type,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);

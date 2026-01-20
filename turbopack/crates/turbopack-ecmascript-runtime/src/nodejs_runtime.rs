@@ -6,12 +6,15 @@ use turbopack_core::{
     environment::Environment,
 };
 
-use crate::{asset_context::get_runtime_asset_context, embed_js::embed_static_code};
+use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
 
-/// Returns the code for the Node.js production ECMAScript runtime.
+/// Returns the code for the Node.js ECMAScript runtime.
+/// In development mode, includes HMR infrastructure.
+/// In production mode, uses a minimal runtime.
 #[turbo_tasks::function]
 pub async fn get_nodejs_runtime_code(
     environment: ResolvedVc<Environment>,
+    runtime_type: RuntimeType,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(*environment).resolve().await?;
@@ -36,11 +39,24 @@ pub async fn get_nodejs_runtime_code(
         rcstr!("shared-node/node-wasm-utils.ts"),
         generate_source_map,
     );
-    let runtime_code = embed_static_code(
-        asset_context,
-        rcstr!("nodejs/runtime.ts"),
-        generate_source_map,
-    );
+
+    // Use dev runtime (with HMR support) in development, production runtime otherwise
+    let runtime_code = match runtime_type {
+        RuntimeType::Development => embed_static_code(
+            asset_context,
+            rcstr!("nodejs/dev-runtime.ts"),
+            generate_source_map,
+        ),
+        RuntimeType::Production => embed_static_code(
+            asset_context,
+            rcstr!("nodejs/runtime.ts"),
+            generate_source_map,
+        ),
+        #[cfg(feature = "test")]
+        RuntimeType::Dummy => {
+            panic!("Dummy runtime type is not supported for Node.js runtime")
+        }
+    };
 
     let mut code = CodeBuilder::default();
     code.push_code(&*shared_runtime_utils_code.await?);
