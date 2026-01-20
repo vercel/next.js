@@ -39,11 +39,16 @@ export function resolveAndSetDeploymentId(
   fallbackDeploymentId?: string
 ): string {
   if (source === 'env-var') {
-    let envDeploymentId = process.env['NEXT_DEPLOYMENT_ID'] || ''
+    // Prefer fallbackDeploymentId (from combinedEnv) over process.env since
+    // loadEnvConfig may have reset process.env
+    let envDeploymentId =
+      fallbackDeploymentId || process.env['NEXT_DEPLOYMENT_ID'] || ''
 
-    if (!envDeploymentId && fallbackDeploymentId) {
-      envDeploymentId = fallbackDeploymentId
-      process.env['NEXT_DEPLOYMENT_ID'] = fallbackDeploymentId
+    if (
+      envDeploymentId &&
+      envDeploymentId !== process.env['NEXT_DEPLOYMENT_ID']
+    ) {
+      process.env['NEXT_DEPLOYMENT_ID'] = envDeploymentId
     }
     if (envDeploymentId.length > 0) {
       if (envDeploymentId.length > 32) {
