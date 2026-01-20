@@ -6,7 +6,8 @@ if (typeof window !== 'undefined') {
   // HTML only), React isn't aware of it at all.
   delete document.documentElement.dataset.dplId
 } else {
-  // build/define-env.ts might replace this with "false"
+  // Client side: replaced with globalThis.NEXT_DEPLOYMENT_ID
+  // Server side: left as is or replaced with a string or replaced with false
   deploymentId = process.env.NEXT_DEPLOYMENT_ID || undefined
 }
 
