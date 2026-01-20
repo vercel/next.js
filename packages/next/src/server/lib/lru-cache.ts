@@ -181,16 +181,6 @@ export class LRUCache<T> {
   }
 
   /**
-   * Retrieves a value by key WITHOUT marking it as most recently used.
-   * Use this for read-only checks where you don't want to affect eviction order.
-   *
-   * Time Complexity: O(1)
-   */
-  public peek(key: string): T | undefined {
-    return this.cache.get(key)?.data
-  }
-
-  /**
    * Returns an iterator over the cache entries. The order is outputted in the
    * order of most recently used to least recently used.
    */
