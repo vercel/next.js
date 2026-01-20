@@ -1,0 +1,253 @@
+# Next.js Skills Registry
+# Maps skills to their source documentation files
+
+skills:
+  - id: routing
+    name: Next.js Routing
+    sources:
+      SKILL:
+        - docs/01-app/01-getting-started/03-layouts-and-pages.mdx
+        - docs/01-app/01-getting-started/04-linking-and-navigating.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/02-components/link.mdx
+        - docs/01-app/03-api-reference/04-functions/use-router.mdx
+        - docs/01-app/03-api-reference/04-functions/use-pathname.mdx
+        - docs/01-app/03-api-reference/04-functions/use-search-params.mdx
+      PATTERNS:
+        - docs/01-app/02-guides/prefetching.mdx
+        - docs/01-app/03-api-reference/03-file-conventions/parallel-routes.mdx
+        - docs/01-app/03-api-reference/03-file-conventions/intercepting-routes.mdx
+        - docs/01-app/03-api-reference/03-file-conventions/dynamic-routes.mdx
+      TROUBLESHOOTING:
+        - errors/incompatible-href-as.mdx
+        - errors/popstate-state-empty.mdx
+        - errors/invalid-new-link-with-extra-anchor.mdx
+    activation_keywords:
+      - Link
+      - useRouter
+      - usePathname
+      - useSearchParams
+      - navigation
+      - route
+      - page
+      - layout
+      - href
+    detection_patterns:
+      - next/link
+      - next/navigation
+      - app/
+      - '[slug]'
+      - '[...slug]'
+
+  - id: data-fetching
+    name: Next.js Data Fetching
+    sources:
+      SKILL:
+        - docs/01-app/01-getting-started/07-fetching-data.mdx
+        - docs/01-app/01-getting-started/09-caching-and-revalidating.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/04-functions/fetch.mdx
+        - docs/01-app/03-api-reference/04-functions/unstable_cache.mdx
+      PATTERNS:
+        - docs/01-app/02-guides/caching.mdx
+        - docs/01-app/02-guides/incremental-static-regeneration.mdx
+      TROUBLESHOOTING:
+        - errors/no-cache.mdx
+        - errors/large-page-data.mdx
+    activation_keywords:
+      - fetch
+      - async
+      - data
+      - loading
+      - cache
+      - revalidate
+    detection_patterns:
+      - async function
+      - await fetch
+      - server component
+
+  - id: server-functions
+    name: Next.js Server Functions
+    sources:
+      SKILL:
+        - docs/01-app/01-getting-started/08-updating-data.mdx
+        - docs/01-app/03-api-reference/01-directives/use-server.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/04-functions/revalidatePath.mdx
+        - docs/01-app/03-api-reference/04-functions/revalidateTag.mdx
+        - docs/01-app/03-api-reference/04-functions/redirect.mdx
+      PATTERNS:
+        - docs/01-app/02-guides/forms.mdx
+      TROUBLESHOOTING:
+        - errors/gssp-export.mdx
+    activation_keywords:
+      - use server
+      - server action
+      - form
+      - mutation
+      - revalidate
+    detection_patterns:
+      - "'use server'"
+      - revalidatePath
+      - revalidateTag
+
+  - id: rendering
+    name: Next.js Rendering
+    sources:
+      SKILL:
+        - docs/01-app/01-getting-started/05-server-and-client-components.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/01-directives/use-client.mdx
+      PATTERNS:
+        - docs/01-app/02-guides/incremental-static-regeneration.mdx
+      TROUBLESHOOTING:
+        - errors/react-client-hook-in-server-component.mdx
+        - errors/deopted-into-client-rendering.mdx
+    activation_keywords:
+      - use client
+      - server component
+      - client component
+      - Suspense
+      - streaming
+    detection_patterns:
+      - "'use client'"
+      - Suspense
+      - loading.tsx
+
+  - id: image-optimization
+    name: Next.js Image Optimization
+    sources:
+      SKILL:
+        - docs/01-app/01-getting-started/12-images.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/02-components/image.mdx
+      TROUBLESHOOTING:
+        - errors/next-image-missing-loader.mdx
+        - errors/next-image-unconfigured-localpatterns.mdx
+    activation_keywords:
+      - Image
+      - next/image
+      - placeholder
+      - blur
+      - sizes
+    detection_patterns:
+      - next/image
+      - <Image
+
+  - id: metadata-seo
+    name: Next.js Metadata & SEO
+    sources:
+      SKILL:
+        - docs/01-app/01-getting-started/14-metadata-and-og-images.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/04-functions/generate-metadata.mdx
+        - docs/01-app/03-api-reference/03-file-conventions/01-metadata/opengraph-image.mdx
+      TROUBLESHOOTING:
+        - errors/no-document-title.mdx
+        - errors/no-document-viewport-meta.mdx
+    activation_keywords:
+      - metadata
+      - generateMetadata
+      - title
+      - description
+      - og
+      - opengraph
+    detection_patterns:
+      - export const metadata
+      - generateMetadata
+      - opengraph-image
+
+  - id: error-handling
+    name: Next.js Error Handling
+    sources:
+      SKILL:
+        - docs/01-app/01-getting-started/10-error-handling.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/03-file-conventions/error.mdx
+        - docs/01-app/03-api-reference/03-file-conventions/not-found.mdx
+        - docs/01-app/03-api-reference/04-functions/not-found.mdx
+      TROUBLESHOOTING:
+        - errors/custom-error-no-custom-404.mdx
+        - errors/threw-undefined.mdx
+    activation_keywords:
+      - error
+      - not-found
+      - 404
+      - boundary
+    detection_patterns:
+      - error.tsx
+      - not-found.tsx
+      - notFound()
+
+  - id: fonts
+    name: Next.js Fonts
+    sources:
+      SKILL:
+        - docs/01-app/01-getting-started/13-fonts.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/02-components/font.mdx
+      TROUBLESHOOTING:
+        - errors/google-font-preconnect.mdx
+    activation_keywords:
+      - font
+      - next/font
+      - Google Font
+      - local font
+    detection_patterns:
+      - next/font/google
+      - next/font/local
+
+  - id: forms
+    name: Next.js Forms
+    sources:
+      SKILL:
+        - docs/01-app/02-guides/forms.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/02-components/form.mdx
+    activation_keywords:
+      - form
+      - Form
+      - submit
+      - action
+    detection_patterns:
+      - next/form
+      - <Form
+      - action=
+
+  - id: proxy
+    name: Next.js Proxy
+    sources:
+      SKILL:
+        - docs/01-app/01-getting-started/16-proxy.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/03-file-conventions/proxy.mdx
+    activation_keywords:
+      - proxy
+      - middleware
+      - rewrite
+      - redirect
+    detection_patterns:
+      - proxy.ts
+      - proxy.js
+
+  - id: route-handlers
+    name: Next.js Route Handlers
+    sources:
+      SKILL:
+        - docs/01-app/01-getting-started/15-route-handlers.mdx
+      REFERENCE:
+        - docs/01-app/03-api-reference/03-file-conventions/route.mdx
+        - docs/01-app/03-api-reference/04-functions/next-request.mdx
+        - docs/01-app/03-api-reference/04-functions/next-response.mdx
+    activation_keywords:
+      - route handler
+      - API route
+      - GET
+      - POST
+      - PUT
+      - DELETE
+    detection_patterns:
+      - route.ts
+      - route.js
+      - export async function GET
+      - export async function POST

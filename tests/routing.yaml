@@ -1,0 +1,186 @@
+# Routing Skill Test Cases
+skill: routing
+
+activation_tests:
+  # Basic navigation tests
+  - id: link-basic
+    prompt: 'Add a navigation link to the about page'
+    context: 'Next.js 15 app router project'
+    expected:
+      activated: true
+      patterns_present:
+        - 'import.*Link.*from.*[''"]next/link[''"]'
+        - '<Link'
+        - 'href='
+      patterns_absent:
+        - '<a href='
+
+  - id: link-list
+    prompt: 'Create a navigation menu with Home, About, and Contact links'
+    context: 'Next.js 15 app router project with Tailwind'
+    expected:
+      activated: true
+      patterns_present:
+        - 'import.*Link.*from.*[''"]next/link[''"]'
+        - '<Link'
+        - 'href="/"'
+      patterns_absent:
+        - '<a href="/'
+
+  # Dynamic routes
+  - id: dynamic-route-basic
+    prompt: 'Create a product page with dynamic URLs like /products/123'
+    context: 'Next.js 15 app router project'
+    expected:
+      activated: true
+      patterns_present:
+        - "\\[.*\\]"
+        - 'params'
+        - 'await params'
+      patterns_absent:
+        - "params\\.id[^)]"
+
+  - id: dynamic-route-blog
+    prompt: 'Create a blog post page at /blog/[slug]'
+    context: 'Next.js 15 app router project'
+    expected:
+      activated: true
+      patterns_present:
+        - "\\[slug\\]"
+        - 'params.*Promise'
+        - 'await params'
+
+  # Navigation hooks
+  - id: use-router
+    prompt: 'Navigate to dashboard after form submission'
+    context: 'Next.js 15 client component'
+    expected:
+      activated: true
+      patterns_present:
+        - "'use client'"
+        - 'import.*useRouter.*from.*[''"]next/navigation[''"]'
+        - "router\\.push"
+      patterns_absent:
+        - 'from.*[''"]next/router[''"]'
+
+  - id: active-link
+    prompt: 'Highlight the current navigation item'
+    context: 'Next.js 15 nav component'
+    expected:
+      activated: true
+      patterns_present:
+        - "'use client'"
+        - 'usePathname'
+        - 'pathname'
+        - '<Link'
+
+  # Search params
+  - id: search-params
+    prompt: 'Read the search query parameter from the URL'
+    context: 'Next.js 15 client component'
+    expected:
+      activated: true
+      patterns_present:
+        - 'useSearchParams'
+        - 'Suspense'
+      patterns_absent: []
+
+  # Layouts
+  - id: root-layout
+    prompt: 'Create a root layout for the app'
+    context: 'New Next.js 15 project'
+    expected:
+      activated: true
+      patterns_present:
+        - 'export default'
+        - '<html'
+        - '<body'
+        - 'children'
+
+  - id: nested-layout
+    prompt: 'Create a layout for the dashboard section'
+    context: 'Next.js 15 app with /dashboard routes'
+    expected:
+      activated: true
+      patterns_present:
+        - 'export default'
+        - 'children'
+        - 'layout'
+
+  # Loading states
+  - id: loading-state
+    prompt: 'Add a loading state for the products page'
+    context: 'Next.js 15 dynamic route'
+    expected:
+      activated: true
+      patterns_present:
+        - 'export default'
+        - 'Loading'
+
+  # Catch-all routes
+  - id: catch-all
+    prompt: 'Create a docs page that handles paths like /docs/a/b/c'
+    context: 'Next.js 15 documentation site'
+    expected:
+      activated: true
+      patterns_present:
+        - "\\[\\.\\.\\..*\\]"
+        - 'params'
+
+negative_tests:
+  # Should NOT activate for non-Next.js tasks
+  - id: python-script
+    prompt: 'Write a Python script to sort a list'
+    context: 'General programming'
+    expected:
+      activated: false
+
+  - id: react-native
+    prompt: 'Set up navigation in my React Native app'
+    context: 'React Native project'
+    expected:
+      activated: false
+
+  - id: express-routing
+    prompt: 'Add a route to my Express.js server'
+    context: 'Node.js Express backend'
+    expected:
+      activated: false
+
+  - id: css-styling
+    prompt: 'Style a button with hover effects'
+    context: 'Next.js project CSS'
+    expected:
+      activated: false
+
+  - id: database-query
+    prompt: 'Write a SQL query to fetch users'
+    context: 'Next.js project with Postgres'
+    expected:
+      activated: false
+
+anti_pattern_tests:
+  # Tests that should NOT produce these patterns
+  - id: no-anchor-tags
+    prompt: 'Create internal navigation links'
+    context: 'Next.js 15 app router'
+    expected:
+      patterns_absent:
+        - '<a href="/'
+        - "<a href='/"
+
+  - id: no-wrong-import
+    prompt: 'Use programmatic navigation in a component'
+    context: 'Next.js 15 app router'
+    expected:
+      patterns_absent:
+        - 'from [''"]next/router[''"]'
+
+  - id: no-direct-params
+    prompt: 'Get the slug from a dynamic route'
+    context: 'Next.js 15 page component'
+    expected:
+      patterns_present:
+        - 'await params'
+      patterns_absent:
+        - "params\\.slug[^)]"

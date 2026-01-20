@@ -1,0 +1,16 @@
+{
+  "name": "nextjs-routing",
+  "version": "1.0.0",
+  "description": "Expert guidance for Next.js App Router routing, navigation, and URL handling",
+  "author": "Next.js Team",
+  "homepage": "https://nextjs.org/docs/app/getting-started/layouts-and-pages",
+  "keywords": ["nextjs", "routing", "navigation", "link", "router"],
+  "skills": [
+    {
+      "id": "routing",
+      "name": "Next.js Routing",
+      "description": "File-system routing, navigation, dynamic routes, and URL state management",
+      "path": "skills/routing/SKILL.md"
+    }
+  ]
+}
