@@ -243,9 +243,11 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
-  hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+  clientHmrEvents(
+    identifier: string
+  ): AsyncIterableIterator<TurbopackResult<Update>>
 
-  hmrIdentifiersSubscribe(): AsyncIterableIterator<
+  clientHmrIdentifiersSubscribe(): AsyncIterableIterator<
     TurbopackResult<HmrIdentifiers>
   >
 
