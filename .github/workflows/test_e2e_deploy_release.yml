@@ -74,7 +74,6 @@ jobs:
       matrix:
         group: [1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 7/8, 8/8]
     with:
-      # TODO: remove continue on error after testing
       afterBuild: |
         npm i -g vercel@latest && \
         NEXT_E2E_TEST_TIMEOUT=240000 \
