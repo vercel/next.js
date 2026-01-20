@@ -1,0 +1,162 @@
+---
+title: Next.js Glossary
+nav_title: Glossary
+description: A glossary of common terms used in Next.js.
+---
+
+# A
+
+## App Router
+
+The Next.js router introduced in version 13, built on top of React Server Components. It uses a file-system based, supports layouts, nested routing, loading states, error handling, and more. Learn more in the [App Router documentation](/docs/app).
+
+# B
+
+## Build time
+
+The stage when your application is being compiled. During build time, Next.js transforms your code into optimized files for production, generates static pages, and prepares assets for deployment. See the [`next build` CLI reference](/docs/app/api-reference/cli/next#next-build-options).
+
+# C
+
+## Cache Components
+
+A feature that enables component and function-level caching using the [`"use cache"` directive](/docs/app/api-reference/directives/use-cache). Cache Components allows you to mix static, cached, and dynamic content within a single route by prerendering a static HTML shell that's served immediately, while dynamic content streams in when ready. Configure cache duration with [`cacheLife()`](/docs/app/api-reference/functions/cacheLife), tag cached data with [`cacheTag()`](/docs/app/api-reference/functions/cacheTag), and invalidate on-demand with [`updateTag()`](/docs/app/api-reference/functions/updateTag). Learn more in the [Cache Components guide](/docs/app/getting-started/cache-components).
+
+## Client Component
+
+A React component that runs in the browser. Client Components can use state, effects, event handlers, and browser APIs. They are marked with the [`"use client"` directive](/docs/app/api-reference/directives/use-client) at the top of a file. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components).
+
+## Client-side navigation
+
+A navigation technique where the page content updates dynamically without a full page reload. Next.js uses client-side navigation with the [`<Link>` component](/docs/app/api-reference/components/link), keeping shared layouts interactive and preserving browser state. Learn more in [Linking and Navigating](/docs/app/getting-started/linking-and-navigating#client-side-transitions).
+
+## Code Splitting
+
+The process of dividing your application into smaller JavaScript chunks based on routes. Instead of loading all code upfront, only the code needed for the current route is loaded, reducing initial load time. Next.js automatically performs code splitting based on routes. Learn more in the [Package Bundling guide](/docs/app/guides/package-bundling).
+
+# D
+
+## Dynamic APIs
+
+Functions that access request-specific data, causing a component to opt into [dynamic rendering](#dynamic-rendering). These include:
+
+- [`cookies()`](/docs/app/api-reference/functions/cookies) - Access request cookies
+- [`headers()`](/docs/app/api-reference/functions/headers) - Access request headers
+- [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - Access URL query parameters
+- [`draftMode()`](/docs/app/api-reference/functions/draft-mode) - Enable or check draft mode
+
+## Dynamic rendering
+
+When a component is rendered at [request time](#request-time) rather than [build time](#build-time). A component becomes dynamic when it uses [Dynamic APIs](#dynamic-apis).
+
+## Dynamic route segments
+
+[Route segments](#route-segment) that are generated from data at runtime. Created by wrapping a folder name in square brackets (e.g., `[slug]`), they allow you to create routes from dynamic data like blog posts or product pages. Learn more in [Dynamic Route Segments](/docs/app/api-reference/file-conventions/dynamic-routes).
+
+# F
+
+## File-system caching
+
+A Turbopack feature that stores compiler artifacts on disk between runs, reducing work across `next dev` or `next build` commands for significantly faster compile times. Learn more in [Turbopack FileSystem Caching](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache).
+
+# H
+
+## Hydration
+
+React's process of attaching event handlers to the DOM to make server-rendered static HTML interactive. During hydration, React reconciles the server-rendered markup with the client-side JavaScript. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#how-do-server-and-client-components-work-in-nextjs).
+
+# I
+
+## Incremental Static Regeneration (ISR)
+
+A technique that allows you to update static content without rebuilding the entire site. ISR enables you to use static generation on a per-page basis while revalidating pages in the background as traffic comes in. Learn more in the [ISR guide](/docs/app/guides/incremental-static-regeneration).
+
+> **Good to know**: In Next.js, ISR is also known as [Revalidation](#revalidation).
+
+## Intercepting Routes
+
+A routing pattern that allows loading a route from another part of your application within the current layout. Useful for displaying content (like modals) without the user switching context, while keeping the URL shareable. Learn more in [Intercepting Routes](/docs/app/api-reference/file-conventions/intercepting-routes).
+
+# L
+
+## Layout
+
+UI that is shared between multiple pages. Layouts preserve state, remain interactive, and do not re-render on navigation. Defined by exporting a React component from a [`layout.js` file](/docs/app/api-reference/file-conventions/layout). Learn more in [Layouts and Pages](/docs/app/getting-started/layouts-and-pages).
+
+# M
+
+## Memoization
+
+Caching the return value of a function so that calling the same function multiple times during a render pass (request) only executes it once. In Next.js, fetch requests with the same URL and options are automatically memoized. Learn more about [React Cache](https://react.dev/reference/react/cache).
+
+# P
+
+## Page
+
+UI that is unique to a route. Defined by exporting a React component from a [`page.js` file](/docs/app/api-reference/file-conventions/page) within the `app` directory. Learn more in [Layouts and Pages](/docs/app/getting-started/layouts-and-pages).
+
+## Parallel Routes
+
+A pattern that allows simultaneously or conditionally rendering multiple pages within the same layout. Created using named slots with the `@folder` convention, useful for dashboards, modals, and complex layouts. Learn more in [Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes).
+
+## Partial Prerendering (PPR)
+
+An rendering optimization that combines static and dynamic rendering in a single route. The static shell is served immediately while dynamic content streams in when ready, providing the best of both rendering strategies. Learn more in [Cache Components](/docs/app/getting-started/cache-components).
+
+## Prefetching
+
+Loading a route in the background before the user navigates to it. Next.js automatically prefetches routes linked with the [`<Link>` component](/docs/app/api-reference/components/link) when they enter the viewport, making navigation feel instant. Learn more in the [Prefetching guide](/docs/app/guides/prefetching).
+
+## Prerendering
+
+Generating HTML for a page ahead of time, either at build time (static rendering) or in the background (revalidation). The pre-rendered HTML is served immediately, then hydrated on the client.
+
+## Proxy
+
+A file ([`proxy.js`](/docs/app/api-reference/file-conventions/proxy)) that runs code on the server before request is completed. Used to implement server-side logic like logging, redirects, and rewrites. Formerly known as Middleware. Learn more in the [Proxy guide](/docs/app/getting-started/proxy).
+
+# R
+
+## Request time
+
+The time when a user makes a request to your application. At request time, dynamic routes are rendered, cookies and headers are accessible, and request-specific data can be used.
+
+## Revalidation
+
+The process of updating cached data. Can be time-based (using [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) to set cache duration) or on-demand (using [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) to tag data, then [`updateTag()`](/docs/app/api-reference/functions/updateTag) to invalidate). Learn more in [Caching and Revalidating](/docs/app/getting-started/caching-and-revalidating).
+
+## Route Handler
+
+A function that handles HTTP requests for a specific route, defined in a [`route.js` file](/docs/app/api-reference/file-conventions/route). Route Handlers use the Web Request and Response APIs and can handle `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS` methods. Learn more in [Route Handlers](/docs/app/getting-started/route-handlers).
+
+## Route Segment
+
+A fragment of the URL path (between two slashes) defined by a folder in the `app` directory. Each folder represents a segment in the URL structure. Learn more in [Project Structure](/docs/app/getting-started/project-structure).
+
+## RSC Payload
+
+The React Server Component Payload—a compact binary representation of the rendered React Server Components tree. Contains the rendered result of Server Components, placeholders for Client Components, and props passed between them. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#how-do-server-and-client-components-work-in-nextjs).
+
+# S
+
+## Server Component
+
+The default component type in the App Router. Server Components render on the server, can fetch data directly, and don't add to the client JavaScript bundle. They cannot use state or browser APIs. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components).
+
+## Server Function
+
+An asynchronous function that runs on the server, marked with the [`"use server"` directive](/docs/app/api-reference/directives/use-server). Server Functions can be invoked from Client Components and are commonly used for form submissions and data mutations. Learn more in [React Server Functions](https://react.dev/reference/rsc/server-functions).
+
+## Static rendering
+
+When a component is rendered at [build time](#build-time) or in the background during [revalidation](#revalidation). The result is cached and can be served from a CDN. Static rendering is the default for components that don't use [Dynamic APIs](#dynamic-apis).
+
+## Streaming
+
+A technique that allows the server to send parts of a page to the client as they become ready, rather than waiting for the entire page to render. Enabled automatically with [`loading.js`](/docs/app/api-reference/file-conventions/loading) or manual `<Suspense>` boundaries. Learn more in [Linking and Navigating - Streaming](/docs/app/getting-started/linking-and-navigating#streaming).
+
+# T
+
+## Tree Shaking
+
+The process of removing unused code from your JavaScript bundles during the build process. Next.js automatically tree-shakes your code to reduce bundle sizes. Learn more in the [Package Bundling guide](/docs/app/guides/package-bundling).
