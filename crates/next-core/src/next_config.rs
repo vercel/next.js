@@ -2208,6 +2208,7 @@ mod tests {
                     ]
                     .into(),
                 )),
+                module_type: None,
             }
         );
     }
