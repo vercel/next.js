@@ -177,6 +177,15 @@ const queuedInvalidatedModules: Set<ModuleId> = new Set()
  */
 const runtimeModules: Set<ModuleId> = new Set()
 
+/**
+ * When true, modules that bubble up to the root without being accepted
+ * will be auto-accepted. This is useful for server-side HMR where all
+ * server components should accept updates by default.
+ *
+ * This can be enabled/disabled via globalThis.__turbopack_server_hmr_auto_accept__
+ */
+let serverHmrAutoAccept: boolean = true
+
 // ============================================================================
 // Utility Functions
 // ============================================================================
@@ -655,8 +664,13 @@ function getAffectedModuleEffects(moduleId: ModuleId): AffectedModuleEffect {
       })
     }
 
-    // If no parents and not a runtime module, it's unaccepted
+    // If no parents and not a runtime module, check if we should auto-accept
     if (module.parents.length === 0) {
+      if (serverHmrAutoAccept) {
+        // In server HMR mode with auto-accept enabled, treat root modules as self-accepting
+        // This allows server component updates to be applied without explicit module.hot.accept()
+        continue
+      }
       return { type: 'unaccepted', dependencyChain: newDependencyChain }
     }
   }
@@ -735,11 +749,19 @@ function computeOutdatedSelfAcceptedModules(
 
   for (const moduleId of outdatedModules) {
     const module = devModuleCache[moduleId]
-    const hotState = moduleHotState.get(module)!
-    if (module && hotState.selfAccepted && !hotState.selfInvalidated) {
+    if (!module) continue
+
+    const hotState = moduleHotState.get(module)
+    const isSelfAccepted = hotState?.selfAccepted && !hotState?.selfInvalidated
+
+    // In server HMR auto-accept mode, treat root modules (no parents) as self-accepting
+    const isAutoAcceptedRoot =
+      serverHmrAutoAccept && module.parents.length === 0
+
+    if (isSelfAccepted || isAutoAcceptedRoot) {
       outdatedSelfAcceptedModules.push({
         moduleId,
-        errorHandler: hotState.selfAccepted,
+        errorHandler: hotState?.selfAccepted || true,
       })
     }
   }
