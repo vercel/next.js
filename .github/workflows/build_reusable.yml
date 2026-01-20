@@ -95,9 +95,9 @@ env:
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
-  TURBO_TEAM: 'vercel'
+  TURBO_TEAM: 'vtest314-next-e2e-tests'
   TURBO_CACHE: 'remote:rw'
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TOKEN: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
 
   NEXT_TELEMETRY_DISABLED: 1
   # allow not skipping install-native postinstall script if we don't have a binary available already
