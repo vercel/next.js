@@ -45,7 +45,7 @@ type OpenGraphMetadata = {
   images?: OGImage | Array<OGImage> | undefined
   audio?: OGAudio | Array<OGAudio> | undefined
   videos?: OGVideo | Array<OGVideo> | undefined
-  url?: string | URL | undefined
+  url?: null | string | URL | undefined
   countryName?: string | undefined
   ttl?: number | undefined
 }
