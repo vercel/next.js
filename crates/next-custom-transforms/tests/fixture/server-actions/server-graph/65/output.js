@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"006a88810ecce4a4e8b59d53b8327d7e98bbf251d7":"$$RSC_SERVER_ACTION_0","ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"006a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"name":"$$RSC_SERVER_ACTION_0"},"ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d":{"name":"default"}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 // @ts-ignore

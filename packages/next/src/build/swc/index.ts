@@ -950,6 +950,9 @@ function bindingToApi(
           | { type: 'regex'; value: { source: string; flags: string } }
           | { type: 'glob'; value: string }
         content?: { source: string; flags: string }
+        query?:
+          | { type: 'regex'; value: { source: string; flags: string } }
+          | { type: 'constant'; value: string }
       }
 
   // converts regexes to a `RegexComponents` object so that it can be JSON-serialized when passed to
@@ -985,6 +988,15 @@ function bindingToApi(
                 }
               : { type: 'glob', value: cond.path },
         content: cond.content && regexComponents(cond.content),
+        query:
+          cond.query == null
+            ? undefined
+            : cond.query instanceof RegExp
+              ? {
+                  type: 'regex',
+                  value: regexComponents(cond.query),
+                }
+              : { type: 'constant', value: cond.query },
       }
     }
   }

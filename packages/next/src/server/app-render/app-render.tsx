@@ -2017,9 +2017,22 @@ async function renderToHTMLOrFlightImpl(
 
   const isPossibleActionRequest = getIsPossibleServerAction(req)
 
+  // For implicit tags, we need to use the rewritten pathname (if a rewrite
+  // occurred) rather than the original request pathname. Implicit tags are used
+  // to check cache staleness on read (for 'use cache') and as soft tags for
+  // fetch cache. Using the destination path ensures that
+  // revalidatePath('/dest') invalidates cache entries for pages rewritten to
+  // that destination.
+  // TODO: simplify getImplicitTags to accept pathname instead of url object,
+  // and rename 'rewroteURL' to 'rewrittenPathname' in request-meta.ts.
+  const rewrittenPathname = getRequestMeta(req, 'rewroteURL')
+  const implicitTagsUrl = rewrittenPathname
+    ? { ...url, pathname: rewrittenPathname }
+    : url
+
   const implicitTags = await getImplicitTags(
     workStore.page,
-    url,
+    implicitTagsUrl,
     fallbackRouteParams
   )
 

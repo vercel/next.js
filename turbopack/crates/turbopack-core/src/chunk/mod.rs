@@ -1,12 +1,12 @@
 pub mod availability_info;
 pub mod available_modules;
 pub mod chunk_group;
+pub mod chunk_id_strategy;
 pub(crate) mod chunk_item_batch;
 pub mod chunking;
 pub(crate) mod chunking_context;
 pub(crate) mod data;
 pub(crate) mod evaluate;
-pub mod module_id_strategies;
 
 use std::fmt::Display;
 
@@ -85,7 +85,7 @@ impl ModuleId {
 
 /// A list of module ids.
 #[turbo_tasks::value(transparent, shared)]
-pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
+pub struct ModuleIds(Vec<ModuleId>);
 
 /// A [Module] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
@@ -512,17 +512,22 @@ pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
 pub trait ChunkItemExt {
     /// Returns the module id of this chunk item.
-    fn id(self: Vc<Self>) -> Vc<ModuleId>;
+    fn id(self: Vc<Self>) -> impl Future<Output = Result<ModuleId>> + Send;
 }
 
 impl<T> ChunkItemExt for T
 where
-    T: Upcast<Box<dyn ChunkItem>>,
+    T: Upcast<Box<dyn ChunkItem>> + Send,
 {
     /// Returns the module id of this chunk item.
-    fn id(self: Vc<Self>) -> Vc<ModuleId> {
+    async fn id(self: Vc<Self>) -> Result<ModuleId> {
         let chunk_item = Vc::upcast_non_strict(self);
-        chunk_item.chunking_context().chunk_item_id(chunk_item)
+        chunk_item
+            .chunking_context()
+            .chunk_item_id_strategy()
+            .await?
+            .get_id(chunk_item)
+            .await
     }
 }
 
@@ -531,17 +536,21 @@ pub trait ModuleChunkItemIdExt {
     fn chunk_item_id(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<ModuleId>;
+    ) -> impl Future<Output = Result<ModuleId>> + Send;
 }
 impl<T> ModuleChunkItemIdExt for T
 where
-    T: Upcast<Box<dyn Module>>,
+    T: Upcast<Box<dyn Module>> + Send,
 {
-    fn chunk_item_id(
+    async fn chunk_item_id(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<ModuleId> {
-        chunking_context.chunk_item_id_from_module(Vc::upcast_non_strict(self))
+    ) -> Result<ModuleId> {
+        chunking_context
+            .chunk_item_id_strategy()
+            .await?
+            .get_id_from_module(Vc::upcast_non_strict(self))
+            .await
     }
 }
 
