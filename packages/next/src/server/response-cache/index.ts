@@ -307,6 +307,11 @@ export default class ResponseCache implements ResponseCacheBase {
         return null
       }
 
+      // Resolve for on-demand revalidation or if not already resolved
+      if (context.isOnDemandRevalidate && !resolved) {
+        return incrementalResponseCacheEntry
+      }
+
       return incrementalResponseCacheEntry
     } catch (err) {
       // If we've already resolved the cache entry, we can't reject as we
