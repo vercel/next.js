@@ -957,8 +957,10 @@ export default async function build(
     NextBuildContext.debugBuildPaths = debugBuildPaths
 
     await nextBuildSpan.traceAsyncFn(async () => {
+      // Check process.env first to get the latest value (e.g., from next.env in tests)
+      // Then fall back to NextBuildContext which might have a stale value from previous build
       const preservedDeploymentId =
-        NextBuildContext.preservedDeploymentId || process.env.NEXT_DEPLOYMENT_ID
+        process.env.NEXT_DEPLOYMENT_ID || NextBuildContext.preservedDeploymentId
       if (preservedDeploymentId) {
         NextBuildContext.preservedDeploymentId = preservedDeploymentId
         // Ensure it's in process.env so loadEnvConfig can see it
