@@ -10,7 +10,12 @@ import type { CacheControl, Revalidate } from '../server/lib/cache-control'
 
 import '../lib/setup-exception-listeners'
 
-import { loadEnvConfig, type LoadedEnvFiles, initialEnv } from '@next/env'
+import {
+  loadEnvConfig,
+  type LoadedEnvFiles,
+  initialEnv,
+  updateInitialEnv,
+} from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
@@ -958,6 +963,8 @@ export default async function build(
         NextBuildContext.preservedDeploymentId = preservedDeploymentId
         // Ensure it's in process.env so loadEnvConfig can see it
         process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
+        // Update initialEnv so loadEnvConfig includes it when resetting process.env
+        updateInitialEnv({ NEXT_DEPLOYMENT_ID: preservedDeploymentId })
       }
 
       const { loadedEnvFiles, combinedEnv } = nextBuildSpan
