@@ -77,9 +77,11 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 }
             };
 
-            // Apply the same logic as make_chunk_group in chunk_group.rs to compute
-            // async_availability_info. This ensures the ManifestAsyncModule gets created with
-            // the same availability_info, resulting in consistent chunk hashes.
+            // Apply the same .in_async_module() transformation that make_chunk_group applies
+            // in chunk_group.rs. This ensures the availability_info used for generating
+            // react-loadable-manifest.json matches the availability_info used when the
+            // actual chunks are created during runtime, producing consistent hashes.
+            // See: turbopack/crates/turbopack-core/src/chunk/chunk_group.rs:118-123
             let is_nested_async_availability_enabled = *chunking_context
                 .is_nested_async_availability_enabled()
                 .await?;
