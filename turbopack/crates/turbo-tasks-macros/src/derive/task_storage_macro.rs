@@ -82,7 +82,7 @@ impl FieldInfo {
                 quote! { self.check_access(crate::backend::SpecificTaskDataCategory::Meta); }
             }
             Category::Transient => quote! {
-            // transient tasks don't need to check access
+                let _we_dont_check_access_for_transient_data = ();
             },
         }
     }
@@ -98,7 +98,7 @@ impl FieldInfo {
             }
             Category::Transient => {
                 quote! {
-                    // We don't track modifications to transient data
+                    let _we_dont_track_mutations_for_transient_data = ();
                 }
             }
         }
