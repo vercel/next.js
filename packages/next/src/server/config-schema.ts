@@ -292,6 +292,7 @@ export const experimentalSchema = {
     ])
     .optional(),
   transitionIndicator: z.boolean().optional(),
+  gestureTransition: z.boolean().optional(),
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
