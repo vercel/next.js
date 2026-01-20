@@ -313,7 +313,7 @@ export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export declare function projectHmrEvents(
+export declare function projectClientHmrEvents(
   project: { __napiType: 'Project' },
   identifier: RcStr,
   func: (...args: any[]) => any
@@ -321,7 +321,7 @@ export declare function projectHmrEvents(
 export interface HmrIdentifiers {
   identifiers: Array<RcStr>
 }
-export declare function projectHmrIdentifiersSubscribe(
+export declare function projectClientHmrIdentifiersSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }

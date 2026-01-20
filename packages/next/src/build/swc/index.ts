@@ -735,17 +735,24 @@ function bindingToApi(
       })()
     }
 
-    hmrEvents(identifier: string) {
+    clientHmrEvents(identifier: string) {
       return subscribe<TurbopackResult<Update>>(true, async (callback) =>
-        binding.projectHmrEvents(this._nativeProject, identifier, callback)
+        binding.projectClientHmrEvents(
+          this._nativeProject,
+          identifier,
+          callback
+        )
       )
     }
 
-    hmrIdentifiersSubscribe() {
+    clientHmrIdentifiersSubscribe() {
       return subscribe<TurbopackResult<HmrIdentifiers>>(
         false,
         async (callback) =>
-          binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
+          binding.projectClientHmrIdentifiersSubscribe(
+            this._nativeProject,
+            callback
+          )
       )
     }
 

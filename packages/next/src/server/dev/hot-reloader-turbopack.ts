@@ -667,7 +667,7 @@ export async function createHotReloaderTurbopack(
       return
     }
 
-    const subscription = project!.hmrEvents(id)
+    const subscription = project!.clientHmrEvents(id)
     state.subscriptions.set(id, subscription)
 
     // The subscription will always emit once, which is the initial
