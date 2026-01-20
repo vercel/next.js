@@ -563,7 +563,9 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         appDir,
         hasReactRefresh: dev && isClient,
-        nextConfig: config,
+        nextConfig: config as NextConfigComplete & {
+          deploymentId?: string
+        },
         jsConfig,
         transpilePackages: finalTranspilePackages,
         supportedBrowsers,
