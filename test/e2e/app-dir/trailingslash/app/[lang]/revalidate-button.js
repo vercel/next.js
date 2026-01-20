@@ -8,13 +8,17 @@ export function RevalidateButton({ lang }) {
 
   function handleRevalidate() {
     startTransition(async () => {
-      setResult(null)
       try {
-        const res = await fetch(`/api/revalidate/?lang=${lang}`)
-        const data = await res.json()
-        setResult(`Revalidated at: ${data.timestamp}`)
+        const data = await fetch(`/api/revalidate/?lang=${lang}`).then((res) =>
+          res.json()
+        )
+        startTransition(() => {
+          setResult(`Revalidated at: ${data.timestamp}`)
+        })
       } catch (e) {
-        setResult(`Error: ${e}`)
+        startTransition(() => {
+          setResult(`Error: ${e}`)
+        })
       }
     })
   }
@@ -28,7 +32,7 @@ export function RevalidateButton({ lang }) {
       >
         {isPending ? 'Revalidating...' : `Revalidate /${lang}/`}
       </button>
-      <pre id="revalidate-result">{result}</pre>
+      {result && <pre id="revalidate-result">{result}</pre>}
     </div>
   )
 }
