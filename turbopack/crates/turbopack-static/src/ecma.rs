@@ -15,7 +15,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
-    runtime_functions::TURBOPACK_EXPORT_VALUE,
+    runtime_functions::TURBOPACK_EXPORT_URL,
     utils::StringifyJs,
 };
 
@@ -156,7 +156,7 @@ impl EcmascriptChunkItem for StaticUrlJsChunkItem {
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "{TURBOPACK_EXPORT_VALUE}({path});",
+                "{TURBOPACK_EXPORT_URL}({path});",
                 path = StringifyJs(
                     &self
                         .chunking_context

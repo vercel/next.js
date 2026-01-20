@@ -257,6 +257,15 @@ function exportValue(
 }
 contextPrototype.v = exportValue
 
+function exportUrl(
+  this: TurbopackBaseContext<Module>,
+  url: string,
+  id: ModuleId | undefined
+) {
+  exportValue.call(this, url, id)
+}
+contextPrototype.q = exportUrl
+
 function exportNamespace(
   this: TurbopackBaseContext<Module>,
   namespace: any,
