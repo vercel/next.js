@@ -1,12 +1,12 @@
-import prisma from '@/lib/prisma'
-import { Product } from '@/components/Product'
+import prisma from "@/lib/prisma";
+import { Product } from "@/components/Product";
 
 export default async function Home() {
   const products = await prisma.product.findMany({
     include: {
       category: true,
     },
-  })
+  });
 
   return (
     <main className="p-10 mx-auto max-w-4xl">
@@ -20,5 +20,5 @@ export default async function Home() {
         ))}
       </div>
     </main>
-  )
+  );
 }
