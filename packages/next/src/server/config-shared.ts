@@ -122,6 +122,22 @@ export type TurbopackRuleCondition =
       contentType?: string | RegExp
     }
 
+/**
+ * The module type to use for matched files. This determines how files are
+ * processed without requiring a custom loader.
+ *
+ * - `'asset'` - Emit the file and return its URL (like webpack's `asset/resource`)
+ * - `'ecmascript'` - Process as JavaScript module
+ * - `'typescript'` - Process as TypeScript module
+ * - `'css'` - Process as CSS file
+ * - `'css-module'` - Process as CSS module
+ * - `'wasm'` - Process as WebAssembly module
+ * - `'raw'` - Return raw file contents as a string
+ * - `'node'` - Process as native Node.js addon
+ * - `'bytes'` - Inline file contents as bytes in JavaScript
+ *
+ * @see [Module Types](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#module-types)
+ */
 export type TurbopackModuleType =
   | 'asset'
   | 'ecmascript'
@@ -134,9 +150,16 @@ export type TurbopackModuleType =
   | 'bytes'
 
 export type TurbopackRuleConfigItem = {
+  /** Loaders to apply to matched files. */
   loaders?: TurbopackLoaderItem[]
+  /** Rename the file extension for loader output (e.g., `'*.js'`). */
   as?: string
+  /** Additional conditions for when this rule applies. */
   condition?: TurbopackRuleCondition
+  /**
+   * Set the module type directly without using a loader.
+   * @see [Module Types](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#module-types)
+   */
   type?: TurbopackModuleType
 }
 
