@@ -1,6 +1,6 @@
-const { Prisma } = require("@prisma/client");
+import { Prisma } from "../lib/generated/prisma/client";
 
-const categories = [
+export const categories = [
   {
     name: "Hats",
     description: "Things you can wear on your head",
@@ -15,38 +15,33 @@ const categories = [
   },
 ];
 
-const products = [
+export const products = [
   {
     name: "Cool helmet.",
     description: "A nice helmet to wear on your head",
     price: new Prisma.Decimal(19.95),
     image: "/images/helmet.jpg",
-    category_id: 1,
+    categoryId: 1,
   },
   {
     name: "Grey T-Shirt",
     description: "A nice shirt that you can wear on your body",
     price: new Prisma.Decimal(22.95),
     image: "/images/shirt.jpg",
-    category_id: 3,
+    categoryId: 3,
   },
   {
     name: "Socks",
     description: "Cool socks that you can wear on your feet",
     price: new Prisma.Decimal(12.95),
     image: "/images/socks.jpg",
-    category_id: 2,
+    categoryId: 2,
   },
   {
     name: "Sweatshirt",
     description: "Cool sweatshirt that you can wear on your body",
     price: new Prisma.Decimal(12.95),
     image: "/images/sweatshirt.jpg",
-    category_id: 3,
+    categoryId: 3,
   },
 ];
-
-module.exports = {
-  products,
-  categories,
-};
