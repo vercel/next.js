@@ -32,6 +32,7 @@ import {
 import type { CompilerNameValues } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import type { NextConfigComplete } from '../server/config-shared'
+import { evaluateDeploymentId } from '../server/evaluate-deployment-id'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
@@ -2118,7 +2119,7 @@ export default async function getBaseWebpackConfig(
         new BuildManifestPlugin({
           buildId,
           dev,
-          deploymentId: config.deploymentId,
+          deploymentId: evaluateDeploymentId(config.deploymentId),
           rewrites,
           isDevFallback,
           appDirEnabled: hasAppDir,

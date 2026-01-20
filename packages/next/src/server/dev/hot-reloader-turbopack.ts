@@ -78,6 +78,7 @@ import {
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import type { NextConfigComplete } from '../config-shared'
+import { evaluateDeploymentId } from '../evaluate-deployment-id'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
@@ -327,7 +328,7 @@ export async function createHotReloaderTurbopack(
     distDir,
     encryptionKey,
     dev: true,
-    deploymentId: nextConfig.deploymentId,
+    deploymentId: evaluateDeploymentId(nextConfig.deploymentId),
   })
 
   // Dev specific

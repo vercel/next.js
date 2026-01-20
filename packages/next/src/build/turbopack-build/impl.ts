@@ -15,6 +15,7 @@ import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import type { NextConfigComplete } from '../../server/config-shared'
+import { evaluateDeploymentId } from '../../server/evaluate-deployment-id'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
@@ -141,7 +142,7 @@ export async function turbopackBuild(): Promise<{
       distDir,
       encryptionKey,
       dev: false,
-      deploymentId: config.deploymentId,
+      deploymentId: evaluateDeploymentId(config.deploymentId),
     })
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(
