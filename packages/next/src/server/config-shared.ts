@@ -880,15 +880,15 @@ export interface ExperimentalConfig {
   devCacheControlNoCache?: boolean
 
   /**
-   * Maximum number of responses to cache in the in-memory LRU cache for
-   * minimal mode (standalone deployments). Defaults to 30.
+   * Maximum number of responses to cache in the in-memory LRU cache.
+   * Defaults to 30.
    */
   maxResponseCacheSize?: number
 
   /**
-   * TTL (time-to-live) in milliseconds for response cache entries in minimal
-   * mode (standalone deployments). Entries are proactively evicted after this
-   * duration to reduce memory pressure. Defaults to 10000 (10 seconds).
+   * TTL (time-to-live) in milliseconds for response cache entries. Entries
+   * are proactively evicted after this duration to reduce memory pressure.
+   * Defaults to 10000 (10 seconds).
    */
   responseCacheTTL?: number
 }
