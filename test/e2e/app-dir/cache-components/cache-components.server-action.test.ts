@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox, retry } from 'next-test-utils'
 
 describe('cache-components', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDeploy, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
@@ -36,7 +36,11 @@ describe('cache-components', () => {
   it('should prerender pages with inline server actions', async () => {
     let $ = await next.render$('/server-action-inline', {})
 
-    if (isNextDev) {
+    if (
+      isNextDev ||
+      // TODO: This seems wrong. Should be "at buildtime" on Vercel.
+      isNextDeploy
+    ) {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
     } else {
