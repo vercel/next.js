@@ -1,6 +1,7 @@
 import { install } from "../helpers/install";
 import { runTypegen } from "../helpers/typegen";
 import { copy } from "../helpers/copy";
+import { getPnpmMajorVersion } from "../helpers/get-pkg-manager";
 
 import { async as glob } from "fast-glob";
 import os from "os";
@@ -320,24 +321,29 @@ export const installTemplate = async ({
   }
 
   if (packageManager === "pnpm") {
-    const pnpmWorkspaceYaml = [
-      // required for v9 to avoid "packages field missing or empty", v10 doesn't need it anymore
-      // TODO: remove when v9 no longer supported
-      "packages: []",
-      // v10 setting without counterpart in v9
-      "ignoredBuiltDependencies:",
-      // Sharp has prebuilt binaries for the platforms next-swc has binaries.
-      // If it needs to build binaries from source, next-swc wouldn't work either.
-      // See https://sharp.pixelplumbing.com/install/#:~:text=When%20using%20pnpm%2C%20add%20sharp%20to%20ignoredBuiltDependencies%20to%20silence%20warnings
-      "  - sharp",
-      // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
-      "  - unrs-resolver",
-      "",
-    ].join(os.EOL);
-    await fs.writeFile(
-      path.join(root, "pnpm-workspace.yaml"),
-      pnpmWorkspaceYaml,
-    );
+    // Only create pnpm-workspace.yaml for pnpm v10+.
+    // In v9, having a pnpm-workspace.yaml (even with packages: []) causes
+    // ERR_PNPM_ADDING_TO_ROOT errors when running `pnpm add`.
+    // In v10, the packages field can be omitted entirely.
+    // If we can't determine the version, assume latest (v10+) since we already
+    // know pnpm is being used at this point.
+    const pnpmMajorVersion = getPnpmMajorVersion();
+    if (pnpmMajorVersion === null || pnpmMajorVersion >= 10) {
+      const pnpmWorkspaceYaml = [
+        "ignoredBuiltDependencies:",
+        // Sharp has prebuilt binaries for the platforms next-swc has binaries.
+        // If it needs to build binaries from source, next-swc wouldn't work either.
+        // See https://sharp.pixelplumbing.com/install/#:~:text=When%20using%20pnpm%2C%20add%20sharp%20to%20ignoredBuiltDependencies%20to%20silence%20warnings
+        "  - sharp",
+        // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
+        "  - unrs-resolver",
+        "",
+      ].join(os.EOL);
+      await fs.writeFile(
+        path.join(root, "pnpm-workspace.yaml"),
+        pnpmWorkspaceYaml,
+      );
+    }
   }
 
   if (packageManager === "bun") {

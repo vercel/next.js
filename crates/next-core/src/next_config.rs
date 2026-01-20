@@ -14,7 +14,7 @@ use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
-    ConditionItem, ConditionPath, LoaderRuleItem, WebpackRules,
+    ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem, WebpackRules,
     module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
@@ -674,6 +674,42 @@ impl TryFrom<RegexComponents> for EsRegex {
 }
 
 #[derive(
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ConfigConditionQuery {
+    Constant(RcStr),
+    Regex(RegexComponents),
+}
+
+impl TryFrom<ConfigConditionQuery> for ConditionQuery {
+    type Error = anyhow::Error;
+
+    fn try_from(config: ConfigConditionQuery) -> Result<ConditionQuery> {
+        Ok(match config {
+            ConfigConditionQuery::Constant(value) => ConditionQuery::Constant(value),
+            ConfigConditionQuery::Regex(regex) => {
+                ConditionQuery::Regex(EsRegex::try_from(regex)?.resolved_cell())
+            }
+        })
+    }
+}
+
+#[derive(
     Deserialize,
     Clone,
     PartialEq,
@@ -703,6 +739,8 @@ pub enum ConfigConditionItem {
         path: Option<ConfigConditionPath>,
         #[serde(default)]
         content: Option<RegexComponents>,
+        #[serde(default)]
+        query: Option<ConfigConditionQuery>,
     },
 }
 
@@ -723,12 +761,17 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
             ConfigConditionItem::Builtin(cond) => {
                 ConditionItem::Builtin(RcStr::from(cond.as_str()))
             }
-            ConfigConditionItem::Base { path, content } => ConditionItem::Base {
+            ConfigConditionItem::Base {
+                path,
+                content,
+                query,
+            } => ConditionItem::Base {
                 path: path.map(ConditionPath::try_from).transpose()?,
                 content: content
                     .map(EsRegex::try_from)
                     .transpose()?
                     .map(EsRegex::resolved_cell),
+                query: query.map(ConditionQuery::try_from).transpose()?,
             },
         })
     }
@@ -925,6 +968,8 @@ pub struct ExperimentalConfig {
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     root_params: Option<bool>,
+    runtime_server_deployment_id: Option<bool>,
+
     // ---
     // UNSUPPORTED
     // ---
@@ -969,6 +1014,7 @@ pub struct ExperimentalConfig {
     server_source_maps: Option<bool>,
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
+    gesture_transition: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -1740,6 +1786,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_gesture_transition(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
     pub fn enable_cache_components(&self) -> Vc<bool> {
         Vc::cell(self.cache_components.unwrap_or(false))
     }
@@ -1763,6 +1814,15 @@ impl NextConfig {
                 .root_params
                 // rootParams should be enabled implicitly in cacheComponents.
                 .unwrap_or(self.cache_components.unwrap_or(false)),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn runtime_server_deployment_id_available(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .runtime_server_deployment_id
+                .unwrap_or(false),
         )
     }
 
@@ -2080,6 +2140,7 @@ mod tests {
                                         source: rcstr!("@someTag"),
                                         flags: rcstr!(""),
                                     }),
+                                    query: None,
                                 },
                             ]
                             .into(),

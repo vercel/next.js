@@ -1,4 +1,4 @@
-import { redirect, permanentRedirect } from 'next/navigation'
+import { redirect, permanentRedirect, RedirectType } from 'next/navigation'
 import type { Route } from 'next'
 
 export default function Page() {
@@ -21,6 +21,11 @@ export default function Page() {
     permanentRedirect('/blog/a/b')
     permanentRedirect(`/dashboard/${'123'}`)
     permanentRedirect('/external' as Route)
+
+    // RedirectType should be correctly typed as literal types:
+    redirect('/dashboard/another', RedirectType.replace)
+    redirect('/about', RedirectType.push)
+    permanentRedirect('/dashboard/user', RedirectType.replace)
   }
 
   return <div onClick={testRedirect} />

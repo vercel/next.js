@@ -10,5 +10,6 @@ module.exports = {
     undefined,
   experimental: {
     useSkewCookie: Boolean(process.env.COOKIE_SKEW),
+    runtimeServerDeploymentId: !!process.env.RUNTIME_SERVER_DEPLOYMENT_ID,
   },
 }

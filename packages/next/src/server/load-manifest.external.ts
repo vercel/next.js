@@ -92,7 +92,9 @@ export function evalManifest<T extends object>(
     throw new Error('Manifest file is empty')
   }
 
-  let contextObject = {}
+  let contextObject = {
+    process: { env: { NEXT_DEPLOYMENT_ID: process.env.NEXT_DEPLOYMENT_ID } },
+  }
   runInNewContext(content, contextObject)
 
   // Freeze the context object so it cannot be modified if we're caching it.

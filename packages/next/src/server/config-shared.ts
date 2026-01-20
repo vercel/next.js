@@ -118,6 +118,7 @@ export type TurbopackRuleCondition =
   | {
       path?: string | RegExp
       content?: RegExp
+      query?: string | RegExp
     }
 
 export type TurbopackRuleConfigItem = {
@@ -398,6 +399,12 @@ export interface ExperimentalConfig {
    * This includes displaying an indicator on client-side navigations.
    */
   transitionIndicator?: boolean
+
+  /**
+   * Enables experimental gesture transition APIs for optimistic client
+   * navigations. Requires experimental React.
+   */
+  gestureTransition?: boolean
 
   /**
    * A target memory limit for turbo, in bytes.
@@ -1583,6 +1590,7 @@ export const defaultConfig = Object.freeze({
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
+    gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
@@ -1705,6 +1713,11 @@ export interface NextConfigRuntime {
 export function getNextConfigRuntime(
   config: NextConfigComplete | NextConfigRuntime
 ): NextConfigRuntime {
+  // This config filter is a breaking change, so only do it if experimental.runtimeServerDeploymentId is enabled
+  if (!config.experimental.runtimeServerDeploymentId) {
+    return config
+  }
+
   let ex = config.experimental
 
   type Requiredish<T> = {

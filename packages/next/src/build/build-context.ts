@@ -97,4 +97,8 @@ export const NextBuildContext: Partial<{
   debugPrerender: boolean
   analyze: boolean
   preservedDeploymentId?: string
+  debugBuildPaths?: {
+    app: string[]
+    pages: string[]
+  }
 }> = {}
