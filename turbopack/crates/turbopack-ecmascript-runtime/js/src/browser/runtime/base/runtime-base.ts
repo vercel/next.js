@@ -323,6 +323,7 @@ function getWorkerBlobURL(chunks: ChunkPath[]): string {
   // evaluated by poping urls off of this array.  See `getPathFromScript`
   let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
 self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
+self.NEXT_DEPLOYMENT_ID = ${JSON.stringify((globalThis as any).NEXT_DEPLOYMENT_ID)};
 self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
 importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`
   let blob = new Blob([bootstrap], { type: 'text/javascript' })
