@@ -1,10 +1,50 @@
 const path = require('path')
 const minimatch = require('minimatch')
 
+function getManifest() {
+  const nextExternalTestFilters = process.env.NEXT_EXTERNAL_TESTS_FILTERS
+  if (!nextExternalTestFilters) {
+    return null
+  }
+
+  return nextExternalTestFilters
+    .split(',')
+    .reduce((mergedManifest, manifestPath) => {
+      const manifest = require(path.resolve(manifestPath))
+      if (!mergedManifest) {
+        return manifest
+      }
+
+      if (manifest.version === 2) {
+        for (const suite in manifest.suites) {
+          if (mergedManifest.suites[suite]) {
+            const mergedSuite = mergedManifest.suites[suite]
+            const currentSuite = manifest.suites[suite]
+            mergedSuite.failed = [
+              ...(mergedSuite.failed || []),
+              ...(currentSuite.failed || []),
+            ]
+            mergedSuite.flakey = [
+              ...(mergedSuite.flakey || []),
+              ...(currentSuite.flakey || []),
+            ]
+          } else {
+            mergedManifest.suites[suite] = manifest.suites[suite]
+          }
+        }
+        mergedManifest.rules.include.push(...(manifest.rules.include || []))
+        mergedManifest.rules.exclude.push(...(manifest.rules.exclude || []))
+        return mergedManifest
+      }
+
+      throw new Error(
+        `Merging manifests is only supported for version 2: ${manifestPath}`
+      )
+    }, null)
+}
+
 function getTestFilter() {
-  const manifest = process.env.NEXT_EXTERNAL_TESTS_FILTERS
-    ? require(path.resolve(process.env.NEXT_EXTERNAL_TESTS_FILTERS))
-    : null
+  const manifest = getManifest()
   if (!manifest) return null
 
   console.log(
