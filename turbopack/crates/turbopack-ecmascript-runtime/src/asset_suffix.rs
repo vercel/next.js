@@ -1,7 +1,7 @@
 use turbo_rcstr::RcStr;
 
 #[turbo_tasks::value(shared)]
-pub enum ChunkSuffix {
+pub enum AssetSuffix {
     /// No suffix.
     None,
     /// A constant suffix to append to chunk URLs.

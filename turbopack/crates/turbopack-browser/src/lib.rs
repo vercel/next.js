@@ -10,4 +10,4 @@ pub mod react_refresh;
 pub use chunking_context::{
     BrowserChunkingContext, BrowserChunkingContextBuilder, ContentHashing, CurrentChunkMethod,
 };
-pub use turbopack_ecmascript_runtime::ChunkSuffix;
+pub use turbopack_ecmascript_runtime::AssetSuffix;

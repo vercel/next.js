@@ -11,7 +11,7 @@ use turbopack::module_options::{
     side_effect_free_packages_glob,
 };
 use turbopack_browser::{
-    BrowserChunkingContext, ChunkSuffix, ContentHashing, CurrentChunkMethod,
+    AssetSuffix, BrowserChunkingContext, ContentHashing, CurrentChunkMethod,
     react_refresh::assert_can_resolve_react_refresh,
 };
 use turbopack_core::{
@@ -26,7 +26,9 @@ use turbopack_core::{
     resolve::{parse::Request, pattern::Pattern},
 };
 use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::{AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType};
+use turbopack_ecmascript::{
+    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -323,6 +325,7 @@ pub async fn get_client_module_options_context(
     let source_maps = *next_config.client_source_maps(mode).await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
+            esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
@@ -468,7 +471,7 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(Some(asset_prefix.clone()))
-    .chunk_suffix(ChunkSuffix::FromScriptSrc.resolved_cell())
+    .asset_suffix(AssetSuffix::FromScriptSrc.resolved_cell())
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),

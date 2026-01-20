@@ -96,6 +96,14 @@ function defaultLoader({
   const q = findClosestQuality(quality, config)
 
   let deploymentId = getDeploymentId()
+  // If src already has a dpl query param (from ASSET_SUFFIX), use that instead
+  if (src.startsWith('/')) {
+    const srcUrl = new URL(src, 'http://n')
+    const srcDpl = srcUrl.searchParams.get('dpl')
+    if (srcDpl) {
+      deploymentId = srcDpl
+    }
+  }
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
     src.startsWith('/') && deploymentId ? `&dpl=${deploymentId}` : ''
   }`
