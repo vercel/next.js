@@ -12,7 +12,10 @@
  */
 
 import React, { useContext } from 'react'
-import { useUntrackedPathname } from '../navigation-untracked'
+import {
+  useUntrackedPathname,
+  useUntrackedSearchParams,
+} from '../navigation-untracked'
 import {
   HTTPAccessErrorStatus,
   getAccessFallbackHTTPStatus,
@@ -34,12 +37,14 @@ interface HTTPAccessFallbackBoundaryProps {
 interface HTTPAccessFallbackErrorBoundaryProps
   extends HTTPAccessFallbackBoundaryProps {
   pathname: string | null
+  searchParamsString: string | null
   missingSlots?: Set<string>
 }
 
 interface HTTPAccessBoundaryState {
   triggeredStatus: number | undefined
   previousPathname: string | null
+  previousSearchParamsString: string | null
 }
 
 class HTTPAccessFallbackErrorBoundary extends React.Component<
@@ -51,6 +56,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
     this.state = {
       triggeredStatus: undefined,
       previousPathname: props.pathname,
+      previousSearchParamsString: props.searchParamsString,
     }
   }
 
@@ -97,16 +103,25 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
      * Ensures the error boundary does not stay enabled when navigating to a new page.
      * Approach of setState in render is safe as it checks the previous pathname and then overrides
      * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
+     *
+     * We check both pathname and search params because a notFound() triggered by
+     * search params (e.g., `/?page=11` triggering 404) should be reset when
+     * navigating back to a URL with different search params (e.g., `/page=1`).
      */
-    if (props.pathname !== state.previousPathname && state.triggeredStatus) {
+    const hasNavigated =
+      props.pathname !== state.previousPathname ||
+      props.searchParamsString !== state.previousSearchParamsString
+    if (hasNavigated && state.triggeredStatus) {
       return {
         triggeredStatus: undefined,
         previousPathname: props.pathname,
+        previousSearchParamsString: props.searchParamsString,
       }
     }
     return {
       triggeredStatus: state.triggeredStatus,
       previousPathname: props.pathname,
+      previousSearchParamsString: props.searchParamsString,
     }
   }
 
@@ -161,6 +176,8 @@ export function HTTPAccessFallbackBoundary({
   // boundaries for the missing params shell. When this runs on the client
   // (where these error can occur), we will get the correct pathname.
   const pathname = useUntrackedPathname()
+  const searchParams = useUntrackedSearchParams()
+  const searchParamsString = searchParams ? searchParams.toString() : null
   const missingSlots = useContext(MissingSlotContext)
   const hasErrorFallback = !!(notFound || forbidden || unauthorized)
 
@@ -168,6 +185,7 @@ export function HTTPAccessFallbackBoundary({
     return (
       <HTTPAccessFallbackErrorBoundary
         pathname={pathname}
+        searchParamsString={searchParamsString}
         notFound={notFound}
         forbidden={forbidden}
         unauthorized={unauthorized}

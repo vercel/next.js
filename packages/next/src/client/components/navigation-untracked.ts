@@ -1,5 +1,8 @@
 import { useContext } from 'react'
-import { PathnameContext } from '../../shared/lib/hooks-client-context.shared-runtime'
+import {
+  PathnameContext,
+  SearchParamsContext,
+} from '../../shared/lib/hooks-client-context.shared-runtime'
 
 /**
  * This checks to see if the current render has any unknown route parameters that
@@ -64,4 +67,30 @@ export function useUntrackedPathname(): string | null {
   // the environment will be consistent for the render.
   // eslint-disable-next-line react-hooks/rules-of-hooks
   return useContext(PathnameContext)
+}
+
+/**
+ * This returns a `null` value if there are any unknown route parameters, and
+ * otherwise returns the search params from the context. This is an alternative
+ * to `useSearchParams` that is used in the error boundary to avoid rendering
+ * the error boundary when there are unknown route parameters. This doesn't
+ * throw when accessed with unknown route parameters.
+ *
+ * @returns
+ *
+ * @internal
+ */
+export function useUntrackedSearchParams(): URLSearchParams | null {
+  // If there are any unknown route parameters we would typically throw
+  // an error, but this internal method allows us to return a null value instead
+  // for components that do not propagate the search params to the static shell
+  // (like the error boundary).
+  if (hasFallbackRouteParams()) {
+    return null
+  }
+
+  // This shouldn't cause any issues related to conditional rendering because
+  // the environment will be consistent for the render.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  return useContext(SearchParamsContext)
 }
