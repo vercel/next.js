@@ -1204,12 +1204,12 @@ struct HmrUpdateWithIssues {
 }
 
 #[turbo_tasks::function(operation)]
-async fn hmr_update_with_issues_operation(
+async fn client_hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
     identifier: RcStr,
     state: ResolvedVc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
-    let update_op = project_hmr_update_operation(project, identifier, state);
+    let update_op = project_client_hmr_update_operation(project, identifier, state);
     let update = update_op.read_strongly_consistent().await?;
     let issues = get_issues(update_op, NEXT_ISSUE_FILTER).await?;
     let diagnostics = get_diagnostics(update_op).await?;
@@ -1224,17 +1224,17 @@ async fn hmr_update_with_issues_operation(
 }
 
 #[turbo_tasks::function(operation)]
-fn project_hmr_update_operation(
+fn project_client_hmr_update_operation(
     project: ResolvedVc<Project>,
     identifier: RcStr,
     state: ResolvedVc<VersionState>,
 ) -> Vc<Update> {
-    project.hmr_update(identifier, *state)
+    project.client_hmr_update(identifier, *state)
 }
 
 #[tracing::instrument(level = "info", name = "get HMR events", skip(project, func))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_hmr_events(
+pub fn project_client_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     identifier: RcStr,
     func: JsFunction,
@@ -1253,12 +1253,12 @@ pub fn project_hmr_events(
                 async move {
                     let project = container.project().to_resolved().await?;
                     let state = project
-                        .hmr_version_state(identifier.clone(), session)
+                        .client_hmr_version_state(identifier.clone(), session)
                         .to_resolved()
                         .await?;
 
                     let update_op =
-                        hmr_update_with_issues_operation(project, identifier.clone(), state);
+                        client_hmr_update_with_issues_operation(project, identifier.clone(), state);
                     let update = update_op.read_strongly_consistent().await?;
                     let HmrUpdateWithIssues {
                         update,
@@ -1331,10 +1331,10 @@ struct HmrIdentifiersWithIssues {
 }
 
 #[turbo_tasks::function(operation)]
-async fn get_hmr_identifiers_with_issues_operation(
+async fn get_client_hmr_identifiers_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<HmrIdentifiersWithIssues>> {
-    let hmr_identifiers_op = project_container_hmr_identifiers_operation(container);
+    let hmr_identifiers_op = project_container_client_hmr_identifiers_operation(container);
     let hmr_identifiers = hmr_identifiers_op.read_strongly_consistent().await?;
     let issues = get_issues(hmr_identifiers_op, NEXT_ISSUE_FILTER).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_op).await?;
@@ -1349,15 +1349,15 @@ async fn get_hmr_identifiers_with_issues_operation(
 }
 
 #[turbo_tasks::function(operation)]
-fn project_container_hmr_identifiers_operation(
+fn project_container_client_hmr_identifiers_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Vc<Vec<RcStr>> {
-    container.hmr_identifiers()
+    container.client_hmr_identifiers()
 }
 
 #[tracing::instrument(level = "info", name = "get HMR identifiers", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_hmr_identifiers_subscribe(
+pub fn project_client_hmr_identifiers_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
@@ -1367,7 +1367,7 @@ pub fn project_hmr_identifiers_subscribe(
         func,
         move || async move {
             let hmr_identifiers_with_issues_op =
-                get_hmr_identifiers_with_issues_operation(container);
+                get_client_hmr_identifiers_with_issues_operation(container);
             let HmrIdentifiersWithIssues {
                 identifiers,
                 issues,

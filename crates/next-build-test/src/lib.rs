@@ -257,7 +257,7 @@ async fn hmr(
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
     let idents = tt
-        .run(async move { project.hmr_identifiers().await })
+        .run(async move { project.client_hmr_identifiers().await })
         .await?;
     let start = Instant::now();
     for ident in idents {
@@ -270,8 +270,8 @@ async fn hmr(
             let session = session.clone();
             async move {
                 let project = project.project();
-                let state = project.hmr_version_state(ident.clone(), session);
-                project.hmr_update(ident.clone(), state).await?;
+                let state = project.client_hmr_version_state(ident.clone(), session);
+                project.client_hmr_update(ident.clone(), state).await?;
                 Ok(Vc::<()>::cell(()))
             }
         });
