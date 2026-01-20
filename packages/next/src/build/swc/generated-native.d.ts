@@ -318,10 +318,19 @@ export declare function projectClientHmrEvents(
   identifier: RcStr,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
+export declare function projectServerHmrEvents(
+  project: { __napiType: 'Project' },
+  identifier: RcStr,
+  func: (...args: any[]) => any
+): { __napiType: 'RootTask' }
 export interface HmrIdentifiers {
   identifiers: Array<RcStr>
 }
 export declare function projectClientHmrIdentifiersSubscribe(
+  project: { __napiType: 'Project' },
+  func: (...args: any[]) => any
+): { __napiType: 'RootTask' }
+export declare function projectServerHmrIdentifiersSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }

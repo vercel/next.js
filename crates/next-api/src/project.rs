@@ -2115,6 +2115,93 @@ impl Project {
         }
     }
 
+    /// Get server module content by identifier (path relative to node_root).
+    /// This is the server-side equivalent of `hmr_content`.
+    #[turbo_tasks::function]
+    async fn server_hmr_content(
+        self: Vc<Self>,
+        identifier: RcStr,
+    ) -> Result<Vc<OptionVersionedContent>> {
+        if let Some(map) = self.await?.versioned_content_map {
+            // Key difference from hmr_content: use node_root instead of client_relative_path
+            let content = map.get(self.node_root().await?.join(&identifier)?);
+            Ok(content)
+        } else {
+            bail!("must be in dev mode to hmr")
+        }
+    }
+
+    /// Get server module version.
+    /// This is the server-side equivalent of `hmr_version`.
+    #[turbo_tasks::function]
+    async fn server_hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
+        let content = self.server_hmr_content(identifier).await?;
+        if let Some(content) = &*content {
+            Ok(content.version())
+        } else {
+            Ok(Vc::upcast(NotFoundVersion::new()))
+        }
+    }
+
+    /// Get the version state for a server HMR session. Initialized with the first seen
+    /// version in that session.
+    /// This is the server-side equivalent of `hmr_version_state`.
+    #[turbo_tasks::function]
+    pub async fn server_hmr_version_state(
+        self: Vc<Self>,
+        identifier: RcStr,
+        session: TransientInstance<()>,
+    ) -> Result<Vc<VersionState>> {
+        let version = self.server_hmr_version(identifier);
+
+        // The session argument is important to avoid caching this function between
+        // sessions.
+        let _ = session;
+
+        // INVALIDATION: This is intentionally untracked to avoid invalidating this
+        // function completely. We want to initialize the VersionState with the
+        // first seen version of the session.
+        let state = VersionState::new(
+            version
+                .into_trait_ref()
+                .strongly_consistent()
+                .untracked()
+                .await?,
+        )
+        .await?;
+        Ok(state)
+    }
+
+    /// Emits opaque HMR events whenever a change is detected in server-side modules
+    /// internally known as `identifier`.
+    /// This is the server-side equivalent of `hmr_update`.
+    #[turbo_tasks::function]
+    pub async fn server_hmr_update(
+        self: Vc<Self>,
+        identifier: RcStr,
+        from: Vc<VersionState>,
+    ) -> Result<Vc<Update>> {
+        let from = from.get();
+        let content = self.server_hmr_content(identifier).await?;
+        if let Some(content) = *content {
+            Ok(content.update(from))
+        } else {
+            Ok(Update::Missing.cell())
+        }
+    }
+
+    /// Gets a list of all server HMR identifiers that can be subscribed to.
+    /// These are paths relative to node_root (e.g., "server/app/page.js").
+    /// This is the server-side equivalent of `hmr_identifiers`.
+    #[turbo_tasks::function]
+    pub async fn server_hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+        if let Some(map) = self.await?.versioned_content_map {
+            Ok(map.keys_in_path(self.node_root().owned().await?))
+        } else {
+            bail!("must be in dev mode to hmr")
+        }
+    }
+
     /// Completion when server side changes are detected in output assets
     /// referenced from the roots
     #[turbo_tasks::function]
