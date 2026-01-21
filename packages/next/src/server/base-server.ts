@@ -134,6 +134,7 @@ import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
+import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 import {
   getBuiltinRequestContext,
   type WaitUntil,
@@ -375,7 +376,6 @@ export default abstract class Server<
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
-      cdnCacheControlHeader?: string
     }
   ): Promise<void>
 
@@ -422,7 +422,7 @@ export default abstract class Server<
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
-  private readonly isCacheComponentsEnabled: boolean
+  private readonly isAppPPREnabled: boolean
 
   /**
    * This is used to persist cache scopes across
@@ -504,8 +504,9 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    this.isCacheComponentsEnabled =
-      this.enabledDirectories.app && !!this.nextConfig.cacheComponents
+    this.isAppPPREnabled =
+      this.enabledDirectories.app &&
+      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
@@ -561,10 +562,10 @@ export default abstract class Server<
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
+        optimisticRouting:
+          this.nextConfig.experimental.optimisticRouting ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
-        cdnCacheControlHeader:
-          this.nextConfig.experimental.cdnCacheControlHeader,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
@@ -1054,7 +1055,7 @@ export default abstract class Server<
           // It's important to execute the following block even it the request
           // matches a pages data route from above.
           if (
-            this.isCacheComponentsEnabled &&
+            this.isAppPPREnabled &&
             this.minimalMode &&
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
@@ -1208,7 +1209,11 @@ export default abstract class Server<
             pathnameBeforeRewrite !== rewrittenParsedUrl.pathname
 
           if (didRewrite && rewrittenParsedUrl.pathname) {
-            addRequestMeta(req, 'rewroteURL', rewrittenParsedUrl.pathname)
+            addRequestMeta(
+              req,
+              'rewrittenPathname',
+              rewrittenParsedUrl.pathname
+            )
           }
 
           const routeParamKeys = new Set<string>()
@@ -1503,7 +1508,7 @@ export default abstract class Server<
 
         if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
           parsedUrl.pathname = parsedMatchedPath.pathname
-          addRequestMeta(req, 'rewroteURL', invokePathnameInfo.pathname)
+          addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
         const normalizeResult = normalizeLocalePath(
           removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
@@ -1798,8 +1803,6 @@ export default abstract class Server<
         generateEtags,
         poweredByHeader,
         cacheControl,
-        cdnCacheControlHeader:
-          this.nextConfig.experimental.cdnCacheControlHeader,
       })
       res.statusCode = originalStatus
     }
@@ -2089,12 +2092,13 @@ export default abstract class Server<
       }
     }
 
-    // Compute the iSSG cache key. We use the rewroteUrl since
+    // Compute the iSSG cache key. We use the rewritten pathname since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
     let urlPathname = parseUrl(req.url || '').pathname || '/'
 
-    let resolvedUrlPathname = getRequestMeta(req, 'rewroteURL') || urlPathname
+    let resolvedUrlPathname =
+      getRequestMeta(req, 'rewrittenPathname') || urlPathname
 
     this.setVaryHeader(req, res, isAppPath, resolvedUrlPathname)
 
@@ -2175,7 +2179,7 @@ export default abstract class Server<
      * enabled, then the given route _could_ support PPR.
      */
     const couldSupportPPR: boolean =
-      this.isCacheComponentsEnabled &&
+      this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
       isAppPageRouteModule(routeModule)
 
@@ -2619,8 +2623,8 @@ export default abstract class Server<
               url: ctx.req.url,
               matchedPath: ctx.req.headers[MATCHED_PATH_HEADER],
               initUrl: getRequestMeta(ctx.req, 'initURL'),
-              didRewrite: !!getRequestMeta(ctx.req, 'rewroteURL'),
-              rewroteUrl: getRequestMeta(ctx.req, 'rewroteURL'),
+              didRewrite: !!getRequestMeta(ctx.req, 'rewrittenPathname'),
+              rewrittenPathname: getRequestMeta(ctx.req, 'rewrittenPathname'),
             },
             null,
             2

@@ -11,6 +11,7 @@ type TestLoaderTree = [
   segment: string,
   parallelRoutes: { [key: string]: TestLoaderTree },
   modules: Record<string, unknown>,
+  staticSiblings: readonly string[] | null,
 ]
 
 function createLoaderTree(
@@ -19,7 +20,7 @@ function createLoaderTree(
   children?: TestLoaderTree
 ): TestLoaderTree {
   const routes = children ? { ...parallelRoutes, children } : parallelRoutes
-  return [segment, routes, {}]
+  return [segment, routes, {}, null]
 }
 
 /**

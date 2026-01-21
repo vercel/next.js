@@ -416,7 +416,7 @@ async function handleDefaultConsole(
   browserPrefix: string,
   ctx: MappingContext,
   distDir: string,
-  config: boolean | { logDepth?: number; showSourceLocation?: boolean },
+  config: BrowserLogConfig,
   isServerLog: boolean
 ) {
   const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
@@ -445,11 +445,77 @@ async function handleDefaultConsole(
   }
 }
 
+type LogLevel = 'error' | 'warn' | 'verbose'
+
+type BrowserLogConfig =
+  | boolean
+  | LogLevel
+  | { level?: LogLevel; showSourceLocation?: boolean }
+
+// Log levels from most severe to least severe
+// Lower index = more severe
+const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+  error: 0,
+  warn: 1,
+  verbose: 2,
+}
+
+// Map console methods to log levels
+const METHOD_TO_LEVEL: Record<string, LogLevel> = {
+  error: 'error',
+  warn: 'warn',
+  info: 'verbose',
+  log: 'verbose',
+  debug: 'verbose',
+  table: 'verbose',
+  trace: 'verbose',
+  dir: 'verbose',
+  dirxml: 'verbose',
+  assert: 'error',
+  group: 'verbose',
+  groupCollapsed: 'verbose',
+  groupEnd: 'verbose',
+}
+
+function shouldShowEntry(
+  entry: ServerLogEntry,
+  config: BrowserLogConfig
+): boolean {
+  // If config is false, don't show any entries
+  if (config === false) {
+    return false
+  }
+
+  // Determine the effective minimum log level
+  const minLevel: LogLevel =
+    typeof config === 'string'
+      ? config
+      : config === true
+        ? 'verbose' // true means show everything
+        : typeof config === 'object'
+          ? (config.level ?? 'verbose') // object config defaults to verbose for backward compatibility
+          : 'warn' // default for new installations
+
+  const minPriority = LOG_LEVEL_PRIORITY[minLevel]
+
+  // formatted-error and any-logged-error are always treated as errors
+  if (entry.kind === 'formatted-error' || entry.kind === 'any-logged-error') {
+    return LOG_LEVEL_PRIORITY['error'] <= minPriority
+  }
+
+  if (entry.kind === 'console') {
+    const entryLevel = METHOD_TO_LEVEL[entry.method] || 'log'
+    return LOG_LEVEL_PRIORITY[entryLevel] <= minPriority
+  }
+
+  return false
+}
+
 export async function handleLog(
   entries: ServerLogEntry[],
   ctx: MappingContext,
   distDir: string,
-  config: boolean | { logDepth?: number; showSourceLocation?: boolean }
+  config: BrowserLogConfig
 ): Promise<void> {
   // Determine the source based on the context
   const isServerLog = ctx.isServer || ctx.isEdgeServer
@@ -457,6 +523,10 @@ export async function handleLog(
   const fileLogger = getFileLogger()
 
   for (const entry of entries) {
+    // Filter entries based on config mode
+    if (!shouldShowEntry(entry, config)) {
+      continue
+    }
     try {
       switch (entry.kind) {
         case 'console': {
@@ -596,7 +666,7 @@ export async function receiveBrowserLogsWebpack(opts: {
   edgeServerStats: () => any
   rootDirectory: string
   distDir: string
-  config: boolean | { logDepth?: number; showSourceLocation?: boolean }
+  config: BrowserLogConfig
 }): Promise<void> {
   const {
     entries,
@@ -634,7 +704,7 @@ export async function receiveBrowserLogsTurbopack(opts: {
   project: Project
   projectPath: string
   distDir: string
-  config: boolean | { logDepth?: number; showSourceLocation?: boolean }
+  config: BrowserLogConfig
 }): Promise<void> {
   const { entries, router, sourceType, project, projectPath, distDir } = opts
 

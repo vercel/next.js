@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs};
@@ -10,8 +10,8 @@ use turbo_tasks_hash::DeterministicHash;
 use crate::{
     asset::Asset,
     chunk::{
-        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets, ModuleId,
-        availability_info::AvailabilityInfo,
+        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets,
+        availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -262,6 +262,9 @@ pub enum SourceMapSourceType {
     TurbopackUri,
 }
 
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct UnusedReferences(FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>);
+
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
@@ -390,7 +393,8 @@ pub trait ChunkingContext {
         availability_info: AvailabilityInfo,
     ) -> Vc<Box<dyn ChunkItem>>;
     #[turbo_tasks::function]
-    fn async_loader_chunk_item_id(&self, module: Vc<Box<dyn ChunkableModule>>) -> Vc<ModuleId>;
+    fn async_loader_chunk_item_ident(&self, module: Vc<Box<dyn ChunkableModule>>)
+    -> Vc<AssetIdent>;
 
     #[turbo_tasks::function]
     fn chunk_group(
@@ -426,19 +430,7 @@ pub trait ChunkingContext {
     ) -> Result<Vc<EntryChunkGroupResult>>;
 
     #[turbo_tasks::function]
-    async fn chunk_item_id_from_ident(
-        self: Vc<Self>,
-        ident: Vc<AssetIdent>,
-    ) -> Result<Vc<ModuleId>>;
-
-    #[turbo_tasks::function]
-    fn chunk_item_id(self: Vc<Self>, module: Vc<Box<dyn ChunkItem>>) -> Vc<ModuleId> {
-        self.chunk_item_id_from_ident(module.asset_ident())
-    }
-    #[turbo_tasks::function]
-    fn chunk_item_id_from_module(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<ModuleId> {
-        self.chunk_item_id_from_ident(module.ident())
-    }
+    async fn chunk_item_id_strategy(self: Vc<Self>) -> Result<Vc<ModuleIdStrategy>>;
 
     #[turbo_tasks::function]
     async fn module_export_usage(
@@ -447,10 +439,7 @@ pub trait ChunkingContext {
     ) -> Result<Vc<ModuleExportUsage>>;
 
     #[turbo_tasks::function]
-    async fn is_reference_unused(
-        self: Vc<Self>,
-        reference: Vc<Box<dyn ModuleReference>>,
-    ) -> Result<Vc<bool>>;
+    async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>>;
 
     /// Returns whether debug IDs are enabled for this chunking context.
     #[turbo_tasks::function]

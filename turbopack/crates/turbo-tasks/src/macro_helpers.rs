@@ -9,7 +9,7 @@ pub use tracing;
 
 use crate::{
     FxDashMap, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitTypeId, ValueType,
-    ValueTypeId, Vc, debug::ValueDebugFormatString, task::TaskOutput,
+    ValueTypeId, debug::ValueDebugFormatString,
 };
 pub use crate::{
     global_name, inventory_submit,
@@ -49,13 +49,6 @@ pub fn get_persistence_from_inputs_and_this(
     } else {
         TaskPersistence::Persistent
     }
-}
-
-pub fn assert_returns_non_local_value<ReturnType, Rv>()
-where
-    ReturnType: TaskOutput<Return = Vc<Rv>>,
-    Rv: NonLocalValue + Send,
-{
 }
 
 pub fn assert_argument_is_non_local_value<Argument: NonLocalValue>() {}

@@ -23,7 +23,7 @@ use shrink_to_fit::ShrinkToFit;
 
 pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
-    cell_mode::{VcCellCompareMode, VcCellMode, VcCellNewMode},
+    cell_mode::{VcCellCompareMode, VcCellKeyedCompareMode, VcCellMode, VcCellNewMode},
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc},
@@ -34,8 +34,10 @@ pub use self::{
 use crate::{
     CellId, RawVc, ResolveTypeError,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
+    keyed::Keyed,
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
+    vc::read::{ReadContainsKeyedVcFuture, ReadKeyedVcFuture},
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -376,11 +378,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> Vc<T>
+impl<T, Inner> Vc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync,
-    Repr: VcValueType,
 {
     pub fn cell(inner: Inner) -> Self {
         Self::cell_private(inner)
@@ -667,6 +668,30 @@ where
     pub fn owned(self) -> ReadOwnedVcFuture<T> {
         let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
         future.owned()
+    }
+}
+
+impl<T> Vc<T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: Keyed,
+    <VcReadTarget<T> as Keyed>::Key: Hash,
+{
+    /// Read the value and selects a keyed value from it. Only depends on the used key instead of
+    /// the full value.
+    pub fn get<'l>(self, key: &'l <VcReadTarget<T> as Keyed>::Key) -> ReadKeyedVcFuture<'l, T> {
+        let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
+        future.get(key)
+    }
+
+    /// Read the value and checks if it contains the given key. Only depends on the used key instead
+    /// of the full value.
+    pub fn contains_key<'l>(
+        self,
+        key: &'l <VcReadTarget<T> as Keyed>::Key,
+    ) -> ReadContainsKeyedVcFuture<'l, T> {
+        let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
+        future.contains_key(key)
     }
 }
 

@@ -955,7 +955,7 @@ pub struct EcmascriptModuleContent {
     pub source_map: Option<Rope>,
     pub is_esm: bool,
     pub strict: bool,
-    pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    pub additional_ids: SmallVec<[ModuleId; 1]>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -1235,7 +1235,7 @@ impl EcmascriptModuleContent {
                     **m != first_entry
                         && *modules.get(*m).unwrap() == MergeableModuleExposure::External
                 })
-                .map(|m| m.chunk_item_id(*options.chunking_context).to_resolved())
+                .map(|m| m.chunk_item_id(*options.chunking_context))
                 .try_join()
                 .await?
                 .into();
@@ -2043,6 +2043,7 @@ async fn with_consumed_parse_result<T>(
                     globals,
                     eval_context,
                     comments,
+                    ..
                 }) => (
                     program.take(),
                     &*source_map,
@@ -2068,6 +2069,7 @@ async fn with_consumed_parse_result<T>(
                         globals,
                         eval_context,
                         comments,
+                        ..
                     } = &**parsed
                     else {
                         unreachable!();
@@ -2091,7 +2093,7 @@ async fn with_consumed_parse_result<T>(
 
 async fn emit_content(
     content: CodeGenResult,
-    additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    additional_ids: SmallVec<[ModuleId; 1]>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let CodeGenResult {
         program,

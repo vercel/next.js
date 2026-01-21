@@ -646,9 +646,9 @@ var HooksDispatcher = {
   },
   useCacheRefresh: function () {
     return unsupportedRefresh;
-  }
+  },
+  useEffectEvent: unsupportedHook
 };
-HooksDispatcher.useEffectEvent = unsupportedHook;
 function unsupportedHook() {
   throw Error("This Hook is not supported in Server Components.");
 }
@@ -1564,10 +1564,16 @@ function renderModelDestructive(
       case REACT_LAZY_TYPE:
         if (3200 < serializedSize) return deferTask(request, task);
         task.thenableState = null;
-        parentPropertyName = value._init;
-        value = parentPropertyName(value._payload);
+        elementReference = value._init;
+        value = elementReference(value._payload);
         if (12 === request.status) throw null;
-        return renderModelDestructive(request, task, emptyRoot, "", value);
+        return renderModelDestructive(
+          request,
+          task,
+          parent,
+          parentPropertyName,
+          value
+        );
       case REACT_LEGACY_ELEMENT_TYPE:
         throw Error(
           'A React Element from an older version of React was rendered. This is not supported. It can happen if:\n- Multiple copies of the "react" package is used.\n- A library pre-bundled an old copy of "react" or "react/jsx-runtime".\n- A compiler tries to "inline" JSX instead of using the runtime.'

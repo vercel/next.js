@@ -283,7 +283,7 @@ export async function adapter(
 
             const implicitTags = await getImplicitTags(
               page,
-              request.nextUrl,
+              request.nextUrl.pathname,
               fallbackRouteParams
             )
 

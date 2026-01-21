@@ -17,7 +17,7 @@ use turbopack_browser::{
 use turbopack_core::{
     chunk::{
         ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType, module_id_strategies::ModuleIdStrategy,
+        SourceMapsType, UnusedReferences, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -31,7 +31,7 @@ use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
 };
-use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
+use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfigHandling};
 
 use crate::{
     mode::NextMode,
@@ -190,22 +190,21 @@ pub async fn get_client_resolve_options_context(
         ..Default::default()
     };
 
-    let tsconfig_path = next_config
-        .typescript_tsconfig_path()
-        .await?
-        .as_ref()
-        // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
-        // resolve tsconfig.json relative to the file being compiled.
-        .or(Some(&RcStr::from("tsconfig.json")))
-        .map(|p| project_path.join(p))
-        .transpose()?;
+    let tsconfig_path = next_config.typescript_tsconfig_path().await?;
+    let tsconfig_path = project_path.join(
+        tsconfig_path
+            .as_ref()
+            // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+            // resolve tsconfig.json relative to the file being compiled.
+            .unwrap_or(&rcstr!("tsconfig.json")),
+    )?;
 
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
-        tsconfig_path,
+        tsconfig_path: TsConfigHandling::Fixed(tsconfig_path),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().resolved_cell(),
@@ -421,9 +420,9 @@ pub struct ClientChunkingContextOptions {
     pub client_root_to_root_path: RcStr,
     pub asset_prefix: Vc<RcStr>,
     pub environment: Vc<Environment>,
-    pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
-    pub unused_references: Vc<OptionBindingUsageInfo>,
+    pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
     pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
@@ -481,7 +480,7 @@ pub async fn get_client_chunking_context(
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .export_usage(*export_usage.await?)
-    .unused_references(*unused_references.await?)
+    .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)

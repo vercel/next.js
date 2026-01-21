@@ -199,6 +199,10 @@ import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
+import {
+  checkIsAppPPREnabled,
+  checkIsRoutePPREnabled,
+} from '../server/lib/experimental/ppr'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { InvariantError } from '../shared/lib/invariant-error'
@@ -225,6 +229,7 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
+  writeRouteTypesEntryFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
 import {
@@ -548,10 +553,12 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
+    deploymentId,
   }: {
     buildId: string
     distDir: string
     locales: readonly string[] | undefined
+    deploymentId: string
   }
 ) {
   const ssgPages = new Set<string>(
@@ -568,8 +575,14 @@ async function writeClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
+  // When skew protection is enabled, we instead just rely on the deployment id query string to
+  // load the correct manifests, to avoid the build id.
+  let ssgManifestPath = deploymentId
+    ? path.join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
+    : path.join(CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js')
+
   await writeFileUtf8(
-    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    path.join(distDir, ssgManifestPath),
     clientSsgManifestContent
   )
 }
@@ -899,8 +912,7 @@ export default async function build(
   bundler = Bundler.Turbopack,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
-  debugBuildAppPaths?: string[],
-  debugBuildPagePaths?: string[]
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
@@ -923,6 +935,7 @@ export default async function build(
     NextBuildContext.reactProductionProfiling = reactProductionProfiling
     NextBuildContext.noMangling = noMangling
     NextBuildContext.debugPrerender = debugPrerender
+    NextBuildContext.debugBuildPaths = debugBuildPaths
 
     await nextBuildSpan.traceAsyncFn(async () => {
       // attempt to load global env values so they are available in next.config.js
@@ -1146,10 +1159,7 @@ export default async function build(
         nextBuildSpan,
         config,
         cacheDir,
-        debugBuildPaths:
-          debugBuildAppPaths !== undefined || debugBuildPagePaths !== undefined
-            ? { app: debugBuildAppPaths, pages: debugBuildPagePaths }
-            : undefined,
+        debugBuildPaths,
       }
 
       if (appDir && 'exportPathMap' in config) {
@@ -1178,10 +1188,9 @@ export default async function build(
           : []
 
       // Apply debug build paths filter if specified
-      // If debugBuildPagePaths is defined (even if empty), only build specified pages
-      if (debugBuildPagePaths !== undefined) {
-        if (debugBuildPagePaths.length > 0) {
-          const debugPathsSet = new Set(debugBuildPagePaths)
+      if (debugBuildPaths) {
+        if (debugBuildPaths.pages.length > 0) {
+          const debugPathsSet = new Set(debugBuildPaths.pages)
           pagesPaths = pagesPaths.filter((pagePath) =>
             debugPathsSet.has(pagePath)
           )
@@ -1315,10 +1324,9 @@ export default async function build(
           layoutPaths = result.layoutPaths
 
           // Apply debug build paths filter if specified
-          // If debugBuildAppPaths is defined (even if empty), only build specified app paths
-          if (debugBuildAppPaths !== undefined) {
-            if (debugBuildAppPaths.length > 0) {
-              const debugPathsSet = new Set(debugBuildAppPaths)
+          if (debugBuildPaths) {
+            if (debugBuildPaths.app.length > 0) {
+              const debugPathsSet = new Set(debugBuildPaths.app)
               appPaths = appPaths.filter((appPath) =>
                 debugPathsSet.has(appPath)
               )
@@ -1417,7 +1425,13 @@ export default async function build(
       await nextBuildSpan
         .traceChild('generate-route-types')
         .traceAsyncFn(async () => {
-          const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+          // Actual type files go to route-types.d.ts (not routes.d.ts)
+          // routes.d.ts is reserved for the entry file
+          const routeTypesFilePath = path.join(
+            distDir,
+            'types',
+            'route-types.d.ts'
+          )
           const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
           await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
@@ -1502,6 +1516,20 @@ export default async function build(
             validatorFilePath,
             Boolean(config.experimental.strictRouteTypes)
           )
+
+          // Write the entry file at {distDirRoot}/types/routes.d.ts
+          // This ensures next-env.d.ts has a consistent import path
+          const entryFilePath = path.join(
+            dir,
+            config.distDirRoot,
+            'types',
+            'routes.d.ts'
+          )
+          const actualTypesDir = path.join(distDir, 'types')
+          await writeRouteTypesEntryFile(entryFilePath, actualTypesDir, {
+            strictRouteTypes: Boolean(config.experimental.strictRouteTypes),
+            typedRoutes: Boolean(config.typedRoutes),
+          })
         })
 
       // Turbopack already handles conflicting app and page routes.
@@ -1592,7 +1620,7 @@ export default async function build(
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
-      const isAppPPREnabled = isAppCacheComponentsEnabled
+      const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
 
@@ -1686,6 +1714,8 @@ export default async function build(
           'The "parallelServerBuildTraces" and "parallelServerCompiles" options may only be used when build workers can be used. Read more: https://nextjs.org/docs/messages/parallel-build-without-worker'
         )
       }
+
+      // #region Compile
 
       Log.info('Creating an optimized production build ...')
       traceMemoryUsage('Starting build', nextBuildSpan)
@@ -1856,6 +1886,8 @@ export default async function build(
         })
       }
 
+      // #endregion
+
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
         await updateBuildDiagnostics({
@@ -1865,6 +1897,7 @@ export default async function build(
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
+      // #region required-server-files
       const requiredServerFilesManifest = await nextBuildSpan
         .traceChild('generate-required-server-files')
         .traceAsyncFn(async () => {
@@ -1879,11 +1912,15 @@ export default async function build(
             }
           }
 
+          // getNextConfigRuntime only filters if experimental.runtimeServerDeploymentId is true,
+          // but we unconditionally want to remove configFile for this manifest
+          let runtimeConfigWithoutFilePath = { ...runtimeConfig }
+          delete (runtimeConfigWithoutFilePath as NextConfigComplete).configFile
+
           const serverFilesManifest: RequiredServerFilesManifest = {
             version: 1,
             config: {
-              ...runtimeConfig,
-
+              ...runtimeConfigWithoutFilePath,
               ...(ciEnvironment.hasNextSupport
                 ? {
                     compress: false,
@@ -2041,6 +2078,9 @@ export default async function build(
         requiredServerFilesManifest
       )
 
+      // #endregion
+      // #region Collect data
+
       const numberOfWorkers = getNumberOfWorkers(config)
       const collectingPageDataStart = process.hrtime()
       const postCompileSpinner = createSpinner(
@@ -2147,6 +2187,7 @@ export default async function build(
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
+              pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.cacheLife,
               buildId,
               sriEnabled,
@@ -2368,6 +2409,7 @@ export default async function build(
                               : config.experimental.isrFlushToDisk,
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
+                            pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             sriEnabled,
@@ -2666,20 +2708,35 @@ export default async function build(
           }
 
           if (bundler === Bundler.Turbopack) {
-            await writeManifest(
-              path.join(
-                distDir,
-                'static',
-                buildId,
-                TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-              ),
-              functionsConfigManifest.functions['/_middleware'].matchers || []
+            const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(
+              functionsConfigManifest.functions['/_middleware'].matchers || [],
+              null,
+              2
+            )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
+
+            let clientMiddlewareManifestPath = config.deploymentId
+              ? path.join(
+                  CLIENT_STATIC_FILES_PATH,
+                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+                )
+              : path.join(
+                  CLIENT_STATIC_FILES_PATH,
+                  buildId,
+                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+                )
+
+            await writeFileUtf8(
+              path.join(distDir, clientMiddlewareManifestPath),
+              clientMiddlewareManifestJs
             )
           }
         }
       }
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
+
+      // #endregion
+      // #region NFT
 
       if (
         bundler !== Bundler.Turbopack &&
@@ -2838,6 +2895,9 @@ export default async function build(
 
       const hasGSPAndRevalidateZero = new Set<string>()
 
+      // #endregion
+      // #region SSG
+
       // we need to trigger automatic exporting when we have
       // - static 404/500
       // - getStaticProps paths
@@ -2942,8 +3002,9 @@ export default async function build(
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
 
-                const isRoutePPREnabled: boolean =
-                  !!appConfig && isAppCacheComponentsEnabled
+                const isRoutePPREnabled: boolean = appConfig
+                  ? checkIsRoutePPREnabled(config.experimental.ppr)
+                  : false
 
                 routes.forEach((route) => {
                   // If the route has any dynamic root segments, we need to skip
@@ -3132,7 +3193,8 @@ export default async function build(
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
             const isRoutePPREnabled: true | undefined =
-              !isAppRouteHandler && isAppCacheComponentsEnabled
+              !isAppRouteHandler &&
+              checkIsRoutePPREnabled(config.experimental.ppr)
                 ? true
                 : undefined
 
@@ -4012,6 +4074,7 @@ export default async function build(
           distDir,
           buildId,
           locales: config.i18n?.locales,
+          deploymentId: config.deploymentId,
         })
       } else {
         await writePrerenderManifest(distDir, {
@@ -4022,6 +4085,8 @@ export default async function build(
           notFoundRoutes: [],
         })
       }
+
+      // #endregion
 
       await writeImagesManifest(distDir, config)
       await writeManifest(path.join(distDir, EXPORT_MARKER), {

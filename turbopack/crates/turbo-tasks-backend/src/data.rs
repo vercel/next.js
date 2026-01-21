@@ -1,7 +1,7 @@
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
 use turbo_tasks::{
-    CellId, KeyValuePair, SharedReference, TaskExecutionReason, TaskId, TraitTypeId,
+    CellId, KeyValuePair, SharedReference, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
     TypedSharedReference, ValueTypeId,
     backend::TurboTasksExecutionError,
     event::{Event, EventListener},
@@ -38,16 +38,37 @@ pub struct CellRef {
     pub cell: CellId,
 }
 
+impl CellRef {
+    /// Returns true if this cell reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.task.is_transient()
+    }
+}
+
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectibleRef {
     pub collectible_type: TraitTypeId,
     pub cell: CellRef,
 }
 
+impl CollectibleRef {
+    /// Returns true if this collectible reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.cell.is_transient()
+    }
+}
+
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectiblesRef {
     pub task: TaskId,
     pub collectible_type: TraitTypeId,
+}
+
+impl CollectiblesRef {
+    /// Returns true if this collectibles reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.task.is_transient()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
@@ -57,7 +78,11 @@ pub enum OutputValue {
     Error(TurboTasksExecutionError),
 }
 impl OutputValue {
-    fn is_transient(&self) -> bool {
+    /// Returns true if this output value references a transient task.
+    ///
+    /// Transient values should not be persisted to disk since they reference
+    /// tasks that will not exist after restart.
+    pub fn is_transient(&self) -> bool {
         match self {
             OutputValue::Cell(cell) => cell.task.is_transient(),
             OutputValue::Output(task) => task.is_transient(),
@@ -142,7 +167,7 @@ impl Eq for ActivenessState {}
 
 #[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
 pub enum Dirtyness {
-    Dirty,
+    Dirty(TaskPriority),
     SessionDependent,
 }
 
@@ -212,6 +237,29 @@ pub struct AggregationNumber {
     pub effective: u32,
 }
 
+/// Monotonic increasing distance range to leaf nodes when following "dependencies" edges.
+/// It is a range and ranges might overlap. There is a strictly monotonic increasing `distance`
+/// value. `max_distance_in_buffer` value might not be monotonic. The `max_distance_in_buffer` value
+/// is used as buffer zone to avoid too many updates to dependent nodes when the leaf distance
+/// increases slightly. When the leaf distance is increased it tries to keep the
+/// `max_distance_in_buffer` value equal. When increasing there are three cases:
+/// - `distance` >= `distance` of the dependency + 1: no change.
+/// - `distance` <= `max_distance_in_buffer`: only `distance` is increased to the smallest possible
+///   value.
+/// - `distance` > `max_distance_in_buffer`: `distance` is increased to the `max_distance_in_buffer`
+///   value of the dependency + 1 and `max_distance_in_buffer` is increased to `distance` + buffer
+///   zone.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
+pub struct LeafDistance {
+    /// This is the strictly monotonic increasing minimum leaf distance.
+    pub distance: u32,
+    /// A buffer zone value in which is usually safe to increase the leaf distance without causing
+    /// too many updates to dependent nodes.
+    /// Newly added dependents might be added within this buffer zone to avoid propagating updates,
+    /// therefore one can't rely on this being safe. It's only "often safe".
+    pub max_distance_in_buffer: u32,
+}
+
 #[derive(Debug, Clone, KeyValuePair, Encode, Decode)]
 pub enum CachedDataItem {
     // Output
@@ -263,6 +311,7 @@ pub enum CachedDataItem {
     },
     CellDependency {
         target: CellRef,
+        key: Option<u64>,
         value: (),
     },
     CollectiblesDependency {
@@ -277,6 +326,7 @@ pub enum CachedDataItem {
     },
     CellDependent {
         cell: CellId,
+        key: Option<u64>,
         task: TaskId,
         value: (),
     },
@@ -284,6 +334,11 @@ pub enum CachedDataItem {
         collectible_type: TraitTypeId,
         task: TaskId,
         value: (),
+    },
+
+    // Priority
+    LeafDistance {
+        value: LeafDistance,
     },
 
     // Aggregation Graph
@@ -363,6 +418,8 @@ pub enum CachedDataItem {
         #[bincode(skip, default = "unreachable_decode")]
         target: CellRef,
         #[bincode(skip, default = "unreachable_decode")]
+        key: Option<u64>,
+        #[bincode(skip, default = "unreachable_decode")]
         value: (),
     },
     OutdatedCollectiblesDependency {
@@ -414,6 +471,7 @@ impl CachedDataItem {
             CachedDataItem::AggregationNumber { .. } => true,
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
+            CachedDataItem::LeafDistance { .. } => true,
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedCurrentSessionCleanContainer { .. } => false,
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
@@ -479,7 +537,8 @@ impl CachedDataItem {
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. }
+            | Self::LeafDistance { .. } => TaskDataCategory::Data,
 
             Self::Collectible { .. }
             | Self::Output { .. }
@@ -544,6 +603,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregationNumber { .. } => true,
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
+            CachedDataItemKey::LeafDistance { .. } => true,
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. } => false,
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
@@ -577,7 +637,8 @@ impl CachedDataItemType {
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. }
+            | Self::LeafDistance { .. } => TaskDataCategory::Data,
 
             Self::Collectible { .. }
             | Self::Output { .. }
@@ -624,6 +685,7 @@ impl CachedDataItemType {
             | Self::AggregationNumber
             | Self::Follower
             | Self::Upper
+            | Self::LeafDistance
             | Self::AggregatedDirtyContainer
             | Self::AggregatedCollectible
             | Self::AggregatedDirtyContainerCount
@@ -669,8 +731,8 @@ mod tests {
     #[test]
     fn test_sizes() {
         assert_eq!(std::mem::size_of::<super::CachedDataItem>(), 40);
-        assert_eq!(std::mem::size_of::<super::CachedDataItemKey>(), 20);
+        assert_eq!(std::mem::size_of::<super::CachedDataItemKey>(), 32);
         assert_eq!(std::mem::size_of::<super::CachedDataItemValue>(), 32);
-        assert_eq!(std::mem::size_of::<super::CachedDataItemStorage>(), 48);
+        assert_eq!(std::mem::size_of::<super::CachedDataItemStorage>(), 56);
     }
 }

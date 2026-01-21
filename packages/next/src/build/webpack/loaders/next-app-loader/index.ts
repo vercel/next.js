@@ -40,6 +40,7 @@ import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
 import { MissingDefaultParallelRouteError } from '../../../../shared/lib/errors/missing-default-parallel-route-error'
 import { isInterceptionRouteAppPath } from '../../../../shared/lib/router/utils/interception-routes'
+import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 
 import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-path-sep'
 import { installBindings } from '../../../swc/install-bindings'
@@ -50,6 +51,9 @@ export type AppLoaderOptions = {
   pagePath: string
   appDir: string
   appPaths: readonly string[] | null
+  // All normalized app paths across the entire app, used for computing
+  // static siblings for dynamic segments
+  allNormalizedAppPaths: readonly string[] | null
   preferredRegion: string | string[] | undefined
   pageExtensions: PageExtensions
   assetPrefix: string
@@ -124,6 +128,9 @@ const normalizeParallelKey = (key: string) =>
 const isCatchAllSegment = (segment: string) =>
   segment.startsWith('[...') || segment.startsWith('[[...')
 
+const isDynamicSegment = (segment: string) =>
+  segment.startsWith('[') && segment.endsWith(']')
+
 const isDirectory = async (pathname: string) => {
   try {
     const stat = await fs.stat(pathname)
@@ -141,11 +148,13 @@ async function createTreeCodeFromPath(
     resolver,
     resolveParallelSegments,
     hasChildRoutesForSegment,
+    getStaticSiblingSegments,
     metadataResolver,
     pageExtensions,
     basePath,
     collectedDeclarations,
     isGlobalNotFoundEnabled,
+    isDev,
   }: {
     page: string
     resolveDir: DirResolver
@@ -155,11 +164,13 @@ async function createTreeCodeFromPath(
       pathname: string
     ) => [key: string, segment: string | string[]][]
     hasChildRoutesForSegment: (segmentPath: string) => boolean
+    getStaticSiblingSegments: (segmentPath: string) => string[]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: PageExtensions
     basePath: string
     collectedDeclarations: [string, string][]
     isGlobalNotFoundEnabled: boolean
+    isDev: boolean
   }
 ): Promise<{
   treeCode: string
@@ -535,10 +546,16 @@ async function createTreeCodeFromPath(
         subtreeCode = pageSubtreeCode
       }
 
+      // Compute static siblings for dynamic segments. In dev mode, routes are
+      // compiled on-demand so we don't know all siblings; pass null.
+      const staticSiblingsCode = isDev
+        ? 'null'
+        : `${JSON.stringify(getStaticSiblingSegments(parallelSegmentPath))}`
       props[normalizedParallelKey] = `[
         '${parallelSegmentKey}',
         ${subtreeCode},
-        ${modulesCode}
+        ${modulesCode},
+        ${staticSiblingsCode}
       ]`
     }
 
@@ -661,6 +678,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     name,
     appDir,
     appPaths,
+    allNormalizedAppPaths: allNormalizedAppPathsOption,
     pagePath,
     pageExtensions,
     rootDir,
@@ -708,6 +726,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
+
+  // All normalized app paths for computing static siblings across route groups
+  const allNormalizedAppPaths = allNormalizedAppPathsOption ?? []
 
   const resolveParallelSegments = (
     pathname: string
@@ -808,6 +829,91 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
 
     return false
+  }
+
+  /**
+   * For a given segment path (in file system space, e.g., "(group)/products/[id]"),
+   * find all static sibling segments at the same URL path level.
+   *
+   * This accounts for route groups - siblings may exist in different parts of the
+   * file system tree but at the same URL level.
+   *
+   * For example:
+   *   /app/(marketing)/products/sale/page.tsx -> /products/sale
+   *   /app/(shop)/products/[id]/page.tsx -> /products/[id]
+   *
+   * When called with "(shop)/products/[id]", this would return ['sale'].
+   *
+   * TODO: This function, along with resolveParallelSegments and
+   * hasChildRoutesForSegment, repeatedly scans normalizedAppPaths. A more
+   * optimal approach would build an intermediate tree structure first
+   * (representing the URL namespace with route groups collapsed), then derive
+   * all this information in a single pass. The Turbopack implementation
+   * already uses a more tree-oriented approach (DirectoryTree ->
+   * AppPageLoaderTree), so this is less urgent to refactor given Turbopack is
+   * the canonical implementation going forward.
+   */
+  const getStaticSiblingSegments = (segmentPath: string): string[] => {
+    // Normalize the current path to URL space
+    // Add a trailing /page so normalizeAppPath strips it properly
+    const currentUrlPath = normalizeAppPath(segmentPath + '/page')
+    const currentUrlSegments = currentUrlPath.split('/').filter(Boolean)
+
+    // If the path is empty (root level), there are no siblings
+    if (currentUrlSegments.length === 0) {
+      return []
+    }
+
+    const currentSegment = currentUrlSegments[currentUrlSegments.length - 1]
+    const parentUrlPath =
+      currentUrlSegments.length === 1
+        ? '/'
+        : '/' + currentUrlSegments.slice(0, -1).join('/')
+
+    // The URL level at which we're looking for siblings (0-indexed)
+    const siblingLevel = currentUrlSegments.length - 1
+
+    // Only compute siblings for dynamic segments
+    if (!isDynamicSegment(currentSegment)) {
+      return []
+    }
+
+    // Use a Set to avoid duplicates (multiple paths may share the same sibling segment)
+    const siblings = new Set<string>()
+
+    for (const appPath of allNormalizedAppPaths) {
+      // Normalize each path to URL space (strip route groups, parallel routes, and /page suffix)
+      const urlPath = normalizeAppPath(appPath)
+      const urlSegments = urlPath.split('/').filter(Boolean)
+
+      // Path must have at least enough segments to reach the sibling level
+      if (urlSegments.length <= siblingLevel) {
+        continue
+      }
+
+      // Check if the parent path matches (all segments before the sibling level)
+      const pathParent =
+        siblingLevel === 0
+          ? '/'
+          : '/' + urlSegments.slice(0, siblingLevel).join('/')
+
+      if (pathParent !== parentUrlPath) {
+        continue
+      }
+
+      // Get the segment at the same level as the current segment
+      const segmentAtLevel = urlSegments[siblingLevel]
+
+      // Check if this is a sibling: different segment and static
+      if (
+        segmentAtLevel !== currentSegment &&
+        !isDynamicSegment(segmentAtLevel)
+      ) {
+        siblings.add(segmentAtLevel)
+      }
+    }
+
+    return Array.from(siblings)
   }
 
   const resolveDir: DirResolver = (pathToResolve) => {
@@ -917,11 +1023,13 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     metadataResolver,
     resolveParallelSegments,
     hasChildRoutesForSegment,
+    getStaticSiblingSegments,
     loaderContext: this,
     pageExtensions,
     basePath,
     collectedDeclarations,
     isGlobalNotFoundEnabled,
+    isDev: !!isDev,
   })
 
   const isGlobalNotFoundPath =
@@ -975,11 +1083,13 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         metadataResolver,
         resolveParallelSegments,
         hasChildRoutesForSegment,
+        getStaticSiblingSegments,
         loaderContext: this,
         pageExtensions,
         basePath,
         collectedDeclarations,
         isGlobalNotFoundEnabled,
+        isDev: !!isDev,
       })
     }
   }

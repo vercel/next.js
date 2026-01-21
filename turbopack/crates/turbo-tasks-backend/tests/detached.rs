@@ -73,15 +73,14 @@ async fn spawns_detached(
     notify: TransientInstance<NotifyTaskInput>,
     sender: TransientInstance<WatchSenderTaskInput<Option<Vc<u32>>>>,
 ) -> Vc<()> {
-    tokio::spawn(turbo_tasks().detached_for_testing(Box::pin(async move {
+    turbo_tasks().spawn_detached_for_testing(Box::pin(async move {
         println!("spawns_detached: waiting for notify");
         notify.0.notified().await;
         println!("spawns_detached: notified, sending value");
         // creating cells after the normal lifetime of the task should be okay, as the parent task
         // is waiting on us before exiting!
         sender.0.send(Some(Vc::cell(42))).unwrap();
-        Ok(())
-    })));
+    }));
     Vc::cell(())
 }
 
@@ -145,10 +144,10 @@ async fn spawns_detached_changing(
     changing_input_outer: Vc<ChangingInput>,
 ) -> Vc<u32> {
     let tt = turbo_tasks();
-    tokio::spawn(tt.clone().detached_for_testing(Box::pin(async move {
+    tt.clone().spawn_detached_for_testing(Box::pin(async move {
         sleep(Duration::from_millis(100)).await;
-        // nested detached_for_testing calls should work
-        tokio::spawn(tt.clone().detached_for_testing(Box::pin(async move {
+        // nested spawn_detached_for_testing calls should work
+        tt.clone().spawn_detached_for_testing(Box::pin(async move {
             sleep(Duration::from_millis(100)).await;
             // creating cells after the normal lifetime of the task should be okay, as the parent
             // task is waiting on us before exiting!
@@ -158,10 +157,8 @@ async fn spawns_detached_changing(
                     *read_changing_input(changing_input_detached).await.unwrap(),
                 )))
                 .unwrap();
-            Ok(())
-        })));
-        Ok(())
-    })));
+        }));
+    }));
     Vc::cell(*read_changing_input(changing_input_outer).await.unwrap())
 }
 

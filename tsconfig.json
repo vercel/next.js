@@ -22,6 +22,7 @@
     }
   },
   "include": [
+    "run-tests.js",
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
     "test/**/*.util.ts",
