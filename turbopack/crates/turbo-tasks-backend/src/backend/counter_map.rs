@@ -89,6 +89,13 @@ impl<K, V> CounterMap<K, V> {
         self.0.is_empty()
     }
 
+    pub fn shrink_to_fit(&mut self)
+    where
+        K: Eq + Hash,
+    {
+        self.0.shrink_to_fit();
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }

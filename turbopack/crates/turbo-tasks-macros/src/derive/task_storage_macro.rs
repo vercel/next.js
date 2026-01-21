@@ -305,6 +305,9 @@ impl FieldInfo {
             proc_macro2::Span::call_site(),
         )
     }
+    fn shrink_ident(&self) -> syn::Ident {
+        self.prefixed_ident("shrink")
+    }
 
     // =========================================================================
     // Key Fields Helpers (for CachedDataItem adapter code generation)
@@ -1406,10 +1409,12 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             };
 
             let set_ops = generate_autoset_ops(field);
+            let shrink_accessor = generate_shrink_accessor(field);
 
             quote! {
                 #base_accessor
                 #set_ops
+                #shrink_accessor
             }
         }
         StorageType::CounterMap => {
@@ -1452,10 +1457,12 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             };
 
             let countermap_ops = generate_countermap_ops(field);
+            let shrink_accessor = generate_shrink_accessor(field);
 
             quote! {
                 #base_accessor
                 #countermap_ops
+                #shrink_accessor
             }
         }
         StorageType::AutoMap => {
@@ -1496,10 +1503,12 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             };
 
             let automap_ops = generate_automap_ops(field);
+            let shrink_accessor = generate_shrink_accessor(field);
 
             quote! {
                 #base_accessor
                 #automap_ops
+                #shrink_accessor
             }
         }
         StorageType::Flag => {
@@ -2092,6 +2101,45 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
         fn #is_empty_name(&self) -> bool {
             #check_access
             #is_empty_body
+        }
+    }
+}
+
+/// Generate shrink_to_fit accessor for a collection field.
+///
+/// For collection fields (AutoSet, AutoMap, CounterMap), generates a `shrink_{field_name}()`
+/// method that calls `shrink_to_fit()` on the underlying collection.
+///
+/// This does NOT track modifications or check access since shrinking doesn't
+/// semantically change the data - it only reduces memory usage.
+///
+/// For lazy fields, avoids allocation if the collection doesn't exist.
+fn generate_shrink_accessor(field: &FieldInfo) -> TokenStream {
+    let shrink_name = field.shrink_ident();
+    let field_name = &field.field_name;
+    let is_lazy = field.lazy;
+
+    let shrink_body = if is_lazy {
+        // For lazy fields, use find_lazy_mut to avoid allocating
+        let extractor = field.lazy_extractor_closure();
+        quote! {
+            if let Some(collection) = self.typed_mut().find_lazy_mut(#extractor) {
+                collection.shrink_to_fit();
+            }
+        }
+    } else {
+        // For inline fields, access the field directly
+        quote! {
+            self.typed_mut().#field_name.shrink_to_fit();
+        }
+    };
+
+    quote! {
+        /// Shrink the collection to fit its current contents, releasing excess memory.
+        ///
+        /// This does NOT track modifications since it doesn't change the data semantically.
+        fn #shrink_name(&mut self) {
+            #shrink_body
         }
     }
 }

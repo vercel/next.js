@@ -2580,8 +2580,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // Shrink memory usage
-        task.shrink_to_fit();
+        // Shrink memory usage for collections that are only mutated during/after execution
+        task.shrink_cell_data();
+        task.shrink_transient_cell_data();
+        task.shrink_cell_type_max_index();
+        task.shrink_cell_dependencies();
+        task.shrink_output_dependencies();
+        task.shrink_collectibles_dependencies();
+        task.shrink_outdated_cell_dependencies();
+        task.shrink_outdated_output_dependencies();
+        task.shrink_outdated_collectibles();
+        task.shrink_outdated_collectibles_dependencies();
+        task.shrink_children();
+        task.shrink_collectibles();
+        task.shrink_in_progress_cells();
 
         drop(task);
     }

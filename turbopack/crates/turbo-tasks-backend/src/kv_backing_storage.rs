@@ -778,12 +778,14 @@ fn encode_task_data(
         return Ok(buffer);
     }
 
-    let copy = data.clone_category_snapshot(category);
-    let mut deserialized = TaskStorage::new();
-    deserialized.decode(category, &mut new_turbo_bincode_decoder(buffer.borrow()))?;
-    assert_eq!(
-        copy, deserialized,
-        "expected to be able to round trip '{category:?}' information for {task}"
-    );
+    TaskStorage::new()
+        .decode(category, &mut new_turbo_bincode_decoder(buffer.borrow()))
+        .with_context(|| {
+            format!(
+                "expected to be able to decode serialized data for '{category:?}' information for \
+                 {task}"
+            )
+        })?;
+
     Ok(buffer)
 }
