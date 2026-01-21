@@ -986,6 +986,17 @@ export default async function build(
         NextBuildContext.preservedDeploymentId = combinedEnv.NEXT_DEPLOYMENT_ID
       }
 
+      // Ensure NEXT_DEPLOYMENT_ID is set before loadConfig is called
+      // so that next.config.js can access it if needed
+      if (preservedDeploymentId) {
+        process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
+      } else if (process.env.NEXT_DEPLOYMENT_ID) {
+        NextBuildContext.preservedDeploymentId = process.env.NEXT_DEPLOYMENT_ID
+      } else if (combinedEnv.NEXT_DEPLOYMENT_ID) {
+        process.env.NEXT_DEPLOYMENT_ID = combinedEnv.NEXT_DEPLOYMENT_ID
+        NextBuildContext.preservedDeploymentId = combinedEnv.NEXT_DEPLOYMENT_ID
+      }
+
       const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
       let experimentalFeatures: ConfiguredExperimentalFeature[] = []
       const config: NextConfigComplete = await nextBuildSpan
@@ -1008,14 +1019,6 @@ export default async function build(
           )
         )
       loadedConfig = config
-
-      if (preservedDeploymentId) {
-        process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
-      } else if (process.env.NEXT_DEPLOYMENT_ID) {
-        NextBuildContext.preservedDeploymentId = process.env.NEXT_DEPLOYMENT_ID
-      } else if (combinedEnv.NEXT_DEPLOYMENT_ID) {
-        process.env.NEXT_DEPLOYMENT_ID = combinedEnv.NEXT_DEPLOYMENT_ID
-      }
 
       bundler = finalizeBundlerFromConfig(bundler)
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
