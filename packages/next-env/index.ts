@@ -18,7 +18,10 @@ let cachedLoadedEnvFiles: LoadedEnvFiles = []
 let previousLoadedEnvFiles: LoadedEnvFiles = []
 
 export function updateInitialEnv(newEnv: Env) {
-  Object.assign(initialEnv || {}, newEnv)
+  if (!initialEnv) {
+    initialEnv = Object.assign({}, process.env)
+  }
+  Object.assign(initialEnv, newEnv)
 }
 
 type Log = {
