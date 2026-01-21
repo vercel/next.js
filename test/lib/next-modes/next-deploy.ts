@@ -230,7 +230,7 @@ export class NextDeployInstance extends NextInstance {
     // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
     this._cliOutput = buildLogs.stdout + buildLogs.stderr
 
-    const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]
+    const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
 
     if (!buildId) {
       throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
