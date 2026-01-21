@@ -1,0 +1,256 @@
+# Upgrade Examples: Next.js 13 to 14
+
+This document contains detailed examples and procedures for upgrading from Next.js 13 to 14.
+
+## Quick Reference
+
+- **Node.js**: 18.17+ required (was 16.14+)
+- **Official Guide**: [Next.js 14 Upgrade Documentation](https://nextjs.org/docs/app/building-your-application/upgrading/version-14)
+
+## Run Upgrade Command
+
+```bash
+npx @next/codemod@canary upgrade 14
+```
+
+## Migration Examples
+
+### Example 1: next export Removal
+
+The `next export` command has been removed in favor of configuration.
+
+**Before (v13):**
+
+```json
+// package.json
+{
+  "scripts": {
+    "build": "next build",
+    "export": "next export",
+    "deploy": "npm run build && npm run export"
+  }
+}
+```
+
+```bash
+# Build process
+next build
+next export  # This command no longer exists in v14
+```
+
+**After (v14):**
+
+```js
+// next.config.js
+module.exports = {
+  output: 'export', // Enable static export
+  // ... other config
+}
+```
+
+```json
+// package.json
+{
+  "scripts": {
+    "build": "next build", // Export happens automatically during build
+    "deploy": "npm run build"
+  }
+}
+```
+
+### Example 2: @next/font to next/font Migration
+
+**Before (v13):**
+
+```tsx
+// Using the external package
+import { Inter } from '@next/font/google'
+import localFont from '@next/font/local'
+
+const inter = Inter({ subsets: ['latin'] })
+const myFont = localFont({ src: './my-font.woff2' })
+
+export default function Layout({ children }) {
+  return (
+    <html className={inter.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+**After (v14):**
+
+```tsx
+// Using built-in next/font
+import { Inter } from 'next/font/google'
+import localFont from 'next/font/local'
+
+const inter = Inter({ subsets: ['latin'] })
+const myFont = localFont({ src: './my-font.woff2' })
+
+export default function Layout({ children }) {
+  return (
+    <html className={inter.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+**Codemod available:**
+
+```bash
+npx @next/codemod@latest built-in-next-font .
+```
+
+### Example 3: ImageResponse Import Change
+
+**Before (v13):**
+
+```tsx
+// app/api/og/route.tsx
+import { ImageResponse } from 'next/server'
+
+export async function GET() {
+  return new ImageResponse(<div style={{ fontSize: 128 }}>Hello World</div>, {
+    width: 1200,
+    height: 630,
+  })
+}
+```
+
+**After (v14):**
+
+```tsx
+// app/api/og/route.tsx
+import { ImageResponse } from 'next/og'
+
+export async function GET() {
+  return new ImageResponse(<div style={{ fontSize: 128 }}>Hello World</div>, {
+    width: 1200,
+    height: 630,
+  })
+}
+```
+
+**Codemod available:**
+
+```bash
+npx @next/codemod@latest next-og-import .
+```
+
+### Example 4: Viewport Metadata Export
+
+The viewport configuration should be exported separately from metadata.
+
+**Before (v13):**
+
+```tsx
+// app/layout.tsx
+export const metadata = {
+  title: 'My App',
+  description: 'My app description',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+  },
+}
+```
+
+**After (v14):**
+
+```tsx
+// app/layout.tsx
+export const metadata = {
+  title: 'My App',
+  description: 'My app description',
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+}
+```
+
+**Codemod available:**
+
+```bash
+npx @next/codemod@latest metadata-to-viewport-export .
+```
+
+## Common Issues and Solutions
+
+### Issue: Build fails with "next export" command not found
+
+**Solution:**
+
+1. Remove the `next export` script from package.json
+2. Add `output: 'export'` to next.config.js
+3. Use `next build` which will now handle the export automatically
+
+### Issue: Font imports not working
+
+**Solution:**
+Run the codemod to update all font imports:
+
+```bash
+npx @next/codemod@latest built-in-next-font .
+```
+
+If manual fixes are needed:
+
+- Replace `@next/font/google` with `next/font/google`
+- Replace `@next/font/local` with `next/font/local`
+- Remove `@next/font` from package.json dependencies
+
+### Issue: Node.js version error
+
+**Error:** "The Next.js 14 requires Node.js version 18.17 or later"
+
+**Solution:**
+
+```bash
+# Check current version
+node --version
+
+# Upgrade Node.js using nvm
+nvm install 18.17
+nvm use 18.17
+
+# Or download from nodejs.org
+```
+
+## Testing Checklist
+
+After upgrading to v14:
+
+```bash
+# 1. Clean install
+rm -rf node_modules package-lock.json
+npm install
+
+# 2. Type checking (if using TypeScript)
+npm run type-check
+
+# 3. Build test
+npm run build
+
+# 4. Development mode test
+npm run dev
+# - Check all pages load correctly
+# - Test fonts are loading
+# - Verify images work with next/image
+
+# 5. Production test
+npm run start
+```
+
+## Manual Verification Steps
+
+1. **Static Export**: If using `output: 'export'`, verify the `out` directory contains all expected files after build
+2. **Font Loading**: Check browser network tab to ensure fonts are loading correctly from `next/font`
+3. **OG Images**: Test Open Graph image generation if using `ImageResponse`
+4. **Metadata**: Verify viewport settings are applied correctly in the browser

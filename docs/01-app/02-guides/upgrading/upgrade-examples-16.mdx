@@ -1,0 +1,428 @@
+# Upgrade Examples: Next.js 15 to 16
+
+This document contains detailed examples and procedures for upgrading from Next.js 15 to 16.
+
+## Quick Reference
+
+- **Node.js**: 20.9+ required (was 18.17+)
+- **React**: 19.2+ required
+- **TypeScript**: 5.1+ recommended
+- **Official Guide**: [Next.js 16 Blog Post](https://nextjs.org/blog/next-16)
+
+## Run Upgrade Command
+
+```bash
+npx @next/codemod@canary upgrade 16
+```
+
+## Major Changes
+
+1. **Turbopack** is now the default bundler
+2. **middleware.ts** renamed to **proxy.ts**
+3. **Async APIs** synchronous access completely removed
+4. **AMP support** removed
+5. **next lint** command removed
+6. **Parallel routes** require default.js files
+
+## Migration Examples
+
+### Example 1: Middleware to Proxy Migration
+
+The middleware convention has been renamed to proxy.
+
+**Before (v15):**
+
+```ts
+// middleware.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const response = NextResponse.next()
+
+  // Add custom headers
+  response.headers.set('x-custom-header', 'my-value')
+
+  // Conditional redirect
+  if (request.nextUrl.pathname === '/old-route') {
+    return NextResponse.redirect(new URL('/new-route', request.url))
+  }
+
+  return response
+}
+
+export const config = {
+  matcher: ['/api/:path*', '/admin/:path*'],
+}
+```
+
+**After (v16):**
+
+```ts
+// proxy.ts (renamed file)
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function proxy(request: NextRequest) {
+  // Function renamed
+  const response = NextResponse.next()
+
+  // Add custom headers
+  response.headers.set('x-custom-header', 'my-value')
+
+  // Conditional redirect
+  if (request.nextUrl.pathname === '/old-route') {
+    return NextResponse.redirect(new URL('/new-route', request.url))
+  }
+
+  return response
+}
+
+export const config = {
+  matcher: ['/api/:path*', '/admin/:path*'],
+}
+```
+
+**Codemod available:**
+
+```bash
+npx @next/codemod@latest middleware-to-proxy .
+```
+
+### Example 2: Async APIs - No More Synchronous Access
+
+In v16, you cannot access async APIs synchronously at all (this was deprecated in v15).
+
+**Before (v15 - with warnings):**
+
+```tsx
+// This would show deprecation warnings in v15
+export default function Page({ params }) {
+  // Synchronous access (deprecated in v15, removed in v16)
+  const slug = params.slug // Warning in v15, Error in v16!
+
+  return <div>{slug}</div>
+}
+```
+
+**After (v16):**
+
+```tsx
+// Must be async and await
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params // Required in v16
+
+  return <div>{slug}</div>
+}
+```
+
+### Example 3: Parallel Routes Default Files
+
+Parallel routes now require explicit default.tsx/default.js files.
+
+**Before (v15):**
+
+```
+app/
+├── layout.tsx
+├── page.tsx
+├── @sidebar/
+│   └── page.tsx
+└── @modal/
+    └── page.tsx
+```
+
+**After (v16):**
+
+```
+app/
+├── layout.tsx
+├── page.tsx
+├── @sidebar/
+│   ├── page.tsx
+│   └── default.tsx  // Required in v16
+└── @modal/
+    ├── page.tsx
+    └── default.tsx  // Required in v16
+```
+
+**default.tsx content:**
+
+```tsx
+// app/@sidebar/default.tsx
+export default function Default() {
+  return null // or return a loading state
+}
+```
+
+### Example 4: ESLint Configuration (next lint removed)
+
+The `next lint` command has been removed. Use ESLint directly.
+
+**Before (v15):**
+
+```json
+// package.json
+{
+  "scripts": {
+    "lint": "next lint",
+    "lint:fix": "next lint --fix"
+  }
+}
+```
+
+**After (v16):**
+
+```json
+// package.json
+{
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  }
+}
+```
+
+**Update .eslintrc.json:**
+
+```json
+{
+  "extends": ["next/core-web-vitals"],
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  }
+}
+```
+
+**Codemod available:**
+
+```bash
+npx @next/codemod@canary next-lint-to-eslint-cli .
+```
+
+### Example 5: Removing unstable\_ Prefix
+
+APIs that were unstable are now stable.
+
+**Before (v15):**
+
+```ts
+import {
+  unstable_cacheLife,
+  unstable_cacheTag,
+  unstable_noStore
+} from 'next/cache'
+
+export default async function Page() {
+  unstable_cacheLife('days')
+  unstable_cacheTag('products')
+  unstable_noStore()
+
+  const data = await fetchData()
+  return <div>{data}</div>
+}
+```
+
+**After (v16):**
+
+```ts
+import {
+  cacheLife,
+  cacheTag,
+  noStore
+} from 'next/cache'
+
+export default async function Page() {
+  cacheLife('days')
+  cacheTag('products')
+  noStore()
+
+  const data = await fetchData()
+  return <div>{data}</div>
+}
+```
+
+**Codemod available:**
+
+```bash
+npx @next/codemod@latest remove-unstable-prefix .
+```
+
+### Example 6: AMP Support Removal
+
+AMP is no longer supported in Next.js 16.
+
+**Before (v15):**
+
+```tsx
+// pages/about.tsx (Pages Router)
+export const config = { amp: true }
+
+export default function AboutPage() {
+  return (
+    <>
+      <h1>About Page</h1>
+      <amp-img src="/image.jpg" width="300" height="200" layout="responsive" />
+    </>
+  )
+}
+```
+
+**After (v16):**
+
+```tsx
+// Must migrate to standard HTML/React
+export default function AboutPage() {
+  return (
+    <>
+      <h1>About Page</h1>
+      <img
+        src="/image.jpg"
+        width={300}
+        height={200}
+        style={{ width: '100%', height: 'auto' }}
+        alt="Description"
+      />
+    </>
+  )
+}
+```
+
+### Example 7: Next.js Image Component Changes
+
+Several defaults have changed for next/image.
+
+**Before (v15):**
+
+```tsx
+import Image from 'next/image'
+
+// Some properties had different defaults
+;<Image
+  src="/photo.jpg"
+  alt="Photo"
+  width={500}
+  height={300}
+  // lazy loading was default
+  // certain optimizations were automatic
+/>
+```
+
+**After (v16):**
+
+```tsx
+import Image from 'next/image'
+
+// Review new defaults in documentation
+;<Image
+  src="/photo.jpg"
+  alt="Photo"
+  width={500}
+  height={300}
+  loading="lazy" // May need to be explicit
+  // Check docs for other property changes
+/>
+```
+
+## Turbopack as Default
+
+Next.js 16 uses Turbopack as the default bundler. Most apps will work without changes, but some webpack-specific configurations may need updates.
+
+**Check for webpack-specific configs:**
+
+```js
+// next.config.js
+module.exports = {
+  // If you have custom webpack config:
+  webpack: (config, options) => {
+    // These may need adjustment for Turbopack
+    return config
+  },
+
+  // To use webpack instead of Turbopack:
+  experimental: {
+    turbo: false, // Opt out of Turbopack
+  },
+}
+```
+
+## Common Issues and Solutions
+
+### Issue: "Cannot find middleware" error
+
+**Solution:** Rename `middleware.ts` to `proxy.ts` and update the export:
+
+```bash
+mv middleware.ts proxy.ts
+# Update function name from middleware to proxy
+```
+
+### Issue: Parallel routes not rendering
+
+**Solution:** Add default.tsx files to all parallel route folders:
+
+```tsx
+// app/@slot/default.tsx
+export default function Default() {
+  return null
+}
+```
+
+### Issue: ESLint not working after upgrade
+
+**Solution:**
+
+1. Update package.json scripts to use `eslint` directly
+2. Install ESLint if needed: `npm install -D eslint`
+3. Run the codemod: `npx @next/codemod@canary next-lint-to-eslint-cli .`
+
+### Issue: Build fails with Turbopack
+
+**Solution:**
+
+1. Try clearing cache: `rm -rf .next`
+2. Check for webpack-specific plugins
+3. Temporarily opt out: `experimental: { turbo: false }`
+
+## Testing Checklist
+
+After upgrading to v16:
+
+```bash
+# 1. Update Node.js to 20.9+
+node --version  # Should be 20.9.0 or higher
+
+# 2. Run the upgrade command
+npx @next/codemod@canary upgrade 16
+
+# 3. Search for manual fixes
+grep -rn "@next-codemod-error" --include="*.ts" --include="*.tsx" .
+
+# 4. Rename middleware to proxy
+mv middleware.ts proxy.ts 2>/dev/null || true
+mv middleware.js proxy.js 2>/dev/null || true
+
+# 5. Clean and rebuild
+rm -rf .next node_modules package-lock.json
+npm install
+npm run build
+
+# 6. Test with Turbopack (default)
+npm run dev
+
+# 7. Production test
+npm run start
+```
+
+## Manual Verification Steps
+
+1. **Proxy**: Verify proxy.ts is working (check custom headers, redirects)
+2. **Parallel Routes**: Ensure all parallel routes render correctly
+3. **Async APIs**: Confirm all pages using params/searchParams work
+4. **ESLint**: Run `npm run lint` to ensure linting works
+5. **Turbopack**: Monitor build times and check for any bundling issues
+6. **Images**: Verify all images load correctly with new defaults

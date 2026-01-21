@@ -28,6 +28,11 @@ For complete breaking changes and migration guide:
 7. **Parallel routes**: Now require `default.js`
 8. **`next/image` defaults changed**: See docs for details
 
+## Detailed Examples
+
+For comprehensive migration examples and troubleshooting:
+**[v16 Migration Examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples-16)**
+
 ## After Upgrade
 
 Check for manual fixes needed:

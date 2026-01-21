@@ -23,6 +23,11 @@ For complete breaking changes and migration guide:
 3. **`@next/font` removed**: Use built-in `next/font`
 4. **`ImageResponse` moved**: From `next/server` to `next/og`
 
+## Detailed Examples
+
+For comprehensive migration examples and troubleshooting:
+**[v14 Migration Examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples-14)**
+
 ## After Upgrade
 
 Check for manual fixes needed:

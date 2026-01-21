@@ -39,9 +39,9 @@ Ask the user which version they want to upgrade to if not specified. Valid targe
 
 ### Step 4: Execute Sequential Upgrades
 
-For detailed workflow examples and procedures, see `docs/upgrade-examples.md`.
+**Key principle**: Always upgrade ONE major version at a time. Never skip versions.
 
-**Key principle**: Always upgrade ONE major version at a time.
+For detailed workflow, see the [upgrade examples guide](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples).
 
 ### Step 5: For Each Version Upgrade
 
@@ -53,18 +53,23 @@ For detailed workflow examples and procedures, see `docs/upgrade-examples.md`.
    ```bash
    grep -rn "@next-codemod-error" --include="*.ts" --include="*.tsx" .
    ```
-3. **Verify and test** - See testing checklist in `docs/upgrade-examples.md`
-
-For migration examples and troubleshooting procedures, refer to `docs/upgrade-examples.md`.
+3. **Apply version-specific fixes**:
+   - v13→14: See [v14 examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples-14)
+   - v14→15: See [v15 examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples-15)
+   - v15→16: See [v16 examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples-16)
+4. **Verify and test** - See testing checklist in [upgrade examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples)
 
 ## Documentation Resources
 
-### Internal Documentation
-- `docs/upgrade-examples.md` - Detailed examples, procedures, and troubleshooting
-- `docs/version-14.md` - Quick reference for v14 upgrade
-- `docs/version-15.md` - Quick reference for v15 upgrade
-- `docs/version-16.md` - Quick reference for v16 upgrade
-- `docs/codemods.md` - Codemod usage reference
+### Upgrade Guides on nextjs.org
+- **[Upgrade Examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples)** - Common procedures and troubleshooting
+- **[v14 Examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples-14)** - Detailed v13→14 migration examples
+- **[v15 Examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples-15)** - Detailed v14→15 migration examples
+- **[v16 Examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples-16)** - Detailed v15→16 migration examples
+- **[Version 14](https://nextjs.org/docs/app/guides/upgrading/version-14)** - v14 breaking changes
+- **[Version 15](https://nextjs.org/docs/app/guides/upgrading/version-15)** - v15 breaking changes
+- **[Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)** - v16 breaking changes
+- **[Codemods](https://nextjs.org/docs/app/guides/upgrading/codemods)** - All available codemods
 
 ### Official Documentation
 - **[Version History](https://nextjs.org/docs/app/building-your-application/upgrading/version-history)** - Requirements and breaking changes
@@ -86,7 +91,7 @@ npx @next/codemod@canary upgrade [version]
 
 ## Troubleshooting
 
-For detailed troubleshooting procedures and examples, see `docs/upgrade-examples.md`.
+For detailed troubleshooting procedures and examples, see the [upgrade examples guide](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples).
 
 Additional resources:
 - **[Official Troubleshooting](https://nextjs.org/docs/app/building-your-application/upgrading#troubleshooting)**

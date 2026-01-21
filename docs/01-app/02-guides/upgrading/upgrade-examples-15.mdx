@@ -1,0 +1,370 @@
+# Upgrade Examples: Next.js 14 to 15
+
+This document contains detailed examples and procedures for upgrading from Next.js 14 to 15.
+
+## Quick Reference
+
+- **React**: 19+ required (was React 18)
+- **TypeScript**: 5.0+ recommended
+- **Official Guide**: [Next.js 15 Upgrade Documentation](https://nextjs.org/docs/app/building-your-application/upgrading/version-15)
+
+## Run Upgrade Command
+
+```bash
+npx @next/codemod@canary upgrade 15
+```
+
+## Major Changes
+
+The biggest change in v15 is that Request APIs (`cookies`, `headers`, `params`, `searchParams`) are now asynchronous.
+
+## Migration Examples
+
+### Example 1: Async Request APIs - params and searchParams
+
+**Before (v14):**
+
+```tsx
+// app/products/[category]/page.tsx
+export default function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: { category: string }
+  searchParams: { sort?: string }
+}) {
+  // Direct access - synchronous in v14
+  const category = params.category
+  const sortBy = searchParams.sort || 'name'
+
+  return (
+    <div>
+      <h1>Category: {category}</h1>
+      <p>Sort by: {sortBy}</p>
+    </div>
+  )
+}
+```
+
+**After (v15):**
+
+```tsx
+// app/products/[category]/page.tsx
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ category: string }>
+  searchParams: Promise<{ sort?: string }>
+}) {
+  // Must await - asynchronous in v15
+  const { category } = await params
+  const { sort: sortBy = 'name' } = await searchParams
+
+  return (
+    <div>
+      <h1>Category: {category}</h1>
+      <p>Sort by: {sortBy}</p>
+    </div>
+  )
+}
+```
+
+**Codemod available:**
+
+```bash
+npx @next/codemod@latest next-async-request-api .
+```
+
+### Example 2: Async cookies() and headers()
+
+**Before (v14):**
+
+```tsx
+// app/api/user/route.ts
+import { cookies, headers } from 'next/headers'
+
+export async function GET() {
+  // Synchronous access in v14
+  const cookieStore = cookies()
+  const headersList = headers()
+
+  const token = cookieStore.get('token')
+  const userAgent = headersList.get('user-agent')
+
+  return Response.json({
+    hasToken: !!token,
+    userAgent,
+  })
+}
+```
+
+**After (v15):**
+
+```tsx
+// app/api/user/route.ts
+import { cookies, headers } from 'next/headers'
+
+export async function GET() {
+  // Asynchronous access in v15
+  const cookieStore = await cookies()
+  const headersList = await headers()
+
+  const token = cookieStore.get('token')
+  const userAgent = headersList.get('user-agent')
+
+  return Response.json({
+    hasToken: !!token,
+    userAgent,
+  })
+}
+```
+
+### Example 3: Server Component with cookies
+
+**Before (v14):**
+
+```tsx
+// app/components/UserGreeting.tsx
+import { cookies } from 'next/headers'
+
+export default function UserGreeting() {
+  const cookieStore = cookies()
+  const username = cookieStore.get('username')
+
+  if (!username) {
+    return <div>Welcome, Guest!</div>
+  }
+
+  return <div>Welcome back, {username.value}!</div>
+}
+```
+
+**After (v15):**
+
+```tsx
+// app/components/UserGreeting.tsx
+import { cookies } from 'next/headers'
+
+export default async function UserGreeting() {
+  const cookieStore = await cookies()
+  const username = cookieStore.get('username')
+
+  if (!username) {
+    return <div>Welcome, Guest!</div>
+  }
+
+  return <div>Welcome back, {username.value}!</div>
+}
+```
+
+### Example 4: Fetch Caching Changes
+
+In v15, fetch requests are NOT cached by default (changed from v14).
+
+**Before (v14):**
+
+```tsx
+// This was cached by default in v14
+async function getPosts() {
+  const res = await fetch('https://api.example.com/posts')
+  return res.json()
+}
+
+// To opt out of caching in v14, you needed:
+async function getDynamicData() {
+  const res = await fetch('https://api.example.com/data', {
+    cache: 'no-store',
+  })
+  return res.json()
+}
+```
+
+**After (v15):**
+
+```tsx
+// NOT cached by default in v15
+async function getPosts() {
+  const res = await fetch('https://api.example.com/posts')
+  return res.json()
+}
+
+// To opt INTO caching in v15:
+async function getCachedPosts() {
+  const res = await fetch('https://api.example.com/posts', {
+    cache: 'force-cache', // Explicitly cache
+  })
+  return res.json()
+}
+
+// Or use time-based revalidation:
+async function getRevalidatedPosts() {
+  const res = await fetch('https://api.example.com/posts', {
+    next: { revalidate: 3600 }, // Cache for 1 hour
+  })
+  return res.json()
+}
+
+// Or set default for the route segment:
+export const fetchCache = 'default-cache'
+```
+
+### Example 5: geo and ip from NextRequest
+
+These properties have been removed from NextRequest.
+
+**Before (v14):**
+
+```ts
+// middleware.ts
+import { NextRequest, NextResponse } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const country = request.geo?.country
+  const city = request.geo?.city
+  const ip = request.ip
+
+  const response = NextResponse.next()
+  response.headers.set('x-user-country', country || 'unknown')
+  response.headers.set('x-user-city', city || 'unknown')
+  response.headers.set('x-user-ip', ip || 'unknown')
+
+  return response
+}
+```
+
+**After (v15):**
+
+```ts
+// middleware.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { geolocation, ipAddress } from '@vercel/functions'
+
+export function middleware(request: NextRequest) {
+  const geo = geolocation(request)
+  const ip = ipAddress(request)
+
+  const response = NextResponse.next()
+  response.headers.set('x-user-country', geo.country || 'unknown')
+  response.headers.set('x-user-city', geo.city || 'unknown')
+  response.headers.set('x-user-ip', ip || 'unknown')
+
+  return response
+}
+```
+
+**Codemod available:**
+
+```bash
+npx @next/codemod@latest next-request-geo-ip .
+```
+
+### Example 6: Route Handler Caching
+
+GET route handlers are no longer cached by default.
+
+**Before (v14):**
+
+```tsx
+// app/api/time/route.ts
+// This was cached by default in v14
+export async function GET() {
+  return Response.json({ time: new Date().toISOString() })
+}
+```
+
+**After (v15):**
+
+```tsx
+// app/api/time/route.ts
+// NOT cached by default in v15
+export async function GET() {
+  return Response.json({ time: new Date().toISOString() })
+}
+
+// To enable caching in v15:
+export const dynamic = 'force-static'
+export async function GET() {
+  return Response.json({ time: new Date().toISOString() })
+}
+```
+
+## Common Issues and Solutions
+
+### Issue: "Cannot access params.slug before initialization"
+
+**Cause:** Trying to access params synchronously in v15
+
+**Solution:**
+
+```tsx
+// Wrong in v15
+const slug = params.slug // Error!
+
+// Correct in v15
+const { slug } = await params
+```
+
+### Issue: Component changed from sync to async breaks parent
+
+**Solution:**
+Ensure parent components are also async if they use async child components directly:
+
+```tsx
+// Parent must be async if child uses cookies/headers
+export default async function Layout({ children }) {
+  return (
+    <div>
+      <UserGreeting /> {/* If UserGreeting is async */}
+      {children}
+    </div>
+  )
+}
+```
+
+### Issue: Fetch not being cached
+
+**Solution:**
+Explicitly opt into caching:
+
+```tsx
+// Option 1: Per-fetch
+fetch(url, { cache: 'force-cache' })
+
+// Option 2: Per route segment
+export const fetchCache = 'default-cache'
+
+// Option 3: With revalidation
+fetch(url, { next: { revalidate: 60 } })
+```
+
+## Testing Checklist
+
+After upgrading to v15:
+
+```bash
+# 1. Run the codemod
+npx @next/codemod@latest next-async-request-api .
+
+# 2. Search for manual fixes needed
+grep -rn "@next-codemod-error" --include="*.ts" --include="*.tsx" .
+
+# 3. Update React
+npm install react@19 react-dom@19
+
+# 4. Clear caches and rebuild
+rm -rf .next node_modules package-lock.json
+npm install
+npm run build
+
+# 5. Test development mode
+npm run dev
+```
+
+## Manual Verification Steps
+
+1. **Async APIs**: Verify all pages using params/searchParams work correctly
+2. **Data Fetching**: Check if data is being cached as expected
+3. **Cookies/Headers**: Ensure authentication still works
+4. **API Routes**: Test all API endpoints
+5. **Middleware**: Verify middleware runs correctly if using geo/ip

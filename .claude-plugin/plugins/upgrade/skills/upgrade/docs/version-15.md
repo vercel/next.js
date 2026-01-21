@@ -25,6 +25,11 @@ For complete breaking changes and migration guide:
 4. **GET route handlers**: Not cached by default
 5. **`geo` and `ip` removed**: Use `@vercel/functions` instead
 
+## Detailed Examples
+
+For comprehensive migration examples and troubleshooting:
+**[v15 Migration Examples](https://nextjs.org/docs/app/guides/upgrading/upgrade-examples-15)**
+
 ## After Upgrade
 
 Check for manual fixes needed:

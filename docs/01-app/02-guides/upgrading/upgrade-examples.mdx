@@ -1,0 +1,176 @@
+# Next.js Upgrade Examples and Procedures
+
+This document serves as an index to version-specific upgrade examples and common procedures.
+
+## Version-Specific Examples
+
+Detailed migration examples for each version upgrade:
+
+- **[13 → 14](./upgrade-examples-14.md)** - next export removal, @next/font migration, ImageResponse changes
+- **[14 → 15](./upgrade-examples-15.md)** - Async Request APIs, fetch caching changes, React 19
+- **[15 → 16](./upgrade-examples-16.md)** - middleware to proxy, Turbopack default, parallel routes
+
+## Sequential Upgrade Workflow
+
+**CRITICAL**: Always upgrade ONE major version at a time. Never skip versions.
+
+### Example: Upgrading from v13 to v16
+
+```bash
+# Step 1: Check current version
+cat package.json | grep '"next"'  # e.g., "next": "^13.5.0"
+
+# Step 2: Upgrade 13 → 14
+npx @next/codemod@canary upgrade 14
+grep -rn "@next-codemod-error" --include="*.ts" --include="*.tsx" .  # Fix manual issues
+npm run build  # Verify
+npm run dev    # Test
+
+# Step 3: Upgrade 14 → 15
+npx @next/codemod@canary upgrade 15
+grep -rn "@next-codemod-error" --include="*.ts" --include="*.tsx" .  # Fix manual issues
+npm run build  # Verify
+npm run dev    # Test
+
+# Step 4: Upgrade 15 → 16
+npx @next/codemod@canary upgrade 16
+grep -rn "@next-codemod-error" --include="*.ts" --include="*.tsx" .  # Fix manual issues
+npm run build  # Verify
+npm run dev    # Test
+```
+
+## Common Troubleshooting Procedures
+
+### Clean Installation
+
+When encountering module or dependency errors:
+
+```bash
+# 1. Remove all generated files and caches
+rm -rf node_modules .next package-lock.json tsconfig.tsbuildinfo
+
+# 2. Clear npm cache (optional)
+npm cache clean --force
+
+# 3. Fresh install
+npm install
+
+# 4. Rebuild
+npm run build
+```
+
+### Node.js Version Management
+
+```bash
+# Check current version
+node --version
+
+# Version requirements by Next.js version:
+# v14: Node.js 18.17+
+# v15: Node.js 18.17+
+# v16: Node.js 20.9+
+
+# Using nvm to switch versions
+nvm install 20.9
+nvm use 20.9
+nvm alias default 20.9  # Set as default
+```
+
+### Finding Manual Fixes After Codemod
+
+```bash
+# Search for codemod error comments in all relevant files
+grep -rn "@next-codemod-error" \
+  --include="*.ts" \
+  --include="*.tsx" \
+  --include="*.js" \
+  --include="*.jsx" \
+  --include="*.mjs" \
+  --include="*.cjs" .
+
+# Count how many manual fixes are needed
+grep -r "@next-codemod-error" --include="*.ts" --include="*.tsx" . | wc -l
+```
+
+### TypeScript Issues After Upgrade
+
+```bash
+# 1. Update React types
+npm i -D @types/react@latest @types/react-dom@latest
+
+# 2. Clear TypeScript cache
+rm -rf tsconfig.tsbuildinfo
+
+# 3. For Next.js 16+, regenerate types
+npx next typegen
+
+# 4. Type check
+npx tsc --noEmit
+```
+
+## Testing Checklist Template
+
+Use this checklist after each major version upgrade:
+
+```bash
+# 1. Verify Node.js version meets requirements
+node --version
+
+# 2. Run automated upgrade
+npx @next/codemod@canary upgrade [version]
+
+# 3. Find and fix manual changes
+grep -rn "@next-codemod-error" --include="*.ts" --include="*.tsx" .
+
+# 4. Clean build test
+rm -rf .next
+npm run build
+
+# 5. Development mode test
+npm run dev
+# - Navigate to main pages
+# - Check browser console for errors
+# - Test interactive features
+
+# 6. Production mode test
+npm run build && npm run start
+
+# 7. Linting (if configured)
+npm run lint
+
+# 8. Type checking (if using TypeScript)
+npx tsc --noEmit
+
+# 9. Run test suite (if available)
+npm test
+```
+
+## Quick Reference: Breaking Changes by Version
+
+### Version 14
+
+- Node.js 18.17+ required
+- `next export` → `output: 'export'`
+- `@next/font` → `next/font`
+- See [detailed examples](./upgrade-examples-14.md)
+
+### Version 15
+
+- React 19 required
+- Async Request APIs (cookies, headers, params, searchParams)
+- Fetch not cached by default
+- See [detailed examples](./upgrade-examples-15.md)
+
+### Version 16
+
+- Node.js 20.9+ required
+- `middleware.ts` → `proxy.ts`
+- Turbopack is default
+- Parallel routes need default.js
+- See [detailed examples](./upgrade-examples-16.md)
+
+## Official Resources
+
+- [Next.js Upgrade Guide](https://nextjs.org/docs/app/building-your-application/upgrading)
+- [Codemods Documentation](https://nextjs.org/docs/app/building-your-application/upgrading/codemods)
+- [Version History](https://nextjs.org/docs/app/building-your-application/upgrading/version-history)
