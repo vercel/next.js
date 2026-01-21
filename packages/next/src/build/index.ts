@@ -1034,7 +1034,7 @@ export default async function build(
         ''
 
       // Ensure process.env has the deployment ID before resolving
-      if (currentDeploymentId && !process.env.NEXT_DEPLOYMENT_ID) {
+      if (currentDeploymentId) {
         process.env['NEXT_DEPLOYMENT_ID'] = currentDeploymentId
       }
 
