@@ -24,6 +24,7 @@ The Next.js repository serves as a Claude Code plugin marketplace. Team members 
 | Plugin | Description |
 |--------|-------------|
 | `cache-components` | Expert guidance for Cache Components and PPR |
+| `upgrade` | Next.js major version upgrade assistant |
 
 ## For Team Members
 

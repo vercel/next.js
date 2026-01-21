@@ -13,6 +13,15 @@
       "author": {
         "name": "Next.js Team"
       }
+    },
+    {
+      "name": "upgrade",
+      "source": "./plugins/upgrade",
+      "description": "Next.js major version upgrade assistant. Manages sequential upgrades between any versions to latest with breaking changes documentation and automated codemods.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Next.js Team"
+      }
     }
   ]
 }

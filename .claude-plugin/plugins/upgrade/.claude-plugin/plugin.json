@@ -1,0 +1,20 @@
+{
+  "name": "upgrade",
+  "version": "0.1.0",
+  "description": "Next.js major version upgrade assistant. Manages sequential upgrades between any versions to latest, with comprehensive breaking changes documentation, automated codemods, and troubleshooting guides.",
+  "author": {
+    "name": "Next.js Team",
+    "url": "https://nextjs.org"
+  },
+  "homepage": "https://nextjs.org/docs/app/building-your-application/upgrading",
+  "repository": "https://github.com/vercel/next.js",
+  "license": "MIT",
+  "keywords": [
+    "nextjs",
+    "upgrade",
+    "migration",
+    "codemods",
+    "breaking-changes",
+    "version-upgrade"
+  ]
+}
