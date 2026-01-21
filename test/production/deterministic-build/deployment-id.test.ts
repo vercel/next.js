@@ -7,7 +7,7 @@ import { diff } from 'jest-diff'
 const glob = promisify(globOrig)
 
 // These are cosmetic files which aren't deployed.
-const IGNORE = /trace|trace-build/
+const IGNORE = /^trace$|^trace-build$/
 
 async function readFiles(next: NextInstance) {
   const files = (
@@ -27,21 +27,33 @@ async function readFiles(next: NextInstance) {
   )
 }
 
-// TODO we need to fix these case
-// - static/chunks client chunks are content hashed and have the deployment id inlined
+// TODO static/* browser chunks are content hashed and have the deployment id inlined
 const IGNORE_NAME = /^static\/chunks\//
 const IGNORE_CONTENT = new RegExp(
   [
-    // These contain content-hashed browser or edge chunk urls (including the deployment id query param)
+    // TODO These contain content-hashed browser chunk urls (and/or the deployment id query param)
+    'page_client-reference-manifest\\.js',
+    'build-manifest\\.json',
+    // TODO This contains
+    // - content-hashed browser chunk urls (and/or the deployment id query param)
+    // - browser chunk urls inside of a folder named after the build id
+    'middleware-build-manifest\\.js',
+    // TODO this contains "env": { "__NEXT_BUILD_ID": "taBOOu8Znzobe4G7wEG_i",
+    'middleware-manifest\\.json',
+    // TODO this contains the build id
+    'BUILD_ID',
+    // TODO this contains the build id: "/pages-static-gsp": { "dataRoute": "/_next/data/V7oVUAlS1LiV5CqrtpkAL/pages-static-gsp.json",
+    'prerender-manifest\\.json',
+    // TODO These contain (but are not deployed to the serverless function itself)
+    // - content-hashed browser chunk urls
+    // - the build id
     '.*\\.html',
     '.*\\.rsc',
-    'page_client-reference-manifest\\.js',
-    // These contain the content-hashed browser chunk names (but they might not actually be deployed in the serverless function)
+    // These are not critical, as they aren't deployed to the serverless function itself
     '_buildManifest\\.js',
-    'build-manifest\\.json',
     'client-build-manifest\\.json',
     'fallback-build-manifest\\.json',
-    'middleware-build-manifest\\.js',
+    'routes-manifest\\.json',
   ]
     .map((v) => '(?:\\/|^)' + v + '$')
     .join('|')
@@ -55,16 +67,19 @@ const IGNORE_CONTENT = new RegExp(
       files: {
         app: new FileRef(path.join(__dirname, 'app')),
         pages: new FileRef(path.join(__dirname, 'pages')),
-        // TODO constant generateBuildId isn't entirely representative of the real world
+        public: new FileRef(path.join(__dirname, 'public')),
+        'instrumentation.ts': new FileRef(
+          path.join(__dirname, 'instrumentation.ts')
+        ),
+        'middleware.ts': new FileRef(path.join(__dirname, 'middleware.ts')),
         'next.config.js': `module.exports = {
-          generateBuildId: async () => 'default-build-id',
-          // Enable these when debugging to get readable diffs
-          // experimental: {
-          //   turbopackMinify: false,
-          //   turbopackModuleIds: 'named',
-          //   turbopackScopeHoisting: false,
-          // },
-        }`,
+            experimental: {
+              // Enable these when debugging to get readable diffs
+              // turbopackMinify: false,
+              // turbopackModuleIds: 'named',
+              // turbopackScopeHoisting: false,
+            },
+          }`,
       },
       env: {
         NOW_BUILDER: '1',
@@ -104,7 +119,15 @@ const IGNORE_CONTENT = new RegExp(
         if (content1 !== content2) {
           errors.push(
             `File content mismatch for ${fileName}\n\n` +
-              diff(content1, content2)
+              diff(content1 ?? '', content2 ?? '')
+          )
+        }
+      }
+      for (const [fileName, content2] of run2Map) {
+        if (!run1Map.has(fileName)) {
+          errors.push(
+            `File content mismatch for ${fileName}\n\n` +
+              diff('', content2 ?? '')
           )
         }
       }

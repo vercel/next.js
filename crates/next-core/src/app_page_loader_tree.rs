@@ -328,6 +328,7 @@ impl AppPageLoaderTreeBuilder {
             parallel_routes,
             modules,
             global_metadata,
+            static_siblings,
         } = loader_tree;
 
         writeln!(
@@ -399,7 +400,15 @@ impl AppPageLoaderTreeBuilder {
 
         self.loader_tree_code += &modules_code;
 
-        write!(self.loader_tree_code, "}}]")?;
+        // Add static siblings for dynamic segments. An empty array means "known
+        // to have no siblings" which is distinct from not outputting the field
+        // (unknown). Turbopack always knows all siblings since it builds the full
+        // directory tree.
+        write!(
+            self.loader_tree_code,
+            "}}, {}]",
+            StringifyJs(static_siblings)
+        )?;
         Ok(())
     }
 

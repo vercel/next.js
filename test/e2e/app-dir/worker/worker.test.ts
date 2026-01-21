@@ -68,4 +68,32 @@ describe('app dir - workers', () => {
       )
     )
   })
+
+  it('should have access to NEXT_DEPLOYMENT_ID in web worker', async () => {
+    const browser = await next.browser('/deployment-id', {
+      beforePageLoad,
+    })
+
+    // Verify main thread has deployment ID and it's not empty
+    const mainDeploymentId = await browser
+      .elementByCss('#main-deployment-id')
+      .text()
+    expect(mainDeploymentId).toBe('test-deployment-id')
+
+    // Initial worker state should be default
+    expect(await browser.elementByCss('#worker-deployment-id').text()).toBe(
+      'default'
+    )
+
+    // Trigger worker to get deployment ID
+    await browser.elementByCss('button').click()
+
+    // Wait for worker to respond and verify it matches main thread
+    await retry(async () => {
+      const workerDeploymentId = await browser
+        .elementByCss('#worker-deployment-id')
+        .text()
+      expect(workerDeploymentId).toBe('test-deployment-id')
+    })
+  })
 })

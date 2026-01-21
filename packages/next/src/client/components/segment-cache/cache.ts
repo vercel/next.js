@@ -86,11 +86,15 @@ import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
 } from '../../flight-data-helpers'
-import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
+import {
+  DYNAMIC_STALETIME_MS,
+  STATIC_STALETIME_MS,
+} from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
+import { readFromBFCacheDuringRegularNavigation } from './bfcache'
 
 /**
  * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
@@ -864,6 +868,51 @@ export function upgradeToPendingSegment(
   return pendingEntry
 }
 
+export function attemptToFulfillDynamicSegmentFromBFCache(
+  now: number,
+  segment: EmptySegmentCacheEntry,
+  tree: RouteTree
+): FulfilledSegmentCacheEntry | null {
+  // Attempts to fulfill an empty segment cache entry using data from the
+  // bfcache. This is only valid during a Full prefetch (i.e. one that includes
+  // dynamic data), because the bfcache stores data from navigations which
+  // always include dynamic data.
+
+  // We always use the canonical vary path when checking the bfcache. This is
+  // the same operation we'd use to access the cache during a
+  // regular navigation.
+  const varyPath = tree.varyPath
+
+  // The stale time for dynamic prefetches (default: 5 mins) is different from
+  // the stale time for regular navigations (default: 0 secs). We adjust the
+  // current timestamp to account for the difference.
+  const adjustedCurrentTime = now - STATIC_STALETIME_MS + DYNAMIC_STALETIME_MS
+  const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
+    adjustedCurrentTime,
+    varyPath
+  )
+  if (bfcacheEntry !== null) {
+    // Fulfill the prefetch using the bfcache entry.
+
+    // As explained above, the stale time of this prefetch entry is different
+    // than the one for the bfcache. Calculate when it was originally requested
+    // by subtracting the stale time used by the bfcache.
+    const requestedAt = bfcacheEntry.staleAt - DYNAMIC_STALETIME_MS
+    // Now add the stale time used by dynamic prefetches.
+    const dynamicPrefetchStaleAt = requestedAt + STATIC_STALETIME_MS
+
+    const pendingSegment = upgradeToPendingSegment(segment, FetchStrategy.Full)
+    const isPartial = false
+    return fulfillSegmentCacheEntry(
+      pendingSegment,
+      bfcacheEntry.rsc,
+      dynamicPrefetchStaleAt,
+      isPartial
+    )
+  }
+  return null
+}
+
 function pingBlockedTasks(entry: {
   blockedTasks: Set<PrefetchTask> | null
 }): void {
@@ -1015,17 +1064,16 @@ function convertTreePrefetchToRouteTree(
     slots = {}
     for (let parallelRouteKey in prefetchSlots) {
       const childPrefetch = prefetchSlots[parallelRouteKey]
-      const childParamName = childPrefetch.name
-      const childParamType = childPrefetch.paramType
-      const childServerSentParamKey = childPrefetch.paramKey
+      const childSegmentName = childPrefetch.name
+      const childParam = childPrefetch.param
 
       let childDoesAppearInURL: boolean
       let childSegment: FlightRouterStateSegment
       let childPartialVaryPath: PartialSegmentVaryPath | null
-      if (childParamType !== null) {
+      if (childParam !== null) {
         // This segment is parameterized. Get the param from the pathname.
         const childParamValue = parseDynamicParamFromURLPart(
-          childParamType,
+          childParam.type,
           pathnameParts,
           pathnamePartsIndex
         )
@@ -1043,8 +1091,8 @@ function convertTreePrefetchToRouteTree(
         const childParamKey =
           // The server omits this field from the prefetch response when
           // cacheComponents is enabled.
-          childServerSentParamKey !== null
-            ? childServerSentParamKey
+          childParam.key !== null
+            ? childParam.key
             : // If no param key was sent, use the value parsed on the client.
               getCacheKeyForDynamicParam(
                 childParamValue,
@@ -1055,14 +1103,19 @@ function convertTreePrefetchToRouteTree(
           partialVaryPath,
           childParamKey
         )
-        childSegment = [childParamName, childParamKey, childParamType]
+        childSegment = [
+          childSegmentName,
+          childParamKey,
+          childParam.type,
+          childParam.siblings,
+        ]
         childDoesAppearInURL = true
       } else {
         // This segment does not have a param. Inherit the partial vary path of
         // the parent.
         childPartialVaryPath = partialVaryPath
-        childSegment = childParamName
-        childDoesAppearInURL = doesStaticSegmentAppearInURL(childParamName)
+        childSegment = childSegmentName
+        childDoesAppearInURL = doesStaticSegmentAppearInURL(childSegmentName)
       }
 
       // Only increment the index if the segment appears in the URL. If it's a
