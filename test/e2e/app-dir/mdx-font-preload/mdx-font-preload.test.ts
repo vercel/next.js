@@ -26,10 +26,10 @@ describe('mdx-font-preload', () => {
     expect(fontFamily).toMatch(/myFont/)
   })
 
-  // TODO(Turbopack): Turbopack transforms page.mdx into page.mdx.tsx. The font manifest
-  // key is correct ('[project]/app/page'), but at runtime the filePath passed is
-  // '[project]/app/page.mdx.tsx' which strips to '[project]/app/page.mdx' - not matching
-  // the manifest. The filePath should reflect the original source file, not the transform.
+  // TODO(Turbopack): With webpack, font manifest lookup uses segment paths with layout
+  // entries, so fonts in layout are found correctly. With Turbopack, page.mdx becomes
+  // page.mdx.tsx, and the filePath '[project]/app/page.mdx.tsx' strips to
+  // '[project]/app/page.mdx' which doesn't match the manifest key '[project]/app/page'.
   it('should preload font from layout on MDX page', async () => {
     const browser = await next.browser('/')
 
