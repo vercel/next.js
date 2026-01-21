@@ -43,7 +43,7 @@ impl ConnectChildOperation {
                 return;
             }
 
-            if parent_task.has_children(&child_task_id) {
+            if parent_task.children_contains(&child_task_id) {
                 // It is already connected, we can skip the rest
                 return;
             }

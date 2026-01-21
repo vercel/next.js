@@ -243,7 +243,7 @@ pub fn make_task_dirty_internal(
         .entered();
         *stale = true;
     }
-    let current = task.get_dirty().cloned();
+    let current = task.get_dirty();
     let (old_self_dirty, old_current_session_self_clean, parent_priority) = match current {
         Some(Dirtyness::Dirty(current_priority)) => {
             #[cfg(feature = "trace_task_dirty")]
@@ -256,7 +256,7 @@ pub fn make_task_dirty_internal(
             .entered();
             // already dirty
             let parent_priority = ctx.get_current_task_priority();
-            if current_priority >= parent_priority {
+            if *current_priority >= parent_priority {
                 // Update the priority to be the lower one
                 task.set_dirty(Dirtyness::Dirty(parent_priority));
             }

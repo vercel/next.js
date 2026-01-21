@@ -463,14 +463,13 @@ impl TaskStorage {
         // Mark as fully restored since transient tasks don't need restoration from disk
         self.flags.set_restored(TaskDataCategory::All);
 
-        // Set aggregation number for transient tasks (max aggregation)
+        // This is a root (or once) task. These tasks use the max aggregation number.
         self.aggregation_number = AggregationNumber {
             base: u32::MAX,
             distance: 0,
             effective: u32::MAX,
         };
 
-        // Only set activeness state if activeness tracking is enabled
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
             self.lazy.push(LazyField::Activeness(activeness));

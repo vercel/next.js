@@ -225,14 +225,14 @@ impl Operation for UpdateCellOperation {
                         let mut make_stale = false;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
                         for key in keys.iter().copied() {
-                            if dependent.has_outdated_cell_dependencies(&(cell_ref, key)) {
+                            if dependent.outdated_cell_dependencies_contains(&(cell_ref, key)) {
                                 // cell dependency is outdated, so it hasn't read the cell yet
                                 // and doesn't need to be invalidated.
                                 // We do not need to make the task stale in this case.
                                 // But importantly we still need to make the task dirty as it should
                                 // no longer be considered as
                                 // "recomputation".
-                            } else if !dependent.has_cell_dependencies(&(cell_ref, key)) {
+                            } else if !dependent.cell_dependencies_contains(&(cell_ref, key)) {
                                 // cell dependency has been removed, so the task doesn't depend on
                                 // the cell anymore and doesn't need
                                 // to be invalidated

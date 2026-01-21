@@ -1707,12 +1707,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     task.iter_cell_dependencies().collect::<SmallVec<[_; 8]>>();
                 let outdated_cell_dependencies_to_remove = task
                     .iter_outdated_cell_dependencies()
-                    .filter(|item| !task.has_cell_dependencies(item))
+                    .filter(|item| !task.cell_dependencies_contains(item))
                     .collect::<SmallVec<[_; 8]>>();
-                task.outdated_cell_dependencies_extend(
-                    outdated_cell_dependencies_to_add.into_iter(),
-                );
-                task.outdated_cell_dependencies_remove_all(
+                task.extend_outdated_cell_dependencies(outdated_cell_dependencies_to_add);
+                task.remove_all_outdated_cell_dependencies(
                     outdated_cell_dependencies_to_remove.iter(),
                 );
 
@@ -1721,12 +1719,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .collect::<SmallVec<[_; 8]>>();
                 let outdated_output_dependencies_to_remove = task
                     .iter_outdated_output_dependencies()
-                    .filter(|&target| !task.has_output_dependencies(&target))
+                    .filter(|&target| !task.output_dependencies_contains(&target))
                     .collect::<SmallVec<[_; 8]>>();
-                task.outdated_output_dependencies_extend(
-                    outdated_output_dependencies_to_add.into_iter(),
-                );
-                task.outdated_output_dependencies_remove_all(
+                task.extend_outdated_output_dependencies(outdated_output_dependencies_to_add);
+                task.remove_all_outdated_output_dependencies(
                     outdated_output_dependencies_to_remove.iter(),
                 );
             }
@@ -1997,7 +1993,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Task has no invalidator
             && !task.invalidator()
             // Task has no dependencies on collectibles
-            && task.collectibles_dependencies_len() == 0
+            && task.is_collectibles_dependencies_empty()
         {
             Some(
                 // Collect all dependencies on tasks to check if all dependencies are immutable
@@ -2165,7 +2161,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             let mut make_stale = true;
             let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
-            if dependent.has_outdated_output_dependencies(&task_id) {
+            if dependent.outdated_output_dependencies_contains(&task_id) {
                 #[cfg(feature = "trace_task_output_dependencies")]
                 span.record("result", "outdated dependency");
                 // output dependency is outdated, so it hasn't read the output yet
@@ -2173,7 +2169,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // But importantly we still need to make the task dirty as it should no longer
                 // be considered as "recomputation".
                 make_stale = false;
-            } else if !dependent.has_output_dependencies(&task_id) {
+            } else if !dependent.output_dependencies_contains(&task_id) {
                 // output dependency has been removed, so the task doesn't depend on the
                 // output anymore and doesn't need to be invalidated
                 #[cfg(feature = "trace_task_output_dependencies")]

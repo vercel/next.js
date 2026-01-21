@@ -61,7 +61,9 @@ fn get_followers_with_aggregation_number(
     aggregation_number: u32,
 ) -> TaskIdVec {
     if is_aggregating_node(aggregation_number) {
-        task.iter_followers().collect()
+        task.iter_followers_entries()
+            .map(|(&id, _count)| id)
+            .collect()
     } else {
         task.iter_children().collect()
     }
@@ -76,7 +78,7 @@ fn get_followers(task: &impl TaskGuard) -> TaskIdVec {
 /// Returns a list of tasks that are considered as "upper" tasks of the task. The upper tasks are
 /// aggregating over the task.
 pub fn get_uppers(task: &impl TaskGuard) -> TaskIdVec {
-    task.iter_uppers().collect()
+    task.iter_upper_entries().map(|(&id, _count)| id).collect()
 }
 
 /// Returns the aggregation number of the task.
@@ -1856,7 +1858,7 @@ impl AggregationUpdateQueue {
                         }
                     }
                     // notify uppers about new follower
-                    for upper_id in upper.iter_uppers() {
+                    for (&upper_id, _) in upper.iter_upper_entries() {
                         *upper_upper_ids_with_new_follower
                             .entry(upper_id)
                             .or_insert(0) += 1;
@@ -1896,7 +1898,7 @@ impl AggregationUpdateQueue {
                 if follower.update_upper_count(upper_id, count) {
                     // It's a new upper
                     let uppers_count = uppers_count.get_or_insert_with(|| {
-                        let count = follower.iter_uppers().count();
+                        let count = follower.upper_len();
                         count - 1
                     });
                     *uppers_count += 1;
@@ -2490,14 +2492,14 @@ impl AggregationUpdateQueue {
             if is_aggregating_node(aggregation_number) {
                 // followers might become inner nodes when the aggregation number is
                 // increased
-                for follower_id in task.iter_followers() {
+                for (&follower_id, _) in task.iter_followers_entries() {
                     self.push(AggregationUpdateJob::BalanceEdge {
                         upper_id: task_id,
                         task_id: follower_id,
                     });
                 }
-                let uppers = task.iter_uppers();
-                for upper_id in uppers {
+                let uppers = task.iter_upper_entries();
+                for (&upper_id, _count) in uppers {
                     self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
                 }
             } else {

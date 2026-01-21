@@ -755,9 +755,9 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
 
     quote! {
         bitfield::bitfield! {
-            /// Combined bitfield for task flags.
-            /// Persisted flags are in the lower bits (0 to N-1).
-            /// Transient flags are in the higher bits (N and above).
+            #[doc = "Combined bitfield for task flags."]
+            #[doc = "Persisted flags are in the lower bits (0 to N-1)."]
+            #[doc = "Transient flags are in the higher bits (N and above)."]
             #[derive(Clone, Default, PartialEq, Eq)]
             pub struct TaskFlags(u16);
             impl Debug;
@@ -767,25 +767,25 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
 
         #[automatically_derived]
         impl TaskFlags {
-            /// Mask for persisted flags (lower bits only)
+            #[doc = "Mask for persisted flags (lower bits only)"]
             pub const PERSISTED_MASK: u16 = #persisted_mask;
 
-            /// Get the raw bits value
+            #[doc = "Get the raw bits value"]
             pub fn bits(&self) -> u16 {
                 self.0
             }
 
-            /// Get only the persisted bits (for serialization)
+            #[doc = "Get only the persisted bits (for serialization)"]
             pub fn persisted_bits(&self) -> u16 {
                 self.0 & Self::PERSISTED_MASK
             }
 
-            /// Set bits from a raw value, preserving transient flags
+            #[doc = "Set bits from a raw value, preserving transient flags"]
             pub fn set_persisted_bits(&mut self, bits: u16) {
                 self.0 = (self.0 & !Self::PERSISTED_MASK) | (bits & Self::PERSISTED_MASK);
             }
 
-            /// Create from raw bits (for deserialization)
+            #[doc = "Create from raw bits (for deserialization)"]
             pub fn from_bits(bits: u16) -> Self {
                 Self(bits)
             }
@@ -863,8 +863,8 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         .collect();
 
     quote! {
-        /// All lazily-allocated fields stored in a single Vec.
-        /// Fields are stored directly (unboxed) to avoid allocation overhead.
+        #[doc = "All lazily-allocated fields stored in a single Vec."]
+        #[doc = "Fields are stored directly (unboxed) to avoid allocation overhead."]
         #[automatically_derived]
         #[derive(Debug, Clone, PartialEq, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
@@ -874,28 +874,28 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
 
         #[automatically_derived]
         impl LazyField {
-            /// Returns true if this field is empty (can be removed from the Vec)
+            #[doc = "Returns true if this field is empty (can be removed from the Vec)"]
             pub fn is_empty(&self) -> bool {
                 match self {
                     #(#is_empty_arms),*
                 }
             }
 
-            /// Returns true if this field should be persisted (not transient)
+            #[doc = "Returns true if this field should be persisted (not transient)"]
             pub fn is_persistent(&self) -> bool {
                 match self {
                     #(#is_persistent_arms),*
                 }
             }
 
-            /// Returns true if this field belongs to the meta category
+            #[doc = "Returns true if this field belongs to the meta category"]
             pub fn is_meta(&self) -> bool {
                 match self {
                     #(#is_meta_arms),*
                 }
             }
 
-            /// Returns true if this field belongs to the data category
+            #[doc = "Returns true if this field belongs to the data category"]
             pub fn is_data(&self) -> bool {
                 !self.is_meta()
             }
@@ -924,7 +924,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     // Add flags bitfield if needed (pub(crate) - used by TaskFlags methods)
     let flags_field = if has_flags {
         quote! {
-            /// Combined bitfield for boolean flags (persisted + transient)
+            #[doc = "Combined bitfield for boolean flags (persisted + transient)"]
             pub(crate) flags: TaskFlags,
         }
     } else {
@@ -935,7 +935,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     // Note: Serialization is handled manually via encode_data/encode_meta methods
     let lazy_field = if has_lazy {
         quote! {
-            /// Lazily-allocated fields stored in a single Vec for memory efficiency
+            #[doc = "Lazily-allocated fields stored in a single Vec for memory efficiency"]
             lazy: Vec<LazyField>,
         }
     } else {
@@ -949,8 +949,8 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     // Note: We don't derive bincode::Encode/Decode here since serialization
     // will be handled manually via encode_data/encode_meta/decode_data/decode_meta methods
     quote! {
-        /// Unified typed storage containing all task fields.
-        /// This is designed to be embedded in the actual InnerStorage for incremental migration.
+        #[doc = "Unified typed storage containing all task fields."]
+        #[doc = "This is designed to be embedded in the actual InnerStorage for incremental migration."]
         #[automatically_derived]
         #[derive(Debug, Default, PartialEq, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
@@ -1077,7 +1077,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
                 self.find_lazy(#extractor)
             }
 
-            /// Set the field value, returning the old value if present.
+            #[doc = "Set the field value, returning the old value if present."]
             fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
                 self.set_lazy(#matches_closure, #unwrap_owned, #constructor)
             }
@@ -1086,10 +1086,10 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
                 self.take_lazy(#matches_closure, #unwrap_owned)
             }
 
-            /// Get a mutable reference to the field value (if present).
-            ///
-            /// Unlike `get_or_create_lazy` for collections, this does NOT allocate
-            /// if the field is absent - it returns None instead.
+            #[doc = "Get a mutable reference to the field value (if present)."]
+            #[doc = ""]
+            #[doc = "Unlike `get_or_create_lazy` for collections, this does NOT allocate"]
+            #[doc = "if the field is absent - it returns None instead."]
             fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
                 self.find_lazy_mut(#extractor)
             }
@@ -1162,50 +1162,50 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
     }
 
     quote! {
-        /// Trait for typed storage accessors.
-        ///
-        /// This trait is auto-generated by the TaskStorage macro.
-        /// Implementors only need to provide `typed()`, `typed_mut()`, `track_modification()`,
-        /// and `check_access()` methods, and all accessor methods are provided automatically.
-        ///
-        /// This is designed to work with TaskGuard.
+        #[doc = "Trait for typed storage accessors."]
+        #[doc = ""]
+        #[doc = "This trait is auto-generated by the TaskStorage macro."]
+        #[doc = "Implementors only need to provide `typed()`, `typed_mut()`, `track_modification()`,"]
+        #[doc = "and `check_access()` methods, and all accessor methods are provided automatically."]
+        #[doc = ""]
+        #[doc = "This is designed to work with TaskGuard."]
         #[automatically_derived]
         pub trait TaskStorageAccessors {
-            /// Access the typed storage (read-only)
+            #[doc = "Access the typed storage (read-only)"]
             fn typed(&self) -> &TaskStorage;
 
-            /// Access the typed storage (mutable).
-            ///
-            /// Note: This does NOT track modifications. Call `track_modification()` separately
-            /// when the data actually changes. This split allows generated accessors to
-            /// only track modifications when actual changes occur.
+            #[doc = "Access the typed storage (mutable)."]
+            #[doc = ""]
+            #[doc = "Note: This does NOT track modifications. Call `track_modification()` separately"]
+            #[doc = "when the data actually changes. This split allows generated accessors to"]
+            #[doc = "only track modifications when actual changes occur."]
             fn typed_mut(&mut self) -> &mut TaskStorage;
 
-            /// Track that a modification occurred for the given category.
-            ///
-            /// Should be called after confirming that data actually changed.
-            /// This is separate from `typed_mut()` to allow optimizations where
-            /// we only track modifications when something actually changes.
+            #[doc = "Track that a modification occurred for the given category."]
+            #[doc = ""]
+            #[doc = "Should be called after confirming that data actually changed."]
+            #[doc = "This is separate from `typed_mut()` to allow optimizations where"]
+            #[doc = "we only track modifications when something actually changes."]
             fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory);
 
-            /// Verify that the task was accessed with the correct category before reading/writing.
-            ///
-            /// This is a debug assertion that catches bugs where code tries to access data
-            /// without having restored it from storage first.
-            ///
-            /// The category parameter uses `SpecificTaskDataCategory`:
-            /// - `Data` or `Meta`: Checks that the task was accessed with that category
-            ///
-            /// Implementors should check that the provided category matches how the task was accessed.
+            #[doc = "Verify that the task was accessed with the correct category before reading/writing."]
+            #[doc = ""]
+            #[doc = "This is a debug assertion that catches bugs where code tries to access data"]
+            #[doc = "without having restored it from storage first."]
+            #[doc = ""]
+            #[doc = "The category parameter uses `SpecificTaskDataCategory`:"]
+            #[doc = "- `Data` or `Meta`: Checks that the task was accessed with that category"]
+            #[doc = ""]
+            #[doc = "Implementors should check that the provided category matches how the task was accessed."]
             fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory);
 
-            /// Shrink all collection fields to fit their current contents.
-            ///
-            /// This releases excess memory from hash maps and hash sets that may have
-            /// grown larger than needed during task execution.
-            ///
-            /// Note: This does NOT track modifications since shrink_to_fit doesn't
-            /// semantically change the data - it only reduces memory usage.
+            #[doc = "Shrink all collection fields to fit their current contents."]
+            #[doc = ""]
+            #[doc = "This releases excess memory from hash maps and hash sets that may have"]
+            #[doc = "grown larger than needed during task execution."]
+            #[doc = ""]
+            #[doc = "Note: This does NOT track modifications since shrink_to_fit doesn't"]
+            #[doc = "semantically change the data - it only reduces memory usage."]
             fn shrink_to_fit(&mut self) {
                 self.typed_mut().shrink_to_fit();
             }
@@ -1379,7 +1379,8 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
     };
 
     // Generate get_mut accessor for all direct transient fields
-    // We don't allow
+    // We don't allow direct mutable access to persistent fields because it can interfere with
+    // mutation tracking and snapshotting
     let get_mut_accessor = {
         let get_mut_name = field.get_mut_ident();
         if field.is_transient() {
@@ -1389,12 +1390,9 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                 if field.use_default {
                     // For fields with default semantics, always return Some(&mut self.field)
                     quote! {
-                        /// Get a mutable reference to the field value.
-                        ///
-                        /// Tracks modification pessimistically - assumes caller will mutate.
-                        /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic.
-                        /// If this is needed then we need to use a guard struct that tracks `DerefMut` calls and calls track_modification
-                        /// in Drop
+                        #[doc = "Get a mutable reference to the field value."]
+                        #[doc = ""]
+                        #[doc = "Tracks modification pessimistically - assumes caller will mutate."]
                         fn #get_mut_name(&mut self) -> &mut #value_type {
                             #check_access
                             #track_modification
@@ -1404,9 +1402,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                 } else {
                     // For Option fields, return as_mut()
                     quote! {
-                        /// Get a mutable reference to the field value (if present).
-                        ///
-                        /// Tracks modification pessimistically - assumes caller will mutate.
+                        #[doc = "Get a mutable reference to the field value (if present)."]
                         fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
                             #check_access
                             #track_modification
@@ -1418,9 +1414,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                 // For lazy fields, use the existing get_mut expression
                 let get_mut_expr = field.direct_get_mut_expr();
                 quote! {
-                    /// Get a mutable reference to the field value (if present).
-                    ///
-                    /// Tracks modification pessimistically - assumes caller will mutate.
+                    #[doc = "Get a mutable reference to the field value (if present)."]
                     fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
                         #check_access
                         #track_modification
@@ -1429,35 +1423,35 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                 }
             }
         } else {
-            quote! {
-                // Persistent fields don't allow direct mutable access as it interferes with mutation tracking
-            }
+            // Persistent fields don't allow direct mutable access as it interferes with mutation
+            // tracking
+            quote! {}
         }
     };
 
     quote! {
-        /// Get a reference to the field value (if present)
+        #[doc = "Get a reference to the field value (if present)"]
         fn #get_name(&self) -> Option<&#value_type> {
             #check_access
             #get_expr
         }
 
-        /// Check if this field has a value
+        #[doc = "Check if this field has a value"]
         fn #has_name(&self) -> bool {
             #check_access
             #get_expr.is_some()
         }
 
-        /// Set the field value, returning the old value if present
+        #[doc = "Set the field value, returning the old value if present"]
         fn #set_name(&mut self, value: #value_type) -> Option<#value_type> {
             #check_access
             #track_modification
             #set_expr(value)
         }
 
-        /// Take the field value, clearing it
-        ///
-        /// Only tracks modification if there was a value to take.
+        #[doc = "Take the field value, clearing it"]
+        #[doc = ""]
+        #[doc = "Only tracks modification if there was a value to take."]
         fn #take_name(&mut self) -> Option<#value_type> {
             #check_access
             let value = #take_expr;
@@ -1493,10 +1487,10 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     let is_option = field.is_option_ref();
 
     let add_name = field.prefixed_ident("add");
-    let add_items_name = field.suffixed_ident("extend");
+    let extend_name = field.prefixed_ident("extend");
     let remove_name = field.prefixed_ident("remove");
-    let remove_all_name = field.suffixed_ident("remove_all");
-    let has_name = field.prefixed_ident("has");
+    let remove_all_name = field.prefixed_ident("remove_all");
+    let has_name = field.suffixed_ident("contains");
     let iter_name = field.iter_ident();
     let len_name = field.len_ident();
     let is_empty_name = field.is_empty_ident();
@@ -1585,14 +1579,14 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     };
 
     quote! {
-        /// Check if the set contains an item
+        #[doc = "Check if the set contains an item"]
         fn #has_name(&self, item: &#element_type) -> bool {
             #check_access
             #has_body
         }
 
-        /// Add an item to the set.
-        /// Returns true if the item was newly added, false if it already existed.
+        #[doc = "Add an item to the set."]
+        #[doc = "Returns true if the item was newly added, false if it already existed."]
         #[must_use]
         fn #add_name(&mut self, item: #element_type) -> bool {
             #check_access
@@ -1603,9 +1597,9 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             added
         }
 
-        /// Add multiple items to the set from an iterator.
-        /// Only tracks modification if at least one item is actually added.
-        fn #add_items_name(&mut self, items: impl Iterator<Item = #element_type>) {
+        #[doc = "Add multiple items to the set from an iterator."]
+        #[doc = "Only tracks modification if at least one item is actually added."]
+        fn #extend_name(&mut self, items: impl IntoIterator<Item = #element_type>) {
             #check_access
             let set = #mut_expr;
             let mut any_added = false;
@@ -1619,16 +1613,16 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             }
         }
 
-        /// Remove an item from the set.
-        /// Returns true if the item was present and removed, false if it wasn't present.
+        #[doc = "Remove an item from the set."]
+        #[doc = "Returns true if the item was present and removed, false if it wasn't present."]
         fn #remove_name(&mut self, item: &#element_type) -> bool {
             #check_access
             #remove_body
         }
 
-        /// Remove multiple items from the set.
-        /// Only tracks modification if at least one item is actually removed.
-        fn #remove_all_name<'a>(&mut self, items: impl Iterator<Item = &'a #element_type>)
+        #[doc = "Remove multiple items from the set."]
+        #[doc = "Only tracks modification if at least one item is actually removed."]
+        fn #remove_all_name<'a>(&mut self, items: impl IntoIterator<Item = &'a #element_type>)
         where
             #element_type: 'a,
         {
@@ -1636,19 +1630,19 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             #remove_all_body
         }
 
-        /// Iterate over all items in the set
+        #[doc = "Iterate over all items in the set"]
         fn #iter_name(&self) -> impl Iterator<Item = #element_type> + '_ {
             #check_access
             #iter_body
         }
 
-        /// Get the number of items in the set
+        #[doc = "Get the number of items in the set"]
         fn #len_name(&self) -> usize {
             #check_access
             #len_body
         }
 
-        /// Check if the set is empty
+        #[doc = "Check if the set is empty"]
         fn #is_empty_name(&self) -> bool {
             #check_access
             #is_empty_body
@@ -1669,14 +1663,35 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 /// - `update_{field}(key, f)` - Closure-based update
 /// - `add_{field}(key, value)` - Insert new, panics if exists
 /// - `remove_{field}(key) -> Option<V>` - Standard HashMap remove
-/// - `update_{field}_positive_crossing(key, delta) -> bool` - For i32 types
 /// - `get_{field}_entry(key) -> Option<&V>` - Single-item lookup
+///
+/// Additionally, for i32 value types only (signed counters):
+/// - `update_{field}_positive_crossing(key, delta) -> bool` - Track positive boundary crossing
+/// - `iter_{field}_positive_entries() -> Iterator` - Iterate entries where value > 0
+///
+/// Note: CounterMap only supports `i32` and `u32` value types. Other types will produce
+/// a compile error.
 fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
 
-    let Some((key_type, value_type)) = extract_map_types(field_type, "CounterMap") else {
+    let Some((key_type_raw, value_type_raw)) = extract_map_types_raw(field_type, "CounterMap")
+    else {
         return quote! {};
     };
+
+    // Enforce that value type is either i32 or u32
+    let is_signed = is_type_i32(value_type_raw);
+    let is_unsigned = is_type_u32(value_type_raw);
+    if !is_signed && !is_unsigned {
+        return syn::Error::new(
+            value_type_raw.span(),
+            "CounterMap value type must be `i32` or `u32`",
+        )
+        .to_compile_error();
+    }
+
+    let key_type = quote! { #key_type_raw };
+    let value_type = quote! { #value_type_raw };
 
     let check_access = field.check_access_call();
     let track_modification = field.track_modification_call();
@@ -1691,10 +1706,8 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     let update_with_name = field.prefixed_ident("update");
     let add_entry_name = field.prefixed_ident("add");
     let remove_name = field.prefixed_ident("remove");
-    let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
     let get_entry_name = field.infixed_ident("get", "entry");
     let iter_entries_name = field.infixed_ident("iter", "entries");
-    let iter_positive_entries_name = field.infixed_ident("iter", "positive_entries");
     let len_name = field.len_ident();
     let is_empty_name = field.is_empty_ident();
 
@@ -1750,28 +1763,53 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         quote! { #ref_expr.iter() }
     };
 
-    // Generate iter_positive_entries body (entries where value > 0)
-    let iter_positive_entries_body = if is_option {
+    // Generate signed-type-specific methods only for i32
+    let signed_methods = if is_signed {
+        let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
+        let iter_positive_entries_name = field.infixed_ident("iter", "positive_entries");
+
+        // Generate iter_positive_entries body (entries where value > 0)
+        let iter_positive_entries_body = if is_option {
+            quote! {
+                #ref_expr.into_iter().flat_map(|m| {
+                    m.iter().filter_map(|(k, v)| if *v > 0 { Some((k, v)) } else { None })
+                })
+            }
+        } else {
+            quote! {
+                #ref_expr.iter().filter_map(|(k, v)| if *v > 0 { Some((k, v)) } else { None })
+            }
+        };
+
         quote! {
-            #ref_expr.into_iter().flat_map(|m| {
-                m.iter().filter_map(|(k, v)| if *v > Default::default() { Some((k, v)) } else { None })
-            })
+            #[doc = "Update a signed counter by the given delta."]
+            #[doc = "Returns true if the count crossed the positive boundary (became positive or non-positive)."]
+            #[must_use]
+            fn #update_positive_crossing_name(&mut self, key: #key_type, delta: #value_type) -> bool {
+                #check_access
+                #track_modification
+                #mut_expr.update_positive_crossing(key, delta)
+            }
+
+            #[doc = "Iterate over key-value pairs where value > 0"]
+            fn #iter_positive_entries_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
+                #check_access
+                #iter_positive_entries_body
+            }
         }
     } else {
-        quote! {
-            #ref_expr.iter().filter_map(|(k, v)| if *v > Default::default() { Some((k, v)) } else { None })
-        }
+        quote! {}
     };
 
     quote! {
-        /// Get a single entry from the counter map
+        #[doc = "Get a single entry from the counter map"]
         fn #get_entry_name(&self, key: &#key_type) -> Option<&#value_type> {
             #check_access
             #get_entry_body
         }
 
-        /// Update a counter by the given delta.
-        /// Returns true if the count crossed zero (became zero or became non-zero).
+        #[doc = "Update a counter by the given delta."]
+        #[doc = "Returns true if the count crossed zero (became zero or became non-zero)."]
         #[must_use]
         fn #update_count_name(&mut self, key: #key_type, delta: #value_type) -> bool {
             #check_access
@@ -1779,8 +1817,8 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             #mut_expr.update_count(key, delta)
         }
 
-        /// Update multiple counters by the given delta.
-        /// More efficient than calling update_count in a loop.
+        #[doc = "Update multiple counters by the given delta."]
+        #[doc = "More efficient than calling update_count in a loop."]
         fn #update_counts_name(&mut self, keys: impl Iterator<Item = #key_type>, delta: #value_type) {
             #check_access
             #track_modification
@@ -1790,70 +1828,57 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             }
         }
 
-        /// Update a counter by the given delta and return the new value.
+        #[doc = "Update a counter by the given delta and return the new value."]
         fn #update_and_get_name(&mut self, key: #key_type, delta: #value_type) -> #value_type {
             #check_access
             #track_modification
-                        #mut_expr.update_and_get(key, delta)
+            #mut_expr.update_and_get(key, delta)
         }
 
-        /// Update a counter using a closure that receives the current value
-        /// (or None if not present) and returns the new value (or None to remove).
+        #[doc = "Update a counter using a closure that receives the current value"]
+        #[doc = "(or None if not present) and returns the new value (or None to remove)."]
         fn #update_with_name<F>(&mut self, key: #key_type, f: F)
         where
             F: FnOnce(Option<#value_type>) -> Option<#value_type>,
         {
             #check_access
             #track_modification
-                        #mut_expr.update_with(key, f)
+            #mut_expr.update_with(key, f)
         }
 
-        /// Add a new entry, panicking if the entry already exists.
+        #[doc = "Add a new entry, panicking if the entry already exists."]
         fn #add_entry_name(&mut self, key: #key_type, value: #value_type) {
             #check_access
             #track_modification
-                        #mut_expr.add_entry(key, value)
+            #mut_expr.add_entry(key, value)
         }
 
-        /// Remove an entry, returning the value if present.
-        /// Only tracks modification if an entry was actually removed.
+        #[doc = "Remove an entry, returning the value if present."]
+        #[doc = "Only tracks modification if an entry was actually removed."]
         fn #remove_name(&mut self, key: &#key_type) -> Option<#value_type> {
             #check_access
             #remove_body
         }
 
-        /// Update a signed counter by the given delta.
-        /// Returns true if the count crossed the positive boundary (became positive or non-positive).
-        #[must_use]
-        fn #update_positive_crossing_name(&mut self, key: #key_type, delta: #value_type) -> bool {
-            #check_access
-            #track_modification
-                        #mut_expr.update_positive_crossing(key, delta)
-        }
-
-        /// Get the number of entries in the counter map
+        #[doc = "Get the number of entries in the counter map"]
         fn #len_name(&self) -> usize {
             #check_access
             #len_body
         }
 
-        /// Check if the counter map is empty
+        #[doc = "Check if the counter map is empty"]
         fn #is_empty_name(&self) -> bool {
             #check_access
             #is_empty_body
         }
 
-        /// Iterate over all key-value pairs in the counter map
+        #[doc = "Iterate over all key-value pairs in the counter map"]
         fn #iter_entries_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
             #check_access
             #iter_entries_body
         }
 
-        /// Iterate over key-value pairs where value > 0
-        fn #iter_positive_entries_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
-            #check_access
-            #iter_positive_entries_body
-        }
+        #signed_methods
     }
 }
 
@@ -1947,45 +1972,46 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     };
 
     quote! {
-        /// Get an entry from the map by key
+        #[doc = "Get an entry from the map by key"]
         fn #get_entry_name(&self, key: &#key_type) -> Option<&#value_type> {
             #check_access
             #get_entry_body
         }
 
-        /// Check if the map contains a key
+        #[doc = "Check if the map contains a key"]
         fn #has_entry_name(&self, key: &#key_type) -> bool {
             #check_access
             #has_entry_body
         }
 
-        /// Insert an entry, returning the old value if present.
+        #[doc = "Insert an entry, returning the old value if present."]
         fn #insert_entry_name(&mut self, key: #key_type, value: #value_type) -> Option<#value_type> {
             #check_access
             #track_modification
             #mut_expr.insert(key, value)
         }
 
-        /// Remove an entry, returning the value if present.
-        /// Only tracks modification if an entry was actually removed.
+
+        #[doc = "Remove an entry, returning the value if present."]
+        #[doc = "Only tracks modification if an entry was actually removed."]
         fn #remove_entry_name(&mut self, key: &#key_type) -> Option<#value_type> {
             #check_access
             #remove_body
         }
 
-        /// Iterate over all key-value pairs in the map
+        #[doc = "Iterate over all key-value pairs in the map"]
         fn #iter_entries_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
             #check_access
             #iter_body
         }
 
-        /// Get the number of entries in the map
+        #[doc = "Get the number of entries in the map"]
         fn #len_name(&self) -> usize {
             #check_access
             #len_body
         }
 
-        /// Check if the map is empty
+        #[doc = "Check if the map is empty"]
         fn #is_empty_name(&self) -> bool {
             #check_access
             #is_empty_body
@@ -2023,9 +2049,9 @@ fn generate_shrink_accessor(field: &FieldInfo) -> TokenStream {
     };
 
     quote! {
-        /// Shrink the collection to fit its current contents, releasing excess memory.
-        ///
-        /// This does NOT track modifications since it doesn't change the data semantically.
+        #[doc = "Shrink the collection to fit its current contents, releasing excess memory."]
+        #[doc = ""]
+        #[doc = "This does NOT track modifications since it doesn't change the data semantically."]
         fn #shrink_name(&mut self) {
             #shrink_body
         }
@@ -2063,6 +2089,12 @@ fn extract_set_element_type(ty: &Type) -> Option<TokenStream> {
 
 /// Extract key and value types from a map type (e.g., AutoMap<K, V> or CounterMap<K, V>)
 fn extract_map_types(ty: &Type, expected_name: &str) -> Option<(TokenStream, TokenStream)> {
+    let (key_type, value_type) = extract_map_types_raw(ty, expected_name)?;
+    Some((quote! { #key_type }, quote! { #value_type }))
+}
+
+/// Extract key and value types from a map type, returning the raw Type references.
+fn extract_map_types_raw<'a>(ty: &'a Type, expected_name: &str) -> Option<(&'a Type, &'a Type)> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
         && segment.ident == expected_name
@@ -2072,10 +2104,34 @@ fn extract_map_types(ty: &Type, expected_name: &str) -> Option<(TokenStream, Tok
         if let Some(syn::GenericArgument::Type(key_type)) = args_iter.next()
             && let Some(syn::GenericArgument::Type(value_type)) = args_iter.next()
         {
-            return Some((quote! { #key_type }, quote! { #value_type }));
+            return Some((key_type, value_type));
         }
     }
     None
+}
+
+/// Check if a type is specifically `i32`.
+fn is_type_i32(ty: &Type) -> bool {
+    is_primitive_type(ty, "i32")
+}
+
+/// Check if a type is specifically `u32`.
+fn is_type_u32(ty: &Type) -> bool {
+    is_primitive_type(ty, "u32")
+}
+
+/// Check if a type is a specific primitive type (e.g., "i32", "u32").
+fn is_primitive_type(ty: &Type, name: &str) -> bool {
+    if let Type::Path(type_path) = ty
+        && type_path.qself.is_none()
+        && type_path.path.segments.len() == 1
+        && let Some(segment) = type_path.path.segments.first()
+        && segment.ident == name
+        && segment.arguments.is_none()
+    {
+        return true;
+    }
+    false
 }
 
 fn capitalize(s: &str) -> String {
@@ -2102,15 +2158,15 @@ fn generate_flag_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
     let track_modification = quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); };
 
     quote! {
-        /// Get the flag value
+        #[doc = "Get the flag value"]
         fn #field_name(&self) -> bool {
             #check_access
             self.typed().flags.#field_name()
         }
 
-        /// Set the flag value
-        ///
-        /// Only tracks modification if the value actually changes.
+        #[doc = "Set the flag value"]
+        #[doc = ""]
+        #[doc = "Only tracks modification if the value actually changes."]
         fn #set_name(&mut self, value: bool) {
             #check_access
             let current = self.typed().flags.#field_name();
