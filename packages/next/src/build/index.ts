@@ -1024,14 +1024,17 @@ export default async function build(
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
       await installBindings(config.experimental?.useWasmBinary)
 
+      // Collect all possible sources of deployment ID
       let currentDeploymentId =
         NextBuildContext.preservedDeploymentId ||
         preservedDeploymentId ||
         process.env.NEXT_DEPLOYMENT_ID ||
         initialEnv?.NEXT_DEPLOYMENT_ID ||
-        combinedEnv.NEXT_DEPLOYMENT_ID
+        combinedEnv.NEXT_DEPLOYMENT_ID ||
+        ''
 
-      if (!config.deploymentId && currentDeploymentId) {
+      // Ensure process.env has the deployment ID before resolving
+      if (currentDeploymentId && !process.env.NEXT_DEPLOYMENT_ID) {
         process.env['NEXT_DEPLOYMENT_ID'] = currentDeploymentId
       }
 
