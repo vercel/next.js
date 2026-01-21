@@ -1146,19 +1146,31 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[derive(Default)]
         struct TaskCacheStats {
             data: usize,
+            data_compressed: usize,
             data_count: usize,
             meta: usize,
+            meta_compressed: usize,
             meta_count: usize,
         }
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
-            fn add_data(&mut self, len: usize) {
-                self.data += len;
+            fn compressed_size(data: &[u8]) -> Result<usize> {
+                Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
+                    data,
+                    &mut Vec::new(),
+                    lzzzz::lz4::ACC_LEVEL_DEFAULT,
+                )?)
+            }
+
+            fn add_data(&mut self, data: &[u8]) {
+                self.data += data.len();
+                self.data_compressed += Self::compressed_size(data).unwrap_or(0);
                 self.data_count += 1;
             }
 
-            fn add_meta(&mut self, len: usize) {
-                self.meta += len;
+            fn add_meta(&mut self, data: &[u8]) {
+                self.meta += data.len();
+                self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
                 self.meta_count += 1;
             }
         }
@@ -1183,7 +1195,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         .lock()
                                         .entry(self.get_task_description(task_id))
                                         .or_default()
-                                        .add_meta(meta.len());
+                                        .add_meta(&meta);
                                     Some(meta)
                                 }
                                 None => None,
@@ -1203,7 +1215,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         .lock()
                                         .entry(self.get_task_description(task_id))
                                         .or_default()
-                                        .add_data(data.len());
+                                        .add_data(&data);
                                     Some(data)
                                 }
                                 None => None,
@@ -1250,23 +1262,37 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .collect::<Vec<_>>();
                 if !task_cache_stats.is_empty() {
                     task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
-                        (stats_b.data + stats_b.meta, key_b)
-                            .cmp(&(stats_a.data + stats_a.meta, key_a))
+                        (stats_b.data_compressed + stats_b.meta_compressed, key_b)
+                            .cmp(&(stats_a.data_compressed + stats_a.meta_compressed, key_a))
                     });
                     println!("Task cache stats:");
                     for (task_desc, stats) in task_cache_stats {
-                        use std::ops::Div;
-
                         use turbo_tasks::util::FormatBytes;
 
                         println!(
-                            "  {} {task_desc} = {} meta ({} x {}), {} data ({} x {})",
+                            "  {} ({}) {task_desc} = {} ({}) meta {} x {} ({}), {} ({}) data {} x \
+                             {} ({})",
+                            FormatBytes(stats.data_compressed + stats.meta_compressed),
                             FormatBytes(stats.data + stats.meta),
+                            FormatBytes(stats.meta_compressed),
                             FormatBytes(stats.meta),
                             stats.meta_count,
+                            FormatBytes(
+                                stats
+                                    .meta_compressed
+                                    .checked_div(stats.meta_count)
+                                    .unwrap_or(0)
+                            ),
                             FormatBytes(stats.meta.checked_div(stats.meta_count).unwrap_or(0)),
+                            FormatBytes(stats.data_compressed),
                             FormatBytes(stats.data),
                             stats.data_count,
+                            FormatBytes(
+                                stats
+                                    .data_compressed
+                                    .checked_div(stats.data_count)
+                                    .unwrap_or(0)
+                            ),
                             FormatBytes(stats.data.checked_div(stats.data_count).unwrap_or(0)),
                         );
                     }
