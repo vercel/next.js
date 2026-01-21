@@ -603,28 +603,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               break
             }
             case 'browser-logs': {
-              // Use logging.browserToTerminal if set, otherwise fall back to experimental.browserDebugInfoInTerminal
-              let browserToTerminalConfig:
-                | boolean
-                | 'error'
-                | 'warn'
-                | 'verbose'
-                | undefined
-              if (
-                this.config.logging &&
-                this.config.logging.browserToTerminal !== undefined
-              ) {
-                browserToTerminalConfig = this.config.logging.browserToTerminal
-              } else {
-                // Convert experimental config to simple format
-                const expConfig =
-                  this.config.experimental.browserDebugInfoInTerminal
-                if (typeof expConfig === 'object' && expConfig !== null) {
-                  browserToTerminalConfig = expConfig.level ?? true
-                } else {
-                  browserToTerminalConfig = expConfig
-                }
-              }
+              const browserToTerminalConfig =
+                this.config.logging && this.config.logging.browserToTerminal
               if (browserToTerminalConfig) {
                 await receiveBrowserLogsWebpack({
                   entries: payload.entries,

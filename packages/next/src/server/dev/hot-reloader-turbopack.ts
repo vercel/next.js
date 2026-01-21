@@ -1008,28 +1008,8 @@ export async function createHotReloaderTurbopack(
               // TODO
               break
             case 'browser-logs': {
-              // Use logging.browserToTerminal if set, otherwise fall back to experimental.browserDebugInfoInTerminal
-              let browserToTerminalConfig:
-                | boolean
-                | 'error'
-                | 'warn'
-                | 'verbose'
-                | undefined
-              if (
-                nextConfig.logging &&
-                nextConfig.logging.browserToTerminal !== undefined
-              ) {
-                browserToTerminalConfig = nextConfig.logging.browserToTerminal
-              } else {
-                // Convert experimental config to simple format
-                const expConfig =
-                  nextConfig.experimental.browserDebugInfoInTerminal
-                if (typeof expConfig === 'object' && expConfig !== null) {
-                  browserToTerminalConfig = expConfig.level ?? true
-                } else {
-                  browserToTerminalConfig = expConfig
-                }
-              }
+              const browserToTerminalConfig =
+                nextConfig.logging && nextConfig.logging.browserToTerminal
               if (browserToTerminalConfig) {
                 await receiveBrowserLogsTurbopack({
                   entries: parsedData.entries,
