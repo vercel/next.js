@@ -28,7 +28,7 @@ describe('favicon-short-circuit', () => {
       expect(res.status).toBe(404)
       expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
 
-      // Expect we got the right body.
+      // Expect we got HTML as text (with a non-empty body unlike in dev) and also not binary data
       const html = await res.text()
       expect(html).toContain('<html')
     })
