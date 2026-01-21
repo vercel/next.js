@@ -195,6 +195,21 @@ function checkDeprecations(
       )
     }
   }
+
+  // browserDebugInfoInTerminal has moved to logging.browserToTerminal
+  if (
+    userConfig.experimental?.browserDebugInfoInTerminal !== undefined &&
+    (userConfig.logging === undefined ||
+      userConfig.logging === false ||
+      userConfig.logging.browserToTerminal === undefined)
+  ) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'experimental.browserDebugInfoInTerminal',
+      `\`experimental.browserDebugInfoInTerminal\` has been moved to \`logging.browserToTerminal\`. Please update your ${configFileName} file accordingly.`,
+      silent
+    )
+  }
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(

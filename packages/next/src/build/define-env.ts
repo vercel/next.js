@@ -331,8 +331,11 @@ export function getDefineEnv({
         }
       : {}),
 
+    // Use logging.browserToTerminal if set, otherwise fall back to experimental.browserDebugInfoInTerminal
     'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
-      config.experimental.browserDebugInfoInTerminal || false
+      (config.logging && config.logging.browserToTerminal !== undefined
+        ? config.logging.browserToTerminal
+        : config.experimental.browserDebugInfoInTerminal) || false
     ),
     'process.env.__NEXT_MCP_SERVER': !!config.experimental.mcpServer,
 
