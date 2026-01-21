@@ -17,6 +17,7 @@
 
 pub mod attach;
 pub mod embed;
+pub mod error;
 pub mod glob;
 mod globset;
 pub mod invalidation;
@@ -1118,7 +1119,6 @@ impl FileSystem for DiskFileSystem {
         // effect and does not need to be re-executed in the next session. All side effects are
         // re-executed in general.
 
-        // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
             turbobail!("Cannot write link to denied path: {fs_path}");
         }

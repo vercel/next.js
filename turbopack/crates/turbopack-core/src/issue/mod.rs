@@ -1,5 +1,6 @@
 pub mod analyze;
 pub mod code_gen;
+mod fs_error;
 pub mod module;
 pub mod resolve;
 
@@ -148,13 +149,11 @@ pub trait Issue {
     /// The issue title should be descriptive of the issue, but should be a
     /// single line. This is displayed to the user directly under the issue
     /// header.
-    // TODO add Vc<StyledString>
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<StyledString>;
 
     /// A more verbose message of the issue, appropriate for providing multiline
     /// information of the issue.
-    // TODO add Vc<StyledString>
     #[turbo_tasks::function]
     fn description(self: Vc<Self>) -> Vc<OptionStyledString> {
         Vc::cell(None)
@@ -875,6 +874,7 @@ pub enum IssueStage {
     Resolve,
     Bindings,
     CodeGen,
+    WriteOutput,
     Unsupported,
     Misc,
     Other(RcStr),
@@ -895,6 +895,7 @@ impl Display for IssueStage {
             IssueStage::CodeGen => write!(f, "code gen"),
             IssueStage::Unsupported => write!(f, "unsupported"),
             IssueStage::AppStructure => write!(f, "app structure"),
+            IssueStage::WriteOutput => write!(f, "write output"),
             IssueStage::Misc => write!(f, "misc"),
             IssueStage::Other(s) => write!(f, "{s}"),
         }
