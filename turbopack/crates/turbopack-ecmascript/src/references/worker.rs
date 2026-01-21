@@ -34,6 +34,7 @@ pub struct WorkerAssetReference {
     pub request: ResolvedVc<Request>,
     pub issue_source: IssueSource,
     pub in_try: bool,
+    pub worker_type: WorkerReferenceSubType,
 }
 
 impl WorkerAssetReference {
@@ -42,25 +43,24 @@ impl WorkerAssetReference {
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         in_try: bool,
+        worker_type: WorkerReferenceSubType,
     ) -> Self {
         WorkerAssetReference {
             origin,
             request,
             issue_source,
             in_try,
+            worker_type,
         }
     }
 }
 
 impl WorkerAssetReference {
-    async fn worker_loader_module(
-        self: &WorkerAssetReference,
-    ) -> Result<Option<Vc<WorkerLoaderModule>>> {
+    async fn worker_loader_module(&self) -> Result<Option<Vc<WorkerLoaderModule>>> {
         let module = url_resolve(
             *self.origin,
             *self.request,
-            // TODO support more worker types
-            ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
+            ReferenceType::Worker(self.worker_type),
             Some(self.issue_source),
             self.in_try,
         );
@@ -81,7 +81,11 @@ impl WorkerAssetReference {
             return Ok(None);
         };
 
-        Ok(Some(WorkerLoaderModule::new(*chunkable)))
+        Ok(Some(WorkerLoaderModule::new(
+            *chunkable,
+            self.worker_type,
+            *self.origin.asset_context().to_resolved().await?,
+        )))
     }
 }
 
