@@ -11,12 +11,11 @@
 /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime-utils.ts" />
 
-// Used in WebWorkers to tell the runtime about the chunk base path
-declare var TURBOPACK_WORKER_LOCATION: string
 // Used in WebWorkers to tell the runtime about the chunk suffix
 declare var TURBOPACK_CHUNK_SUFFIX: string
-// Used in WebWorkers to tell the runtime about the current chunk url since it can't be detected via document.currentScript
-// Note it's stored in reversed order to use push and pop
+// Used in WebWorkers to tell the runtime about the current chunk url since it
+// can't be detected via `document.currentScript`. Note it's stored in reversed
+// order to use `push` and `pop`
 declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 
 // Injected by rust code
@@ -315,21 +314,36 @@ function resolveAbsolutePath(modulePath?: string): string {
 browserContextPrototype.P = resolveAbsolutePath
 
 /**
- * Returns a blob URL for the worker.
- * @param chunks list of chunks to load
+ * Returns a URL for the worker.
+ * The entrypoint is a pre-compiled worker runtime file. The params configure
+ * which module chunks to load and which module to run as the entry point.
+ *
+ * @param entrypoint URL path to the worker entrypoint chunk
+ * @param moduleChunks list of module chunk paths to load
+ * @param shared whether this is a SharedWorker (uses querystring for URL identity)
  */
-function getWorkerBlobURL(chunks: ChunkPath[]): string {
-  // It is important to reverse the array so when bootstrapping we can infer what chunk is being
-  // evaluated by poping urls off of this array.  See `getPathFromScript`
-  let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
-self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
-self.NEXT_DEPLOYMENT_ID = ${JSON.stringify((globalThis as any).NEXT_DEPLOYMENT_ID)};
-self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
-importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`
-  let blob = new Blob([bootstrap], { type: 'text/javascript' })
-  return URL.createObjectURL(blob)
+function getWorkerURL(
+  entrypoint: ChunkPath,
+  moduleChunks: ChunkPath[],
+  shared: boolean
+): URL {
+  const url = new URL(getChunkRelativeUrl(entrypoint), location.origin)
+
+  const params = {
+    S: CHUNK_SUFFIX,
+    N: (globalThis as any).NEXT_DEPLOYMENT_ID,
+    NC: moduleChunks.map((chunk) => getChunkRelativeUrl(chunk)),
+  }
+
+  const paramsJson = JSON.stringify(params)
+  if (shared) {
+    url.searchParams.set('params', paramsJson)
+  } else {
+    url.hash = '#params=' + encodeURIComponent(paramsJson)
+  }
+  return url
 }
-browserContextPrototype.b = getWorkerBlobURL
+browserContextPrototype.b = getWorkerURL
 
 /**
  * Instantiates a runtime module.

@@ -18,6 +18,7 @@ use turbopack_core::{
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
     },
+    context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -39,6 +40,7 @@ use crate::ecmascript::{
     chunk::EcmascriptBrowserChunk,
     evaluate::chunk::EcmascriptBrowserEvaluateChunk,
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
+    worker::EcmascriptBrowserWorkerEntrypoint,
 };
 
 #[turbo_tasks::value]
@@ -896,6 +898,17 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn debug_ids_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.debug_ids))
+    }
+
+    #[turbo_tasks::function]
+    fn worker_entrypoint(
+        self: Vc<Self>,
+        asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Vc<Box<dyn OutputAsset>> {
+        Vc::upcast(EcmascriptBrowserWorkerEntrypoint::new(
+            Vc::upcast(self),
+            asset_context,
+        ))
     }
 }
 

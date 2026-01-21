@@ -205,3 +205,15 @@ pub async fn get_browser_runtime_code(
 
     Ok(Code::cell(code.build()))
 }
+
+/// Returns the code for the ECMAScript worker entrypoint bootstrap.
+pub fn get_worker_runtime_code(
+    asset_context: Vc<Box<dyn AssetContext>>,
+    generate_source_map: bool,
+) -> Result<Vc<Code>> {
+    Ok(embed_static_code(
+        asset_context,
+        rcstr!("browser/runtime/base/worker-entrypoint.ts"),
+        generate_source_map,
+    ))
+}

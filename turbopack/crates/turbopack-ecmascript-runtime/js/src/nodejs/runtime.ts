@@ -178,11 +178,15 @@ function loadWebAssemblyModule(
 }
 contextPrototype.u = loadWebAssemblyModule
 
-function getWorkerBlobURL(_chunks: ChunkPath[]): string {
-  throw new Error('Worker blobs are not implemented yet for Node.js')
+function getWorkerURL(
+  _entrypoint: ChunkPath,
+  _moduleChunks: ChunkPath[],
+  _shared: boolean
+): URL {
+  throw new Error('Worker urls are not implemented yet for Node.js')
 }
 
-nodeContextPrototype.b = getWorkerBlobURL
+nodeContextPrototype.b = getWorkerURL
 
 function instantiateModule(
   id: ModuleId,

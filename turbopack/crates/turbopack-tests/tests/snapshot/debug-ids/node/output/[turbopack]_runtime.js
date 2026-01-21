@@ -708,10 +708,10 @@ function loadWebAssemblyModule(chunkPath, _edgeModule) {
     return compileWebAssemblyFromPath(resolved);
 }
 contextPrototype.u = loadWebAssemblyModule;
-function getWorkerBlobURL(_chunks) {
-    throw new Error('Worker blobs are not implemented yet for Node.js');
+function getWorkerURL(_entrypoint, _moduleChunks, _shared) {
+    throw new Error('Worker urls are not implemented yet for Node.js');
 }
-nodeContextPrototype.b = getWorkerBlobURL;
+nodeContextPrototype.b = getWorkerURL;
 function instantiateModule(id, sourceType, sourceData) {
     const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {
