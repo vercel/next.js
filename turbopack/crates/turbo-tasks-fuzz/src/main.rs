@@ -14,9 +14,18 @@ use rand::{Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashSet;
 use tokio::time::sleep;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TransientInstance, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, TransientInstance, Vc, apply_effects, trace::TraceRawVcs,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{
+    DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, LinkContent, LinkType,
+};
+
+// `read_or_write_all_paths_operation` always writes the sentinel values to files/symlinks. We can
+// check for these sentinel values to see if `write`/`write_link` was re-run.
+const FILE_SENTINEL_CONTENT: &[u8] = b"sentinel_value";
+const SYMLINK_SENTINEL_TARGET: &str = "../0";
 
 /// A collection of fuzzers for `turbo-tasks`. These are not test cases as they're slow and (in many
 /// cases) non-deterministic.
@@ -66,6 +75,10 @@ struct FsWatcher {
     /// Number of symlink modifications per iteration (only used when --symlinks is set).
     #[arg(long, default_value_t = 20, requires = "symlinks")]
     symlink_modifications: u32,
+    /// Track file writes instead of reads. When enabled, the fuzzer writes files via
+    /// turbo-tasks and verifies that external modifications trigger invalidations.
+    #[arg(long)]
+    track_writes: bool,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -79,6 +92,17 @@ enum SymlinkMode {
     /// Test junction points (Windows-only)
     #[cfg(windows)]
     Junction,
+}
+
+impl SymlinkMode {
+    fn to_link_type(self) -> LinkType {
+        match self {
+            SymlinkMode::File => LinkType::empty(),
+            SymlinkMode::Directory => LinkType::DIRECTORY,
+            #[cfg(windows)]
+            SymlinkMode::Junction => LinkType::DIRECTORY,
+        }
+    }
 }
 
 #[tokio::main]
@@ -129,23 +153,46 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             project_fs.await?.start_watching(None).await?;
         }
 
-        let read_all_paths_op = read_all_paths_operation(
+        let symlink_count = if args.symlinks.is_some() {
+            args.symlink_count
+        } else {
+            0
+        };
+        let track_writes = args.track_writes;
+        let symlink_mode = args.symlinks;
+        let symlink_is_directory =
+            symlink_mode.map(|m| m.to_link_type().contains(LinkType::DIRECTORY));
+
+        let initial_op = read_or_write_all_paths_operation(
             invalidations.clone(),
             project_root.clone(),
             args.depth,
             args.width,
-            if args.symlinks.is_some() {
-                args.symlink_count
-            } else {
-                0
-            },
+            symlink_count,
+            symlink_is_directory,
+            track_writes,
         );
-        read_all_paths_op.read_strongly_consistent().await?;
-        {
-            let mut invalidations = invalidations.0.lock().unwrap();
+        initial_op.read_strongly_consistent().await?;
+        if track_writes {
+            apply_effects(initial_op).await?;
+            let (total, mismatched) = verify_written_files(
+                &fs_root,
+                args.depth,
+                args.width,
+                symlink_count,
+                symlink_mode,
+            );
+            println!("wrote all {} paths, {} mismatches", total, mismatched.len());
+            if args.print_missing_invalidations && !mismatched.is_empty() {
+                for path in &mismatched {
+                    println!("  mismatch {path:?}");
+                }
+            }
+        } else {
+            let invalidations = invalidations.0.lock().unwrap();
             println!("read all {} files", invalidations.len());
-            invalidations.clear();
         }
+        invalidations.0.lock().unwrap().clear();
 
         if args.start_watching_late {
             project_fs.await?.start_watching(None).await?;
@@ -201,14 +248,46 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             // there's no way to know when we've received all the pending events from the operating
             // system, so just sleep and pray
             sleep(Duration::from_millis(args.notify_timeout_ms)).await;
-            read_all_paths_op.read_strongly_consistent().await?;
-            {
+            let read_or_write_op = read_or_write_all_paths_operation(
+                invalidations.clone(),
+                project_root.clone(),
+                args.depth,
+                args.width,
+                symlink_count,
+                symlink_is_directory,
+                track_writes,
+            );
+            read_or_write_op.read_strongly_consistent().await?;
+            let symlink_info = if args.symlinks.is_some() {
+                " and symlinks"
+            } else {
+                ""
+            };
+            if track_writes {
+                apply_effects(read_or_write_op).await?;
+                let (total, mismatched) = verify_written_files(
+                    &fs_root,
+                    args.depth,
+                    args.width,
+                    symlink_count,
+                    symlink_mode,
+                );
+                println!(
+                    "modified {} files{}. verified {} paths, {} mismatches",
+                    modified_file_paths.len(),
+                    symlink_info,
+                    total,
+                    mismatched.len()
+                );
+                if args.print_missing_invalidations && !mismatched.is_empty() {
+                    let mut sorted = mismatched;
+                    sorted.sort_unstable();
+                    for path in &sorted {
+                        println!("  mismatch {path:?}");
+                    }
+                }
+            } else {
                 let mut invalidations = invalidations.0.lock().unwrap();
-                let symlink_info = if args.symlinks.is_some() {
-                    " and symlinks"
-                } else {
-                    ""
-                };
                 println!(
                     "modified {} files{}. found {} invalidations",
                     modified_file_paths.len(),
@@ -267,46 +346,186 @@ async fn read_link(
     Ok(())
 }
 
+#[turbo_tasks::function]
+async fn write_path(
+    invalidations: TransientInstance<PathInvalidations>,
+    path: FileSystemPath,
+) -> anyhow::Result<()> {
+    let path_str = path.path.clone();
+    invalidations.0.lock().unwrap().insert(path_str);
+    let content = FileContent::Content(File::from(FILE_SENTINEL_CONTENT));
+    let _ = path.write(content.cell()).await?;
+    Ok(())
+}
+
+#[turbo_tasks::function]
+async fn write_link(
+    invalidations: TransientInstance<PathInvalidations>,
+    path: FileSystemPath,
+    target: RcStr,
+    is_directory: bool,
+) -> anyhow::Result<()> {
+    let path_str = path.path.clone();
+    invalidations.0.lock().unwrap().insert(path_str);
+    let link_type = if is_directory {
+        LinkType::DIRECTORY
+    } else {
+        LinkType::empty()
+    };
+    let link_content = LinkContent::Link { target, link_type };
+    let _ = path
+        .fs()
+        .write_link(path.clone(), link_content.cell())
+        .await?;
+    Ok(())
+}
+
 #[turbo_tasks::function(operation)]
-async fn read_all_paths_operation(
+async fn read_or_write_all_paths_operation(
     invalidations: TransientInstance<PathInvalidations>,
     root: FileSystemPath,
     depth: usize,
     width: usize,
     symlink_count: u32,
+    symlink_is_directory: Option<bool>,
+    write: bool,
 ) -> anyhow::Result<()> {
-    async fn read_all_paths_inner(
+    async fn process_paths_inner(
         invalidations: TransientInstance<PathInvalidations>,
         parent: FileSystemPath,
         depth: usize,
         width: usize,
+        write: bool,
     ) -> anyhow::Result<()> {
         for child_id in 0..width {
             let child_name = child_id.to_string();
             let child_path = parent.join(&child_name)?;
             if depth == 1 {
-                read_path(invalidations.clone(), child_path).await?;
+                if write {
+                    write_path(invalidations.clone(), child_path).await?;
+                } else {
+                    read_path(invalidations.clone(), child_path).await?;
+                }
             } else {
-                Box::pin(read_all_paths_inner(
+                Box::pin(process_paths_inner(
                     invalidations.clone(),
                     child_path,
                     depth - 1,
                     width,
+                    write,
                 ))
                 .await?;
             }
         }
         Ok(())
     }
-    read_all_paths_inner(invalidations.clone(), root.clone(), depth, width).await?;
+    process_paths_inner(invalidations.clone(), root.clone(), depth, width, write).await?;
 
-    let symlinks_dir = root.join("_symlinks")?;
-    for i in 0..symlink_count {
-        let symlink_path = symlinks_dir.join(&i.to_string())?;
-        read_link(invalidations.clone(), symlink_path).await?;
+    if symlink_count > 0 {
+        let symlinks_dir = root.join("_symlinks")?;
+        for i in 0..symlink_count {
+            let symlink_path = symlinks_dir.join(&i.to_string())?;
+            if write {
+                write_link(
+                    invalidations.clone(),
+                    symlink_path,
+                    RcStr::from(SYMLINK_SENTINEL_TARGET),
+                    symlink_is_directory.unwrap_or(false),
+                )
+                .await?;
+            } else {
+                read_link(invalidations.clone(), symlink_path).await?;
+            }
+        }
     }
 
     Ok(())
+}
+
+/// Verifies that all files and symlinks have the expected sentinel content. Returns (total_checked,
+/// mismatched_paths).
+///
+/// We use this when using `--track-writes`/`track_writes`. We can't use the same trick that reads
+/// do, because `write`/`write_link` will never invalidate their caller (their return value is
+/// `Vc<()>`).
+fn verify_written_files(
+    fs_root: &Path,
+    depth: usize,
+    width: usize,
+    symlink_count: u32,
+    symlink_mode: Option<SymlinkMode>,
+) -> (usize, Vec<PathBuf>) {
+    fn check_files_inner(
+        parent: &Path,
+        depth: usize,
+        width: usize,
+        total: &mut usize,
+        mismatched: &mut Vec<PathBuf>,
+    ) {
+        for child_id in 0..width {
+            let child_path = parent.join(child_id.to_string());
+            if depth == 1 {
+                *total += 1;
+                match std::fs::read(&child_path) {
+                    Ok(content) if content == FILE_SENTINEL_CONTENT => {}
+                    _ => mismatched.push(child_path),
+                }
+            } else {
+                check_files_inner(&child_path, depth - 1, width, total, mismatched);
+            }
+        }
+    }
+
+    let mut total = 0;
+    let mut mismatched = Vec::new();
+
+    check_files_inner(fs_root, depth, width, &mut total, &mut mismatched);
+
+    if symlink_count > 0 {
+        let symlinks_dir = fs_root.join("_symlinks");
+
+        // Compute expected target based on mode. On Windows, junctions are stored with absolute
+        // paths by DiskFileSystem::write_link. We also need to canonicalize because read_link
+        // returns paths with the \\?\ extended-length prefix.
+        #[cfg(windows)]
+        let expected_target_canonicalized: Option<PathBuf> = match symlink_mode {
+            Some(SymlinkMode::Junction) => {
+                // Absolute path: fs_root/_symlinks/../0 resolves to fs_root/0
+                // Canonicalize to get the \\?\ prefixed form that read_link returns
+                std::fs::canonicalize(fs_root.join("0")).ok()
+            }
+            _ => None,
+        };
+
+        for i in 0..symlink_count {
+            total += 1;
+            let symlink_path = symlinks_dir.join(i.to_string());
+            let matches = match std::fs::read_link(&symlink_path) {
+                Ok(target) => {
+                    #[cfg(windows)]
+                    {
+                        if let Some(ref expected) = expected_target_canonicalized {
+                            // Canonicalize the target we read back for consistent comparison
+                            std::fs::canonicalize(&target).ok().as_ref() == Some(expected)
+                        } else {
+                            target == Path::new(SYMLINK_SENTINEL_TARGET)
+                        }
+                    }
+                    #[cfg(not(windows))]
+                    {
+                        let _ = symlink_mode;
+                        target == Path::new(SYMLINK_SENTINEL_TARGET)
+                    }
+                }
+                Err(_) => false,
+            };
+            if !matches {
+                mismatched.push(symlink_path);
+            }
+        }
+    }
+
+    (total, mismatched)
 }
 
 fn create_directory_tree(
