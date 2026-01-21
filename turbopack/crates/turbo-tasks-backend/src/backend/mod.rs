@@ -587,14 +587,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // If we don't have a root state, add one. This also makes sure all tasks stay
                     // active and this task won't stale. active_until_clean
                     // is automatically removed when this task is clean.
-                    task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id))
-                        .set_active_until_clean();
                     if ctx.should_track_activeness() {
                         // A newly added Activeness need to make sure to schedule the tasks
                         task_ids_to_schedule = task.dirty_containers().collect();
                         task_ids_to_schedule.push(task_id);
                     }
-                    task.get_activeness().unwrap()
+                    let activeness =
+                        task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
+                    activeness.set_active_until_clean();
+                    activeness
                 };
                 let listener = activeness.all_clean_event.listen_with_note(move || {
                     let this = self.clone();

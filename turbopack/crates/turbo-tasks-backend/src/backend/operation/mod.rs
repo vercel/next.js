@@ -679,9 +679,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     where
         F: FnOnce() -> ActivenessState;
 
-    /// Add an in-progress state if not already present. Returns true if newly added.
-    fn add_in_progress(&mut self, value: InProgressState) -> bool;
-
     // ============ Aggregated Container Count (scalar) APIs ============
     // These are for the scalar total count fields, not the CounterMap per-task fields.
 
@@ -859,7 +856,12 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     where
         InnerFn: Fn() -> String + Sync + Send + 'static,
     {
-        self.add_in_progress(InProgressState::new_scheduled(reason, description))
+        if self.has_in_progress() {
+            false
+        } else {
+            self.set_in_progress(InProgressState::new_scheduled(reason, description));
+            true
+        }
     }
 
     // ============ Collectible APIs ============
@@ -977,14 +979,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         (map.len() > 1).then_some(map)
     }
 
-    // ============ Execution fields (lazy) ============
-    // Note: activeness and in_progress are transient fields, so no `check_category` call
-    // is needed - transient fields are never persisted and can be accessed regardless
-    // of how the task was accessed.
-    //
-    // These fields use lazy storage where the Vec<LazyField> presence provides optionality.
-    // The LazyField variants hold the value directly (T), not Option<T>.
-
     fn get_activeness_mut_or_insert_with<F>(&mut self, f: F) -> &mut ActivenessState
     where
         F: FnOnce() -> ActivenessState,
@@ -994,15 +988,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
         self.get_activeness_mut()
             .expect("activeness should exist after set")
-    }
-
-    fn add_in_progress(&mut self, value: InProgressState) -> bool {
-        if self.has_in_progress() {
-            false
-        } else {
-            self.set_in_progress(value);
-            true
-        }
     }
 }
 
