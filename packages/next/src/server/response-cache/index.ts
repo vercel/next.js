@@ -31,6 +31,18 @@ import type { RouteKind } from '../route-kind'
 const DEFAULT_TTL_MS = 10_000
 
 /**
+ * Default maximum number of pathnames to cache in the outer LRU cache.
+ * Can be configured via `experimental.minimalModeResponseCacheMaxPaths`.
+ */
+const DEFAULT_MAX_PATHS = 30
+
+/**
+ * Default maximum number of invocations to cache per pathname in the inner LRU cache.
+ * Can be configured via `experimental.minimalModeResponseCacheMaxInvocations`.
+ */
+const DEFAULT_MAX_INVOCATIONS_PER_PATH = 5
+
+/**
  * Sentinel key used for TTL-based cache entries (when invocationID is undefined).
  * This allows TTL mode to use the same two-level cache structure as invocationID mode.
  */
@@ -124,8 +136,8 @@ export default class ResponseCache implements ResponseCacheBase {
 
   constructor(
     minimal_mode: boolean,
-    maxPaths: number = 30,
-    maxInvocationsPerPath: number = 5,
+    maxPaths: number = DEFAULT_MAX_PATHS,
+    maxInvocationsPerPath: number = DEFAULT_MAX_INVOCATIONS_PER_PATH,
     ttl: number = DEFAULT_TTL_MS
   ) {
     this.minimal_mode = minimal_mode
