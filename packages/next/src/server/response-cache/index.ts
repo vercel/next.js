@@ -30,6 +30,33 @@ import type { RouteKind } from '../route-kind'
  */
 const DEFAULT_TTL_MS = 10_000
 
+/**
+ * Sentinel key used for TTL-based cache entries (when invocationID is undefined).
+ * This allows TTL mode to use the same two-level cache structure as invocationID mode.
+ */
+const TTL_CACHE_KEY = '__ttl__'
+
+/**
+ * Entry stored in the inner (invocation-level) cache.
+ */
+type InvocationCacheEntry = {
+  entry: IncrementalResponseCacheEntry | null
+  /**
+   * TTL expiration timestamp in milliseconds. Used as a fallback for
+   * cache hit validation when providers don't send x-invocation-id.
+   * Memory pressure is managed by LRU eviction rather than timers.
+   */
+  expiresAt: number
+}
+
+/**
+ * Entry stored in the outer (path-level) cache.
+ * Contains an inner LRU cache keyed by invocation ID.
+ */
+type PathCacheEntry = {
+  invocations: LRUCache<InvocationCacheEntry>
+}
+
 export * from './types'
 
 export default class ResponseCache implements ResponseCacheBase {
@@ -59,19 +86,19 @@ export default class ResponseCache implements ResponseCacheBase {
   })
 
   /**
-   * In-memory LRU cache for minimal mode. Automatically evicts least recently
-   * used entries when capacity is reached.
+   * Two-level LRU cache for minimal mode:
+   * - Outer level: keyed by pathname, stores PathCacheEntry
+   * - Inner level: keyed by invocationID (or TTL_CACHE_KEY), stores InvocationCacheEntry
+   *
+   * This structure allows multiple invocations to cache the same pathname
+   * without overwriting each other's entries.
    */
-  private readonly previousCacheItems: LRUCache<{
-    entry: IncrementalResponseCacheEntry | null
-    invocationID: string | undefined
-    /**
-     * TTL expiration timestamp in milliseconds. Used as a fallback for
-     * cache hit validation when providers don't send x-invocation-id.
-     * Memory pressure is managed by LRU eviction rather than timers.
-     */
-    expiresAt: number
-  }>
+  private readonly pathCache: LRUCache<PathCacheEntry>
+
+  /**
+   * Maximum number of invocations to cache per pathname.
+   */
+  private readonly maxInvocationsPerPath: number
 
   /**
    * Set of invocation IDs that have had cache entries evicted.
@@ -81,9 +108,9 @@ export default class ResponseCache implements ResponseCacheBase {
   private readonly evictedInvocationIDs: Set<string> = new Set()
 
   /**
-   * The configured max cache size, stored for logging recommendations.
+   * The configured max paths (number of pathnames to cache), stored for logging.
    */
-  private readonly maxCacheSize: number
+  private readonly maxPaths: number
 
   /**
    * The configured TTL for cache entries in milliseconds.
@@ -97,33 +124,83 @@ export default class ResponseCache implements ResponseCacheBase {
 
   constructor(
     minimal_mode: boolean,
-    maxSize: number = 30,
+    maxPaths: number = 30,
+    maxInvocationsPerPath: number = 5,
     ttl: number = DEFAULT_TTL_MS
   ) {
     this.minimal_mode = minimal_mode
-    this.maxCacheSize = maxSize
+    this.maxPaths = maxPaths
+    this.maxInvocationsPerPath = maxInvocationsPerPath
     this.ttl = ttl
-    this.previousCacheItems = new LRUCache(
-      maxSize,
-      undefined,
-      (_key, value) => {
-        if (!value.invocationID) return
 
-        // Bound to 100 entries to prevent unbounded memory growth.
-        // FIFO eviction is acceptable here because:
-        // 1. Invocations are short-lived (single request lifecycle), so older
-        //    invocations are unlikely to still be active after 100 newer ones
-        // 2. This warning mechanism is best-effort for developer guidance—
-        //    missing occasional eviction warnings doesn't affect correctness
-        // 3. If a long-running invocation is somehow evicted and then has
-        //    another cache entry evicted, it will simply be re-added
-        if (this.evictedInvocationIDs.size >= 100) {
-          const first = this.evictedInvocationIDs.values().next().value
-          if (first) this.evictedInvocationIDs.delete(first)
-        }
-        this.evictedInvocationIDs.add(value.invocationID)
+    // Create the outer path-level cache
+    this.pathCache = new LRUCache(maxPaths, undefined, (_key, pathEntry) => {
+      // When a path is evicted, track all invocations that had entries
+      for (const [innerKey] of pathEntry.invocations) {
+        this.trackEvictedInvocation(innerKey)
       }
-    )
+    })
+  }
+
+  /**
+   * Gets or creates a PathCacheEntry for the given path.
+   * This ensures the inner invocation cache exists before storing entries.
+   */
+  private getOrCreatePathEntry(path: string): PathCacheEntry {
+    let pathEntry = this.pathCache.get(path)
+    if (!pathEntry) {
+      pathEntry = {
+        invocations: new LRUCache(
+          this.maxInvocationsPerPath,
+          undefined,
+          (innerKey) => this.trackEvictedInvocation(innerKey)
+        ),
+      }
+      this.pathCache.set(path, pathEntry)
+    }
+    return pathEntry
+  }
+
+  /**
+   * Tracks an evicted invocation ID for warning detection.
+   * Uses FIFO eviction bounded to 100 entries to prevent unbounded memory growth.
+   *
+   * @param invocationID - The invocation ID that was evicted
+   */
+  private trackEvictedInvocation(invocationID: string): void {
+    // Only track real invocation IDs, not the TTL sentinel
+    if (invocationID === TTL_CACHE_KEY) return
+
+    // Bound to 100 entries to prevent unbounded memory growth.
+    // FIFO eviction is acceptable here because:
+    // 1. Invocations are short-lived (single request lifecycle), so older
+    //    invocations are unlikely to still be active after 100 newer ones
+    // 2. This warning mechanism is best-effort for developer guidance—
+    //    missing occasional eviction warnings doesn't affect correctness
+    // 3. If a long-running invocation is somehow evicted and then has
+    //    another cache entry evicted, it will simply be re-added
+    if (this.evictedInvocationIDs.size >= 100) {
+      const first = this.evictedInvocationIDs.values().next().value
+      if (first) this.evictedInvocationIDs.delete(first)
+    }
+    this.evictedInvocationIDs.add(invocationID)
+  }
+
+  /**
+   * Removes an invocation entry from the cache and cleans up empty path entries.
+   *
+   * @param key - The path key
+   * @param innerKey - The invocation key (invocationID or TTL_CACHE_KEY)
+   */
+  private removeInvocationEntry(key: string, innerKey: string): void {
+    const pathEntry = this.pathCache.get(key)
+    if (!pathEntry) return
+
+    pathEntry.invocations.remove(innerKey)
+    // If inner cache is now empty, remove the path entry
+    if (pathEntry.invocations.size === 0) {
+      this.pathCache.remove(key)
+    }
   }
 
   /**
@@ -164,49 +241,43 @@ export default class ResponseCache implements ResponseCacheBase {
 
     // Check minimal mode cache before doing any other work.
     if (this.minimal_mode) {
-      const cachedItem = this.previousCacheItems.get(key)
-      if (cachedItem) {
-        // Cache hit validation uses two strategies based on whether invocationID
-        // is provided by the infrastructure:
-        //
-        // 1. With invocationID: Match by exact invocationID
-        //    - Each serverless invocation gets isolated cache scope
-        //    - Prevents cross-request cache pollution during revalidation
-        //
-        // 2. Without invocationID: Match by TTL expiration
-        //    - Without invocationID, we can't scope by request
-        //    - Use time-based expiration (default 10s) to prevent indefinite caching
-        //
-        // Note: These two strategies are mutually exclusive by design. Entries
-        // created with an invocationID will only match requests with that same
-        // invocationID, and entries without invocationID will only match requests
-        // without one. This is intentional because infrastructure providers are
-        // consistent—they either always send x-invocation-id or never send it.
-        const invocationMatch =
-          cachedItem.invocationID !== undefined &&
-          cachedItem.invocationID === context.invocationID
-        const ttlValid =
-          cachedItem.invocationID === undefined &&
-          cachedItem.expiresAt > Date.now()
+      const innerKey = context.invocationID ?? TTL_CACHE_KEY
 
-        if (invocationMatch || ttlValid) {
+      // Two-level lookup: first get the path entry, then the invocation entry
+      const pathEntry = this.pathCache.get(key)
+      const cachedItem = pathEntry?.invocations.get(innerKey)
+
+      if (cachedItem) {
+        // With two-level cache:
+        // - INVOCATION_ID mode: Finding an entry by innerKey means exact match (always hit)
+        // - TTL mode: Must check expiresAt validity
+        if (context.invocationID !== undefined) {
+          // Invocation mode: exact match found - always a hit
           return toResponseCacheEntry(cachedItem.entry)
         }
 
-        // Clean up expired TTL entries to prevent unbounded memory growth
-        if (cachedItem.expiresAt <= Date.now()) {
-          this.previousCacheItems.remove(key)
+        // TTL mode: check expiration
+        const now = Date.now()
+        if (cachedItem.expiresAt > now) {
+          return toResponseCacheEntry(cachedItem.entry)
         }
+
+        // TTL expired - clean up
+        this.removeInvocationEntry(key, innerKey)
       }
 
-      // Warn if this invocation had entries evicted - indicates cache may be too small
+      // Warn if this invocation had entries evicted - indicates cache may be too small.
+      // Eviction can happen at two levels:
+      // 1. Path-level: too many unique pathnames (fix: increase minimalModeResponseCacheMaxPaths)
+      // 2. Invocation-level: too many concurrent invocations per path (fix: increase minimalModeResponseCacheMaxInvocations)
       if (
         context.invocationID &&
         this.evictedInvocationIDs.has(context.invocationID)
       ) {
         warnOnce(
           `Response cache entry was evicted for invocation ${context.invocationID}. ` +
-            `Consider increasing \`experimental.maxResponseCacheSize\` (current: ${this.maxCacheSize}).`
+            `Consider increasing \`experimental.minimalModeResponseCacheMaxPaths\` (current: ${this.maxPaths}) ` +
+            `or \`experimental.minimalModeResponseCacheMaxInvocations\` (current: ${this.maxInvocationsPerPath}).`
         )
       }
     }
@@ -314,7 +385,8 @@ export default class ResponseCache implements ResponseCacheBase {
       if (!incrementalResponseCacheEntry) {
         // Remove the cache item if it was set so we don't use it again.
         if (this.minimal_mode) {
-          this.previousCacheItems.remove(key)
+          const innerKey = context.invocationID ?? TTL_CACHE_KEY
+          this.removeInvocationEntry(key, innerKey)
         }
         return null
       }
@@ -416,10 +488,12 @@ export default class ResponseCache implements ResponseCacheBase {
           // by invocationID when available, with TTL as a fallback for providers
           // that don't send x-invocation-id. Memory is managed by LRU eviction.
           const expiresAt = Date.now() + this.ttl
+          const innerKey = invocationID ?? TTL_CACHE_KEY
 
-          this.previousCacheItems.set(key, {
+          // Two-level store: get or create path entry, then store in inner cache
+          const pathEntry = this.getOrCreatePathEntry(key)
+          pathEntry.invocations.set(innerKey, {
             entry: incrementalResponseCacheEntry,
-            invocationID,
             expiresAt,
           })
         } else {
