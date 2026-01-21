@@ -197,12 +197,7 @@ function checkDeprecations(
   }
 
   // browserDebugInfoInTerminal has moved to logging.browserToTerminal
-  if (
-    userConfig.experimental?.browserDebugInfoInTerminal !== undefined &&
-    (userConfig.logging === undefined ||
-      userConfig.logging === false ||
-      userConfig.logging.browserToTerminal === undefined)
-  ) {
+  if (userConfig.experimental?.browserDebugInfoInTerminal !== undefined) {
     warnOptionHasBeenDeprecated(
       userConfig,
       'experimental.browserDebugInfoInTerminal',
