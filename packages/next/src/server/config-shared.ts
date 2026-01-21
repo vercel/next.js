@@ -878,28 +878,6 @@ export interface ExperimentalConfig {
    * @default false
    */
   devCacheControlNoCache?: boolean
-
-  /**
-   * Maximum number of pathnames to cache in the minimal mode response cache.
-   * Each pathname can have multiple invocation entries (see minimalModeResponseCacheMaxInvocations).
-   * Defaults to 30.
-   */
-  minimalModeResponseCacheMaxPaths?: number
-
-  /**
-   * Maximum number of invocations to cache per pathname in minimal mode.
-   * This allows multiple parallel invocations to cache the same pathname
-   * without overwriting each other's entries.
-   * Defaults to 5.
-   */
-  minimalModeResponseCacheMaxInvocations?: number
-
-  /**
-   * TTL (time-to-live) in milliseconds for response cache entries. Entries
-   * are proactively evicted after this duration to reduce memory pressure.
-   * Defaults to 10000 (10 seconds).
-   */
-  responseCacheTTL?: number
 }
 
 export type ExportPathMap = {
@@ -1627,9 +1605,6 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
     devCacheControlNoCache: false,
-    minimalModeResponseCacheMaxPaths: 30,
-    minimalModeResponseCacheMaxInvocations: 5,
-    responseCacheTTL: 10_000, // 10 seconds
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -1727,9 +1702,6 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
-    | 'minimalModeResponseCacheMaxPaths'
-    | 'minimalModeResponseCacheMaxInvocations'
-    | 'responseCacheTTL'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1793,10 +1765,6 @@ export function getNextConfigRuntime(
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
-        minimalModeResponseCacheMaxPaths: ex.minimalModeResponseCacheMaxPaths,
-        minimalModeResponseCacheMaxInvocations:
-          ex.minimalModeResponseCacheMaxInvocations,
-        responseCacheTTL: ex.responseCacheTTL,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

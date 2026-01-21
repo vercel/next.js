@@ -26,21 +26,28 @@ import type { RouteKind } from '../route-kind'
  * - Long enough to dedupe rapid successive requests (e.g., page + data)
  * - Short enough to not serve stale data across unrelated requests
  *
- * Can be configured via `experimental.responseCacheTTL` in next.config.js.
+ * Can be configured via `NEXT_PRIVATE_RESPONSE_CACHE_TTL` environment variable.
  */
-const DEFAULT_TTL_MS = 10_000
+const DEFAULT_TTL_MS = process.env.NEXT_PRIVATE_RESPONSE_CACHE_TTL
+  ? parseInt(process.env.NEXT_PRIVATE_RESPONSE_CACHE_TTL, 10)
+  : 10_000
 
 /**
  * Default maximum number of pathnames to cache in the outer LRU cache.
- * Can be configured via `experimental.minimalModeResponseCacheMaxPaths`.
+ * Can be configured via `NEXT_PRIVATE_RESPONSE_CACHE_MAX_PATHS` environment variable.
  */
-const DEFAULT_MAX_PATHS = 30
+const DEFAULT_MAX_PATHS = process.env.NEXT_PRIVATE_RESPONSE_CACHE_MAX_PATHS
+  ? parseInt(process.env.NEXT_PRIVATE_RESPONSE_CACHE_MAX_PATHS, 10)
+  : 30
 
 /**
  * Default maximum number of invocations to cache per pathname in the inner LRU cache.
- * Can be configured via `experimental.minimalModeResponseCacheMaxInvocations`.
+ * Can be configured via `NEXT_PRIVATE_RESPONSE_CACHE_MAX_INVOCATIONS` environment variable.
  */
-const DEFAULT_MAX_INVOCATIONS_PER_PATH = 5
+const DEFAULT_MAX_INVOCATIONS_PER_PATH = process.env
+  .NEXT_PRIVATE_RESPONSE_CACHE_MAX_INVOCATIONS
+  ? parseInt(process.env.NEXT_PRIVATE_RESPONSE_CACHE_MAX_INVOCATIONS, 10)
+  : 5
 
 /**
  * Sentinel key used for TTL-based cache entries (when invocationID is undefined).
@@ -280,16 +287,16 @@ export default class ResponseCache implements ResponseCacheBase {
 
       // Warn if this invocation had entries evicted - indicates cache may be too small.
       // Eviction can happen at two levels:
-      // 1. Path-level: too many unique pathnames (fix: increase minimalModeResponseCacheMaxPaths)
-      // 2. Invocation-level: too many concurrent invocations per path (fix: increase minimalModeResponseCacheMaxInvocations)
+      // 1. Path-level: too many unique pathnames (fix: increase NEXT_PRIVATE_RESPONSE_CACHE_MAX_PATHS)
+      // 2. Invocation-level: too many concurrent invocations per path (fix: increase NEXT_PRIVATE_RESPONSE_CACHE_MAX_INVOCATIONS)
       if (
         context.invocationID &&
         this.evictedInvocationIDs.has(context.invocationID)
       ) {
         warnOnce(
           `Response cache entry was evicted for invocation ${context.invocationID}. ` +
-            `Consider increasing \`experimental.minimalModeResponseCacheMaxPaths\` (current: ${this.maxPaths}) ` +
-            `or \`experimental.minimalModeResponseCacheMaxInvocations\` (current: ${this.maxInvocationsPerPath}).`
+            `Consider increasing NEXT_PRIVATE_RESPONSE_CACHE_MAX_PATHS (current: ${this.maxPaths}) ` +
+            `or NEXT_PRIVATE_RESPONSE_CACHE_MAX_INVOCATIONS (current: ${this.maxInvocationsPerPath}).`
         )
       }
     }

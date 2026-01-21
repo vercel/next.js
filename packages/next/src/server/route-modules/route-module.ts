@@ -976,23 +976,10 @@ export abstract class RouteModule<
     }
   }
 
-  public getResponseCache(
-    req: IncomingMessage | BaseNextRequest,
-    nextConfig: NextConfigRuntime
-  ) {
+  public getResponseCache(req: IncomingMessage | BaseNextRequest) {
     if (!this.responseCache) {
       const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
-      const maxPaths =
-        nextConfig?.experimental?.minimalModeResponseCacheMaxPaths
-      const maxInvocations =
-        nextConfig?.experimental?.minimalModeResponseCacheMaxInvocations
-      const ttl = nextConfig?.experimental?.responseCacheTTL
-      this.responseCache = new ResponseCache(
-        minimalMode,
-        maxPaths,
-        maxInvocations,
-        ttl
-      )
+      this.responseCache = new ResponseCache(minimalMode)
     }
     return this.responseCache
   }
@@ -1024,7 +1011,7 @@ export abstract class RouteModule<
     waitUntil?: (prom: Promise<any>) => void
     isMinimalMode: boolean
   }) {
-    const responseCache = this.getResponseCache(req, nextConfig)
+    const responseCache = this.getResponseCache(req)
     const cacheEntry = await responseCache.get(cacheKey, responseGenerator, {
       routeKind,
       isFallback,

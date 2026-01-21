@@ -457,7 +457,7 @@ export const getHandler = ({
 
           if (isIsrFallback) {
             const fallbackResponse = await routeModule
-              .getResponseCache(req, nextConfig)
+              .getResponseCache(req)
               .get(
                 routeModule.isDev
                   ? null
