@@ -1,14 +1,20 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
-use turbopack_core::{chunk::MinifyType, version::Version};
+use turbopack_core::{
+    chunk::{MinifyType, ModuleId},
+    version::Version,
+};
 use turbopack_ecmascript::chunk::{CodeAndIds, EcmascriptChunkContent};
 
+use super::content_entry::EcmascriptBuildNodeChunkContentEntries;
+
 #[turbo_tasks::value(serialization = "none")]
-pub(super) struct EcmascriptBuildNodeChunkVersion {
-    chunk_path: String,
+pub(crate) struct EcmascriptBuildNodeChunkVersion {
+    pub(crate) chunk_path: String,
+    pub(crate) entries_hashes: FxIndexMap<ModuleId, u64>,
     chunk_items: Vec<ReadRef<CodeAndIds>>,
     minify_type: MinifyType,
 }
@@ -30,8 +36,18 @@ impl EcmascriptBuildNodeChunkVersion {
             bail!("chunk path {chunk_path} is not in client root {output_root}");
         };
         let chunk_items = content.await?.chunk_item_code_and_ids().await?;
+
+        // Build entries_hashes for HMR update diffing
+        let entries = EcmascriptBuildNodeChunkContentEntries::new(content).await?;
+        let mut entries_hashes =
+            FxIndexMap::with_capacity_and_hasher(entries.len(), Default::default());
+        for (id, entry) in entries.iter() {
+            entries_hashes.insert(id.clone(), *entry.hash.await?);
+        }
+
         Ok(EcmascriptBuildNodeChunkVersion {
             chunk_path: chunk_path.to_string(),
+            entries_hashes,
             chunk_items,
             minify_type,
         }

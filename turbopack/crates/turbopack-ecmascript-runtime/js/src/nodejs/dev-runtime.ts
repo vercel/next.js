@@ -652,7 +652,13 @@ function getAffectedModuleEffects(moduleId: ModuleId): AffectedModuleEffect {
     }
 
     if (runtimeModules.has(moduleId)) {
-      // Reached a runtime module that doesn't accept itself
+      // Reached a runtime module
+      if (serverHmrAutoAccept) {
+        // In server HMR mode with auto-accept enabled, treat runtime modules as accepting
+        // This allows server component updates to be applied without requiring the runtime
+        // module to explicitly call module.hot.accept()
+        continue
+      }
       return { type: 'unaccepted', dependencyChain: newDependencyChain }
     }
 

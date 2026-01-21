@@ -1,5 +1,4 @@
-pub(crate) mod chunk;
 pub(crate) mod content;
-pub(crate) mod runtime;
+pub(crate) mod merger;
 pub(crate) mod update;
 pub(crate) mod version;

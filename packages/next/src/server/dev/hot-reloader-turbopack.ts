@@ -143,14 +143,20 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
-// Type for server HMR updates (matches EcmascriptMergedUpdate from the runtime)
+// Type for server HMR updates (matches the Update type from turbopack)
 interface ServerHmrUpdate {
-  type: 'EcmascriptMergedUpdate'
-  entries: Record<
-    string,
-    { code: string; url: string; map?: string | undefined }
-  >
-  chunks?: Record<string, { type: 'partial' }>
+  type: 'partial'
+  instruction?: {
+    type: 'ChunkListUpdate'
+    merged?: Array<{
+      type: 'EcmascriptMergedUpdate'
+      entries: Record<
+        string,
+        { code: string; url: string; map?: string | undefined }
+      >
+      chunks?: Record<string, { type: 'partial' }>
+    }>
+  }
 }
 declare const __next__server_hmr_apply__:
   | ((update: ServerHmrUpdate) => boolean)
@@ -1491,32 +1497,35 @@ export async function createHotReloaderTurbopack(
   function applyServerHmrUpdate(update: TurbopackUpdate): boolean {
     if (typeof __next__server_hmr_apply__ !== 'function') {
       // Server HMR not available (e.g., Pages Router or Edge Runtime)
+      console.log('[Server HMR] __next__server_hmr_apply__ not available')
       return false
     }
 
     if (update.type !== 'partial') {
       // Only partial updates can be applied incrementally
+      console.log('[Server HMR] Update type is not partial:', update.type)
       return false
     }
 
     const merged = update.instruction?.merged
     if (!merged || merged.length === 0) {
       // No actual module updates
+      console.log('[Server HMR] No merged updates in instruction')
       return false
     }
 
-    // Try to apply each merged update
-    for (const mergedUpdate of merged) {
-      if (mergedUpdate.type !== 'EcmascriptMergedUpdate') {
-        // Unknown update type, fall back to full reload
-        return false
-      }
+    console.log(
+      '[Server HMR] Applying update with',
+      merged.length,
+      'merged updates'
+    )
 
-      const applied = __next__server_hmr_apply__(mergedUpdate)
-      if (!applied) {
-        // Update was not accepted, need full reload
-        return false
-      }
+    // Pass the full update to the runtime - it handles extracting merged updates
+    const applied = __next__server_hmr_apply__(update as any)
+    if (!applied) {
+      // Update was not accepted, need full reload
+      console.log('[Server HMR] Runtime did not accept update')
+      return false
     }
 
     return true
@@ -1528,19 +1537,39 @@ export async function createHotReloaderTurbopack(
    */
   function subscribeToServerHmr(identifier: string) {
     if (serverHmrSubscriptions.has(identifier)) {
+      console.log('[Server HMR] Already subscribed to:', identifier)
       return
     }
 
+    console.log('[Server HMR] Creating subscription for:', identifier)
     const subscription = project.serverHmrEvents(identifier)
     serverHmrSubscriptions.set(identifier, subscription)
 
     // Start listening for changes in background
     ;(async () => {
       // Skip initial state
+      console.log('[Server HMR] Waiting for initial state:', identifier)
       await subscription.next()
+      console.log(
+        '[Server HMR] Subscription active, waiting for updates:',
+        identifier
+      )
 
       for await (const result of subscription) {
         const update = result as TurbopackUpdate
+        console.log(
+          '[Server HMR] Received update for:',
+          identifier,
+          'type:',
+          update.type
+        )
+
+        // Skip non-partial updates (e.g., 'issues' updates are just diagnostics)
+        if (update.type !== 'partial') {
+          console.log('[Server HMR] Skipping non-partial update:', update.type)
+          continue
+        }
+
         const applied = applyServerHmrUpdate(update)
 
         if (applied) {
@@ -1567,15 +1596,22 @@ export async function createHotReloaderTurbopack(
 
   // Subscribe to server HMR identifiers to track available server modules
   ;(async () => {
+    console.log('[Server HMR] Starting identifiers subscription...')
     const serverHmrIdentifiers = project.serverHmrIdentifiersSubscribe()
-    // Skip initial state
-    await serverHmrIdentifiers.next()
 
+    // Process identifiers (both initial and subsequent updates)
     for await (const data of serverHmrIdentifiers) {
+      console.log(
+        '[Server HMR] Got identifiers update:',
+        data.identifiers.length,
+        'total'
+      )
       // Subscribe to HMR events for all server modules
       // For now, focus on page.js files as a starting point
       for (const identifier of data.identifiers) {
-        if (identifier.includes('page.js')) {
+        // Skip source maps and other non-JS files
+        if (identifier.endsWith('.js') && identifier.includes('page.js')) {
+          console.log('[Server HMR] Subscribing to:', identifier)
           subscribeToServerHmr(identifier)
         }
       }

@@ -63,7 +63,7 @@ fn modifier() -> RcStr {
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeChunkContent>> {
+    pub(crate) async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeChunkContent>> {
         let this = self.await?;
         Ok(EcmascriptBuildNodeChunkContent::new(
             *this.chunking_context,

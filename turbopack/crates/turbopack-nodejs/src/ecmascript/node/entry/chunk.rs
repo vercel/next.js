@@ -15,10 +15,13 @@ use turbopack_core::{
         OutputAssetsWithReferenced,
     },
     source_map::{GenerateSourceMap, SourceMapAsset},
+    version::VersionedContent,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
 
-use super::runtime::EcmascriptBuildNodeRuntimeChunk;
+use super::{
+    content::EcmascriptBuildNodeEntryChunkContent, runtime::EcmascriptBuildNodeRuntimeChunk,
+};
 use crate::NodeJsChunkingContext;
 
 /// An Ecmascript chunk that loads a list of parallel chunks, then instantiates
@@ -63,7 +66,7 @@ impl EcmascriptBuildNodeEntryChunk {
     }
 
     #[turbo_tasks::function]
-    async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+    pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
         let output_root = this.chunking_context.output_root().owned().await?;
@@ -160,6 +163,21 @@ impl EcmascriptBuildNodeEntryChunk {
             Vc::upcast(self),
         ))
     }
+
+    #[turbo_tasks::function]
+    fn own_content(self: Vc<Self>) -> Vc<EcmascriptBuildNodeEntryChunkContent> {
+        EcmascriptBuildNodeEntryChunkContent::new(self, self.chunking_context())
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> Vc<NodeJsChunkingContext> {
+        *self.chunking_context
+    }
+
+    #[turbo_tasks::function]
+    pub(crate) fn other_chunks(&self) -> Vc<OutputAssets> {
+        *self.other_chunks
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -215,6 +233,11 @@ impl Asset for EcmascriptBuildNodeEntryChunk {
         Ok(AssetContent::file(
             FileContent::Content(File::from(code.source_code().clone())).cell(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn versioned_content(self: Vc<Self>) -> Vc<Box<dyn VersionedContent>> {
+        Vc::upcast(self.own_content())
     }
 }
 

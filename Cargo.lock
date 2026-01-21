@@ -10147,7 +10147,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode 2.0.1",
+ "either",
  "indoc",
+ "serde",
+ "serde_json",
+ "serde_qs",
  "tracing",
  "turbo-bincode",
  "turbo-rcstr",

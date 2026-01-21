@@ -72,14 +72,20 @@ declare global {
     | undefined
 }
 
-// Type for server HMR updates (matches EcmascriptMergedUpdate from the runtime)
+// Type for server HMR updates (matches the Update type from turbopack)
 interface ServerHmrUpdate {
-  type: 'EcmascriptMergedUpdate'
-  entries: Record<
-    string,
-    { code: string; url: string; map?: string | undefined }
-  >
-  chunks?: Record<string, { type: 'partial' }>
+  type: 'partial'
+  instruction?: {
+    type: 'ChunkListUpdate'
+    merged?: Array<{
+      type: 'EcmascriptMergedUpdate'
+      entries: Record<
+        string,
+        { code: string; url: string; map?: string | undefined }
+      >
+      chunks?: Record<string, { type: 'partial' }>
+    }>
+  }
 }
 
 // hot-reloader modules are not bundled so we need to inject `__next__clear_chunk_cache__`
