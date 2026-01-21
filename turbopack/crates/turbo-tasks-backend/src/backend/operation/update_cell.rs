@@ -179,7 +179,7 @@ impl UpdateCellOperation {
             task.remove_cell_data(is_serializable_cell_content, cell)
         };
 
-        let in_progress_cell = task.remove_in_progress_cells_entry(&cell);
+        let in_progress_cell = task.remove_in_progress_cells(&cell);
 
         drop(task);
         drop(old_content);
@@ -275,7 +275,7 @@ impl Operation for UpdateCellOperation {
                         task.add_cell_data(is_serializable_cell_content, cell, content);
                     }
 
-                    let in_progress_cell = task.remove_in_progress_cells_entry(&cell);
+                    let in_progress_cell = task.remove_in_progress_cells(&cell);
 
                     drop(task);
 

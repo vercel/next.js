@@ -224,7 +224,7 @@ struct TaskStorageSchema {
     // =========================================================================
     /// Persistent cell data (serializable).
     #[field(storage = "auto_map", category = "data")]
-    pub cell_data: AutoMap<CellId, TypedSharedReference>,
+    pub persistent_cell_data: AutoMap<CellId, TypedSharedReference>,
 
     /// Transient cell data (not serializable).
     #[field(storage = "auto_map", category = "transient")]

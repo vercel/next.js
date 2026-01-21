@@ -1675,11 +1675,10 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 /// - `update_{field}(key, f)` - Closure-based update
 /// - `add_{field}(key, value)` - Insert new, panics if exists
 /// - `remove_{field}(key) -> Option<V>` - Standard HashMap remove
-/// - `get_{field}_entry(key) -> Option<&V>` - Single-item lookup
+/// - `get_{field}(key) -> Option<&V>` - Single-item lookup
 ///
 /// Additionally, for i32 value types only (signed counters):
 /// - `update_{field}_positive_crossing(key, delta) -> bool` - Track positive boundary crossing
-/// - `iter_{field}_positive_entries() -> Iterator` - Iterate entries where value > 0
 ///
 /// Note: CounterMap only supports `i32` and `u32` value types. Other types will produce
 /// a compile error.
@@ -1718,13 +1717,13 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     let update_with_name = field.prefixed_ident("update");
     let add_entry_name = field.prefixed_ident("add");
     let remove_name = field.prefixed_ident("remove");
-    let get_entry_name = field.infixed_ident("get", "entry");
-    let iter_entries_name = field.infixed_ident("iter", "entries");
+    let get_name = field.prefixed_ident("get");
+    let iter_name = field.prefixed_ident("iter");
     let len_name = field.len_ident();
     let is_empty_name = field.is_empty_ident();
 
     // Generate get_entry body based on whether ref access returns Option or not
-    let get_entry_body = if is_option {
+    let get_body = if is_option {
         quote! { #ref_expr.and_then(|m| m.get(key)) }
     } else {
         quote! { #ref_expr.get(key) }
@@ -1769,7 +1768,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     };
 
     // Generate iter_entries body
-    let iter_entries_body = if is_option {
+    let iter_body = if is_option {
         quote! { #ref_expr.into_iter().flat_map(|m| m.iter()) }
     } else {
         quote! { #ref_expr.iter() }
@@ -1778,20 +1777,6 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     // Generate signed-type-specific methods only for i32
     let signed_methods = if is_signed {
         let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
-        let iter_positive_entries_name = field.infixed_ident("iter", "positive_entries");
-
-        // Generate iter_positive_entries body (entries where value > 0)
-        let iter_positive_entries_body = if is_option {
-            quote! {
-                #ref_expr.into_iter().flat_map(|m| {
-                    m.iter().filter_map(|(k, v)| if *v > 0 { Some((k, v)) } else { None })
-                })
-            }
-        } else {
-            quote! {
-                #ref_expr.iter().filter_map(|(k, v)| if *v > 0 { Some((k, v)) } else { None })
-            }
-        };
 
         quote! {
             #[doc = "Update a signed counter by the given delta."]
@@ -1802,12 +1787,6 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 #track_modification
                 #mut_expr.update_positive_crossing(key, delta)
             }
-
-            #[doc = "Iterate over key-value pairs where value > 0"]
-            fn #iter_positive_entries_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
-                #check_access
-                #iter_positive_entries_body
-            }
         }
     } else {
         quote! {}
@@ -1815,9 +1794,9 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     quote! {
         #[doc = "Get a single entry from the counter map"]
-        fn #get_entry_name(&self, key: &#key_type) -> Option<&#value_type> {
+        fn #get_name(&self, key: &#key_type) -> Option<&#value_type> {
             #check_access
-            #get_entry_body
+            #get_body
         }
 
         #[doc = "Update a counter by the given delta."]
@@ -1884,10 +1863,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             #is_empty_body
         }
 
-        #[doc = "Iterate over all key-value pairs in the counter map"]
-        fn #iter_entries_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
+        #[doc = "Iterate over all key-value pairs in the counter map. Guaranteed to return non-zero values."]
+        fn #iter_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
             #check_access
-            #iter_entries_body
+            #iter_body
         }
 
         #signed_methods
@@ -1921,12 +1900,11 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     let ref_expr = field.collection_ref_expr();
     let is_option = field.is_option_ref();
 
-    // Method names (using `_entry` suffix for consistency with CounterMap)
-    let get_entry_name = field.infixed_ident("get", "entry");
-    let has_entry_name = field.infixed_ident("has", "entry");
-    let insert_entry_name = field.infixed_ident("insert", "entry");
-    let remove_entry_name = field.infixed_ident("remove", "entry");
-    let iter_entries_name = field.infixed_ident("iter", "entries");
+    let get_entry_name = field.prefixed_ident("get");
+    let has_entry_name = field.suffixed_ident("contains");
+    let insert_entry_name = field.prefixed_ident("insert");
+    let remove_entry_name = field.prefixed_ident("remove");
+    let iter_entries_name = field.prefixed_ident("iter");
     let take_name = field.prefixed_ident("take");
     let len_name = field.len_ident();
     let is_empty_name = field.is_empty_ident();

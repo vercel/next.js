@@ -61,9 +61,7 @@ fn get_followers_with_aggregation_number(
     aggregation_number: u32,
 ) -> TaskIdVec {
     if is_aggregating_node(aggregation_number) {
-        task.iter_followers_entries()
-            .map(|(&id, _count)| id)
-            .collect()
+        task.iter_followers().map(|(&id, _count)| id).collect()
     } else {
         task.iter_children().collect()
     }
@@ -78,7 +76,7 @@ fn get_followers(task: &impl TaskGuard) -> TaskIdVec {
 /// Returns a list of tasks that are considered as "upper" tasks of the task. The upper tasks are
 /// aggregating over the task.
 pub fn get_uppers(task: &impl TaskGuard) -> TaskIdVec {
-    task.iter_upper_entries().map(|(&id, _count)| id).collect()
+    task.iter_upper().map(|(&id, _count)| id).collect()
 }
 
 /// Returns the aggregation number of the task.
@@ -353,10 +351,8 @@ impl AggregatedDataUpdate {
         let aggregation = get_aggregation_number(task);
         let mut dirty_count = 0;
         let mut current_session_clean_count = 0;
-        let mut collectibles_update: Vec<_> = task
-            .iter_collectibles_entries()
-            .map(|(&k, &v)| (k, v))
-            .collect();
+        let mut collectibles_update: Vec<_> =
+            task.iter_collectibles().map(|(&k, &v)| (k, v)).collect();
         if is_aggregating_node(aggregation) {
             dirty_count = task
                 .get_aggregated_dirty_container_count()
@@ -366,7 +362,7 @@ impl AggregatedDataUpdate {
                 .get_aggregated_current_session_clean_container_count()
                 .copied()
                 .unwrap_or_default();
-            for (collectible, count) in task.iter_aggregated_collectibles_entries() {
+            for (collectible, count) in task.iter_aggregated_collectibles() {
                 if *count > 0 {
                     collectibles_update.push((*collectible, 1));
                 }
@@ -458,7 +454,7 @@ impl AggregatedDataUpdate {
                 );
             } else {
                 new_dirty_single_container_count = task
-                    .get_aggregated_dirty_containers_entry(&dirty_container_id)
+                    .get_aggregated_dirty_containers(&dirty_container_id)
                     .copied()
                     .unwrap_or_default();
                 old_dirty_single_container_count = new_dirty_single_container_count;
@@ -478,7 +474,7 @@ impl AggregatedDataUpdate {
                         - *current_session_clean_update;
             } else {
                 new_single_container_current_session_clean_count = task
-                    .get_aggregated_current_session_clean_containers_entry(&dirty_container_id)
+                    .get_aggregated_current_session_clean_containers(&dirty_container_id)
                     .copied()
                     .unwrap_or_default();
                 old_single_container_current_session_clean_count =
@@ -973,14 +969,14 @@ impl AggregationUpdateQueue {
 
     /// Runs the job and all dependent jobs until it's done. It can persist the operation, so
     /// following code might not be executed when persisted.
-    pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext) {
+    pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext<'_>) {
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
     }
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
-    pub fn process(&mut self, ctx: &mut impl ExecuteContext) -> bool {
+    pub fn process(&mut self, ctx: &mut impl ExecuteContext<'_>) -> bool {
         if let Some(job) = self.jobs.pop_front() {
             let job: AggregationUpdateJobGuard = job.entered();
             match job.job {
@@ -1858,7 +1854,7 @@ impl AggregationUpdateQueue {
                         }
                     }
                     // notify uppers about new follower
-                    for (&upper_id, _) in upper.iter_upper_entries() {
+                    for (&upper_id, _) in upper.iter_upper() {
                         *upper_upper_ids_with_new_follower
                             .entry(upper_id)
                             .or_insert(0) += 1;
@@ -2210,7 +2206,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_upper_has_new_follower(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         new_follower_id: TaskId,
         upper_id: TaskId,
         count: u32,
@@ -2492,13 +2488,13 @@ impl AggregationUpdateQueue {
             if is_aggregating_node(aggregation_number) {
                 // followers might become inner nodes when the aggregation number is
                 // increased
-                for (&follower_id, _) in task.iter_followers_entries() {
+                for (&follower_id, _) in task.iter_followers() {
                     self.push(AggregationUpdateJob::BalanceEdge {
                         upper_id: task_id,
                         task_id: follower_id,
                     });
                 }
-                let uppers = task.iter_upper_entries();
+                let uppers = task.iter_upper();
                 for (&upper_id, _count) in uppers {
                     self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
                 }

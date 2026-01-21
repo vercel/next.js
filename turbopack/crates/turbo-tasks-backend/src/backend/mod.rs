@@ -884,7 +884,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
 
         // Check cell index range (cell might not exist at all)
-        let max_id = task.get_cell_type_max_index_entry(&cell.type_id).copied();
+        let max_id = task.get_cell_type_max_index(&cell.type_id).copied();
         let Some(max_id) = max_id else {
             if tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
@@ -950,14 +950,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
             }
         };
-        if let Some(in_progress) = task.get_in_progress_cells_entry(&cell) {
+        if let Some(in_progress) = task.get_in_progress_cells(&cell) {
             // Someone else is already computing the cell
             let listener = in_progress.event.listen_with_note(note);
             return (listener, false);
         }
         let in_progress = InProgressCellState::new(task_id, cell);
         let listener = in_progress.event.listen_with_note(note);
-        let old = task.insert_in_progress_cells_entry(cell, in_progress);
+        let old = task.insert_in_progress_cells(cell, in_progress);
         debug_assert!(old.is_none(), "InProgressCell already exists");
         (listener, true)
     }
@@ -1681,9 +1681,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 Outdated(CollectibleRef),
             }
             let collectibles = task
-                .iter_collectibles_entries()
+                .iter_collectibles()
                 .map(|(&collectible, &value)| Collectible::Current(collectible, value))
-                .chain(task.iter_outdated_collectibles().map(Collectible::Outdated))
+                .chain(
+                    task.iter_outdated_collectibles()
+                        .map(|(collectible, _count)| Collectible::Outdated(*collectible)),
+                )
                 .collect::<Vec<_>>();
             for collectible in collectibles {
                 match collectible {
@@ -1961,7 +1964,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // handle cell counters: update max index and remove cells that are no longer used
         let old_counters: FxHashMap<_, _> = task
-            .iter_cell_type_max_index_entries()
+            .iter_cell_type_max_index()
             .map(|(&k, &v)| (k, v))
             .collect();
         let mut counters_to_remove = old_counters.clone();
@@ -1969,14 +1972,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         for (&cell_type, &max_index) in cell_counters.iter() {
             if let Some(old_max_index) = counters_to_remove.remove(&cell_type) {
                 if old_max_index != max_index {
-                    task.insert_cell_type_max_index_entry(cell_type, max_index);
+                    task.insert_cell_type_max_index(cell_type, max_index);
                 }
             } else {
-                task.insert_cell_type_max_index_entry(cell_type, max_index);
+                task.insert_cell_type_max_index(cell_type, max_index);
             }
         }
         for (cell_type, _) in counters_to_remove {
-            task.remove_cell_type_max_index_entry(&cell_type);
+            task.remove_cell_type_max_index(&cell_type);
         }
 
         let mut queue = AggregationUpdateQueue::new();
@@ -2020,7 +2023,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         old_edges.extend(
-            task.iter_outdated_collectibles_entries()
+            task.iter_outdated_collectibles()
                 .map(|(&collectible, &count)| OutdatedEdge::Collectible(collectible, count)),
         );
 
@@ -2496,7 +2499,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // used again, they are invalidated from the update cell operation.
             // Remove cell data for cells that no longer exist
             let to_remove: Vec<_> = task
-                .iter_cell_data_entries()
+                .iter_persistent_cell_data()
                 .filter_map(|(cell, _)| {
                     cell_counters
                         .get(&cell.type_id)
@@ -2505,14 +2508,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 })
                 .collect();
             for cell in to_remove {
-                if let Some(data) = task.remove_cell_data_entry(&cell) {
+                if let Some(data) = task.remove_persistent_cell_data(&cell) {
                     removed_data.push(data.into_untyped());
                 }
             }
 
             // Remove transient cell data for cells that no longer exist
             let to_remove: Vec<_> = task
-                .iter_transient_cell_data_entries()
+                .iter_transient_cell_data()
                 .filter_map(|(cell, _)| {
                     cell_counters
                         .get(&cell.type_id)
@@ -2521,14 +2524,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 })
                 .collect();
             for cell in to_remove {
-                if let Some(data) = task.remove_transient_cell_data_entry(&cell) {
+                if let Some(data) = task.remove_transient_cell_data(&cell) {
                     removed_data.push(data);
                 }
             }
         }
 
         // Shrink memory usage for collections that are only mutated during/after execution
-        task.shrink_cell_data();
+        task.shrink_persistent_cell_data();
         task.shrink_transient_cell_data();
         task.shrink_cell_type_max_index();
         task.shrink_cell_dependencies();
@@ -2679,8 +2682,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 );
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
-            for (collectible, _count) in task.iter_aggregated_collectibles_positive_entries() {
-                if collectible.collectible_type == collectible_type {
+            for (collectible, count) in task.iter_aggregated_collectibles() {
+                if *count > 0 && collectible.collectible_type == collectible_type {
                     *collectibles
                         .entry(RawVc::TaskCell(
                             collectible.cell.task,
@@ -2689,7 +2692,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .or_insert(0) += 1;
                 }
             }
-            for (&collectible, &count) in task.iter_collectibles_entries() {
+            for (&collectible, &count) in task.iter_collectibles() {
                 if collectible.collectible_type == collectible_type {
                     *collectibles
                         .entry(RawVc::TaskCell(
@@ -3029,7 +3032,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     for upper_id in uppers {
                         let task = ctx.task(upper_id, TaskDataCategory::All);
                         let in_upper = task
-                            .get_aggregated_dirty_containers_entry(&task_id)
+                            .get_aggregated_dirty_containers(&task_id)
                             .is_some_and(|&dirty| dirty > 0);
                         if !in_upper {
                             let containers: Vec<_> = task
@@ -3080,7 +3083,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         let desc = ctx.get_task_description(task_id);
                         let task = ctx.task(task_id, TaskDataCategory::All);
                         let aggregated_collectible = task
-                            .get_aggregated_collectibles_entry(&collectible)
+                            .get_aggregated_collectibles(&collectible)
                             .copied()
                             .unwrap_or_default();
                         let uppers = get_uppers(&task);

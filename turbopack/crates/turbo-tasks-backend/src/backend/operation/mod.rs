@@ -797,9 +797,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         cell: CellId,
     ) -> Option<TypedSharedReference> {
         if is_serializable_cell_content {
-            self.remove_cell_data_entry(&cell)
+            self.remove_persistent_cell_data(&cell)
         } else {
-            self.remove_transient_cell_data_entry(&cell)
+            self.remove_transient_cell_data(&cell)
                 .map(|sr| sr.into_typed(cell.type_id))
         }
     }
@@ -809,19 +809,17 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         cell: CellId,
     ) -> Option<TypedSharedReference> {
         if is_serializable_cell_content {
-            self.cell_data().and_then(|map| map.get(&cell)).cloned()
+            self.get_persistent_cell_data(&cell).cloned()
         } else {
-            self.transient_cell_data()
-                .and_then(|map| map.get(&cell))
+            self.get_transient_cell_data(&cell)
                 .map(|sr| sr.clone().into_typed(cell.type_id))
         }
     }
     fn has_cell_data(&self, is_serializable_cell_content: bool, cell: CellId) -> bool {
         if is_serializable_cell_content {
-            self.cell_data().is_some_and(|map| map.contains_key(&cell))
+            self.persistent_cell_data_contains(&cell)
         } else {
-            self.transient_cell_data()
-                .is_some_and(|map| map.contains_key(&cell))
+            self.transient_cell_data_contains(&cell)
         }
     }
     /// Set cell data, returning the old value if any.
@@ -832,9 +830,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         value: TypedSharedReference,
     ) -> Option<TypedSharedReference> {
         if is_serializable_cell_content {
-            self.insert_cell_data_entry(cell, value)
+            self.insert_persistent_cell_data(cell, value)
         } else {
-            self.insert_transient_cell_data_entry(cell, value.into_untyped())
+            self.insert_transient_cell_data(cell, value.into_untyped())
                 .map(|sr| sr.into_typed(cell.type_id))
         }
     }
@@ -870,24 +868,12 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     #[must_use]
     fn insert_outdated_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
         // Check if already exists
-        if self.get_outdated_collectibles_entry(&collectible).is_some() {
+        if self.get_outdated_collectibles(&collectible).is_some() {
             return false;
         }
         // Insert new entry
         self.add_outdated_collectibles(collectible, value);
         true
-    }
-
-    /// Iterate over all outdated collectibles
-    fn iter_outdated_collectibles(&self) -> impl Iterator<Item = CollectibleRef> + '_ {
-        self.iter_outdated_collectibles_entries().map(|(&k, _)| k)
-    }
-
-    /// Iterate over all aggregated collectibles (with count > 0), returning (collectible, count)
-    /// pairs
-    fn iter_aggregated_collectibles(&self) -> impl Iterator<Item = (CollectibleRef, i32)> + '_ {
-        self.iter_aggregated_collectibles_positive_entries()
-            .map(|(&k, &v)| (k, v))
     }
 }
 

@@ -22,7 +22,7 @@ impl UpdateCollectibleOperation {
         task_id: TaskId,
         collectible: CollectibleRef,
         mut count: i32,
-        mut ctx: impl ExecuteContext,
+        mut ctx: impl ExecuteContext<'_>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         if count < 0 {
@@ -52,7 +52,7 @@ impl UpdateCollectibleOperation {
             }
         }
         let mut queue = AggregationUpdateQueue::new();
-        let outdated = task.get_outdated_collectibles_entry(&collectible).copied();
+        let outdated = task.get_outdated_collectibles(&collectible).copied();
         if let Some(outdated) = outdated {
             if count > 0 && outdated > 0 {
                 let shared = min(count, outdated);
