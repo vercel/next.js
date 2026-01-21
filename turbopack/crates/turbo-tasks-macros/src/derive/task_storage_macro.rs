@@ -1496,12 +1496,13 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     let track_modification = field.track_modification_call();
     let mut_expr = field.collection_mut_expr();
     let ref_expr = field.collection_ref_expr();
+    let take_expr = field.direct_take_expr();
     let is_option = field.is_option_ref();
 
     let add_name = field.prefixed_ident("add");
     let extend_name = field.prefixed_ident("extend");
     let remove_name = field.prefixed_ident("remove");
-    let remove_all_name = field.prefixed_ident("remove_all");
+    let set_name = field.prefixed_ident("set");
     let has_name = field.suffixed_ident("contains");
     let iter_name = field.iter_ident();
     let len_name = field.len_ident();
@@ -1557,36 +1558,18 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         }
     };
 
-    // Remove all uses find_lazy_mut for lazy to avoid allocation when set doesn't exist.
-    let remove_all_body = if is_option {
-        let extractor = field.lazy_extractor_closure();
-
+    let set_body = if is_option {
+        let unwraper = field.lazy_unwrap_closure();
+        let matches = field.lazy_matches_closure();
+        let ctor = field.lazy_constructor(quote! {set});
         quote! {
-            let Some(set) = self.typed_mut().find_lazy_mut(#extractor) else {
-                return;
-            };
-            let mut any_removed = false;
-            for item in items {
-                if set.remove(item) {
-                    any_removed = true;
-                }
-            }
-            if any_removed {
-                #track_modification
-            }
+             self.typed_mut().set_lazy(#matches, #unwraper, #ctor)
         }
     } else {
         quote! {
-            let set = #mut_expr;
-            let mut any_removed = false;
-            for item in items {
-                if set.remove(item) {
-                    any_removed = true;
-                }
-            }
-            if any_removed {
-                #track_modification
-            }
+            let old = #take_expr;
+            *#mut_expr = set;
+            Some(old)
         }
     };
 
@@ -1634,12 +1617,11 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 
         #[doc = "Remove multiple items from the set."]
         #[doc = "Only tracks modification if at least one item is actually removed."]
-        fn #remove_all_name<'a>(&mut self, items: impl IntoIterator<Item = &'a #element_type>)
-        where
-            #element_type: 'a,
+        fn #set_name(&mut self, set: #field_type) -> Option<#field_type>
         {
             #check_access
-            #remove_all_body
+            #track_modification
+            #set_body
         }
 
         #[doc = "Iterate over all items in the set"]

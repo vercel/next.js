@@ -83,7 +83,9 @@ impl Operation for CleanupOldEdgesOperation {
                                     _ => true,
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
-                                task.remove_all_children(children.iter());
+                                for task_id in children.iter() {
+                                    task.remove_children(task_id);
+                                }
                                 if is_aggregating_node(get_aggregation_number(&task)) {
                                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                                         upper_id: task_id,

@@ -1706,28 +1706,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             if self.should_track_dependencies() {
                 // Make all dependencies outdated
-                let outdated_cell_dependencies_to_add =
-                    task.iter_cell_dependencies().collect::<SmallVec<[_; 8]>>();
-                let outdated_cell_dependencies_to_remove = task
-                    .iter_outdated_cell_dependencies()
-                    .filter(|item| !task.cell_dependencies_contains(item))
-                    .collect::<SmallVec<[_; 8]>>();
-                task.extend_outdated_cell_dependencies(outdated_cell_dependencies_to_add);
-                task.remove_all_outdated_cell_dependencies(
-                    outdated_cell_dependencies_to_remove.iter(),
-                );
+                let cell_dependencies = task.iter_cell_dependencies().collect();
+                task.set_outdated_cell_dependencies(cell_dependencies);
 
-                let outdated_output_dependencies_to_add = task
-                    .iter_output_dependencies()
-                    .collect::<SmallVec<[_; 8]>>();
-                let outdated_output_dependencies_to_remove = task
-                    .iter_outdated_output_dependencies()
-                    .filter(|&target| !task.output_dependencies_contains(&target))
-                    .collect::<SmallVec<[_; 8]>>();
-                task.extend_outdated_output_dependencies(outdated_output_dependencies_to_add);
-                task.remove_all_outdated_output_dependencies(
-                    outdated_output_dependencies_to_remove.iter(),
-                );
+                let outdated_output_dependencies = task.iter_output_dependencies().collect();
+                task.set_outdated_output_dependencies(outdated_output_dependencies);
             }
         }
 
