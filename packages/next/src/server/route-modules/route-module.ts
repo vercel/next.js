@@ -630,6 +630,13 @@ export abstract class RouteModule<
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const nextConfig =
+      routerServerContext?.nextConfig || serverFilesManifest?.config
 
     // Injected in base-server.ts
     const protocol = req.headers['x-forwarded-proto']?.includes('https')
@@ -640,7 +647,7 @@ export abstract class RouteModule<
     if (!getRequestMeta(req, 'initURL')) {
       const initUrl = serverFilesManifest?.config.experimental.trustHostHeader
         ? `${protocol}://${req.headers.host || 'localhost'}${req.url}`
-        : req.url
+        : `${protocol}://${routerServerContext?.hostname || 'localhost'}${req.url}`
 
       addRequestMeta(req, 'initURL', initUrl)
       addRequestMeta(req, 'initProtocol', protocol)
@@ -923,14 +930,6 @@ export abstract class RouteModule<
       )
       isDraftMode = previewData !== false
     }
-
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
-    const nextConfig =
-      routerServerContext?.nextConfig || serverFilesManifest?.config
 
     if (!nextConfig) {
       throw new Error("Invariant: nextConfig couldn't be loaded")
