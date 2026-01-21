@@ -1,14 +1,18 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
+
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('app-dir trailingSlash handling', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
+    buildArgs: [
+      '--debug-build-paths',
+      isCacheComponentsEnabled
+        ? '!app/[lang]/legacy/page.js'
+        : '!app/[lang]/cache-components/page.js',
+    ],
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should redirect route when requesting it directly', async () => {
     const res = await next.fetch('/a', {
@@ -59,4 +63,45 @@ describe('app-dir trailingSlash handling', () => {
       'http://trailingslash-another.com/metadata'
     )
   })
+
+  it.each([{ withSlash: true }, { withSlash: false }])(
+    'should revalidate a page with generated static params (withSlash=$withSlash)',
+    async ({ withSlash }) => {
+      const browser = await next.browser('/en')
+      const initialGeneratedAt = await browser
+        .elementById('generated-at')
+        .text()
+
+      expect(initialGeneratedAt).toBeDateString()
+
+      if (!isNextDev) {
+        await browser.refresh()
+
+        const refreshedGeneratedAt = await browser
+          .elementById('generated-at')
+          .text()
+
+        expect(refreshedGeneratedAt).toBe(initialGeneratedAt)
+      }
+
+      await browser
+        .elementById(
+          withSlash
+            ? 'revalidate-button-with-slash'
+            : 'revalidate-button-no-slash'
+        )
+        .click()
+
+      expect(await browser.elementById('revalidate-result').text()).toInclude(
+        'Revalidated'
+      )
+
+      await retry(async () => {
+        await browser.refresh()
+        const generatedAt = await browser.elementById('generated-at').text()
+        expect(generatedAt).toBeDateString()
+        expect(generatedAt).not.toBe(initialGeneratedAt)
+      })
+    }
+  )
 })

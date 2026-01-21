@@ -978,5 +978,6 @@
   "977": "maxPostponedStateSize must be a valid number (bytes) or filesize format string (e.g., \"5mb\")",
   "978": "Next.js has blocked a javascript: URL as a security precaution.",
   "979": "invariant: expected %s bytes of postponed state but only received %s bytes",
-  "980": "Failed to load client middleware manifest"
+  "980": "Failed to load client middleware manifest",
+  "981": "resolvedPathname must be set in request metadata"
 }
