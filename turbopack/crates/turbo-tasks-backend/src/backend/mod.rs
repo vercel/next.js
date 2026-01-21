@@ -1176,7 +1176,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         .lock()
                                         .entry(self.get_task_description(task_id))
                                         .or_default()
-                                        .add_meta(meta);
+                                        .add_meta(&meta);
                                     Some(meta)
                                 }
                                 None => None,
@@ -1196,7 +1196,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         .lock()
                                         .entry(self.get_task_description(task_id))
                                         .or_default()
-                                        .add_data(data);
+                                        .add_data(&data);
                                     Some(data)
                                 }
                                 None => None,
