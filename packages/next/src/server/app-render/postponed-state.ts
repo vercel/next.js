@@ -181,7 +181,8 @@ export function parsePostponedState(
             interpolatedParams,
             segmentKey,
             dynamicParamType,
-            null
+            null,
+            null // staticSiblings not needed for postponed state
           )
 
           postponed = postponed.replaceAll(searchValue, value)

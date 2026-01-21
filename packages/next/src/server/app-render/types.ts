@@ -49,6 +49,10 @@ const segmentSchema = s.union([
     s.string(),
     // Dynamic param type
     dynamicParamTypesSchema,
+    // Static siblings at the same URL level. Used by the client router to
+    // determine if a prefetch can be reused when navigating to a static
+    // sibling of a dynamic route. null means siblings are unknown.
+    s.nullable(s.array(s.string())),
   ]),
 ])
 
@@ -155,6 +159,7 @@ export interface RenderOptsPartial {
      */
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
+    optimisticRouting: boolean
     inlineCss: boolean
     authInterrupts: boolean
 

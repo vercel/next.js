@@ -195,6 +195,7 @@ export const experimentalSchema = {
   caseSensitiveRoutes: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
   dynamicOnHover: z.boolean().optional(),
+  optimisticRouting: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),

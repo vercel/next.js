@@ -3,8 +3,8 @@ import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
   ActionResult,
   DynamicParamTypesShort,
+  DynamicSegmentTuple,
   FlightRouterState,
-  Segment,
   CacheNodeSeedData,
   RSCPayload,
   FlightData,
@@ -219,14 +219,14 @@ import { anySegmentHasRuntimePrefetchEnabled } from './staged-validation'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 
 export type GetDynamicParamFromSegment = (
-  // [slug] / [[slug]] / [...slug]
-  segment: string
+  // The LoaderTree to extract the dynamic param from
+  loaderTree: LoaderTree
 ) => DynamicParam | null
 
 export type DynamicParam = {
   param: string
   value: string | string[] | null
-  treeSegment: Segment
+  treeSegment: DynamicSegmentTuple
   type: DynamicParamTypesShort
 }
 
@@ -385,10 +385,11 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   return [
     '',
     {
-      children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents],
+      children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
     // When global-not-found is present, skip layout from components
     hasGlobalNotFound ? components : {},
+    null, // staticSiblings
   ]
 }
 
@@ -397,23 +398,25 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
  */
 function makeGetDynamicParamFromSegment(
   interpolatedParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  optimisticRouting: boolean
 ): GetDynamicParamFromSegment {
-  return function getDynamicParamFromSegment(
-    // [slug] / [[slug]] / [...slug]
-    segment: string
-  ) {
+  return function getDynamicParamFromSegment(loaderTree: LoaderTree) {
+    const [segment, , , staticSiblings] = loaderTree
     const segmentParam = getSegmentParam(segment)
     if (!segmentParam) {
       return null
     }
     const segmentKey = segmentParam.paramName
     const dynamicParamType = dynamicParamTypes[segmentParam.paramType]
+    // Static siblings are only included when optimistic routing is enabled
+    const siblings = optimisticRouting ? staticSiblings : null
     return getDynamicParam(
       interpolatedParams,
       segmentKey,
       dynamicParamType,
-      fallbackRouteParams
+      fallbackRouteParams,
+      siblings
     )
   }
 }
@@ -2012,7 +2015,8 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     interpolatedParams,
-    fallbackRouteParams
+    fallbackRouteParams,
+    renderOpts.experimental.optimisticRouting
   )
 
   const isPossibleActionRequest = getIsPossibleServerAction(req)

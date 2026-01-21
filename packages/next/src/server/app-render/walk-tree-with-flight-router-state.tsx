@@ -77,7 +77,7 @@ export async function walkTreeWithFlightRouterState({
     rootLayoutIncluded || rootLayoutAtThisLevel
 
   // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
-  const segmentParam = getDynamicParamFromSegment(segment)
+  const segmentParam = getDynamicParamFromSegment(loaderTreeToFilter)
   const currentParams =
     // Handle null case where dynamic param is optional
     segmentParam && segmentParam.value !== null

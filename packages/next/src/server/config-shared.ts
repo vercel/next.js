@@ -287,6 +287,7 @@ export interface ExperimentalConfig {
    */
   clientParamParsingOrigins?: string[]
   dynamicOnHover?: boolean
+  optimisticRouting?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -1669,6 +1670,7 @@ export interface NextConfigRuntime {
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
+    | 'optimisticRouting'
     | 'inlineCss'
     | 'authInterrupts'
     | 'clientTraceMetadata'
@@ -1730,6 +1732,7 @@ export function getNextConfigRuntime(
         serverActions: ex.serverActions,
         staleTimes: ex.staleTimes,
         dynamicOnHover: ex.dynamicOnHover,
+        optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,

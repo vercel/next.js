@@ -40,13 +40,25 @@ export type RootTreePrefetch = {
   staleTime: number
 }
 
-export type TreePrefetch = {
-  name: string
-  paramType: DynamicParamTypesShort | null
+export type TreePrefetchParam = {
+  type: DynamicParamTypesShort
   // When cacheComponents is enabled, this field is always null.
   // Instead we parse the param on the client, allowing us to omit it from
   // the prefetch response and increase its cacheability.
-  paramKey: string | null
+  key: string | null
+  // Static sibling segments at the same URL level. Used by the client
+  // router to determine if a prefetch can be reused when navigating to
+  // a static sibling of a dynamic route. For example, if the route is
+  // /products/[id] and there's also /products/sale, then siblings
+  // would be ['sale']. null means the siblings are unknown (e.g. in
+  // webpack dev mode).
+  siblings: readonly string[] | null
+}
+
+export type TreePrefetch = {
+  name: string
+  // Only present for parameterized (dynamic) segments.
+  param: TreePrefetchParam | null
 
   // Child segments.
   slots: null | {
@@ -320,27 +332,27 @@ function collectSegmentDataImpl(
   }
 
   const segment = route[0]
-  let name
-  let paramType: DynamicParamTypesShort | null = null
-  let paramKey: string | null = null
+  let name: string
+  let param: TreePrefetchParam | null
   if (typeof segment === 'string') {
     name = segment
-    paramKey = segment
-    paramType = null
+    param = null
   } else {
     name = segment[0]
-    paramKey = segment[1]
-    paramType = segment[2] as DynamicParamTypesShort
+    param = {
+      type: segment[2],
+      // This value is omitted from the prefetch response when cacheComponents
+      // is enabled.
+      key: isClientParamParsingEnabled ? null : segment[1],
+      siblings: segment[3],
+    }
   }
 
   // Metadata about the segment. Sent to the client as part of the
   // tree prefetch.
   return {
     name,
-    paramType,
-    // This value is ommitted from the prefetch response when cacheComponents
-    // is enabled.
-    paramKey: isClientParamParsingEnabled ? null : paramKey,
+    param,
     hasRuntimePrefetch,
     slots: slotMetadata,
     isRootLayout: route[4] === true,

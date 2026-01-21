@@ -1064,17 +1064,16 @@ function convertTreePrefetchToRouteTree(
     slots = {}
     for (let parallelRouteKey in prefetchSlots) {
       const childPrefetch = prefetchSlots[parallelRouteKey]
-      const childParamName = childPrefetch.name
-      const childParamType = childPrefetch.paramType
-      const childServerSentParamKey = childPrefetch.paramKey
+      const childSegmentName = childPrefetch.name
+      const childParam = childPrefetch.param
 
       let childDoesAppearInURL: boolean
       let childSegment: FlightRouterStateSegment
       let childPartialVaryPath: PartialSegmentVaryPath | null
-      if (childParamType !== null) {
+      if (childParam !== null) {
         // This segment is parameterized. Get the param from the pathname.
         const childParamValue = parseDynamicParamFromURLPart(
-          childParamType,
+          childParam.type,
           pathnameParts,
           pathnamePartsIndex
         )
@@ -1092,8 +1091,8 @@ function convertTreePrefetchToRouteTree(
         const childParamKey =
           // The server omits this field from the prefetch response when
           // cacheComponents is enabled.
-          childServerSentParamKey !== null
-            ? childServerSentParamKey
+          childParam.key !== null
+            ? childParam.key
             : // If no param key was sent, use the value parsed on the client.
               getCacheKeyForDynamicParam(
                 childParamValue,
@@ -1104,14 +1103,19 @@ function convertTreePrefetchToRouteTree(
           partialVaryPath,
           childParamKey
         )
-        childSegment = [childParamName, childParamKey, childParamType]
+        childSegment = [
+          childSegmentName,
+          childParamKey,
+          childParam.type,
+          childParam.siblings,
+        ]
         childDoesAppearInURL = true
       } else {
         // This segment does not have a param. Inherit the partial vary path of
         // the parent.
         childPartialVaryPath = partialVaryPath
-        childSegment = childParamName
-        childDoesAppearInURL = doesStaticSegmentAppearInURL(childParamName)
+        childSegment = childSegmentName
+        childDoesAppearInURL = doesStaticSegmentAppearInURL(childSegmentName)
       }
 
       // Only increment the index if the segment appears in the URL. If it's a

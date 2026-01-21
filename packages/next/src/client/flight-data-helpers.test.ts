@@ -46,7 +46,12 @@ describe('prepareFlightRouterStateForRequest', () => {
     })
 
     it('should preserve dynamic segments', () => {
-      const dynamicSegment: [string, string, 'd'] = ['slug', 'test-value', 'd']
+      const dynamicSegment: [string, string, 'd', null] = [
+        'slug',
+        'test-value',
+        'd',
+        null,
+      ]
       const flightRouterState: FlightRouterState = [dynamicSegment, {}]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
@@ -266,7 +271,12 @@ describe('prepareFlightRouterStateForRequest', () => {
             true,
             1,
           ],
-          sidebar: [['slug', 'user-123', 'd'], {}, ['/sidebar/url', ''], null],
+          sidebar: [
+            ['slug', 'user-123', 'd', null],
+            {},
+            ['/sidebar/url', ''],
+            null,
+          ],
         },
         ['/main/url', ''],
         'inside-shared-layout',
@@ -300,7 +310,7 @@ describe('prepareFlightRouterStateForRequest', () => {
 
       // Sidebar route (dynamic segment) checks
       const sidebarRoute = decoded[1].sidebar
-      expect(sidebarRoute[0]).toEqual(['slug', 'user-123', 'd']) // dynamic segment preserved
+      expect(sidebarRoute[0]).toEqual(['slug', 'user-123', 'd', null]) // dynamic segment preserved
       expect(sidebarRoute[2]).toBeUndefined() // URL stripped
       expect(sidebarRoute[3]).toBeUndefined() // null marker stripped
     })
