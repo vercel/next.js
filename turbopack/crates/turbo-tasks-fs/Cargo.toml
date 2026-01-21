@@ -55,6 +55,7 @@ urlencoding = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+rand = { workspace = true }
 rstest = { workspace = true }
 sha2 = "0.10.2"
 tempfile = { workspace = true }

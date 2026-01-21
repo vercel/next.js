@@ -2987,8 +2987,9 @@ mod tests {
             io::Write,
         };
 
+        use rand::{Rng, SeedableRng};
         use turbo_rcstr::{RcStr, rcstr};
-        use turbo_tasks::{ResolvedVc, apply_effects};
+        use turbo_tasks::{ResolvedVc, Vc, apply_effects};
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use crate::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
@@ -3084,6 +3085,111 @@ mod tests {
             })
             .await
             .unwrap();
+        }
+
+        const STRESS_ITERATIONS: usize = 100;
+        const STRESS_PARALLELISM: usize = 8;
+        const STRESS_TARGET_COUNT: usize = 20;
+        const STRESS_SYMLINK_COUNT: usize = 16;
+
+        #[turbo_tasks::function(operation)]
+        fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
+            DiskFileSystem::new(rcstr!("test"), fs_root)
+        }
+
+        #[turbo_tasks::function(operation)]
+        fn disk_file_system_root_operation(fs: ResolvedVc<DiskFileSystem>) -> Vc<FileSystemPath> {
+            fs.root()
+        }
+
+        #[turbo_tasks::function(operation)]
+        async fn write_symlink_stress_batch(
+            fs: ResolvedVc<DiskFileSystem>,
+            symlinks_dir: FileSystemPath,
+            updates: Vec<(usize, usize)>,
+        ) -> anyhow::Result<()> {
+            use turbo_tasks::TryJoinIterExt;
+
+            updates
+                .into_iter()
+                .map(|(symlink_idx, target_idx)| {
+                    let target = RcStr::from(format!("../_targets/{target_idx}"));
+                    let symlink_path = symlinks_dir.join(&symlink_idx.to_string()).unwrap();
+                    async move {
+                        fs.write_link(
+                            symlink_path,
+                            LinkContent::Link {
+                                target,
+                                link_type: LinkType::DIRECTORY,
+                            }
+                            .cell(),
+                        )
+                        .await
+                    }
+                })
+                .try_join()
+                .await?;
+            Ok(())
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_symlink_stress() {
+            let scratch = tempfile::tempdir().unwrap();
+            let path = scratch.path().to_owned();
+
+            let targets_dir = path.join("_targets");
+            create_dir_all(&targets_dir).unwrap();
+            for i in 0..STRESS_TARGET_COUNT {
+                create_dir_all(targets_dir.join(i.to_string())).unwrap();
+            }
+            create_dir_all(path.join("_symlinks")).unwrap();
+
+            let root: RcStr = path.to_str().unwrap().into();
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                let fs = disk_file_system_operation(root)
+                    .resolve_strongly_consistent()
+                    .await?;
+                let root_path = disk_file_system_root_operation(fs)
+                    .resolve_strongly_consistent()
+                    .await?
+                    .owned()
+                    .await?;
+                let symlinks_dir = root_path.join("_symlinks")?;
+
+                let initial_updates: Vec<(usize, usize)> =
+                    (0..STRESS_SYMLINK_COUNT).map(|i| (i, 0)).collect();
+                let initial_op =
+                    write_symlink_stress_batch(fs, symlinks_dir.clone(), initial_updates);
+                initial_op.read_strongly_consistent().await?;
+                apply_effects(initial_op).await?;
+
+                let mut rng = rand::rngs::SmallRng::seed_from_u64(0);
+                for _ in 0..STRESS_ITERATIONS {
+                    let updates: Vec<(usize, usize)> = (0..STRESS_PARALLELISM)
+                        .map(|_| {
+                            let symlink_idx = rng.random_range(0..STRESS_SYMLINK_COUNT);
+                            let target_idx = rng.random_range(0..STRESS_TARGET_COUNT);
+                            (symlink_idx, target_idx)
+                        })
+                        .collect();
+
+                    let write_op = write_symlink_stress_batch(fs, symlinks_dir.clone(), updates);
+                    write_op.read_strongly_consistent().await?;
+                    apply_effects(write_op).await?;
+                }
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+
+            tt.stop_and_wait().await;
         }
     }
 

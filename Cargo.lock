@@ -9535,6 +9535,7 @@ dependencies = [
  "mime",
  "notify",
  "parking_lot",
+ "rand 0.9.0",
  "regex",
  "rstest",
  "rustc-hash 2.1.1",
