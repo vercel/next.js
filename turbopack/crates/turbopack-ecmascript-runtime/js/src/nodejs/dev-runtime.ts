@@ -147,35 +147,66 @@ type ModuleFactory = (
 
 const url = require('url') as typeof import('url')
 
-const moduleFactories: ModuleFactories = new Map()
+// Declare global storage for module caches that persist across bundle re-requires.
+// This is necessary for server HMR to work correctly - when the bundle file's
+// Node.js require cache is cleared and the bundle is re-required, we need to
+// preserve the Turbopack module cache so unchanged modules (like database
+// connections) are not re-evaluated.
+declare global {
+  var __turbopack_module_factories__: ModuleFactories | undefined
+  var __turbopack_dev_module_cache__: ModuleCache<HotModule> | undefined
+}
+
+// Reuse existing caches if available (they persist across bundle re-requires)
+const moduleFactories: ModuleFactories =
+  globalThis.__turbopack_module_factories__ ||
+  (globalThis.__turbopack_module_factories__ = new Map())
 nodeDevContextPrototype.M = moduleFactories
-const devModuleCache: ModuleCache<HotModule> = Object.create(null)
+
+const devModuleCache: ModuleCache<HotModule> =
+  globalThis.__turbopack_dev_module_cache__ ||
+  (globalThis.__turbopack_dev_module_cache__ = Object.create(null))
 nodeDevContextPrototype.c = devModuleCache
 
 // ============================================================================
-// HMR State
+// HMR State (also persisted globally for bundle re-requires)
 // ============================================================================
+
+declare global {
+  var __turbopack_module_hot_data__: Map<ModuleId, HotData> | undefined
+  var __turbopack_module_hot_state__: Map<HotModule, HotState> | undefined
+  var __turbopack_queued_invalidated_modules__: Set<ModuleId> | undefined
+  var __turbopack_runtime_modules__: Set<ModuleId> | undefined
+}
 
 /**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
  */
-const moduleHotData: Map<ModuleId, HotData> = new Map()
+const moduleHotData: Map<ModuleId, HotData> =
+  globalThis.__turbopack_module_hot_data__ ||
+  (globalThis.__turbopack_module_hot_data__ = new Map())
 
 /**
  * Maps module instances to their hot module state.
  */
-const moduleHotState: Map<HotModule, HotState> = new Map()
+const moduleHotState: Map<HotModule, HotState> =
+  globalThis.__turbopack_module_hot_state__ ||
+  (globalThis.__turbopack_module_hot_state__ = new Map())
 
 /**
  * Modules that call `module.hot.invalidate()` (while being updated).
  */
-const queuedInvalidatedModules: Set<ModuleId> = new Set()
+const queuedInvalidatedModules: Set<ModuleId> =
+  globalThis.__turbopack_queued_invalidated_modules__ ||
+  (globalThis.__turbopack_queued_invalidated_modules__ = new Set())
 
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
  */
-const runtimeModules: Set<ModuleId> = new Set()
+const runtimeModules: Set<ModuleId> =
+  globalThis.__turbopack_runtime_modules__ ||
+  (globalThis.__turbopack_runtime_modules__ = new Set())
 
 /**
  * When true, modules that bubble up to the root without being accepted
@@ -229,6 +260,7 @@ const chunkCache = new Map<ChunkPath, Promise<void>>()
 
 function clearChunkCache() {
   chunkCache.clear()
+  loadedChunks.clear()
 }
 
 function loadRuntimeChunkPath(
@@ -491,10 +523,19 @@ function getOrInstantiateModuleFromParent(
   id: ModuleId,
   sourceModule: HotModule
 ): HotModule {
+  // Handle race condition: if the source module was disposed by HMR but an
+  // in-flight request is still using old accessor functions that reference it,
+  // try to "upgrade" to use the current valid module instead of continuing
+  // with the disposed module's context.
   if (!sourceModule.hot.active) {
-    console.warn(
-      `Unexpected import of module ${id} from module ${sourceModule.id}, which was deleted by an HMR update`
-    )
+    // Check if there's a newer version of the source module in the cache
+    const currentSourceModule = devModuleCache[sourceModule.id]
+    if (currentSourceModule && currentSourceModule.hot.active) {
+      // There's a valid newer version - use it instead
+      sourceModule = currentSourceModule
+    }
+    // If no valid replacement found, continue with the disposed module
+    // and let normal error handling take over if needed
   }
 
   const module = devModuleCache[id]
@@ -531,6 +572,7 @@ function getOrInstantiateRuntimeModule(
   moduleId: ModuleId
 ): HotModule {
   const module = devModuleCache[moduleId]
+
   if (module) {
     if (module.error) {
       throw module.error
@@ -563,8 +605,7 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
     disposeHandler(data)
   }
 
-  // This used to warn in `getOrInstantiateModuleFromParent` when a disposed
-  // module is still importing other modules.
+  // Mark module as inactive so imports from it can be detected
   module.hot.active = false
 
   moduleHotState.delete(module)
@@ -778,12 +819,47 @@ function computeOutdatedSelfAcceptedModules(
 function disposePhase(outdatedModules: Iterable<ModuleId>): {
   outdatedModuleParents: Map<ModuleId, Array<ModuleId>>
 } {
+  // Collect all module IDs to dispose, including related variants
+  const modulesToDispose = new Set<ModuleId>()
+
   for (const moduleId of outdatedModules) {
+    modulesToDispose.add(moduleId)
+    const idStr = moduleId as string
+
+    // If this is a <locals> variant, also dispose the non-locals version
+    // Pattern: "...path [app-rsc] (ecmascript) <locals>" -> "...path [app-rsc] (ecmascript)"
+    if (idStr.endsWith(' <locals>')) {
+      const nonLocalsId = idStr.slice(0, -9) // Remove " <locals>"
+      modulesToDispose.add(nonLocalsId as ModuleId)
+    }
+
+    // Also dispose variants of the EXACT SAME module with different context annotations
+    // e.g., if we're disposing "path/page.tsx [app-rsc] (ecmascript)", also dispose
+    // "path/page.tsx [app-rsc] (ecmascript, Next.js Server Component)"
+    // But NOT different modules like "path/db.ts [app-rsc] (ecmascript)"
+    const contextStart = idStr.indexOf(' [app-')
+    if (contextStart !== -1) {
+      const exactBasePath = idStr.substring(0, contextStart)
+      // Find all cached modules with the EXACT SAME file path (not just prefix)
+      for (const cachedId of Object.keys(devModuleCache)) {
+        const cachedContextStart = cachedId.indexOf(' [app-')
+        if (cachedContextStart !== -1) {
+          const cachedBasePath = cachedId.substring(0, cachedContextStart)
+          // Only dispose if the base path matches EXACTLY
+          if (cachedBasePath === exactBasePath) {
+            modulesToDispose.add(cachedId as ModuleId)
+          }
+        }
+      }
+    }
+  }
+
+  for (const moduleId of modulesToDispose) {
     disposeModule(moduleId, 'replace')
   }
 
   const outdatedModuleParents = new Map<ModuleId, Array<ModuleId>>()
-  for (const moduleId of outdatedModules) {
+  for (const moduleId of modulesToDispose) {
     const oldModule = devModuleCache[moduleId]
     outdatedModuleParents.set(moduleId, oldModule?.parents || [])
     delete devModuleCache[moduleId]
@@ -801,9 +877,16 @@ function applyPhase(
   outdatedModuleParents: Map<ModuleId, Array<ModuleId>>,
   reportError: (err: any) => void
 ) {
-  // Update module factories
+  // Update module factories for the primary module IDs
   for (const [moduleId, factory] of newModuleFactories.entries()) {
     moduleFactories.set(moduleId, factory)
+
+    // Also update factories for related module IDs (variants without <locals>)
+    const idStr = moduleId as string
+    if (idStr.endsWith(' <locals>')) {
+      const nonLocalsId = idStr.slice(0, -9) // Remove " <locals>"
+      moduleFactories.set(nonLocalsId as ModuleId, factory)
+    }
   }
 
   // Re-instantiate all outdated self-accepted modules
@@ -911,7 +994,34 @@ function applyEcmascriptMergedUpdate(update: EcmascriptMergedUpdate): boolean {
   try {
     const { outdatedModules, newModuleFactories } =
       computeOutdatedModules(modified)
+
+    // We need to clear the chunk cache so that chunk loader accessor functions
+    // get fresh closures. The chunks contain inline code that creates accessor
+    // functions which close over module contexts. Without clearing, those
+    // accessors would still reference disposed modules.
+    //
+    // However, clearing the cache means chunks will be reloaded from disk when
+    // the bundle is re-required. Those disk chunks may have old code and will
+    // call moduleFactories.set() with their factories, potentially overwriting
+    // our HMR-applied factories.
+    //
+    // To handle this, we store the HMR factories and re-apply them after
+    // applyInternal completes, ensuring HMR factories take precedence.
+    clearChunkCache()
+
+    // Store the HMR factories so we can restore them if chunks overwrite them
+    const hmrFactories = new Map<ModuleId, ModuleFactory>()
+    for (const [moduleId, factory] of newModuleFactories) {
+      hmrFactories.set(moduleId, factory)
+    }
+
     applyInternal(outdatedModules, newModuleFactories)
+
+    // After applying, re-set the HMR factories in case chunks overwrote them
+    // This ensures HMR factories always take precedence over chunk factories
+    for (const [moduleId, factory] of hmrFactories) {
+      moduleFactories.set(moduleId, factory)
+    }
     return true
   } catch (err) {
     if (err instanceof UpdateApplyError) {
