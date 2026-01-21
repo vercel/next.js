@@ -1105,6 +1105,7 @@ fn generate_collection_field_accessors(
 ) -> TokenStream {
     let ref_name = field.ref_ident();
     let mut_name = field.mut_ident();
+    let take_name = field.take_ident();
 
     if field.is_inline() {
         // Inline: direct field access
@@ -1115,6 +1116,10 @@ fn generate_collection_field_accessors(
 
             fn #mut_name(&mut self) -> &mut #field_type {
                 &mut self.#field_name
+            }
+
+            fn #take_name(&mut self) -> #field_type {
+                std::mem::take(&mut self.#field_name)
             }
         }
     } else {
@@ -1134,6 +1139,13 @@ fn generate_collection_field_accessors(
                     #matches_closure,
                     #unwrap_closure,
                     || #constructor,
+                )
+            }
+
+            fn #take_name(&mut self) -> Option<#field_type> {
+                self.take_lazy(
+                    #matches_closure,
+                    #unwrap_closure,
                 )
             }
         }
@@ -1382,8 +1394,8 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
     // We don't allow direct mutable access to persistent fields because it can interfere with
     // mutation tracking and snapshotting
     let get_mut_accessor = {
-        let get_mut_name = field.get_mut_ident();
         if field.is_transient() {
+            let get_mut_name = field.get_mut_ident();
             if field.is_inline() {
                 // For inline fields, access the field directly
                 let field_name = &field.field_name;
@@ -1915,6 +1927,7 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     let insert_entry_name = field.infixed_ident("insert", "entry");
     let remove_entry_name = field.infixed_ident("remove", "entry");
     let iter_entries_name = field.infixed_ident("iter", "entries");
+    let take_name = field.prefixed_ident("take");
     let len_name = field.len_ident();
     let is_empty_name = field.is_empty_ident();
 
@@ -1947,6 +1960,11 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
         quote! { #ref_expr.is_none_or(|m| m.is_empty()) }
     } else {
         quote! { #ref_expr.is_empty() }
+    };
+
+    let take_expression = {
+        let take_name = field.take_ident();
+        quote! {self.typed_mut().#take_name();}
     };
 
     // Generate remove body - for lazy fields, avoid allocation if map doesn't exist.
@@ -1997,6 +2015,18 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
         fn #remove_entry_name(&mut self, key: &#key_type) -> Option<#value_type> {
             #check_access
             #remove_body
+        }
+
+
+        #[doc = "Remove the full map and return it"]
+        #[doc = "Only tracks modification if an entry was actually removed."]
+        fn #take_name(&mut self) -> Option<#field_type> {
+            #check_access
+            let value = #take_expression;
+            if value.is_some() {
+                #track_modification
+            }
+            value
         }
 
         #[doc = "Iterate over all key-value pairs in the map"]

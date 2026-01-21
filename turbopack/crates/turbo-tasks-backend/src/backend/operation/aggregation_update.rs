@@ -366,9 +366,9 @@ impl AggregatedDataUpdate {
                 .get_aggregated_current_session_clean_container_count()
                 .copied()
                 .unwrap_or_default();
-            for (collectible, count) in task.iter_aggregated_collectibles() {
-                if count > 0 {
-                    collectibles_update.push((collectible, 1));
+            for (collectible, count) in task.iter_aggregated_collectibles_entries() {
+                if *count > 0 {
+                    collectibles_update.push((*collectible, 1));
                 }
             }
         }

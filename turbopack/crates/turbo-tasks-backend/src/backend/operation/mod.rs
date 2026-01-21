@@ -16,8 +16,8 @@ use std::{
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    CellId, FxIndexMap, SharedReference, TaskExecutionReason, TaskId, TaskPriority,
-    TurboTasksBackendApi, TypedSharedReference,
+    CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
+    TypedSharedReference,
 };
 
 use crate::{
@@ -27,7 +27,7 @@ use crate::{
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     backing_storage::{BackingStorage, BackingStorageSealed},
-    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressCellState, InProgressState},
+    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState},
 };
 
 pub trait Operation:
@@ -889,41 +889,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         self.iter_aggregated_collectibles_positive_entries()
             .map(|(&k, &v)| (k, v))
     }
-
-    /// Iterate over all cell data entries
-    fn iter_cell_data(&self) -> impl Iterator<Item = CellId> + '_ {
-        self.iter_cell_data_entries().map(|(&k, _)| k)
-    }
-
-    /// Iterate over all transient cell data entries
-    fn iter_transient_cell_data(&self) -> impl Iterator<Item = CellId> + '_ {
-        self.iter_transient_cell_data_entries().map(|(&k, _)| k)
-    }
-
-    // ============ Extract-If APIs ============
-    // These remove items matching the predicate from the typed storage
-
-    /// Remove cell data matching the predicate.
-    /// Removed values are appended to `removed_data` for deferred dropping outside critical
-    /// sections.
-    fn remove_cell_data_if<F>(&mut self, f: F, removed_data: &mut Vec<SharedReference>)
-    where
-        F: FnMut(&CellId) -> bool;
-
-    /// Remove transient cell data matching the predicate.
-    /// Removed values are appended to `removed_data` for deferred dropping outside critical
-    /// sections.
-    fn remove_transient_cell_data_if<F>(&mut self, f: F, removed_data: &mut Vec<SharedReference>)
-    where
-        F: FnMut(&CellId) -> bool;
-
-    /// Remove in-progress cells matching the predicate, notifying waiters.
-    fn remove_in_progress_cells_if<F>(&mut self, f: F)
-    where
-        F: FnMut(&CellId, &InProgressCellState) -> bool;
-
-    // ============ Memory Management APIs ============
-    // shrink_to_fit is provided by the TaskStorageAccessors trait
 }
 
 pub struct TaskGuardImpl<'a, B: BackingStorage> {
@@ -991,60 +956,6 @@ impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
 impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     fn id(&self) -> TaskId {
         self.task_id
-    }
-
-    fn remove_cell_data_if<F>(&mut self, mut f: F, removed_data: &mut Vec<SharedReference>)
-    where
-        F: FnMut(&CellId) -> bool,
-    {
-        // Collect items to remove first, then remove them
-        let to_remove: Vec<_> = self
-            .iter_cell_data_entries()
-            .filter_map(|(cell, _)| f(cell).then_some(*cell))
-            .collect();
-
-        for cell in to_remove {
-            if let Some(data) = self.remove_cell_data_entry(&cell) {
-                removed_data.push(data.into_untyped());
-            }
-        }
-    }
-
-    fn remove_transient_cell_data_if<F>(
-        &mut self,
-        mut f: F,
-        removed_data: &mut Vec<SharedReference>,
-    ) where
-        F: FnMut(&CellId) -> bool,
-    {
-        // Collect items to remove first, then remove them
-        let to_remove: Vec<_> = self
-            .iter_transient_cell_data_entries()
-            .filter_map(|(cell, _)| f(cell).then_some(*cell))
-            .collect();
-
-        for cell in to_remove {
-            if let Some(data) = self.remove_transient_cell_data_entry(&cell) {
-                removed_data.push(data);
-            }
-        }
-    }
-
-    fn remove_in_progress_cells_if<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&CellId, &InProgressCellState) -> bool,
-    {
-        // Collect items to remove first, then remove them
-        let to_remove: Vec<_> = self
-            .in_progress_cells()
-            .into_iter()
-            .flat_map(|m| m.iter())
-            .filter_map(|(cell, state)| f(cell, state).then_some(*cell))
-            .collect();
-
-        for cell in to_remove {
-            self.remove_in_progress_cells_entry(&cell);
-        }
     }
 
     fn invalidate_serialization(&mut self) {

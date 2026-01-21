@@ -2363,11 +2363,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task.set_immutable(true);
         }
 
-        // Notify in progress cells and remove them
-        task.remove_in_progress_cells_if(|_cell, state| {
+        // Notify in progress cells and remove all of them
+        for (_cell, state) in task
+            .take_in_progress_cells()
+            .into_iter()
+            .flat_map(|m| m.into_iter())
+        {
             state.event.notify(usize::MAX);
-            true // Remove all in-progress cells
-        });
+        }
 
         // Grab the old dirty state
         let old_dirtyness = task.get_dirty().cloned();
@@ -2488,35 +2491,39 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if !is_error {
             // Remove no longer existing cells and
             // find all outdated data items (removed cells, outdated edges)
-            // Note: For persistent tasks we only want to call extract_if when there are actual
-            // cells to remove to avoid tracking that as modification.
             // Note: We do not mark the tasks as dirty here, as these tasks are unused or stale
             // anyway and we want to avoid needless re-executions. When the cells become
             // used again, they are invalidated from the update cell operation.
-            let is_cell_unused = |cell: CellId| {
-                cell_counters
-                    .get(&cell.type_id)
-                    .is_none_or(|start_index| cell.index >= *start_index)
-            };
-            if task_id.is_transient() || task.iter_cell_data().any(is_cell_unused) {
-                task.remove_cell_data_if(
-                    |cell| {
-                        cell_counters
-                            .get(&cell.type_id)
-                            .is_none_or(|start_index| cell.index >= *start_index)
-                    },
-                    removed_data,
-                );
+            // Remove cell data for cells that no longer exist
+            let to_remove: Vec<_> = task
+                .iter_cell_data_entries()
+                .filter_map(|(cell, _)| {
+                    cell_counters
+                        .get(&cell.type_id)
+                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .then_some(*cell)
+                })
+                .collect();
+            for cell in to_remove {
+                if let Some(data) = task.remove_cell_data_entry(&cell) {
+                    removed_data.push(data.into_untyped());
+                }
             }
-            if task_id.is_transient() || task.iter_transient_cell_data().any(is_cell_unused) {
-                task.remove_transient_cell_data_if(
-                    |cell| {
-                        cell_counters
-                            .get(&cell.type_id)
-                            .is_none_or(|start_index| cell.index >= *start_index)
-                    },
-                    removed_data,
-                );
+
+            // Remove transient cell data for cells that no longer exist
+            let to_remove: Vec<_> = task
+                .iter_transient_cell_data_entries()
+                .filter_map(|(cell, _)| {
+                    cell_counters
+                        .get(&cell.type_id)
+                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .then_some(*cell)
+                })
+                .collect();
+            for cell in to_remove {
+                if let Some(data) = task.remove_transient_cell_data_entry(&cell) {
+                    removed_data.push(data);
+                }
             }
         }
 
@@ -2672,7 +2679,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 );
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
-            for (collectible, _count) in task.iter_aggregated_collectibles() {
+            for (collectible, _count) in task.iter_aggregated_collectibles_positive_entries() {
                 if collectible.collectible_type == collectible_type {
                     *collectibles
                         .entry(RawVc::TaskCell(
