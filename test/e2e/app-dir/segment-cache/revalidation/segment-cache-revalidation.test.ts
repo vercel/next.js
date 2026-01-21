@@ -295,9 +295,17 @@ describe('segment cache (revalidation)', () => {
       // target route has changed.
       //
       // This time, the response does include the content for page A.
-      {
-        includes: 'Page A content',
-      }
+      //
+      // TODO: The request is actually skipped entirely because <Link
+      // prefetch={true} /> now reads from the bfcache before issuing a prefetch
+      // request, which wasn't true before the test was written. I'm leaving
+      // the test here for now, though, since we may want to re-write it in
+      // terms of runtime prefetching at some point. There's other coverage of
+      // this behavior though so it might be fine to just remove the whole test.
+      // {
+      //   includes: 'Page A content',
+      // }
+      'no-requests'
     )
 
     // Navigate to page A

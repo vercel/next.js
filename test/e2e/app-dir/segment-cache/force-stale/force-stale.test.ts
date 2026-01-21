@@ -54,4 +54,46 @@ describe('force stale', () => {
       expect(await content.text()).toBe('Dynamic page content')
     }
   )
+
+  it(
+    'during a "full" prefetch, read from bfcache before issuing new ' +
+      'prefetch request',
+    async () => {
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      // Navigate to the dynamic page using the link without prefetch.
+      // This will fetch the page data and store it in the bfcache.
+      await act(
+        async () => {
+          const link = await browser.elementById('link-without-prefetch')
+          await link.click()
+        },
+        {
+          includes: 'Dynamic page content',
+        }
+      )
+
+      // Navigate back to the home page
+      await browser.back()
+
+      // Now reveal a link with prefetch={true} to the same page. Because we've
+      // already navigated to this page, the data should be in the bfcache.
+      // The prefetch should reuse the bfcache data instead of making a new
+      // request to the server.
+      await act(
+        async () => {
+          const toggleLinkVisibility = await browser.elementByCss(
+            'input[data-link-accordion="/dynamic"]'
+          )
+          await toggleLinkVisibility.click()
+        },
+        { includes: 'Dynamic page content', block: 'reject' }
+      )
+    }
+  )
 })

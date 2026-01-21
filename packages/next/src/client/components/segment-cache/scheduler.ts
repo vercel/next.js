@@ -25,6 +25,7 @@ import {
   waitForSegmentCacheEntry,
   overwriteRevalidatingSegmentCacheEntry,
   canNewFetchStrategyProvideMoreContent,
+  attemptToFulfillDynamicSegmentFromBFCache,
 } from './cache'
 import { getSegmentVaryPathForRequest, type SegmentVaryPath } from './vary-path'
 import type { RouteCacheKey } from './cache-key'
@@ -1269,7 +1270,20 @@ function pingRouteTreeAndIncludeDynamicData(
 
   switch (segment.status) {
     case EntryStatus.Empty: {
-      // This segment is not cached. Include it in the request.
+      // This segment is not cached.
+      if (fetchStrategy === FetchStrategy.Full) {
+        // Check if there's a matching entry in the bfcache. If so, fulfill the
+        // segment using the bfcache entry instead of issuing a new request.
+        const fulfilled = attemptToFulfillDynamicSegmentFromBFCache(
+          now,
+          segment,
+          tree
+        )
+        if (fulfilled !== null) {
+          break
+        }
+      }
+      // Include it in the request.
       spawnedSegment = upgradeToPendingSegment(segment, fetchStrategy)
       break
     }
