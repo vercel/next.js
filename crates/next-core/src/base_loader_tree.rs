@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
