@@ -679,16 +679,17 @@ function createOptimisticRouteTree(
 export function readOrCreateSegmentCacheEntry(
   now: number,
   fetchStrategy: FetchStrategy,
-  route: FulfilledRouteCacheEntry,
   tree: RouteTree
 ): SegmentCacheEntry {
   const existingEntry = readSegmentCacheEntry(now, tree.varyPath)
   if (existingEntry !== null) {
     return existingEntry
   }
-  // Create a pending entry and add it to the cache.
+  // Create a pending entry and add it to the cache. The stale time is set to a
+  // default value; the actual stale time will be set when the entry is
+  // fulfilled with data from the server response.
   const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
-  const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
+  const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = false
   setInCacheMap(
     segmentCacheMap,
@@ -702,7 +703,6 @@ export function readOrCreateSegmentCacheEntry(
 export function readOrCreateRevalidatingSegmentEntry(
   now: number,
   fetchStrategy: FetchStrategy,
-  route: FulfilledRouteCacheEntry,
   tree: RouteTree
 ): SegmentCacheEntry {
   // This function is called when we've already confirmed that a particular
@@ -736,9 +736,11 @@ export function readOrCreateRevalidatingSegmentEntry(
   if (existingEntry !== null) {
     return existingEntry
   }
-  // Create a pending entry and add it to the cache.
+  // Create a pending entry and add it to the cache. The stale time is set to a
+  // default value; the actual stale time will be set when the entry is
+  // fulfilled with data from the server response.
   const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
-  const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
+  const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(
     segmentCacheMap,
@@ -750,15 +752,17 @@ export function readOrCreateRevalidatingSegmentEntry(
 }
 
 export function overwriteRevalidatingSegmentCacheEntry(
+  now: number,
   fetchStrategy: FetchStrategy,
-  route: FulfilledRouteCacheEntry,
   tree: RouteTree
 ) {
   // This function is called when we've already decided to replace an existing
   // revalidation entry. Create a new entry and write it into the cache,
-  // overwriting the previous value.
+  // overwriting the previous value. The stale time is set to a default value;
+  // the actual stale time will be set when the entry is fulfilled with data
+  // from the server response.
   const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
-  const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
+  const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(
     segmentCacheMap,
@@ -824,8 +828,11 @@ export function upsertSegmentEntry(
 }
 
 export function createDetachedSegmentCacheEntry(
-  staleAt: number
+  now: number
 ): EmptySegmentCacheEntry {
+  // Default stale time for pending segment cache entries. The actual stale time
+  // is set when the entry is fulfilled with data from the server response.
+  const staleAt = now + 30 * 1000
   const emptyEntry: EmptySegmentCacheEntry = {
     status: EntryStatus.Empty,
     // Default to assuming the fetch strategy will be PPR. This will be updated
@@ -1765,13 +1772,12 @@ export async function fetchSegmentOnCacheMiss(
       rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
       return null
     }
+    const staleAt = Date.now() + getStaleTimeMs(serverData.staleTime)
     return {
       value: fulfillSegmentCacheEntry(
         segmentCacheEntry,
         serverData.rsc,
-        // TODO: The server does not currently provide per-segment stale time.
-        // So we use the stale time of the route.
-        route.staleAt,
+        staleAt,
         serverData.isPartial
       ),
       // Return a promise that resolves when the network connection closes, so
@@ -2105,7 +2111,6 @@ function writeDynamicRenderResponseIntoCache(
         now,
         task,
         fetchStrategy,
-        route,
         tree,
         staleAt,
         seedData,
@@ -2119,7 +2124,6 @@ function writeDynamicRenderResponseIntoCache(
       fulfillEntrySpawnedByRuntimePrefetch(
         now,
         fetchStrategy,
-        route,
         head,
         flightData.isHeadPartial,
         staleAt,
@@ -2153,7 +2157,6 @@ function writeSeedDataIntoCache(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  route: FulfilledRouteCacheEntry,
   tree: RouteTree,
   staleAt: number,
   seedData: CacheNodeSeedData,
@@ -2170,7 +2173,6 @@ function writeSeedDataIntoCache(
   fulfillEntrySpawnedByRuntimePrefetch(
     now,
     fetchStrategy,
-    route,
     rsc,
     isPartial,
     staleAt,
@@ -2191,7 +2193,6 @@ function writeSeedDataIntoCache(
           now,
           task,
           fetchStrategy,
-          route,
           childTree,
           staleAt,
           childSeedData,
@@ -2209,7 +2210,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  route: FulfilledRouteCacheEntry,
   rsc: React.ReactNode,
   isPartial: boolean,
   staleAt: number,
@@ -2233,7 +2233,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     const possiblyNewEntry = readOrCreateSegmentCacheEntry(
       now,
       fetchStrategy,
-      route,
       tree
     )
     if (possiblyNewEntry.status === EntryStatus.Empty) {
@@ -2250,7 +2249,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       // replace it with the new one from the server.
       const newEntry = fulfillSegmentCacheEntry(
         upgradeToPendingSegment(
-          createDetachedSegmentCacheEntry(staleAt),
+          createDetachedSegmentCacheEntry(now),
           fetchStrategy
         ),
         rsc,
