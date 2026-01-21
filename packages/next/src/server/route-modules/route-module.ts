@@ -639,7 +639,7 @@ export abstract class RouteModule<
     // When there are hostname and port we build an absolute URL
     if (!getRequestMeta(req, 'initURL')) {
       const initUrl = serverFilesManifest?.config.experimental.trustHostHeader
-        ? `https://${req.headers.host || 'localhost'}${req.url}`
+        ? `${protocol}://${req.headers.host || 'localhost'}${req.url}`
         : req.url
 
       addRequestMeta(req, 'initURL', initUrl)
@@ -836,8 +836,14 @@ export abstract class RouteModule<
         params &&
         paramsResult.hasValidParams &&
         queryResult.hasValidParams &&
-        Object.keys(paramsResult.params).length <=
-          Object.keys(queryResult.params).length
+        (Object.keys(paramsResult.params).length <
+          Object.keys(queryResult.params).length ||
+          // in minimal mode favor query if both provided
+          // same amount of info as query provides params
+          // from routing that can be more accurate
+          (getRequestMeta(req, 'minimalMode') &&
+            Object.keys(paramsResult.params).length <=
+              Object.keys(queryResult.params).length))
       ) {
         paramsToInterpolate = queryResult.params
         params = Object.assign(queryResult.params)
@@ -937,9 +943,9 @@ export abstract class RouteModule<
     }
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { installProcessErrorHandlers } = await import(
-        '../node-environment-extensions/process-error-handlers'
-      )
+      const { installProcessErrorHandlers } =
+        require('../node-environment-extensions/process-error-handlers') as typeof import('../node-environment-extensions/process-error-handlers')
+
       installProcessErrorHandlers(
         Boolean(
           nextConfig.experimental.removeUncaughtErrorAndRejectionListeners

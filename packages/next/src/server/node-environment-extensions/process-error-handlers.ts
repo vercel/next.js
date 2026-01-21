@@ -1,12 +1,14 @@
 import { isPostpone } from '../lib/router-utils/is-postpone'
 
-let initialized = false
+let _global = globalThis as typeof globalThis & {
+  nextInitializedProcessErrorHandlers?: boolean
+}
 
 export function installProcessErrorHandlers(
   shouldRemoveUncaughtErrorAndRejectionListeners: boolean
 ) {
-  if (initialized) return
-  initialized = true
+  if (_global.nextInitializedProcessErrorHandlers) return
+  _global.nextInitializedProcessErrorHandlers = true
   // The conventional wisdom of Node.js and other runtimes is to treat
   // unhandled errors as fatal and exit the process.
   //
