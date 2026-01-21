@@ -30,7 +30,7 @@ describe('favicon-short-circuit', () => {
 
       // Expect we got the right body.
       const html = await res.text()
-      expect(html).toContain('<html>')
+      expect(html).toContain('<html')
     })
   }
 })
