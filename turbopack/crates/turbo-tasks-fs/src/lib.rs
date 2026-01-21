@@ -127,53 +127,52 @@ pub const MAX_SAFE_FILE_NAME_LENGTH: usize = 200;
 pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
     /// Here we check if the path is too long for windows, and if so, attempt to canonicalize it
     /// to a UNC path.
-    #[cfg(windows)]
     fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
-        const MAX_PATH_LENGTH_WINDOWS: usize = 260;
-        const UNC_PREFIX: &str = "\\\\?\\";
+        if cfg!(windows) {
+            const MAX_PATH_LENGTH_WINDOWS: usize = 260;
+            const UNC_PREFIX: &str = "\\\\?\\";
 
-        if path.starts_with(UNC_PREFIX) {
-            return Ok(path.into());
+            if path.starts_with(UNC_PREFIX) {
+                return Ok(path.into());
+            }
+
+            if path.as_os_str().len() > MAX_PATH_LENGTH_WINDOWS {
+                let new_path = std::fs::canonicalize(path).map_err(|err| {
+                    anyhow!(err).context("file is too long, and could not be normalized")
+                })?;
+                return Ok(new_path.into());
+            }
+
+            Ok(path.into())
+        } else {
+            /// here we are only going to check if the total length exceeds, or the last segment
+            /// exceeds. This heuristic is primarily to avoid long file names, and it makes the
+            /// operation much cheaper.
+            const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
+            // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
+            // so we subtract a bit to be safe. on most linux distros this is likely a lot larger
+            // than 1024, but macOS is *special*
+            const MAX_PATH_LENGTH: usize = 1024 - 8;
+
+            // check the last segment (file name)
+            if path
+                .file_name()
+                .map(|n| n.as_encoded_bytes().len())
+                .unwrap_or(0)
+                > MAX_FILE_NAME_LENGTH_UNIX
+            {
+                anyhow::bail!(
+                    "file name is too long (exceeds {} bytes)",
+                    MAX_FILE_NAME_LENGTH_UNIX,
+                );
+            }
+
+            if path.as_os_str().len() > MAX_PATH_LENGTH {
+                anyhow::bail!("path is too long (exceeds {MAX_PATH_LENGTH} bytes)");
+            }
+
+            Ok(path.into())
         }
-
-        if path.as_os_str().len() > MAX_PATH_LENGTH_WINDOWS {
-            let new_path = std::fs::canonicalize(path)
-                .map_err(|_| anyhow!("file is too long, and could not be normalized"))?;
-            return Ok(new_path.into());
-        }
-
-        Ok(path.into())
-    }
-
-    /// Here we are only going to check if the total length exceeds, or the last segment exceeds.
-    /// This heuristic is primarily to avoid long file names, and it makes the operation much
-    /// cheaper.
-    #[cfg(not(windows))]
-    fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
-        const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
-        // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
-        // so we subtract a bit to be safe. on most linux distros this is likely a lot larger than
-        // 1024, but macOS is *special*
-        const MAX_PATH_LENGTH: usize = 1024 - 8;
-
-        // check the last segment (file name)
-        if path
-            .file_name()
-            .map(|n| n.as_encoded_bytes().len())
-            .unwrap_or(0)
-            > MAX_FILE_NAME_LENGTH_UNIX
-        {
-            anyhow::bail!(
-                "file name is too long (exceeds {} bytes)",
-                MAX_FILE_NAME_LENGTH_UNIX,
-            );
-        }
-
-        if path.as_os_str().len() > MAX_PATH_LENGTH {
-            anyhow::bail!("path is too long (exceeds {MAX_PATH_LENGTH} bytes)");
-        }
-
-        Ok(path.into())
     }
 
     validate_path_length_inner(path)
