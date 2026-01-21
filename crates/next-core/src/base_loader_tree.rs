@@ -115,7 +115,10 @@ impl BaseLoaderTreeBuilder {
         self.inner_assets
             .insert(format!("MODULE_{i}").into(), module);
 
-        let module_path = module.ident().path().to_string().await?;
+        // Use the original source path, not the transformed module path.
+        // This is important for MDX files where page.mdx becomes page.mdx.tsx after
+        // transformation, but the font manifest uses the original source path.
+        let module_path = path.value_to_string().await?;
 
         Ok(format!(
             "[{identifier}, {path}]",
