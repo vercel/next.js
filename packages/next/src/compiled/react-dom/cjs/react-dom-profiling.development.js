@@ -123,18 +123,12 @@
       );
     }
     function getNearestMountedFiber(fiber) {
-      var node = fiber,
-        nearestMounted = fiber;
-      if (fiber.alternate) for (; node.return; ) node = node.return;
-      else {
-        fiber = node;
-        do
-          (node = fiber),
-            0 !== (node.flags & 4098) && (nearestMounted = node.return),
-            (fiber = node.return);
-        while (fiber);
-      }
-      return 3 === node.tag ? nearestMounted : null;
+      for (var node = fiber, nextNode = node; nextNode && !nextNode.alternate; )
+        (node = nextNode),
+          0 !== (node.flags & 4098) && (fiber = node.return),
+          (nextNode = node.return);
+      for (; node.return; ) node = node.return;
+      return 3 === node.tag ? fiber : null;
     }
     function getSuspenseInstanceFromFiber(fiber) {
       if (13 === fiber.tag) {
@@ -30486,11 +30480,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-d2908752-20260119" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-b546603b-20260121" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-d2908752-20260119\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-b546603b-20260121\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -30527,10 +30521,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-canary-d2908752-20260119",
+          version: "19.3.0-canary-b546603b-20260121",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-canary-d2908752-20260119"
+          reconcilerVersion: "19.3.0-canary-b546603b-20260121"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -30998,7 +30992,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-canary-d2908752-20260119";
+    exports.version = "19.3.0-canary-b546603b-20260121";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
