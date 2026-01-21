@@ -695,8 +695,9 @@ ${ENDGROUP}`)
       console.error(`${test.file} failed to pass within ${numRetries} retries`)
     }
 
-    // Emit test output, parsed by the commenter webhook to notify about failing tests
-    if (!passed && isTestJob) {
+    // Emit test output, parsed by the commenter webhook to notify about failing tests.
+    // Also emit for all tests when NEXT_TEST_EMIT_ALL_OUTPUT is set (for manifest generation).
+    if ((!passed || process.env.NEXT_TEST_EMIT_ALL_OUTPUT) && isTestJob) {
       try {
         const testsOutput = await fsp.readFile(
           `${test.file}${RESULTS_EXT}`,
