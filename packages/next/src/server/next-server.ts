@@ -129,6 +129,7 @@ import {
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
 import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
+import { installProcessErrorHandlers } from './node-environment-extensions/process-error-handlers'
 
 export * from './base-server'
 
@@ -275,6 +276,11 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.isExperimentalCompile) {
       populateStaticEnv(this.nextConfig, this.deploymentId || '')
     }
+
+    const shouldRemoveUncaughtErrorAndRejectionListeners = Boolean(
+      options.conf.experimental?.removeUncaughtErrorAndRejectionListeners
+    )
+    installProcessErrorHandlers(shouldRemoveUncaughtErrorAndRejectionListeners)
   }
 
   public async unstable_preloadEntries(): Promise<void> {
