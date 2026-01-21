@@ -2580,6 +2580,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task.shrink_to_fit(CachedDataItemType::CellDependency);
         task.shrink_to_fit(CachedDataItemType::OutputDependency);
         task.shrink_to_fit(CachedDataItemType::CollectiblesDependency);
+        task.shrink_to_fit(CachedDataItemType::OutdatedOutputDependency);
+        task.shrink_to_fit(CachedDataItemType::OutdatedCellDependency);
+        task.shrink_to_fit(CachedDataItemType::OutdatedCollectiblesDependency);
+        task.shrink_to_fit(CachedDataItemType::OutdatedCollectible);
 
         drop(task);
     }
