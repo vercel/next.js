@@ -2420,7 +2420,7 @@ impl AggregationUpdateQueue {
         if let Some(task_type) = task_type
             && !task.has_persistent_task_type()
         {
-            let _ = task.set_persistent_task_type(Arc::from(task_type));
+            let _ = task.set_persistent_task_type(task_type);
         }
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
