@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js"],"sourcesContent":["console.log('worker.js')\nself.postMessage('hello')\n"],"names":["console","log","self","postMessage"],"mappings":"AAAAA,QAAQC,GAAG,CAAC;AACZC,KAAKC,WAAW,CAAC"}}]
+}

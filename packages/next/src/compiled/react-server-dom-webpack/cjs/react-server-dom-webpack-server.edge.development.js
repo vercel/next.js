@@ -2491,8 +2491,8 @@
             return renderModelDestructive(
               request,
               task,
-              emptyRoot,
-              "",
+              parent,
+              parentPropertyName,
               elementReference
             );
           case REACT_LEGACY_ELEMENT_TYPE:
@@ -5263,10 +5263,10 @@
         },
         useCacheRefresh: function () {
           return unsupportedRefresh;
-        }
-      };
-    HooksDispatcher.useEffectEvent = unsupportedHook;
-    var currentOwner = null,
+        },
+        useEffectEvent: unsupportedHook
+      },
+      currentOwner = null,
       DefaultAsyncDispatcher = {
         getCacheForType: function (resourceType) {
           var cache = (cache = resolveRequest()) ? cache.cache : new Map();

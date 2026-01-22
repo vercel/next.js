@@ -83,6 +83,13 @@ impl OutputAssets {
     }
 
     #[turbo_tasks::function]
+    pub async fn concat_asset(&self, asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vc<Self>> {
+        let mut assets: FxIndexSet<_> = self.0.iter().copied().collect();
+        assets.extend([asset]);
+        Ok(Vc::cell(assets.into_iter().collect()))
+    }
+
+    #[turbo_tasks::function]
     pub async fn concat(other: Vec<Vc<Self>>) -> Result<Vc<Self>> {
         let mut assets: FxIndexSet<_> = FxIndexSet::default();
         for other in other {
@@ -161,22 +168,32 @@ impl OutputAssetsWithReferenced {
 
     #[turbo_tasks::function]
     pub async fn concatenate(&self, other: Vc<Self>) -> Result<Vc<Self>> {
+        let other = other.await?;
         Ok(Self {
-            assets: self
-                .assets
-                .concatenate(*other.await?.assets)
-                .to_resolved()
-                .await?,
+            assets: self.assets.concatenate(*other.assets).to_resolved().await?,
             referenced_assets: self
                 .referenced_assets
-                .concatenate(*other.await?.referenced_assets)
+                .concatenate(*other.referenced_assets)
                 .to_resolved()
                 .await?,
             references: self
                 .references
-                .concatenate(*other.await?.references)
+                .concatenate(*other.references)
                 .to_resolved()
                 .await?,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn concatenate_asset(
+        &self,
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
+    ) -> Result<Vc<Self>> {
+        Ok(Self {
+            assets: self.assets.concat_asset(*asset).to_resolved().await?,
+            referenced_assets: self.referenced_assets,
+            references: self.references,
         }
         .cell())
     }

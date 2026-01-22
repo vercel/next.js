@@ -159,6 +159,11 @@ export interface NapiProjectOptions {
   writeRoutesHashesManifest: boolean
   /** The version of Node.js that is available/currently running. */
   currentNodeJsVersion: RcStr
+  /**
+   * Debug build paths for selective builds.
+   * When set, only routes matching these paths will be included in the build.
+   */
+  debugBuildPaths?: NapiDebugBuildPaths
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -290,6 +295,10 @@ export interface NapiEntrypoints {
   pagesDocumentEndpoint: ExternalObject<ExternalEndpoint>
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
+}
+export interface NapiDebugBuildPaths {
+  app: Array<RcStr>
+  pages: Array<RcStr>
 }
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },

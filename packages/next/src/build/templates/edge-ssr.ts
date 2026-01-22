@@ -114,7 +114,6 @@ async function requestHandler(
     buildManifest,
     prerenderManifest,
     reactLoadableManifest,
-    clientReferenceManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
   } = prepareResult
@@ -168,7 +167,6 @@ async function requestHandler(
       buildManifest,
       subresourceIntegrityManifest,
       reactLoadableManifest,
-      clientReferenceManifest,
       dynamicCssManifest,
     },
   }

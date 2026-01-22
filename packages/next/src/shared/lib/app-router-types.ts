@@ -75,21 +75,29 @@ export type DynamicParamTypesShort =
   | 'di(..)'
   | 'di(...)'
 
-export type Segment =
-  | string
-  | [
-      // Param name
-      paramName: string,
-      // Param cache key (almost the same as the value, but arrays are
-      // concatenated into strings)
-      // TODO: We should change this to just be the value. Currently we convert
-      // it back to a value when passing to useParams. It only needs to be
-      // a string when converted to a a cache key, but that doesn't mean we
-      // need to store it as that representation.
-      paramCacheKey: string,
-      // Dynamic param type
-      dynamicParamType: DynamicParamTypesShort,
-    ]
+// The tuple form of a segment, used for dynamic route params
+export type DynamicSegmentTuple = [
+  // Param name
+  paramName: string,
+  // Param cache key (almost the same as the value, but arrays are
+  // concatenated into strings)
+  // TODO: We should change this to just be the value. Currently we convert
+  // it back to a value when passing to useParams. It only needs to be
+  // a string when converted to a a cache key, but that doesn't mean we
+  // need to store it as that representation.
+  paramCacheKey: string,
+  // Dynamic param type
+  dynamicParamType: DynamicParamTypesShort,
+  // Static sibling segments at the same URL level. Used by the client
+  // router to determine if a prefetch can be reused when navigating to
+  // a static sibling of a dynamic route. For example, if the route is
+  // /products/[id] and there's also /products/sale, then staticSiblings
+  // would be ['sale']. null means the siblings are unknown (e.g. in
+  // webpack dev mode).
+  staticSiblings: readonly string[] | null,
+]
+
+export type Segment = string | DynamicSegmentTuple
 
 /**
  * Router state
