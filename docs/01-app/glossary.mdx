@@ -32,7 +32,7 @@ JavaScript bundles sent to the browser. Next.js splits these automatically based
 
 ## Client Component
 
-A React component that runs in the browser. Client Components can also be rendered on the server during initial page generation. They can use state, effects, event handlers, and browser APIs, and are marked with the [`"use client"` directive](#use-client-directive) at the top of a file. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components).
+A React component that runs in the browser. In Next.js, Client Components can also be rendered on the server during initial page generation. They can use state, effects, event handlers, and browser APIs, and are marked with the [`"use client"` directive](#use-client-directive) at the top of a file. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components).
 
 ## Client-side navigation
 
@@ -91,7 +91,7 @@ React's process of attaching event handlers to the DOM to make server-rendered s
 
 ## Import Aliases
 
-Custom path mappings that provide shorthand references for frequently used directories. Import aliases reduce the complexity of relative imports and make code more readable and maintainable. Learn more in [Absolute Imports and Module Path Aliases](/docs/app/getting-started/installation#set-up-path-aliases).
+Custom path mappings that provide shorthand references for frequently used directories. Import aliases reduce the complexity of relative imports and make code more readable and maintainable. Learn more in [Absolute Imports and Module Path Aliases](/docs/app/getting-started/installation#set-up-absolute-imports-and-module-path-aliases).
 
 ## Incremental Static Regeneration (ISR)
 
@@ -121,7 +121,7 @@ Fallback UI shown while a [route segment](#route-segment) is loading. Created by
 
 ## Module Graph
 
-A graph of file dependencies in your app. Each file (module) is a node, and import/export relationships form the edges. Next.js analyzes this graph to determine optimal bundling and code-splitting strategies. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#moving-client-components-down-the-tree).
+A graph of file dependencies in your app. Each file (module) is a node, and import/export relationships form the edges. Next.js analyzes this graph to determine optimal bundling and code-splitting strategies. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#reducing-js-bundle-size).
 
 ## Metadata
 
@@ -225,7 +225,7 @@ When a component is rendered at [build time](#build-time) or in the background d
 
 ## Static Assets
 
-Files such as images, fonts, videos, and other media that are served directly without processing. Static assets are typically stored in the `public` directory and referenced by their relative paths. Learn more in [Static Assets](/docs/app/getting-started/static-assets).
+Files such as images, fonts, videos, and other media that are served directly without processing. Static assets are typically stored in the `public` directory and referenced by their relative paths. Learn more in [Static Assets](/docs/app/api-reference/file-conventions/public-folder).
 
 ## Static Shell
 
@@ -251,6 +251,14 @@ The process of removing unused code from your JavaScript bundles during the buil
 
 # U
 
+## `"use cache"` Directive
+
+A directive that marks a component or function as cacheable. It can be placed at the top of a file to indicate that all exports in the file are cacheable, or inline at the top of a function or component to mark that specific scope as cacheable. Learn more in the [`"use cache"` reference](/docs/app/api-reference/directives/use-cache).
+
 ## `"use client"` Directive
 
-A special React statement that marks the boundary between server and client code. It must be placed at the top of a file, before any imports or other code. It indicates that React Components, helper functions, variable declarations, and all imported dependencies should be included in the [client bundle](#client-bundles). Learn more in the [`"use client"` reference](/docs/app/api-reference/directives/use-client).
+A special React directive that marks the boundary between server and client code. It must be placed at the top of a file, before any imports or other code. It indicates that React Components, helper functions, variable declarations, and all imported dependencies should be included in the [client bundle](#client-bundles). Learn more in the [`"use client"` reference](/docs/app/api-reference/directives/use-client).
+
+## `"use server"` Directive
+
+A directive that marks a function as a [Server Function](#server-function) that can be called from client-side code. It can be placed at the top of a file to indicate that all exports in the file are Server Functions, or inline at the top of a function to mark that specific function. Learn more in the [`"use server"` reference](/docs/app/api-reference/directives/use-server).
