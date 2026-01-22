@@ -251,6 +251,19 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).not.toContain('○ /about')
         expect(buildResult.cliOutput).not.toContain('○ /dashboard')
       })
+
+      it('should log when pattern matches files', async () => {
+        const buildResult = await next.build({
+          args: [
+            '--debug-build-paths',
+            'app/**/page.tsx,!app/with-type-error/**',
+          ],
+        })
+        expect(buildResult.exitCode).toBe(0)
+        expect(buildResult.cliOutput).toMatch(
+          /Pattern ".*" did match \d+ file\(s\)/
+        )
+      })
     })
 
     describe('typechecking with debug-build-paths', () => {
