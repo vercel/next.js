@@ -46,6 +46,16 @@ reqwest = { workspace = true, features = ["rustls"] }
 reqwest = { workspace = true, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
+# On Linux, we need to add webpki-roots, in case the user is building a bare-bones docker image that
+# does not contain any root certs (e.g. `oven/bun:slim`). See footnote #2 here:
+# https://github.com/rustls/rustls-platform-verifier/tree/93f729c6309680486d33f982e3ba3c42b976f774?tab=readme-ov-file#user-content-fn-3-7402e7116652999a2e8c2860b94080eb
+#
+# It would be more ideal to use the smaller `webpki-roots` crate instead of `webpki-root-certs`, but
+# API limitations of reqwest require us to get the full certificate:
+# https://github.com/seanmonstar/reqwest/discussions/2906#discussioncomment-15483148
+[target.'cfg(target_os = "linux")'.dependencies]
+webpki-root-certs = "1"
+
 # On Windows ARM64, use native-tls because rustls with ring has build issues.
 [target.'cfg(all(windows, target_arch = "aarch64"))'.dependencies]
 reqwest = { workspace = true, features = ["native-tls"] }

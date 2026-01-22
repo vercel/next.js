@@ -268,6 +268,15 @@ export interface LoggingConfig {
    * You can specify a pattern to match incoming requests that should not be logged.
    */
   incomingRequests?: boolean | IncomingRequestLoggingConfig
+
+  /**
+   * Forward browser console logs to terminal.
+   * - `false`: Disable browser log forwarding
+   * - `true`: Forward all browser console output to terminal
+   * - `'warn'`: Forward warnings and errors to terminal
+   * - `'error'`: Forward only errors to terminal
+   */
+  browserToTerminal?: boolean | 'error' | 'warn'
 }
 
 export interface ExperimentalConfig {
@@ -773,6 +782,8 @@ export interface ExperimentalConfig {
    * - `true`: Same as 'verbose' - forward all browser console output to terminal
    * - `false`: Disable browser log forwarding to terminal
    * - Object: Enable with custom configuration
+   *
+   * @deprecated Use `logging.browserToTerminal` instead.
    */
   browserDebugInfoInTerminal?:
     | boolean

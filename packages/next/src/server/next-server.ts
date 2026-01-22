@@ -356,7 +356,7 @@ export default class NextNodeServer extends BaseServer<
     // when using compile mode static env isn't inlined so we
     // need to populate in normal runtime env
     if (this.renderOpts.isExperimentalCompile) {
-      populateStaticEnv(this.nextConfig, this.renderOpts.deploymentId || '')
+      populateStaticEnv(this.nextConfig, this.deploymentId || '')
     }
 
     const shouldRemoveUncaughtErrorAndRejectionListeners = Boolean(
@@ -715,6 +715,7 @@ export default class NextNodeServer extends BaseServer<
           this.getServerComponentsHmrCache(),
           {
             buildId: this.buildId,
+            deploymentId: this.deploymentId,
           }
         )
       } else {
@@ -729,7 +730,7 @@ export default class NextNodeServer extends BaseServer<
           renderOpts as LoadedRenderOpts<PagesModule>,
           {
             buildId: this.buildId,
-            deploymentId: this.renderOpts.deploymentId,
+            deploymentId: this.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
           },
           {
