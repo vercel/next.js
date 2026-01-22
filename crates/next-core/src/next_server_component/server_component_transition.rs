@@ -1,7 +1,11 @@
 use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::{ModuleAssetContext, transition::Transition};
-use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
+use turbopack_core::{
+    context::{AssetContext, ProcessResult},
+    reference_type::ReferenceType,
+    source::Source,
+};
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use super::server_component_module::NextServerComponentModule;
@@ -39,17 +43,15 @@ impl Transition for NextServerComponentTransition {
         // Capture the original source path before any transformation
         let source_path = source.ident().path().await?.clone();
 
-        let source = self.process_source(source);
+        let asset = self.process_source(asset);
         let module_asset_context = self.process_context(module_asset_context);
-        let source = source.to_resolved().await?;
+        let asset = asset.to_resolved().await?;
 
-        // Use process_default to avoid triggering transition rules again
-        let process_result = module_asset_context
-            .process_default(source, reference_type)
+        Ok(match &*module_asset_context
+            .process_default(asset, reference_type)
             .await?
-            .await?;
-
-        match &*process_result {
+            .await?
+        {
             ProcessResult::Module(module) => {
                 let Some(ecma_module) =
                     Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(**module).await?
