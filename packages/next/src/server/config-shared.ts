@@ -782,6 +782,8 @@ export interface ExperimentalConfig {
    * - `true`: Same as 'verbose' - forward all browser console output to terminal
    * - `false`: Disable browser log forwarding to terminal
    * - Object: Enable with custom configuration
+   *
+   * @deprecated Use `logging.browserToTerminal` instead.
    */
   browserDebugInfoInTerminal?:
     | boolean
