@@ -43,23 +43,15 @@ impl Transition for NextServerComponentTransition {
         // Capture the original source path before any transformation
         let source_path = source.ident().path().await?.clone();
 
-        // Apply context modifications but create a context without this transition
-        // to avoid recursion when processing
-        let processed_context = self.process_context(module_asset_context).await?;
-        let context_without_transition = ModuleAssetContext::new(
-            *processed_context.transitions,
-            *processed_context.compile_time_info,
-            *processed_context.module_options_context,
-            *processed_context.resolve_options_context,
-            processed_context.layer.clone(),
-        );
+        let asset = self.process_source(asset);
+        let module_asset_context = self.process_context(module_asset_context);
+        let asset = asset.to_resolved().await?;
 
-        // Process the source through the context to get the transformed module
-        let process_result = context_without_transition
-            .process(source, reference_type)
-            .await?;
-
-        match &*process_result {
+        Ok(match &*module_asset_context
+            .process_default(asset, reference_type)
+            .await?
+            .await?
+        {
             ProcessResult::Module(module) => {
                 let Some(ecma_module) =
                     Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(**module).await?
