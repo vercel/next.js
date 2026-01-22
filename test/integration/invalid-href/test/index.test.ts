@@ -9,8 +9,8 @@ import {
   nextBuild,
   nextStart,
   waitFor,
-  check,
   fetchViaHTTP,
+  retry,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -44,10 +44,14 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
       await waitFor(500)
     }
     if (isWarn) {
-      await check(async () => {
-        const warnLogs = await browser.eval('window.warnLogs')
-        return warnLogs.join('\n')
-      }, regex)
+      await retry(
+        async () => {
+          const warnLogs = await browser.eval('window.warnLogs')
+          expect(warnLogs.join('\n')).toMatch(regex)
+        },
+        30000,
+        1000
+      )
     } else {
       await waitForRedbox(browser)
       const errorContent = await getRedboxHeader(browser)

@@ -8,7 +8,7 @@ import {
   nextBuild,
   renderViaHTTP,
   nextStart,
-  check,
+  retry,
 } from 'next-test-utils'
 import { join } from 'path'
 import {
@@ -167,10 +167,14 @@ describe('GS(S)P Page Errors', () => {
               stderr += msg || ''
             },
           })
-          await check(async () => {
-            await renderViaHTTP(appPort, '/')
-            return stderr
-          }, /error: oops/i)
+          await retry(
+            async () => {
+              await renderViaHTTP(appPort, '/')
+              expect(stderr).toMatch(/error: oops/i)
+            },
+            30000,
+            1000
+          )
 
           expect(stderr).toContain('Error: Oops')
         } finally {

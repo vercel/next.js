@@ -1,12 +1,12 @@
 /* eslint-env jest */
 
 import {
-  check,
   findPort,
   killApp,
   nextBuild,
   nextStart,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -136,13 +136,27 @@ function lazyLoadingTests() {
       `window.scrollTo(0, ${topOfMidImage - (viewportHeight + buffer)})`
     )
 
-    await check(() => {
-      return browser.elementById('lazy-mid').getAttribute('src')
-    }, 'https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=1024')
+    await retry(
+      async () => {
+        expect(await browser.elementById('lazy-mid').getAttribute('src')).toBe(
+          'https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=1024'
+        )
+      },
+      30000,
+      1000
+    )
 
-    await check(() => {
-      return browser.elementById('lazy-mid').getAttribute('srcset')
-    }, 'https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=480 1x, https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=1024 2x')
+    await retry(
+      async () => {
+        expect(
+          await browser.elementById('lazy-mid').getAttribute('srcset')
+        ).toBe(
+          'https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=480 1x, https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=1024 2x'
+        )
+      },
+      30000,
+      1000
+    )
   })
   it('should not have loaded the third image after scrolling down', async () => {
     expect(await browser.elementById('lazy-bottom').getAttribute('src')).toBe(
@@ -220,17 +234,33 @@ function lazyLoadingTests() {
       `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
     )
 
-    await check(() => {
-      return browser.eval(
-        'document.querySelector("#lazy-boundary").getAttribute("src")'
-      )
-    }, 'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600')
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(
+            'document.querySelector("#lazy-boundary").getAttribute("src")'
+          )
+        ).toBe(
+          'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600'
+        )
+      },
+      30000,
+      1000
+    )
 
-    await check(() => {
-      return browser.eval(
-        'document.querySelector("#lazy-boundary").getAttribute("srcset")'
-      )
-    }, 'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600 2x')
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(
+            'document.querySelector("#lazy-boundary").getAttribute("srcset")'
+          )
+        ).toBe(
+          'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600 2x'
+        )
+      },
+      30000,
+      1000
+    )
   })
 }
 

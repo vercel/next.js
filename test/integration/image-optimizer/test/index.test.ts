@@ -1,6 +1,5 @@
 /* eslint-env jest */
 import {
-  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -740,23 +739,27 @@ describe('Image Optimizer', () => {
             `attachment; filename="test.webp"`
           )
 
-          await check(async () => {
-            const files = await fsToJson(imagesDir)
+          await retry(
+            async () => {
+              const files = await fsToJson(imagesDir)
 
-            let found = false
-            const maxAge = '14400'
+              let found = false
+              const maxAge = '14400'
 
-            Object.keys(files).forEach((dir) => {
-              if (
-                Object.keys(files[dir]).some((file) =>
-                  file.includes(`${maxAge}.`)
-                )
-              ) {
-                found = true
-              }
-            })
-            return found ? 'success' : 'failed'
-          }, 'success')
+              Object.keys(files).forEach((dir) => {
+                if (
+                  Object.keys(files[dir]).some((file) =>
+                    file.includes(`${maxAge}.`)
+                  )
+                ) {
+                  found = true
+                }
+              })
+              expect(found).toBe(true)
+            },
+            30000,
+            1000
+          )
         })
 
         it('should not set max-age header when not matching next.config.js', async () => {
@@ -910,23 +913,27 @@ describe('Image Optimizer', () => {
             `attachment; filename="next-js-bg.webp"`
           )
 
-          await check(async () => {
-            const files = await fsToJson(imagesDir)
+          await retry(
+            async () => {
+              const files = await fsToJson(imagesDir)
 
-            let found = false
-            const maxAge = '31536000'
+              let found = false
+              const maxAge = '31536000'
 
-            Object.keys(files).forEach((dir) => {
-              if (
-                Object.keys(files[dir]).some((file) =>
-                  file.includes(`${maxAge}.`)
-                )
-              ) {
-                found = true
-              }
-            })
-            return found ? 'success' : 'failed'
-          }, 'success')
+              Object.keys(files).forEach((dir) => {
+                if (
+                  Object.keys(files[dir]).some((file) =>
+                    file.includes(`${maxAge}.`)
+                  )
+                ) {
+                  found = true
+                }
+              })
+              expect(found).toBe(true)
+            },
+            30000,
+            1000
+          )
           await expectWidth(res, 64)
         })
       }

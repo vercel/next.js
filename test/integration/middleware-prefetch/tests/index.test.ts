@@ -4,12 +4,12 @@ import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import {
-  check,
   findPort,
   killApp,
   nextBuild,
   nextStart,
   getClientBuildManifestLoaderChunkUrlPath,
+  retry,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -60,33 +60,43 @@ describe('Middleware Production Prefetch', () => {
       it(`prefetch correctly for unexistent routes`, async () => {
         const browser = await webdriver(appPort, `/`)
         await browser.elementByCss('#made-up-link').moveTo()
-        await check(async () => {
-          const scripts = await browser.elementsByCss('script')
-          const attrs = await Promise.all(
-            scripts.map((script) => script.getAttribute('src'))
-          )
-          let chunk = getClientBuildManifestLoaderChunkUrlPath(
-            context.appDir,
-            '/ssg-page'
-          )
-          return attrs.find((src) => src.includes(chunk)) ? 'yes' : 'nope'
-        }, 'yes')
+        await retry(
+          async () => {
+            const scripts = await browser.elementsByCss('script')
+            const attrs = await Promise.all(
+              scripts.map((script) => script.getAttribute('src'))
+            )
+            let chunk = getClientBuildManifestLoaderChunkUrlPath(
+              context.appDir,
+              '/ssg-page'
+            )
+            expect(attrs.find((src) => src.includes(chunk))).toBeTruthy()
+          },
+          30000,
+          1000
+        )
       })
 
       it(`does not prefetch provided path if it will be rewritten`, async () => {
         const browser = await webdriver(appPort, `/`)
         await browser.elementByCss('#ssg-page-2').moveTo()
-        await check(async () => {
-          const scripts = await browser.elementsByCss('script')
-          const attrs = await Promise.all(
-            scripts.map((script) => script.getAttribute('src'))
-          )
-          return attrs.find((src) =>
-            src.includes('/ssg-page-2' + (process.env.NEXT_RSPACK ? '-' : ''))
-          )
-            ? 'nope'
-            : 'yes'
-        }, 'yes')
+        await retry(
+          async () => {
+            const scripts = await browser.elementsByCss('script')
+            const attrs = await Promise.all(
+              scripts.map((script) => script.getAttribute('src'))
+            )
+            expect(
+              attrs.find((src) =>
+                src.includes(
+                  '/ssg-page-2' + (process.env.NEXT_RSPACK ? '-' : '')
+                )
+              )
+            ).toBeFalsy()
+          },
+          30000,
+          1000
+        )
       })
     }
   )

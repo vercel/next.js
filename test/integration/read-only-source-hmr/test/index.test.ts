@@ -2,11 +2,11 @@
 
 import fs from 'fs-extra'
 import {
-  check,
   findPort,
   getBrowserBodyText,
   killApp,
   launchApp,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -60,7 +60,15 @@ describe('Read-only source HMR', () => {
 
     try {
       browser = await webdriver(appPort, '/hello')
-      await check(() => getBrowserBodyText(browser), /Hello World/)
+      await retry(
+        async () => {
+          await expect(getBrowserBodyText(browser)).resolves.toMatch(
+            /Hello World/
+          )
+        },
+        30000,
+        1000
+      )
 
       const originalContent = await fs.readFile(pagePath, 'utf8')
       const editedContent = originalContent.replace('Hello World', 'COOL page')
@@ -71,10 +79,26 @@ describe('Read-only source HMR', () => {
       }
 
       await writeReadOnlyFile(pagePath, editedContent)
-      await check(() => getBrowserBodyText(browser), /COOL page/)
+      await retry(
+        async () => {
+          await expect(getBrowserBodyText(browser)).resolves.toMatch(
+            /COOL page/
+          )
+        },
+        30000,
+        1000
+      )
 
       await writeReadOnlyFile(pagePath, originalContent)
-      await check(() => getBrowserBodyText(browser), /Hello World/)
+      await retry(
+        async () => {
+          await expect(getBrowserBodyText(browser)).resolves.toMatch(
+            /Hello World/
+          )
+        },
+        30000,
+        1000
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -87,7 +111,15 @@ describe('Read-only source HMR', () => {
 
     try {
       browser = await webdriver(appPort, '/hello')
-      await check(() => getBrowserBodyText(browser), /Hello World/)
+      await retry(
+        async () => {
+          await expect(getBrowserBodyText(browser)).resolves.toMatch(
+            /Hello World/
+          )
+        },
+        30000,
+        1000
+      )
 
       const originalContent = await fs.readFile(pagePath, 'utf8')
 
@@ -98,7 +130,15 @@ describe('Read-only source HMR', () => {
 
       await fs.remove(pagePath)
       await writeReadOnlyFile(pagePath, originalContent)
-      await check(() => getBrowserBodyText(browser), /Hello World/)
+      await retry(
+        async () => {
+          await expect(getBrowserBodyText(browser)).resolves.toMatch(
+            /Hello World/
+          )
+        },
+        30000,
+        1000
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -121,7 +161,13 @@ describe('Read-only source HMR', () => {
       )
 
       browser = await webdriver(appPort, '/new')
-      await check(() => getBrowserBodyText(browser), /New page/)
+      await retry(
+        async () => {
+          await expect(getBrowserBodyText(browser)).resolves.toMatch(/New page/)
+        },
+        30000,
+        1000
+      )
     } finally {
       if (browser) {
         await browser.close()

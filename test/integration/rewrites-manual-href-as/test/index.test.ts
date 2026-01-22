@@ -2,12 +2,12 @@
 
 import { join } from 'path'
 import {
-  check,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -108,12 +108,16 @@ const runTests = () => {
 
     expect(await browser.elementByCss('#preview').text()).toBe('preview page')
     expect(await browser.eval('window.beforeNav')).toBe(1)
-    await check(
-      async () =>
-        JSON.parse(
-          await browser.eval('document.querySelector("#query").innerHTML')
-        ).slug,
-      '321'
+    await retry(
+      async () => {
+        expect(
+          JSON.parse(
+            await browser.eval('document.querySelector("#query").innerHTML')
+          ).slug
+        ).toBe('321')
+      },
+      30000,
+      1000
     )
 
     await browser

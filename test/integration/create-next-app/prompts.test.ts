@@ -1,4 +1,4 @@
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
 import { createNextApp, projectFilesShouldExist, useTempDir } from './utils'
 
@@ -164,7 +164,15 @@ describe('create-next-app prompts', () => {
         // cursor forward, choose 'Yes' for custom import alias
         childProcess.stdin.write('\u001b[C\n')
         // used check here since it needs to wait for the prompt
-        await check(() => output, /What import alias would you like configured/)
+        await retry(
+          () => {
+            expect(output).toMatch(
+              /What import alias would you like configured/
+            )
+          },
+          30000,
+          1000
+        )
         childProcess.stdin.write('@/something/*\n')
       })
 
@@ -298,7 +306,13 @@ describe('create-next-app prompts', () => {
         childProcess.stdin.write('\u001b[B\n')
 
         // Wait for the prompt to appear with "reuse previous settings"
-        await check(() => output, /No, reuse previous settings/)
+        await retry(
+          () => {
+            expect(output).toMatch(/No, reuse previous settings/)
+          },
+          30000,
+          1000
+        )
 
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
@@ -340,15 +354,25 @@ describe('create-next-app prompts', () => {
           output += data
           process.stdout.write(data)
         })
-        await check(
-          () => output,
-          /Would you like to reset the saved preferences/
+        await retry(
+          () => {
+            expect(output).toMatch(
+              /Would you like to reset the saved preferences/
+            )
+          },
+          30000,
+          1000
         )
         // cursor forward, choose 'Yes' for reset preferences
         childProcess.stdin.write('\u001b[C\n')
-        await check(
-          () => output,
-          /The preferences have been reset successfully/
+        await retry(
+          () => {
+            expect(output).toMatch(
+              /The preferences have been reset successfully/
+            )
+          },
+          30000,
+          1000
         )
       })
     })

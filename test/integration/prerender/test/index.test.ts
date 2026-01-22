@@ -2,11 +2,11 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
-  check,
   findPort,
   killApp,
   launchApp,
   renderViaHTTP,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -48,7 +48,15 @@ describe('SSG Prerender', () => {
 
     it('should not cache getStaticPaths errors', async () => {
       const errMsg = /The `fallback` key must be returned from getStaticPaths/
-      await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
+      await retry(
+        async () => {
+          await expect(renderViaHTTP(appPort, '/blog/post-1')).resolves.toMatch(
+            /post-1/
+          )
+        },
+        30000,
+        1000
+      )
 
       const blogPage = join(appDir, 'pages/blog/[post]/index.js')
       const origContent = await fs.readFile(blogPage, 'utf8')
@@ -58,10 +66,26 @@ describe('SSG Prerender', () => {
       )
 
       try {
-        await check(() => renderViaHTTP(appPort, '/blog/post-1'), errMsg)
+        await retry(
+          async () => {
+            await expect(
+              renderViaHTTP(appPort, '/blog/post-1')
+            ).resolves.toMatch(errMsg)
+          },
+          30000,
+          1000
+        )
 
         await fs.writeFile(blogPage, origContent)
-        await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
+        await retry(
+          async () => {
+            await expect(
+              renderViaHTTP(appPort, '/blog/post-1')
+            ).resolves.toMatch(/post-1/)
+          },
+          30000,
+          1000
+        )
       } finally {
         await fs.writeFile(blogPage, origContent)
       }

@@ -6,11 +6,11 @@ import {
   renderViaHTTP,
   killApp,
   waitFor,
-  check,
   getBrowserBodyText,
   getPageFileFromBuildManifest,
   getBuildManifest,
   initNextServerScript,
+  retry,
 } from 'next-test-utils'
 
 let app
@@ -88,10 +88,14 @@ const startServer = async (optEnv = {}, opts?: any) => {
 
         await browser.eval('document.getElementById("to-dynamic").click()')
 
-        await check(async () => {
-          const text = await getBrowserBodyText(browser)
-          return text
-        }, /Hello/)
+        await retry(
+          async () => {
+            const text = await getBrowserBodyText(browser)
+            expect(text).toMatch(/Hello/)
+          },
+          30000,
+          1000
+        )
       } finally {
         if (browser) {
           await browser.close()
