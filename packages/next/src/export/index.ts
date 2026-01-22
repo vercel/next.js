@@ -501,7 +501,6 @@ async function exportAppImpl(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
     images: nextConfig.images,
-    deploymentId: evaluateDeploymentId(nextConfig.deploymentId),
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
@@ -714,7 +713,7 @@ async function exportAppImpl(
         batches.map(async (batch) =>
           worker.exportPages({
             buildId,
-            deploymentId: nextConfig.deploymentId,
+            deploymentId: evaluateDeploymentId(nextConfig.deploymentId) || '',
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,
