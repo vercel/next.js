@@ -70,11 +70,16 @@ module.exports = {
 }
 ```
 
-You can also configure the minimum log level to display:
+#### Options
 
-- `true`: Forward all console output (log, info, warn, error)
-- `'warn'`: Forward only warnings and errors
-- `'error'`: Forward only errors
+The `browserToTerminal` option accepts the following values:
+
+| Value     | Description                                         |
+| --------- | --------------------------------------------------- |
+| `'warn'`  | Forward only warnings and errors, by default        |
+| `'error'` | Forward only errors                                 |
+| `true`    | Forward all console output (log, info, warn, error) |
+| `false`   | Disable browser log forwarding                      |
 
 ```js filename="next.config.js"
 module.exports = {
@@ -82,6 +87,33 @@ module.exports = {
     browserToTerminal: 'warn',
   },
 }
+```
+
+#### Source Location
+
+When enabled, browser logs include source location information (file path and line number) by default. For example:
+
+```tsx filename="app/page.tsx" highlight={8}
+'use client'
+
+export default function Home() {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        console.log('Hello World')
+      }}
+    >
+      Click me
+    </button>
+  )
+}
+```
+
+Clicking the button prints this message to the terminal:
+
+```bash filename="Terminal"
+[browser] Hello World (app/page.tsx:8:17)
 ```
 
 ### Disabling Logging
