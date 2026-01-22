@@ -1014,12 +1014,17 @@ export default async function build(
       await installBindings(config.experimental?.useWasmBinary)
 
       // Collect all possible sources of deployment ID
+      // Filter out Vercel-generated deployment IDs that start with 'dpl_'
+      // as these should not be used for user-configured skew protection
+      const filterVercelDeploymentIds = (id: string | undefined): string =>
+        id && !id.startsWith('dpl_') ? id : ''
+
       let currentDeploymentId =
         NextBuildContext.preservedDeploymentId ||
         preservedDeploymentId ||
-        process.env.NEXT_DEPLOYMENT_ID ||
-        initialEnv?.NEXT_DEPLOYMENT_ID ||
-        combinedEnv.NEXT_DEPLOYMENT_ID ||
+        filterVercelDeploymentIds(process.env.NEXT_DEPLOYMENT_ID) ||
+        filterVercelDeploymentIds(initialEnv?.NEXT_DEPLOYMENT_ID) ||
+        filterVercelDeploymentIds(combinedEnv.NEXT_DEPLOYMENT_ID) ||
         ''
 
       // Ensure process.env has the deployment ID before resolving

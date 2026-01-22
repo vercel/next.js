@@ -469,7 +469,12 @@ export default abstract class Server<
         : (this.nextConfig.deploymentId as string) || ''
 
       this.deploymentId = id
-      process.env.NEXT_DEPLOYMENT_ID = id
+
+      // Don't override NEXT_DEPLOYMENT_ID if it's already set by Vercel
+      // This prevents conflicts when Vercel manages deployment IDs internally
+      if (!process.env.NEXT_DEPLOYMENT_ID) {
+        process.env.NEXT_DEPLOYMENT_ID = id
+      }
     }
 
     this.hostname = hostname
