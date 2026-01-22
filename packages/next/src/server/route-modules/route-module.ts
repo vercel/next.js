@@ -906,7 +906,11 @@ export abstract class RouteModule<
         // handle the case where there's collision and we
         // normalized nxtPid=123 -> id=123 but user also
         // sends id=456 as separate key
-      } else if (originalQuery[key] !== query[key]) {
+      } else if (
+        originalQuery[key] &&
+        query[key] &&
+        originalQuery[key] !== query[key]
+      ) {
         query[key] = originalQuery[key]
       }
     }
@@ -957,14 +961,15 @@ export abstract class RouteModule<
     if (resolvedPathname === '/index') {
       resolvedPathname = '/'
     }
+
     if (
       res &&
-      !!req.headers['x-nextjs-data'] &&
+      Boolean(req.headers['x-nextjs-data']) &&
       (!res.statusCode || res.statusCode === 200)
     ) {
       res.setHeader(
         'x-nextjs-matched-path',
-        `${locale ? `/${locale}` : ''}${resolvedPathname}`
+        removeTrailingSlash(`${locale ? `/${locale}` : ''}${normalizedSrcPage}`)
       )
     }
     const encodedResolvedPathname = resolvedPathname
