@@ -144,5 +144,6 @@ export const CALL_STACK_FRAME_STYLES = `
     color: var(--color-gray-900);
     font-size: var(--size-14);
     line-height: var(--size-20);
+    word-wrap: break-word;
   }
 `
