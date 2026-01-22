@@ -843,8 +843,13 @@ export abstract class RouteModule<
         params &&
         paramsResult.hasValidParams &&
         queryResult.hasValidParams &&
-        Object.keys(paramsResult.params).length <
-          Object.keys(queryResult.params).length
+        (Object.keys(paramsResult.params).length <
+          Object.keys(queryResult.params).length ||
+          // in minimal mode favor query values if equal length
+          // since it can have more information from routing
+          (getRequestMeta(req, 'minimalMode') &&
+            Object.keys(paramsResult.params).length <=
+              Object.keys(queryResult.params).length))
       ) {
         paramsToInterpolate = queryResult.params
         params = Object.assign(queryResult.params)
