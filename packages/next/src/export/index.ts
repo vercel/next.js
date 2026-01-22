@@ -53,6 +53,7 @@ import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { loadEnvConfig } from '@next/env'
+import { evaluateDeploymentId } from '../server/evaluate-deployment-id'
 import { isAPIRoute } from '../lib/is-api-route'
 import { getPagePath } from '../server/require'
 import type { Span } from '../trace'
@@ -712,7 +713,7 @@ async function exportAppImpl(
         batches.map(async (batch) =>
           worker.exportPages({
             buildId,
-            deploymentId: nextConfig.deploymentId,
+            deploymentId: evaluateDeploymentId(nextConfig.deploymentId) || '',
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,

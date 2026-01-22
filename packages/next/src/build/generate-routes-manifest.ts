@@ -35,6 +35,7 @@ export interface GenerateRoutesManifestOptions {
   restrictedRedirectPaths: string[]
   isAppPPREnabled: boolean
   appType: 'pages' | 'app' | 'hybrid'
+  deploymentId?: string
 }
 
 export interface GenerateRoutesManifestResult {
@@ -60,6 +61,7 @@ export function generateRoutesManifest(
     restrictedRedirectPaths,
     isAppPPREnabled,
     appType,
+    deploymentId,
   } = options
 
   const sortedRoutes = sortPages([...pageKeys.pages, ...(pageKeys.app ?? [])])
@@ -134,6 +136,7 @@ export function generateRoutesManifest(
       queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
     },
     skipProxyUrlNormalize: config.skipProxyUrlNormalize,
+    deploymentId: deploymentId || undefined,
     ppr: isAppPPREnabled
       ? {
           chain: {

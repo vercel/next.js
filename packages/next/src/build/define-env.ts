@@ -46,6 +46,7 @@ const DEFINE_ENV_EXPRESSION = Symbol('DEFINE_ENV_EXPRESSION')
 interface DefineEnv {
   [key: string]:
     | string
+    | (() => string)
     | string[]
     | boolean
     | { [DEFINE_ENV_EXPRESSION]: string }
@@ -170,7 +171,8 @@ export function getDefineEnv({
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
 
-    ...(config.experimental?.useSkewCookie || !config.deploymentId
+    ...(config.experimental?.useSkewCookie ||
+    (!config.deploymentId && !config.experimental?.runtimeServerDeploymentId)
       ? {
           'process.env.NEXT_DEPLOYMENT_ID': false,
         }

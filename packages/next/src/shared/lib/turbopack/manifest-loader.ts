@@ -204,6 +204,7 @@ export class TurbopackManifestLoader {
   private readonly buildId: string
   private readonly deploymentId: string
   private readonly dev: boolean
+  private readonly runtimeServerDeploymentId: boolean
 
   constructor({
     distDir,
@@ -211,18 +212,21 @@ export class TurbopackManifestLoader {
     encryptionKey,
     dev,
     deploymentId,
+    runtimeServerDeploymentId = false,
   }: {
     buildId: string
     distDir: string
     encryptionKey: string
     dev: boolean
     deploymentId: string
+    runtimeServerDeploymentId?: boolean
   }) {
     this.distDir = distDir
     this.buildId = buildId
     this.encryptionKey = encryptionKey
     this.dev = dev
     this.deploymentId = deploymentId
+    this.runtimeServerDeploymentId = runtimeServerDeploymentId
   }
 
   delete(key: EntryKey) {
@@ -763,9 +767,14 @@ export class TurbopackManifestLoader {
     const updateFunctionDefinition = (
       fun: EdgeFunctionDefinition
     ): EdgeFunctionDefinition => {
+      const env = { ...fun.env }
+      if (process.env.NEXT_DEPLOYMENT_ID) {
+        env.NEXT_DEPLOYMENT_ID = process.env.NEXT_DEPLOYMENT_ID
+      }
       return {
         ...fun,
         files: [...(instrumentation?.files ?? []), ...fun.files],
+        env,
       }
     }
     for (const key of Object.keys(manifest.middleware)) {
