@@ -3,10 +3,10 @@
 # ============================================
 
 # IMPORTANT: Node.js and Nginxinc Image Version Maintenance
-# This Dockerfile uses Node.js 24.12.0-slim and Nginxinc image with alpine3.22, which was the latest LTS version at the time of writing.
+# This Dockerfile uses Node.js 24.13.0-slim and Nginxinc image with alpine3.22, which was the latest LTS version at the time of writing.
 # To ensure security and compatibility, regularly validate and update the NODE_VERSION ARG and NGINXINC_IMAGE_TAG to the latest LTS versions.
 
-ARG NODE_VERSION=24.12.0-slim
+ARG NODE_VERSION=24.13.0-slim
 ARG NGINXINC_IMAGE_TAG=alpine3.22
 
 FROM node:${NODE_VERSION} AS dependencies
@@ -58,9 +58,9 @@ RUN --mount=type=cache,target=/app/.next/cache \
   if [ -f package-lock.json ]; then \
     npm run build; \
   elif [ -f yarn.lock ]; then \
-    yarn build; \
+    corepack enable yarn && yarn build; \
   elif [ -f pnpm-lock.yaml ]; then \
-    pnpm build; \
+    corepack enable pnpm && pnpm build; \
   else \
     echo "No lockfile found." && exit 1; \
   fi

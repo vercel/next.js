@@ -3,9 +3,9 @@
 # =========================================
 
 # IMPORTANT: Node.js Version Maintenance
-# This Dockerfile uses Node.js 24.12.0-slim, which was the latest LTS version at the time of writing.
+# This Dockerfile uses Node.js 24.13.0-slim, which was the latest LTS version at the time of writing.
 # To ensure security and compatibility, regularly update the NODE_VERSION ARG to the latest LTS version.
-ARG NODE_VERSION=24.12.0-slim
+ARG NODE_VERSION=24.13.0-slim
 
 FROM node:${NODE_VERSION} AS dependencies
 
@@ -57,9 +57,9 @@ RUN --mount=type=cache,target=/app/.next/cache \
   if [ -f package-lock.json ]; then \
     npm run build; \
   elif [ -f yarn.lock ]; then \
-    yarn build; \
+    corepack enable yarn && yarn build; \
   elif [ -f pnpm-lock.yaml ]; then \
-    pnpm build; \
+    corepack enable pnpm && pnpm build; \
   else \
     echo "No lockfile found." && exit 1; \
   fi
