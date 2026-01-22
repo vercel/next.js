@@ -41,7 +41,9 @@ import {
   readFromBFCache,
   readFromBFCacheDuringRegularNavigation,
   writeToBFCache,
+  writeHeadToBFCache,
 } from '../segment-cache/bfcache'
+import { DYNAMIC_STALETIME_MS } from './reducers/navigate-reducer'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -881,20 +883,28 @@ function createCacheNodeForSegment(
   switch (freshness) {
     case FreshnessPolicy.Default: {
       // When experimental.staleTimes.dynamic config is set, we read from the
-      // BFCache even during regular navigations.
-      const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
-        now,
-        tree.varyPath
-      )
-      if (bfcacheEntry !== null) {
-        return {
-          cacheNode: createCacheNode(
-            bfcacheEntry.rsc,
-            bfcacheEntry.prefetchRsc,
-            bfcacheEntry.head,
-            bfcacheEntry.prefetchHead
-          ),
-          needsDynamicRequest: false,
+      // BFCache even during regular navigations. (This is not a recommended API
+      // with Cache Components, but it's supported for backwards compatibility.
+      // Use cacheLife instead.)
+
+      // This outer check isn't semantically necessary; even if the configured
+      // stale time is 0, the bfcache will return null, because any entry would
+      // have immediately expired. Just an optimization.
+      if (DYNAMIC_STALETIME_MS > 0) {
+        const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
+          now,
+          tree.varyPath
+        )
+        if (bfcacheEntry !== null) {
+          return {
+            cacheNode: createCacheNode(
+              bfcacheEntry.rsc,
+              bfcacheEntry.prefetchRsc,
+              bfcacheEntry.head,
+              bfcacheEntry.prefetchHead
+            ),
+            needsDynamicRequest: false,
+          }
         }
       }
       break
@@ -921,6 +931,9 @@ function createCacheNodeForSegment(
       const head = isPage ? seedHead : null
       const prefetchHead = null
       writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+      if (isPage && metadataVaryPath !== null) {
+        writeHeadToBFCache(now, metadataVaryPath, head, prefetchHead)
+      }
       return {
         cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
         needsDynamicRequest: false,
@@ -1126,6 +1139,9 @@ function createCacheNodeForSegment(
   // and will be replaced by the canonical navigation.
   if (freshness !== FreshnessPolicy.Gesture) {
     writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+    if (isPage && metadataVaryPath !== null) {
+      writeHeadToBFCache(now, metadataVaryPath, head, prefetchHead)
+    }
   }
 
   return {

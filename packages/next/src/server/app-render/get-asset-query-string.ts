@@ -18,8 +18,8 @@ export function getAssetQueryString(
     qs += `?v=${ctx.requestTimestamp}`
   }
 
-  if (ctx.renderOpts.deploymentId) {
-    qs += `${shouldAddVersion ? '&' : '?'}dpl=${ctx.renderOpts.deploymentId}`
+  if (ctx.sharedContext.deploymentId) {
+    qs += `${shouldAddVersion ? '&' : '?'}dpl=${ctx.sharedContext.deploymentId}`
   }
   return qs
 }

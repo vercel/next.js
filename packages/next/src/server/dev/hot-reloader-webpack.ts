@@ -603,7 +603,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               break
             }
             case 'browser-logs': {
-              if (this.config.experimental.browserDebugInfoInTerminal) {
+              const browserToTerminalConfig =
+                this.config.logging && this.config.logging.browserToTerminal
+              if (browserToTerminalConfig) {
                 await receiveBrowserLogsWebpack({
                   entries: payload.entries,
                   router: payload.router,
@@ -613,7 +615,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   edgeServerStats: () => this.edgeServerStats,
                   rootDirectory: this.dir,
                   distDir: this.distDir,
-                  config: this.config.experimental.browserDebugInfoInTerminal,
+                  config: browserToTerminalConfig,
                 })
               }
               break
@@ -1027,6 +1029,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       name: bundlePath,
                       page,
                       appPaths: entryData.appPaths,
+                      allNormalizedAppPaths: null, // Not available in dev mode
                       pagePath: posix.join(
                         APP_DIR_ALIAS,
                         relative(
@@ -1156,6 +1159,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     name: bundlePath,
                     page,
                     appPaths: entryData.appPaths,
+                    allNormalizedAppPaths: null, // Not available in dev mode
                     pagePath,
                     appDir: this.appDir!,
                     pageExtensions: this.config.pageExtensions,
