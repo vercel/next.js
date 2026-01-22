@@ -41,7 +41,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
             content: [
               {
                 type: 'text',
-                text: 'Error: actionId parameter is required',
+                text: JSON.stringify({
+                  error: 'actionId parameter is required',
+                }),
               },
             ],
           }
@@ -61,7 +63,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
             content: [
               {
                 type: 'text',
-                text: `Error: Could not read server-reference-manifest.json at ${manifestPath}.`,
+                text: JSON.stringify({
+                  error: `Could not read server-reference-manifest.json at ${manifestPath}.`,
+                }),
               },
             ],
           }
@@ -129,7 +133,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
           content: [
             {
               type: 'text',
-              text: `Error: Action ID "${actionId}" not found in server-reference-manifest.json`,
+              text: JSON.stringify({
+                error: `Action ID "${actionId}" not found in server-reference-manifest.json`,
+              }),
             },
           ],
         }
@@ -138,7 +144,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : String(error),
+              }),
             },
           ],
         }

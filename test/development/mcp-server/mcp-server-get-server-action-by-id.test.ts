@@ -103,7 +103,9 @@ describe('mcp-server get_server_action_by_id tool', () => {
     const content = callToolResult.result?.content
     expect(content).toBeInstanceOf(Array)
     expect(content?.[0]?.type).toBe('text')
-    expect(content?.[0]?.text).toContain('not found')
+
+    const errorResponse = JSON.parse(content?.[0]?.text)
+    expect(errorResponse.error).toContain('not found')
   })
 
   it('should return inline server action details', async () => {
