@@ -656,7 +656,18 @@ async function run(): Promise<void> {
   conf.set('preferences', preferences)
 }
 
-const update = updateCheck(packageJson).catch(() => null)
+// Determine the appropriate dist-tag to check for updates.
+// For prerelease versions like "16.1.1-canary.32", extract "canary" and check
+// against that dist-tag. This ensures canary users are notified about newer
+// canary releases, not incorrectly prompted to "update" to stable.
+function getDistTag(version: string): string {
+  const prereleaseMatch = version.match(/-([a-z]+)/)
+  return prereleaseMatch ? prereleaseMatch[1] : 'latest'
+}
+
+const update = updateCheck(packageJson, {
+  distTag: getDistTag(packageJson.version),
+}).catch(() => null)
 
 async function notifyUpdate(): Promise<void> {
   try {
@@ -667,7 +678,9 @@ async function notifyUpdate(): Promise<void> {
         pnpm: 'pnpm add -g',
         bun: 'bun add -g',
       }
-      const updateMessage = `${global[packageManager]} create-next-app`
+      const distTag = getDistTag(packageJson.version)
+      const pkgTag = distTag === 'latest' ? '' : `@${distTag}`
+      const updateMessage = `${global[packageManager]} create-next-app${pkgTag}`
       console.log(
         yellow(bold('A new version of `create-next-app` is available!')) +
           '\n' +
