@@ -255,7 +255,7 @@ struct TaskStorageSchema {
     #[field(storage = "auto_map", category = "transient")]
     in_progress_cells: AutoMap<CellId, InProgressCellState>,
 
-    #[field(storage = "direct", category = "meta")]
+    #[field(storage = "direct", category = "data")]
     pub persistent_task_type: Arc<CachedTaskType>,
 
     #[field(storage = "direct", category = "transient")]
