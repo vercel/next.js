@@ -405,13 +405,21 @@ async fn build_manifest(
 
         // per layout segment chunks need to be emitted into the manifest too
         for (server_component, client_assets) in layout_segment_client_chunks.iter() {
-            let server_component_name = server_component
-                .server_path()
-                .await?
-                .with_extension("")
-                .value_to_string()
-                .owned()
-                .await?;
+            // Strip all extensions from the path to match the font manifest format.
+            // For MDX files, the module path is `page.mdx.tsx` after transformation.
+            // We need to strip all extensions to get `page`, which matches both the
+            // font manifest key and the runtime lookup after extension stripping.
+            let server_path = server_component.server_path().await?;
+            let server_path_str = server_path.value_to_string().await?;
+            let server_component_name: RcStr = {
+                // Find position after last '/' to get filename start
+                let file_start = server_path_str.rfind('/').map(|i| i + 1).unwrap_or(0);
+                // Find the first '.' in the filename to strip all extensions
+                match server_path_str[file_start..].find('.') {
+                    Some(dot_pos) => server_path_str[..file_start + dot_pos].into(),
+                    None => (*server_path_str).clone(),
+                }
+            };
             let entry_js_files = entry_manifest
                 .entry_js_files
                 .entry(server_component_name.clone())
