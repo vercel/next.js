@@ -80,7 +80,7 @@ use crate::{
     json::UnparsableJson,
     mutex_map::MutexMap,
     read_glob::{read_glob, track_glob},
-    retry::retry_blocking,
+    retry::{can_retry, retry_blocking, retry_blocking_custom},
     rope::{Rope, RopeReader},
     util::extract_disk_access,
     watcher::DiskWatcher,
@@ -1139,65 +1139,87 @@ impl FileSystem for DiskFileSystem {
                         })?;
                     }
 
-                    if old_content.is_some() {
-                        // Remove existing symlink before creating a new one. On Unix, symlink(2)
-                        // fails with EEXIST if the link already exists instead of overwriting it.
-                        // Windows has similar behavior with junction points.
-                        remove_symbolic_link_dir_helper(&full_path)
-                            .instrument(tracing::info_span!(
-                                "remove existing symlink before write",
-                                name = ?full_path,
-                            ))
-                            .concurrency_limited(&inner.write_semaphore)
-                            .await
-                            .with_context(|| {
-                                format!("removing existing symlink {full_path:?} failed")
-                            })?;
+                    #[derive(thiserror::Error, Debug)]
+                    #[error("{msg}: {source}")]
+                    struct SymlinkCreationError {
+                        msg: &'static str,
+                        #[source]
+                        source: io::Error,
                     }
 
-                    retry_blocking(|| {
-                        #[cfg(not(windows))]
-                        {
-                            std::os::unix::fs::symlink(&target, &full_path)
+                    let mut has_old_content = old_content.is_some();
+                    let try_create_link = || {
+                        if has_old_content {
+                            // Remove existing symlink before creating a new one. On Unix,
+                            // symlink(2) fails with EEXIST if the link already exists instead of
+                            // overwriting it. Windows has similar behavior with junction points.
+                            remove_symbolic_link_dir_helper(&full_path).map_err(|err| {
+                                SymlinkCreationError {
+                                    msg: "removal of existing symbolic link or junction point \
+                                          failed",
+                                    source: err,
+                                }
+                            })?;
+                            has_old_content = false;
                         }
+                        #[cfg(not(windows))]
+                        let io_result = std::os::unix::fs::symlink(&target, &full_path);
                         #[cfg(windows)]
-                        {
-                            if is_directory {
-                                std::os::windows::fs::junction_point(&target, &full_path)
-                            } else {
-                                std::os::windows::fs::symlink_file(&target, &full_path)
+                        let io_result = if is_directory {
+                            std::os::windows::fs::junction_point(&target, &full_path)
+                        } else {
+                            std::os::windows::fs::symlink_file(&target, &full_path)
+                        };
+                        io_result.map_err(|err| {
+                            if err.kind() == ErrorKind::AlreadyExists {
+                                // try to remove the symlink on the next iteration of the loop
+                                has_old_content = true;
                             }
-                        }
-                    })
-                    .instrument(tracing::info_span!(
-                        "write symlink",
-                        name = ?full_path,
-                        target = ?target,
-                    ))
-                    .concurrency_limited(&inner.write_semaphore)
-                    .await
-                    .with_context(|| {
+                            SymlinkCreationError {
+                                msg: "creation of a new symbolic link or junction point failed",
+                                source: err,
+                            }
+                        })
+                    };
+                    fn can_retry_link(err: &SymlinkCreationError) -> bool {
+                        err.source.kind() == ErrorKind::AlreadyExists || can_retry(&err.source)
+                    }
+                    let err_context = || {
                         #[cfg(not(windows))]
-                        let message = format!("failed to create symlink to {target:?}");
+                        let message = format!(
+                            "failed to create symlink at {full_path:?} pointing to {target:?}"
+                        );
                         #[cfg(windows)]
                         let message = if is_directory {
-                            format!("failed to create junction point to {target:?}")
+                            format!(
+                                "failed to create junction point at {full_path:?} pointing to \
+                                 {target:?}"
+                            )
                         } else {
                             format!(
-                                "failed to create symlink to {target:?}\n\
+                                "failed to create symlink at {full_path:?} pointing to {target:?}\n\
                                 (Note: creating file symlinks on Windows require developer mode or \
                                 admin permissions: \
                                 https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
                             )
                         };
                         message
-                    })?;
+                    };
+                    retry_blocking_custom(try_create_link, can_retry_link)
+                        .instrument(tracing::info_span!(
+                            "write symlink",
+                            name = ?full_path,
+                            target = ?target,
+                        ))
+                        .concurrency_limited(&inner.write_semaphore)
+                        .await
+                        .with_context(err_context)?;
                 }
                 OsSpecificLinkContent::Invalid => {
                     bail!("invalid symlink target: {full_path:?}")
                 }
                 OsSpecificLinkContent::NotFound => {
-                    remove_symbolic_link_dir_helper(&full_path)
+                    retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
                         .instrument(tracing::info_span!("remove symlink", name = ?full_path))
                         .concurrency_limited(&inner.write_semaphore)
                         .await
@@ -1236,41 +1258,35 @@ impl FileSystem for DiskFileSystem {
     }
 }
 
-async fn remove_symbolic_link_dir_helper(path: &Path) -> Result<()> {
-    retry_blocking(|| {
-        if cfg!(windows) {
-            // Junction points on Windows are treated as directories, and therefore need
-            // `remove_dir`:
-            //
-            // > `RemoveDirectory` can be used to remove a directory junction. Since the target
-            // > directory and its contents will remain accessible through its canonical path, the
-            // > target directory itself is not affected by removing a junction which targets it.
-            //
-            // -- https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-removedirectoryw
-            //
-            // However, Next 16.1.0 shipped with symlinks, before we switched to junction links on
-            // Windows, and `remove_dir` won't work on symlinks. So try to remove it as a directory
-            // (junction) first, and then fall back to removing it as a file (symlink).
-            std::fs::remove_dir(path).or_else(|err| {
-                if err.kind() == ErrorKind::NotADirectory {
-                    std::fs::remove_file(path)
-                } else {
-                    Err(err)
-                }
-            })
-        } else {
-            std::fs::remove_file(path)
-        }
-    })
-    .await
-    .or_else(|err| {
-        if err.kind() == ErrorKind::NotFound {
-            Ok(())
-        } else {
-            Err(err)
-        }
-    })
-    .with_context(|| format!("removing existing symlink {path:?} failed"))
+fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
+    let result = if cfg!(windows) {
+        // Junction points on Windows are treated as directories, and therefore need
+        // `remove_dir`:
+        //
+        // > `RemoveDirectory` can be used to remove a directory junction. Since the target
+        // > directory and its contents will remain accessible through its canonical path, the
+        // > target directory itself is not affected by removing a junction which targets it.
+        //
+        // -- https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-removedirectoryw
+        //
+        // However, Next 16.1.0 shipped with symlinks, before we switched to junction links on
+        // Windows, and `remove_dir` won't work on symlinks. So try to remove it as a directory
+        // (junction) first, and then fall back to removing it as a file (symlink).
+        std::fs::remove_dir(path).or_else(|err| {
+            if err.kind() == ErrorKind::NotADirectory {
+                std::fs::remove_file(path)
+            } else {
+                Err(err)
+            }
+        })
+    } else {
+        std::fs::remove_file(path)
+    };
+    match result {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(err),
+    }
 }
 
 #[turbo_tasks::value_impl]
