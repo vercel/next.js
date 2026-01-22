@@ -41,6 +41,11 @@
         "app dir - metadata react cache should have same title and page value when navigating"
       ]
     },
+    "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
+      "failed": [
+        "searchparams-reuse-loading With Middleware should correctly return different RSC data for full prefetches with different searchParam values"
+      ]
+    },
     "test/e2e/middleware-rewrites/test/index.test.ts": {
       "failed": ["Middleware Rewrite should handle catch-all rewrite correctly"]
     }
