@@ -704,6 +704,14 @@ pub async fn get_server_module_options_context(
             );
             next_server_rules.extend(source_transform_rules);
 
+            let module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
+                    ..module_options_context.ecmascript
+                },
+                ..module_options_context
+            };
+
             let foreign_code_module_options_context = ModuleOptionsContext {
                 module_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
@@ -776,6 +784,14 @@ pub async fn get_server_module_options_context(
             );
 
             next_server_rules.extend(source_transform_rules);
+
+            let module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
+                    ..module_options_context.ecmascript
+                },
+                ..module_options_context
+            };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
                 module_rules: foreign_next_server_rules.clone(),
