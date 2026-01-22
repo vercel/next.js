@@ -151,6 +151,8 @@ export class NextDeployInstance extends NextInstance {
           'NEXT_TELEMETRY_DISABLED=1',
           '--build-env',
           'VERCEL_NEXT_BUNDLED_SERVER=1',
+          '--build-env',
+          'NEXT_ENABLE_ADAPTER=1',
           ...additionalEnv.flatMap((pair) => [
             '--env',
             pair,
