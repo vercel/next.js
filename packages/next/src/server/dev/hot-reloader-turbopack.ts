@@ -329,6 +329,8 @@ export async function createHotReloaderTurbopack(
     encryptionKey,
     dev: true,
     deploymentId: evaluateDeploymentId(nextConfig.deploymentId),
+    runtimeServerDeploymentId:
+      nextConfig.experimental.runtimeServerDeploymentId,
   })
 
   // Dev specific

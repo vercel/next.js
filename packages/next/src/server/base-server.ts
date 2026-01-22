@@ -182,6 +182,7 @@ export type RouteHandler<
  * the rewrites normalized to the object shape that the router expects.
  */
 export type NormalizedRouteManifest = {
+  readonly deploymentId?: string | undefined
   readonly dynamicRoutes: ReadonlyArray<ManifestRoute>
   readonly rewrites: {
     readonly beforeFiles: ReadonlyArray<ManifestRewriteRoute>

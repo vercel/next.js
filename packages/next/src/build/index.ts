@@ -974,6 +974,10 @@ export default async function build(
         .traceFn(() => loadEnvConfig(dir, false, Log))
       NextBuildContext.loadedEnvFiles = loadedEnvFiles
 
+      if (NextBuildContext.deploymentId) {
+        process.env.NEXT_DEPLOYMENT_ID = NextBuildContext.deploymentId
+      }
+
       // Restore NEXT_DEPLOYMENT_ID after loadEnvConfig resets process.env
       // Priority: preservedDeploymentId > process.env (after loadEnvConfig) > combinedEnv
       if (preservedDeploymentId) {
@@ -1065,6 +1069,7 @@ export default async function build(
         config
       )
       NextBuildContext.buildId = buildId
+      NextBuildContext.deploymentId = config.deploymentId
 
       if (experimentalBuildMode === 'generate-env') {
         if (bundler === Bundler.Turbopack) {

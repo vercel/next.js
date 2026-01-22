@@ -292,6 +292,9 @@ export default class NextNodeServer extends BaseServer<
      * Using this from process.env allows targeting SSR by calling
      * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
+    if (this.renderOpts.deploymentId) {
+      process.env.NEXT_DEPLOYMENT_ID = this.renderOpts.deploymentId
+    }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
@@ -556,6 +559,9 @@ export default class NextNodeServer extends BaseServer<
     if (!this.enabledDirectories.app) return []
 
     const routesManifest = this.getRoutesManifest()
+    if (routesManifest?.deploymentId) {
+      this.renderOpts.deploymentId = routesManifest.deploymentId
+    }
     return (
       routesManifest?.rewrites.beforeFiles
         .filter(isInterceptionRouteRewrite)

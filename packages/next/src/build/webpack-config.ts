@@ -2113,6 +2113,11 @@ export default async function getBaseWebpackConfig(
             __NEXT_PREVIEW_MODE_SIGNING_KEY: previewProps.previewModeSigningKey,
             __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
               previewProps.previewModeEncryptionKey,
+            ...(config.experimental.runtimeServerDeploymentId
+              ? {
+                  NEXT_DEPLOYMENT_ID: process.env.NEXT_DEPLOYMENT_ID,
+                }
+              : {}),
           },
         }),
       isClient &&

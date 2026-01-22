@@ -28,7 +28,16 @@ async function readFiles(next: NextInstance) {
 }
 
 // TODO static/* browser chunks are content hashed and have the deployment id inlined
-const IGNORE_NAME = /^static\/chunks\//
+const IGNORE_NAME = new RegExp(
+  [
+    'static/chunks/',
+    '.*_buildManifest\\.js',
+    '.*_ssgManifest\\.js',
+    '.*_clientMiddlewareManifest\\.js',
+  ]
+    .map((v) => '(?:\\/|^)' + v + '$')
+    .join('|')
+)
 const IGNORE_CONTENT = new RegExp(
   [
     // TODO These contain content-hashed browser chunk urls (and/or the deployment id query param)
@@ -50,9 +59,9 @@ const IGNORE_CONTENT = new RegExp(
     '.*\\.html',
     '.*\\.rsc',
     // These are not critical, as they aren't deployed to the serverless function itself
-    '_buildManifest\\.js',
-    '_ssgManifest\\.js',
-    '_clientMiddlewareManifest\\.js',
+    '.*_buildManifest\\.js',
+    '.*_ssgManifest\\.js',
+    '.*_clientMiddlewareManifest\\.js',
     'client-build-manifest\\.json',
     'fallback-build-manifest\\.json',
     // Contains the deploymentId which is expected to change between deployments
