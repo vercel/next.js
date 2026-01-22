@@ -1,6 +1,6 @@
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import { waitForNoRedbox, check, findPort } from 'next-test-utils'
+import { waitForNoRedbox, findPort, retry } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 import { createNext } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
@@ -35,13 +35,22 @@ describe.skip('Project Directory Renaming', () => {
 
     next.testDir = newTestDir
 
-    await check(
-      () => stripAnsi(next.cliOutput),
-      /Detected project directory rename, restarting in new location/
+    await retry(
+      () => {
+        expect(stripAnsi(next.cliOutput)).toMatch(
+          /Detected project directory rename, restarting in new location/
+        )
+      },
+      30000,
+      1000
     )
-    await check(async () => {
-      return (await browser.eval('window.beforeNav')) === 1 ? 'pending' : 'done'
-    }, 'done')
+    await retry(
+      async () => {
+        expect((await browser.eval('window.beforeNav')) === 1).toBeFalsy()
+      },
+      30000,
+      1000
+    )
     await waitForNoRedbox(browser)
 
     try {
@@ -53,12 +62,18 @@ describe.skip('Project Directory Renaming', () => {
           'hello again'
         )
       )
-      await check(async () => {
-        if (!(await browser.eval('!!window.next'))) {
-          await browser.refresh()
-        }
-        return browser.eval('document.documentElement.innerHTML')
-      }, /hello again/)
+      await retry(
+        async () => {
+          if (!(await browser.eval('!!window.next'))) {
+            await browser.refresh()
+          }
+          expect(
+            await browser.eval('document.documentElement.innerHTML')
+          ).toMatch(/hello again/)
+        },
+        30000,
+        1000
+      )
     } finally {
       await next.patchFile(
         'pages/index.js',

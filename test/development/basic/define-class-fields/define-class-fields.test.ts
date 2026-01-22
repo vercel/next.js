@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('useDefineForClassFields SWC option', () => {
   const { next } = nextTestSetup({
@@ -17,9 +17,14 @@ describe('useDefineForClassFields SWC option', () => {
   it('tsx should compile with useDefineForClassFields enabled', async () => {
     const browser = await next.browser('/')
     await browser.elementByCss('#action').click()
-    await check(
-      () => browser.elementByCss('#name').text(),
-      /this is my name: next/
+    await retry(
+      async () => {
+        expect(await browser.elementByCss('#name').text()).toMatch(
+          /this is my name: next/
+        )
+      },
+      30000,
+      1000
     )
   })
 
