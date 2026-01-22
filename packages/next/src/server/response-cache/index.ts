@@ -18,6 +18,19 @@ import {
 import type { RouteKind } from '../route-kind'
 
 /**
+ * Parses an environment variable as a positive integer, returning the fallback
+ * if the value is missing, not a number, or not positive.
+ */
+function parsePositiveInt(
+  envValue: string | undefined,
+  fallback: number
+): number {
+  if (!envValue) return fallback
+  const parsed = parseInt(envValue, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+/**
  * Default TTL (in milliseconds) for minimal mode response cache entries.
  * Used for cache hit validation as a fallback for providers that don't
  * send the x-invocation-id header yet.
@@ -28,17 +41,19 @@ import type { RouteKind } from '../route-kind'
  *
  * Can be configured via `NEXT_PRIVATE_RESPONSE_CACHE_TTL` environment variable.
  */
-const DEFAULT_TTL_MS = process.env.NEXT_PRIVATE_RESPONSE_CACHE_TTL
-  ? parseInt(process.env.NEXT_PRIVATE_RESPONSE_CACHE_TTL, 10)
-  : 10_000
+const DEFAULT_TTL_MS = parsePositiveInt(
+  process.env.NEXT_PRIVATE_RESPONSE_CACHE_TTL,
+  10_000
+)
 
 /**
  * Default maximum number of entries in the response cache.
  * Can be configured via `NEXT_PRIVATE_RESPONSE_CACHE_MAX_SIZE` environment variable.
  */
-const DEFAULT_MAX_SIZE = process.env.NEXT_PRIVATE_RESPONSE_CACHE_MAX_SIZE
-  ? parseInt(process.env.NEXT_PRIVATE_RESPONSE_CACHE_MAX_SIZE, 10)
-  : 150
+const DEFAULT_MAX_SIZE = parsePositiveInt(
+  process.env.NEXT_PRIVATE_RESPONSE_CACHE_MAX_SIZE,
+  150
+)
 
 /**
  * Separator used in compound cache keys to join pathname and invocationID.
@@ -48,8 +63,10 @@ const KEY_SEPARATOR = '\0'
 
 /**
  * Sentinel value used for TTL-based cache entries (when invocationID is undefined).
+ * Uses KEY_SEPARATOR prefix to guarantee uniqueness since null bytes cannot appear
+ * in HTTP headers (RFC 7230), making collision with real invocation IDs impossible.
  */
-const TTL_SENTINEL = '__ttl__'
+const TTL_SENTINEL = `${KEY_SEPARATOR}ttl`
 
 /**
  * Entry stored in the LRU cache.
