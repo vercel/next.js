@@ -41,37 +41,29 @@ impl Transition for NextServerComponentTransition {
         reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
         // Capture the original source path before any transformation
-        let source_path = source.ident().path().await?.clone();
+        let source_path = source.ident().path().owned().await?;
 
-        let asset = self.process_source(asset);
+        let source = self.process_source(source);
         let module_asset_context = self.process_context(module_asset_context);
-        let asset = asset.to_resolved().await?;
 
-        Ok(match &*module_asset_context
-            .process_default(asset, reference_type)
-            .await?
-            .await?
-        {
-            ProcessResult::Module(module) => {
-                let Some(ecma_module) =
-                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(**module).await?
-                else {
-                    bail!("not an ecmascript module");
-                };
+        Ok(
+            match &*module_asset_context.process(source, reference_type).await? {
+                ProcessResult::Module(module) => {
+                    let Some(module) =
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
+                    else {
+                        bail!("not an ecmascript module");
+                    };
 
-                // Create the server component module with the original source path
-                let server_component =
-                    NextServerComponentModule::new(ecma_module, (*source_path).clone());
+                    // Create the server component module with the original source path
+                    let server_component = NextServerComponentModule::new(*module, source_path);
 
-                Ok(
-                    ProcessResult::Module(ResolvedVc::upcast(
-                        server_component.to_resolved().await?,
-                    ))
-                    .cell(),
-                )
-            }
-            ProcessResult::Unknown(source) => Ok(ProcessResult::Unknown(*source).cell()),
-            ProcessResult::Ignore => Ok(ProcessResult::Ignore.cell()),
-        }
+                    ProcessResult::Module(ResolvedVc::upcast(server_component.to_resolved().await?))
+                        .cell()
+                }
+                ProcessResult::Unknown(source) => ProcessResult::Unknown(*source).cell(),
+                ProcessResult::Ignore => ProcessResult::Ignore.cell(),
+            },
+        )
     }
 }
