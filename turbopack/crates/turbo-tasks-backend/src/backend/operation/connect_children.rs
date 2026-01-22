@@ -24,7 +24,14 @@ pub fn connect_children(
 
     let parent_aggregation = get_aggregation_number(&parent_task);
 
+    let old_children = parent_task.children_len();
     parent_task.extend_children(new_children.iter().copied());
+    debug_assert!(
+        old_children + new_children.len() == parent_task.children_len(),
+        "Attempted to connect {len} new children, but some of them were already present in \
+         {parent_task_id}",
+        len = new_children.len()
+    );
 
     let new_follower_ids: SmallVec<_> = new_children.into_iter().collect();
 
