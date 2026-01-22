@@ -11,9 +11,10 @@ use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
-        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
         EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
+        UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -34,7 +35,7 @@ use turbopack_ecmascript::{
     chunk::EcmascriptChunk,
     manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
 };
-use turbopack_ecmascript_runtime::{AssetSuffix, RuntimeType};
+use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::{
     chunk::EcmascriptBrowserChunk,
@@ -206,6 +207,16 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn url_behavior_override(mut self, tag: RcStr, behavior: UrlBehavior) -> Self {
+        self.chunking_context.url_behaviors.insert(tag, behavior);
+        self
+    }
+
+    pub fn default_url_behavior(mut self, behavior: UrlBehavior) -> Self {
+        self.chunking_context.default_url_behavior = Some(behavior);
+        self
+    }
+
     pub fn chunking_config<T>(mut self, ty: ResolvedVc<T>, chunking_config: ChunkingConfig) -> Self
     where
         T: Upcast<Box<dyn ChunkType>>,
@@ -269,6 +280,11 @@ pub struct BrowserChunkingContext {
     /// them.
     #[bincode(with = "turbo_bincode::indexmap")]
     asset_base_paths: FxIndexMap<RcStr, RcStr>,
+    /// URL behavior overrides for different tags.
+    #[bincode(with = "turbo_bincode::indexmap")]
+    url_behaviors: FxIndexMap<RcStr, UrlBehavior>,
+    /// Default URL behavior when no tag-specific override is found.
+    default_url_behavior: Option<UrlBehavior>,
     /// Enable HMR for this chunking
     enable_hot_module_replacement: bool,
     /// Enable tracing for this chunking
@@ -334,6 +350,8 @@ impl BrowserChunkingContext {
                 asset_suffix: None,
                 asset_base_path: None,
                 asset_base_paths: Default::default(),
+                url_behaviors: Default::default(),
+                default_url_behavior: None,
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
                 enable_nested_async_availability: false,
@@ -624,6 +642,18 @@ impl ChunkingContext for BrowserChunkingContext {
             .unwrap_or(&self.asset_root_path);
 
         Ok(asset_root_path.join(&asset_path)?.cell())
+    }
+
+    #[turbo_tasks::function]
+    fn url_behavior(&self, tag: Option<RcStr>) -> Vc<UrlBehavior> {
+        tag.as_ref()
+            .and_then(|tag| self.url_behaviors.get(tag))
+            .cloned()
+            .or_else(|| self.default_url_behavior.clone())
+            .unwrap_or(UrlBehavior {
+                suffix: AssetSuffix::Inferred,
+            })
+            .cell()
     }
 
     #[turbo_tasks::function]

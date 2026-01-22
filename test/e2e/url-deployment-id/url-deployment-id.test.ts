@@ -27,6 +27,12 @@ import { nextTestSetup } from 'e2e-utils'
         const src = $('#imported-src').text()
         expect(src).toContain('dpl=' + deploymentId)
       })
+
+      it('should include dpl query in client page (after hydration)', async () => {
+        const browser = await next.browser('/client')
+        const url = await browser.elementByCss('#imported-src').text()
+        expect(url).toContain('dpl=' + deploymentId)
+      })
     })
 
     describe('new URL() pattern', () => {
@@ -39,6 +45,12 @@ import { nextTestSetup } from 'e2e-utils'
       it('should include dpl query in client page', async () => {
         const $ = await next.render$('/client')
         const url = $('#new-url').text()
+        expect(url).toContain('dpl=' + deploymentId)
+      })
+
+      it('should include dpl query in client page (after hydration)', async () => {
+        const browser = await next.browser('/client')
+        const url = await browser.elementByCss('#new-url').text()
         expect(url).toContain('dpl=' + deploymentId)
       })
     })
@@ -55,7 +67,7 @@ import { nextTestSetup } from 'e2e-utils'
         const data = await next
           .fetch('/api')
           .then((res) => res.ok && res.json())
-        expect(data.url).toContain('dpl=' + deploymentId)
+        expect(data.url).not.toContain('dpl=')
       })
     })
   }

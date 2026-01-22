@@ -11,12 +11,12 @@ use turbopack::module_options::{
     side_effect_free_packages_glob,
 };
 use turbopack_browser::{
-    AssetSuffix, BrowserChunkingContext, ContentHashing, CurrentChunkMethod,
+    BrowserChunkingContext, ContentHashing, CurrentChunkMethod,
     react_refresh::assert_can_resolve_react_refresh,
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
+        AssetSuffix, ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
         SourceMapsType, UnusedReferences, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -336,6 +336,7 @@ pub async fn get_client_module_options_context(
             module_css_condition: Some(module_styles_rule_condition()),
             ..Default::default()
         },
+        static_url_tag: Some(rcstr!("client")),
         environment: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
@@ -471,7 +472,7 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(Some(asset_prefix.clone()))
-    .asset_suffix(AssetSuffix::FromScriptSrc.resolved_cell())
+    .asset_suffix(AssetSuffix::Inferred.resolved_cell())
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),

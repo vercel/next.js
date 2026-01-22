@@ -27,9 +27,9 @@ pub use crate::chunk::{
         ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
     },
     chunking_context::{
-        ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType, UnusedReferences,
+        AssetSuffix, ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},

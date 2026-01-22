@@ -5,15 +5,14 @@ use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
+    chunk::AssetSuffix,
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
     environment::{ChunkLoading, Environment},
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
-use crate::{
-    AssetSuffix, RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code,
-};
+use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
 
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]
@@ -119,15 +118,24 @@ pub async fn get_browser_runtime_code(
                 StringifyJs(suffix.as_str())
             )?;
         }
-        AssetSuffix::FromScriptSrc => {
+        AssetSuffix::Inferred => {
             if chunk_loading == &ChunkLoading::Edge {
-                panic!("AssetSuffix::FromScriptSrc is not supported in Edge runtimes");
+                panic!("AssetSuffix::Inferred is not supported in Edge runtimes");
             }
             writedoc!(
                 code,
                 r#"
                     const ASSET_SUFFIX = getAssetSuffixFromScriptSrc();
                 "#
+            )?;
+        }
+        AssetSuffix::FromGlobal(global_name) => {
+            writedoc!(
+                code,
+                r#"
+                    const ASSET_SUFFIX = globalThis[{}] || "";
+                "#,
+                StringifyJs(global_name)
             )?;
         }
     }
