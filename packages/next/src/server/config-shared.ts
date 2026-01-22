@@ -272,11 +272,11 @@ export interface LoggingConfig {
   /**
    * Forward browser console logs to terminal.
    * - `false`: Disable browser log forwarding
-   * - `true` or `'verbose'`: Forward all browser console output to terminal
+   * - `true`: Forward all browser console output to terminal
    * - `'warn'`: Forward warnings and errors to terminal
    * - `'error'`: Forward only errors to terminal
    */
-  browserToTerminal?: boolean | 'error' | 'warn' | 'verbose'
+  browserToTerminal?: boolean | 'error' | 'warn'
 }
 
 export interface ExperimentalConfig {

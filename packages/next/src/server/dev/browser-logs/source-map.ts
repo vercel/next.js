@@ -261,7 +261,7 @@ export const withLocation = async (
   },
   ctx: MappingContext,
   distDir: string,
-  _config: boolean | 'error' | 'warn' | 'verbose'
+  _config: boolean | 'error' | 'warn'
 ) => {
   if (!stack) {
     return original

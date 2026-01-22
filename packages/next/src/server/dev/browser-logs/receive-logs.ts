@@ -447,7 +447,7 @@ async function handleDefaultConsole(
 
 type LogLevel = 'error' | 'warn' | 'verbose'
 
-type BrowserLogConfig = boolean | LogLevel
+type BrowserLogConfig = boolean | 'error' | 'warn'
 
 // Log levels from most severe to least severe
 // Lower index = more severe
