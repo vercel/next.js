@@ -106,6 +106,7 @@ async function requestHandler(
 
     sharedContext: {
       buildId,
+      deploymentId,
     },
     fallbackRouteParams: null,
 
@@ -141,7 +142,6 @@ async function requestHandler(
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
-      deploymentId,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,

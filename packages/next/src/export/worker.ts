@@ -85,6 +85,7 @@ async function exportPageImpl(
     renderOpts: commonRenderOpts,
     outDir: commonOutDir,
     buildId,
+    deploymentId,
     renderResumeDataCache,
   } = input
 
@@ -274,7 +275,7 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const sharedContext: AppSharedContext = { buildId }
+    const sharedContext: AppSharedContext = { buildId, deploymentId }
 
     return exportAppPage(
       req,
@@ -294,7 +295,7 @@ async function exportPageImpl(
   } else {
     const sharedContext: PagesSharedContext = {
       buildId,
-      deploymentId: commonRenderOpts.deploymentId,
+      deploymentId,
       customServer: undefined,
     }
 
@@ -416,6 +417,7 @@ export async function exportPages(
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
+            deploymentId: input.deploymentId,
             renderResumeDataCache,
           }),
           hasDebuggerAttached

@@ -611,6 +611,7 @@ export async function handler(
         page: normalizedSrcPage,
         sharedContext: {
           buildId,
+          deploymentId,
         },
         serverComponentsHmrCache: getRequestMeta(
           req,
@@ -659,7 +660,6 @@ export async function handler(
           trailingSlash: nextConfig.trailingSlash,
           images: nextConfig.images,
           previewProps: prerenderManifest.preview,
-          deploymentId: deploymentId,
           enableTainting: nextConfig.experimental.taint,
           htmlLimitedBots: nextConfig.htmlLimitedBots,
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,

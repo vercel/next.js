@@ -94,6 +94,9 @@ export interface WorkStore {
   isUnstableNoStore?: boolean
   isPrefetchRequest?: boolean
 
+  /**
+   * Prefer `sharedContext.buildId` instead. This only exists because it's needed in use-cache-wrapper
+   */
   buildId: string
 
   readonly reactLoadableManifest?: DeepReadonly<

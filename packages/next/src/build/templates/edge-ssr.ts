@@ -110,6 +110,7 @@ async function requestHandler(
     params,
     buildId,
     nextConfig,
+    deploymentId,
     isNextDataRequest,
     buildManifest,
     prerenderManifest,
@@ -127,7 +128,7 @@ async function requestHandler(
 
     sharedContext: {
       buildId,
-      deploymentId: process.env.NEXT_DEPLOYMENT_ID,
+      deploymentId,
       customServer: undefined,
     },
 
