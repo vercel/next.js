@@ -2091,7 +2091,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if let Some(dependencies) = task_dependencies_for_immutable
             && dependencies
                 .iter()
-                .all(|&task_id| ctx.task(task_id, TaskDataCategory::Meta).immutable())
+                .all(|&task_id| ctx.task(task_id, TaskDataCategory::Data).immutable())
         {
             is_now_immutable = true;
         }
