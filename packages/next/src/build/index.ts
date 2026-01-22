@@ -1013,6 +1013,7 @@ export default async function build(
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
       await installBindings(config.experimental?.useWasmBinary)
 
+      // Collect all possible sources of deployment ID
       let currentDeploymentId =
         NextBuildContext.preservedDeploymentId ||
         preservedDeploymentId ||
