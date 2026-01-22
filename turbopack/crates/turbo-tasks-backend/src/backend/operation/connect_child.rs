@@ -34,16 +34,18 @@ impl ConnectChildOperation {
         mut ctx: impl ExecuteContext<'_>,
     ) {
         if let Some(parent_task_id) = parent_task_id {
-            let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
+            let parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 new_children, ..
-            })) = parent_task.get_in_progress_mut()
+            })) = parent_task.get_in_progress()
             else {
                 panic!("Task is not in progress while calling another task: {parent_task:?}");
             };
 
             // Quick skip if the child was already connected before
-            if !new_children.insert(child_task_id) {
+            // We can't call insert here as this would skip the mandatory task type update below
+            // Instead we only add it after updating the child task type
+            if new_children.contains(&child_task_id) {
                 return;
             }
 
@@ -91,6 +93,30 @@ impl ConnectChildOperation {
             aggregation_update: queue,
         }
         .execute(&mut ctx);
+
+        if let Some(parent_task_id) = parent_task_id {
+            let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
+            let Some(InProgressState::InProgress(box InProgressStateInner {
+                new_children, ..
+            })) = parent_task.get_in_progress_mut()
+            else {
+                panic!("Task is not in progress while calling another task: {parent_task:?}");
+            };
+
+            // Really add the child to the new children set
+            if !new_children.insert(child_task_id) {
+                drop(parent_task);
+
+                // There was a concurrent connect child operation,
+                // so we need to undo the active count update.
+                AggregationUpdateQueue::run(
+                    AggregationUpdateJob::DecreaseActiveCount {
+                        task: child_task_id,
+                    },
+                    &mut ctx,
+                );
+            }
+        }
     }
 }
 
