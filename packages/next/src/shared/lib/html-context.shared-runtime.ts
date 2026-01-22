@@ -18,6 +18,7 @@ export type HtmlProps = {
   }
   buildManifest: BuildManifest
   isDevelopment: boolean
+  deploymentId: string | undefined
   dynamicImports: string[]
   /**
    * This manifest is only needed for Pages dir, Production, Webpack

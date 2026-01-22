@@ -24,6 +24,7 @@ import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
@@ -175,6 +176,9 @@ async function exportPageImpl(
   if (trailingSlash && !req.url?.endsWith('/')) {
     req.url += '/'
   }
+
+  // Set the resolved pathname without trailing slash as request metadata.
+  addRequestMeta(req, 'resolvedPathname', removeTrailingSlash(updatedPath))
 
   if (
     locale &&
@@ -384,9 +388,9 @@ export async function exportPages(
       // Also tests for `inspect-brk`
       process.env.NODE_OPTIONS?.includes('--inspect')
 
-    const renderResumeDataCache = renderResumeDataCachesByPage[page]
+    const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
       ? createRenderResumeDataCache(
-          renderResumeDataCachesByPage[page],
+          renderResumeDataCachesByPage[pageKey],
           renderOpts.experimental.maxPostponedStateSizeBytes
         )
       : undefined

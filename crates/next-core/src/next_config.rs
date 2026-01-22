@@ -968,6 +968,8 @@ pub struct ExperimentalConfig {
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     root_params: Option<bool>,
+    runtime_server_deployment_id: Option<bool>,
+
     // ---
     // UNSUPPORTED
     // ---
@@ -1816,6 +1818,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn runtime_server_deployment_id_available(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .runtime_server_deployment_id
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
         let mut cache_kinds = CacheKinds::default();
 
@@ -2095,6 +2106,13 @@ mod tests {
                         "browser",
                         {
                             "path": { "type": "glob", "value": "*.svg"},
+                            "query": {
+                                "type": "regex",
+                                "value": {
+                                    "source": "@someQuery",
+                                    "flags": ""
+                                }
+                            },
                             "content": {
                                 "source": "@someTag",
                                 "flags": ""
@@ -2129,7 +2147,10 @@ mod tests {
                                         source: rcstr!("@someTag"),
                                         flags: rcstr!(""),
                                     }),
-                                    query: None,
+                                    query: Some(ConfigConditionQuery::Regex(RegexComponents {
+                                        source: rcstr!("@someQuery"),
+                                        flags: rcstr!(""),
+                                    })),
                                 },
                             ]
                             .into(),

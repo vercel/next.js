@@ -1,4 +1,5 @@
 import { Form } from './form'
+import { getSentinelValue } from '../getSentinelValue'
 
 export default function Page() {
   const simpleValue = 'result'
@@ -7,16 +8,19 @@ export default function Page() {
   // Async components emit timing chunks
   const timedValue = <HasTimingInfo />
   return (
-    <Form
-      action={async () => {
-        'use server'
-        return (
-          <>
-            {simpleValue} {jsxValue} {timedValue}
-          </>
-        )
-      }}
-    />
+    <>
+      <Form
+        action={async () => {
+          'use server'
+          return (
+            <>
+              {simpleValue} {jsxValue} {timedValue}
+            </>
+          )
+        }}
+      />
+      <div id="page">{getSentinelValue()}</div>
+    </>
   )
 }
 

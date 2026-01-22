@@ -27,30 +27,18 @@ async function readFiles(next: NextInstance) {
   )
 }
 
-// TODO static/* browser chunks are content hashed and have the deployment id inlined
-const IGNORE_NAME = /^static\/chunks\//
 const IGNORE_CONTENT = new RegExp(
   [
-    // TODO These contain content-hashed browser chunk urls (and/or the deployment id query param)
-    'page_client-reference-manifest\\.js',
-    'build-manifest\\.json',
-    // TODO This contains
-    // - content-hashed browser chunk urls (and/or the deployment id query param)
-    // - browser chunk urls inside of a folder named after the build id
-    'middleware-build-manifest\\.js',
     // TODO this contains "env": { "__NEXT_BUILD_ID": "taBOOu8Znzobe4G7wEG_i",
     'middleware-manifest\\.json',
     // TODO this contains the build id
     'BUILD_ID',
     // TODO this contains the build id: "/pages-static-gsp": { "dataRoute": "/_next/data/V7oVUAlS1LiV5CqrtpkAL/pages-static-gsp.json",
     'prerender-manifest\\.json',
-    // TODO These contain (but are not deployed to the serverless function itself)
-    // - content-hashed browser chunk urls
-    // - the build id
+    // TODO These contain the build id (but are not deployed to the serverless function itself)
     '.*\\.html',
     '.*\\.rsc',
     // These are not critical, as they aren't deployed to the serverless function itself
-    '_buildManifest\\.js',
     'client-build-manifest\\.json',
     'fallback-build-manifest\\.json',
     'routes-manifest\\.json',
@@ -97,9 +85,6 @@ const IGNORE_CONTENT = new RegExp(
       next.env['NEXT_DEPLOYMENT_ID'] = 'bar-dpl-id'
       await next.build()
       let run2 = await readFiles(next)
-
-      run1 = run1.filter(([f, _]) => !IGNORE_NAME.test(f))
-      run2 = run2.filter(([f, _]) => !IGNORE_NAME.test(f))
 
       // First, compare file names
       let run1FileNames = run1.map(([f, _]) => f)

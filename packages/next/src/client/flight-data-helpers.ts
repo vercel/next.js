@@ -152,13 +152,14 @@ function fillInFallbackFlightRouterStateImpl(
   } else {
     const paramName = originalSegment[0]
     const paramType = originalSegment[2]
+    const staticSiblings = originalSegment[3]
     const paramValue = parseDynamicParamFromURLPart(
       paramType,
       pathnameParts,
       pathnamePartsIndex
     )
     const cacheKey = getCacheKeyForDynamicParam(paramValue, renderedSearch)
-    newSegment = [paramName, cacheKey, paramType]
+    newSegment = [paramName, cacheKey, paramType, staticSiblings]
     doesAppearInURL = true
   }
 
@@ -250,9 +251,8 @@ function stripClientOnlyDataFromFlightRouterState(
     hasLoadingBoundary,
   ] = flightRouterState
 
-  // __PAGE__ segments are always fetched from the server, so there's
-  // no need to send them up
-  const cleanedSegment = stripSearchParamsFromPageSegment(segment)
+  // Strip client-only data from the segment
+  const cleanedSegment = stripClientOnlyDataFromSegment(segment)
 
   // Recursively process parallel routes
   const cleanedParallelRoutes: { [key: string]: FlightRouterState } = {}
@@ -280,15 +280,21 @@ function stripClientOnlyDataFromFlightRouterState(
 }
 
 /**
- * Strips search parameters from __PAGE__ segments to prevent sensitive
- * client-side data from being sent to the server.
+ * Strips client-only data from segments:
+ * - Search parameters from __PAGE__ segments
+ * - staticSiblings from dynamic segment tuples (only needed for client-side
+ *   prefetch reuse decisions)
  */
-function stripSearchParamsFromPageSegment(segment: Segment): Segment {
-  if (
-    typeof segment === 'string' &&
-    segment.startsWith(PAGE_SEGMENT_KEY + '?')
-  ) {
-    return PAGE_SEGMENT_KEY
+function stripClientOnlyDataFromSegment(segment: Segment): Segment {
+  if (typeof segment === 'string') {
+    // Strip search params from __PAGE__ segments
+    if (segment.startsWith(PAGE_SEGMENT_KEY + '?')) {
+      return PAGE_SEGMENT_KEY
+    }
+    return segment
   }
-  return segment
+  // Dynamic segment tuple: [paramName, paramCacheKey, paramType, staticSiblings]
+  // Strip staticSiblings (4th element) since server doesn't need it
+  const [paramName, paramCacheKey, paramType] = segment
+  return [paramName, paramCacheKey, paramType, null]
 }
