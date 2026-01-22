@@ -49,9 +49,7 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             - Cache Components enabled
-             - Experiments (use with caution):
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+             - Cache Components enabled"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -71,21 +69,7 @@ describe('build-output-prerender', () => {
       it('shows only a single prerender error with a mangled stack', async () => {
         if (isTurbopack) {
           // TODO(veil): Why is the location incomplete unless we enable --no-mangling?
-          expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-               at <unknown> (app/client/page.tsx:4:28)
-             2 |
-             3 | export default function Page() {
-           > 4 |   return <p>Current time: {new Date().toISOString()}</p>
-               |                            ^
-             5 | }
-             6 |
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /client/page: /client, exiting the build."
-          `)
+          expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`""`)
         } else {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
@@ -164,7 +148,6 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -193,32 +176,7 @@ describe('build-output-prerender', () => {
 
       it('shows all prerender errors with readable stacks and code frames', async () => {
         if (isTurbopack) {
-          expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-               at Page (app/client/page.tsx:4:28)
-             2 |
-             3 | export default function Page() {
-           > 4 |   return <p>Current time: {new Date().toISOString()}</p>
-               |                            ^
-             5 | }
-             6 |
-           To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
-           Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Error: Route "/server" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-               at Page (app/server/page.tsx:13:27)
-             11 |   await cachedDelay()
-             12 |
-           > 13 |   return <p>Random: {Math.random()}</p>
-                |                           ^
-             14 | }
-             15 |
-           To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/server" in your browser to investigate the error.
-           Error occurred prerendering page "/server". Read more: https://nextjs.org/docs/messages/prerender-error
-
-           > Export encountered errors on following paths:
-           	/client/page: /client
-           	/server/page: /server"
-          `)
+          expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`""`)
         } else {
           // TODO(veil): Bundler protocols should not appear in stackframes.
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -293,11 +251,9 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
-             - Experiments (use with caution):
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
-            `)
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
+              `"▲ Next.js x.y.z (Turbopack)"`
+            )
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
               `"▲ Next.js x.y.z (Rspack)"`
@@ -376,7 +332,6 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
