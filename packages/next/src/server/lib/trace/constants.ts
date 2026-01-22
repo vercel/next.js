@@ -89,6 +89,17 @@ enum AppRenderSpan {
   fetch = 'AppRender.fetch',
 }
 
+enum PrerenderSpan {
+  // Cache Components prerender phases
+  initialRSCPayload = 'Prerender.initialRSCPayload',
+  initialServerPrerender = 'Prerender.initialServerPrerender',
+  cacheReadyWait = 'Prerender.cacheReadyWait',
+  initialClientPrerender = 'Prerender.initialClientPrerender',
+  finalRSCPayload = 'Prerender.finalRSCPayload',
+  finalServerPrerender = 'Prerender.finalServerPrerender',
+  finalClientPrerender = 'Prerender.finalClientPrerender',
+}
+
 enum RouterSpan {
   executeRoute = 'Router.executeRoute',
 }
@@ -119,6 +130,7 @@ type SpanTypes =
   | `${RenderSpan}`
   | `${RouterSpan}`
   | `${AppRenderSpan}`
+  | `${PrerenderSpan}`
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
   | `${ResolveMetadataSpan}`
@@ -161,6 +173,7 @@ export {
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
+  PrerenderSpan,
   NodeSpan,
   AppRouteRouteHandlersSpan,
   ResolveMetadataSpan,
