@@ -201,98 +201,34 @@ export function fetchViaHTTP(
 }
 
 /**
- * Creates a request group with a frozen x-invocation-id for testing cache
- * deduplication. All requests within a group share the same x-invocation-id.
+ * Creates request options with a unique x-invocation-id header for testing
+ * cache deduplication in minimal mode. Use this when you need to ensure each
+ * request is treated as independent, or when multiple requests need to share
+ * the same invocation ID.
+ *
+ * @example
+ * // Independent requests (each gets its own invocation ID)
+ * const res1 = await fetchViaHTTP(appPort, '/page', undefined, withInvocationId())
+ * const res2 = await fetchViaHTTP(appPort, '/page', undefined, withInvocationId())
+ *
+ * @example
+ * // Grouped requests (share the same invocation ID for cache testing)
+ * const sharedOpts = withInvocationId()
+ * const res1 = await fetchViaHTTP(appPort, '/page', undefined, sharedOpts)
+ * const res2 = await fetchViaHTTP(appPort, '/_next/data/.../page.json', undefined, sharedOpts)
+ *
+ * @param opts - Optional existing RequestInit to merge with
+ * @returns RequestInit with x-invocation-id header added
  */
-function createInfraGroup() {
-  const invocationID = `test:${nanoid()}`
-
-  const groupFetch = (
-    appPort: string | number,
-    pathname: string,
-    query?: Record<string, any>,
-    opts?: RequestInit
-  ) => {
-    return fetchViaHTTP(appPort, pathname, query, {
-      ...opts,
-      headers: {
-        ...opts?.headers,
-        'x-invocation-id': invocationID,
-      },
-    })
-  }
-
+export function withInvocationId(opts?: RequestInit): RequestInit {
+  const invocationId = `test:${nanoid()}`
   return {
-    fetch: groupFetch,
-    render: async (
-      appPort: string | number,
-      pathname: string,
-      query?: Record<string, any>,
-      opts?: RequestInit
-    ) => {
-      const res = await groupFetch(appPort, pathname, query, opts)
-      return res.text()
+    ...opts,
+    headers: {
+      ...opts?.headers,
+      'x-invocation-id': invocationId,
     },
   }
-}
-
-/**
- * Infrastructure helpers for testing Next.js in minimal/standalone mode.
- *
- * Usage:
- *   // Independent requests (each gets a fresh x-invocation-id)
- *   const html = await infra.render(appPort, '/page')
- *   const html2 = await infra.render(appPort, '/page') // different x-invocation-id
- *
- *   // Grouped requests (for testing cache deduplication)
- *   const group = infra.group()
- *   const res1 = await group.fetch(appPort, '/page')
- *   const res2 = await group.fetch(appPort, '/_next/data/.../page.json')
- *   // Both requests share the same x-invocation-id
- */
-export const infra = {
-  /**
-   * Creates a request group with a frozen x-invocation-id. All requests made
-   * through the returned group share the same x-invocation-id, enabling testing
-   * of cache deduplication behavior.
-   *
-   * @returns A group object with `fetch` and `render` methods
-   */
-  group: createInfraGroup,
-
-  /**
-   * Makes an HTTP request with a fresh x-invocation-id. Each call generates a
-   * new x-invocation-id, so requests are independent and won't share cached data.
-   *
-   * @param appPort - The port or URL of the app
-   * @param pathname - The path to request
-   * @param query - Optional query parameters
-   * @param opts - Optional fetch options
-   * @returns The fetch Response object
-   */
-  fetch: (
-    appPort: string | number,
-    pathname: string,
-    query?: Record<string, any>,
-    opts?: RequestInit
-  ) => createInfraGroup().fetch(appPort, pathname, query, opts),
-
-  /**
-   * Makes an HTTP request and returns the response body as text. Each call
-   * generates a new x-invocation-id, so requests are independent.
-   *
-   * @param appPort - The port or URL of the app
-   * @param pathname - The path to request
-   * @param query - Optional query parameters
-   * @param opts - Optional fetch options
-   * @returns The response body as a string
-   */
-  render: (
-    appPort: string | number,
-    pathname: string,
-    query?: Record<string, any>,
-    opts?: RequestInit
-  ) => createInfraGroup().render(appPort, pathname, query, opts),
 }
 
 export function renderViaHTTP(

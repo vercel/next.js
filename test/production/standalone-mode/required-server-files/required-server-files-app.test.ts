@@ -6,10 +6,11 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
   createNowRouteMatches,
+  fetchViaHTTP,
   findPort,
-  infra,
   initNextServerScript,
   killApp,
+  withInvocationId,
 } from 'next-test-utils'
 import { ChildProcess } from 'child_process'
 
@@ -103,24 +104,29 @@ describe('required server files app router', () => {
   })
 
   it('should send the right cache headers for an app route', async () => {
-    const res = await infra.fetch(appPort, '/api/test/123', undefined, {
-      headers: {
-        'x-matched-path': '/api/test/[slug]',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: '123',
-        }).toString(),
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/test/123',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/api/test/[slug]',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: '123',
+          }).toString(),
+        },
+      })
+    )
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
   })
 
   it('should handle optional catchall', async () => {
-    let res = await infra.fetch(
+    let res = await fetchViaHTTP(
       appPort,
       '/optional-catchall/[lang]/[flags]/[[...slug]]',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/optional-catchall/[lang]/[flags]/[[...slug]]',
           'x-now-route-matches': createNowRouteMatches({
@@ -129,7 +135,7 @@ describe('required server files app router', () => {
             slug: 'slug',
           }).toString(),
         },
-      }
+      })
     )
     expect(res.status).toBe(200)
 
@@ -138,11 +144,11 @@ describe('required server files app router', () => {
     expect($('body [data-lang]').text()).toBe('en')
     expect($('body [data-slug]').text()).toBe('slug')
 
-    res = await infra.fetch(
+    res = await fetchViaHTTP(
       appPort,
       '/optional-catchall/[lang]/[flags]/[[...slug]]',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/optional-catchall/[lang]/[flags]/[[...slug]]',
           'x-now-route-matches': createNowRouteMatches({
@@ -150,7 +156,7 @@ describe('required server files app router', () => {
             flags: 'flags',
           }).toString(),
         },
-      }
+      })
     )
     expect(res.status).toBe(200)
 
@@ -162,14 +168,19 @@ describe('required server files app router', () => {
   })
 
   it('should send the right cache headers for an app page', async () => {
-    const res = await infra.fetch(appPort, '/test/123', undefined, {
-      headers: {
-        'x-matched-path': '/test/[slug]',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: '123',
-        }).toString(),
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/test/123',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/test/[slug]',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: '123',
+          }).toString(),
+        },
+      })
+    )
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
       's-maxage=3600, stale-while-revalidate=31532400'
@@ -181,13 +192,18 @@ describe('required server files app router', () => {
   })
 
   it('should properly handle prerender for bot request', async () => {
-    const res = await infra.fetch(appPort, '/isr/first', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-matched-path': '/isr/first',
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/isr/first',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-matched-path': '/isr/first',
+        },
+      })
+    )
 
     expect(res.status).toBe(200)
     const html = await res.text()
@@ -195,28 +211,38 @@ describe('required server files app router', () => {
 
     expect($('#page').text()).toBe('/isr/[slug]')
 
-    const rscRes = await infra.fetch(appPort, '/isr/first.rsc', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-matched-path': '/isr/first',
-      },
-    })
+    const rscRes = await fetchViaHTTP(
+      appPort,
+      '/isr/first.rsc',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-matched-path': '/isr/first',
+        },
+      })
+    )
 
     expect(rscRes.status).toBe(200)
   })
 
   it('should properly handle fallback for bot request', async () => {
-    const res = await infra.fetch(appPort, '/isr/[slug]', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'new',
-        }).toString(),
-        'x-matched-path': '/isr/[slug]',
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/isr/[slug]',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'new',
+          }).toString(),
+          'x-matched-path': '/isr/[slug]',
+        },
+      })
+    )
 
     expect(res.status).toBe(200)
     const html = await res.text()
@@ -224,16 +250,21 @@ describe('required server files app router', () => {
 
     expect($('#page').text()).toBe('/isr/[slug]')
 
-    const rscRes = await infra.fetch(appPort, '/isr/[slug].rsc', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'new',
-        }).toString(),
-        'x-matched-path': '/isr/[slug]',
-      },
-    })
+    const rscRes = await fetchViaHTTP(
+      appPort,
+      '/isr/[slug].rsc',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'new',
+          }).toString(),
+          'x-matched-path': '/isr/[slug]',
+        },
+      })
+    )
 
     expect(rscRes.status).toBe(200)
   })
@@ -258,9 +289,14 @@ describe('required server files app router', () => {
       ],
     ]) {
       require('console').error('checking', { path, tags })
-      const res = await infra.fetch(appPort, path, undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        undefined,
+        withInvocationId({
+          redirect: 'manual',
+        })
+      )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBe(tags)
     }
@@ -273,9 +309,14 @@ describe('required server files app router', () => {
       '/api/ssr/first',
       '/api/ssr/second',
     ]) {
-      const res = await infra.fetch(appPort, path, undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        undefined,
+        withInvocationId({
+          redirect: 'manual',
+        })
+      )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }
@@ -288,13 +329,13 @@ describe('required server files app router', () => {
       '/api/ssr/first',
       '/api/ssr/second',
     ]) {
-      const res = await infra.fetch(
+      const res = await fetchViaHTTP(
         appPort,
         path,
         { hello: 'world' },
-        {
+        withInvocationId({
           redirect: 'manual',
-        }
+        })
       )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
@@ -302,15 +343,15 @@ describe('required server files app router', () => {
   })
 
   it('should not override params with query params', async () => {
-    const res = await infra.fetch(
+    const res = await fetchViaHTTP(
       appPort,
       '/search/[key]',
       { key: 'searchParams', nxtPkey: 'params' },
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/search/[key]',
         },
-      }
+      })
     )
 
     const html = await res.text()
@@ -320,11 +361,14 @@ describe('required server files app router', () => {
   })
 
   it('should de-dupe HTML/RSC requests for ISR pages', async () => {
-    const group = infra.group()
+    // Create a shared invocation ID for HTML and RSC requests to test de-duplication
+    const sharedOpts = withInvocationId()
 
     // First request: HTML for ISR page
-    const htmlRes = await group.fetch(appPort, '/isr/[slug]', undefined, {
+    const htmlRes = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
+      ...sharedOpts,
       headers: {
+        ...sharedOpts.headers,
         'x-matched-path': '/isr/[slug]',
         'x-now-route-matches': createNowRouteMatches({
           slug: 'first',
@@ -337,8 +381,10 @@ describe('required server files app router', () => {
     const timestamp1 = $('#now').text()
 
     // Second request: RSC for same page with same x-invocation-id
-    const rscRes = await group.fetch(appPort, '/isr/[slug].rsc', undefined, {
+    const rscRes = await fetchViaHTTP(appPort, '/isr/[slug].rsc', undefined, {
+      ...sharedOpts,
       headers: {
+        ...sharedOpts.headers,
         'x-matched-path': '/isr/[slug]',
         'x-now-route-matches': createNowRouteMatches({
           slug: 'first',
@@ -353,10 +399,12 @@ describe('required server files app router', () => {
   })
 
   it('should isolate cache between different ISR request groups', async () => {
-    // First group makes a request
-    const group1 = infra.group()
-    const res1 = await group1.fetch(appPort, '/isr/[slug]', undefined, {
+    // First group makes a request with its own invocation ID
+    const group1Opts = withInvocationId()
+    const res1 = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
+      ...group1Opts,
       headers: {
+        ...group1Opts.headers,
         'x-matched-path': '/isr/[slug]',
         'x-now-route-matches': createNowRouteMatches({
           slug: 'first',
@@ -368,9 +416,11 @@ describe('required server files app router', () => {
     const data1 = $1('#data').text()
 
     // Second group with different x-invocation-id
-    const group2 = infra.group()
-    const res2 = await group2.fetch(appPort, '/isr/[slug]', undefined, {
+    const group2Opts = withInvocationId()
+    const res2 = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
+      ...group2Opts,
       headers: {
+        ...group2Opts.headers,
         'x-matched-path': '/isr/[slug]',
         'x-now-route-matches': createNowRouteMatches({
           slug: 'first',
