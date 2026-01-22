@@ -470,7 +470,10 @@ impl ModuleAssetContext {
         )
     }
 
-    async fn process_default(
+    /// Process a source without applying transition rules. This is useful for
+    /// transitions that need to process the source after capturing information
+    /// (like the original source path) but without triggering other transitions.
+    pub async fn process_default(
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
         reference_type: ReferenceType,
