@@ -1843,30 +1843,27 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return true;
         }
 
-        let mut removed_data = Vec::new();
-        if self.task_execution_completed_finish(
+        let (stale, in_progress_cells) = self.task_execution_completed_finish(
             &mut ctx,
             task_id,
             #[cfg(feature = "verify_determinism")]
             no_output_set,
             new_output,
             is_now_immutable,
-        ) {
+        );
+        if stale {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
             span.record("stale", "finish");
             return true;
         }
 
-        self.task_execution_completed_cleanup(
-            &mut ctx,
-            task_id,
-            cell_counters,
-            is_error,
-            &mut removed_data,
-        );
+        let removed_data =
+            self.task_execution_completed_cleanup(&mut ctx, task_id, cell_counters, is_error);
 
+        // Drop data outside of critical sections
         drop(removed_data);
+        drop(in_progress_cells);
 
         false
     }
@@ -2306,14 +2303,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[cfg(feature = "verify_determinism")] no_output_set: bool,
         new_output: Option<OutputValue>,
         is_now_immutable: bool,
-    ) -> bool {
+    ) -> (
+        bool,
+        Option<
+            auto_hash_map::AutoMap<CellId, InProgressCellState, BuildHasherDefault<FxHasher>, 1>,
+        >,
+    ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = task.take_in_progress() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         if matches!(in_progress, InProgressState::Canceled) {
             // Task was canceled in the meantime, so we don't finish it
-            return false;
+            return (false, None);
         }
         let InProgressState::InProgress(box InProgressStateInner {
             done_event,
@@ -2335,7 +2337,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 reason: TaskExecutionReason::Stale,
             });
             debug_assert!(old.is_none(), "InProgress already exists");
-            return true;
+            return (true, None);
         }
 
         // Set the output if it has changed
@@ -2351,12 +2353,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // Notify in progress cells and remove all of them
-        for (_cell, state) in task
-            .take_in_progress_cells()
-            .into_iter()
-            .flat_map(|m| m.into_iter())
-        {
-            state.event.notify(usize::MAX);
+        let in_progress_cells = task.take_in_progress_cells();
+        if let Some(ref cells) = in_progress_cells {
+            for state in cells.values() {
+                state.event.notify(usize::MAX);
+            }
         }
 
         // Grab the old dirty state
@@ -2459,7 +2460,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             AggregationUpdateQueue::run(data_update, ctx);
         }
 
-        reschedule
+        // We return so the data can be dropped outside of critical sections
+        (reschedule, in_progress_cells)
     }
 
     fn task_execution_completed_cleanup(
@@ -2468,10 +2470,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         is_error: bool,
-        removed_data: &mut Vec<SharedReference>,
-    ) {
+    ) -> Vec<SharedReference> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-
+        let mut removed_cell_data = Vec::new();
         // An error is potentially caused by a eventual consistency, so we avoid updating cells
         // after an error as it is likely transient and we want to keep the dependent tasks
         // clean to avoid re-executions.
@@ -2482,7 +2483,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // anyway and we want to avoid needless re-executions. When the cells become
             // used again, they are invalidated from the update cell operation.
             // Remove cell data for cells that no longer exist
-            let to_remove: Vec<_> = task
+            let to_remove_persistent: Vec<_> = task
                 .iter_persistent_cell_data()
                 .filter_map(|(cell, _)| {
                     cell_counters
@@ -2491,14 +2492,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .then_some(*cell)
                 })
                 .collect();
-            for cell in to_remove {
-                if let Some(data) = task.remove_persistent_cell_data(&cell) {
-                    removed_data.push(data.into_untyped());
-                }
-            }
 
             // Remove transient cell data for cells that no longer exist
-            let to_remove: Vec<_> = task
+            let to_remove_transient: Vec<_> = task
                 .iter_transient_cell_data()
                 .filter_map(|(cell, _)| {
                     cell_counters
@@ -2507,9 +2503,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .then_some(*cell)
                 })
                 .collect();
-            for cell in to_remove {
+            removed_cell_data.reserve_exact(to_remove_persistent.len() + to_remove_transient.len());
+            for cell in to_remove_persistent {
+                if let Some(data) = task.remove_persistent_cell_data(&cell) {
+                    removed_cell_data.push(data.into_untyped());
+                }
+            }
+            for cell in to_remove_transient {
                 if let Some(data) = task.remove_transient_cell_data(&cell) {
-                    removed_data.push(data);
+                    removed_cell_data.push(data);
                 }
             }
         }
@@ -2530,6 +2532,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task.shrink_in_progress_cells();
 
         drop(task);
+
+        // Return so we can drop outside of critical sections
+        removed_cell_data
     }
 
     fn run_backend_job<'a>(

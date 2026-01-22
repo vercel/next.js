@@ -991,7 +991,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 }
 
-impl<B: BackingStorage> TaskStorageAccessors for TaskGuardImpl<'_, B> {
+impl<'a, B: BackingStorage> TaskStorageAccessors for TaskGuardImpl<'a, B> {
     fn typed(&self) -> &TaskStorage {
         &self.task
     }
