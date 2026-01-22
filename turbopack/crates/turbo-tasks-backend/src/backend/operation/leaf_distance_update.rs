@@ -12,8 +12,9 @@ use turbo_tasks::TaskId;
 use crate::{
     backend::{
         TaskDataCategory,
-        operation::{ExecuteContext, Operation, TaskGuard},
+        operation::{ExecuteContext, Operation},
         storage::{get, iter_many},
+        storage_schema::TaskStorageAccessors,
     },
     data::CachedDataItem,
 };
@@ -184,7 +185,7 @@ impl LeafDistanceUpdateQueue {
 }
 
 impl Operation for LeafDistanceUpdateQueue {
-    fn execute(mut self, ctx: &mut impl ExecuteContext) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
         if self.is_empty() {
             return;
         }

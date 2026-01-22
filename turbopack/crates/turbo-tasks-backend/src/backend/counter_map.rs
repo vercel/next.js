@@ -1,6 +1,3 @@
-// TODO(PR 2): Remove this once the storage schema is integrated with the rest of the codebase.
-// This module is scaffolding for the TaskStorage macro and is not yet used.
-#![allow(dead_code)]
 use std::{
     hash::{BuildHasherDefault, Hash},
     ops::{Add, AddAssign, Sub},
@@ -84,12 +81,19 @@ impl CounterValue for i32 {
 }
 
 impl<K, V> CounterMap<K, V> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self(AutoMap::default())
     }
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    pub fn shrink_to_fit(&mut self)
+    where
+        K: Eq + Hash,
+    {
+        self.0.shrink_to_fit();
     }
 
     pub fn len(&self) -> usize {
@@ -102,7 +106,15 @@ impl<K, V> CounterMap<K, V> {
     {
         self.0.get(key)
     }
-
+    // TODO(lukesandberg): this is just here for the CachedDataItem adaptor layer, can be removed
+    // once that is gone.
+    #[doc(hidden)]
+    pub fn get_mut(&mut self, _key: &K) -> Option<&mut V>
+    where
+        K: Eq + Hash,
+    {
+        unreachable!("This should never be called, please insert instead")
+    }
     pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.0.iter()
     }
@@ -117,7 +129,6 @@ impl<K, V> CounterMap<K, V> {
 
 impl<K: Hash + Eq, V: CounterValue> CounterMap<K, V> {
     /// Insert a key-value pair. Panics if value is zero (invariant: zero values are not stored).
-    #[cfg(test)]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         debug_assert!(
             !value.is_zero(),

@@ -1,8 +1,7 @@
 mod counter_map;
-mod dynamic_storage;
 mod operation;
 mod storage;
-mod storage_schema;
+pub mod storage_schema;
 
 use std::{
     borrow::Cow,
@@ -26,7 +25,7 @@ use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_tasks::{
-    CellId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
+    CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
     ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPriority,
     TraitTypeId, TurboTasksBackendApi, ValueTypeId,
     backend::{
@@ -43,7 +42,10 @@ use turbo_tasks::{
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
 };
 
-pub use self::{operation::AnyOperation, storage::TaskDataCategory};
+pub use self::{
+    operation::AnyOperation,
+    storage::{SpecificTaskDataCategory, TaskDataCategory},
+};
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::TaskDirtyCause;
 use crate::{
@@ -56,9 +58,9 @@ use crate::{
             make_task_dirty_internal, prepare_new_children,
         },
         storage::{
-            InnerStorageSnapshot, Storage, count, get, get_many, get_mut, get_mut_or_insert_with,
-            iter_many, remove,
+            Storage, count, get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove,
         },
+        storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     backing_storage::BackingStorage,
     data::{
@@ -1066,75 +1068,54 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
-        let preprocess = |task_id: TaskId, inner: &storage::InnerStorage| {
+        let preprocess = |task_id: TaskId, inner: &TaskStorage| {
             if task_id.is_transient() {
                 return (None, None);
             }
-            let len = inner.len();
 
-            let meta_restored = inner.state().meta_restored();
-            let data_restored = inner.state().data_restored();
+            let meta_restored = inner.flags.meta_restored();
+            let data_restored = inner.flags.data_restored();
 
-            let mut meta = meta_restored.then(|| Vec::with_capacity(len));
-            let mut data = data_restored.then(|| Vec::with_capacity(len));
-            for (key, value) in inner.iter_all() {
-                if key.is_persistent() && value.is_persistent() {
-                    match key.category() {
-                        TaskDataCategory::Meta => {
-                            if let Some(meta) = &mut meta {
-                                meta.push(CachedDataItem::from_key_and_value_ref(key, value))
-                            }
-                        }
-                        TaskDataCategory::Data => {
-                            if let Some(data) = &mut data {
-                                data.push(CachedDataItem::from_key_and_value_ref(key, value))
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
+            // Encode meta/data directly from TaskStorage
+            let meta = meta_restored.then(|| inner.clone_meta_snapshot());
+            let data = data_restored.then(|| inner.clone_data_snapshot());
 
             (meta, data)
         };
-        let process = |task_id: TaskId, (meta, data): (Option<Vec<_>>, Option<Vec<_>>)| {
-            // TODO: perf: Instead of returning a `Vec` of individually allocated `SmallVec`s, it'd
-            // be better to append everything to a flat per-task or per-shard `Vec<u8>`, and have
-            // each `serialize` call return `(start_idx, end_idx)`.
-            (
-                task_id,
-                meta.map(|d| self.backing_storage.serialize(task_id, &d)),
-                data.map(|d| self.backing_storage.serialize(task_id, &d)),
-            )
-        };
-        let process_snapshot = |task_id: TaskId, inner: Box<InnerStorageSnapshot>| {
+        let process =
+            |task_id: TaskId, (meta, data): (Option<TaskStorage>, Option<TaskStorage>)| {
+                // TODO: perf: Instead of returning a `Vec` of individually allocated `SmallVec`s,
+                // it'd be better to append everything to a flat per-task or
+                // per-shard `Vec<u8>`, and have each `serialize` call return
+                // `(start_idx, end_idx)`.
+                (
+                    task_id,
+                    meta.map(|d| {
+                        self.backing_storage
+                            .serialize(task_id, &d, SpecificTaskDataCategory::Meta)
+                    }),
+                    data.map(|d| {
+                        self.backing_storage
+                            .serialize(task_id, &d, SpecificTaskDataCategory::Data)
+                    }),
+                )
+            };
+        let process_snapshot = |task_id: TaskId, inner: Box<TaskStorage>| {
             if task_id.is_transient() {
                 return (task_id, None, None);
             }
-            let len = inner.len();
-            let mut meta = inner.meta_modified.then(|| Vec::with_capacity(len));
-            let mut data = inner.data_modified.then(|| Vec::with_capacity(len));
-            for (key, value) in inner.iter_all() {
-                if key.is_persistent() && value.is_persistent() {
-                    match key.category() {
-                        TaskDataCategory::Meta => {
-                            if let Some(meta) = &mut meta {
-                                meta.push(CachedDataItem::from_key_and_value_ref(key, value));
-                            }
-                        }
-                        TaskDataCategory::Data => {
-                            if let Some(data) = &mut data {
-                                data.push(CachedDataItem::from_key_and_value_ref(key, value));
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
+
+            // Encode meta/data directly from TaskStorage snapshot
             (
                 task_id,
-                meta.map(|meta| self.backing_storage.serialize(task_id, &meta)),
-                data.map(|data| self.backing_storage.serialize(task_id, &data)),
+                inner.flags.meta_modified().then(|| {
+                    self.backing_storage
+                        .serialize(task_id, &inner, SpecificTaskDataCategory::Meta)
+                }),
+                inner.flags.data_modified().then(|| {
+                    self.backing_storage
+                        .serialize(task_id, &inner, SpecificTaskDataCategory::Data)
+                }),
             )
         };
 
@@ -2599,17 +2580,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // Shrink memory usage
-        task.shrink_to_fit(CachedDataItemType::CellData);
-        task.shrink_to_fit(CachedDataItemType::TransientCellData);
-        task.shrink_to_fit(CachedDataItemType::CellTypeMaxIndex);
-        task.shrink_to_fit(CachedDataItemType::CellDependency);
-        task.shrink_to_fit(CachedDataItemType::OutputDependency);
-        task.shrink_to_fit(CachedDataItemType::CollectiblesDependency);
-        task.shrink_to_fit(CachedDataItemType::OutdatedOutputDependency);
-        task.shrink_to_fit(CachedDataItemType::OutdatedCellDependency);
-        task.shrink_to_fit(CachedDataItemType::OutdatedCollectiblesDependency);
-        task.shrink_to_fit(CachedDataItemType::OutdatedCollectible);
+        // Shrink memory usage for collections that are only mutated during/after execution
+        task.shrink_cell_data();
+        task.shrink_transient_cell_data();
+        task.shrink_cell_type_max_index();
+        task.shrink_cell_dependencies();
+        task.shrink_output_dependencies();
+        task.shrink_collectibles_dependencies();
+        task.shrink_outdated_cell_dependencies();
+        task.shrink_outdated_output_dependencies();
+        task.shrink_outdated_collectibles();
+        task.shrink_outdated_collectibles_dependencies();
+        task.shrink_children();
+        task.shrink_collectibles();
+        task.shrink_in_progress_cells();
 
         drop(task);
     }

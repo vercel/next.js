@@ -17,25 +17,21 @@
 //! - `data` - Frequently changed bulk data (dependencies, cell data)
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
-
-// TODO(PR 2): Remove this once the storage schema is integrated with the rest of the codebase.
-// This module is scaffolding for the TaskStorage macro and is not yet used.
-#![allow(dead_code)]
-
 use turbo_tasks::{
     CellId, SharedReference, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId, task_storage,
 };
 
-use crate::data::{
-    ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-    InProgressCellState, InProgressState, OutputValue,
+use crate::{
+    backend::counter_map::CounterMap,
+    data::{
+        ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
+        InProgressCellState, InProgressState, LeafDistance, OutputValue,
+    },
 };
 
 /// Auto-set storage for small sets of keys with unit values.
 /// Optimized for small collections (< 8 items use SmallVec inline).
 type AutoSet<K> = auto_hash_map::AutoSet<K, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
-
-use super::counter_map::CounterMap;
 
 /// Auto-map storage for key-value pairs.
 type AutoMap<K, V> =
@@ -59,37 +55,92 @@ struct TaskStorageSchema {
     // =========================================================================
     // INLINE FIELDS (hot path, always allocated inline)
     // =========================================================================
+    /// The task's distance for prioritizing invalidation execution
+    #[field(
+        storage = "direct",
+        category = "data",
+        inline,
+        default,
+        variant = "LeafDistance"
+    )]
+    pub leaf_distance: LeafDistance,
+
     /// The task's aggregation number for the aggregation tree.
     /// Uses Default::default() semantics - a zero aggregation number means "not set".
-    #[field(storage = "direct", category = "meta", inline, default)]
+
+    #[field(
+        storage = "direct",
+        category = "meta",
+        inline,
+        default,
+        variant = "AggregationNumber"
+    )]
     pub aggregation_number: AggregationNumber,
 
     /// Tasks that depend on this task's output.
-    #[field(storage = "auto_set", category = "data", inline, filter_transient)]
+
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        inline,
+        filter_transient,
+        variant = "OutputDependent",
+        key_field = "task"
+    )]
     pub output_dependent: AutoSet<TaskId>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
-    #[field(storage = "direct", category = "meta", inline, filter_transient)]
+    #[field(
+        storage = "direct",
+        category = "meta",
+        inline,
+        filter_transient,
+        variant = "Output"
+    )]
     pub output: Option<OutputValue>,
 
     /// Upper nodes in the aggregation tree (reference counted).
-    #[field(storage = "counter_map", category = "meta", inline, filter_transient)]
+    #[field(
+        storage = "counter_map",
+        category = "meta",
+        inline,
+        filter_transient,
+        variant = "Upper",
+        key_field = "task"
+    )]
     pub upper: CounterMap<TaskId, u32>,
 
     // =========================================================================
     // COLLECTIBLES (meta)
     // =========================================================================
     /// Collectibles emitted by this task (reference counted).
-    #[field(storage = "counter_map", category = "meta", filter_transient)]
+    #[field(
+        storage = "counter_map",
+        category = "meta",
+        filter_transient,
+        variant = "Collectible",
+        key_field = "collectible"
+    )]
     pub collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Aggregated collectibles from the subgraph.
-    #[field(storage = "counter_map", category = "meta", filter_transient)]
+    #[field(
+        storage = "counter_map",
+        category = "meta",
+        filter_transient,
+        variant = "AggregatedCollectible",
+        key_field = "collectible"
+    )]
     pub aggregated_collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Outdated collectibles to be cleaned up (transient).
-    #[field(storage = "counter_map", category = "transient")]
+    #[field(
+        storage = "counter_map",
+        category = "transient",
+        variant = "OutdatedCollectible",
+        key_field = "collectible"
+    )]
     pub outdated_collectibles: CounterMap<CollectibleRef, i32>,
 
     // =========================================================================
@@ -98,25 +149,44 @@ struct TaskStorageSchema {
     // =========================================================================
     /// Whether the task is dirty (needs re-execution).
     /// Absent = clean, present = dirty with the specified Dirtyness state.
-    #[field(storage = "direct", category = "meta")]
+    #[field(storage = "direct", category = "meta", variant = "Dirty")]
     pub dirty: Dirtyness,
 
     /// Count of dirty containers in the aggregated subgraph.
     /// Absent = 0, present = actual count.
-    #[field(storage = "direct", category = "meta")]
+    #[field(
+        storage = "direct",
+        category = "meta",
+        variant = "AggregatedDirtyContainerCount"
+    )]
     pub aggregated_dirty_container_count: i32,
 
     /// Individual dirty containers in the aggregated subgraph.
-    #[field(storage = "counter_map", category = "meta", filter_transient)]
+    #[field(
+        storage = "counter_map",
+        category = "meta",
+        filter_transient,
+        variant = "AggregatedDirtyContainer",
+        key_field = "task"
+    )]
     pub aggregated_dirty_containers: CounterMap<TaskId, i32>,
 
     /// Count of clean containers in current session (transient).
     /// Absent = 0, present = actual count.
-    #[field(storage = "direct", category = "transient")]
+    #[field(
+        storage = "direct",
+        category = "transient",
+        variant = "AggregatedCurrentSessionCleanContainerCount"
+    )]
     pub aggregated_current_session_clean_container_count: i32,
 
     /// Individual clean containers in current session (transient).
-    #[field(storage = "counter_map", category = "transient")]
+    #[field(
+        storage = "counter_map",
+        category = "transient",
+        variant = "AggregatedCurrentSessionCleanContainer",
+        key_field = "task"
+    )]
     pub aggregated_current_session_clean_containers: CounterMap<TaskId, i32>,
 
     // =========================================================================
@@ -124,15 +194,19 @@ struct TaskStorageSchema {
     // Persisted flags come first, then transient flags.
     // =========================================================================
     /// Whether the task has an invalidator.
-    #[field(storage = "flag", category = "meta")]
+    #[field(storage = "flag", category = "meta", variant = "HasInvalidator")]
     pub invalidator: bool,
 
     /// Whether the task output is immutable (persisted).
-    #[field(storage = "flag", category = "meta")]
+    #[field(storage = "flag", category = "meta", variant = "Immutable")]
     pub immutable: bool,
 
     /// Whether clean in current session (transient flag).
-    #[field(storage = "flag", category = "transient")]
+    #[field(
+        storage = "flag",
+        category = "transient",
+        variant = "CurrentSessionClean"
+    )]
     pub current_session_clean: bool,
 
     // =========================================================================
@@ -171,85 +245,156 @@ struct TaskStorageSchema {
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
     /// Child tasks of this task.
-    #[field(storage = "auto_set", category = "meta", filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "meta",
+        filter_transient,
+        variant = "Child",
+        key_field = "task"
+    )]
     pub children: AutoSet<TaskId>,
 
     /// Follower nodes in the aggregation tree (reference counted).
-    #[field(storage = "counter_map", category = "meta", filter_transient)]
+    #[field(
+        storage = "counter_map",
+        category = "meta",
+        filter_transient,
+        variant = "Follower",
+        key_field = "task"
+    )]
     pub followers: CounterMap<TaskId, u32>,
 
     // =========================================================================
     // DEPENDENCIES (data)
     // =========================================================================
-    /// Tasks whose output this task depends on.
-    #[field(storage = "auto_set", category = "data", filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        variant = "OutputDependency",
+        key_field = "target"
+    )]
     pub output_dependencies: AutoSet<TaskId>,
 
     /// Cells this task depends on.
-    #[field(storage = "auto_set", category = "data", filter_transient)]
-    pub cell_dependencies: AutoSet<CellRef>,
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        variant = "CellDependency",
+        key_field = "target, key"
+    )]
+    pub cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
 
     /// Collectibles this task depends on.
-    #[field(storage = "auto_set", category = "data", filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        variant = "CollectiblesDependency",
+        key_field = "target"
+    )]
     pub collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     /// Outdated output dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient")]
+    #[field(
+        storage = "auto_set",
+        category = "transient",
+        variant = "OutdatedOutputDependency",
+        key_field = "target"
+    )]
     pub outdated_output_dependencies: AutoSet<TaskId>,
 
     /// Outdated cell dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient")]
-    pub outdated_cell_dependencies: AutoSet<CellRef>,
+    #[field(
+        storage = "auto_set",
+        category = "transient",
+        variant = "OutdatedCellDependency",
+        key_field = "target, key"
+    )]
+    pub outdated_cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient")]
+    #[field(
+        storage = "auto_set",
+        category = "transient",
+        variant = "OutdatedCollectiblesDependency",
+        key_field = "target"
+    )]
     pub outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     // =========================================================================
     // DEPENDENTS - Tasks that depend on this task's cells
     // =========================================================================
-    /// Tasks that depend on specific cells of this task.
-    /// Maps CellId -> Set<TaskId>
-    #[field(storage = "auto_set", category = "data", filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        variant = "CellDependent",
+        key_field = "cell, key, task",
+        filter_transient
+    )]
     pub cell_dependents: AutoSet<(CellId, Option<u64>, TaskId)>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
-    #[field(storage = "auto_set", category = "meta", filter_transient)]
+
+    #[field(
+        storage = "auto_set",
+        category = "meta",
+        variant = "CollectiblesDependent",
+        key_field = "collectible_type, task",
+        filter_transient
+    )]
     pub collectibles_dependents: AutoSet<(TraitTypeId, TaskId)>,
 
     // =========================================================================
     // CELL DATA (data)
     // =========================================================================
     /// Persistent cell data (serializable).
-    #[field(storage = "auto_map", category = "data")]
+    #[field(
+        storage = "auto_map",
+        category = "data",
+        variant = "CellData",
+        key_field = "cell"
+    )]
     pub cell_data: AutoMap<CellId, TypedSharedReference>,
 
     /// Transient cell data (not serializable).
-    #[field(storage = "auto_map", category = "transient")]
+    #[field(
+        storage = "auto_map",
+        category = "transient",
+        variant = "TransientCellData",
+        key_field = "cell"
+    )]
     pub transient_cell_data: AutoMap<CellId, SharedReference>,
 
     /// Maximum cell index per cell type.
-    #[field(storage = "auto_map", category = "data")]
+    #[field(
+        storage = "auto_map",
+        category = "data",
+        variant = "CellTypeMaxIndex",
+        key_field = "cell_type"
+    )]
     pub cell_type_max_index: AutoMap<ValueTypeId, u32>,
 
     // =========================================================================
     // TRANSIENT EXECUTION STATE (transient)
     // =========================================================================
     /// Activeness state for root/once tasks (transient).
-    /// Note: Lazy storage provides natural optionality -
-    /// presence in Vec<LazyField> = Some, absence = None. No Option wrapper needed.
-    #[field(storage = "direct", category = "transient")]
+    #[field(storage = "direct", category = "transient", variant = "Activeness")]
     pub activeness: ActivenessState,
 
     /// In-progress execution state (transient).
-    /// Note: Lazy storage provides natural optionality -
-    /// presence in Vec<LazyField> = Some, absence = None. No Option wrapper needed.
-    #[field(storage = "direct", category = "transient")]
+    #[field(storage = "direct", category = "transient", variant = "InProgress")]
     pub in_progress: InProgressState,
 
     /// In-progress cell state for cells being computed (transient).
-    #[field(storage = "auto_map", category = "transient")]
+    #[field(
+        storage = "auto_map",
+        category = "transient",
+        variant = "InProgressCell",
+        key_field = "cell"
+    )]
     pub in_progress_cells: AutoMap<CellId, InProgressCellState>,
 }
 
@@ -257,7 +402,7 @@ struct TaskStorageSchema {
 // TaskFlags helper methods (for InnerStorageState compatibility)
 // =============================================================================
 
-use crate::backend::TaskDataCategory;
+use crate::backend::{TaskDataCategory, storage::SpecificTaskDataCategory};
 
 impl TaskFlags {
     /// Set restored flags based on category
@@ -293,6 +438,38 @@ impl TaskFlags {
     /// Check if any modified flag is set
     pub fn any_modified(&self) -> bool {
         self.meta_modified() || self.data_modified()
+    }
+
+    /// Check if the specified category is modified
+    pub fn is_modified(&self, category: SpecificTaskDataCategory) -> bool {
+        match category {
+            SpecificTaskDataCategory::Meta => self.meta_modified(),
+            SpecificTaskDataCategory::Data => self.data_modified(),
+        }
+    }
+
+    /// Set the modified flag for the specified category
+    pub fn set_modified(&mut self, category: SpecificTaskDataCategory, value: bool) {
+        match category {
+            SpecificTaskDataCategory::Meta => self.set_meta_modified(value),
+            SpecificTaskDataCategory::Data => self.set_data_modified(value),
+        }
+    }
+
+    /// Check if the specified category has a snapshot
+    pub fn is_snapshot(&self, category: SpecificTaskDataCategory) -> bool {
+        match category {
+            SpecificTaskDataCategory::Meta => self.meta_snapshot(),
+            SpecificTaskDataCategory::Data => self.data_snapshot(),
+        }
+    }
+
+    /// Set the snapshot flag for the specified category
+    pub fn set_snapshot(&mut self, category: SpecificTaskDataCategory, value: bool) {
+        match category {
+            SpecificTaskDataCategory::Meta => self.set_meta_snapshot(value),
+            SpecificTaskDataCategory::Data => self.set_data_snapshot(value),
+        }
     }
 }
 
@@ -388,6 +565,38 @@ impl TaskStorage {
             None
         }
     }
+
+    /// Encode fields for the specified category
+    pub fn encode<E: bincode::enc::Encoder>(
+        &self,
+        category: SpecificTaskDataCategory,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        match category {
+            SpecificTaskDataCategory::Meta => self.encode_meta(encoder),
+            SpecificTaskDataCategory::Data => self.encode_data(encoder),
+        }
+    }
+
+    /// Decode fields for the specified category
+    pub fn decode<D: bincode::de::Decoder>(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        decoder: &mut D,
+    ) -> Result<(), bincode::error::DecodeError> {
+        match category {
+            SpecificTaskDataCategory::Meta => self.decode_meta(decoder),
+            SpecificTaskDataCategory::Data => self.decode_data(decoder),
+        }
+    }
+
+    /// Clone only the fields for the specified category
+    pub fn clone_category_snapshot(&self, category: SpecificTaskDataCategory) -> TaskStorage {
+        match category {
+            SpecificTaskDataCategory::Meta => self.clone_meta_snapshot(),
+            SpecificTaskDataCategory::Data => self.clone_data_snapshot(),
+        }
+    }
 }
 
 // Support serialization filtering for CellDependents and CollectibleDependents
@@ -406,6 +615,12 @@ impl IsTransient for (CellId, Option<u64>, TaskId) {
         self.2.is_transient()
     }
 }
+impl IsTransient for (CellRef, Option<u64>) {
+    fn is_transient(&self) -> bool {
+        self.0.task.is_transient()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::mem::size_of;
@@ -413,7 +628,38 @@ mod tests {
     use turbo_tasks::{CellId, TaskId};
 
     use super::*;
-    use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
+    use crate::{
+        backend::storage::SpecificTaskDataCategory,
+        data::{AggregationNumber, CellRef, Dirtyness, OutputValue},
+    };
+
+    /// Test wrapper that implements TaskStorageAccessors for testing the CachedDataItem adapter.
+    /// This wrapper doesn't track modifications since we're just testing functionality.
+    struct TestStorage(TaskStorage);
+
+    impl TestStorage {
+        fn new() -> Self {
+            Self(TaskStorage::new())
+        }
+    }
+
+    impl TaskStorageAccessors for TestStorage {
+        fn typed(&self) -> &TaskStorage {
+            &self.0
+        }
+
+        fn typed_mut(&mut self) -> &mut TaskStorage {
+            &mut self.0
+        }
+
+        fn track_modification(&mut self, _category: SpecificTaskDataCategory) {
+            // No-op for tests
+        }
+
+        fn check_access(&self, _category: crate::backend::TaskDataCategory) {
+            // No-op for tests
+        }
+    }
 
     #[test]
     fn test_accessors() {
@@ -698,13 +944,16 @@ mod tests {
         original
             .output_dependencies_mut()
             .insert(TaskId::new(200).unwrap());
-        original.cell_dependencies_mut().insert(CellRef {
-            task: TaskId::new(1).unwrap(),
-            cell: CellId {
-                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                index: 0,
+        original.cell_dependencies_mut().insert((
+            CellRef {
+                task: TaskId::new(1).unwrap(),
+                cell: CellId {
+                    type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
+                    index: 0,
+                },
             },
-        });
+            None,
+        ));
 
         // Set lazy data transient field (should NOT be serialized)
         original
@@ -815,23 +1064,185 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
-        // TaskStorage uses lazy storage for most fields, keeping inline storage minimal.
-        // Current layout (128 bytes):
-        //   - output_dependent (AutoSet<TaskId>): 24 bytes
-        //   - aggregation_number (AggregationNumber with default): 12 bytes
-        //   - output (Option<OutputValue>): 32 bytes
-        //   - upper (CounterMap<TaskId, u32>): 24 bytes
-        //   - flags (TaskFlags): 8 bytes
-        //   - lazy (Vec<LazyField>): 24 bytes
-        //   - padding: 4 bytes
-        //
-        // Use exact size check to catch regressions in either direction.
         assert_eq!(
             size_of::<TaskStorage>(),
-            128,
-            "TaskStorage size changed! Was 128 bytes, now {} bytes. If this is intentional, \
-             update this test.",
-            size_of::<TaskStorage>()
+            136,
+            "TaskStorage size changed! If this is intentional, update this test."
         );
+    }
+
+    // ==========================================================================
+    // CachedDataItem Adapter Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_adapter_basic() {
+        use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue};
+
+        let mut storage = TestStorage::new();
+        let task1 = unsafe { TaskId::new_unchecked(1) };
+        let task2 = unsafe { TaskId::new_unchecked(2) };
+
+        // Test add for inline direct field (Output)
+        let output_item = CachedDataItem::Output {
+            value: OutputValue::Output(task1),
+        };
+        assert!(storage.add(output_item.clone()));
+        assert!(!storage.add(output_item)); // Second add should return false
+
+        // Test get for Output
+        let key = CachedDataItemKey::Output {};
+        assert!(storage.get(&key).is_some());
+        assert!(storage.contains_key(&key));
+
+        // Test remove for Output
+        let removed = storage.remove(&key);
+        assert!(matches!(removed, Some(CachedDataItemValue::Output { .. })));
+        assert!(storage.get(&key).is_none());
+
+        // Test add for inline AutoSet field (OutputDependent)
+        let dep_item = CachedDataItem::OutputDependent {
+            task: task1,
+            value: (),
+        };
+        assert!(storage.add(dep_item.clone()));
+        assert!(!storage.add(dep_item)); // Already exists
+
+        // Verify via typed accessor
+        assert!(storage.typed().output_dependent().contains(&task1));
+
+        // Test add another
+        let dep_item2 = CachedDataItem::OutputDependent {
+            task: task2,
+            value: (),
+        };
+        assert!(storage.add(dep_item2));
+        assert_eq!(storage.typed().output_dependent().len(), 2);
+
+        // Test remove OutputDependent
+        let key = CachedDataItemKey::OutputDependent { task: task1 };
+        let removed = storage.remove(&key);
+        assert!(matches!(
+            removed,
+            Some(CachedDataItemValue::OutputDependent { value: () })
+        ));
+        assert_eq!(storage.typed().output_dependent().len(), 1);
+        assert!(!storage.typed().output_dependent().contains(&task1));
+        assert!(storage.typed().output_dependent().contains(&task2));
+    }
+
+    #[test]
+    fn test_adapter_flags() {
+        use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue};
+
+        let mut storage = TestStorage::new();
+
+        // Test flag field (Immutable)
+        let immutable_item = CachedDataItem::Immutable { value: () };
+        assert!(storage.add(immutable_item.clone()));
+        assert!(storage.typed().flags.immutable());
+        assert!(!storage.add(immutable_item)); // Already set
+
+        // Test get for flag
+        let key = CachedDataItemKey::Immutable {};
+        assert!(storage.get(&key).is_some());
+
+        // Test remove for flag
+        let removed = storage.remove(&key);
+        assert!(matches!(
+            removed,
+            Some(CachedDataItemValue::Immutable { value: () })
+        ));
+        assert!(!storage.typed().flags.immutable());
+
+        // Removing again should return None
+        assert!(storage.remove(&key).is_none());
+    }
+
+    #[test]
+    fn test_adapter_counter_map() {
+        use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue};
+
+        let mut storage = TestStorage::new();
+        let task1 = unsafe { TaskId::new_unchecked(1) };
+        let task2 = unsafe { TaskId::new_unchecked(2) };
+
+        // Test inline CounterMap field (Upper)
+        let upper_item = CachedDataItem::Upper {
+            task: task1,
+            value: 5,
+        };
+        assert!(storage.add(upper_item));
+        assert_eq!(storage.upper().get(&task1), Some(&5));
+
+        // Update the value (insert returns old value)
+        let upper_update = CachedDataItem::Upper {
+            task: task1,
+            value: 10,
+        };
+        let old = storage.insert(upper_update);
+        assert!(matches!(old, Some(CachedDataItemValue::Upper { value: 5 })));
+        assert_eq!(storage.upper().get(&task1), Some(&10));
+
+        // Test lazy CounterMap field (Follower)
+        let follower_item = CachedDataItem::Follower {
+            task: task2,
+            value: 3,
+        };
+        assert!(storage.add(follower_item));
+        assert_eq!(storage.followers().unwrap().get(&task2), Some(&3));
+
+        // Test remove Follower
+        let key = CachedDataItemKey::Follower { task: task2 };
+        let removed = storage.remove(&key);
+        assert!(matches!(
+            removed,
+            Some(CachedDataItemValue::Follower { value: 3 })
+        ));
+        // After removal, followers map might be empty or the key just removed
+        assert!(storage.followers().is_none_or(|f| f.get(&task2).is_none()));
+    }
+
+    #[test]
+    fn test_adapter_lazy_autoset() {
+        use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue};
+
+        let mut storage = TestStorage::new();
+        let task1 = unsafe { TaskId::new_unchecked(1) };
+        let task2 = unsafe { TaskId::new_unchecked(2) };
+
+        // Test lazy AutoSet field (Child)
+        let child_item = CachedDataItem::Child {
+            task: task1,
+            value: (),
+        };
+        assert!(storage.add(child_item));
+        assert!(storage.children().is_some());
+        assert!(storage.children().unwrap().contains(&task1));
+
+        // Add another child
+        let child_item2 = CachedDataItem::Child {
+            task: task2,
+            value: (),
+        };
+        assert!(storage.add(child_item2));
+        assert_eq!(storage.children().unwrap().len(), 2);
+
+        // Test get
+        let key = CachedDataItemKey::Child { task: task1 };
+        assert!(storage.get(&key).is_some());
+        let key_missing = CachedDataItemKey::Child {
+            task: unsafe { TaskId::new_unchecked(999) },
+        };
+        assert!(storage.get(&key_missing).is_none());
+
+        // Test remove
+        let removed = storage.remove(&key);
+        assert!(matches!(
+            removed,
+            Some(CachedDataItemValue::Child { value: () })
+        ));
+        assert_eq!(storage.children().unwrap().len(), 1);
+        assert!(!storage.children().unwrap().contains(&task1));
     }
 }

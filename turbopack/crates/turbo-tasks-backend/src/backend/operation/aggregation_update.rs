@@ -33,6 +33,7 @@ use crate::{
         storage::{
             count, get, get_many, iter_many, remove, update, update_count, update_count_and_get,
         },
+        storage_schema::TaskStorageAccessors,
     },
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
