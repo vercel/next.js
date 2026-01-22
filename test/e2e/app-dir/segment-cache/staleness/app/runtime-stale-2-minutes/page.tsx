@@ -27,6 +27,6 @@ async function RuntimePrefetchable() {
 async function Content() {
   'use cache'
   await new Promise((resolve) => setTimeout(resolve, 0))
-  cacheLife({ stale: 10 * 60 })
-  return 'Content with stale time of 10 minutes'
+  cacheLife({ stale: 2 * 60 })
+  return 'Content with stale time of 2 minutes'
 }

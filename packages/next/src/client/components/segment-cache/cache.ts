@@ -961,10 +961,10 @@ function pingBlockedTasks(entry: {
 }
 
 function fulfillRouteCacheEntry(
+  now: number,
   entry: RouteCacheEntry,
   tree: RouteTree,
   metadataVaryPath: PageVaryPath,
-  staleAt: number,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   renderedSearch: NormalizedSearch,
@@ -992,7 +992,11 @@ function fulfillRouteCacheEntry(
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.tree = tree
   fulfilledEntry.metadata = metadata
-  fulfilledEntry.staleAt = staleAt
+  // Route structure is essentially static — it only changes on deploy.
+  // Always use the static stale time.
+  // NOTE: An exception is rewrites/redirects in middleware or proxy, which can
+  // change routes dynamically. We have other strategies for handling those.
+  fulfilledEntry.staleAt = now + STATIC_STALETIME_MS
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
@@ -1618,12 +1622,11 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
-      const staleTimeMs = getStaleTimeMs(serverData.staleTime)
       fulfillRouteCacheEntry(
+        Date.now(),
         entry,
         routeTree,
         metadataVaryPath,
-        Date.now() + staleTimeMs,
         couldBeIntercepted,
         canonicalUrl,
         renderedSearch,
@@ -1987,16 +1990,6 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const flightRouterState = flightData.tree
-  // For runtime prefetches, stale time is in the payload at rp[1].
-  // For other responses, fall back to the header.
-  const staleTimeSeconds =
-    typeof serverData.rp?.[1] === 'number'
-      ? serverData.rp[1]
-      : parseInt(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '', 10)
-  const staleTimeMs = !isNaN(staleTimeSeconds)
-    ? getStaleTimeMs(staleTimeSeconds)
-    : STATIC_STALETIME_MS
-
   // If the response contains dynamic holes, then we must conservatively assume
   // that any individual segment might contain dynamic holes, and also the
   // head. If it did not contain dynamic holes, then we can assume every segment
@@ -2022,10 +2015,10 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const fulfilledEntry = fulfillRouteCacheEntry(
+    now,
     entry,
     routeTree,
     metadataVaryPath,
-    now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
     renderedSearch,
