@@ -14,8 +14,8 @@ use crate::{
     compression::compress_into_buffer,
     meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
     static_sorted_file::{
-        BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        BLOCK_TYPE_DIRECT_VARIABLE, BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB,
+        KEY_BLOCK_ENTRY_TYPE_DELETED, KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
 };
 
@@ -631,6 +631,500 @@ impl<'l> IndexBlockBuilder<'l> {
 
     /// Returns the index block buffer
     fn finish(self) -> &'l mut Vec<u8> {
+        self.buffer
+    }
+}
+
+// =============================================================================
+// Direct Key Format Writers
+// =============================================================================
+
+/// Trait for entries that can be written to a direct-key fixed-value SST file.
+pub trait DirectFixedEntry {
+    /// The fixed-size key bytes.
+    fn key_bytes(&self) -> &[u8];
+    /// The fixed-size value bytes.
+    fn value_bytes(&self) -> &[u8];
+}
+
+/// Trait for entries that can be written to a direct-key variable-value SST file.
+pub trait DirectVariableEntry {
+    /// The fixed-size key bytes.
+    fn key_bytes(&self) -> &[u8];
+    /// Returns the value.
+    fn value(&self) -> EntryValue<'_>;
+}
+
+/// Writes a direct-key fixed-value SST file.
+///
+/// This format is optimized for families with:
+/// - Fixed-size integer keys (stored directly, no hashing)
+/// - Fixed-size values (stored inline with keys)
+/// - High-entropy data (no compression)
+///
+/// File layout:
+/// ```text
+/// [entries: (KEY_SIZE + VALUE_SIZE) bytes each, sorted by key bytes]
+/// [block_offset: u32] (single entry pointing to end of data)
+/// ```
+///
+/// The entries are stored contiguously without any block headers or offset tables.
+/// Position of entry `i` = `i * (KEY_SIZE + VALUE_SIZE)`.
+pub fn write_direct_fixed_sst<const KEY_SIZE: usize, const VALUE_SIZE: usize>(
+    entries: &[impl DirectFixedEntry],
+    file: &Path,
+    flags: MetaEntryFlags,
+) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
+    debug_assert!(
+        entries
+            .iter()
+            .map(|e| e.key_bytes())
+            .is_sorted_by(|a, b| a.cmp(b) != std::cmp::Ordering::Greater)
+    );
+    debug_assert!(flags.uses_direct_keys());
+    debug_assert!(flags.uses_fixed_values());
+    debug_assert!(flags.is_uncompressed());
+    debug_assert_eq!(flags.key_size(), KEY_SIZE as u8);
+    debug_assert_eq!(flags.value_size(), VALUE_SIZE as u8);
+
+    let mut file = BufWriter::new(File::create(file)?);
+    let entry_size = KEY_SIZE + VALUE_SIZE;
+
+    // Build AMQF filter for quick negative lookups
+    // For direct keys, we use the key bytes padded/truncated to 8 bytes as the "hash"
+    let mut filter = qfilter::Filter::new(entries.len() as u64, AMQF_FALSE_POSITIVE_RATE)
+        .expect("Filter can't be constructed");
+
+    // Compute min/max for key range (using key bytes as hash proxy)
+    let min_hash = entries
+        .first()
+        .map(|e| key_bytes_to_hash::<KEY_SIZE>(e.key_bytes()))
+        .unwrap_or(u64::MAX);
+    let max_hash = entries
+        .last()
+        .map(|e| key_bytes_to_hash::<KEY_SIZE>(e.key_bytes()))
+        .unwrap_or(0);
+
+    // Write all entries directly
+    for entry in entries {
+        let key = entry.key_bytes();
+        let value = entry.value_bytes();
+        debug_assert_eq!(key.len(), KEY_SIZE);
+        debug_assert_eq!(value.len(), VALUE_SIZE);
+
+        // Add to AMQF filter
+        let hash = key_bytes_to_hash::<KEY_SIZE>(key);
+        filter
+            .insert_fingerprint(false, hash)
+            .expect("AMQF insert failed");
+
+        file.write_all(key)?;
+        file.write_all(value)?;
+    }
+
+    // Write a single "block offset" pointing to the end of data
+    // This maintains compatibility with the block offset table format
+    let data_end = (entries.len() * entry_size) as u32;
+    file.write_u32::<BE>(data_end)?;
+
+    let amqf =
+        turbo_bincode_encode(&AmqfBincodeWrapper(filter)).expect("AMQF serialization failed");
+
+    let meta = StaticSortedFileBuilderMeta {
+        min_hash,
+        max_hash,
+        amqf: Cow::Owned(amqf.into_vec()),
+        key_compression_dictionary_length: 0, // No compression dictionary
+        block_count: 1,                       // Single "block" (the whole data section)
+        size: file.stream_position()?,
+        flags,
+        entries: entries.len() as u64,
+    };
+
+    Ok((meta, file.into_inner()?))
+}
+
+/// Writes a direct-key variable-value SST file.
+///
+/// This format is optimized for families with:
+/// - Fixed-size integer keys (stored directly, no hashing)
+/// - Variable-size values (stored in separate blocks with compression)
+///
+/// This saves 8 bytes per entry compared to the default hashed format
+/// by storing keys directly instead of with an 8-byte hash prefix.
+///
+/// File layout is similar to the regular format but without key hashing:
+/// ```text
+/// [value blocks]
+/// [key blocks with direct keys]
+/// [index block]
+/// [block offsets]
+/// ```
+pub fn write_direct_variable_sst<const KEY_SIZE: usize>(
+    entries: &[impl DirectVariableEntry],
+    file: &Path,
+    flags: MetaEntryFlags,
+) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
+    debug_assert!(
+        entries
+            .iter()
+            .map(|e| e.key_bytes())
+            .is_sorted_by(|a, b| a.cmp(b) != std::cmp::Ordering::Greater)
+    );
+    debug_assert!(flags.uses_direct_keys());
+    debug_assert!(!flags.uses_fixed_values());
+    debug_assert_eq!(flags.key_size(), KEY_SIZE as u8);
+
+    let mut file = BufWriter::new(File::create(file)?);
+
+    // No compression dictionary for direct key format
+    // (keys are fixed size, dictionary would waste space)
+
+    let mut buffer = Vec::new();
+    let mut block_writer = BlockWriter::new(&mut file, &mut buffer);
+
+    let mut buffer = Vec::new();
+
+    // Compute min/max hash from key bytes
+    let min_hash = entries
+        .first()
+        .map(|e| key_bytes_to_hash::<KEY_SIZE>(e.key_bytes()))
+        .unwrap_or(u64::MAX);
+
+    let value_locations = write_value_blocks_direct(entries, &mut block_writer, &mut buffer)
+        .context("Failed to write value blocks")?;
+    let amqf = write_direct_key_blocks_and_compute_amqf::<KEY_SIZE, _>(
+        entries,
+        &value_locations,
+        &mut block_writer,
+        &mut buffer,
+    )
+    .context("Failed to write key blocks")?;
+
+    let max_hash = entries
+        .last()
+        .map(|e| key_bytes_to_hash::<KEY_SIZE>(e.key_bytes()))
+        .unwrap_or(0);
+
+    let block_count = block_writer.block_count();
+    for offset in &block_writer.block_offsets {
+        file.write_u32::<BE>(*offset)
+            .context("Failed to write block offset")?;
+    }
+
+    let meta = StaticSortedFileBuilderMeta {
+        min_hash,
+        max_hash,
+        amqf: Cow::Owned(amqf.into_vec()),
+        key_compression_dictionary_length: 0, // No compression dictionary
+        block_count,
+        size: file.stream_position()?,
+        flags,
+        entries: entries.len() as u64,
+    };
+
+    Ok((meta, file.into_inner()?))
+}
+
+/// Converts key bytes to a u64 hash for AMQF filter and range queries.
+///
+/// For keys smaller than 8 bytes, pads with zeros on the right.
+/// For keys larger than 8 bytes, uses only the first 8 bytes.
+#[inline]
+fn key_bytes_to_hash<const KEY_SIZE: usize>(key: &[u8]) -> u64 {
+    let mut hash_bytes = [0u8; 8];
+    let copy_len = KEY_SIZE.min(8);
+    hash_bytes[..copy_len].copy_from_slice(&key[..copy_len]);
+    u64::from_be_bytes(hash_bytes)
+}
+
+/// Writes value blocks for direct-key entries.
+#[tracing::instrument(level = "trace", skip_all)]
+fn write_value_blocks_direct(
+    entries: &[impl DirectVariableEntry],
+    writer: &mut BlockWriter<'_>,
+    buffer: &mut Vec<u8>,
+) -> Result<Vec<(u16, u32)>> {
+    let mut value_locations: Vec<(u16, u32)> = Vec::with_capacity(entries.len());
+
+    let mut current_block_start = 0;
+    let mut current_block_count = 0;
+    let mut current_block_size = 0;
+    for (i, entry) in entries.iter().enumerate() {
+        match entry.value() {
+            EntryValue::Small { value } => {
+                if current_block_size + value.len() > MAX_SMALL_VALUE_BLOCK_SIZE
+                    || current_block_count + 1 >= MAX_SMALL_VALUE_BLOCK_ENTRIES
+                {
+                    let block_index = writer.next_block_index();
+                    buffer.reserve(current_block_size);
+                    for j in current_block_start..i {
+                        if let EntryValue::Small { value } = &entries[j].value() {
+                            buffer.extend_from_slice(value);
+                            value_locations[j].0 = block_index;
+                        }
+                    }
+                    writer.write_small_value_block(buffer)?;
+                    buffer.clear();
+                    current_block_start = i;
+                    current_block_size = 0;
+                    current_block_count = 0;
+                }
+                value_locations.push((0, current_block_size.try_into().unwrap()));
+                current_block_size += value.len();
+                current_block_count += 1;
+            }
+            EntryValue::Medium { value } => {
+                let block_index = writer.next_block_index();
+                value_locations.push((block_index, 0));
+                writer.write_value_block(value)?;
+            }
+            EntryValue::MediumCompressed {
+                uncompressed_size,
+                block,
+            } => {
+                let block_index = writer.next_block_index();
+                value_locations.push((block_index, 0));
+                writer.write_compressed_block(uncompressed_size, block)?;
+            }
+            EntryValue::Deleted | EntryValue::Large { .. } => {
+                value_locations.push((0, 0));
+            }
+        }
+    }
+    if current_block_count > 0 {
+        let block_index = writer.next_block_index();
+        buffer.reserve(current_block_size);
+        for j in current_block_start..entries.len() {
+            if let EntryValue::Small { value } = &entries[j].value() {
+                buffer.extend_from_slice(value);
+                value_locations[j].0 = block_index;
+            }
+        }
+        writer.write_small_value_block(buffer)?;
+        buffer.clear();
+    }
+
+    Ok(value_locations)
+}
+
+/// Writes key blocks with direct keys (no hash prefix) and computes AMQF.
+#[tracing::instrument(level = "trace", skip_all)]
+fn write_direct_key_blocks_and_compute_amqf<const KEY_SIZE: usize, E: DirectVariableEntry>(
+    entries: &[E],
+    value_locations: &[(u16, u32)],
+    writer: &mut BlockWriter<'_>,
+    buffer: &mut Vec<u8>,
+) -> Result<TurboBincodeBuffer> {
+    let mut filter = qfilter::Filter::new(entries.len() as u64, AMQF_FALSE_POSITIVE_RATE)
+        .expect("Filter can't be constructed");
+
+    let mut key_block_boundaries = Vec::new();
+
+    fn add_entry_to_direct_block<const KEY_SIZE: usize, E: DirectVariableEntry>(
+        entry: &E,
+        value_location: &(u16, u32),
+        block: &mut DirectKeyBlockBuilder<'_>,
+    ) {
+        match entry.value() {
+            EntryValue::Small { value } => {
+                block.put_small::<KEY_SIZE>(
+                    entry.key_bytes(),
+                    value_location.0,
+                    value_location.1,
+                    value.len().try_into().unwrap(),
+                );
+            }
+            EntryValue::Medium { .. } | EntryValue::MediumCompressed { .. } => {
+                block.put_medium::<KEY_SIZE>(entry.key_bytes(), value_location.0);
+            }
+            EntryValue::Large { blob } => {
+                block.put_blob::<KEY_SIZE>(entry.key_bytes(), blob);
+            }
+            EntryValue::Deleted => {
+                block.delete::<KEY_SIZE>(entry.key_bytes());
+            }
+        }
+    }
+
+    let mut current_block_start = 0;
+    let mut current_block_size = 0;
+    let mut last_key: Option<&[u8]> = None;
+
+    for (i, entry) in entries.iter().enumerate() {
+        let key = entry.key_bytes();
+        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
+
+        // Add to AMQF
+        filter
+            .insert_fingerprint(false, key_hash)
+            .expect("AMQF insert failed");
+
+        // Accumulate until the block is full
+        // For direct keys, we use KEY_SIZE instead of variable key length
+        let entry_overhead = KEY_SIZE + KEY_BLOCK_ENTRY_META_OVERHEAD - 8; // -8 because no hash prefix
+        if current_block_size > 0
+            && (current_block_size + entry_overhead > MAX_KEY_BLOCK_SIZE
+                || i - current_block_start >= MAX_KEY_BLOCK_ENTRIES)
+            && last_key != Some(key)
+        // avoid breaking in middle of duplicate keys
+        {
+            let mut block =
+                DirectKeyBlockBuilder::new::<KEY_SIZE>(buffer, (i - current_block_start) as u32);
+            for j in current_block_start..i {
+                let entry = &entries[j];
+                let value_location = &value_locations[j];
+                add_entry_to_direct_block::<KEY_SIZE, _>(entry, value_location, &mut block);
+            }
+            key_block_boundaries.push((
+                key_bytes_to_hash::<KEY_SIZE>(entries[current_block_start].key_bytes()),
+                writer.next_block_index(),
+            ));
+            block.finish();
+            // No compression dictionary for direct key blocks
+            writer.write_key_block(buffer, &[])?;
+            buffer.clear();
+            current_block_size = 0;
+            current_block_start = i;
+        }
+        current_block_size += entry_overhead;
+        last_key = Some(key);
+    }
+
+    // Finish the last block
+    if current_block_size > 0 {
+        let mut block = DirectKeyBlockBuilder::new::<KEY_SIZE>(
+            buffer,
+            (entries.len() - current_block_start) as u32,
+        );
+        for j in current_block_start..entries.len() {
+            let entry = &entries[j];
+            let value_location = &value_locations[j];
+            add_entry_to_direct_block::<KEY_SIZE, _>(entry, value_location, &mut block);
+        }
+        key_block_boundaries.push((
+            key_bytes_to_hash::<KEY_SIZE>(entries[current_block_start].key_bytes()),
+            writer.next_block_index(),
+        ));
+        block.finish();
+        writer.write_key_block(buffer, &[])?;
+        buffer.clear();
+    }
+
+    // Compute the index (same as regular format)
+    let mut index_block = IndexBlockBuilder::new(
+        buffer,
+        key_block_boundaries
+            .len()
+            .try_into()
+            .expect("Index entries count overflow"),
+        key_block_boundaries[0].1,
+    );
+    for (hash, block) in &key_block_boundaries[1..] {
+        index_block.put(*hash, *block);
+    }
+    let _ = writer.next_block_index();
+    index_block.finish();
+    writer.write_index_block(buffer, &[])?;
+    buffer.clear();
+
+    Ok(turbo_bincode_encode(&AmqfBincodeWrapper(filter)).expect("AMQF serialization failed"))
+}
+
+/// Builder for a direct-key block (keys stored without hash prefix).
+pub struct DirectKeyBlockBuilder<'l> {
+    current_entry: usize,
+    header_size: usize,
+    buffer: &'l mut Vec<u8>,
+}
+
+/// The size of the direct key block header.
+const DIRECT_KEY_BLOCK_HEADER_SIZE: usize = 4;
+
+impl<'l> DirectKeyBlockBuilder<'l> {
+    /// Creates a new direct key block builder for the number of entries.
+    pub fn new<const KEY_SIZE: usize>(buffer: &'l mut Vec<u8>, entry_count: u32) -> Self {
+        debug_assert!(entry_count < (1 << 24));
+
+        buffer.reserve(entry_count as usize * (KEY_SIZE + 8));
+        buffer.write_u8(BLOCK_TYPE_DIRECT_VARIABLE).unwrap();
+        buffer.write_u24::<BE>(entry_count).unwrap();
+        for _ in 0..entry_count {
+            buffer.write_u32::<BE>(0).unwrap();
+        }
+        Self {
+            current_entry: 0,
+            header_size: buffer.len(),
+            buffer,
+        }
+    }
+
+    /// Writes a small-sized value entry with direct key.
+    pub fn put_small<const KEY_SIZE: usize>(
+        &mut self,
+        key: &[u8],
+        value_block: u16,
+        value_offset: u32,
+        value_size: u16,
+    ) {
+        debug_assert_eq!(key.len(), KEY_SIZE);
+        let pos = self.buffer.len() - self.header_size;
+        let header_offset = DIRECT_KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_SMALL as u32) << 24);
+        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
+
+        // Direct key: no hash prefix, just the key bytes
+        self.buffer.extend_from_slice(key);
+        self.buffer.write_u16::<BE>(value_block).unwrap();
+        self.buffer.write_u16::<BE>(value_size).unwrap();
+        self.buffer.write_u32::<BE>(value_offset).unwrap();
+
+        self.current_entry += 1;
+    }
+
+    /// Writes a medium-sized value entry with direct key.
+    pub fn put_medium<const KEY_SIZE: usize>(&mut self, key: &[u8], value_block: u16) {
+        debug_assert_eq!(key.len(), KEY_SIZE);
+        let pos = self.buffer.len() - self.header_size;
+        let header_offset = DIRECT_KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_MEDIUM as u32) << 24);
+        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
+
+        self.buffer.extend_from_slice(key);
+        self.buffer.write_u16::<BE>(value_block).unwrap();
+
+        self.current_entry += 1;
+    }
+
+    /// Writes a tombstone entry with direct key.
+    pub fn delete<const KEY_SIZE: usize>(&mut self, key: &[u8]) {
+        debug_assert_eq!(key.len(), KEY_SIZE);
+        let pos = self.buffer.len() - self.header_size;
+        let header_offset = DIRECT_KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_DELETED as u32) << 24);
+        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
+
+        self.buffer.extend_from_slice(key);
+
+        self.current_entry += 1;
+    }
+
+    /// Writes a blob value entry with direct key.
+    pub fn put_blob<const KEY_SIZE: usize>(&mut self, key: &[u8], blob: u32) {
+        debug_assert_eq!(key.len(), KEY_SIZE);
+        let pos = self.buffer.len() - self.header_size;
+        let header_offset = DIRECT_KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_BLOB as u32) << 24);
+        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
+
+        self.buffer.extend_from_slice(key);
+        self.buffer.write_u32::<BE>(blob).unwrap();
+
+        self.current_entry += 1;
+    }
+
+    /// Returns the key block buffer.
+    pub fn finish(self) -> &'l mut Vec<u8> {
         self.buffer
     }
 }

@@ -20,7 +20,7 @@ use rustc_hash::FxHasher;
 use turbo_bincode::turbo_bincode_decode;
 
 use crate::{
-    QueryKey,
+    ArcSlice, QueryKey,
     lookup_entry::LookupValue,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
@@ -46,23 +46,96 @@ bitfield! {
     pub cold, set_cold: 0;
     /// The SST file was freshly written and has not been compacted yet.
     pub fresh, set_fresh: 1;
+    /// The SST file uses direct key storage (no hashing). Keys are stored as raw bytes.
+    pub direct_key, set_direct_key: 2;
+    /// The SST file uses fixed-size value storage (inline with keys).
+    pub fixed_value, set_fixed_value: 3;
+    /// The SST file is stored uncompressed (for high-entropy data).
+    pub uncompressed, set_uncompressed: 4;
+    /// Fixed key size in bytes (bits 8-15). Only valid if direct_key is set.
+    pub u8, key_size, set_key_size: 15, 8;
+    /// Fixed value size in bytes (bits 16-23). Only valid if fixed_value is set.
+    pub u8, value_size, set_value_size: 23, 16;
 }
 
 impl MetaEntryFlags {
     pub const FRESH: MetaEntryFlags = MetaEntryFlags(0b10);
     pub const COLD: MetaEntryFlags = MetaEntryFlags(0b01);
     pub const WARM: MetaEntryFlags = MetaEntryFlags(0b00);
+
+    /// Create flags for a direct-key SST with variable values.
+    pub fn direct_key_variable(key_size: u8) -> Self {
+        let mut flags = Self::FRESH;
+        flags.set_direct_key(true);
+        flags.set_key_size(key_size);
+        flags
+    }
+
+    /// Create flags for a direct-key SST with fixed values and no compression.
+    pub fn direct_key_fixed(key_size: u8, value_size: u8) -> Self {
+        let mut flags = Self::FRESH;
+        flags.set_direct_key(true);
+        flags.set_fixed_value(true);
+        flags.set_uncompressed(true);
+        flags.set_key_size(key_size);
+        flags.set_value_size(value_size);
+        flags
+    }
+
+    /// Returns true if this SST uses direct key storage (no hashing).
+    #[inline]
+    pub fn uses_direct_keys(&self) -> bool {
+        self.direct_key()
+    }
+
+    /// Returns true if this SST uses fixed-size inline value storage.
+    #[inline]
+    pub fn uses_fixed_values(&self) -> bool {
+        self.fixed_value()
+    }
+
+    /// Returns true if this SST is stored uncompressed.
+    #[inline]
+    pub fn is_uncompressed(&self) -> bool {
+        self.uncompressed()
+    }
+
+    /// Returns the entry size for fully fixed-layout SSTs, or None if not applicable.
+    #[inline]
+    pub fn entry_size(&self) -> Option<usize> {
+        if self.direct_key() && self.fixed_value() {
+            Some(self.key_size() as usize + self.value_size() as usize)
+        } else {
+            None
+        }
+    }
 }
 
 impl Display for MetaEntryFlags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut parts = Vec::new();
+
+        // Compaction status
         if self.fresh() {
-            f.pad_integral(true, "", "fresh")
+            parts.push("fresh".to_string());
         } else if self.cold() {
-            f.pad_integral(true, "", "cold")
+            parts.push("cold".to_string());
         } else {
-            f.pad_integral(true, "", "warm")
+            parts.push("warm".to_string());
         }
+
+        // Format flags
+        if self.direct_key() {
+            parts.push(format!("direct_key({})", self.key_size()));
+        }
+        if self.fixed_value() {
+            parts.push(format!("fixed_value({})", self.value_size()));
+        }
+        if self.uncompressed() {
+            parts.push("uncompressed".to_string());
+        }
+
+        write!(f, "{}", parts.join(","))
     }
 }
 
@@ -430,6 +503,106 @@ impl MetaFile {
         Ok(miss_result)
     }
 
+    /// Lookup for direct-key fixed-value format.
+    ///
+    /// This is optimized for families with fixed-size integer keys and fixed-size values
+    /// stored inline without compression (e.g., TaskIdToTaskTypeHash).
+    ///
+    /// The key should be the raw key bytes (e.g., TaskId as 4 bytes).
+    pub fn lookup_direct_fixed<const KEY_SIZE: usize, const VALUE_SIZE: usize>(
+        &self,
+        key_family: u32,
+        key: &[u8; KEY_SIZE],
+        amqf_cache: &AmqfCache,
+    ) -> Result<MetaLookupResult> {
+        if key_family != self.family {
+            return Ok(MetaLookupResult::FamilyMiss);
+        }
+
+        // Convert key to hash for AMQF filtering
+        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
+
+        let mut miss_result = MetaLookupResult::RangeMiss;
+        for entry in self.entries.iter().rev() {
+            debug_assert!(
+                entry.flags.uses_direct_keys() && entry.flags.uses_fixed_values(),
+                "lookup_direct_fixed called on non-direct-fixed SST"
+            );
+
+            if key_hash < entry.min_hash || key_hash > entry.max_hash {
+                continue;
+            }
+            {
+                let amqf = entry.amqf(self, amqf_cache)?;
+                if !amqf.contains_fingerprint(key_hash) {
+                    miss_result = MetaLookupResult::QuickFilterMiss;
+                    continue;
+                }
+            }
+            let result = entry
+                .sst(self)?
+                .lookup_direct_fixed::<KEY_SIZE, VALUE_SIZE>(key)?;
+            if let Some(value) = result {
+                return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
+                    LookupValue::Slice {
+                        value: ArcSlice::from(value.to_vec().into_boxed_slice()),
+                    },
+                )));
+            }
+        }
+        Ok(miss_result)
+    }
+
+    /// Lookup for direct-key variable-value format.
+    ///
+    /// This is optimized for families with fixed-size integer keys but variable-size
+    /// values stored in compressed blocks (e.g., TaskMeta, TaskData).
+    ///
+    /// The key should be the raw key bytes (e.g., TaskId as 4 bytes).
+    pub fn lookup_direct_variable<const KEY_SIZE: usize>(
+        &self,
+        key_family: u32,
+        key: &[u8; KEY_SIZE],
+        amqf_cache: &AmqfCache,
+        key_block_cache: &BlockCache,
+        value_block_cache: &BlockCache,
+    ) -> Result<MetaLookupResult> {
+        if key_family != self.family {
+            return Ok(MetaLookupResult::FamilyMiss);
+        }
+
+        // Convert key to hash for AMQF filtering
+        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
+
+        let mut miss_result = MetaLookupResult::RangeMiss;
+        for entry in self.entries.iter().rev() {
+            debug_assert!(
+                entry.flags.uses_direct_keys() && !entry.flags.uses_fixed_values(),
+                "lookup_direct_variable called on non-direct-variable SST"
+            );
+
+            if key_hash < entry.min_hash || key_hash > entry.max_hash {
+                continue;
+            }
+            {
+                let amqf = entry.amqf(self, amqf_cache)?;
+                if !amqf.contains_fingerprint(key_hash) {
+                    miss_result = MetaLookupResult::QuickFilterMiss;
+                    continue;
+                }
+            }
+            let result = entry.sst(self)?.lookup_direct_variable::<KEY_SIZE>(
+                key,
+                key_block_cache,
+                value_block_cache,
+            )?;
+            if !matches!(result, SstLookupResult::NotFound) {
+                return Ok(MetaLookupResult::SstLookup(result));
+            }
+        }
+        Ok(miss_result)
+    }
+
     pub fn batch_lookup<K: QueryKey>(
         &self,
         key_family: u32,
@@ -524,4 +697,16 @@ impl MetaFile {
         }
         Ok(lookup_result)
     }
+}
+
+/// Converts key bytes to a u64 hash for AMQF filter and range queries.
+///
+/// For keys smaller than 8 bytes, pads with zeros on the right.
+/// For keys larger than 8 bytes, uses only the first 8 bytes.
+#[inline]
+fn key_bytes_to_hash<const KEY_SIZE: usize>(key: &[u8]) -> u64 {
+    let mut hash_bytes = [0u8; 8];
+    let copy_len = KEY_SIZE.min(8);
+    hash_bytes[..copy_len].copy_from_slice(&key[..copy_len]);
+    u64::from_be_bytes(hash_bytes)
 }

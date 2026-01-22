@@ -29,6 +29,7 @@ use crate::{
         KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
         VALUE_BLOCK_CACHE_SIZE,
     },
+    family_format::FormatConfig,
     key::{StoreKey, hash_key},
     lookup_entry::{LookupEntry, LookupValue},
     merge_iter::MergeIter,
@@ -125,6 +126,8 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
     value_block_cache: BlockCache,
+    /// Per-family format configuration for direct-key and fixed-value optimizations.
+    family_configs: [FormatConfig; FAMILIES],
     /// Statistics for the database.
     #[cfg(feature = "stats")]
     stats: TrackedStats,
@@ -169,7 +172,12 @@ impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, 
 }
 
 impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> {
-    fn new(path: PathBuf, read_only: bool, parallel_scheduler: S) -> Self {
+    fn new(
+        path: PathBuf,
+        read_only: bool,
+        parallel_scheduler: S,
+        family_configs: [FormatConfig; FAMILIES],
+    ) -> Self {
         Self {
             parallel_scheduler,
             path,
@@ -202,6 +210,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 Default::default(),
                 Default::default(),
             ),
+            family_configs,
             #[cfg(feature = "stats")]
             stats: TrackedStats::default(),
         }
@@ -211,19 +220,54 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// This will read the directory and might performance cleanup when the database was not closed
     /// properly. Cleanup only requires to read a few bytes from a few files and to delete
     /// files, so it's fast.
+    ///
+    /// Uses default format configuration (hashed keys, variable values) for all families.
     pub fn open_with_parallel_scheduler(path: PathBuf, parallel_scheduler: S) -> Result<Self> {
-        let mut db = Self::new(path, false, parallel_scheduler);
+        Self::open_with_parallel_scheduler_and_config(
+            path,
+            parallel_scheduler,
+            [FormatConfig::default(); FAMILIES],
+        )
+    }
+
+    /// Open a TurboPersistence database at the given path with custom family format configuration.
+    /// This will read the directory and might performance cleanup when the database was not closed
+    /// properly. Cleanup only requires to read a few bytes from a few files and to delete
+    /// files, so it's fast.
+    pub fn open_with_parallel_scheduler_and_config(
+        path: PathBuf,
+        parallel_scheduler: S,
+        family_configs: [FormatConfig; FAMILIES],
+    ) -> Result<Self> {
+        let mut db = Self::new(path, false, parallel_scheduler, family_configs);
         db.open_directory(false)?;
         Ok(db)
     }
 
     /// Open a TurboPersistence database at the given path in read only mode.
     /// This will read the directory. No Cleanup is performed.
+    ///
+    /// Uses default format configuration (hashed keys, variable values) for all families.
     pub fn open_read_only_with_parallel_scheduler(
         path: PathBuf,
         parallel_scheduler: S,
     ) -> Result<Self> {
-        let mut db = Self::new(path, true, parallel_scheduler);
+        Self::open_read_only_with_parallel_scheduler_and_config(
+            path,
+            parallel_scheduler,
+            [FormatConfig::default(); FAMILIES],
+        )
+    }
+
+    /// Open a TurboPersistence database at the given path in read only mode with custom family
+    /// format configuration.
+    /// This will read the directory. No Cleanup is performed.
+    pub fn open_read_only_with_parallel_scheduler_and_config(
+        path: PathBuf,
+        parallel_scheduler: S,
+        family_configs: [FormatConfig; FAMILIES],
+    ) -> Result<Self> {
+        let mut db = Self::new(path, true, parallel_scheduler, family_configs);
         db.open_directory(false)?;
         Ok(db)
     }
@@ -408,6 +452,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Returns true if the database is empty.
     pub fn is_empty(&self) -> bool {
         self.inner.read().meta_files.is_empty()
+    }
+
+    /// Returns the format configuration for a specific family.
+    #[inline]
+    pub fn family_config(&self, family: usize) -> FormatConfig {
+        self.family_configs[family]
+    }
+
+    /// Returns the format configurations for all families.
+    #[inline]
+    pub fn family_configs(&self) -> &[FormatConfig; FAMILIES] {
+        &self.family_configs
     }
 
     /// Starts a new WriteBatch for the database. Only a single write operation is allowed at a
@@ -1405,6 +1461,118 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(None)
     }
 
+    /// Get a value from a direct-key fixed-value family.
+    ///
+    /// This is optimized for families with fixed-size integer keys and fixed-size values
+    /// stored inline without compression (e.g., TaskIdToTaskTypeHash).
+    ///
+    /// The key should be the raw key bytes (e.g., TaskId as 4 bytes big-endian).
+    /// Returns the fixed-size value bytes if found.
+    pub fn get_direct_fixed<const KEY_SIZE: usize, const VALUE_SIZE: usize>(
+        &self,
+        family: usize,
+        key: &[u8; KEY_SIZE],
+    ) -> Result<Option<[u8; VALUE_SIZE]>> {
+        debug_assert!(family < FAMILIES, "Family index out of bounds");
+        debug_assert!(
+            self.family_configs[family].uses_fixed_layout(),
+            "Family {} is not configured for direct-key fixed-value format",
+            family
+        );
+        let inner = self.inner.read();
+        for meta in inner.meta_files.iter().rev() {
+            match meta.lookup_direct_fixed::<KEY_SIZE, VALUE_SIZE>(
+                family as u32,
+                key,
+                &self.amqf_cache,
+            )? {
+                MetaLookupResult::FamilyMiss
+                | MetaLookupResult::RangeMiss
+                | MetaLookupResult::QuickFilterMiss => {
+                    // Continue searching other meta files
+                }
+                MetaLookupResult::SstLookup(result) => match result {
+                    SstLookupResult::Found(LookupValue::Slice { value }) => {
+                        // Convert ArcSlice to fixed array
+                        let mut result = [0u8; VALUE_SIZE];
+                        result.copy_from_slice(&value);
+                        // For direct-key formats, we use key bytes as hash for access tracking
+                        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
+                        inner.accessed_key_hashes[family].insert(key_hash);
+                        return Ok(Some(result));
+                    }
+                    SstLookupResult::Found(LookupValue::Deleted) => {
+                        return Ok(None);
+                    }
+                    SstLookupResult::Found(LookupValue::Blob { .. }) => {
+                        // Fixed values shouldn't be stored as blob
+                        return Ok(None);
+                    }
+                    SstLookupResult::NotFound => {
+                        // Continue searching other meta files
+                    }
+                },
+            }
+        }
+        Ok(None)
+    }
+
+    /// Get a value from a direct-key variable-value family.
+    ///
+    /// This is optimized for families with fixed-size integer keys but variable-size
+    /// values stored in compressed blocks (e.g., TaskMeta, TaskData).
+    ///
+    /// The key should be the raw key bytes (e.g., TaskId as 4 bytes big-endian).
+    pub fn get_direct_variable<const KEY_SIZE: usize>(
+        &self,
+        family: usize,
+        key: &[u8; KEY_SIZE],
+    ) -> Result<Option<ArcSlice<u8>>> {
+        debug_assert!(family < FAMILIES, "Family index out of bounds");
+        debug_assert!(
+            self.family_configs[family].uses_direct_keys()
+                && !self.family_configs[family].uses_fixed_layout(),
+            "Family {} is not configured for direct-key variable-value format",
+            family
+        );
+        let inner = self.inner.read();
+        for meta in inner.meta_files.iter().rev() {
+            match meta.lookup_direct_variable::<KEY_SIZE>(
+                family as u32,
+                key,
+                &self.amqf_cache,
+                &self.key_block_cache,
+                &self.value_block_cache,
+            )? {
+                MetaLookupResult::FamilyMiss
+                | MetaLookupResult::RangeMiss
+                | MetaLookupResult::QuickFilterMiss => {
+                    // Continue searching other meta files
+                }
+                MetaLookupResult::SstLookup(result) => match result {
+                    SstLookupResult::Found(LookupValue::Slice { value }) => {
+                        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
+                        inner.accessed_key_hashes[family].insert(key_hash);
+                        return Ok(Some(value));
+                    }
+                    SstLookupResult::Found(LookupValue::Deleted) => {
+                        return Ok(None);
+                    }
+                    SstLookupResult::Found(LookupValue::Blob { sequence_number }) => {
+                        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
+                        inner.accessed_key_hashes[family].insert(key_hash);
+                        let blob = self.read_blob(sequence_number)?;
+                        return Ok(Some(blob));
+                    }
+                    SstLookupResult::NotFound => {
+                        // Continue searching other meta files
+                    }
+                },
+            }
+        }
+        Ok(None)
+    }
+
     pub fn batch_get<K: QueryKey>(
         &self,
         family: usize,
@@ -1620,4 +1788,16 @@ pub struct MetaFileEntryInfo {
     pub flags: MetaEntryFlags,
     pub key_compression_dictionary_size: u16,
     pub block_count: u16,
+}
+
+/// Converts key bytes to a u64 hash for AMQF filter and access tracking.
+///
+/// For keys smaller than 8 bytes, pads with zeros on the right.
+/// For keys larger than 8 bytes, uses only the first 8 bytes.
+#[inline]
+fn key_bytes_to_hash<const KEY_SIZE: usize>(key: &[u8]) -> u64 {
+    let mut hash_bytes = [0u8; 8];
+    let copy_len = KEY_SIZE.min(8);
+    hash_bytes[..copy_len].copy_from_slice(&key[..copy_len]);
+    u64::from_be_bytes(hash_bytes)
 }

@@ -1303,3 +1303,133 @@ fn batch_get_after_restore() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_direct_fixed_sst() -> Result<()> {
+    use crate::{
+        meta_file::MetaEntryFlags,
+        static_sorted_file::{StaticSortedFile, StaticSortedFileMetaData},
+        static_sorted_file_builder::{DirectFixedEntry, write_direct_fixed_sst},
+    };
+
+    struct TestEntry {
+        key: [u8; 4],
+        value: [u8; 8],
+    }
+
+    impl DirectFixedEntry for TestEntry {
+        fn key_bytes(&self) -> &[u8] {
+            &self.key
+        }
+        fn value_bytes(&self) -> &[u8] {
+            &self.value
+        }
+    }
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let sst_path = path.join("00000001.sst");
+
+    // Create test entries (sorted by key)
+    let mut entries: Vec<TestEntry> = (0..100u32)
+        .map(|i| TestEntry {
+            key: i.to_be_bytes(),
+            value: (i as u64 * 2).to_be_bytes(),
+        })
+        .collect();
+    entries.sort_by_key(|e| e.key);
+
+    // Create flags for direct-key fixed-value format
+    let flags = MetaEntryFlags::direct_key_fixed(4, 8);
+
+    // Write the SST file
+    let (meta, file) = write_direct_fixed_sst::<4, 8>(&entries, &sst_path, flags)?;
+    file.sync_all()?;
+
+    // Verify metadata
+    assert_eq!(meta.entries, 100);
+    assert_eq!(meta.key_compression_dictionary_length, 0);
+    assert!(meta.flags.uses_direct_keys());
+    assert!(meta.flags.uses_fixed_values());
+
+    // Open and read back
+    let sst = StaticSortedFile::open(
+        path,
+        StaticSortedFileMetaData {
+            sequence_number: 1,
+            key_compression_dictionary_length: meta.key_compression_dictionary_length,
+            block_count: meta.block_count,
+        },
+    )?;
+
+    // Test lookup for various keys
+    for i in [0u32, 42, 50, 99] {
+        let key = i.to_be_bytes();
+        let expected_value = (i as u64 * 2).to_be_bytes();
+        let result = sst.lookup_direct_fixed::<4, 8>(&key)?;
+        assert_eq!(result, Some(expected_value), "Failed to lookup key {i}");
+    }
+
+    // Test lookup for non-existent keys
+    for i in [100u32, 200, 1000] {
+        let key = i.to_be_bytes();
+        let result = sst.lookup_direct_fixed::<4, 8>(&key)?;
+        assert_eq!(result, None, "Should not find non-existent key {i}");
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_meta_entry_flags() {
+    use crate::meta_file::MetaEntryFlags;
+
+    // Test default flags
+    let flags = MetaEntryFlags::default();
+    assert!(!flags.cold());
+    assert!(!flags.fresh());
+    assert!(!flags.direct_key());
+    assert!(!flags.fixed_value());
+    assert!(!flags.uncompressed());
+    assert_eq!(flags.key_size(), 0);
+    assert_eq!(flags.value_size(), 0);
+
+    // Test FRESH constant
+    let flags = MetaEntryFlags::FRESH;
+    assert!(!flags.cold());
+    assert!(flags.fresh());
+    assert!(!flags.direct_key());
+
+    // Test direct_key_variable
+    let flags = MetaEntryFlags::direct_key_variable(4);
+    assert!(flags.fresh());
+    assert!(flags.direct_key());
+    assert!(!flags.fixed_value());
+    assert!(!flags.uncompressed());
+    assert_eq!(flags.key_size(), 4);
+    assert_eq!(flags.value_size(), 0);
+    assert!(flags.uses_direct_keys());
+    assert!(!flags.uses_fixed_values());
+    assert_eq!(flags.entry_size(), None);
+
+    // Test direct_key_fixed
+    let flags = MetaEntryFlags::direct_key_fixed(4, 8);
+    assert!(flags.fresh());
+    assert!(flags.direct_key());
+    assert!(flags.fixed_value());
+    assert!(flags.uncompressed());
+    assert_eq!(flags.key_size(), 4);
+    assert_eq!(flags.value_size(), 8);
+    assert!(flags.uses_direct_keys());
+    assert!(flags.uses_fixed_values());
+    assert!(flags.is_uncompressed());
+    assert_eq!(flags.entry_size(), Some(12));
+
+    // Test Display
+    let flags = MetaEntryFlags::direct_key_fixed(4, 8);
+    let display = format!("{}", flags);
+    assert!(display.contains("fresh"));
+    assert!(display.contains("direct_key(4)"));
+    assert!(display.contains("fixed_value(8)"));
+    assert!(display.contains("uncompressed"));
+}

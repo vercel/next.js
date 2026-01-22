@@ -23,6 +23,10 @@ use crate::{
 pub const BLOCK_TYPE_INDEX: u8 = 0;
 /// The block header for a key block.
 pub const BLOCK_TYPE_KEY: u8 = 1;
+/// The block header for a direct-key fixed-value block (no compression, no offset table).
+pub const BLOCK_TYPE_DIRECT_FIXED: u8 = 2;
+/// The block header for a direct-key variable-value block (direct keys, variable values).
+pub const BLOCK_TYPE_DIRECT_VARIABLE: u8 = 3;
 
 /// The tag for a small-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_SMALL: u8 = 0;
@@ -133,6 +137,137 @@ impl StaticSortedFile {
         };
         iter.enter_block(self.meta.block_count - 1)?;
         Ok(iter)
+    }
+
+    /// Looks up a key in a direct-fixed SST file.
+    ///
+    /// This is optimized for files with fixed-size keys and values stored inline
+    /// without compression. Uses binary search directly on the mmap'd data.
+    ///
+    /// Returns the value bytes if found, or None if not found.
+    pub fn lookup_direct_fixed<const KEY_SIZE: usize, const VALUE_SIZE: usize>(
+        &self,
+        key: &[u8],
+    ) -> Result<Option<[u8; VALUE_SIZE]>> {
+        debug_assert_eq!(key.len(), KEY_SIZE);
+
+        let entry_size = KEY_SIZE + VALUE_SIZE;
+        // The file layout is: [entries][single block_offset u32]
+        // So entry data occupies: file_size - 4 bytes
+        let data_end = self.mmap.len().saturating_sub(4);
+        let entry_count = data_end / entry_size;
+
+        if entry_count == 0 {
+            return Ok(None);
+        }
+
+        // Binary search for the key
+        let mut l = 0;
+        let mut r = entry_count;
+        while l < r {
+            let m = (l + r) / 2;
+            let entry_start = m * entry_size;
+            let mid_key = &self.mmap[entry_start..entry_start + KEY_SIZE];
+
+            match key.cmp(mid_key) {
+                Ordering::Less => {
+                    r = m;
+                }
+                Ordering::Equal => {
+                    // Found it - extract the value
+                    let value_start = entry_start + KEY_SIZE;
+                    let mut value = [0u8; VALUE_SIZE];
+                    value.copy_from_slice(&self.mmap[value_start..value_start + VALUE_SIZE]);
+                    return Ok(Some(value));
+                }
+                Ordering::Greater => {
+                    l = m + 1;
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Looks up a key in a direct-variable SST file.
+    ///
+    /// This is for files with fixed-size keys stored directly (no hash prefix)
+    /// but variable-size values stored in separate compressed blocks.
+    pub fn lookup_direct_variable<const KEY_SIZE: usize>(
+        &self,
+        key: &[u8],
+        key_block_cache: &BlockCache,
+        value_block_cache: &BlockCache,
+    ) -> Result<SstLookupResult> {
+        debug_assert_eq!(key.len(), KEY_SIZE);
+
+        // Convert key to hash for AMQF and index lookups
+        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
+
+        let mut current_block = self.meta.block_count - 1;
+        loop {
+            let block = self.get_key_block(current_block, key_block_cache)?;
+            let mut block_slice = &block[..];
+            let block_type = block_slice.read_u8()?;
+            match block_type {
+                BLOCK_TYPE_INDEX => {
+                    current_block = self.lookup_index_block(block_slice, key_hash)?;
+                }
+                BLOCK_TYPE_DIRECT_VARIABLE => {
+                    return self.lookup_direct_key_block::<KEY_SIZE>(
+                        block_slice,
+                        key,
+                        value_block_cache,
+                    );
+                }
+                BLOCK_TYPE_KEY => {
+                    // Fall back to regular key block lookup (shouldn't happen for direct files)
+                    bail!("Unexpected regular key block in direct-variable SST file");
+                }
+                _ => {
+                    bail!("Invalid block type");
+                }
+            }
+        }
+    }
+
+    /// Looks up a key in a direct-key block (no hash prefix).
+    fn lookup_direct_key_block<const KEY_SIZE: usize>(
+        &self,
+        mut block: &[u8],
+        key: &[u8],
+        value_block_cache: &BlockCache,
+    ) -> Result<SstLookupResult> {
+        let entry_count = block.read_u24::<BE>()? as usize;
+        let offsets = &block[..entry_count * 4];
+        let entries = &block[entry_count * 4..];
+
+        let mut l = 0;
+        let mut r = entry_count;
+        // binary search for the key
+        while l < r {
+            let m = (l + r) / 2;
+            let GetDirectKeyEntryResult {
+                key: mid_key,
+                ty,
+                val: mid_val,
+            } = get_direct_key_entry::<KEY_SIZE>(offsets, entries, entry_count, m)?;
+
+            match key.cmp(mid_key) {
+                Ordering::Less => {
+                    r = m;
+                }
+                Ordering::Equal => {
+                    return Ok(self
+                        .handle_key_match(ty, mid_val, value_block_cache)?
+                        .into());
+                }
+                Ordering::Greater => {
+                    l = m + 1;
+                }
+            }
+        }
+        Ok(SstLookupResult::NotFound)
     }
 
     /// Looks up a key in this file.
@@ -590,6 +725,73 @@ fn get_key_entry<'l>(
         KEY_BLOCK_ENTRY_TYPE_DELETED => GetKeyEntryResult {
             hash,
             key: &entries[start + 8..end],
+            ty,
+            val: &[],
+        },
+        _ => {
+            bail!("Invalid key block entry type");
+        }
+    })
+}
+
+// =============================================================================
+// Direct Key Format Support
+// =============================================================================
+
+/// Converts key bytes to a u64 hash for AMQF filter and index lookups.
+///
+/// For keys smaller than 8 bytes, pads with zeros on the right.
+/// For keys larger than 8 bytes, uses only the first 8 bytes.
+#[inline]
+fn key_bytes_to_hash<const KEY_SIZE: usize>(key: &[u8]) -> u64 {
+    let mut hash_bytes = [0u8; 8];
+    let copy_len = KEY_SIZE.min(8);
+    hash_bytes[..copy_len].copy_from_slice(&key[..copy_len]);
+    u64::from_be_bytes(hash_bytes)
+}
+
+struct GetDirectKeyEntryResult<'l> {
+    key: &'l [u8],
+    ty: u8,
+    val: &'l [u8],
+}
+
+/// Reads a direct-key entry from a direct-key block.
+/// Direct-key blocks store keys without the 8-byte hash prefix.
+fn get_direct_key_entry<'l, const KEY_SIZE: usize>(
+    offsets: &[u8],
+    entries: &'l [u8],
+    entry_count: usize,
+    index: usize,
+) -> Result<GetDirectKeyEntryResult<'l>> {
+    let mut offset = &offsets[index * 4..];
+    let ty = offset.read_u8()?;
+    let start = offset.read_u24::<BE>()? as usize;
+    let end = if index == entry_count - 1 {
+        entries.len()
+    } else {
+        (&offsets[(index + 1) * 4 + 1..]).read_u24::<BE>()? as usize
+    };
+
+    // Direct keys: no hash prefix, key is at the start
+    Ok(match ty {
+        KEY_BLOCK_ENTRY_TYPE_SMALL => GetDirectKeyEntryResult {
+            key: &entries[start..start + KEY_SIZE],
+            ty,
+            val: &entries[end - 8..end], // value_block(2) + value_size(2) + value_offset(4)
+        },
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM => GetDirectKeyEntryResult {
+            key: &entries[start..start + KEY_SIZE],
+            ty,
+            val: &entries[end - 2..end], // value_block(2)
+        },
+        KEY_BLOCK_ENTRY_TYPE_BLOB => GetDirectKeyEntryResult {
+            key: &entries[start..start + KEY_SIZE],
+            ty,
+            val: &entries[end - 4..end], // blob(4)
+        },
+        KEY_BLOCK_ENTRY_TYPE_DELETED => GetDirectKeyEntryResult {
+            key: &entries[start..start + KEY_SIZE],
             ty,
             val: &[],
         },
