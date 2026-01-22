@@ -62,6 +62,18 @@ impl FetchClientConfig {
         {
             builder = builder.tls_backend_native();
         }
+        #[cfg(target_os = "linux")]
+        {
+            // Add webpki_root_certs on Linux (in addition to reqwest's default
+            // `rustls-platform-verifier`), in case the user is building in a bare-bones docker
+            // image that does not contain any root certs (e.g. `oven/bun:slim`).
+            builder = builder.tls_certs_merge(webpki_root_certs::TLS_SERVER_ROOT_CERTS.iter().map(
+                |der| {
+                    reqwest::Certificate::from_der(der)
+                        .expect("webpki_root_certs should parse correctly")
+                },
+            ))
+        }
         builder.build()
     }
 }
