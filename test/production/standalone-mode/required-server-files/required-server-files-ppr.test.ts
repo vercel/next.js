@@ -10,6 +10,7 @@ import {
   findPort,
   initNextServerScript,
   killApp,
+  withInvocationId,
 } from 'next-test-utils'
 import { ChildProcess } from 'child_process'
 
@@ -139,12 +140,19 @@ describe('required server files app router', () => {
 
         require('console').error('requesting', outputSegmentPath)
 
-        const res = await fetchViaHTTP(appPort, outputSegmentPath, undefined, {
-          headers: {
-            'x-matched-path': '/isr/[slug].segments/_tree.segment.rsc',
-            'x-now-route-matches': 'slug=first&1=first',
-          },
-        })
+        const res = await fetchViaHTTP(
+          appPort,
+          outputSegmentPath,
+          undefined,
+          withInvocationId({
+            headers: {
+              'x-matched-path': '/isr/[slug].segments/_tree.segment.rsc',
+              'x-now-route-matches': createNowRouteMatches({
+                slug: 'first',
+              }).toString(),
+            },
+          })
+        )
 
         expect(res.status).toBe(200)
         expect(res.headers.get('content-type')).toBe('text/x-component')
@@ -158,14 +166,19 @@ describe('required server files app router', () => {
   }
 
   it('should properly stream resume with Next-Resume', async () => {
-    const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
-      headers: {
-        'x-matched-path': '/delayed',
-        'next-resume': '1',
-      },
-      method: 'POST',
-      body: delayedPostpone,
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/delayed',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/delayed',
+          'next-resume': '1',
+        },
+        method: 'POST',
+        body: delayedPostpone,
+      })
+    )
 
     expect(res.status).toBe(200)
 
@@ -192,13 +205,18 @@ describe('required server files app router', () => {
   })
 
   it('should properly handle prerender for bot request', async () => {
-    const res = await fetchViaHTTP(appPort, '/isr/first', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-matched-path': '/isr/first',
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/isr/first',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-matched-path': '/isr/first',
+        },
+      })
+    )
 
     expect(res.status).toBe(200)
     const html = await res.text()
@@ -206,28 +224,38 @@ describe('required server files app router', () => {
 
     expect($('#page').text()).toBe('/isr/[slug]')
 
-    const rscRes = await fetchViaHTTP(appPort, '/isr/first.rsc', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-matched-path': '/isr/first',
-      },
-    })
+    const rscRes = await fetchViaHTTP(
+      appPort,
+      '/isr/first.rsc',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-matched-path': '/isr/first',
+        },
+      })
+    )
 
     expect(rscRes.status).toBe(200)
   })
 
   it('should properly handle fallback for bot request', async () => {
-    const res = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'new',
-        }).toString(),
-        'x-matched-path': '/isr/[slug]',
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/isr/[slug]',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'new',
+          }).toString(),
+          'x-matched-path': '/isr/[slug]',
+        },
+      })
+    )
 
     expect(res.status).toBe(200)
     const html = await res.text()
@@ -235,18 +263,62 @@ describe('required server files app router', () => {
 
     expect($('#page').text()).toBe('/isr/[slug]')
 
-    const rscRes = await fetchViaHTTP(appPort, '/isr/[slug].rsc', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'new',
-        }).toString(),
-        'x-matched-path': '/isr/[slug]',
-      },
-    })
+    const rscRes = await fetchViaHTTP(
+      appPort,
+      '/isr/[slug].rsc',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'new',
+          }).toString(),
+          'x-matched-path': '/isr/[slug]',
+        },
+      })
+    )
 
     expect(rscRes.status).toBe(200)
+  })
+
+  it('should properly handle resume request that looks like a data request', async () => {
+    const metadata = await next.readJSON('.next/server/app/[...catchAll].meta')
+    const postponed = metadata.postponed
+
+    const res = await fetchViaHTTP(
+      appPort,
+      // The pathname here represents a route that doesn't actually exist, but
+      // we want to simulate a pages route Link that performs a prefetch to a
+      // route backed by PPR.
+      `/_next/data/${next.buildId}/index.json`,
+      undefined,
+      withInvocationId({
+        method: 'POST',
+        headers: {
+          'x-matched-path': '/[...catchAll]',
+          'x-now-route-matches': createNowRouteMatches({
+            catchAll: `_next/data/${next.buildId}/index.json`,
+          }).toString(),
+          'next-resume': '1',
+        },
+        body: postponed,
+      })
+    )
+
+    // Expect that the status code is 422, we asked for a /_next/data route and
+    // also indicated that we wanted to resume a PPR render (which is
+    // impossible).
+    expect(res.status).toBe(422)
+
+    // We expect that because we have a short-circuit for these unprocessable
+    // requests, we should not have a cache entry handler header because it
+    // should never get reached.
+    expect(res.headers.has('x-nextjs-cache-entry-handler')).toBe(false)
+
+    // Expect that the response body is empty.
+    const html = await res.text()
+    expect(html).toBeEmpty()
   })
 
   describe('middleware rewrite', () => {
@@ -255,14 +327,14 @@ describe('required server files app router', () => {
         appPort,
         '/rewrite-with-cookie',
         undefined,
-        {
+        withInvocationId({
           method: 'POST',
           headers: {
             'x-matched-path': '/rewrite/first-cookie',
             'next-resume': '1',
           },
           body: rewritePostpone,
-        }
+        })
       )
 
       expect(res.status).toBe(200)
@@ -277,15 +349,20 @@ describe('required server files app router', () => {
   it('should still render when postponed is corrupted with Next-Resume', async () => {
     const random = Math.random().toString(36).substring(2)
 
-    const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
-      method: 'POST',
-      headers: {
-        'x-matched-path': '/dyn/[slug]',
-        'next-resume': '1',
-      },
-      // This is a corrupted postponed JSON payload.
-      body: '{',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/dyn/' + random,
+      undefined,
+      withInvocationId({
+        method: 'POST',
+        headers: {
+          'x-matched-path': '/dyn/[slug]',
+          'next-resume': '1',
+        },
+        // This is a corrupted postponed JSON payload.
+        body: '{',
+      })
+    )
 
     expect(res.status).toBe(200)
 
@@ -316,9 +393,14 @@ describe('required server files app router', () => {
       ],
     ]) {
       require('console').error('checking', { path, tags })
-      const res = await fetchViaHTTP(appPort, path, undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        undefined,
+        withInvocationId({
+          redirect: 'manual',
+        })
+      )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBe(tags)
     }
@@ -331,9 +413,15 @@ describe('required server files app router', () => {
       '/api/ssr/first',
       '/api/ssr/second',
     ]) {
-      const res = await fetchViaHTTP(appPort, path, undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        undefined,
+        withInvocationId({
+          redirect: 'manual',
+        })
+      )
+
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }
@@ -350,9 +438,9 @@ describe('required server files app router', () => {
         appPort,
         path,
         { hello: 'world' },
-        {
+        withInvocationId({
           redirect: 'manual',
-        }
+        })
       )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
@@ -360,11 +448,19 @@ describe('required server files app router', () => {
   })
 
   it('should handle RSC requests', async () => {
-    const res = await fetchViaHTTP(appPort, '/dyn/first.rsc', undefined, {
-      headers: {
-        'x-matched-path': '/dyn/[slug]',
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/dyn/first.rsc',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/dyn/[slug]',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'first',
+          }).toString(),
+        },
+      })
+    )
 
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toEqual('text/x-component')
@@ -376,11 +472,11 @@ describe('required server files app router', () => {
       appPort,
       '/dyn/first.prefetch.rsc',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/dyn/[slug]',
         },
-      }
+      })
     )
 
     expect(res.status).toBe(200)
@@ -389,14 +485,19 @@ describe('required server files app router', () => {
   })
 
   it('should handle revalidating the fallback page', async () => {
-    const res = await fetchViaHTTP(appPort, '/postpone/isr/[slug]', undefined, {
-      headers: {
-        'x-matched-path': '/postpone/isr/[slug]',
-        // We don't include the `x-now-route-matches` header because we want to
-        // test that the fallback route params are correctly set.
-        'x-now-route-matches': '',
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/postpone/isr/[slug]',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/postpone/isr/[slug]',
+          // We don't include the `x-now-route-matches` header because we want to
+          // test that the fallback route params are correctly set.
+          'x-now-route-matches': '',
+        },
+      })
+    )
 
     expect(res.status).toBe(200)
 
