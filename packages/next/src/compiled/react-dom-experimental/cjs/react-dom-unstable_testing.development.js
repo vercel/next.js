@@ -32993,11 +32993,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-b546603b-20260121" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-6a0ab4d2-20260121" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-b546603b-20260121\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-6a0ab4d2-20260121\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33034,10 +33034,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-b546603b-20260121",
+          version: "19.3.0-experimental-6a0ab4d2-20260121",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-b546603b-20260121"
+          reconcilerVersion: "19.3.0-experimental-6a0ab4d2-20260121"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -33351,5 +33351,5 @@
         }
       };
     };
-    exports.version = "19.3.0-experimental-b546603b-20260121";
+    exports.version = "19.3.0-experimental-6a0ab4d2-20260121";
   })();

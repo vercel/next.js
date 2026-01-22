@@ -48,7 +48,7 @@
     "neo-async": "^2.6.1"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-b546603b-20260121",
-    "react-dom": "0.0.0-experimental-b546603b-20260121"
+    "react": "0.0.0-experimental-6a0ab4d2-20260121",
+    "react-dom": "0.0.0-experimental-6a0ab4d2-20260121"
   }
 }
