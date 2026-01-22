@@ -35,6 +35,8 @@ import escapeRegex from 'escape-string-regexp'
 // TODO: Create dedicated Jest environment that sets up these matchers
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
 import './add-redbox-matchers'
+import { NextInstance } from 'e2e-utils'
+import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
 
 export { shouldUseTurbopack }
 
@@ -1920,4 +1922,42 @@ export function getDistDir(): '.next' | '.next/dev' {
   return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
     ? '.next/dev'
     : '.next'
+}
+
+/**
+ * Loads and returns the client reference manifest for a given route
+ */
+export function getClientReferenceManifest(
+  next: NextInstance,
+  route: string
+): ClientReferenceManifest {
+  const manifestPath = path.join(
+    next.testDir,
+    next.distDir,
+    `server/app${route}_client-reference-manifest.js`
+  )
+  const modulePath = require.resolve(manifestPath)
+
+  // Clear global
+  delete (globalThis as any).__RSC_MANIFEST
+
+  // Need to use jest.isolateModules because Jest messes with require.cache and `delete
+  // require.cache[modulePath]` doesn't actually work anymore
+  jest.isolateModules(() => {
+    // Load the manifest (it sets globalThis.__RSC_MANIFEST)
+    require(modulePath)
+  })
+
+  const manifest = (globalThis as any).__RSC_MANIFEST[
+    route
+  ] as ClientReferenceManifest
+
+  // Sanity check
+  expect(
+    manifest.clientModules ||
+      manifest.ssrModuleMapping ||
+      manifest.rscModuleMapping
+  ).toBeDefined()
+
+  return manifest
 }

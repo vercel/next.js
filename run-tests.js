@@ -29,12 +29,10 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('g')
   .alias('g', 'group')
   .number('c')
-  .boolean('related')
   .boolean('dry')
   .boolean('print-tests')
   .describe('print-tests', 'Prints the test files that will be run')
   .boolean('local')
-  .alias('r', 'related')
   .alias('c', 'concurrency').argv
 
 function escapeRegexp(str) {
@@ -55,16 +53,6 @@ const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
-// Check env to see if test should continue even if some of test fails
-const shouldContinueTestsOnError =
-  process.env.NEXT_TEST_CONTINUE_ON_ERROR === 'true'
-
-// Check env to load a list of test paths to skip retry. This is to be used in conjunction with NEXT_TEST_CONTINUE_ON_ERROR,
-// When try to run all of the tests regardless of pass / fail and want to skip retrying `known` failed tests.
-// manifest should be a json file with an array of test paths.
-const skipRetryTestManifest = process.env.NEXT_TEST_SKIP_RETRY_MANIFEST
-  ? require(process.env.NEXT_TEST_SKIP_RETRY_MANIFEST)
-  : []
 const KV_TIMINGS_KEY = 'test-timings'
 
 const kvClient =
@@ -236,7 +224,6 @@ async function main() {
     group: argv.group ?? false,
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
-    related: argv.related ?? false,
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
@@ -286,20 +273,6 @@ async function main() {
 
     if (options.testPattern && typeof options.testPattern === 'string') {
       testPatternRegex = new RegExp(options.testPattern)
-    }
-
-    if (options.related) {
-      const { getRelatedTests } = await import('./scripts/run-related-test.mjs')
-      const tests = await getRelatedTests()
-      if (tests.length)
-        testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
-
-      if (testPatternRegex) {
-        console.log('Running related tests:', testPatternRegex.toString())
-      } else {
-        console.log('No matching related tests, exiting.')
-        process.exit(0)
-      }
     }
 
     tests = (
@@ -505,8 +478,6 @@ ${ENDGROUP}`)
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
   let firstError = true
-  const testController = new AbortController()
-  const testSignal = testController.signal
   let hadFailures = false
 
   const runTestOnce = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
@@ -555,7 +526,6 @@ ${ENDGROUP}`)
               // Format the output of junit report to include the test name
               // For the debugging purpose to compare actual run list to the generated reports
               // [NOTE]: This won't affect if junit reporter is not enabled
-              // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
               JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
               // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
               // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
@@ -621,13 +591,10 @@ ${ENDGROUP}`)
         if (isChildExitWithNonZero) {
           if (hideOutput) {
             await outputSema.acquire()
-            const isExpanded =
-              firstError && !testSignal.aborted && !shouldContinueTestsOnError
+            const isExpanded = firstError
             if (isExpanded) {
               firstError = false
               process.stdout.write(`❌ ${test.file} output:\n`)
-            } else if (testSignal.aborted) {
-              process.stdout.write(`${GROUP}${test.file} output (killed)\n`)
             } else {
               process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
             }
@@ -640,7 +607,7 @@ ${ENDGROUP}`)
               output += chunk.toString()
             }
 
-            if (process.env.CI && !testSignal.aborted) {
+            if (process.env.CI) {
               errorsPerTests.set(test.file, output)
             }
 
@@ -689,24 +656,10 @@ ${ENDGROUP}`)
   const runTest = async (/** @type {TestFile} */ test) => {
     let passed = false
 
-    const shouldSkipRetries = skipRetryTestManifest.find((t) =>
-      t.includes(test.file)
-    )
-    const numRetries = shouldSkipRetries ? 0 : originalRetries
-    if (shouldSkipRetries) {
-      console.log(
-        `Skipping retry for ${test.file} due to skipRetryTestManifest`
-      )
-    }
-
     for (let i = 0; i < numRetries + 1; i++) {
       try {
         console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
-        const time = await runTestOnce(
-          test,
-          shouldSkipRetries || i === numRetries,
-          shouldSkipRetries || i > 0
-        )
+        const time = await runTestOnce(test, i === numRetries, i > 0)
         timings.push({
           file: test.file,
           time,
@@ -738,24 +691,12 @@ ${ENDGROUP}`)
 
     if (!passed) {
       hadFailures = true
-      const error = new Error(
-        // "failed to pass within" is a keyword parsed by next-pr-webhook
-        `${test.file} failed to pass within ${numRetries} retries`
-      )
-      console.error(error.message)
-
-      if (!shouldContinueTestsOnError) {
-        testController.abort(error)
-      } else {
-        console.log(
-          `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
-        )
-      }
+      // "failed to pass within" is a keyword parsed by next-pr-webhook
+      console.error(`${test.file} failed to pass within ${numRetries} retries`)
     }
 
-    // Emit test output if test failed or if we're continuing tests on error
-    // This is parsed by the commenter webhook to notify about failing tests
-    if ((!passed || shouldContinueTestsOnError) && isTestJob) {
+    // Emit test output, parsed by the commenter webhook to notify about failing tests
+    if (!passed && isTestJob) {
       try {
         const testsOutput = await fsp.readFile(
           `${test.file}${RESULTS_EXT}`,
@@ -783,7 +724,6 @@ ${ENDGROUP}`)
 
   const directorySemas = new Map()
 
-  const originalRetries = numRetries
   const results = await Promise.allSettled(
     tests.map(async (test) => {
       const dirName = path.dirname(test.file)
@@ -800,13 +740,6 @@ ${ENDGROUP}`)
       await sema.acquire()
 
       try {
-        if (testSignal.aborted) {
-          // We already logged the abort reason. No need to include it in cause.
-          const error = new Error(`Skipped due to abort.`)
-          error.name = test.file
-          throw error
-        }
-
         await runTest(test)
       } finally {
         sema.release()
@@ -820,11 +753,6 @@ ${ENDGROUP}`)
       hadFailures = true
       console.error(result.reason)
     }
-  }
-
-  if (hadFailures && !shouldContinueTestsOnError) {
-    // TODO: Does it make sense to update timings if there were failures if without shouldContinueTestsOnError?
-    return hadFailures
   }
 
   if (options.timings) {

@@ -81,7 +81,11 @@ type Actions = {
   }
 }
 
-type ActionIdNamePair = { id: string; exportedName?: string; filename?: string }
+type ActionIdNamePair = {
+  id: string
+  exportedName?: string
+  filename?: string
+}
 
 export type ActionManifest = {
   // Assign a unique encryption key during production build.
@@ -658,11 +662,18 @@ export class FlightClientEntryPlugin {
         if (actionIds) {
           collectedActions.set(
             modResource,
-            Object.entries(actionIds).map(([id, exportedName]) => ({
-              id,
-              exportedName,
-              filename: path.posix.relative(this.projectDir, modResource),
-            }))
+            Object.entries(actionIds).map(([id, actionInfo]) => {
+              // Handle both old format (string) and new format (object with name)
+              const exportedName =
+                typeof actionInfo === 'object' && actionInfo !== null
+                  ? actionInfo.name
+                  : actionInfo
+              return {
+                id,
+                exportedName,
+                filename: path.posix.relative(this.projectDir, modResource),
+              }
+            })
           )
         }
 
@@ -759,11 +770,18 @@ export class FlightClientEntryPlugin {
       if (actionIds) {
         actionImports.push([
           modResource,
-          Object.entries(actionIds).map(([id, exportedName]) => ({
-            id,
-            exportedName,
-            filename: path.posix.relative(this.projectDir, modResource),
-          })),
+          Object.entries(actionIds).map(([id, actionInfo]) => {
+            // Handle both old format (string) and new format (object with name)
+            const exportedName =
+              typeof actionInfo === 'object' && actionInfo !== null
+                ? actionInfo.name
+                : actionInfo
+            return {
+              id,
+              exportedName,
+              filename: path.posix.relative(this.projectDir, modResource),
+            }
+          }),
         ])
       }
 

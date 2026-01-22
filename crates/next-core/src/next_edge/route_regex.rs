@@ -248,23 +248,6 @@ fn get_named_parametrized_route(
     (parameterized_route, route_keys)
 }
 
-/// This function extends `getRouteRegex` generating also a named regexp where
-/// each group is named along with a routeKeys object that indexes the assigned
-/// named group with its corresponding key.
-///
-/// When the routeKeys need to be prefixed to uniquely identify internally the
-/// "prefixRouteKey" arg should be "true" currently this is only the case when
-/// creating the routes-manifest during the build
-pub fn get_named_route_regex(normalized_route: &str) -> NamedRouteRegex {
-    let (parameterized_route, route_keys) = get_named_parametrized_route(normalized_route, false);
-    let regex = get_route_regex(normalized_route);
-    NamedRouteRegex {
-        regex,
-        named_regex: format!("^{parameterized_route}(?:/)?$"),
-        route_keys,
-    }
-}
-
 /// Generates a named regexp.
 /// This is intended to be using for build time only.
 pub fn get_named_middleware_regex(normalized_route: &str) -> String {

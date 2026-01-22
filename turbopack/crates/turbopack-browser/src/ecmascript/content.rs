@@ -177,7 +177,7 @@ impl GenerateSourceMap for EcmascriptBrowserChunkContent {
         if let Ok(id) = ModuleId::parse(&section) {
             let entries = self.entries().await?;
             for (entry_id, entry) in entries.iter() {
-                if id == **entry_id {
+                if id == *entry_id {
                     let sm = entry.code.generate_source_map();
                     return Ok(sm);
                 }

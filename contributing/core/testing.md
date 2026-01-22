@@ -92,6 +92,8 @@ these can be leveraged by prefixing the `pnpm test` command.
   it can be used when not using `pnpm test-dev` or `pnpm test-start` directly.
   Valid test modes can be seen here:
   https://github.com/vercel/next.js/blob/aa664868c102ddc5adc618415162d124503ad12e/test/lib/e2e-utils.ts#L46
+- Use `NEXT_TEST_DEPLOY_URL` with `pnpm test-deploy` to skip the Vercel deploy step and run
+  deploy-mode assertions against an existing deployment URL.
 - You can use `NEXT_TEST_PREFER_OFFLINE=1` while testing to configure the package manager to include the
   [`--prefer-offline`](https://pnpm.io/cli/install#--prefer-offline) argument during test setup.
   This is helpful when running tests in internet-restricted environments such as planes or public Wi-Fi.

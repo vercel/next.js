@@ -12,9 +12,10 @@ use crate::{
     backend::dynamic_storage::DynamicStorage,
     data::{
         AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
+        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, LeafDistance,
+        OutputValue,
     },
-    data_storage::{AutoMapStorage, OptionStorage},
+    data_storage::{AutoMapStorage, DefaultStorage, OptionStorage},
     utils::{
         dash_map_drop_contents::drop_contents,
         dash_map_multi::{RefMut, get_multiple_mut},
@@ -138,7 +139,8 @@ impl InnerStorageState {
 }
 
 pub struct InnerStorageSnapshot {
-    aggregation_number: OptionStorage<AggregationNumber>,
+    leaf_distance: DefaultStorage<LeafDistance>,
+    aggregation_number: DefaultStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
     output: OptionStorage<OutputValue>,
     upper: AutoMapStorage<TaskId, u32>,
@@ -150,6 +152,7 @@ pub struct InnerStorageSnapshot {
 impl From<&InnerStorage> for InnerStorageSnapshot {
     fn from(inner: &InnerStorage) -> Self {
         Self {
+            leaf_distance: inner.leaf_distance.clone(),
             aggregation_number: inner.aggregation_number.clone(),
             output_dependent: inner.output_dependent.clone(),
             output: inner.output.clone(),
@@ -168,6 +171,12 @@ impl InnerStorageSnapshot {
         use crate::data_storage::Storage;
         self.dynamic
             .iter_all()
+            .chain(self.leaf_distance.iter().map(|(_, value)| {
+                (
+                    CachedDataItemKey::LeafDistance {},
+                    CachedDataItemValueRef::LeafDistance { value },
+                )
+            }))
             .chain(self.aggregation_number.iter().map(|(_, value)| {
                 (
                     CachedDataItemKey::AggregationNumber {},
@@ -197,6 +206,7 @@ impl InnerStorageSnapshot {
     pub fn len(&self) -> usize {
         use crate::data_storage::Storage;
         self.dynamic.len()
+            + self.leaf_distance.len()
             + self.aggregation_number.len()
             + self.output.len()
             + self.upper.len()
@@ -206,7 +216,8 @@ impl InnerStorageSnapshot {
 
 #[derive(Debug, Clone)]
 pub struct InnerStorage {
-    aggregation_number: OptionStorage<AggregationNumber>,
+    leaf_distance: DefaultStorage<LeafDistance>,
+    aggregation_number: DefaultStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
     output: OptionStorage<OutputValue>,
     upper: AutoMapStorage<TaskId, u32>,
@@ -217,6 +228,7 @@ pub struct InnerStorage {
 impl InnerStorage {
     fn new() -> Self {
         Self {
+            leaf_distance: Default::default(),
             aggregation_number: Default::default(),
             output_dependent: Default::default(),
             output: Default::default(),
@@ -553,32 +565,36 @@ macro_rules! generate_inner_storage {
 }
 
 generate_inner_storage!(
+    LeafDistance => leaf_distance,
     AggregationNumber => aggregation_number,
     OutputDependent task => output_dependent,
     Output => output,
     Upper task => upper,
 );
 
-enum InnerStorageIter<A, B, C, D, E> {
-    AggregationNumber(A),
-    OutputDependent(B),
-    Output(C),
-    Upper(D),
-    Dynamic(E),
+enum InnerStorageIter<A, B, C, D, E, F> {
+    LeafDistance(A),
+    AggregationNumber(B),
+    OutputDependent(C),
+    Output(D),
+    Upper(E),
+    Dynamic(F),
 }
 
-impl<T, A, B, C, D, E> Iterator for InnerStorageIter<A, B, C, D, E>
+impl<T, A, B, C, D, E, F> Iterator for InnerStorageIter<A, B, C, D, E, F>
 where
     A: Iterator<Item = T>,
     B: Iterator<Item = T>,
     C: Iterator<Item = T>,
     D: Iterator<Item = T>,
     E: Iterator<Item = T>,
+    F: Iterator<Item = T>,
 {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
+            InnerStorageIter::LeafDistance(iter) => iter.next(),
             InnerStorageIter::AggregationNumber(iter) => iter.next(),
             InnerStorageIter::OutputDependent(iter) => iter.next(),
             InnerStorageIter::Output(iter) => iter.next(),
@@ -595,6 +611,12 @@ impl InnerStorage {
         use crate::data_storage::Storage;
         self.dynamic
             .iter_all()
+            .chain(self.leaf_distance.iter().map(|(_, value)| {
+                (
+                    CachedDataItemKey::LeafDistance {},
+                    CachedDataItemValueRef::LeafDistance { value },
+                )
+            }))
             .chain(self.aggregation_number.iter().map(|(_, value)| {
                 (
                     CachedDataItemKey::AggregationNumber {},
@@ -624,6 +646,7 @@ impl InnerStorage {
     pub fn len(&self) -> usize {
         use crate::data_storage::Storage;
         self.dynamic.len()
+            + self.leaf_distance.len()
             + self.aggregation_number.len()
             + self.output.len()
             + self.upper.len()
@@ -1218,5 +1241,26 @@ where
         }
         self.guard = None;
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_inner_storage_size() {
+        // InnerStorage size affects memory usage per task.
+        // We track this to catch unexpected bloat from type changes.
+        assert_eq!(
+            std::mem::size_of::<InnerStorage>(),
+            136,
+            "InnerStorage size changed - please review if this is intentional"
+        );
+        assert_eq!(
+            std::mem::size_of::<InnerStorageSnapshot>(),
+            136,
+            "InnerStorageSnapshot size changed - please review if this is intentional"
+        );
     }
 }

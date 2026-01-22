@@ -23,14 +23,14 @@ describe('typed-routes', () => {
 
   it('should generate route types correctly', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
       expect(dts).toContain(expectedDts)
     })
   })
 
   it('should correctly convert custom route patterns from path-to-regexp to bracket syntax', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
 
       // Test standard dynamic segment: :slug -> [slug]
       expect(dts).toContain('"/project/[slug]"')
@@ -58,7 +58,7 @@ describe('typed-routes', () => {
 
       await retry(async () => {
         const routeTypesContent = await next.readFile(
-          `${next.distDir}/types/routes.d.ts`
+          `${next.distDir}/types/route-types.d.ts`
         )
 
         expect(routeTypesContent).toContain(
@@ -70,7 +70,7 @@ describe('typed-routes', () => {
 
   it('should generate RouteContext type for route handlers', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
       expect(dts).toContain(
         'interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes>'
       )
