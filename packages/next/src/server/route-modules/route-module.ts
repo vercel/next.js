@@ -1018,6 +1018,9 @@ export abstract class RouteModule<
       isRoutePPREnabled,
       isOnDemandRevalidate,
       isPrefetch: req.headers.purpose === 'prefetch',
+      // Use x-invocation-id header to scope the in-memory cache to a single
+      // revalidation request in minimal mode.
+      invocationID: req.headers['x-invocation-id'] as string | undefined,
       incrementalCache: await this.getIncrementalCache(
         req,
         nextConfig,

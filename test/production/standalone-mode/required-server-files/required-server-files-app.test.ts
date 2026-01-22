@@ -10,6 +10,7 @@ import {
   findPort,
   initNextServerScript,
   killApp,
+  withInvocationId,
 } from 'next-test-utils'
 import { ChildProcess } from 'child_process'
 
@@ -103,14 +104,19 @@ describe('required server files app router', () => {
   })
 
   it('should send the right cache headers for an app route', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/test/123', undefined, {
-      headers: {
-        'x-matched-path': '/api/test/[slug]',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: '123',
-        }).toString(),
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/test/123',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/api/test/[slug]',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: '123',
+          }).toString(),
+        },
+      })
+    )
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
   })
@@ -120,7 +126,7 @@ describe('required server files app router', () => {
       appPort,
       '/optional-catchall/[lang]/[flags]/[[...slug]]',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/optional-catchall/[lang]/[flags]/[[...slug]]',
           'x-now-route-matches': createNowRouteMatches({
@@ -129,7 +135,7 @@ describe('required server files app router', () => {
             slug: 'slug',
           }).toString(),
         },
-      }
+      })
     )
     expect(res.status).toBe(200)
 
@@ -142,7 +148,7 @@ describe('required server files app router', () => {
       appPort,
       '/optional-catchall/[lang]/[flags]/[[...slug]]',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/optional-catchall/[lang]/[flags]/[[...slug]]',
           'x-now-route-matches': createNowRouteMatches({
@@ -150,7 +156,7 @@ describe('required server files app router', () => {
             flags: 'flags',
           }).toString(),
         },
-      }
+      })
     )
     expect(res.status).toBe(200)
 
@@ -162,14 +168,19 @@ describe('required server files app router', () => {
   })
 
   it('should send the right cache headers for an app page', async () => {
-    const res = await fetchViaHTTP(appPort, '/test/123', undefined, {
-      headers: {
-        'x-matched-path': '/test/[slug]',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: '123',
-        }).toString(),
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/test/123',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/test/[slug]',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: '123',
+          }).toString(),
+        },
+      })
+    )
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
       's-maxage=3600, stale-while-revalidate=31532400'
@@ -181,13 +192,18 @@ describe('required server files app router', () => {
   })
 
   it('should properly handle prerender for bot request', async () => {
-    const res = await fetchViaHTTP(appPort, '/isr/first', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-matched-path': '/isr/first',
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/isr/first',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-matched-path': '/isr/first',
+        },
+      })
+    )
 
     expect(res.status).toBe(200)
     const html = await res.text()
@@ -195,28 +211,38 @@ describe('required server files app router', () => {
 
     expect($('#page').text()).toBe('/isr/[slug]')
 
-    const rscRes = await fetchViaHTTP(appPort, '/isr/first.rsc', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-matched-path': '/isr/first',
-      },
-    })
+    const rscRes = await fetchViaHTTP(
+      appPort,
+      '/isr/first.rsc',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-matched-path': '/isr/first',
+        },
+      })
+    )
 
     expect(rscRes.status).toBe(200)
   })
 
   it('should properly handle fallback for bot request', async () => {
-    const res = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'new',
-        }).toString(),
-        'x-matched-path': '/isr/[slug]',
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/isr/[slug]',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'new',
+          }).toString(),
+          'x-matched-path': '/isr/[slug]',
+        },
+      })
+    )
 
     expect(res.status).toBe(200)
     const html = await res.text()
@@ -224,16 +250,21 @@ describe('required server files app router', () => {
 
     expect($('#page').text()).toBe('/isr/[slug]')
 
-    const rscRes = await fetchViaHTTP(appPort, '/isr/[slug].rsc', undefined, {
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'new',
-        }).toString(),
-        'x-matched-path': '/isr/[slug]',
-      },
-    })
+    const rscRes = await fetchViaHTTP(
+      appPort,
+      '/isr/[slug].rsc',
+      undefined,
+      withInvocationId({
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'new',
+          }).toString(),
+          'x-matched-path': '/isr/[slug]',
+        },
+      })
+    )
 
     expect(rscRes.status).toBe(200)
   })
@@ -258,9 +289,14 @@ describe('required server files app router', () => {
       ],
     ]) {
       require('console').error('checking', { path, tags })
-      const res = await fetchViaHTTP(appPort, path, undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        undefined,
+        withInvocationId({
+          redirect: 'manual',
+        })
+      )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBe(tags)
     }
@@ -273,9 +309,14 @@ describe('required server files app router', () => {
       '/api/ssr/first',
       '/api/ssr/second',
     ]) {
-      const res = await fetchViaHTTP(appPort, path, undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        undefined,
+        withInvocationId({
+          redirect: 'manual',
+        })
+      )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }
@@ -292,9 +333,9 @@ describe('required server files app router', () => {
         appPort,
         path,
         { hello: 'world' },
-        {
+        withInvocationId({
           redirect: 'manual',
-        }
+        })
       )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
@@ -306,16 +347,92 @@ describe('required server files app router', () => {
       appPort,
       '/search/[key]',
       { key: 'searchParams', nxtPkey: 'params' },
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/search/[key]',
         },
-      }
+      })
     )
 
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('dd[data-params]').text()).toBe('params')
     expect($('dd[data-searchParams]').text()).toBe('searchParams')
+  })
+
+  it('should de-dupe HTML/RSC requests for ISR pages', async () => {
+    // Create a shared invocation ID for HTML and RSC requests to test de-duplication
+    const sharedOpts = withInvocationId()
+
+    // First request: HTML for ISR page
+    const htmlRes = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
+      ...sharedOpts,
+      headers: {
+        ...sharedOpts.headers,
+        'x-matched-path': '/isr/[slug]',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
+      },
+    })
+    expect(htmlRes.status).toBe(200)
+    const html = await htmlRes.text()
+    const $ = cheerio.load(html)
+    const timestamp1 = $('#now').text()
+
+    // Second request: RSC for same page with same x-invocation-id
+    const rscRes = await fetchViaHTTP(appPort, '/isr/[slug].rsc', undefined, {
+      ...sharedOpts,
+      headers: {
+        ...sharedOpts.headers,
+        'x-matched-path': '/isr/[slug]',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
+      },
+    })
+    expect(rscRes.status).toBe(200)
+    const rscText = await rscRes.text()
+
+    // Both should have the same timestamp (same cached render)
+    expect(rscText).toContain(timestamp1)
+  })
+
+  it('should isolate cache between different ISR request groups', async () => {
+    // First group makes a request with its own invocation ID
+    const group1Opts = withInvocationId()
+    const res1 = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
+      ...group1Opts,
+      headers: {
+        ...group1Opts.headers,
+        'x-matched-path': '/isr/[slug]',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
+      },
+    })
+    expect(res1.status).toBe(200)
+    const $1 = cheerio.load(await res1.text())
+    const data1 = $1('#data').text()
+
+    // Second group with different x-invocation-id
+    const group2Opts = withInvocationId()
+    const res2 = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
+      ...group2Opts,
+      headers: {
+        ...group2Opts.headers,
+        'x-matched-path': '/isr/[slug]',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
+      },
+    })
+    expect(res2.status).toBe(200)
+    const $2 = cheerio.load(await res2.text())
+    const data2 = $2('#data').text()
+
+    // Each group should get its own render with different random data
+    // since ISR pages fetch fresh data on each render
+    expect(data1).not.toBe(data2)
   })
 })

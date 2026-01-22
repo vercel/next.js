@@ -96,7 +96,7 @@ describe('minimal-mode-response-cache', () => {
       vary: 'rsc, next-router-state-tree, next-router-prefetch',
       'x-now-route-matches': '1=compare&rsc=1',
       'x-matched-path': '/app-blog/compare.rsc',
-      'x-vercel-id': '1',
+      'x-invocation-id': '1',
       rsc: '1',
     }
     const res1 = await fetchViaHTTP(
@@ -126,7 +126,7 @@ describe('minimal-mode-response-cache', () => {
       vary: 'rsc, next-router-state-tree, next-router-prefetch',
       'x-now-route-matches': '1=app-another&rsc=1',
       'x-matched-path': '/app-another.rsc',
-      'x-vercel-id': '1',
+      'x-invocation-id': '1',
       rsc: '1',
     }
     const res1 = await fetchViaHTTP(appPort, '/app-another.rsc', undefined, {
