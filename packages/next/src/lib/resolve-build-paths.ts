@@ -72,7 +72,11 @@ export async function resolveBuildPaths(
     })) as string[]
 
     if (matches.length === 0) {
-      Log.warn(`Pattern "${patterns.join(',')}" did not match any files`)
+      throw new Error(`Pattern "${patterns.join(',')}" did not match any files`)
+    } else {
+      Log.info(
+        `Pattern "${patterns.join(',')}" did match ${matches.length} files`
+      )
     }
 
     for (const file of matches) {
