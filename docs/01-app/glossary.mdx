@@ -22,9 +22,17 @@ The stage when your application is being compiled. During build time, Next.js tr
 
 A feature that enables component and function-level caching using the [`"use cache"` directive](/docs/app/api-reference/directives/use-cache). Cache Components allows you to mix static, cached, and dynamic content within a single route by prerendering a static HTML shell that's served immediately, while dynamic content streams in when ready. Configure cache duration with [`cacheLife()`](/docs/app/api-reference/functions/cacheLife), tag cached data with [`cacheTag()`](/docs/app/api-reference/functions/cacheTag), and invalidate on-demand with [`updateTag()`](/docs/app/api-reference/functions/updateTag). Learn more in the [Cache Components guide](/docs/app/getting-started/cache-components).
 
+## Catch-all Segments
+
+Dynamic route segments that can match multiple URL parts using the `[...folder]/page.js` syntax. These segments capture all remaining URL segments and are useful for implementing features like documentation sites or file browsers. Learn more in [Dynamic Route Segments](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments).
+
+## Client Bundles
+
+JavaScript bundles sent to the browser. Next.js splits these automatically based on the [module graph](#module-graph) to reduce initial payload size and load only the necessary code for each page.
+
 ## Client Component
 
-A React component that runs in the browser. Client Components can use state, effects, event handlers, and browser APIs. They are marked with the [`"use client"` directive](/docs/app/api-reference/directives/use-client) at the top of a file. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components).
+A React component that runs in the browser. Client Components can also be rendered on the server during initial page generation. They can use state, effects, event handlers, and browser APIs, and are marked with the [`"use client"` directive](#use-client-directive) at the top of a file. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components).
 
 ## Client-side navigation
 
@@ -51,13 +59,13 @@ When a component is rendered at [request time](#request-time) rather than [build
 
 ## Dynamic route segments
 
-[Route segments](#route-segment) that are generated from data at runtime. Created by wrapping a folder name in square brackets (e.g., `[slug]`), they allow you to create routes from dynamic data like blog posts or product pages. Learn more in [Dynamic Route Segments](/docs/app/api-reference/file-conventions/dynamic-routes).
+[Route segments](#route-segment) that are generated from data at request time. Created by wrapping a folder name in square brackets (e.g., `[slug]`), they allow you to create routes from dynamic data like blog posts or product pages. Learn more in [Dynamic Route Segments](/docs/app/api-reference/file-conventions/dynamic-routes).
 
 # E
 
 ## Environment Variables
 
-Configuration values accessible at build time or runtime. In Next.js, variables prefixed with `NEXT_PUBLIC_` are exposed to the browser, while others are only available server-side. Learn more in [Environment Variables](/docs/app/guides/environment-variables).
+Configuration values accessible at build time or request time. In Next.js, variables prefixed with `NEXT_PUBLIC_` are exposed to the browser, while others are only available server-side. Learn more in [Environment Variables](/docs/app/guides/environment-variables).
 
 ## Error Boundary
 
@@ -80,6 +88,10 @@ A Turbopack feature that stores compiler artifacts on disk between runs, reducin
 React's process of attaching event handlers to the DOM to make server-rendered static HTML interactive. During hydration, React reconciles the server-rendered markup with the client-side JavaScript. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#how-do-server-and-client-components-work-in-nextjs).
 
 # I
+
+## Import Aliases
+
+Custom path mappings that provide shorthand references for frequently used directories. Import aliases reduce the complexity of relative imports and make code more readable and maintainable. Learn more in [Absolute Imports and Module Path Aliases](/docs/app/getting-started/installation#set-up-path-aliases).
 
 ## Incremental Static Regeneration (ISR)
 
@@ -107,6 +119,10 @@ Fallback UI shown while a [route segment](#route-segment) is loading. Created by
 
 # M
 
+## Module Graph
+
+A graph of file dependencies in your app. Each file (module) is a node, and import/export relationships form the edges. Next.js analyzes this graph to determine optimal bundling and code-splitting strategies. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#moving-client-components-down-the-tree).
+
 ## Metadata
 
 Information about a page used by browsers and search engines, such as title, description, and Open Graph images. In Next.js, define metadata using the [`metadata` export](/docs/app/api-reference/functions/generate-metadata) or [`generateMetadata` function](/docs/app/api-reference/functions/generate-metadata) in layout or page files. Learn more in [Metadata and OG Images](/docs/app/getting-started/metadata-and-og-images).
@@ -122,6 +138,10 @@ Caching the return value of a function so that calling the same function multipl
 A special component shown when a route doesn't exist or when the [`notFound()` function](/docs/app/api-reference/functions/not-found) is called. Created by adding a [`not-found.js` file](/docs/app/api-reference/file-conventions/not-found) to your app directory. Learn more in [Error Handling](/docs/app/getting-started/error-handling#not-found).
 
 # P
+
+## Private Folders
+
+Folders prefixed with an underscore (e.g., `_components`) that are excluded from the routing system. These folders are used for code organization and shared utilities without creating accessible routes. Learn more in [Private Folders](/docs/app/getting-started/project-structure#private-folders).
 
 ## Page
 
@@ -175,7 +195,7 @@ A function that handles HTTP requests for a specific route, defined in a [`route
 
 ## Route Segment
 
-A fragment of the URL path (between two slashes) defined by a folder in the `app` directory. Each folder represents a segment in the URL structure. Learn more in [Project Structure](/docs/app/getting-started/project-structure).
+A part of the URL path (between two slashes) defined by a folder in the `app` directory. Each folder represents a segment in the URL structure. Learn more in [Project Structure](/docs/app/getting-started/project-structure).
 
 ## RSC Payload
 
@@ -187,9 +207,13 @@ The React Server Component Payload—a compact binary representation of the rend
 
 The default component type in the App Router. Server Components render on the server, can fetch data directly, and don't add to the client JavaScript bundle. They cannot use state or browser APIs. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components).
 
+## Server Action
+
+A [Server Function](#server-function) that is passed to a Client Component as a prop or bound to a form action. Server Actions are commonly used for form submissions and data mutations. Learn more in [Server Actions and Mutations](/docs/app/getting-started/updating-data).
+
 ## Server Function
 
-An asynchronous function that runs on the server, marked with the [`"use server"` directive](/docs/app/api-reference/directives/use-server). Server Functions can be invoked from Client Components and are commonly used for form submissions and data mutations. Learn more in [React Server Functions](https://react.dev/reference/rsc/server-functions).
+An asynchronous function that runs on the server, marked with the [`"use server"` directive](/docs/app/api-reference/directives/use-server). Server Functions can be invoked from Client Components. When passed as a prop to a Client Component or bound to a form action, they are called [Server Actions](#server-action). Learn more in [React Server Functions](https://react.dev/reference/rsc/server-functions).
 
 ## Static Export
 
@@ -199,7 +223,11 @@ A deployment mode that generates a fully static site with HTML, CSS, and JavaScr
 
 When a component is rendered at [build time](#build-time) or in the background during [revalidation](#revalidation). The result is cached and can be served from a CDN. Static rendering is the default for components that don't use [Dynamic APIs](#dynamic-apis).
 
-## Static shell
+## Static Assets
+
+Files such as images, fonts, videos, and other media that are served directly without processing. Static assets are typically stored in the `public` directory and referenced by their relative paths. Learn more in [Static Assets](/docs/app/getting-started/static-assets).
+
+## Static Shell
 
 The pre-rendered HTML structure of a page that's served immediately to the browser. With [Partial Prerendering](#partial-prerendering-ppr), the static shell includes all statically renderable content plus [Suspense boundary](#suspense-boundary) fallbacks for dynamic content that streams in later.
 
@@ -220,3 +248,9 @@ A fast, Rust-based bundler built for Next.js. Turbopack is the default bundler f
 ## Tree Shaking
 
 The process of removing unused code from your JavaScript bundles during the build process. Next.js automatically tree-shakes your code to reduce bundle sizes. Learn more in the [Package Bundling guide](/docs/app/guides/package-bundling).
+
+# U
+
+## `"use client"` Directive
+
+A special React statement that marks the boundary between server and client code. It must be placed at the top of a file, before any imports or other code. It indicates that React Components, helper functions, variable declarations, and all imported dependencies should be included in the [client bundle](#client-bundles). Learn more in the [`"use client"` reference](/docs/app/api-reference/directives/use-client).
