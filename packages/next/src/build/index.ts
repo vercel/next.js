@@ -974,26 +974,11 @@ export default async function build(
         .traceFn(() => loadEnvConfig(dir, false, Log))
       NextBuildContext.loadedEnvFiles = loadedEnvFiles
 
-      if (NextBuildContext.deploymentId) {
-        process.env.NEXT_DEPLOYMENT_ID = NextBuildContext.deploymentId
-      }
-
       // Restore NEXT_DEPLOYMENT_ID after loadEnvConfig resets process.env
       // Priority: preservedDeploymentId > process.env (after loadEnvConfig) > combinedEnv
       if (preservedDeploymentId) {
         process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
         NextBuildContext.preservedDeploymentId = preservedDeploymentId
-      } else if (process.env.NEXT_DEPLOYMENT_ID) {
-        NextBuildContext.preservedDeploymentId = process.env.NEXT_DEPLOYMENT_ID
-      } else if (combinedEnv.NEXT_DEPLOYMENT_ID) {
-        process.env.NEXT_DEPLOYMENT_ID = combinedEnv.NEXT_DEPLOYMENT_ID
-        NextBuildContext.preservedDeploymentId = combinedEnv.NEXT_DEPLOYMENT_ID
-      }
-
-      // Ensure NEXT_DEPLOYMENT_ID is set before loadConfig is called
-      // so that next.config.js can access it if needed
-      if (preservedDeploymentId) {
-        process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
       } else if (process.env.NEXT_DEPLOYMENT_ID) {
         NextBuildContext.preservedDeploymentId = process.env.NEXT_DEPLOYMENT_ID
       } else if (combinedEnv.NEXT_DEPLOYMENT_ID) {
