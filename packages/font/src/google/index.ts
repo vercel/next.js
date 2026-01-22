@@ -17701,8 +17701,8 @@ export declare function Noto_Sans_Multani<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Myanmar<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight:
+>(options?: {
+  weight?:
     | '100'
     | '200'
     | '300'
@@ -17712,6 +17712,7 @@ export declare function Noto_Sans_Myanmar<
     | '700'
     | '800'
     | '900'
+    | 'variable'
     | Array<
         '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
       >
@@ -17721,7 +17722,8 @@ export declare function Noto_Sans_Myanmar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'myanmar'>
+  subsets?: Array<'latin' | 'latin-ext' | 'myanmar'>
+  axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_NKo<
   T extends CssVariable | undefined = undefined,
