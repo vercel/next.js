@@ -59,28 +59,12 @@ struct FieldInfo {
     /// If true, use Default::default() semantics instead of Option for inline direct fields.
     /// The field type should be T (not Option<T>), and empty is represented by T::default().
     use_default: bool,
-    /// The CachedDataItem variant name for adapter code generation.
-    /// If None, no adapter code is generated for this field.
-    cached_data_variant: Option<Ident>,
-    /// The key field names in CachedDataItemKey for collection types.
-    /// E.g., ["task"], ["target", "key"], ["cell", "key", "task"].
-    key_fields: Option<Vec<Ident>>,
 }
 
 impl FieldInfo {
     /// Whether this field is a boolean flag stored in the TaskFlags bitfield.
     fn is_flag(&self) -> bool {
         self.storage_type == StorageType::Flag
-    }
-
-    /// Whether this field has a CachedDataItem variant (for adapter code generation).
-    fn has_cached_data_variant(&self) -> bool {
-        self.cached_data_variant.is_some()
-    }
-
-    /// Get the CachedDataItem variant identifier (panics if none).
-    fn cached_data_variant_ident(&self) -> &Ident {
-        self.cached_data_variant.as_ref().unwrap()
     }
 
     /// Whether this field is transient (not serialized, in-memory only).
@@ -90,21 +74,33 @@ impl FieldInfo {
 
     /// Generate the full `self.check_access(...)` call for this field.
     fn check_access_call(&self) -> TokenStream {
-        if self.is_transient() {
-            quote! { self.check_access(crate::backend::TaskDataCategory::All); }
-        } else if self.category == Category::Meta {
-            quote! { self.check_access(crate::backend::TaskDataCategory::Meta); }
-        } else {
-            quote! { self.check_access(crate::backend::TaskDataCategory::Data); }
+        match self.category {
+            Category::Data => {
+                quote! { self.check_access(crate::backend::SpecificTaskDataCategory::Data); }
+            }
+            Category::Meta => {
+                quote! { self.check_access(crate::backend::SpecificTaskDataCategory::Meta); }
+            }
+            Category::Transient => quote! {
+                let _we_dont_check_access_for_transient_data = ();
+            },
         }
     }
 
     /// Generate the full `self.track_modification(...)` call for this field.
     fn track_modification_call(&self) -> TokenStream {
-        if self.category == Category::Meta {
-            quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); }
-        } else {
-            quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data); }
+        match self.category {
+            Category::Data => {
+                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data); }
+            }
+            Category::Meta => {
+                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); }
+            }
+            Category::Transient => {
+                quote! {
+                    let _we_dont_track_mutations_for_transient_data = ();
+                }
+            }
         }
     }
 
@@ -308,89 +304,6 @@ impl FieldInfo {
     fn shrink_ident(&self) -> syn::Ident {
         self.prefixed_ident("shrink")
     }
-
-    // =========================================================================
-    // Key Fields Helpers (for CachedDataItem adapter code generation)
-    // =========================================================================
-
-    /// Generate the key pattern for match arms in CachedDataItemKey.
-    ///
-    /// For single key field: `{ task }`
-    /// For multiple key fields: `{ cell, key, task }`
-    fn key_pattern(&self) -> TokenStream {
-        match &self.key_fields {
-            None => quote! {},
-            Some(fields) => {
-                quote! { #(#fields),* }
-            }
-        }
-    }
-
-    /// Generate the key expression for use in set/map insert operations (moves values).
-    ///
-    /// For single key field: `task`
-    /// For multiple key fields: `(cell, key, task)`
-    fn key_expr(&self) -> TokenStream {
-        match &self.key_fields {
-            None => quote! {},
-            Some(fields) if fields.len() == 1 => {
-                let f = &fields[0];
-                quote! { #f }
-            }
-            Some(fields) => {
-                quote! { (#(#fields),*) }
-            }
-        }
-    }
-
-    /// Generate the key expression for use when fields are bound by reference (e.g., in
-    /// get/contains). Clones the values to construct a tuple by value.
-    ///
-    /// For single key field: `target.clone()`
-    /// For multiple key fields: `(target.clone(), key.clone())`
-    fn key_expr_cloned(&self) -> TokenStream {
-        match &self.key_fields {
-            None => quote! {},
-            Some(fields) if fields.len() == 1 => {
-                let f = &fields[0];
-                quote! { #f.clone() }
-            }
-            Some(fields) => {
-                let cloned: Vec<_> = fields.iter().map(|f| quote! { #f.clone() }).collect();
-                quote! { (#(#cloned),*) }
-            }
-        }
-    }
-
-    /// Generate the key expression with clone/copy for constructing CachedDataItemKey.
-    ///
-    /// For single key field: `task: *task`
-    /// For multiple key fields: `cell: *cell, key: *key, task: *task`
-    fn key_construction(&self) -> TokenStream {
-        match &self.key_fields {
-            None => quote! {},
-            Some(fields) => {
-                let constructs: Vec<_> = fields.iter().map(|f| quote! { #f: *#f }).collect();
-                quote! { #(#constructs),* }
-            }
-        }
-    }
-
-    /// Generate key construction for owned values (no dereference).
-    ///
-    /// For single key field: `task: task`
-    /// For multiple key fields: `cell: cell, key: key, task: task`
-    ///
-    /// Used when the key is already owned (e.g., from iter methods that return values not refs).
-    fn key_construction_owned(&self) -> TokenStream {
-        match &self.key_fields {
-            None => quote! {},
-            Some(fields) => {
-                let constructs: Vec<_> = fields.iter().map(|f| quote! { #f: #f }).collect();
-                quote! { #(#constructs),* }
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -439,8 +352,6 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut inline = false; // Default is lazy (not inline)
     let mut filter_transient = false;
     let mut use_default = false;
-    let mut cached_data_variant: Option<Ident> = None;
-    let mut key_fields: Option<Vec<Ident>> = None;
 
     // Find and parse the field attribute
     if let Some(attr) = field.attrs.iter().find(|attr| {
@@ -515,31 +426,6 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                 });
                             }
                         }
-                        "variant" => {
-                            if let syn::Expr::Lit(syn::ExprLit {
-                                lit: syn::Lit::Str(lit_str),
-                                ..
-                            }) = &nv.value
-                            {
-                                cached_data_variant =
-                                    Some(Ident::new(&lit_str.value(), lit_str.span()));
-                            }
-                        }
-                        "key_field" => {
-                            if let syn::Expr::Lit(syn::ExprLit {
-                                lit: syn::Lit::Str(lit_str),
-                                ..
-                            }) = &nv.value
-                            {
-                                let fields: Vec<Ident> = lit_str
-                                    .value()
-                                    .split(',')
-                                    .map(|s| Ident::new(s.trim(), lit_str.span()))
-                                    .collect();
-                                key_fields = Some(fields);
-                            }
-                        }
-
                         other => {
                             meta.span()
                                 .unwrap()
@@ -643,8 +529,6 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         lazy: !inline, // Default is lazy; inline = true means lazy = false
         filter_transient,
         use_default,
-        cached_data_variant,
-        key_fields,
     }
 }
 
@@ -733,21 +617,6 @@ impl GroupedFields {
         self.fields
             .iter()
             .filter(move |f| !f.is_flag() && f.lazy && !f.is_transient() && f.category == category)
-    }
-
-    // =========================================================================
-    // CachedDataItem adapter iterators
-    // =========================================================================
-
-    /// Returns an iterator over all fields that have a CachedDataItem variant.
-    /// These fields will generate adapter code for the CachedDataItem API.
-    fn fields_with_variant(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.fields.iter().filter(|f| f.has_cached_data_variant())
-    }
-
-    /// Returns true if any fields have a CachedDataItem variant.
-    fn has_fields_with_variant(&self) -> bool {
-        self.fields.iter().any(|f| f.has_cached_data_variant())
     }
 }
 
@@ -886,9 +755,9 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
 
     quote! {
         bitfield::bitfield! {
-            /// Combined bitfield for task flags.
-            /// Persisted flags are in the lower bits (0 to N-1).
-            /// Transient flags are in the higher bits (N and above).
+            #[doc = "Combined bitfield for task flags."]
+            #[doc = "Persisted flags are in the lower bits (0 to N-1)."]
+            #[doc = "Transient flags are in the higher bits (N and above)."]
             #[derive(Clone, Default, PartialEq, Eq)]
             pub struct TaskFlags(u16);
             impl Debug;
@@ -898,25 +767,25 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
 
         #[automatically_derived]
         impl TaskFlags {
-            /// Mask for persisted flags (lower bits only)
+            #[doc = "Mask for persisted flags (lower bits only)"]
             pub const PERSISTED_MASK: u16 = #persisted_mask;
 
-            /// Get the raw bits value
+            #[doc = "Get the raw bits value"]
             pub fn bits(&self) -> u16 {
                 self.0
             }
 
-            /// Get only the persisted bits (for serialization)
+            #[doc = "Get only the persisted bits (for serialization)"]
             pub fn persisted_bits(&self) -> u16 {
                 self.0 & Self::PERSISTED_MASK
             }
 
-            /// Set bits from a raw value, preserving transient flags
+            #[doc = "Set bits from a raw value, preserving transient flags"]
             pub fn set_persisted_bits(&mut self, bits: u16) {
                 self.0 = (self.0 & !Self::PERSISTED_MASK) | (bits & Self::PERSISTED_MASK);
             }
 
-            /// Create from raw bits (for deserialization)
+            #[doc = "Create from raw bits (for deserialization)"]
             pub fn from_bits(bits: u16) -> Self {
                 Self(bits)
             }
@@ -994,8 +863,8 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         .collect();
 
     quote! {
-        /// All lazily-allocated fields stored in a single Vec.
-        /// Fields are stored directly (unboxed) to avoid allocation overhead.
+        #[doc = "All lazily-allocated fields stored in a single Vec."]
+        #[doc = "Fields are stored directly (unboxed) to avoid allocation overhead."]
         #[automatically_derived]
         #[derive(Debug, Clone, PartialEq, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
@@ -1005,28 +874,28 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
 
         #[automatically_derived]
         impl LazyField {
-            /// Returns true if this field is empty (can be removed from the Vec)
+            #[doc = "Returns true if this field is empty (can be removed from the Vec)"]
             pub fn is_empty(&self) -> bool {
                 match self {
                     #(#is_empty_arms),*
                 }
             }
 
-            /// Returns true if this field should be persisted (not transient)
+            #[doc = "Returns true if this field should be persisted (not transient)"]
             pub fn is_persistent(&self) -> bool {
                 match self {
                     #(#is_persistent_arms),*
                 }
             }
 
-            /// Returns true if this field belongs to the meta category
+            #[doc = "Returns true if this field belongs to the meta category"]
             pub fn is_meta(&self) -> bool {
                 match self {
                     #(#is_meta_arms),*
                 }
             }
 
-            /// Returns true if this field belongs to the data category
+            #[doc = "Returns true if this field belongs to the data category"]
             pub fn is_data(&self) -> bool {
                 !self.is_meta()
             }
@@ -1055,7 +924,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     // Add flags bitfield if needed (pub(crate) - used by TaskFlags methods)
     let flags_field = if has_flags {
         quote! {
-            /// Combined bitfield for boolean flags (persisted + transient)
+            #[doc = "Combined bitfield for boolean flags (persisted + transient)"]
             pub(crate) flags: TaskFlags,
         }
     } else {
@@ -1066,7 +935,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     // Note: Serialization is handled manually via encode_data/encode_meta methods
     let lazy_field = if has_lazy {
         quote! {
-            /// Lazily-allocated fields stored in a single Vec for memory efficiency
+            #[doc = "Lazily-allocated fields stored in a single Vec for memory efficiency"]
             lazy: Vec<LazyField>,
         }
     } else {
@@ -1080,8 +949,8 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     // Note: We don't derive bincode::Encode/Decode here since serialization
     // will be handled manually via encode_data/encode_meta/decode_data/decode_meta methods
     quote! {
-        /// Unified typed storage containing all task fields.
-        /// This is designed to be embedded in the actual InnerStorage for incremental migration.
+        #[doc = "Unified typed storage containing all task fields."]
+        #[doc = "This is designed to be embedded in the actual InnerStorage for incremental migration."]
         #[automatically_derived]
         #[derive(Debug, Default, PartialEq, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
@@ -1208,7 +1077,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
                 self.find_lazy(#extractor)
             }
 
-            /// Set the field value, returning the old value if present.
+            #[doc = "Set the field value, returning the old value if present."]
             fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
                 self.set_lazy(#matches_closure, #unwrap_owned, #constructor)
             }
@@ -1217,10 +1086,10 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
                 self.take_lazy(#matches_closure, #unwrap_owned)
             }
 
-            /// Get a mutable reference to the field value (if present).
-            ///
-            /// Unlike `get_or_create_lazy` for collections, this does NOT allocate
-            /// if the field is absent - it returns None instead.
+            #[doc = "Get a mutable reference to the field value (if present)."]
+            #[doc = ""]
+            #[doc = "Unlike `get_or_create_lazy` for collections, this does NOT allocate"]
+            #[doc = "if the field is absent - it returns None instead."]
             fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
                 self.find_lazy_mut(#extractor)
             }
@@ -1236,6 +1105,7 @@ fn generate_collection_field_accessors(
 ) -> TokenStream {
     let ref_name = field.ref_ident();
     let mut_name = field.mut_ident();
+    let take_name = field.take_ident();
 
     if field.is_inline() {
         // Inline: direct field access
@@ -1246,6 +1116,10 @@ fn generate_collection_field_accessors(
 
             fn #mut_name(&mut self) -> &mut #field_type {
                 &mut self.#field_name
+            }
+
+            fn #take_name(&mut self) -> #field_type {
+                std::mem::take(&mut self.#field_name)
             }
         }
     } else {
@@ -1265,6 +1139,13 @@ fn generate_collection_field_accessors(
                     #matches_closure,
                     #unwrap_closure,
                     || #constructor,
+                )
+            }
+
+            fn #take_name(&mut self) -> Option<#field_type> {
+                self.take_lazy(
+                    #matches_closure,
+                    #unwrap_closure,
                 )
             }
         }
@@ -1292,62 +1173,57 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
         trait_methods.extend(generate_flag_trait_accessor_methods(field));
     }
 
-    // Generate CachedDataItem adapter methods
-    let adapter_methods = generate_cached_data_adapter_trait_methods(grouped_fields);
-
     quote! {
-        /// Trait for typed storage accessors.
-        ///
-        /// This trait is auto-generated by the TaskStorage macro.
-        /// Implementors only need to provide `typed()`, `typed_mut()`, `track_modification()`,
-        /// and `check_access()` methods, and all accessor methods are provided automatically.
-        ///
-        /// This is designed to work with TaskGuard.
+        #[doc = "Trait for typed storage accessors."]
+        #[doc = ""]
+        #[doc = "This trait is auto-generated by the TaskStorage macro."]
+        #[doc = "Implementors only need to provide `typed()`, `typed_mut()`, `track_modification()`,"]
+        #[doc = "and `check_access()` methods, and all accessor methods are provided automatically."]
+        #[doc = ""]
+        #[doc = "This is designed to work with TaskGuard."]
         #[automatically_derived]
         pub trait TaskStorageAccessors {
-            /// Access the typed storage (read-only)
+            #[doc = "Access the typed storage (read-only)"]
             fn typed(&self) -> &TaskStorage;
 
-            /// Access the typed storage (mutable).
-            ///
-            /// Note: This does NOT track modifications. Call `track_modification()` separately
-            /// when the data actually changes. This split allows generated accessors to
-            /// only track modifications when actual changes occur.
+            #[doc = "Access the typed storage (mutable)."]
+            #[doc = ""]
+            #[doc = "Note: This does NOT track modifications. Call `track_modification()` separately"]
+            #[doc = "when the data actually changes. This split allows generated accessors to"]
+            #[doc = "only track modifications when actual changes occur."]
             fn typed_mut(&mut self) -> &mut TaskStorage;
 
-            /// Track that a modification occurred for the given category.
-            ///
-            /// Should be called after confirming that data actually changed.
-            /// This is separate from `typed_mut()` to allow optimizations where
-            /// we only track modifications when something actually changes.
+            #[doc = "Track that a modification occurred for the given category."]
+            #[doc = ""]
+            #[doc = "Should be called after confirming that data actually changed."]
+            #[doc = "This is separate from `typed_mut()` to allow optimizations where"]
+            #[doc = "we only track modifications when something actually changes."]
             fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory);
 
-            /// Verify that the task was accessed with the correct category before reading/writing.
-            ///
-            /// This is a debug assertion that catches bugs where code tries to access data
-            /// without having restored it from storage first.
-            ///
-            /// The category parameter uses `TaskDataCategory`:
-            /// - `Data` or `Meta`: Checks that the task was accessed with that category
-            /// - `All`: Used for transient data - no check is performed
-            ///
-            /// Implementors should check that the provided category matches how the task was accessed.
-            fn check_access(&self, category: crate::backend::TaskDataCategory);
+            #[doc = "Verify that the task was accessed with the correct category before reading/writing."]
+            #[doc = ""]
+            #[doc = "This is a debug assertion that catches bugs where code tries to access data"]
+            #[doc = "without having restored it from storage first."]
+            #[doc = ""]
+            #[doc = "The category parameter uses `SpecificTaskDataCategory`:"]
+            #[doc = "- `Data` or `Meta`: Checks that the task was accessed with that category"]
+            #[doc = ""]
+            #[doc = "Implementors should check that the provided category matches how the task was accessed."]
+            fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory);
 
-            /// Shrink all collection fields to fit their current contents.
-            ///
-            /// This releases excess memory from hash maps and hash sets that may have
-            /// grown larger than needed during task execution.
-            ///
-            /// Note: This does NOT track modifications since shrink_to_fit doesn't
-            /// semantically change the data - it only reduces memory usage.
+            #[doc = "Shrink all collection fields to fit their current contents."]
+            #[doc = ""]
+            #[doc = "This releases excess memory from hash maps and hash sets that may have"]
+            #[doc = "grown larger than needed during task execution."]
+            #[doc = ""]
+            #[doc = "Note: This does NOT track modifications since shrink_to_fit doesn't"]
+            #[doc = "semantically change the data - it only reduces memory usage."]
             fn shrink_to_fit(&mut self) {
                 self.typed_mut().shrink_to_fit();
             }
 
             #trait_methods
 
-            #adapter_methods
         }
     }
 }
@@ -1361,7 +1237,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
     let check_access = field.check_access_call();
     let ref_expr = field.collection_ref_expr();
-    let mut_expr = field.collection_mut_expr();
     let is_option = field.is_option_ref();
 
     match field.storage_type {
@@ -1373,7 +1248,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             // For AutoSet types, generate read-only accessor, mutable accessor, and
             // add/remove/has/iter/len/is_empty
             let ref_name = field.ref_ident();
-            let mut_name = field.mut_ident();
 
             let (return_type, doc_comment) = if is_option {
                 (
@@ -1388,23 +1262,11 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                 )
             };
 
-            let track_modification = field.track_modification_call();
-
             let base_accessor = quote! {
                 #[doc = #doc_comment]
                 fn #ref_name(&self) -> #return_type {
                     #check_access
                     #ref_expr
-                }
-
-                /// Get a mutable reference to the collection (allocates if needed for lazy fields).
-                ///
-                /// Tracks modification pessimistically - assumes caller will mutate.
-                /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic
-                fn #mut_name(&mut self) -> &mut #field_type {
-                    #check_access
-                    #track_modification
-                    #mut_expr
                 }
             };
 
@@ -1421,7 +1283,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             // For CounterMap types, generate read-only accessor, mutable accessor, and typed
             // mutation methods
             let ref_name = field.ref_ident();
-            let mut_name = field.mut_ident();
 
             let (return_type, doc_comment) = if is_option {
                 (
@@ -1436,23 +1297,11 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                 )
             };
 
-            let track_modification = field.track_modification_call();
-
             let base_accessor = quote! {
                 #[doc = #doc_comment]
                 fn #ref_name(&self) -> #return_type {
                     #check_access
                     #ref_expr
-                }
-
-                /// Get a mutable reference to the collection (allocates if needed for lazy fields).
-                ///
-                /// Tracks modification pessimistically - assumes caller will mutate.
-                /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic
-                fn #mut_name(&mut self) -> &mut #field_type {
-                    #check_access
-                    #track_modification
-                    #mut_expr
                 }
             };
 
@@ -1468,7 +1317,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
         StorageType::AutoMap => {
             // For AutoMap types, generate immutable and mutable accessors plus operation methods
             let ref_name = field.ref_ident();
-            let mut_name = field.mut_ident();
 
             let (return_type, ref_doc) = if is_option {
                 (
@@ -1482,8 +1330,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                 )
             };
 
-            let track_modification = field.track_modification_call();
-
             let base_accessor = quote! {
                 #[doc = #ref_doc]
                 fn #ref_name(&self) -> #return_type {
@@ -1491,15 +1337,6 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                     #ref_expr
                 }
 
-                /// Get a mutable reference to the collection (allocates if needed for lazy fields).
-                ///
-                /// Tracks modification pessimistically - assumes caller will mutate.
-                /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic
-                fn #mut_name(&mut self) -> &mut #field_type {
-                    #check_access
-                    #track_modification
-                    #mut_expr
-                }
             };
 
             let automap_ops = generate_automap_ops(field);
@@ -1553,79 +1390,80 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         quote! { #field_type }
     };
 
-    // Generate get_mut accessor for all direct fields
+    // Generate get_mut accessor for all direct transient fields
+    // We don't allow direct mutable access to persistent fields because it can interfere with
+    // mutation tracking and snapshotting
     let get_mut_accessor = {
-        let get_mut_name = field.get_mut_ident();
-        if field.is_inline() {
-            // For inline fields, access the field directly
-            let field_name = &field.field_name;
-            if field.use_default {
-                // For fields with default semantics, always return Some(&mut self.field)
-                quote! {
-                    /// Get a mutable reference to the field value.
-                    ///
-                    /// Tracks modification pessimistically - assumes caller will mutate.
-                    /// TODO: try to remove this method, tracking mutations before the mutation interferes with snapshotting logic.
-                    /// If this is needed then we need to use a guard struct that tracks `DerefMut` calls and calls track_modification
-                    /// in Drop
-                    fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
-                        #check_access
-                        #track_modification
-                        Some(&mut self.typed_mut().#field_name)
+        if field.is_transient() {
+            let get_mut_name = field.get_mut_ident();
+            if field.is_inline() {
+                // For inline fields, access the field directly
+                let field_name = &field.field_name;
+                if field.use_default {
+                    // For fields with default semantics, always return Some(&mut self.field)
+                    quote! {
+                        #[doc = "Get a mutable reference to the field value."]
+                        #[doc = ""]
+                        #[doc = "Tracks modification pessimistically - assumes caller will mutate."]
+                        fn #get_mut_name(&mut self) -> &mut #value_type {
+                            #check_access
+                            #track_modification
+                            &mut self.typed_mut().#field_name
+                        }
+                    }
+                } else {
+                    // For Option fields, return as_mut()
+                    quote! {
+                        #[doc = "Get a mutable reference to the field value (if present)."]
+                        fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
+                            #check_access
+                            #track_modification
+                            self.typed_mut().#field_name.as_mut()
+                        }
                     }
                 }
             } else {
-                // For Option fields, return as_mut()
+                // For lazy fields, use the existing get_mut expression
+                let get_mut_expr = field.direct_get_mut_expr();
                 quote! {
-                    /// Get a mutable reference to the field value (if present).
-                    ///
-                    /// Tracks modification pessimistically - assumes caller will mutate.
+                    #[doc = "Get a mutable reference to the field value (if present)."]
                     fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
                         #check_access
                         #track_modification
-                        self.typed_mut().#field_name.as_mut()
+                        #get_mut_expr
                     }
                 }
             }
         } else {
-            // For lazy fields, use the existing get_mut expression
-            let get_mut_expr = field.direct_get_mut_expr();
-            quote! {
-                /// Get a mutable reference to the field value (if present).
-                ///
-                /// Tracks modification pessimistically - assumes caller will mutate.
-                fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
-                    #check_access
-                    #track_modification
-                    #get_mut_expr
-                }
-            }
+            // Persistent fields don't allow direct mutable access as it interferes with mutation
+            // tracking
+            quote! {}
         }
     };
 
     quote! {
-        /// Get a reference to the field value (if present)
+        #[doc = "Get a reference to the field value (if present)"]
         fn #get_name(&self) -> Option<&#value_type> {
             #check_access
             #get_expr
         }
 
-        /// Check if this field has a value
+        #[doc = "Check if this field has a value"]
         fn #has_name(&self) -> bool {
             #check_access
             #get_expr.is_some()
         }
 
-        /// Set the field value, returning the old value if present
+        #[doc = "Set the field value, returning the old value if present"]
         fn #set_name(&mut self, value: #value_type) -> Option<#value_type> {
             #check_access
             #track_modification
             #set_expr(value)
         }
 
-        /// Take the field value, clearing it
-        ///
-        /// Only tracks modification if there was a value to take.
+        #[doc = "Take the field value, clearing it"]
+        #[doc = ""]
+        #[doc = "Only tracks modification if there was a value to take."]
         fn #take_name(&mut self) -> Option<#value_type> {
             #check_access
             let value = #take_expr;
@@ -1658,12 +1496,14 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     let track_modification = field.track_modification_call();
     let mut_expr = field.collection_mut_expr();
     let ref_expr = field.collection_ref_expr();
+    let take_expr = field.direct_take_expr();
     let is_option = field.is_option_ref();
 
     let add_name = field.prefixed_ident("add");
-    let add_items_name = field.suffixed_ident("extend");
+    let extend_name = field.prefixed_ident("extend");
     let remove_name = field.prefixed_ident("remove");
-    let has_name = field.prefixed_ident("has");
+    let set_name = field.prefixed_ident("set");
+    let has_name = field.suffixed_ident("contains");
     let iter_name = field.iter_ident();
     let len_name = field.len_ident();
     let is_empty_name = field.is_empty_ident();
@@ -1718,15 +1558,30 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         }
     };
 
+    let set_body = if is_option {
+        let unwraper = field.lazy_unwrap_closure();
+        let matches = field.lazy_matches_closure();
+        let ctor = field.lazy_constructor(quote! {set});
+        quote! {
+             self.typed_mut().set_lazy(#matches, #unwraper, #ctor)
+        }
+    } else {
+        quote! {
+            let old = #take_expr;
+            *#mut_expr = set;
+            Some(old)
+        }
+    };
+
     quote! {
-        /// Check if the set contains an item
+        #[doc = "Check if the set contains an item"]
         fn #has_name(&self, item: &#element_type) -> bool {
             #check_access
             #has_body
         }
 
-        /// Add an item to the set.
-        /// Returns true if the item was newly added, false if it already existed.
+        #[doc = "Add an item to the set."]
+        #[doc = "Returns true if the item was newly added, false if it already existed."]
         #[must_use]
         fn #add_name(&mut self, item: #element_type) -> bool {
             #check_access
@@ -1737,9 +1592,9 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             added
         }
 
-        /// Add multiple items to the set from an iterator.
-        /// Only tracks modification if at least one item is actually added.
-        fn #add_items_name(&mut self, items: impl Iterator<Item = #element_type>) {
+        #[doc = "Add multiple items to the set from an iterator."]
+        #[doc = "Only tracks modification if at least one item is actually added."]
+        fn #extend_name(&mut self, items: impl IntoIterator<Item = #element_type>) {
             #check_access
             let set = #mut_expr;
             let mut any_added = false;
@@ -1753,26 +1608,35 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             }
         }
 
-        /// Remove an item from the set.
-        /// Returns true if the item was present and removed, false if it wasn't present.
+        #[doc = "Remove an item from the set."]
+        #[doc = "Returns true if the item was present and removed, false if it wasn't present."]
         fn #remove_name(&mut self, item: &#element_type) -> bool {
             #check_access
             #remove_body
         }
 
-        /// Iterate over all items in the set
+        #[doc = "Remove multiple items from the set."]
+        #[doc = "Only tracks modification if at least one item is actually removed."]
+        fn #set_name(&mut self, set: #field_type) -> Option<#field_type>
+        {
+            #check_access
+            #track_modification
+            #set_body
+        }
+
+        #[doc = "Iterate over all items in the set"]
         fn #iter_name(&self) -> impl Iterator<Item = #element_type> + '_ {
             #check_access
             #iter_body
         }
 
-        /// Get the number of items in the set
+        #[doc = "Get the number of items in the set"]
         fn #len_name(&self) -> usize {
             #check_access
             #len_body
         }
 
-        /// Check if the set is empty
+        #[doc = "Check if the set is empty"]
         fn #is_empty_name(&self) -> bool {
             #check_access
             #is_empty_body
@@ -1793,14 +1657,34 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 /// - `update_{field}(key, f)` - Closure-based update
 /// - `add_{field}(key, value)` - Insert new, panics if exists
 /// - `remove_{field}(key) -> Option<V>` - Standard HashMap remove
-/// - `update_{field}_positive_crossing(key, delta) -> bool` - For i32 types
-/// - `get_{field}_entry(key) -> Option<&V>` - Single-item lookup
+/// - `get_{field}(key) -> Option<&V>` - Single-item lookup
+///
+/// Additionally, for i32 value types only (signed counters):
+/// - `update_{field}_positive_crossing(key, delta) -> bool` - Track positive boundary crossing
+///
+/// Note: CounterMap only supports `i32` and `u32` value types. Other types will produce
+/// a compile error.
 fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
 
-    let Some((key_type, value_type)) = extract_map_types(field_type, "CounterMap") else {
+    let Some((key_type_raw, value_type_raw)) = extract_map_types_raw(field_type, "CounterMap")
+    else {
         return quote! {};
     };
+
+    // Enforce that value type is either i32 or u32
+    let is_signed = is_type_i32(value_type_raw);
+    let is_unsigned = is_type_u32(value_type_raw);
+    if !is_signed && !is_unsigned {
+        return syn::Error::new(
+            value_type_raw.span(),
+            "CounterMap value type must be `i32` or `u32`",
+        )
+        .to_compile_error();
+    }
+
+    let key_type = quote! { #key_type_raw };
+    let value_type = quote! { #value_type_raw };
 
     let check_access = field.check_access_call();
     let track_modification = field.track_modification_call();
@@ -1810,19 +1694,18 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     // Method names - use shorter names to match existing API
     let update_count_name = field.infixed_ident("update", "count");
+    let update_counts_name = field.infixed_ident("update", "counts");
     let update_and_get_name = field.prefixed_ident("update_and_get");
     let update_with_name = field.prefixed_ident("update");
     let add_entry_name = field.prefixed_ident("add");
     let remove_name = field.prefixed_ident("remove");
-    let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
-    let get_entry_name = field.infixed_ident("get", "entry");
-    let iter_entries_name = field.infixed_ident("iter", "entries");
-    let iter_positive_entries_name = field.infixed_ident("iter", "positive_entries");
+    let get_name = field.prefixed_ident("get");
+    let iter_name = field.prefixed_ident("iter");
     let len_name = field.len_ident();
     let is_empty_name = field.is_empty_ident();
 
     // Generate get_entry body based on whether ref access returns Option or not
-    let get_entry_body = if is_option {
+    let get_body = if is_option {
         quote! { #ref_expr.and_then(|m| m.get(key)) }
     } else {
         quote! { #ref_expr.get(key) }
@@ -1867,105 +1750,108 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     };
 
     // Generate iter_entries body
-    let iter_entries_body = if is_option {
+    let iter_body = if is_option {
         quote! { #ref_expr.into_iter().flat_map(|m| m.iter()) }
     } else {
         quote! { #ref_expr.iter() }
     };
 
-    // Generate iter_positive_entries body (entries where value > 0)
-    let iter_positive_entries_body = if is_option {
+    // Generate signed-type-specific methods only for i32
+    let signed_methods = if is_signed {
+        let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
+
         quote! {
-            #ref_expr.into_iter().flat_map(|m| {
-                m.iter().filter_map(|(k, v)| if *v > Default::default() { Some((k, v)) } else { None })
-            })
+            #[doc = "Update a signed counter by the given delta."]
+            #[doc = "Returns true if the count crossed the positive boundary (became positive or non-positive)."]
+            #[must_use]
+            fn #update_positive_crossing_name(&mut self, key: #key_type, delta: #value_type) -> bool {
+                #check_access
+                #track_modification
+                #mut_expr.update_positive_crossing(key, delta)
+            }
         }
     } else {
-        quote! {
-            #ref_expr.iter().filter_map(|(k, v)| if *v > Default::default() { Some((k, v)) } else { None })
-        }
+        quote! {}
     };
 
     quote! {
-        /// Get a single entry from the counter map
-        fn #get_entry_name(&self, key: &#key_type) -> Option<&#value_type> {
+        #[doc = "Get a single entry from the counter map"]
+        fn #get_name(&self, key: &#key_type) -> Option<&#value_type> {
             #check_access
-            #get_entry_body
+            #get_body
         }
 
-        /// Update a counter by the given delta.
-        /// Returns true if the count crossed zero (became zero or became non-zero).
+        #[doc = "Update a counter by the given delta."]
+        #[doc = "Returns true if the count crossed zero (became zero or became non-zero)."]
         #[must_use]
         fn #update_count_name(&mut self, key: #key_type, delta: #value_type) -> bool {
             #check_access
             #track_modification
-                        #mut_expr.update_count(key, delta)
+            #mut_expr.update_count(key, delta)
         }
 
-        /// Update a counter by the given delta and return the new value.
+        #[doc = "Update multiple counters by the given delta."]
+        #[doc = "More efficient than calling update_count in a loop."]
+        fn #update_counts_name(&mut self, keys: impl Iterator<Item = #key_type>, delta: #value_type) {
+            #check_access
+            #track_modification
+            let map = #mut_expr;
+            for key in keys {
+                map.update_count(key, delta);
+            }
+        }
+
+        #[doc = "Update a counter by the given delta and return the new value."]
         fn #update_and_get_name(&mut self, key: #key_type, delta: #value_type) -> #value_type {
             #check_access
             #track_modification
-                        #mut_expr.update_and_get(key, delta)
+            #mut_expr.update_and_get(key, delta)
         }
 
-        /// Update a counter using a closure that receives the current value
-        /// (or None if not present) and returns the new value (or None to remove).
+        #[doc = "Update a counter using a closure that receives the current value"]
+        #[doc = "(or None if not present) and returns the new value (or None to remove)."]
         fn #update_with_name<F>(&mut self, key: #key_type, f: F)
         where
             F: FnOnce(Option<#value_type>) -> Option<#value_type>,
         {
             #check_access
             #track_modification
-                        #mut_expr.update_with(key, f)
+            #mut_expr.update_with(key, f)
         }
 
-        /// Add a new entry, panicking if the entry already exists.
+        #[doc = "Add a new entry, panicking if the entry already exists."]
         fn #add_entry_name(&mut self, key: #key_type, value: #value_type) {
             #check_access
             #track_modification
-                        #mut_expr.add_entry(key, value)
+            #mut_expr.add_entry(key, value)
         }
 
-        /// Remove an entry, returning the value if present.
-        /// Only tracks modification if an entry was actually removed.
+        #[doc = "Remove an entry, returning the value if present."]
+        #[doc = "Only tracks modification if an entry was actually removed."]
         fn #remove_name(&mut self, key: &#key_type) -> Option<#value_type> {
             #check_access
             #remove_body
         }
 
-        /// Update a signed counter by the given delta.
-        /// Returns true if the count crossed the positive boundary (became positive or non-positive).
-        #[must_use]
-        fn #update_positive_crossing_name(&mut self, key: #key_type, delta: #value_type) -> bool {
-            #check_access
-            #track_modification
-                        #mut_expr.update_positive_crossing(key, delta)
-        }
-
-        /// Get the number of entries in the counter map
+        #[doc = "Get the number of entries in the counter map"]
         fn #len_name(&self) -> usize {
             #check_access
             #len_body
         }
 
-        /// Check if the counter map is empty
+        #[doc = "Check if the counter map is empty"]
         fn #is_empty_name(&self) -> bool {
             #check_access
             #is_empty_body
         }
 
-        /// Iterate over all key-value pairs in the counter map
-        fn #iter_entries_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
+        #[doc = "Iterate over all key-value pairs in the counter map. Guaranteed to return non-zero values."]
+        fn #iter_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
             #check_access
-            #iter_entries_body
+            #iter_body
         }
 
-        /// Iterate over key-value pairs where value > 0
-        fn #iter_positive_entries_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
-            #check_access
-            #iter_positive_entries_body
-        }
+        #signed_methods
     }
 }
 
@@ -1996,12 +1882,12 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     let ref_expr = field.collection_ref_expr();
     let is_option = field.is_option_ref();
 
-    // Method names (using `_entry` suffix for consistency with CounterMap)
-    let get_entry_name = field.infixed_ident("get", "entry");
-    let has_entry_name = field.infixed_ident("has", "entry");
-    let insert_entry_name = field.infixed_ident("insert", "entry");
-    let remove_entry_name = field.infixed_ident("remove", "entry");
-    let iter_entries_name = field.infixed_ident("iter", "entries");
+    let get_entry_name = field.prefixed_ident("get");
+    let has_entry_name = field.suffixed_ident("contains");
+    let insert_entry_name = field.prefixed_ident("insert");
+    let remove_entry_name = field.prefixed_ident("remove");
+    let iter_entries_name = field.prefixed_ident("iter");
+    let take_name = field.prefixed_ident("take");
     let len_name = field.len_ident();
     let is_empty_name = field.is_empty_ident();
 
@@ -2036,6 +1922,11 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
         quote! { #ref_expr.is_empty() }
     };
 
+    let take_expression = {
+        let take_name = field.take_ident();
+        quote! {self.typed_mut().#take_name();}
+    };
+
     // Generate remove body - for lazy fields, avoid allocation if map doesn't exist.
     // Using ? operator to early-return None if map doesn't exist.
     let remove_body = if is_option {
@@ -2059,45 +1950,58 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     };
 
     quote! {
-        /// Get an entry from the map by key
+        #[doc = "Get an entry from the map by key"]
         fn #get_entry_name(&self, key: &#key_type) -> Option<&#value_type> {
             #check_access
             #get_entry_body
         }
 
-        /// Check if the map contains a key
+        #[doc = "Check if the map contains a key"]
         fn #has_entry_name(&self, key: &#key_type) -> bool {
             #check_access
             #has_entry_body
         }
 
-        /// Insert an entry, returning the old value if present.
+        #[doc = "Insert an entry, returning the old value if present."]
         fn #insert_entry_name(&mut self, key: #key_type, value: #value_type) -> Option<#value_type> {
             #check_access
             #track_modification
             #mut_expr.insert(key, value)
         }
 
-        /// Remove an entry, returning the value if present.
-        /// Only tracks modification if an entry was actually removed.
+
+        #[doc = "Remove an entry, returning the value if present."]
+        #[doc = "Only tracks modification if an entry was actually removed."]
         fn #remove_entry_name(&mut self, key: &#key_type) -> Option<#value_type> {
             #check_access
             #remove_body
         }
 
-        /// Iterate over all key-value pairs in the map
+
+        #[doc = "Remove the full map and return it"]
+        #[doc = "Only tracks modification if an entry was actually removed."]
+        fn #take_name(&mut self) -> Option<#field_type> {
+            #check_access
+            let value = #take_expression;
+            if value.is_some() {
+                #track_modification
+            }
+            value
+        }
+
+        #[doc = "Iterate over all key-value pairs in the map"]
         fn #iter_entries_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
             #check_access
             #iter_body
         }
 
-        /// Get the number of entries in the map
+        #[doc = "Get the number of entries in the map"]
         fn #len_name(&self) -> usize {
             #check_access
             #len_body
         }
 
-        /// Check if the map is empty
+        #[doc = "Check if the map is empty"]
         fn #is_empty_name(&self) -> bool {
             #check_access
             #is_empty_body
@@ -2135,9 +2039,9 @@ fn generate_shrink_accessor(field: &FieldInfo) -> TokenStream {
     };
 
     quote! {
-        /// Shrink the collection to fit its current contents, releasing excess memory.
-        ///
-        /// This does NOT track modifications since it doesn't change the data semantically.
+        #[doc = "Shrink the collection to fit its current contents, releasing excess memory."]
+        #[doc = ""]
+        #[doc = "This does NOT track modifications since it doesn't change the data semantically."]
         fn #shrink_name(&mut self) {
             #shrink_body
         }
@@ -2175,6 +2079,12 @@ fn extract_set_element_type(ty: &Type) -> Option<TokenStream> {
 
 /// Extract key and value types from a map type (e.g., AutoMap<K, V> or CounterMap<K, V>)
 fn extract_map_types(ty: &Type, expected_name: &str) -> Option<(TokenStream, TokenStream)> {
+    let (key_type, value_type) = extract_map_types_raw(ty, expected_name)?;
+    Some((quote! { #key_type }, quote! { #value_type }))
+}
+
+/// Extract key and value types from a map type, returning the raw Type references.
+fn extract_map_types_raw<'a>(ty: &'a Type, expected_name: &str) -> Option<(&'a Type, &'a Type)> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
         && segment.ident == expected_name
@@ -2184,10 +2094,34 @@ fn extract_map_types(ty: &Type, expected_name: &str) -> Option<(TokenStream, Tok
         if let Some(syn::GenericArgument::Type(key_type)) = args_iter.next()
             && let Some(syn::GenericArgument::Type(value_type)) = args_iter.next()
         {
-            return Some((quote! { #key_type }, quote! { #value_type }));
+            return Some((key_type, value_type));
         }
     }
     None
+}
+
+/// Check if a type is specifically `i32`.
+fn is_type_i32(ty: &Type) -> bool {
+    is_primitive_type(ty, "i32")
+}
+
+/// Check if a type is specifically `u32`.
+fn is_type_u32(ty: &Type) -> bool {
+    is_primitive_type(ty, "u32")
+}
+
+/// Check if a type is a specific primitive type (e.g., "i32", "u32").
+fn is_primitive_type(ty: &Type, name: &str) -> bool {
+    if let Type::Path(type_path) = ty
+        && type_path.qself.is_none()
+        && type_path.path.segments.len() == 1
+        && let Some(segment) = type_path.path.segments.first()
+        && segment.ident == name
+        && segment.arguments.is_none()
+    {
+        return true;
+    }
+    false
 }
 
 fn capitalize(s: &str) -> String {
@@ -2214,15 +2148,15 @@ fn generate_flag_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
     let track_modification = quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); };
 
     quote! {
-        /// Get the flag value
+        #[doc = "Get the flag value"]
         fn #field_name(&self) -> bool {
             #check_access
             self.typed().flags.#field_name()
         }
 
-        /// Set the flag value
-        ///
-        /// Only tracks modification if the value actually changes.
+        #[doc = "Set the flag value"]
+        #[doc = ""]
+        #[doc = "Only tracks modification if the value actually changes."]
         fn #set_name(&mut self, value: bool) {
             #check_access
             let current = self.typed().flags.#field_name();
@@ -2852,1126 +2786,5 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 );
             }
         }
-    }
-}
-
-// =============================================================================
-// CachedDataItem Adapter Code Generation
-// =============================================================================
-
-/// Generate the CachedDataItem adapter methods for the TaskStorageAccessors trait.
-///
-/// These methods provide the CachedDataItem API (add, insert, get, remove, etc.)
-/// using the typed accessor methods from the trait. This enables proper access
-/// tracking via check_access() and track_modification().
-fn generate_cached_data_adapter_trait_methods(
-    grouped_fields: &GroupedFields,
-) -> proc_macro2::TokenStream {
-    // Only generate if there are fields with variants
-    if !grouped_fields.has_fields_with_variant() {
-        return quote! {};
-    }
-
-    // Generate match arms for each method
-    let insert_kv_arms = generate_insert_kv_arms(grouped_fields);
-    let add_arms = generate_add_arms(grouped_fields);
-    let get_arms = generate_get_arms(grouped_fields);
-    let remove_arms = generate_remove_arms(grouped_fields);
-    let get_mut_arms = generate_get_mut_arms(grouped_fields);
-    let iter_arms = generate_iter_arms(grouped_fields);
-    let count_arms = generate_count_arms(grouped_fields);
-    let extend_arms = generate_extend_arms(grouped_fields);
-    let extract_if_arms = generate_extract_if_arms(grouped_fields);
-
-    quote! {
-        // =========================================================================
-        // CachedDataItem Adapter Methods
-        //
-        // These methods provide backward compatibility with the CachedDataItem API
-        // while using typed accessors internally for proper access tracking.
-        // =========================================================================
-
-        /// Add a CachedDataItem to storage.
-        ///
-        /// Returns `true` if the item was newly added, `false` if it already existed.
-        /// Does NOT overwrite if the key already exists.
-        fn add(&mut self, item: crate::data::CachedDataItem) -> bool {
-            use crate::data::{CachedDataItemKey, CachedDataItemValue};
-            use turbo_tasks::KeyValuePair;
-            let (key, value) = item.into_key_and_value();
-            match (key, value) {
-                #add_arms
-
-                // Catch-all for mismatched key/value types
-                #[allow(unreachable_patterns)]
-                (key, value) => {
-                    panic!(
-                        "Mismatched CachedDataItem key/value types: key={key:?}, value={value:?}"
-                    );
-                }
-            }
-        }
-
-        /// Insert a CachedDataItem, returning the old value if present.
-        fn insert(
-            &mut self,
-            item: crate::data::CachedDataItem,
-        ) -> Option<crate::data::CachedDataItemValue> {
-            use turbo_tasks::KeyValuePair;
-            let (key, value) = item.into_key_and_value();
-            self.insert_kv(key, value)
-        }
-
-        /// Insert a key-value pair, returning the old value if present.
-        fn insert_kv(
-            &mut self,
-            key: crate::data::CachedDataItemKey,
-            value: crate::data::CachedDataItemValue,
-        ) -> Option<crate::data::CachedDataItemValue> {
-            use crate::data::{CachedDataItemKey, CachedDataItemValue};
-            match (key, value) {
-                #insert_kv_arms
-
-                // Catch-all for mismatched key/value types
-                #[allow(unreachable_patterns)]
-                (key, value) => {
-                    panic!(
-                        "Mismatched CachedDataItem key/value types: key={key:?}, value={value:?}"
-                    );
-                }
-            }
-        }
-
-        /// Check if a key exists in storage.
-        fn contains_key(&self, key: &crate::data::CachedDataItemKey) -> bool {
-            self.get(key).is_some()
-        }
-
-        /// Check if a key exists in storage (alias for contains_key for backward compatibility).
-        fn has_key(&self, key: &crate::data::CachedDataItemKey) -> bool {
-            self.contains_key(key)
-        }
-
-        /// Get a reference to a CachedDataItem value by key.
-        fn get(
-            &self,
-            key: &crate::data::CachedDataItemKey,
-        ) -> Option<crate::data::CachedDataItemValueRef<'_>> {
-            use crate::data::{CachedDataItemKey, CachedDataItemValueRef};
-            match key {
-                #get_arms
-            }
-        }
-
-        /// Remove a CachedDataItem by key, returning the value if present.
-        fn remove(
-            &mut self,
-            key: &crate::data::CachedDataItemKey,
-        ) -> Option<crate::data::CachedDataItemValue> {
-            use crate::data::{CachedDataItemKey, CachedDataItemValue};
-            match key {
-                #remove_arms
-            }
-        }
-
-        /// Get a mutable reference to a CachedDataItem value by key.
-        fn get_mut(
-            &mut self,
-            key: &crate::data::CachedDataItemKey,
-        ) -> Option<crate::data::CachedDataItemValueRefMut<'_>> {
-            use crate::data::{CachedDataItemKey, CachedDataItemValueRefMut};
-            match key {
-                #get_mut_arms
-            }
-        }
-
-        /// Update a value in-place, creating it if it doesn't exist.
-        fn update(
-            &mut self,
-            key: crate::data::CachedDataItemKey,
-            update: impl FnOnce(Option<crate::data::CachedDataItemValue>) -> Option<crate::data::CachedDataItemValue>,
-        ) {
-            use turbo_tasks::KeyValuePair;
-            let old_value = self.remove(&key);
-            if let Some(new_value) = update(old_value) {
-                let item = crate::data::CachedDataItem::from_key_and_value(key, new_value);
-                self.add(item);
-            }
-        }
-
-        /// Get a mutable reference or insert a value created by the given closure.
-        fn get_mut_or_insert_with(
-            &mut self,
-            key: crate::data::CachedDataItemKey,
-            insert: impl FnOnce() -> crate::data::CachedDataItemValue,
-        ) -> crate::data::CachedDataItemValueRefMut<'_> {
-            use turbo_tasks::KeyValuePair;
-            if self.get(&key).is_none() {
-                let value = insert();
-                self.insert_kv(key.clone(), value);
-            }
-            self.get_mut(&key).expect("just inserted")
-        }
-
-        /// Count items of a specific type.
-        fn count(&self, ty: crate::data::CachedDataItemType) -> usize {
-            use crate::data::CachedDataItemType;
-            match ty {
-                #count_arms
-            }
-        }
-
-        /// Iterate over items of a specific type.
-        fn iter(
-            &self,
-            ty: crate::data::CachedDataItemType,
-        ) -> Box<dyn Iterator<Item = (crate::data::CachedDataItemKey, crate::data::CachedDataItemValueRef<'_>)> + '_> {
-            use crate::data::{CachedDataItemKey, CachedDataItemType, CachedDataItemValueRef};
-
-            match ty {
-                #iter_arms
-            }
-        }
-
-        /// Extend storage with items from an iterator.
-        /// Returns `true` if all items were newly added, `false` if any already existed.
-        fn extend(
-            &mut self,
-            ty: crate::data::CachedDataItemType,
-            items: impl IntoIterator<Item = crate::data::CachedDataItem>,
-        ) -> bool {
-            use crate::data::{CachedDataItemKey, CachedDataItemType, CachedDataItemValue};
-            use turbo_tasks::KeyValuePair;
-
-            match ty {
-                #extend_arms
-            }
-        }
-
-        /// Add a CachedDataItem that must not already exist.
-        /// Panics if the item already exists.
-        fn add_new(&mut self, item: crate::data::CachedDataItem) {
-            if !self.add(item) {
-                panic!("add_new: item already exists");
-            }
-        }
-
-        /// Extend with items that must all be new.
-        /// Panics if any item already exists.
-        fn extend_new(
-            &mut self,
-            _ty: crate::data::CachedDataItemType,
-            items: impl IntoIterator<Item = crate::data::CachedDataItem>,
-        ) {
-            for item in items {
-                self.add_new(item);
-            }
-        }
-
-        /// Remove items matching a predicate.
-        fn extract_if<'a, F>(
-            &'a mut self,
-            ty: crate::data::CachedDataItemType,
-            mut predicate: F,
-        ) -> Vec<crate::data::CachedDataItem>
-        where
-            F: for<'b> FnMut(crate::data::CachedDataItemKey, crate::data::CachedDataItemValueRef<'b>) -> bool + 'a,
-        {
-            use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue, CachedDataItemValueRef};
-            use turbo_tasks::KeyValuePair;
-
-            match ty {
-                #extract_if_arms
-            }
-        }
-
-    }
-}
-
-/// Generate insert_kv match arms for all fields with variants.
-fn generate_insert_kv_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let arms: Vec<_> = grouped_fields
-        .fields_with_variant()
-        .map(generate_insert_kv_arm)
-        .collect();
-
-    quote! { #(#arms)* }
-}
-
-/// Generate a single insert_kv match arm for a field.
-fn generate_insert_kv_arm(field: &FieldInfo) -> proc_macro2::TokenStream {
-    let variant = field.cached_data_variant_ident();
-
-    match &field.storage_type {
-        StorageType::Direct => generate_insert_kv_arm_direct(field, variant),
-        StorageType::AutoSet => generate_insert_kv_arm_auto_set(field, variant),
-        StorageType::CounterMap | StorageType::AutoMap => {
-            generate_insert_kv_arm_map(field, variant)
-        }
-        StorageType::Flag => generate_insert_kv_arm_flag(field, variant),
-    }
-}
-
-fn generate_insert_kv_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let set_name = field.set_ident();
-    quote! {
-        (
-            CachedDataItemKey::#variant {},
-            CachedDataItemValue::#variant { value },
-        ) => self
-            .#set_name(value)
-            .map(|v| CachedDataItemValue::#variant { value: v }),
-    }
-}
-
-fn generate_insert_kv_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_mut = field.mut_ident();
-    let key_pattern = field.key_pattern();
-    let key_expr = field.key_expr();
-    quote! {
-        (
-            CachedDataItemKey::#variant { #key_pattern },
-            CachedDataItemValue::#variant { value: () },
-        ) => {
-            let existed = !self.#field_mut().insert(#key_expr);
-            if existed {
-                Some(CachedDataItemValue::#variant { value: () })
-            } else {
-                None
-            }
-        },
-    }
-}
-
-fn generate_insert_kv_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_mut = field.mut_ident();
-    let key_pattern = field.key_pattern();
-    let key_expr = field.key_expr();
-    quote! {
-        (
-            CachedDataItemKey::#variant { #key_pattern },
-            CachedDataItemValue::#variant { value },
-        ) => self
-            .#field_mut()
-            .insert(#key_expr, value)
-            .map(|v| CachedDataItemValue::#variant { value: v }),
-    }
-}
-
-fn generate_insert_kv_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let set_name = field.set_ident();
-    quote! {
-        (
-            CachedDataItemKey::#variant {},
-            CachedDataItemValue::#variant { value: () },
-        ) => {
-            let existed = self.typed().flags.#field_name();
-            self.typed_mut().flags.#set_name(true);
-            if existed {
-                Some(CachedDataItemValue::#variant { value: () })
-            } else {
-                None
-            }
-        },
-    }
-}
-
-/// Generate get match arms for all fields with variants.
-fn generate_get_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let arms: Vec<_> = grouped_fields
-        .fields_with_variant()
-        .map(generate_get_arm)
-        .collect();
-
-    quote! { #(#arms)* }
-}
-
-/// Generate a single get match arm for a field.
-fn generate_get_arm(field: &FieldInfo) -> proc_macro2::TokenStream {
-    let variant = field.cached_data_variant_ident();
-
-    match &field.storage_type {
-        StorageType::Direct => generate_get_arm_direct(field, variant),
-        StorageType::AutoSet => generate_get_arm_auto_set(field, variant),
-        StorageType::CounterMap | StorageType::AutoMap => generate_get_arm_map(field, variant),
-        StorageType::Flag => generate_get_arm_flag(field, variant),
-    }
-}
-
-fn generate_get_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let get_name = field.get_ident();
-    quote! {
-        CachedDataItemKey::#variant {} => self
-            .#get_name()
-            .map(|value| CachedDataItemValueRef::#variant { value }),
-    }
-}
-
-fn generate_get_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let key_pattern = field.key_pattern();
-    // Use cloned key expr since the key is passed by reference
-    let key_expr = field.key_expr_cloned();
-
-    if field.is_inline() {
-        quote! {
-            CachedDataItemKey::#variant { #key_pattern } => {
-                if self.#field_name().contains(&#key_expr) {
-                    Some(CachedDataItemValueRef::#variant { value: &() })
-                } else {
-                    None
-                }
-            },
-        }
-    } else {
-        quote! {
-            CachedDataItemKey::#variant { #key_pattern } => self.#field_name().and_then(|set| {
-                if set.contains(&#key_expr) {
-                    Some(CachedDataItemValueRef::#variant { value: &() })
-                } else {
-                    None
-                }
-            }),
-        }
-    }
-}
-
-fn generate_get_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let key_pattern = field.key_pattern();
-    // Use cloned key expr since the key is passed by reference
-    let key_expr = field.key_expr_cloned();
-
-    if field.is_inline() {
-        quote! {
-            CachedDataItemKey::#variant { #key_pattern } => self
-                .#field_name()
-                .get(&#key_expr)
-                .map(|value| CachedDataItemValueRef::#variant { value }),
-        }
-    } else {
-        quote! {
-            CachedDataItemKey::#variant { #key_pattern } => self
-                .#field_name()
-                .and_then(|map| map.get(&#key_expr))
-                .map(|value| CachedDataItemValueRef::#variant { value }),
-        }
-    }
-}
-
-fn generate_get_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    quote! {
-        CachedDataItemKey::#variant {} => {
-            if self.typed().flags.#field_name() {
-                Some(CachedDataItemValueRef::#variant { value: &() })
-            } else {
-                None
-            }
-        },
-    }
-}
-
-/// Generate remove match arms for all fields with variants.
-fn generate_remove_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let arms: Vec<_> = grouped_fields
-        .fields_with_variant()
-        .map(generate_remove_arm)
-        .collect();
-
-    quote! { #(#arms)* }
-}
-
-/// Generate a single remove match arm for a field.
-fn generate_remove_arm(field: &FieldInfo) -> proc_macro2::TokenStream {
-    let variant = field.cached_data_variant_ident();
-
-    match &field.storage_type {
-        StorageType::Direct => generate_remove_arm_direct(field, variant),
-        StorageType::AutoSet => generate_remove_arm_auto_set(field, variant),
-        StorageType::CounterMap | StorageType::AutoMap => generate_remove_arm_map(field, variant),
-        StorageType::Flag => generate_remove_arm_flag(field, variant),
-    }
-}
-
-fn generate_remove_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let take_name = field.take_ident();
-    quote! {
-        CachedDataItemKey::#variant {} => self
-            .#take_name()
-            .map(|value| CachedDataItemValue::#variant { value }),
-    }
-}
-
-fn generate_remove_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_mut = field.mut_ident();
-    let key_pattern = field.key_pattern();
-    // Use cloned key expr since the key is passed by reference
-    let key_expr = field.key_expr_cloned();
-    quote! {
-        CachedDataItemKey::#variant { #key_pattern } => {
-            if self.#field_mut().remove(&#key_expr) {
-                Some(CachedDataItemValue::#variant { value: () })
-            } else {
-                None
-            }
-        },
-    }
-}
-
-fn generate_remove_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_mut = field.mut_ident();
-    let key_pattern = field.key_pattern();
-    // Use cloned key expr since the key is passed by reference
-    let key_expr = field.key_expr_cloned();
-    quote! {
-        CachedDataItemKey::#variant { #key_pattern } => self
-            .#field_mut()
-            .remove(&#key_expr)
-            .map(|value| CachedDataItemValue::#variant { value }),
-    }
-}
-
-fn generate_remove_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let set_name = field.set_ident();
-    quote! {
-        CachedDataItemKey::#variant {} => {
-            let existed = self.typed().flags.#field_name();
-            self.typed_mut().flags.#set_name(false);
-            if existed {
-                Some(CachedDataItemValue::#variant { value: () })
-            } else {
-                None
-            }
-        },
-    }
-}
-
-/// Generate get_mut match arms for all fields with variants.
-fn generate_get_mut_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let arms: Vec<_> = grouped_fields
-        .fields_with_variant()
-        .map(generate_get_mut_arm)
-        .collect();
-
-    quote! { #(#arms)* }
-}
-
-/// Generate a single get_mut match arm for a field.
-/// For types that don't support mutable access (flags, sets, multimaps), generates an arm
-/// that returns None.
-fn generate_get_mut_arm(field: &FieldInfo) -> proc_macro2::TokenStream {
-    let variant = field.cached_data_variant_ident();
-
-    match &field.storage_type {
-        StorageType::Direct => generate_get_mut_arm_direct(field, variant),
-        StorageType::CounterMap | StorageType::AutoMap => generate_get_mut_arm_map(field, variant),
-        // AutoSet, and Flag don't support get_mut (value is always ())
-        // But we need to include the match arm to make the match exhaustive
-        StorageType::AutoSet => generate_get_mut_arm_set_none(field, variant),
-        StorageType::Flag => generate_get_mut_arm_flag_none(field, variant),
-    }
-}
-
-fn generate_get_mut_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let get_mut_name = field.get_mut_ident();
-    quote! {
-        CachedDataItemKey::#variant {} => self
-            .#get_mut_name()
-            .map(|value| CachedDataItemValueRefMut::#variant { value }),
-    }
-}
-
-fn generate_get_mut_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_mut = field.mut_ident();
-    let key_pattern = field.key_pattern();
-    // Use cloned key expr since the key is passed by reference
-    let key_expr = field.key_expr_cloned();
-    quote! {
-        CachedDataItemKey::#variant { #key_pattern } => self
-            .#field_mut()
-            .get_mut(&#key_expr)
-            .map(|value| CachedDataItemValueRefMut::#variant { value }),
-    }
-}
-
-/// Generate a get_mut arm for AutoSet types that returns None.
-/// AutoSet values are always () so mutable access is not meaningful.
-fn generate_get_mut_arm_set_none(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    // Ignore all key fields with _
-    let ignored_fields: Vec<_> = field
-        .key_fields
-        .as_ref()
-        .map(|fields| fields.iter().map(|f| quote! { #f: _ }).collect())
-        .unwrap_or_default();
-    quote! {
-        CachedDataItemKey::#variant { #(#ignored_fields),* } => None,
-    }
-}
-
-/// Generate a get_mut arm for Flag types that returns None.
-/// Flag values are booleans so mutable access is not meaningful.
-fn generate_get_mut_arm_flag_none(_field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    quote! {
-        CachedDataItemKey::#variant {} => None,
-    }
-}
-
-/// Generate count match arms for all fields with variants.
-fn generate_count_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let arms: Vec<_> = grouped_fields
-        .fields_with_variant()
-        .map(generate_count_arm)
-        .collect();
-
-    quote! { #(#arms)* }
-}
-
-/// Generate a single count match arm for a field.
-fn generate_count_arm(field: &FieldInfo) -> proc_macro2::TokenStream {
-    let variant = field.cached_data_variant_ident();
-
-    match &field.storage_type {
-        StorageType::Direct => generate_count_arm_direct(field, variant),
-        StorageType::AutoSet => generate_count_arm_set(field, variant),
-        StorageType::CounterMap | StorageType::AutoMap => generate_count_arm_map(field, variant),
-        StorageType::Flag => generate_count_arm_flag(field, variant),
-    }
-}
-
-fn generate_count_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let get_name = field.get_ident();
-    quote! {
-        CachedDataItemType::#variant => if self.#get_name().is_some() { 1 } else { 0 },
-    }
-}
-
-fn generate_count_arm_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    if field.is_inline() {
-        quote! {
-            CachedDataItemType::#variant => self.#field_name().len(),
-        }
-    } else {
-        quote! {
-            CachedDataItemType::#variant => self.#field_name().map(|s| s.len()).unwrap_or(0),
-        }
-    }
-}
-
-fn generate_count_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    if field.is_inline() {
-        quote! {
-            CachedDataItemType::#variant => self.#field_name().len(),
-        }
-    } else {
-        quote! {
-            CachedDataItemType::#variant => self.#field_name().map(|m| m.len()).unwrap_or(0),
-        }
-    }
-}
-
-fn generate_count_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    quote! {
-        CachedDataItemType::#variant => if self.typed().flags.#field_name() { 1 } else { 0 },
-    }
-}
-
-/// Generate iter match arms for all fields with variants.
-fn generate_iter_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let arms: Vec<_> = grouped_fields
-        .fields_with_variant()
-        .map(generate_iter_arm)
-        .collect();
-
-    quote! { #(#arms)* }
-}
-
-/// Generate a single iter match arm for a field.
-fn generate_iter_arm(field: &FieldInfo) -> proc_macro2::TokenStream {
-    let variant = field.cached_data_variant_ident();
-
-    match &field.storage_type {
-        StorageType::Direct => generate_iter_arm_direct(field, variant),
-        StorageType::AutoSet => generate_iter_arm_set(field, variant),
-        StorageType::CounterMap | StorageType::AutoMap => generate_iter_arm_map(field, variant),
-        StorageType::Flag => generate_iter_arm_flag(field, variant),
-    }
-}
-
-fn generate_iter_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let get_name = field.get_ident();
-    quote! {
-        CachedDataItemType::#variant => Box::new(
-            self.#get_name()
-                .into_iter()
-                .map(|value| (CachedDataItemKey::#variant {}, CachedDataItemValueRef::#variant { value })),
-        ),
-    }
-}
-
-fn generate_iter_arm_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let key_expr = field.key_expr();
-    let key_construction = field.key_construction();
-
-    if field.is_inline() {
-        quote! {
-            CachedDataItemType::#variant => Box::new(self.#field_name().iter().map(|#key_expr| {
-                (
-                    CachedDataItemKey::#variant { #key_construction },
-                    CachedDataItemValueRef::#variant { value: &() },
-                )
-            })),
-        }
-    } else {
-        quote! {
-            CachedDataItemType::#variant => Box::new(
-                self.#field_name()
-                    .into_iter()
-                    .flat_map(|set| set.iter())
-                    .map(|#key_expr| {
-                        (
-                            CachedDataItemKey::#variant { #key_construction },
-                            CachedDataItemValueRef::#variant { value: &() },
-                        )
-                    }),
-            ),
-        }
-    }
-}
-
-fn generate_iter_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let key_expr = field.key_expr();
-    let key_construction = field.key_construction();
-
-    if field.is_inline() {
-        quote! {
-            CachedDataItemType::#variant => Box::new(self.#field_name().iter().map(|(#key_expr, value)| {
-                (
-                    CachedDataItemKey::#variant { #key_construction },
-                    CachedDataItemValueRef::#variant { value },
-                )
-            })),
-        }
-    } else {
-        quote! {
-            CachedDataItemType::#variant => Box::new(
-                self.#field_name()
-                    .into_iter()
-                    .flat_map(|m| m.iter())
-                    .map(|(#key_expr, value)| {
-                        (
-                            CachedDataItemKey::#variant { #key_construction },
-                            CachedDataItemValueRef::#variant { value },
-                        )
-                    }),
-            ),
-        }
-    }
-}
-
-fn generate_iter_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    quote! {
-        CachedDataItemType::#variant => Box::new(
-            self.typed()
-                .flags
-                .#field_name()
-                .then_some((
-                    CachedDataItemKey::#variant {},
-                    CachedDataItemValueRef::#variant { value: &() },
-                ))
-                .into_iter(),
-        ),
-    }
-}
-
-// =============================================================================
-// Optimized add() match arms
-// =============================================================================
-
-/// Generate add match arms for all fields with variants.
-/// Delegates to typed methods for single check_access + conditional track_modification.
-fn generate_add_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let arms: Vec<_> = grouped_fields
-        .fields_with_variant()
-        .map(generate_add_arm)
-        .collect();
-
-    quote! { #(#arms)* }
-}
-
-fn generate_add_arm(field: &FieldInfo) -> proc_macro2::TokenStream {
-    let variant = field.cached_data_variant_ident();
-
-    match &field.storage_type {
-        StorageType::Direct => generate_add_arm_direct(field, variant),
-        StorageType::AutoSet => generate_add_arm_auto_set(field, variant),
-        StorageType::CounterMap | StorageType::AutoMap => generate_add_arm_map(field, variant),
-        StorageType::Flag => generate_add_arm_flag(field, variant),
-    }
-}
-
-fn generate_add_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let has_name = field.has_ident();
-    let set_name = field.set_ident();
-    quote! {
-        (
-            CachedDataItemKey::#variant {},
-            CachedDataItemValue::#variant { value },
-        ) => {
-            if self.#has_name() {
-                false
-            } else {
-                self.#set_name(value);
-                true
-            }
-        },
-    }
-}
-
-fn generate_add_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let add_name = field.prefixed_ident("add");
-    let key_pattern = field.key_pattern();
-    let key_expr = field.key_expr();
-    quote! {
-        (
-            CachedDataItemKey::#variant { #key_pattern },
-            CachedDataItemValue::#variant { value: () },
-        ) => self.#add_name(#key_expr),
-    }
-}
-
-fn generate_add_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let field_mut = field.mut_ident();
-    let key_pattern = field.key_pattern();
-    let key_expr = field.key_expr();
-
-    if field.is_inline() {
-        quote! {
-            (
-                CachedDataItemKey::#variant { #key_pattern },
-                CachedDataItemValue::#variant { value },
-            ) => {
-                if self.#field_name().get(&#key_expr).is_some() {
-                    false
-                } else {
-                    self.#field_mut().insert(#key_expr, value);
-                    true
-                }
-            },
-        }
-    } else {
-        quote! {
-            (
-                CachedDataItemKey::#variant { #key_pattern },
-                CachedDataItemValue::#variant { value },
-            ) => {
-                if self.#field_name().is_some_and(|m| m.get(&#key_expr).is_some()) {
-                    false
-                } else {
-                    self.#field_mut().insert(#key_expr, value);
-                    true
-                }
-            },
-        }
-    }
-}
-
-fn generate_add_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let set_name = field.set_ident();
-    quote! {
-        (
-            CachedDataItemKey::#variant {},
-            CachedDataItemValue::#variant { value: () },
-        ) => {
-            if self.typed().flags.#field_name() {
-                false
-            } else {
-                self.typed_mut().flags.#set_name(true);
-                true
-            }
-        },
-    }
-}
-
-// =============================================================================
-// Optimized extend() match arms
-// =============================================================================
-
-/// Generate extend match arms for all fields with variants.
-/// Uses typed batch methods for single check_access + single track_modification.
-fn generate_extend_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let arms: Vec<_> = grouped_fields
-        .fields_with_variant()
-        .map(generate_extend_arm)
-        .collect();
-
-    quote! { #(#arms)* }
-}
-
-fn generate_extend_arm(field: &FieldInfo) -> proc_macro2::TokenStream {
-    let variant = field.cached_data_variant_ident();
-
-    match &field.storage_type {
-        StorageType::Direct => generate_extend_arm_direct(field, variant),
-        StorageType::AutoSet => generate_extend_arm_auto_set(field, variant),
-        StorageType::CounterMap | StorageType::AutoMap => generate_extend_arm_map(field, variant),
-        StorageType::Flag => generate_extend_arm_flag(field, variant),
-    }
-}
-
-fn generate_extend_arm_direct(_field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    // Direct fields can only have one value, so just delegate to add() for the first item
-    quote! {
-        CachedDataItemType::#variant => {
-            for item in items {
-                return self.add(item);
-            }
-            true
-        },
-    }
-}
-
-fn generate_extend_arm_auto_set(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let extend_name = field.suffixed_ident("extend");
-    let key_pattern = field.key_pattern();
-    let key_expr = field.key_expr();
-    quote! {
-        CachedDataItemType::#variant => {
-            // Delegate to typed extend method which batches check_access + track_modification
-            self.#extend_name(items.into_iter().filter_map(|item| {
-                match item.into_key_and_value() {
-                    (CachedDataItemKey::#variant { #key_pattern }, _) => Some(#key_expr),
-                    _ => None,
-                }
-            }));
-            true // AutoSet extend doesn't track per-item success
-        },
-    }
-}
-
-fn generate_extend_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_mut = field.mut_ident();
-    let key_pattern = field.key_pattern();
-    let key_expr = field.key_expr();
-    quote! {
-        CachedDataItemType::#variant => {
-            let mut all_new = true;
-            // Get mutable reference once (single check_access + track_modification)
-            let map = self.#field_mut();
-            for item in items {
-                if let (CachedDataItemKey::#variant { #key_pattern }, CachedDataItemValue::#variant { value })
-                    = item.into_key_and_value()
-                {
-                    if map.insert(#key_expr, value).is_some() {
-                        all_new = false;
-                    }
-                }
-            }
-            all_new
-        },
-    }
-}
-
-fn generate_extend_arm_flag(_field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    // Flags can only have one value, so just delegate to add() for the first item
-    quote! {
-        CachedDataItemType::#variant => {
-            for item in items {
-                return self.add(item);
-            }
-            true
-        },
-    }
-}
-
-// =============================================================================
-// Optimized extract_if() match arms
-// =============================================================================
-
-/// Generate extract_if match arms for all fields with variants.
-/// Uses retain pattern for single check_access + single track_modification.
-fn generate_extract_if_arms(grouped_fields: &GroupedFields) -> proc_macro2::TokenStream {
-    let arms: Vec<_> = grouped_fields
-        .fields_with_variant()
-        .map(generate_extract_if_arm)
-        .collect();
-
-    quote! { #(#arms)* }
-}
-
-fn generate_extract_if_arm(field: &FieldInfo) -> proc_macro2::TokenStream {
-    let variant = field.cached_data_variant_ident();
-
-    match &field.storage_type {
-        StorageType::Direct => generate_extract_if_arm_direct(field, variant),
-        StorageType::AutoSet => generate_extract_if_arm_auto_set(field, variant),
-        StorageType::CounterMap | StorageType::AutoMap => {
-            generate_extract_if_arm_map(field, variant)
-        }
-        StorageType::Flag => generate_extract_if_arm_flag(field, variant),
-    }
-}
-
-fn generate_extract_if_arm_direct(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let take_name = field.take_ident();
-    let get_name = field.get_ident();
-    quote! {
-        CachedDataItemType::#variant => {
-            let key = CachedDataItemKey::#variant {};
-            if let Some(value_ref) = self.#get_name() {
-                if predicate(key.clone(), CachedDataItemValueRef::#variant { value: value_ref }) {
-                    if let Some(value) = self.#take_name() {
-                        return vec![CachedDataItem::from_key_and_value(key, CachedDataItemValue::#variant { value })];
-                    }
-                }
-            }
-            Vec::new()
-        },
-    }
-}
-
-fn generate_extract_if_arm_auto_set(
-    field: &FieldInfo,
-    variant: &Ident,
-) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let key_expr = field.key_expr();
-    let key_construction = field.key_construction();
-
-    // AutoSet doesn't have retain, so we collect keys first and then remove them.
-    // The typed iter_X and remove_X methods handle check_access/track_modification efficiently.
-    if field.is_inline() {
-        quote! {
-            CachedDataItemType::#variant => {
-                // First pass: collect keys to remove (single check_access via iter)
-                let keys_to_remove: Vec<_> = self.#field_name().iter().filter_map(|#key_expr| {
-                    let key = CachedDataItemKey::#variant { #key_construction };
-                    let value_ref = CachedDataItemValueRef::#variant { value: &() };
-                    if predicate(key.clone(), value_ref) {
-                        Some(key)
-                    } else {
-                        None
-                    }
-                }).collect();
-
-                // Second pass: remove items using the adapter's remove method
-                keys_to_remove.into_iter().filter_map(|key| {
-                    self.remove(&key).map(|value| {
-                        CachedDataItem::from_key_and_value(key, value)
-                    })
-                }).collect()
-            },
-        }
-    } else {
-        // Lazy autoset iter methods return owned values (via .copied()), so use
-        // key_construction_owned
-        let iter_name = field.iter_ident();
-        let key_construction_owned = field.key_construction_owned();
-        quote! {
-            CachedDataItemType::#variant => {
-                // First pass: collect keys to remove (single check_access via iter)
-                let keys_to_remove: Vec<_> = self.#iter_name().filter_map(|#key_expr| {
-                    let key = CachedDataItemKey::#variant { #key_construction_owned };
-                    let value_ref = CachedDataItemValueRef::#variant { value: &() };
-                    if predicate(key.clone(), value_ref) {
-                        Some(key)
-                    } else {
-                        None
-                    }
-                }).collect();
-
-                // Second pass: remove items using the adapter's remove method
-                keys_to_remove.into_iter().filter_map(|key| {
-                    self.remove(&key).map(|value| {
-                        CachedDataItem::from_key_and_value(key, value)
-                    })
-                }).collect()
-            },
-        }
-    }
-}
-
-fn generate_extract_if_arm_map(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let key_expr = field.key_expr();
-    let key_construction = field.key_construction();
-
-    // Maps (CounterMap/AutoMap) don't have retain with the signature we need,
-    // so we collect keys first and then remove them.
-    // Use the adapter's remove method which handles track_modification.
-    if field.is_inline() {
-        quote! {
-            CachedDataItemType::#variant => {
-                // First pass: collect keys to remove
-                let keys_to_remove: Vec<_> = self.#field_name().iter().filter_map(|(#key_expr, value)| {
-                    let key = CachedDataItemKey::#variant { #key_construction };
-                    let value_ref = CachedDataItemValueRef::#variant { value };
-                    if predicate(key.clone(), value_ref) {
-                        Some(key)
-                    } else {
-                        None
-                    }
-                }).collect();
-
-                // Second pass: remove and collect using the adapter's remove method
-                keys_to_remove.into_iter().filter_map(|key| {
-                    self.remove(&key).map(|value| {
-                        CachedDataItem::from_key_and_value(key, value)
-                    })
-                }).collect()
-            },
-        }
-    } else {
-        // For lazy map fields, use iter_X_entries which iterates over (key, value) pairs
-        let iter_entries_name = field.infixed_ident("iter", "entries");
-        quote! {
-            CachedDataItemType::#variant => {
-                // First pass: collect keys to remove
-                let keys_to_remove: Vec<_> = self.#iter_entries_name().filter_map(|(#key_expr, value)| {
-                    let key = CachedDataItemKey::#variant { #key_construction };
-                    let value_ref = CachedDataItemValueRef::#variant { value };
-                    if predicate(key.clone(), value_ref) {
-                        Some(key)
-                    } else {
-                        None
-                    }
-                }).collect();
-
-                // Second pass: remove and collect using the adapter's remove method
-                keys_to_remove.into_iter().filter_map(|key| {
-                    self.remove(&key).map(|value| {
-                        CachedDataItem::from_key_and_value(key, value)
-                    })
-                }).collect()
-            },
-        }
-    }
-}
-
-fn generate_extract_if_arm_flag(field: &FieldInfo, variant: &Ident) -> proc_macro2::TokenStream {
-    let field_name = &field.field_name;
-    let set_name = field.set_ident();
-    quote! {
-        CachedDataItemType::#variant => {
-            let key = CachedDataItemKey::#variant {};
-            if self.typed().flags.#field_name() {
-                let value_ref = CachedDataItemValueRef::#variant { value: &() };
-                if predicate(key.clone(), value_ref) {
-                    self.typed_mut().flags.#set_name(false);
-                    return vec![CachedDataItem::from_key_and_value(key, CachedDataItemValue::#variant { value: () })];
-                }
-            }
-            Vec::new()
-        },
     }
 }

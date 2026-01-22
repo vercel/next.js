@@ -11,9 +11,8 @@ use crate::{
                 AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
-        storage::{get, get_mut, remove},
     },
-    data::{CachedDataItem, CachedDataItemKey, Dirtyness, InProgressState, InProgressStateInner},
+    data::{Dirtyness, InProgressState, InProgressStateInner},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -35,7 +34,7 @@ impl InvalidateOperation {
     pub fn run(
         task_ids: SmallVec<[TaskId; 4]>,
         #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
-        mut ctx: impl ExecuteContext,
+        mut ctx: impl ExecuteContext<'_>,
     ) {
         InvalidateOperation::MakeDirty {
             task_ids,
@@ -47,7 +46,7 @@ impl InvalidateOperation {
 }
 
 impl Operation for InvalidateOperation {
-    fn execute(mut self, ctx: &mut impl ExecuteContext) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -183,7 +182,7 @@ pub fn make_task_dirty(
     task_id: TaskId,
     #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext,
+    ctx: &mut impl ExecuteContext<'_>,
 ) {
     if ctx.is_once_task(task_id) {
         return;
@@ -208,12 +207,12 @@ pub fn make_task_dirty_internal(
     make_stale: bool,
     #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext,
+    ctx: &mut impl ExecuteContext<'_>,
 ) {
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.
     #[cfg(any(debug_assertions, feature = "verify_immutable"))]
-    if task.is_immutable() {
+    if task.immutable() {
         #[cfg(feature = "trace_task_dirty")]
         let extra_info = format!(
             " Invalidation cause: {}",
@@ -231,7 +230,7 @@ pub fn make_task_dirty_internal(
 
     if make_stale
         && let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
-            get_mut!(task, InProgress)
+            task.get_in_progress_mut()
         && !*stale
     {
         #[cfg(feature = "trace_task_dirty")]
@@ -244,7 +243,7 @@ pub fn make_task_dirty_internal(
         .entered();
         *stale = true;
     }
-    let current = get!(task, Dirty);
+    let current = task.get_dirty();
     let (old_self_dirty, old_current_session_self_clean, parent_priority) = match current {
         Some(Dirtyness::Dirty(current_priority)) => {
             #[cfg(feature = "trace_task_dirty")]
@@ -257,22 +256,19 @@ pub fn make_task_dirty_internal(
             .entered();
             // already dirty
             let parent_priority = ctx.get_current_task_priority();
-            if current_priority >= &parent_priority {
+            if *current_priority >= parent_priority {
                 // Update the priority to be the lower one
-                task.insert(CachedDataItem::Dirty {
-                    value: Dirtyness::Dirty(parent_priority),
-                });
+                task.set_dirty(Dirtyness::Dirty(parent_priority));
             }
             return;
         }
         Some(Dirtyness::SessionDependent) => {
             let parent_priority = ctx.get_current_task_priority();
-            task.insert(CachedDataItem::Dirty {
-                value: Dirtyness::Dirty(parent_priority),
-            });
+            task.set_dirty(Dirtyness::Dirty(parent_priority));
             // It was a session-dependent dirty before, so we need to remove that clean count
-            let was_current_session_clean = remove!(task, CurrentSessionClean).is_some();
+            let was_current_session_clean = task.current_session_clean();
             if was_current_session_clean {
+                task.set_current_session_clean(false);
                 // There was a clean count for a session. If it was the current session, we need to
                 // propagate that change.
                 (true, true, parent_priority)
@@ -290,9 +286,7 @@ pub fn make_task_dirty_internal(
         }
         None => {
             let parent_priority = ctx.get_current_task_priority();
-            task.insert(CachedDataItem::Dirty {
-                value: Dirtyness::Dirty(parent_priority),
-            });
+            task.set_dirty(Dirtyness::Dirty(parent_priority));
             // It was clean before, so we need to increase the dirty count
             (false, false, parent_priority)
         }
@@ -301,13 +295,14 @@ pub fn make_task_dirty_internal(
     let new_self_dirty = true;
     let new_current_session_self_clean = false;
 
-    let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
+    let dirty_container_count = task
+        .get_aggregated_dirty_container_count()
         .copied()
         .unwrap_or_default();
-    let current_session_clean_container_count =
-        get!(task, AggregatedCurrentSessionCleanContainerCount)
-            .copied()
-            .unwrap_or_default();
+    let current_session_clean_container_count = task
+        .get_aggregated_current_session_clean_container_count()
+        .copied()
+        .unwrap_or_default();
 
     #[cfg(feature = "trace_task_dirty")]
     let _span = tracing::trace_span!(
@@ -337,18 +332,15 @@ pub fn make_task_dirty_internal(
         ));
     }
 
-    let should_schedule =
-        !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {});
+    let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
 
-    if should_schedule {
-        let description = || ctx.get_task_desc_fn(task_id);
-        if task.add(CachedDataItem::new_scheduled(
-            TaskExecutionReason::Invalidated,
-            description,
-        )) {
-            drop(task);
-            let task = ctx.task(task_id, TaskDataCategory::All);
-            ctx.schedule_task(task, parent_priority);
-        }
+    if should_schedule
+        && task.add_scheduled(TaskExecutionReason::Invalidated, || {
+            ctx.get_task_desc_fn(task_id)
+        })
+    {
+        drop(task);
+        let task = ctx.task(task_id, TaskDataCategory::All);
+        ctx.schedule_task(task, parent_priority);
     }
 }

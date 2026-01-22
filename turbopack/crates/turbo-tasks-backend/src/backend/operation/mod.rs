@@ -16,17 +16,18 @@ use std::{
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    CellId, FxIndexMap, TaskId, TaskPriority, TurboTasksBackendApi, TypedSharedReference,
+    CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
+    TypedSharedReference,
 };
 
 use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
+        storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     backing_storage::{BackingStorage, BackingStorageSealed},
-    data::{CachedDataItemKey, Dirtyness},
+    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState},
 };
 
 pub trait Operation:
@@ -354,7 +355,7 @@ where
                         });
                 } else {
                     for idx in tasks_to_restore_for_meta_indicies {
-                        tasks[idx].3 = Some(TaskStorage::default());
+                        tasks[idx].3 = Some(TaskStorage::new());
                     }
                 }
             }
@@ -609,9 +610,9 @@ where
     }
 
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
-        let priority = if get!(task, Output).is_some() {
+        let priority = if task.has_output() {
             TaskPriority::invalidation(
-                get!(task, LeafDistance)
+                task.get_leaf_distance()
                     .copied()
                     .unwrap_or_default()
                     .distance,
@@ -673,19 +674,60 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
 pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn id(&self) -> TaskId;
 
+    /// Get mutable reference to the activeness state, inserting a new one if not present
+    fn get_activeness_mut_or_insert_with<F>(&mut self, f: F) -> &mut ActivenessState
+    where
+        F: FnOnce() -> ActivenessState;
+
+    // ============ Aggregated Container Count (scalar) APIs ============
+    // These are for the scalar total count fields, not the CounterMap per-task fields.
+
+    /// Update the aggregated dirty container count (the scalar total count field) by the given
+    /// delta and return the new value.
+    fn update_and_get_aggregated_dirty_container_count(&mut self, delta: i32) -> i32 {
+        let current = self
+            .get_aggregated_dirty_container_count()
+            .copied()
+            .unwrap_or(0);
+        let new_value = current + delta;
+        if new_value == 0 {
+            self.take_aggregated_dirty_container_count();
+        } else {
+            self.set_aggregated_dirty_container_count(new_value);
+        }
+        new_value
+    }
+
+    /// Update the aggregated current session clean container count (the scalar total count field)
+    /// by the given delta and return the new value.
+    fn update_and_get_aggregated_current_session_clean_container_count(
+        &mut self,
+        delta: i32,
+    ) -> i32 {
+        let current = self
+            .get_aggregated_current_session_clean_container_count()
+            .copied()
+            .unwrap_or(0);
+        let new_value = current + delta;
+        if new_value == 0 {
+            self.take_aggregated_current_session_clean_container_count();
+        } else {
+            self.set_aggregated_current_session_clean_container_count(new_value);
+        }
+        new_value
+    }
+
     fn invalidate_serialization(&mut self);
     /// Determine which tasks to prefetch for a task.
     /// Only returns Some once per task.
     /// It returns a set of tasks and which info is needed.
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>>;
-    fn is_immutable(&self) -> bool {
-        self.has_key(&CachedDataItemKey::Immutable {})
-    }
+
     fn is_dirty(&self) -> Option<TaskPriority> {
-        get!(self, Dirty).and_then(|dirtyness| match dirtyness {
+        self.get_dirty().and_then(|dirtyness| match dirtyness {
             Dirtyness::Dirty(priority) => Some(*priority),
             Dirtyness::SessionDependent => {
-                if get!(self, CurrentSessionClean).is_none() {
+                if !self.current_session_clean() {
                     Some(TaskPriority::leaf())
                 } else {
                     None
@@ -694,52 +736,54 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         })
     }
     fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
-        match get!(self, Dirty)? {
+        match self.get_dirty()? {
             Dirtyness::Dirty(priority) => Some((Dirtyness::Dirty(*priority), false)),
-            Dirtyness::SessionDependent => Some((
-                Dirtyness::SessionDependent,
-                get!(self, CurrentSessionClean).is_some(),
-            )),
+            Dirtyness::SessionDependent => {
+                Some((Dirtyness::SessionDependent, self.current_session_clean()))
+            }
         }
     }
     /// Returns (is_dirty, is_clean_in_current_session)
-    fn dirty(&self) -> (bool, bool) {
-        match get!(self, Dirty) {
+    fn dirty_state(&self) -> (bool, bool) {
+        match self.get_dirty() {
             None => (false, false),
             Some(Dirtyness::Dirty(_)) => (true, false),
-            Some(Dirtyness::SessionDependent) => (true, get!(self, CurrentSessionClean).is_some()),
+            Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
         }
     }
     fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
         self.dirty_containers_with_count()
             .map(|(task_id, _)| task_id)
     }
-    fn dirty_containers_with_count(&self) -> impl Iterator<Item = (TaskId, i32)> {
-        iter_many!(self, AggregatedDirtyContainer { task } count => (task, *count)).filter(
-            move |&(task_id, count)| {
+    fn dirty_containers_with_count(&self) -> impl Iterator<Item = (TaskId, i32)> + '_ {
+        let dirty_map = self.aggregated_dirty_containers();
+        let clean_map = self.aggregated_current_session_clean_containers();
+        dirty_map.into_iter().flat_map(move |map| {
+            map.iter().filter_map(move |(&task_id, &count)| {
                 if count > 0 {
-                    let clean_count = get!(
-                        self,
-                        AggregatedCurrentSessionCleanContainer { task: task_id }
-                    )
-                    .copied()
-                    .unwrap_or_default();
-                    count > clean_count
-                } else {
-                    false
+                    let clean_count = clean_map
+                        .and_then(|m| m.get(&task_id))
+                        .copied()
+                        .unwrap_or_default();
+                    if count > clean_count {
+                        return Some((task_id, count));
+                    }
                 }
-            },
-        )
+                None
+            })
+        })
     }
 
     fn has_dirty_containers(&self) -> bool {
-        let dirty_count = get!(self, AggregatedDirtyContainerCount)
+        let dirty_count = self
+            .get_aggregated_dirty_container_count()
             .copied()
             .unwrap_or_default();
         if dirty_count <= 0 {
             return false;
         }
-        let clean_count = get!(self, AggregatedCurrentSessionCleanContainerCount)
+        let clean_count = self
+            .get_aggregated_current_session_clean_container_count()
             .copied()
             .unwrap_or_default();
         dirty_count > clean_count
@@ -750,9 +794,10 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         cell: CellId,
     ) -> Option<TypedSharedReference> {
         if is_serializable_cell_content {
-            remove!(self, CellData { cell })
+            self.remove_persistent_cell_data(&cell)
         } else {
-            remove!(self, TransientCellData { cell }).map(|sr| sr.into_typed(cell.type_id))
+            self.remove_transient_cell_data(&cell)
+                .map(|sr| sr.into_typed(cell.type_id))
         }
     }
     fn get_cell_data(
@@ -761,17 +806,76 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         cell: CellId,
     ) -> Option<TypedSharedReference> {
         if is_serializable_cell_content {
-            get!(self, CellData { cell }).cloned()
+            self.get_persistent_cell_data(&cell).cloned()
         } else {
-            get!(self, TransientCellData { cell }).map(|sr| sr.clone().into_typed(cell.type_id))
+            self.get_transient_cell_data(&cell)
+                .map(|sr| sr.clone().into_typed(cell.type_id))
         }
     }
     fn has_cell_data(&self, is_serializable_cell_content: bool, cell: CellId) -> bool {
         if is_serializable_cell_content {
-            self.has_key(&CachedDataItemKey::CellData { cell })
+            self.persistent_cell_data_contains(&cell)
         } else {
-            self.has_key(&CachedDataItemKey::TransientCellData { cell })
+            self.transient_cell_data_contains(&cell)
         }
+    }
+    /// Set cell data, returning the old value if any.
+    fn set_cell_data(
+        &mut self,
+        is_serializable_cell_content: bool,
+        cell: CellId,
+        value: TypedSharedReference,
+    ) -> Option<TypedSharedReference> {
+        if is_serializable_cell_content {
+            self.insert_persistent_cell_data(cell, value)
+        } else {
+            self.insert_transient_cell_data(cell, value.into_untyped())
+                .map(|sr| sr.into_typed(cell.type_id))
+        }
+    }
+
+    /// Add new cell data (asserts that the cell is new and didn't exist before).
+    fn add_cell_data(
+        &mut self,
+        is_serializable_cell_content: bool,
+        cell: CellId,
+        value: TypedSharedReference,
+    ) {
+        let old = self.set_cell_data(is_serializable_cell_content, cell, value);
+        assert!(old.is_none(), "Cell data already exists for {cell:?}");
+    }
+
+    /// Add a scheduled task item. Returns true if the task was successfully added (wasn't already
+    /// present).
+    #[must_use]
+    fn add_scheduled<InnerFn>(
+        &mut self,
+        reason: TaskExecutionReason,
+        description: impl FnOnce() -> InnerFn,
+    ) -> bool
+    where
+        InnerFn: Fn() -> String + Sync + Send + 'static,
+    {
+        if self.has_in_progress() {
+            false
+        } else {
+            self.set_in_progress(InProgressState::new_scheduled(reason, description));
+            true
+        }
+    }
+
+    // ============ Collectible APIs ============
+
+    /// Insert an outdated collectible with count. Returns true if it was newly inserted.
+    #[must_use]
+    fn insert_outdated_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
+        // Check if already exists
+        if self.get_outdated_collectibles(&collectible).is_some() {
+            return false;
+        }
+        // Insert new entry
+        self.add_outdated_collectibles(collectible, value);
+        true
     }
 }
 
@@ -797,34 +901,29 @@ impl<B: BackingStorage> TaskGuardImpl<'_, B> {
     /// before accessing the data.
     #[inline]
     #[track_caller]
-    fn check_access(&self, category: TaskDataCategory) {
-        {
-            match category {
-                TaskDataCategory::All => {
-                    // This category is used for non-persisted data
-                }
-                TaskDataCategory::Data => {
-                    #[cfg(debug_assertions)]
-                    debug_assert!(
-                        self.category == TaskDataCategory::Data
-                            || self.category == TaskDataCategory::All,
-                        "To read data of {:?} the task need to be accessed with this category \
-                         (It's accessed with {:?})",
-                        category,
-                        self.category
-                    );
-                }
-                TaskDataCategory::Meta => {
-                    #[cfg(debug_assertions)]
-                    debug_assert!(
-                        self.category == TaskDataCategory::Meta
-                            || self.category == TaskDataCategory::All,
-                        "To read data of {:?} the task need to be accessed with this category \
-                         (It's accessed with {:?})",
-                        category,
-                        self.category
-                    );
-                }
+    fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory) {
+        match category {
+            SpecificTaskDataCategory::Data => {
+                #[cfg(debug_assertions)]
+                debug_assert!(
+                    self.category == TaskDataCategory::Data
+                        || self.category == TaskDataCategory::All,
+                    "To read data of {:?} the task need to be accessed with this category (It's \
+                     accessed with {:?})",
+                    category,
+                    self.category
+                );
+            }
+            SpecificTaskDataCategory::Meta => {
+                #[cfg(debug_assertions)]
+                debug_assert!(
+                    self.category == TaskDataCategory::Meta
+                        || self.category == TaskDataCategory::All,
+                    "To read data of {:?} the task need to be accessed with this category (It's \
+                     accessed with {:?})",
+                    category,
+                    self.category
+                );
             }
         }
     }
@@ -861,12 +960,34 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             return None;
         }
         self.task.flags.set_prefetched(true);
-        let map = iter_many!(self, OutputDependency { target } => (target, TaskDataCategory::Meta))
-            .chain(iter_many!(self, CellDependency { target, key: _ } => (target.task, TaskDataCategory::All)))
-            .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, TaskDataCategory::All)))
-            .chain(iter_many!(self, Child { task } => (task, TaskDataCategory::All)))
+        let map = self
+            .iter_output_dependencies()
+            .map(|target| (target, TaskDataCategory::Meta))
+            .chain(
+                self.iter_cell_dependencies()
+                    .map(|(target, _key)| (target.task, TaskDataCategory::All)),
+            )
+            .chain(
+                self.iter_collectibles_dependencies()
+                    .map(|target| (target.task, TaskDataCategory::All)),
+            )
+            .chain(
+                self.iter_children()
+                    .map(|task| (task, TaskDataCategory::All)),
+            )
             .collect::<FxIndexMap<_, _>>();
         (map.len() > 1).then_some(map)
+    }
+
+    fn get_activeness_mut_or_insert_with<F>(&mut self, f: F) -> &mut ActivenessState
+    where
+        F: FnOnce() -> ActivenessState,
+    {
+        if !self.has_activeness() {
+            self.set_activeness(f());
+        }
+        self.get_activeness_mut()
+            .expect("activeness should exist after set")
     }
 }
 
@@ -885,7 +1006,7 @@ impl<'a, B: BackingStorage> TaskStorageAccessors for TaskGuardImpl<'a, B> {
         }
     }
 
-    fn check_access(&self, category: crate::backend::TaskDataCategory) {
+    fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory) {
         self.check_access(category);
     }
 }

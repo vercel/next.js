@@ -3,14 +3,14 @@ use turbo_tasks::{TaskExecutionReason, TaskId};
 
 use crate::{
     backend::{
-        TaskDataCategory, get_mut,
+        TaskDataCategory,
         operation::{
-            ExecuteContext, Operation,
+            ExecuteContext, Operation, TaskGuard,
             aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::{CachedDataItem, CachedDataItemKey, InProgressState, InProgressStateInner},
+    data::{InProgressState, InProgressStateInner},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -33,7 +33,7 @@ impl ConnectChildOperation {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 new_children, ..
-            })) = get_mut!(parent_task, InProgress)
+            })) = parent_task.get_in_progress_mut()
             else {
                 panic!("Task is not in progress while calling another task: {parent_task:?}");
             };
@@ -43,9 +43,7 @@ impl ConnectChildOperation {
                 return;
             }
 
-            if parent_task.has_key(&CachedDataItemKey::Child {
-                task: child_task_id,
-            }) {
+            if parent_task.children_contains(&child_task_id) {
                 // It is already connected, we can skip the rest
                 return;
             }
@@ -69,11 +67,10 @@ impl ConnectChildOperation {
         } else {
             let mut child_task = ctx.task(child_task_id, TaskDataCategory::All);
 
-            if !child_task.has_key(&CachedDataItemKey::Output {})
-                && child_task.add(CachedDataItem::new_scheduled(
-                    TaskExecutionReason::Connect,
-                    || ctx.get_task_desc_fn(child_task_id),
-                ))
+            if !child_task.has_output()
+                && child_task.add_scheduled(TaskExecutionReason::Connect, || {
+                    ctx.get_task_desc_fn(child_task_id)
+                })
             {
                 ctx.schedule_task(child_task, ctx.get_current_task_priority());
             }
@@ -87,7 +84,7 @@ impl ConnectChildOperation {
 }
 
 impl Operation for ConnectChildOperation {
-    fn execute(mut self, ctx: &mut impl ExecuteContext) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {

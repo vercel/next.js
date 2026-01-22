@@ -106,15 +106,7 @@ impl<K, V> CounterMap<K, V> {
     {
         self.0.get(key)
     }
-    // TODO(lukesandberg): this is just here for the CachedDataItem adaptor layer, can be removed
-    // once that is gone.
-    #[doc(hidden)]
-    pub fn get_mut(&mut self, _key: &K) -> Option<&mut V>
-    where
-        K: Eq + Hash,
-    {
-        unreachable!("This should never be called, please insert instead")
-    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.0.iter()
     }

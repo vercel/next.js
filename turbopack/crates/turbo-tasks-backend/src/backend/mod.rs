@@ -26,8 +26,8 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
-    ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPriority,
-    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT, TaskExecutionReason,
+    TaskId, TaskPriority, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -57,16 +57,13 @@ use crate::{
             TaskGuard, connect_children, get_aggregation_number, get_uppers, is_root_node,
             make_task_dirty_internal, prepare_new_children,
         },
-        storage::{
-            Storage, count, get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove,
-        },
+        storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     backing_storage::BackingStorage,
     data::{
-        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-        InProgressCellState, InProgressState, InProgressStateInner, OutputValue, RootType,
+        ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
+        InProgressState, InProgressStateInner, OutputValue, RootType,
     },
     utils::{
         bi_map::BiMap, chunked_vec::ChunkedVec, dash_map_drop_contents::drop_contents,
@@ -522,7 +519,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ctx: &impl ExecuteContext<'_>,
         ) -> Option<std::result::Result<std::result::Result<RawVc, EventListener>, anyhow::Error>>
         {
-            match get!(task, InProgress) {
+            match task.get_in_progress() {
                 Some(InProgressState::Scheduled { done_event, .. }) => Some(Ok(Err(
                     listen_to_done_event(this, reader, tracking, done_event),
                 ))),
@@ -577,7 +574,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Check the dirty count of the root node
             let has_dirty_containers = task.has_dirty_containers();
             if has_dirty_containers || is_dirty.is_some() {
-                let activeness = get_mut!(task, Activeness);
+                let activeness = task.get_activeness_mut();
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
                 // When there are dirty task, subscribe to the all_clean_event
                 let activeness = if let Some(activeness) = activeness {
@@ -590,14 +587,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // If we don't have a root state, add one. This also makes sure all tasks stay
                     // active and this task won't stale. active_until_clean
                     // is automatically removed when this task is clean.
-                    get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id))
-                        .set_active_until_clean();
                     if ctx.should_track_activeness() {
                         // A newly added Activeness need to make sure to schedule the tasks
                         task_ids_to_schedule = task.dirty_containers().collect();
                         task_ids_to_schedule.push(task_id);
                     }
-                    get!(task, Activeness).unwrap()
+                    let activeness =
+                        task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
+                    activeness.set_active_until_clean();
+                    activeness
                 };
                 let listener = activeness.all_clean_event.listen_with_note(move || {
                     let this = self.clone();
@@ -620,12 +618,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             let task = ctx.task(task_id, TaskDataCategory::All);
                             let is_dirty = task.is_dirty();
                             let in_progress =
-                                get!(task, InProgress).map_or("not in progress", |p| match p {
-                                    InProgressState::InProgress(_) => "in progress",
-                                    InProgressState::Scheduled { .. } => "scheduled",
-                                    InProgressState::Canceled => "canceled",
-                                });
-                            let activeness = get!(task, Activeness).map_or_else(
+                                task.get_in_progress()
+                                    .map_or("not in progress", |p| match p {
+                                        InProgressState::InProgress(_) => "in progress",
+                                        InProgressState::Scheduled { .. } => "scheduled",
+                                        InProgressState::Canceled => "canceled",
+                                    });
+                            let activeness = task.get_activeness().map_or_else(
                                 || "not active".to_string(),
                                 |activeness| format!("{activeness:?}"),
                             );
@@ -719,7 +718,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return value;
         }
 
-        if let Some(output) = get!(task, Output) {
+        if let Some(output) = task.get_output() {
             let result = match output {
                 OutputValue::Cell(cell) => Ok(Ok(RawVc::TaskCell(cell.task, cell.cell))),
                 OutputValue::Output(task) => Ok(Ok(RawVc::TaskOutput(*task))),
@@ -729,7 +728,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             };
             if let Some(mut reader_task) = reader_task
                 && options.tracking.should_track(result.is_err())
-                && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
+                && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
                 #[cfg(feature = "trace_task_output_dependencies")]
                 let _span = tracing::trace_span!(
@@ -740,14 +739,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .entered();
                 let mut queue = LeafDistanceUpdateQueue::new();
                 let reader = reader.unwrap();
-                if task.add(CachedDataItem::OutputDependent {
-                    task: reader,
-                    value: (),
-                }) {
+                if task.add_output_dependent(reader) {
                     // Ensure that dependent leaf distance is strictly monotonic increasing
-                    let leaf_distance = get!(task, LeafDistance).copied().unwrap_or_default();
+                    let leaf_distance = task.get_leaf_distance().copied().unwrap_or_default();
                     let reader_leaf_distance =
-                        get!(reader_task, LeafDistance).copied().unwrap_or_default();
+                        reader_task.get_leaf_distance().copied().unwrap_or_default();
                     if reader_leaf_distance.distance <= leaf_distance.distance {
                         queue.push(
                             reader,
@@ -764,14 +760,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // between grabbing the locks. If that happened, and if the task is "outdated" or
                 // doesn't have the dependency edge yet, the invalidation would be lost.
 
-                if reader_task
-                    .remove(&CachedDataItemKey::OutdatedOutputDependency { target: task_id })
-                    .is_none()
-                {
-                    let _ = reader_task.add(CachedDataItem::OutputDependency {
-                        target: task_id,
-                        value: (),
-                    });
+                if !reader_task.remove_outdated_output_dependencies(&task_id) {
+                    let _ = reader_task.add_output_dependencies(task_id);
                 }
                 drop(reader_task);
 
@@ -794,14 +784,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
 
         // Output doesn't exist. We need to schedule the task to compute it.
-        let (item, listener) = CachedDataItem::new_scheduled_with_listener(
+        let (in_progress_state, listener) = InProgressState::new_scheduled_with_listener(
             TaskExecutionReason::OutputNotAvailable,
             || self.get_task_desc_fn(task_id),
             note,
         );
         // It's not possible that the task is InProgress at this point. If it is InProgress {
         // done: true } it must have Output and would early return.
-        task.add_new(item);
+        let old = task.set_in_progress(in_progress_state);
+        debug_assert!(old.is_none(), "InProgress already exists");
         ctx.schedule_task(task, TaskPriority::Initial);
 
         Ok(Err(listener))
@@ -826,15 +817,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             key: Option<u64>,
         ) {
             if let Some(mut reader_task) = reader_task
-                && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
+                && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
                 let reader = reader.unwrap();
-                let _ = task.add(CachedDataItem::CellDependent {
-                    cell,
-                    key,
-                    task: reader,
-                    value: (),
-                });
+                let _ = task.add_cell_dependents((cell, key, reader));
                 drop(task);
 
                 // Note: We use `task_pair` earlier to lock the task and its reader at the same
@@ -846,15 +832,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     task: task_id,
                     cell,
                 };
-                if reader_task
-                    .remove(&CachedDataItemKey::OutdatedCellDependency { target, key })
-                    .is_none()
-                {
-                    let _ = reader_task.add(CachedDataItem::CellDependency {
-                        target,
-                        key,
-                        value: (),
-                    });
+                if !reader_task.remove_outdated_cell_dependencies(&(target, key)) {
+                    let _ = reader_task.add_cell_dependencies((target, key));
                 }
                 drop(reader_task);
             }
@@ -896,7 +875,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             )));
         }
 
-        let in_progress = get!(task, InProgress);
+        let in_progress = task.get_in_progress();
         if matches!(
             in_progress,
             Some(InProgressState::InProgress(..) | InProgressState::Scheduled { .. })
@@ -906,13 +885,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
 
         // Check cell index range (cell might not exist at all)
-        let max_id = get!(
-            task,
-            CellTypeMaxIndex {
-                cell_type: cell.type_id
-            }
-        )
-        .copied();
+        let max_id = task.get_cell_type_max_index(&cell.type_id).copied();
         let Some(max_id) = max_id else {
             if tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
@@ -953,11 +926,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if is_cancelled {
             bail!("{} was canceled", ctx.get_task_description(task_id));
         }
-        task.add_new(CachedDataItem::new_scheduled(
-            TaskExecutionReason::CellNotAvailable,
-            || self.get_task_desc_fn(task_id),
-        ));
-        ctx.schedule_task(task, TaskPriority::Initial);
+        let _ = task.add_scheduled(TaskExecutionReason::CellNotAvailable, || {
+            self.get_task_desc_fn(task_id)
+        });
+        ctx.schedule_task(task, TaskPriority::initial());
 
         Ok(Err(listener))
     }
@@ -979,17 +951,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
             }
         };
-        if let Some(in_progress) = get!(task, InProgressCell { cell }) {
+        if let Some(in_progress) = task.get_in_progress_cells(&cell) {
             // Someone else is already computing the cell
             let listener = in_progress.event.listen_with_note(note);
             return (listener, false);
         }
         let in_progress = InProgressCellState::new(task_id, cell);
         let listener = in_progress.event.listen_with_note(note);
-        task.add_new(CachedDataItem::InProgressCell {
-            cell,
-            value: in_progress,
-        });
+        let old = task.insert_in_progress_cells(cell, in_progress);
+        debug_assert!(old.is_none(), "InProgressCell already exists");
         (listener, true)
     }
 
@@ -1642,7 +1612,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(in_progress) = remove!(task, InProgress) {
+        if let Some(in_progress) = task.take_in_progress() {
             match in_progress {
                 InProgressState::Scheduled {
                     done_event,
@@ -1654,9 +1624,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 InProgressState::Canceled => {}
             }
         }
-        task.add_new(CachedDataItem::InProgress {
-            value: InProgressState::Canceled,
-        });
+        let old = task.set_in_progress(InProgressState::Canceled);
+        debug_assert!(old.is_none(), "InProgress already exists");
     }
 
     fn try_start_task_execution(
@@ -1688,40 +1657,49 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 ctx.prepare_tasks(tasks);
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
-            let in_progress = remove!(task, InProgress)?;
+            let in_progress = task.take_in_progress()?;
             let InProgressState::Scheduled { done_event, reason } = in_progress else {
-                task.add_new(CachedDataItem::InProgress { value: in_progress });
+                let old = task.set_in_progress(in_progress);
+                debug_assert!(old.is_none(), "InProgress already exists");
                 return None;
             };
             execution_reason = reason;
-            task.add_new(CachedDataItem::InProgress {
-                value: InProgressState::InProgress(Box::new(InProgressStateInner {
+            let old = task.set_in_progress(InProgressState::InProgress(Box::new(
+                InProgressStateInner {
                     stale: false,
                     once_task,
                     done_event,
                     session_dependent: false,
                     marked_as_completed: false,
                     new_children: Default::default(),
-                })),
-            });
+                },
+            )));
+            debug_assert!(old.is_none(), "InProgress already exists");
 
             // Make all current collectibles outdated (remove left-over outdated collectibles)
             enum Collectible {
                 Current(CollectibleRef, i32),
                 Outdated(CollectibleRef),
             }
-            let collectibles = iter_many!(task, Collectible { collectible } value => Collectible::Current(collectible, *value))
-                    .chain(iter_many!(task, OutdatedCollectible { collectible } => Collectible::Outdated(collectible)))
-                    .collect::<Vec<_>>();
+            let collectibles = task
+                .iter_collectibles()
+                .map(|(&collectible, &value)| Collectible::Current(collectible, value))
+                .chain(
+                    task.iter_outdated_collectibles()
+                        .map(|(collectible, _count)| Collectible::Outdated(*collectible)),
+                )
+                .collect::<Vec<_>>();
             for collectible in collectibles {
                 match collectible {
                     Collectible::Current(collectible, value) => {
-                        let _ =
-                            task.insert(CachedDataItem::OutdatedCollectible { collectible, value });
+                        let _ = task.insert_outdated_collectible(collectible, value);
                     }
                     Collectible::Outdated(collectible) => {
-                        if !task.has_key(&CachedDataItemKey::Collectible { collectible }) {
-                            task.remove(&CachedDataItemKey::OutdatedCollectible { collectible });
+                        if task
+                            .collectibles()
+                            .is_none_or(|m| m.get(&collectible).is_none())
+                        {
+                            task.remove_outdated_collectibles(&collectible);
                         }
                     }
                 }
@@ -1729,50 +1707,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             if self.should_track_dependencies() {
                 // Make all dependencies outdated
-                let outdated_cell_dependencies_to_add =
-                    iter_many!(task, CellDependency { target, key } => (target, key))
-                        .collect::<SmallVec<[_; 8]>>();
-                let outdated_cell_dependencies_to_remove =
-                    iter_many!(task, OutdatedCellDependency { target, key } => (target, key))
-                        .filter(|&(target, key)| {
-                            !task.has_key(&CachedDataItemKey::CellDependency { target, key })
-                        })
-                        .collect::<SmallVec<[_; 8]>>();
-                task.extend(
-                    CachedDataItemType::OutdatedCellDependency,
-                    outdated_cell_dependencies_to_add
-                        .into_iter()
-                        .map(|(target, key)| CachedDataItem::OutdatedCellDependency {
-                            target,
-                            key,
-                            value: (),
-                        }),
-                );
-                for (target, key) in outdated_cell_dependencies_to_remove {
-                    task.remove(&CachedDataItemKey::OutdatedCellDependency { target, key });
-                }
+                let cell_dependencies = task.iter_cell_dependencies().collect();
+                task.set_outdated_cell_dependencies(cell_dependencies);
 
-                let outdated_output_dependencies_to_add =
-                    iter_many!(task, OutputDependency { target } => target)
-                        .collect::<SmallVec<[_; 8]>>();
-                let outdated_output_dependencies_to_remove =
-                    iter_many!(task, OutdatedOutputDependency { target } => target)
-                        .filter(|&target| {
-                            !task.has_key(&CachedDataItemKey::OutputDependency { target })
-                        })
-                        .collect::<SmallVec<[_; 8]>>();
-                task.extend(
-                    CachedDataItemType::OutdatedOutputDependency,
-                    outdated_output_dependencies_to_add
-                        .into_iter()
-                        .map(|target| CachedDataItem::OutdatedOutputDependency {
-                            target,
-                            value: (),
-                        }),
-                );
-                for target in outdated_output_dependencies_to_remove {
-                    task.remove(&CachedDataItemKey::OutdatedOutputDependency { target });
-                }
+                let outdated_output_dependencies = task.iter_output_dependencies().collect();
+                task.set_outdated_output_dependencies(outdated_output_dependencies);
             }
         }
 
@@ -1904,31 +1843,27 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return true;
         }
 
-        let mut removed_data = Vec::new();
-        if self.task_execution_completed_finish(
+        let (stale, in_progress_cells) = self.task_execution_completed_finish(
             &mut ctx,
             task_id,
             #[cfg(feature = "verify_determinism")]
             no_output_set,
             new_output,
-            &mut removed_data,
             is_now_immutable,
-        ) {
+        );
+        if stale {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
             span.record("stale", "finish");
             return true;
         }
 
-        self.task_execution_completed_cleanup(
-            &mut ctx,
-            task_id,
-            cell_counters,
-            is_error,
-            &mut removed_data,
-        );
+        let removed_data =
+            self.task_execution_completed_cleanup(&mut ctx, task_id, cell_counters, is_error);
 
+        // Drop data outside of critical sections
         drop(removed_data);
+        drop(in_progress_cells);
 
         false
     }
@@ -1943,7 +1878,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         has_invalidator: bool,
     ) -> Option<TaskExecutionCompletePrepareResult> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let Some(in_progress) = get_mut!(task, InProgress) else {
+        let Some(in_progress) = task.get_in_progress_mut() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         if matches!(in_progress, InProgressState::Canceled) {
@@ -1973,19 +1908,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 done_event,
                 mut new_children,
                 ..
-            })) = remove!(task, InProgress)
+            })) = task.take_in_progress()
             else {
                 unreachable!();
             };
-            task.add_new(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled {
-                    done_event,
-                    reason: TaskExecutionReason::Stale,
-                },
+            let old = task.set_in_progress(InProgressState::Scheduled {
+                done_event,
+                reason: TaskExecutionReason::Stale,
             });
+            debug_assert!(old.is_none(), "InProgress already exists");
             // Remove old children from new_children to leave only the children that had their
             // active count increased
-            for task in iter_many!(task, Child { task } => task) {
+            for task in task.iter_children() {
                 new_children.remove(&task);
             }
             drop(task);
@@ -2006,36 +1940,27 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // handle has_invalidator
         if has_invalidator {
-            let _ = task.add(CachedDataItem::HasInvalidator { value: () });
+            task.set_invalidator(true);
         }
 
         // handle cell counters: update max index and remove cells that are no longer used
-        let old_counters: FxHashMap<_, _> =
-            get_many!(task, CellTypeMaxIndex { cell_type } max_index => (cell_type, *max_index));
+        let old_counters: FxHashMap<_, _> = task
+            .iter_cell_type_max_index()
+            .map(|(&k, &v)| (k, v))
+            .collect();
         let mut counters_to_remove = old_counters.clone();
 
-        task.extend(
-            CachedDataItemType::CellTypeMaxIndex,
-            cell_counters.iter().filter_map(|(&cell_type, &max_index)| {
-                if let Some(old_max_index) = counters_to_remove.remove(&cell_type) {
-                    if old_max_index != max_index {
-                        Some(CachedDataItem::CellTypeMaxIndex {
-                            cell_type,
-                            value: max_index,
-                        })
-                    } else {
-                        None
-                    }
-                } else {
-                    Some(CachedDataItem::CellTypeMaxIndex {
-                        cell_type,
-                        value: max_index,
-                    })
+        for (&cell_type, &max_index) in cell_counters.iter() {
+            if let Some(old_max_index) = counters_to_remove.remove(&cell_type) {
+                if old_max_index != max_index {
+                    task.insert_cell_type_max_index(cell_type, max_index);
                 }
-            }),
-        );
+            } else {
+                task.insert_cell_type_max_index(cell_type, max_index);
+            }
+        }
         for (cell_type, _) in counters_to_remove {
-            task.remove(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
+            task.remove_cell_type_max_index(&cell_type);
         }
 
         let mut queue = AggregationUpdateQueue::new();
@@ -2043,21 +1968,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut old_edges = Vec::new();
 
         let has_children = !new_children.is_empty();
-        let is_immutable = task.is_immutable();
+        let is_immutable = task.immutable();
         let task_dependencies_for_immutable =
             // Task was previously marked as immutable
             if !is_immutable
             // Task is not session dependent (session dependent tasks can change between sessions)
             && !session_dependent
             // Task has no invalidator
-            && !task.has_key(&CachedDataItemKey::HasInvalidator {})
+            && !task.invalidator()
             // Task has no dependencies on collectibles
-            && count!(task, CollectiblesDependency) == 0
+            && task.is_collectibles_dependencies_empty()
         {
             Some(
                 // Collect all dependencies on tasks to check if all dependencies are immutable
-                iter_many!(task, OutputDependency { target } => target)
-                    .chain(iter_many!(task, CellDependency { target, key: _ } => target.task))
+                task.iter_output_dependencies()
+                    .chain(task.iter_cell_dependencies().map(|(target, _key)| target.task))
                     .collect::<FxHashSet<_>>(),
             )
         } else {
@@ -2070,32 +1995,38 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             // Filter actual new children
             old_edges.extend(
-                iter_many!(task, Child { task } => task)
+                task.iter_children()
                     .filter(|task| !new_children.remove(task))
                     .map(OutdatedEdge::Child),
             );
         } else {
-            old_edges.extend(iter_many!(task, Child { task } => task).map(OutdatedEdge::Child));
+            old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
         }
 
         old_edges.extend(
-            task.iter(CachedDataItemType::OutdatedCollectible)
-                .filter_map(|(key, value)| match (key, value) {
-                    (
-                        CachedDataItemKey::OutdatedCollectible { collectible },
-                        CachedDataItemValueRef::OutdatedCollectible { value },
-                    ) => Some(OutdatedEdge::Collectible(collectible, *value)),
-                    _ => None,
-                }),
+            task.iter_outdated_collectibles()
+                .map(|(&collectible, &count)| OutdatedEdge::Collectible(collectible, count)),
         );
 
         if self.should_track_dependencies() {
-            old_edges.extend(iter_many!(task, OutdatedCellDependency { target, key } => OutdatedEdge::CellDependency(target, key)));
-            old_edges.extend(iter_many!(task, OutdatedOutputDependency { target } => OutdatedEdge::OutputDependency(target)));
+            // IMPORTANT: Use iter_outdated_* here, NOT iter_* (active dependencies).
+            // At execution start, active deps are copied to outdated as a "before" snapshot.
+            // During execution, new deps are added to active.
+            // Here at completion, we clean up only the OUTDATED deps (the "before" snapshot).
+            // Using iter_* (active) instead would incorrectly clean up deps that are still valid,
+            // breaking dependency tracking.
+            old_edges.extend(
+                task.iter_outdated_cell_dependencies()
+                    .map(|(target, key)| OutdatedEdge::CellDependency(target, key)),
+            );
+            old_edges.extend(
+                task.iter_outdated_output_dependencies()
+                    .map(OutdatedEdge::OutputDependency),
+            );
         }
 
         // Check if output need to be updated
-        let current_output = get!(task, Output);
+        let current_output = task.get_output();
         #[cfg(feature = "verify_determinism")]
         let no_output_set = current_output.is_none();
         let new_output = match result {
@@ -2140,7 +2071,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut output_dependent_tasks = SmallVec::<[_; 4]>::new();
         // When output has changed, grab the dependent tasks
         if new_output.is_some() && ctx.should_track_dependencies() {
-            output_dependent_tasks = get_many!(task, OutputDependent { task } => task);
+            output_dependent_tasks = task.iter_output_dependent().collect();
         }
 
         drop(task);
@@ -2150,7 +2081,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if let Some(dependencies) = task_dependencies_for_immutable
             && dependencies
                 .iter()
-                .all(|&task_id| ctx.task(task_id, TaskDataCategory::Meta).is_immutable())
+                .all(|&task_id| ctx.task(task_id, TaskDataCategory::Meta).immutable())
         {
             is_now_immutable = true;
         }
@@ -2214,7 +2145,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             let mut make_stale = true;
             let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
-            if dependent.has_key(&CachedDataItemKey::OutdatedOutputDependency { target: task_id }) {
+            if dependent.outdated_output_dependencies_contains(&task_id) {
                 #[cfg(feature = "trace_task_output_dependencies")]
                 span.record("result", "outdated dependency");
                 // output dependency is outdated, so it hasn't read the output yet
@@ -2222,7 +2153,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // But importantly we still need to make the task dirty as it should no longer
                 // be considered as "recomputation".
                 make_stale = false;
-            } else if !dependent.has_key(&CachedDataItemKey::OutputDependency { target: task_id }) {
+            } else if !dependent.output_dependencies_contains(&task_id) {
                 // output dependency has been removed, so the task doesn't depend on the
                 // output anymore and doesn't need to be invalidated
                 #[cfg(feature = "trace_task_output_dependencies")]
@@ -2281,7 +2212,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut queue = AggregationUpdateQueue::new();
         ctx.for_each_task_meta(new_children.iter().copied(), |child_task, ctx| {
-            if !child_task.has_key(&CachedDataItemKey::Output {}) {
+            if !child_task.has_output() {
                 let child_id = child_task.id();
                 make_task_dirty_internal(
                     child_task,
@@ -2307,7 +2238,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         debug_assert!(!new_children.is_empty());
 
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let Some(in_progress) = get!(task, InProgress) else {
+        let Some(in_progress) = task.get_in_progress() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         if matches!(in_progress, InProgressState::Canceled) {
@@ -2327,16 +2258,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[cfg(not(feature = "no_fast_stale"))]
         if *stale {
             let Some(InProgressState::InProgress(box InProgressStateInner { done_event, .. })) =
-                remove!(task, InProgress)
+                task.take_in_progress()
             else {
                 unreachable!();
             };
-            task.add_new(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled {
-                    done_event,
-                    reason: TaskExecutionReason::Stale,
-                },
+            let old = task.set_in_progress(InProgressState::Scheduled {
+                done_event,
+                reason: TaskExecutionReason::Stale,
             });
+            debug_assert!(old.is_none(), "InProgress already exists");
             drop(task);
 
             // All `new_children` are currently hold active with an active count and we need to undo
@@ -2351,7 +2281,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let has_active_count = ctx.should_track_activeness()
-            && get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
+            && task
+                .get_activeness()
+                .is_some_and(|activeness| activeness.active_counter > 0);
         connect_children(
             ctx,
             task_id,
@@ -2370,16 +2302,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         #[cfg(feature = "verify_determinism")] no_output_set: bool,
         new_output: Option<OutputValue>,
-        removed_data: &mut Vec<CachedDataItem>,
         is_now_immutable: bool,
-    ) -> bool {
+    ) -> (
+        bool,
+        Option<
+            auto_hash_map::AutoMap<CellId, InProgressCellState, BuildHasherDefault<FxHasher>, 1>,
+        >,
+    ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let Some(in_progress) = remove!(task, InProgress) else {
+        let Some(in_progress) = task.take_in_progress() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         if matches!(in_progress, InProgressState::Canceled) {
             // Task was canceled in the meantime, so we don't finish it
-            return false;
+            return (false, None);
         }
         let InProgressState::InProgress(box InProgressStateInner {
             done_event,
@@ -2396,49 +2332,41 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // If the task is stale, reschedule it
         if stale {
-            task.add_new(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled {
-                    done_event,
-                    reason: TaskExecutionReason::Stale,
-                },
+            let old = task.set_in_progress(InProgressState::Scheduled {
+                done_event,
+                reason: TaskExecutionReason::Stale,
             });
-            return true;
+            debug_assert!(old.is_none(), "InProgress already exists");
+            return (true, None);
         }
 
         // Set the output if it has changed
         let mut old_content = None;
         if let Some(value) = new_output {
-            old_content = task.insert(CachedDataItem::Output { value });
+            old_content = task.set_output(value);
         }
 
         // If the task has no invalidator and has no mutable dependencies, it does not have a way
         // to be invalidated and we can mark it as immutable.
         if is_now_immutable {
-            let _ = task.add(CachedDataItem::Immutable { value: () });
+            task.set_immutable(true);
         }
 
-        // Notify in progress cells
-        removed_data.extend(task.extract_if(
-            CachedDataItemType::InProgressCell,
-            |key, value| match (key, value) {
-                (
-                    CachedDataItemKey::InProgressCell { .. },
-                    CachedDataItemValueRef::InProgressCell { value },
-                ) => {
-                    value.event.notify(usize::MAX);
-                    true
-                }
-                _ => false,
-            },
-        ));
+        // Notify in progress cells and remove all of them
+        let in_progress_cells = task.take_in_progress_cells();
+        if let Some(ref cells) = in_progress_cells {
+            for state in cells.values() {
+                state.event.notify(usize::MAX);
+            }
+        }
 
         // Grab the old dirty state
-        let old_dirtyness = get!(task, Dirty).cloned();
+        let old_dirtyness = task.get_dirty().cloned();
         let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
             None => (false, false),
             Some(Dirtyness::Dirty(_)) => (true, false),
             Some(Dirtyness::SessionDependent) => {
-                let clean_in_current_session = get!(task, CurrentSessionClean).is_some();
+                let clean_in_current_session = task.current_session_clean();
                 (true, clean_in_current_session)
             }
         };
@@ -2453,16 +2381,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Update the dirty state
         if old_dirtyness != new_dirtyness {
             if let Some(value) = new_dirtyness {
-                task.insert(CachedDataItem::Dirty { value });
+                task.set_dirty(value);
             } else if old_dirtyness.is_some() {
-                task.remove(&CachedDataItemKey::Dirty {});
+                task.take_dirty();
             }
         }
         if old_current_session_self_clean != new_current_session_self_clean {
             if new_current_session_self_clean {
-                task.insert(CachedDataItem::CurrentSessionClean { value: () });
+                task.set_current_session_clean(true);
             } else if old_current_session_self_clean {
-                task.remove(&CachedDataItemKey::CurrentSessionClean {});
+                task.set_current_session_clean(false);
             }
         }
 
@@ -2470,13 +2398,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let data_update = if old_self_dirty != new_self_dirty
             || old_current_session_self_clean != new_current_session_self_clean
         {
-            let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
+            let dirty_container_count = task
+                .get_aggregated_dirty_container_count()
                 .cloned()
                 .unwrap_or_default();
-            let current_session_clean_container_count =
-                get!(task, AggregatedCurrentSessionCleanContainerCount)
-                    .copied()
-                    .unwrap_or_default();
+            let current_session_clean_container_count = task
+                .get_aggregated_current_session_clean_container_count()
+                .copied()
+                .unwrap_or_default();
             let result = ComputeDirtyAndCleanUpdate {
                 old_dirty_container_count: dirty_container_count,
                 new_dirty_container_count: dirty_container_count,
@@ -2490,11 +2419,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             .compute();
             if result.dirty_count_update - result.current_session_clean_update < 0 {
                 // The task is clean now
-                if let Some(activeness_state) = get_mut!(task, Activeness) {
+                if let Some(activeness_state) = task.get_activeness_mut() {
                     activeness_state.all_clean_event.notify(usize::MAX);
                     activeness_state.unset_active_until_clean();
                     if activeness_state.is_empty() {
-                        task.remove(&CachedDataItemKey::Activeness {});
+                        task.take_activeness();
                     }
                 }
             }
@@ -2512,12 +2441,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[cfg(not(feature = "verify_determinism"))]
         let reschedule = false;
         if reschedule {
-            task.add_new(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled {
-                    done_event,
-                    reason: TaskExecutionReason::Stale,
-                },
+            let old = task.set_in_progress(InProgressState::Scheduled {
+                done_event,
+                reason: TaskExecutionReason::Stale,
             });
+            debug_assert!(old.is_none(), "InProgress already exists");
             drop(task);
         } else {
             drop(task);
@@ -2532,7 +2460,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             AggregationUpdateQueue::run(data_update, ctx);
         }
 
-        reschedule
+        // We return so the data can be dropped outside of critical sections
+        (reschedule, in_progress_cells)
     }
 
     fn task_execution_completed_cleanup(
@@ -2541,47 +2470,54 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         is_error: bool,
-        removed_data: &mut Vec<CachedDataItem>,
-    ) {
+    ) -> Vec<SharedReference> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-
+        let mut removed_cell_data = Vec::new();
         // An error is potentially caused by a eventual consistency, so we avoid updating cells
         // after an error as it is likely transient and we want to keep the dependent tasks
         // clean to avoid re-executions.
         if !is_error {
             // Remove no longer existing cells and
             // find all outdated data items (removed cells, outdated edges)
-            // Note: For persistent tasks we only want to call extract_if when there are actual
-            // cells to remove to avoid tracking that as modification.
             // Note: We do not mark the tasks as dirty here, as these tasks are unused or stale
             // anyway and we want to avoid needless re-executions. When the cells become
             // used again, they are invalidated from the update cell operation.
-            let is_cell_unused = |cell: CellId| {
-                cell_counters
-                    .get(&cell.type_id)
-                    .is_none_or(|start_index| cell.index >= *start_index)
-            };
-            if task_id.is_transient()
-                || iter_many!(task, CellData { cell } => cell).any(is_cell_unused)
-            {
-                removed_data.extend(task.extract_if(CachedDataItemType::CellData, |key, _| {
-                    matches!(key, CachedDataItemKey::CellData { cell } if cell_counters.get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
-                }));
+            // Remove cell data for cells that no longer exist
+            let to_remove_persistent: Vec<_> = task
+                .iter_persistent_cell_data()
+                .filter_map(|(cell, _)| {
+                    cell_counters
+                        .get(&cell.type_id)
+                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .then_some(*cell)
+                })
+                .collect();
+
+            // Remove transient cell data for cells that no longer exist
+            let to_remove_transient: Vec<_> = task
+                .iter_transient_cell_data()
+                .filter_map(|(cell, _)| {
+                    cell_counters
+                        .get(&cell.type_id)
+                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .then_some(*cell)
+                })
+                .collect();
+            removed_cell_data.reserve_exact(to_remove_persistent.len() + to_remove_transient.len());
+            for cell in to_remove_persistent {
+                if let Some(data) = task.remove_persistent_cell_data(&cell) {
+                    removed_cell_data.push(data.into_untyped());
+                }
             }
-            if task_id.is_transient()
-                || iter_many!(task, TransientCellData { cell } => cell).any(is_cell_unused)
-            {
-                removed_data.extend(task.extract_if(
-                    CachedDataItemType::TransientCellData,
-                    |key, _| {
-                        matches!(key, CachedDataItemKey::TransientCellData { cell } if cell_counters.get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
-                    },
-                ));
+            for cell in to_remove_transient {
+                if let Some(data) = task.remove_transient_cell_data(&cell) {
+                    removed_cell_data.push(data);
+                }
             }
         }
 
         // Shrink memory usage for collections that are only mutated during/after execution
-        task.shrink_cell_data();
+        task.shrink_persistent_cell_data();
         task.shrink_transient_cell_data();
         task.shrink_cell_type_max_index();
         task.shrink_cell_dependencies();
@@ -2596,6 +2532,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task.shrink_in_progress_cells();
 
         drop(task);
+
+        // Return so we can drop outside of critical sections
+        removed_cell_data
     }
 
     fn run_backend_job<'a>(
@@ -2732,36 +2671,28 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 );
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
-            for collectible in iter_many!(
-                task,
-                AggregatedCollectible {
-                    collectible
-                } count if collectible.collectible_type == collectible_type && *count > 0 => {
-                    collectible.cell
+            for (collectible, count) in task.iter_aggregated_collectibles() {
+                if *count > 0 && collectible.collectible_type == collectible_type {
+                    *collectibles
+                        .entry(RawVc::TaskCell(
+                            collectible.cell.task,
+                            collectible.cell.cell,
+                        ))
+                        .or_insert(0) += 1;
                 }
-            ) {
-                *collectibles
-                    .entry(RawVc::TaskCell(collectible.task, collectible.cell))
-                    .or_insert(0) += 1;
             }
-            for (collectible, count) in iter_many!(
-                task,
-                Collectible {
-                    collectible
-                } count if collectible.collectible_type == collectible_type => {
-                    (collectible.cell, *count)
+            for (&collectible, &count) in task.iter_collectibles() {
+                if collectible.collectible_type == collectible_type {
+                    *collectibles
+                        .entry(RawVc::TaskCell(
+                            collectible.cell.task,
+                            collectible.cell.cell,
+                        ))
+                        .or_insert(0) += count;
                 }
-            ) {
-                *collectibles
-                    .entry(RawVc::TaskCell(collectible.task, collectible.cell))
-                    .or_insert(0) += count;
             }
             if let Some(reader_id) = reader_id {
-                let _ = task.add(CachedDataItem::CollectiblesDependent {
-                    collectible_type,
-                    task: reader_id,
-                    value: (),
-                });
+                let _ = task.add_collectibles_dependents((collectible_type, reader_id));
             }
         }
         if let Some(reader_id) = reader_id {
@@ -2770,11 +2701,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task: task_id,
                 collectible_type,
             };
-            if reader
-                .remove(&CachedDataItemKey::OutdatedCollectiblesDependency { target })
-                .is_none()
-            {
-                let _ = reader.add(CachedDataItem::CollectiblesDependency { target, value: () });
+            if !reader.remove_outdated_collectibles_dependencies(&target) {
+                let _ = reader.add_collectibles_dependencies(target);
             }
         }
         collectibles
@@ -2886,7 +2814,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if let Some(InProgressState::InProgress(box InProgressStateInner {
             session_dependent,
             ..
-        })) = get_mut!(task, InProgress)
+        })) = task.get_in_progress_mut()
         {
             *session_dependent = true;
         }
@@ -2902,7 +2830,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if let Some(InProgressState::InProgress(box InProgressStateInner {
             marked_as_completed,
             ..
-        })) = get_mut!(task, InProgress)
+        })) = task.get_in_progress_mut()
         {
             *marked_as_completed = true;
             // TODO this should remove the dirty state (also check session_dependent)
@@ -2954,27 +2882,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         );
         {
             let mut task = self.storage.access_mut(task_id);
-            task.add(CachedDataItem::AggregationNumber {
-                value: AggregationNumber {
-                    base: u32::MAX,
-                    distance: 0,
-                    effective: u32::MAX,
-                },
-            });
-            if self.should_track_activeness() {
-                task.add(CachedDataItem::Activeness {
-                    value: ActivenessState::new_root(root_type, task_id),
-                });
-            }
-            task.add(CachedDataItem::new_scheduled(
-                TaskExecutionReason::Initial,
-                move || {
-                    move || match root_type {
-                        RootType::RootTask => "Root Task".to_string(),
-                        RootType::OnceTask => "Once Task".to_string(),
-                    }
-                },
-            ));
+            (*task).init_transient_task(task_id, root_type, self.should_track_activeness());
         }
         #[cfg(feature = "verify_aggregation_graph")]
         self.root_tasks.lock().insert(task_id);
@@ -2994,12 +2902,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let is_dirty = task.is_dirty();
         let has_dirty_containers = task.has_dirty_containers();
         if is_dirty.is_some() || has_dirty_containers {
-            if let Some(activeness_state) = get_mut!(task, Activeness) {
+            if let Some(activeness_state) = task.get_activeness_mut() {
                 // We will finish the task, but it would be removed after the task is done
                 activeness_state.unset_root_type();
                 activeness_state.set_active_until_clean();
             };
-        } else if let Some(activeness_state) = remove!(task, Activeness) {
+        } else if let Some(activeness_state) = task.take_activeness() {
             // Technically nobody should be listening to this event, but just in case
             // we notify it anyway
             activeness_state.all_clean_event.notify(usize::MAX);
@@ -3060,7 +2968,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     );
                 }
 
-                let aggregated_collectibles: Vec<_> = get_many!(task, AggregatedCollectible { collectible } value if *value > 0 => {collectible});
+                let aggregated_collectibles: Vec<_> = task
+                    .iter_aggregated_collectibles()
+                    .map(|(collectible, _)| collectible)
+                    .collect();
                 for collectible in aggregated_collectibles {
                     collectibles
                         .entry(collectible)
@@ -3069,7 +2980,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .push(task_id);
                 }
 
-                let own_collectibles: Vec<_> = get_many!(task, Collectible { collectible } value if *value > 0 => {collectible});
+                let own_collectibles: Vec<_> = task
+                    .iter_collectibles_entries()
+                    .filter_map(|(&collectible, &value)| (value > 0).then_some(collectible))
+                    .collect::<Vec<_>>();
                 for collectible in own_collectibles {
                     if let Some((flag, _)) = collectibles.get_mut(&collectible) {
                         *flag = true
@@ -3081,7 +2995,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
                 }
 
-                let is_dirty = get!(task, Dirty).is_some();
+                let is_dirty = task.has_dirty();
                 let has_dirty_container = task.has_dirty_containers();
                 let should_be_in_upper = is_dirty || has_dirty_container;
 
@@ -3095,7 +3009,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 //     uppers
                 // );
 
-                for child_id in iter_many!(task, Child { task } => task) {
+                for child_id in task.iter_children() {
                     // println!("{task_id}: child -> {child_id}");
                     if visited.insert(child_id) {
                         queue.push_back(child_id);
@@ -3106,10 +3020,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 if should_be_in_upper {
                     for upper_id in uppers {
                         let task = ctx.task(upper_id, TaskDataCategory::All);
-                        let in_upper = get!(task, AggregatedDirtyContainer { task: task_id })
+                        let in_upper = task
+                            .get_aggregated_dirty_containers(&task_id)
                             .is_some_and(|&dirty| dirty > 0);
                         if !in_upper {
-                            let containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task: task_id } value => (task_id, *value));
+                            let containers: Vec<_> = task
+                                .iter_aggregated_dirty_containers_entries()
+                                .map(|(&k, &v)| (k, v))
+                                .collect();
                             panic!(
                                 "Task {} ({}) is dirty, but is not listed in the upper task {} \
                                  ({})\nThese dirty containers are present:\n{:#?}",
@@ -3153,10 +3071,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     while let Some(task_id) = queue.pop() {
                         let desc = ctx.get_task_description(task_id);
                         let task = ctx.task(task_id, TaskDataCategory::All);
-                        let aggregated_collectible =
-                            get!(task, AggregatedCollectible { collectible })
-                                .copied()
-                                .unwrap_or_default();
+                        let aggregated_collectible = task
+                            .get_aggregated_collectibles(&collectible)
+                            .copied()
+                            .unwrap_or_default();
                         let uppers = get_uppers(&task);
                         drop(task);
                         writeln!(
