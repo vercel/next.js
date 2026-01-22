@@ -497,10 +497,10 @@ async function collectResult(
       }
     }
 
-    const cacheSignal = getCacheSignal(outerWorkUnitStore)
-    if (cacheSignal) {
-      cacheSignal.endRead()
-    }
+    // Note: We no longer call cacheSignal.endRead() here because the handler
+    // read tracking is now ended immediately after generateCacheEntry() returns
+    // in the caller. This allows cache settling to complete without waiting for
+    // the full stream to be consumed.
   }
 
   return entry
@@ -1624,6 +1624,12 @@ export async function cache(
         fn,
         timeoutError
       )
+
+      // End the handler read tracking immediately after generation starts.
+      // This allows cache settling to complete without waiting for the full
+      // stream to be consumed (which may involve slow external API calls).
+      // The stream continues to be produced in the background.
+      cacheSignal?.endRead()
 
       if (result.type === 'prerender-dynamic') {
         return result.hangingPromise
