@@ -41,6 +41,7 @@ Automatically detects PR from current branch.
    5. RECEIVED: (exact received value from assertion)
    6. CATEGORY: (assertion|timeout|routing|source-map|build|cli-output)
    7. ROOT CAUSE: (one sentence hypothesis)
+   8. LOG FILE: (analysed log file that led to conclusion)
    Return structured findings grouped by TEST FILE, not by job.
 
    Also extract other failures that are not related to tests.
