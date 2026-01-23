@@ -85,11 +85,6 @@ on:
         required: false
         type: string
         default: 'chromium'
-      enablePnpmCache:
-        description: 'Whether to enable pnpm store caching (useful for GitHub-hosted runners)'
-        required: false
-        type: string
-        default: ''
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.5.5
@@ -205,15 +200,14 @@ jobs:
         with:
           fetch-depth: 25
 
-      # Cache pnpm store when enabled and running on GitHub-hosted runners
-      # (self-hosted runners have their own persistent storage)
+      # Cache pnpm store on GitHub-hosted runners (self-hosted runners have their own persistent storage)
       - name: Get pnpm store directory
-        if: ${{ inputs.enablePnpmCache == 'yes' && contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
         id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
       - name: Cache pnpm store
-        if: ${{ inputs.enablePnpmCache == 'yes' && contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
         uses: actions/cache@v4
         timeout-minutes: 5
         id: cache-pnpm-store
