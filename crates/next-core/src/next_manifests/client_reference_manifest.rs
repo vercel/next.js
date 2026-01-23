@@ -405,8 +405,12 @@ async fn build_manifest(
 
         // per layout segment chunks need to be emitted into the manifest too
         for (server_component, client_assets) in layout_segment_client_chunks.iter() {
+            // Use source_path() to get the original source path (e.g., page.mdx) instead of
+            // server_path() which returns the transformed path (e.g., page.mdx.tsx).
+            // This ensures the manifest key matches what the LoaderTree stores and what
+            // the runtime looks up after stripping one extension.
             let server_component_name = server_component
-                .server_path()
+                .source_path()
                 .await?
                 .with_extension("")
                 .value_to_string()

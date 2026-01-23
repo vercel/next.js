@@ -57,6 +57,7 @@ import type { BaseNextRequest } from '../base-http'
 import type { I18NConfig, NextConfigRuntime } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { evaluateDeploymentId } from '../evaluate-deployment-id'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,
@@ -544,7 +545,8 @@ export abstract class RouteModule<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      deploymentId = nextConfig.deploymentId || ''
+      // evaluateDeploymentId handles string, function, and undefined cases
+      deploymentId = evaluateDeploymentId(nextConfig.deploymentId)
     }
 
     return { nextConfig, deploymentId }
@@ -946,7 +948,8 @@ export abstract class RouteModule<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      deploymentId = nextConfig.deploymentId || ''
+      // evaluateDeploymentId handles string, function, and undefined cases
+      deploymentId = evaluateDeploymentId(nextConfig.deploymentId)
     }
 
     return {
@@ -1018,6 +1021,9 @@ export abstract class RouteModule<
       isRoutePPREnabled,
       isOnDemandRevalidate,
       isPrefetch: req.headers.purpose === 'prefetch',
+      // Use x-invocation-id header to scope the in-memory cache to a single
+      // revalidation request in minimal mode.
+      invocationID: req.headers['x-invocation-id'] as string | undefined,
       incrementalCache: await this.getIncrementalCache(
         req,
         nextConfig,

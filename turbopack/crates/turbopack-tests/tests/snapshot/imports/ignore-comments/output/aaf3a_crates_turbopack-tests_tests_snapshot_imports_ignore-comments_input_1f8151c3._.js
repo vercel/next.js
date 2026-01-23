@@ -8,10 +8,7 @@ module.exports = 'turbopack';
 __turbopack_context__.v("/static/vercel.242d4ff2.cjs");}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)", ((__turbopack_context__) => {
 
-__turbopack_context__.v(__turbopack_context__.b([
-  "output/bf321_tests_snapshot_imports_ignore-comments_input_vercel_cjs_422a38f6._.js",
-  "output/ad3e4_tests_snapshot_imports_ignore-comments_input_vercel_cjs_6f11dd5d._.js"
-]));
+__turbopack_context__.v(__turbopack_context__.b("output/6642e_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_output_2867ca5f._.js", ["output/bf321_tests_snapshot_imports_ignore-comments_input_vercel_cjs_422a38f6._.js","output/ad3e4_tests_snapshot_imports_ignore-comments_input_vercel_cjs_6f11dd5d._.js"], false));
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)", ((__turbopack_context__) => {
 

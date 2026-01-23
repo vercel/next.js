@@ -447,10 +447,7 @@ async function handleDefaultConsole(
 
 type LogLevel = 'error' | 'warn' | 'verbose'
 
-type BrowserLogConfig =
-  | boolean
-  | LogLevel
-  | { level?: LogLevel; showSourceLocation?: boolean }
+type BrowserLogConfig = boolean | 'error' | 'warn'
 
 // Log levels from most severe to least severe
 // Lower index = more severe
@@ -487,14 +484,7 @@ function shouldShowEntry(
   }
 
   // Determine the effective minimum log level
-  const minLevel: LogLevel =
-    typeof config === 'string'
-      ? config
-      : config === true
-        ? 'verbose' // true means show everything
-        : typeof config === 'object'
-          ? (config.level ?? 'verbose') // object config defaults to verbose for backward compatibility
-          : 'warn' // default for new installations
+  const minLevel: LogLevel = typeof config === 'string' ? config : 'verbose' // true means show everything
 
   const minPriority = LOG_LEVEL_PRIORITY[minLevel]
 

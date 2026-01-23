@@ -389,7 +389,11 @@ impl Future for JoinHandle {
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, thread::sleep, time::Duration};
+    use std::{
+        sync::{Arc, Barrier},
+        thread::sleep,
+        time::Duration,
+    };
 
     use super::*;
 
@@ -542,6 +546,13 @@ mod tests {
         assert_eq!(*results, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     }
 
+    /// Test that verifies priority ordering with mixed CPU-bound and waiting tasks.
+    ///
+    /// - Tasks 0-9 are CPU-bound (simulated using a non-tokio barrier)
+    /// - Tasks 10-19 are waiting tasks (async yield)
+    ///
+    /// Each task waits on two barriers (start, finish). The release sequence
+    /// controls execution order deterministically.
     #[test]
     fn test_mixed_cpu_bound_and_waiting_tasks() {
         tokio::runtime::Builder::new_multi_thread()
@@ -552,85 +563,204 @@ mod tests {
             .enable_all()
             .build()
             .unwrap()
-            .block_on(test_mixed_cpu_bound_and_waiting_tasks_impl());
+            .block_on(async {
+                tokio::time::timeout(
+                    Duration::from_secs(10),
+                    test_mixed_cpu_bound_and_waiting_tasks_impl(),
+                )
+                .await
+            })
+            .expect("Timed out")
     }
 
     async fn test_mixed_cpu_bound_and_waiting_tasks_impl() {
+        const NUM_TASKS: usize = 20;
+
+        struct TestContext {
+            dispatch_order: Mutex<Vec<u32>>,
+            completion_order: Mutex<Vec<u32>>,
+            task_barriers: Vec<(Barrier, Barrier)>,
+        }
+
+        impl Drop for TestContext {
+            fn drop(&mut self) {
+                // Print ordering for debugging purposes (in both test success
+                // and failure cases). Not asserted because the barriers will
+                // enforce a reasonable ordering and there's a bit of a race
+                // between barrier release and printing anyways.
+                let dispatch_order = self.dispatch_order.lock().clone();
+                let completion_order = self.completion_order.lock().clone();
+                println!("Dispatch order: {:?}", dispatch_order);
+                println!("Completion order: {:?}", completion_order);
+            }
+        }
+
         struct ExecutorImpl;
 
-        impl Executor<Mutex<Vec<u32>>, u32, u32> for ExecutorImpl {
+        impl Executor<TestContext, (u32, bool), u32> for ExecutorImpl {
             type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
 
             fn execute(
                 &self,
-                execute_context: &Arc<Mutex<Vec<u32>>>,
-                task: u32,
+                ctx: &Arc<TestContext>,
+                (task, cpu): (u32, bool),
                 _priority: u32,
             ) -> Self::Future {
-                let execute_context = execute_context.clone();
-                println!("Created task {}", task);
+                let ctx = ctx.clone();
                 Box::pin(async move {
-                    let cpu_bound = task < 50;
-                    if cpu_bound {
-                        println!("Executing cpu-bound task {}...", task);
-                        // CPU bound task
-                        sleep(Duration::from_millis((task as u64 + 1) * 10));
-                    } else {
-                        println!("Executing waiting task {}...", task);
-                        // Waiting task
-                        tokio::time::sleep(Duration::from_millis((task as u64 + 1) * 10)).await;
+                    println!("Dispatched task {task}");
+                    ctx.dispatch_order.lock().push(task);
+                    let ctx_clone = ctx.clone();
+                    tokio::task::spawn_blocking(move || {
+                        ctx_clone.task_barriers[task as usize].0.wait();
+                    })
+                    .await
+                    .unwrap();
+                    println!("Started task {task}");
+                    if !cpu {
+                        tokio::task::yield_now().await;
                     }
-                    execute_context.lock().push(task);
-                    if cpu_bound {
-                        println!("Finished cpu-bound task {}.", task);
-                    } else {
-                        println!("Finished waiting task {}.", task);
-                    }
+                    // The ending barrier is sync!
+                    ctx.task_barriers[task as usize].1.wait();
+                    println!("Finished task {task}");
+                    ctx.completion_order.lock().push(task);
                 })
             }
         }
 
-        let executor = ExecutorImpl;
+        let ctx = Arc::new(TestContext {
+            dispatch_order: Mutex::new(Vec::new()),
+            completion_order: Mutex::new(Vec::new()),
+            task_barriers: (0..NUM_TASKS)
+                .map(|_| (Barrier::new(2), Barrier::new(2)))
+                .collect(),
+        });
 
-        let runner: Arc<PriorityRunner<Mutex<Vec<u32>>, u32, u32, _>> =
-            Arc::new(PriorityRunner::new(executor));
-        let results = Arc::new(Mutex::new(Vec::new()));
+        let runner = Arc::new(PriorityRunner::new(ExecutorImpl));
 
-        for i in 0..100 {
-            let results = results.clone();
-            println!("Scheduling task {}...", i);
-            runner.schedule(&results, i, i);
+        #[derive(Debug)]
+        enum Action {
+            Schedule(u32, bool),      // true if cpu, false if wait
+            ScheduleStart(u32, bool), // true if cpu, false if wait
+            StartFinish(u32),
+            Start(u32),
+            Finish(u32),
         }
 
-        while results.lock().len() < 100 {
+        // This action sequence encodes scheduling and barrier-runs.
+        #[rustfmt::skip]
+        let actions: &[Action] = &[
+            // Schedule and start 0 and 1 (CPU-bound).
+            Action::ScheduleStart(0, true),
+            Action::ScheduleStart(1, true),
+
+            // These sneak in during a thread race
+            Action::Schedule(2, true),
+            Action::Schedule(3, true),
+            Action::Schedule(4, true),
+            Action::Schedule(5, true),
+
+            // Let CPU-bound 0 and 1 reach complete which allows 4 and 5 to start
+            Action::Finish(0),
+            Action::Finish(1),
+            Action::Start(4),
+            Action::Start(5),
+
+            // Schedule the rest of the tasks while the CPU-bound tasks are running
+            Action::Schedule(6, true),
+            Action::Schedule(7, true),
+            Action::Schedule(8, true),
+            Action::Schedule(9, true),
+            // 10..19 are waiting tasks
+            Action::Schedule(10, false),
+            Action::Schedule(11, false),
+            Action::Schedule(12, false),
+            Action::Schedule(13, false),
+            Action::Schedule(14, false),
+            Action::Schedule(15, false),
+            Action::Schedule(16, false),
+            Action::Schedule(17, false),
+            Action::Schedule(18, false),
+            Action::Schedule(19, false),
+
+            // Let CPU-bound 2 and 3 reach complete which lets in the high priority tasks
+            Action::Finish(4),
+            Action::StartFinish(19),
+            Action::Finish(5),
+            Action::StartFinish(18),
+
+            // Then let the rest of the waiting tasks through
+            Action::StartFinish(17),
+            Action::StartFinish(16),
+            Action::StartFinish(15),
+            Action::StartFinish(14),
+            Action::StartFinish(13),
+            Action::StartFinish(12),
+            Action::StartFinish(11),
+            Action::StartFinish(10),
+
+            // And interleave the CPU ones a bit
+            Action::Start(9),
+            Action::Start(8),
+            Action::Finish(8),
+            Action::Start(7),
+            Action::Finish(7),
+            Action::Finish(9),
+            Action::Start(6),
+            Action::Finish(6),
+            Action::Start(3),
+            Action::Start(2),
+            Action::Finish(2),
+            Action::Finish(3),
+        ];
+
+        // Run in a blocking thread to avoid competing for workers
+        let ctx_clone = ctx.clone();
+        tokio::task::spawn_blocking(move || {
+            let ctx = ctx_clone;
+            let mut scheduled = 0;
+            let mut started = 0;
+            let mut finished = 0;
+            for action in actions {
+                println!("{:?}", action);
+                match action {
+                    Action::Schedule(task, cpu) => {
+                        runner.schedule(&ctx, (*task, *cpu), *task);
+                        scheduled += 1;
+                    }
+                    Action::ScheduleStart(task, cpu) => {
+                        runner.schedule(&ctx, (*task, *cpu), *task);
+                        ctx.task_barriers[*task as usize].0.wait();
+                        scheduled += 1;
+                        started += 1;
+                    }
+                    Action::StartFinish(task) => {
+                        ctx.task_barriers[*task as usize].0.wait();
+                        started += 1;
+                        ctx.task_barriers[*task as usize].1.wait();
+                        finished += 1;
+                    }
+                    Action::Start(task) => {
+                        ctx.task_barriers[*task as usize].0.wait();
+                        started += 1;
+                    }
+                    Action::Finish(task) => {
+                        ctx.task_barriers[*task as usize].1.wait();
+                        finished += 1;
+                    }
+                }
+            }
+
+            assert_eq!(scheduled, NUM_TASKS);
+            assert_eq!(started, NUM_TASKS);
+            assert_eq!(finished, NUM_TASKS);
+        })
+        .await
+        .unwrap();
+
+        println!("Waiting for completion...");
+        while ctx.completion_order.lock().len() < NUM_TASKS {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
-        let results = results.lock();
-        println!("Results: {:?}", *results);
-
-        // The first two tasks are directly spawned without queuing
-        assert_eq!(&results[0..2], &[0, 1]);
-        // All tasks after that are queued and therefore prioritized
-        // The waiting tasks are just waiting, so all of them are executed.
-        // And the two highest priority cpu-bound tasks are executed too.
-        // Since we only have 2 workers, the waiting tasks ain't polled until the cpu-bound tasks
-        // are done.
-        assert!(results[2..4].contains(&49));
-        assert!(results[2..4].contains(&48));
-        let waiting_task_pos = results
-            .iter()
-            .position(|&x| x >= 50)
-            .expect("Waiting task should be executed");
-        // Waiting tasks should be interleaved with cpu-bound tasks
-        assert!(waiting_task_pos < 45);
-
-        let cpu_bound_results = results
-            .iter()
-            .copied()
-            .filter(|&x| x < 50)
-            .collect::<Vec<_>>();
-        // The last tasks are the tasks with the lowest priority
-        assert!(cpu_bound_results[48..50].contains(&2));
-        assert!(cpu_bound_results[48..50].contains(&3));
     }
 }

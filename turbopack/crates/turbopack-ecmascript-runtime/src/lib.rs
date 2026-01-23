@@ -10,7 +10,7 @@ pub(crate) mod embed_js;
 pub(crate) mod nodejs_runtime;
 pub(crate) mod runtime_type;
 
-pub use browser_runtime::get_browser_runtime_code;
+pub use browser_runtime::{get_browser_runtime_code, get_worker_runtime_code};
 pub use chunk_suffix::ChunkSuffix;
 #[cfg(feature = "test")]
 pub use dummy_runtime::get_dummy_runtime_code;

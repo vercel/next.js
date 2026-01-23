@@ -45,6 +45,7 @@ import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
+import { evaluateDeploymentId } from './evaluate-deployment-id'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -194,6 +195,16 @@ function checkDeprecations(
         silent
       )
     }
+  }
+
+  // browserDebugInfoInTerminal has moved to logging.browserToTerminal
+  if (userConfig.experimental?.browserDebugInfoInTerminal !== undefined) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'experimental.browserDebugInfoInTerminal',
+      `\`experimental.browserDebugInfoInTerminal\` has been moved to \`logging.browserToTerminal\`. Please update your ${configFileName} file accordingly.`,
+      silent
+    )
   }
 }
 
@@ -372,6 +383,27 @@ function assignDefaultsAndValidate(
   // ensure correct default is set for api-resolver revalidate handling
   if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true
+  }
+
+  // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
+  if (
+    result.logging !== false &&
+    result.experimental?.browserDebugInfoInTerminal !== undefined
+  ) {
+    const loggingConfig = result.logging || {}
+    if (!('browserToTerminal' in loggingConfig)) {
+      const expConfig = result.experimental.browserDebugInfoInTerminal
+      // Convert object config to simple format (level or true)
+      const normalizedValue =
+        typeof expConfig === 'object' && expConfig !== null
+          ? (expConfig.level ?? true)
+          : expConfig
+
+      result.logging = {
+        ...loggingConfig,
+        browserToTerminal: normalizedValue,
+      }
+    }
   }
 
   if (
@@ -924,26 +956,17 @@ function assignDefaultsAndValidate(
     }
   }
 
+  if (result.deploymentId != null) {
+    result.deploymentId = evaluateDeploymentId(result.deploymentId)
+  }
+
   if (
     result.experimental.runtimeServerDeploymentId == null &&
     phase === PHASE_PRODUCTION_BUILD &&
     ciEnvironment.hasNextSupport &&
     process.env.NEXT_DEPLOYMENT_ID
   ) {
-    if (
-      result.deploymentId != null &&
-      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
-    ) {
-      throw new Error(
-        `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
-      )
-    }
     result.experimental.runtimeServerDeploymentId = true
-  }
-
-  // only leverage deploymentId
-  if (process.env.NEXT_DEPLOYMENT_ID) {
-    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
   const tracingRoot = result?.outputFileTracingRoot

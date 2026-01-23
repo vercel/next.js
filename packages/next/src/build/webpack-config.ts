@@ -32,6 +32,7 @@ import {
 import type { CompilerNameValues } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import type { NextConfigComplete } from '../server/config-shared'
+import { evaluateDeploymentId } from '../server/evaluate-deployment-id'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
@@ -563,7 +564,9 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         appDir,
         hasReactRefresh: dev && isClient,
-        nextConfig: config,
+        nextConfig: config as NextConfigComplete & {
+          deploymentId?: string
+        },
         jsConfig,
         transpilePackages: finalTranspilePackages,
         supportedBrowsers,
@@ -2110,13 +2113,18 @@ export default async function getBaseWebpackConfig(
             __NEXT_PREVIEW_MODE_SIGNING_KEY: previewProps.previewModeSigningKey,
             __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
               previewProps.previewModeEncryptionKey,
+            ...(config.experimental.runtimeServerDeploymentId
+              ? {
+                  NEXT_DEPLOYMENT_ID: process.env.NEXT_DEPLOYMENT_ID,
+                }
+              : {}),
           },
         }),
       isClient &&
         new BuildManifestPlugin({
           buildId,
           dev,
-          deploymentId: config.deploymentId,
+          deploymentId: evaluateDeploymentId(config.deploymentId),
           rewrites,
           isDevFallback,
           appDirEnabled: hasAppDir,

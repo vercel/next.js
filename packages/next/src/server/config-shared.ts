@@ -268,6 +268,15 @@ export interface LoggingConfig {
    * You can specify a pattern to match incoming requests that should not be logged.
    */
   incomingRequests?: boolean | IncomingRequestLoggingConfig
+
+  /**
+   * Forward browser console logs to terminal.
+   * - `false`: Disable browser log forwarding
+   * - `true`: Forward all browser console output to terminal
+   * - `'warn'`: Forward warnings and errors to terminal
+   * - `'error'`: Forward only errors to terminal
+   */
+  browserToTerminal?: boolean | 'error' | 'warn'
 }
 
 export interface ExperimentalConfig {
@@ -773,6 +782,8 @@ export interface ExperimentalConfig {
    * - `true`: Same as 'verbose' - forward all browser console output to terminal
    * - `false`: Disable browser log forwarding to terminal
    * - Object: Enable with custom configuration
+   *
+   * @deprecated Use `logging.browserToTerminal` instead.
    */
   browserDebugInfoInTerminal?:
     | boolean
@@ -1138,8 +1149,9 @@ export interface NextConfig {
 
   /**
    * A unique identifier for a deployment that will be included in each request's query string or header.
+   * Can be a string or a function that returns a string.
    */
-  deploymentId?: string
+  deploymentId?: string | (() => string)
 
   /**
    * Deploy a Next.js application under a sub-path of a domain

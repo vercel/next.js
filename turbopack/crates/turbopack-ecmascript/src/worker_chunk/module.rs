@@ -7,10 +7,12 @@ use turbopack_core::{
         ChunkGroupType, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption,
     },
+    context::AssetContext,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
+    reference_type::WorkerReferenceSubType,
     resolve::ModuleResolveResult,
 };
 
@@ -21,13 +23,23 @@ use super::chunk_item::WorkerLoaderChunkItem;
 #[turbo_tasks::value]
 pub struct WorkerLoaderModule {
     pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub worker_type: WorkerReferenceSubType,
+    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl WorkerLoaderModule {
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn ChunkableModule>>) -> Vc<Self> {
-        Self::cell(WorkerLoaderModule { inner: module })
+    pub fn new(
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+        worker_type: WorkerReferenceSubType,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    ) -> Vc<Self> {
+        Self::cell(WorkerLoaderModule {
+            inner: module,
+            worker_type,
+            asset_context,
+        })
     }
 
     #[turbo_tasks::function]
@@ -74,19 +86,22 @@ impl Asset for WorkerLoaderModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WorkerLoaderModule {
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: ResolvedVc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        let this = self.await?;
+        Ok(Vc::upcast(
             WorkerLoaderChunkItem {
                 module: self,
                 module_graph,
                 chunking_context,
+                worker_type: this.worker_type,
+                asset_context: this.asset_context,
             }
             .cell(),
-        )
+        ))
     }
 }
 
