@@ -1008,7 +1008,9 @@ export async function createHotReloaderTurbopack(
               // TODO
               break
             case 'browser-logs': {
-              if (nextConfig.experimental.browserDebugInfoInTerminal) {
+              const browserToTerminalConfig =
+                nextConfig.logging && nextConfig.logging.browserToTerminal
+              if (browserToTerminalConfig) {
                 await receiveBrowserLogsTurbopack({
                   entries: parsedData.entries,
                   router: parsedData.router,
@@ -1016,7 +1018,7 @@ export async function createHotReloaderTurbopack(
                   project,
                   projectPath,
                   distDir,
-                  config: nextConfig.experimental.browserDebugInfoInTerminal,
+                  config: browserToTerminalConfig,
                 })
               }
               break

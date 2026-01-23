@@ -17,25 +17,22 @@
 //! - `data` - Frequently changed bulk data (dependencies, cell data)
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
-
-// TODO(PR 2): Remove this once the storage schema is integrated with the rest of the codebase.
-// This module is scaffolding for the TaskStorage macro and is not yet used.
-#![allow(dead_code)]
-
 use turbo_tasks::{
-    CellId, SharedReference, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId, task_storage,
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
+    ValueTypeId, event::Event, task_storage,
 };
 
-use crate::data::{
-    ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-    InProgressCellState, InProgressState, OutputValue,
+use crate::{
+    backend::counter_map::CounterMap,
+    data::{
+        ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
+        InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType,
+    },
 };
 
 /// Auto-set storage for small sets of keys with unit values.
 /// Optimized for small collections (< 8 items use SmallVec inline).
 type AutoSet<K> = auto_hash_map::AutoSet<K, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
-
-use super::counter_map::CounterMap;
 
 /// Auto-map storage for key-value pairs.
 type AutoMap<K, V> =
@@ -59,12 +56,18 @@ struct TaskStorageSchema {
     // =========================================================================
     // INLINE FIELDS (hot path, always allocated inline)
     // =========================================================================
+    /// The task's distance for prioritizing invalidation execution
+    #[field(storage = "direct", category = "data", inline, default)]
+    pub leaf_distance: LeafDistance,
+
     /// The task's aggregation number for the aggregation tree.
     /// Uses Default::default() semantics - a zero aggregation number means "not set".
+
     #[field(storage = "direct", category = "meta", inline, default)]
     pub aggregation_number: AggregationNumber,
 
     /// Tasks that depend on this task's output.
+
     #[field(storage = "auto_set", category = "data", inline, filter_transient)]
     pub output_dependent: AutoSet<TaskId>,
 
@@ -181,13 +184,12 @@ struct TaskStorageSchema {
     // =========================================================================
     // DEPENDENCIES (data)
     // =========================================================================
-    /// Tasks whose output this task depends on.
     #[field(storage = "auto_set", category = "data", filter_transient)]
     pub output_dependencies: AutoSet<TaskId>,
 
     /// Cells this task depends on.
     #[field(storage = "auto_set", category = "data", filter_transient)]
-    pub cell_dependencies: AutoSet<CellRef>,
+    pub cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
 
     /// Collectibles this task depends on.
     #[field(storage = "auto_set", category = "data", filter_transient)]
@@ -199,7 +201,7 @@ struct TaskStorageSchema {
 
     /// Outdated cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient")]
-    pub outdated_cell_dependencies: AutoSet<CellRef>,
+    pub outdated_cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient")]
@@ -208,13 +210,12 @@ struct TaskStorageSchema {
     // =========================================================================
     // DEPENDENTS - Tasks that depend on this task's cells
     // =========================================================================
-    /// Tasks that depend on specific cells of this task.
-    /// Maps CellId -> Set<TaskId>
     #[field(storage = "auto_set", category = "data", filter_transient)]
     pub cell_dependents: AutoSet<(CellId, Option<u64>, TaskId)>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
+
     #[field(storage = "auto_set", category = "meta", filter_transient)]
     pub collectibles_dependents: AutoSet<(TraitTypeId, TaskId)>,
 
@@ -223,7 +224,7 @@ struct TaskStorageSchema {
     // =========================================================================
     /// Persistent cell data (serializable).
     #[field(storage = "auto_map", category = "data")]
-    pub cell_data: AutoMap<CellId, TypedSharedReference>,
+    pub persistent_cell_data: AutoMap<CellId, TypedSharedReference>,
 
     /// Transient cell data (not serializable).
     #[field(storage = "auto_map", category = "transient")]
@@ -237,14 +238,10 @@ struct TaskStorageSchema {
     // TRANSIENT EXECUTION STATE (transient)
     // =========================================================================
     /// Activeness state for root/once tasks (transient).
-    /// Note: Lazy storage provides natural optionality -
-    /// presence in Vec<LazyField> = Some, absence = None. No Option wrapper needed.
     #[field(storage = "direct", category = "transient")]
     pub activeness: ActivenessState,
 
     /// In-progress execution state (transient).
-    /// Note: Lazy storage provides natural optionality -
-    /// presence in Vec<LazyField> = Some, absence = None. No Option wrapper needed.
     #[field(storage = "direct", category = "transient")]
     pub in_progress: InProgressState,
 
@@ -257,7 +254,7 @@ struct TaskStorageSchema {
 // TaskFlags helper methods (for InnerStorageState compatibility)
 // =============================================================================
 
-use crate::backend::TaskDataCategory;
+use crate::backend::{TaskDataCategory, storage::SpecificTaskDataCategory};
 
 impl TaskFlags {
     /// Set restored flags based on category
@@ -293,6 +290,38 @@ impl TaskFlags {
     /// Check if any modified flag is set
     pub fn any_modified(&self) -> bool {
         self.meta_modified() || self.data_modified()
+    }
+
+    /// Check if the specified category is modified
+    pub fn is_modified(&self, category: SpecificTaskDataCategory) -> bool {
+        match category {
+            SpecificTaskDataCategory::Meta => self.meta_modified(),
+            SpecificTaskDataCategory::Data => self.data_modified(),
+        }
+    }
+
+    /// Set the modified flag for the specified category
+    pub fn set_modified(&mut self, category: SpecificTaskDataCategory, value: bool) {
+        match category {
+            SpecificTaskDataCategory::Meta => self.set_meta_modified(value),
+            SpecificTaskDataCategory::Data => self.set_data_modified(value),
+        }
+    }
+
+    /// Check if the specified category has a snapshot
+    pub fn is_snapshot(&self, category: SpecificTaskDataCategory) -> bool {
+        match category {
+            SpecificTaskDataCategory::Meta => self.meta_snapshot(),
+            SpecificTaskDataCategory::Data => self.data_snapshot(),
+        }
+    }
+
+    /// Set the snapshot flag for the specified category
+    pub fn set_snapshot(&mut self, category: SpecificTaskDataCategory, value: bool) {
+        match category {
+            SpecificTaskDataCategory::Meta => self.set_meta_snapshot(value),
+            SpecificTaskDataCategory::Data => self.set_data_snapshot(value),
+        }
     }
 }
 
@@ -388,6 +417,76 @@ impl TaskStorage {
             None
         }
     }
+
+    /// Encode fields for the specified category
+    pub fn encode<E: bincode::enc::Encoder>(
+        &self,
+        category: SpecificTaskDataCategory,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        match category {
+            SpecificTaskDataCategory::Meta => self.encode_meta(encoder),
+            SpecificTaskDataCategory::Data => self.encode_data(encoder),
+        }
+    }
+
+    /// Decode fields for the specified category
+    pub fn decode<D: bincode::de::Decoder>(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        decoder: &mut D,
+    ) -> Result<(), bincode::error::DecodeError> {
+        match category {
+            SpecificTaskDataCategory::Meta => self.decode_meta(decoder),
+            SpecificTaskDataCategory::Data => self.decode_data(decoder),
+        }
+    }
+
+    /// Clone only the fields for the specified category
+    pub fn clone_category_snapshot(&self, category: SpecificTaskDataCategory) -> TaskStorage {
+        match category {
+            SpecificTaskDataCategory::Meta => self.clone_meta_snapshot(),
+            SpecificTaskDataCategory::Data => self.clone_data_snapshot(),
+        }
+    }
+
+    /// Initialize a transient task with the given root type and activeness tracking.
+    ///
+    /// This sets up the activeness state for root/once tasks.
+    /// Called when creating transient tasks via `create_transient_task`.
+    pub fn init_transient_task(
+        &mut self,
+        task_id: TaskId,
+        root_type: RootType,
+        should_track_activeness: bool,
+    ) {
+        // Mark as fully restored since transient tasks don't need restoration from disk
+        self.flags.set_restored(TaskDataCategory::All);
+
+        // This is a root (or once) task. These tasks use the max aggregation number.
+        self.aggregation_number = AggregationNumber {
+            base: u32::MAX,
+            distance: 0,
+            effective: u32::MAX,
+        };
+
+        if should_track_activeness {
+            let activeness = ActivenessState::new_root(root_type, task_id);
+            self.lazy.push(LazyField::Activeness(activeness));
+        }
+
+        // Set the task as scheduled so it can be executed
+        let done_event = Event::new(move || {
+            move || match root_type {
+                RootType::RootTask => "Root Task".to_string(),
+                RootType::OnceTask => "Once Task".to_string(),
+            }
+        });
+        self.set_in_progress(InProgressState::Scheduled {
+            done_event,
+            reason: TaskExecutionReason::Initial,
+        });
+    }
 }
 
 // Support serialization filtering for CellDependents and CollectibleDependents
@@ -406,6 +505,12 @@ impl IsTransient for (CellId, Option<u64>, TaskId) {
         self.2.is_transient()
     }
 }
+impl IsTransient for (CellRef, Option<u64>) {
+    fn is_transient(&self) -> bool {
+        self.0.task.is_transient()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::mem::size_of;
@@ -698,13 +803,16 @@ mod tests {
         original
             .output_dependencies_mut()
             .insert(TaskId::new(200).unwrap());
-        original.cell_dependencies_mut().insert(CellRef {
-            task: TaskId::new(1).unwrap(),
-            cell: CellId {
-                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                index: 0,
+        original.cell_dependencies_mut().insert((
+            CellRef {
+                task: TaskId::new(1).unwrap(),
+                cell: CellId {
+                    type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
+                    index: 0,
+                },
             },
-        });
+            None,
+        ));
 
         // Set lazy data transient field (should NOT be serialized)
         original
@@ -815,23 +923,10 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
-        // TaskStorage uses lazy storage for most fields, keeping inline storage minimal.
-        // Current layout (128 bytes):
-        //   - output_dependent (AutoSet<TaskId>): 24 bytes
-        //   - aggregation_number (AggregationNumber with default): 12 bytes
-        //   - output (Option<OutputValue>): 32 bytes
-        //   - upper (CounterMap<TaskId, u32>): 24 bytes
-        //   - flags (TaskFlags): 8 bytes
-        //   - lazy (Vec<LazyField>): 24 bytes
-        //   - padding: 4 bytes
-        //
-        // Use exact size check to catch regressions in either direction.
         assert_eq!(
             size_of::<TaskStorage>(),
-            128,
-            "TaskStorage size changed! Was 128 bytes, now {} bytes. If this is intentional, \
-             update this test.",
-            size_of::<TaskStorage>()
+            136,
+            "TaskStorage size changed! If this is intentional, update this test."
         );
     }
 }

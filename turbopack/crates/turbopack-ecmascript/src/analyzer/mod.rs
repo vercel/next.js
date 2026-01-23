@@ -1862,6 +1862,10 @@ impl JsValue {
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
                     ),
+                    WellKnownFunctionKind::SharedWorkerConstructor => (
+                      "SharedWorker".to_string(),
+                      "The standard SharedWorker constructor: https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker/SharedWorker"
+                    ),
                     WellKnownFunctionKind::URLConstructor => (
                       "URL".to_string(),
                       "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL"
@@ -3527,6 +3531,7 @@ pub enum WellKnownFunctionKind {
     NodeResolveFrom,
     NodeProtobufLoad,
     WorkerConstructor,
+    SharedWorkerConstructor,
     // The worker_threads Worker class
     NodeWorkerConstructor,
     URLConstructor,
