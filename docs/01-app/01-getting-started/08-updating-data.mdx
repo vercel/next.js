@@ -1,6 +1,6 @@
 ---
 title: Updating Data
-description: Learn how to mutate data using Server Functions.
+description: Learn how to mutate data using Server Functions and Server Actions in Next.js.
 related:
   title: API Reference
   description: Learn more about the features mentioned in this page by reading the API Reference.
@@ -17,6 +17,8 @@ You can update data in Next.js using React's [Server Functions](https://react.de
 A **Server Function** is an asynchronous function that runs on the server. They can be called from the client through a network request, which is why they must be asynchronous.
 
 In an `action` or mutation context, they are also called **Server Actions**.
+
+> **Good to know:** A Server Action is a Server Function used in a specific way (for handling form submissions and mutations). Server Function is the broader term.
 
 By convention, a Server Action is an async function used with [`startTransition`](https://react.dev/reference/react/startTransition). This happens automatically when the function is:
 
@@ -427,7 +429,7 @@ Calling `redirect` [throws](/docs/app/api-reference/functions/redirect#behavior)
 
 You can `get`, `set`, and `delete` cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API.
 
-When you [set or delete](/docs/app/api-reference/functions/cookies#understanding-cookie-behavior-in-server-actions) a cookie in a Server Action, Next.js re-renders the current page and its layouts on the server so the **UI reflects the new cookie value**.
+When you [set or delete](/docs/app/api-reference/functions/cookies#understanding-cookie-behavior-in-server-functions) a cookie in a Server Action, Next.js re-renders the current page and its layouts on the server so the **UI reflects the new cookie value**.
 
 > **Good to know**: The server update applies to the current React tree, re-rendering, mounting, or unmounting components, as needed. Client state is preserved for re-rendered components, and effects re-run if their dependencies changed.
 
