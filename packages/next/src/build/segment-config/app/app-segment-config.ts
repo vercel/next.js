@@ -25,7 +25,7 @@ const InstantConfigStaticSchema = z
   .object({
     prefetch: z.literal('static'),
     from: z.array(z.string()).optional(),
-    expectUnableToVerify: z.boolean().optional(),
+    unstable_disableValidation: z.boolean().optional(),
   })
   .strict()
 
@@ -34,7 +34,7 @@ const InstantConfigRuntimeSchema = z
     prefetch: z.literal('runtime'),
     samples: z.array(RuntimeSampleSchema).min(1),
     from: z.array(z.string()).optional(),
-    expectUnableToVerify: z.boolean().optional(),
+    unstable_disableValidation: z.boolean().optional(),
   })
   .strict()
 
@@ -60,20 +60,20 @@ interface __GenericInstantConfig {
   prefetch: string
   samples?: Array<WideRuntimeSample>
   from?: string[]
-  expectUnableToVerify?: boolean
+  unstable_disableValidation?: boolean
 }
 
 interface InstantConfigStatic {
   prefetch: 'static'
   from?: string[]
-  expectUnableToVerify?: boolean
+  unstable_disableValidation?: boolean
 }
 
 interface InstantConfigRuntime {
   prefetch: 'runtime'
   samples: Array<RuntimeSample>
   from?: string[]
-  expectUnableToVerify?: boolean
+  unstable_disableValidation?: boolean
 }
 
 type WideRuntimeSample = {
