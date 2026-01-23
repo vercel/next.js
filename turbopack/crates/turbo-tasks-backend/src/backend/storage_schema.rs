@@ -17,16 +17,22 @@
 //! - `data` - Frequently changed bulk data (dependencies, cell data)
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
+use std::sync::Arc;
+
+use parking_lot::Mutex;
 use turbo_tasks::{
     CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
-    ValueTypeId, event::Event, task_storage,
+    ValueTypeId,
+    backend::{CachedTaskType, TransientTaskType},
+    event::Event,
+    task_storage,
 };
 
 use crate::{
     backend::counter_map::CounterMap,
     data::{
         ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-        InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType,
+        InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
     },
 };
 
@@ -58,42 +64,42 @@ struct TaskStorageSchema {
     // =========================================================================
     /// The task's distance for prioritizing invalidation execution
     #[field(storage = "direct", category = "data", inline, default)]
-    pub leaf_distance: LeafDistance,
+    leaf_distance: LeafDistance,
 
     /// The task's aggregation number for the aggregation tree.
     /// Uses Default::default() semantics - a zero aggregation number means "not set".
 
     #[field(storage = "direct", category = "meta", inline, default)]
-    pub aggregation_number: AggregationNumber,
+    aggregation_number: AggregationNumber,
 
     /// Tasks that depend on this task's output.
 
     #[field(storage = "auto_set", category = "data", inline, filter_transient)]
-    pub output_dependent: AutoSet<TaskId>,
+    output_dependent: AutoSet<TaskId>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
     #[field(storage = "direct", category = "meta", inline, filter_transient)]
-    pub output: Option<OutputValue>,
+    output: Option<OutputValue>,
 
     /// Upper nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", inline, filter_transient)]
-    pub upper: CounterMap<TaskId, u32>,
+    upper: CounterMap<TaskId, u32>,
 
     // =========================================================================
     // COLLECTIBLES (meta)
     // =========================================================================
     /// Collectibles emitted by this task (reference counted).
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    pub collectibles: CounterMap<CollectibleRef, i32>,
+    collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Aggregated collectibles from the subgraph.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    pub aggregated_collectibles: CounterMap<CollectibleRef, i32>,
+    aggregated_collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Outdated collectibles to be cleaned up (transient).
     #[field(storage = "counter_map", category = "transient")]
-    pub outdated_collectibles: CounterMap<CollectibleRef, i32>,
+    outdated_collectibles: CounterMap<CollectibleRef, i32>,
 
     // =========================================================================
     // STATE FIELDS (meta)
@@ -102,25 +108,25 @@ struct TaskStorageSchema {
     /// Whether the task is dirty (needs re-execution).
     /// Absent = clean, present = dirty with the specified Dirtyness state.
     #[field(storage = "direct", category = "meta")]
-    pub dirty: Dirtyness,
+    dirty: Dirtyness,
 
     /// Count of dirty containers in the aggregated subgraph.
     /// Absent = 0, present = actual count.
     #[field(storage = "direct", category = "meta")]
-    pub aggregated_dirty_container_count: i32,
+    aggregated_dirty_container_count: i32,
 
     /// Individual dirty containers in the aggregated subgraph.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    pub aggregated_dirty_containers: CounterMap<TaskId, i32>,
+    aggregated_dirty_containers: CounterMap<TaskId, i32>,
 
     /// Count of clean containers in current session (transient).
     /// Absent = 0, present = actual count.
     #[field(storage = "direct", category = "transient")]
-    pub aggregated_current_session_clean_container_count: i32,
+    aggregated_current_session_clean_container_count: i32,
 
     /// Individual clean containers in current session (transient).
     #[field(storage = "counter_map", category = "transient")]
-    pub aggregated_current_session_clean_containers: CounterMap<TaskId, i32>,
+    aggregated_current_session_clean_containers: CounterMap<TaskId, i32>,
 
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
@@ -128,15 +134,15 @@ struct TaskStorageSchema {
     // =========================================================================
     /// Whether the task has an invalidator.
     #[field(storage = "flag", category = "meta")]
-    pub invalidator: bool,
+    invalidator: bool,
 
     /// Whether the task output is immutable (persisted).
     #[field(storage = "flag", category = "meta")]
-    pub immutable: bool,
+    immutable: bool,
 
     /// Whether clean in current session (transient flag).
     #[field(storage = "flag", category = "transient")]
-    pub current_session_clean: bool,
+    current_session_clean: bool,
 
     // =========================================================================
     // INTERNAL STATE FLAGS (transient) - Replaces InnerStorageState
@@ -144,110 +150,116 @@ struct TaskStorageSchema {
     // =========================================================================
     /// Whether meta data has been restored from persistent storage.
     #[field(storage = "flag", category = "transient")]
-    pub meta_restored: bool,
+    meta_restored: bool,
 
     /// Whether data has been restored from persistent storage.
     #[field(storage = "flag", category = "transient")]
-    pub data_restored: bool,
+    data_restored: bool,
 
     /// Whether meta was modified before snapshot mode was entered.
     #[field(storage = "flag", category = "transient")]
-    pub meta_modified: bool,
+    meta_modified: bool,
 
     /// Whether data was modified before snapshot mode was entered.
     #[field(storage = "flag", category = "transient")]
-    pub data_modified: bool,
+    data_modified: bool,
 
     /// Whether meta was modified after snapshot mode was entered (snapshot taken).
     #[field(storage = "flag", category = "transient")]
-    pub meta_snapshot: bool,
+    meta_snapshot: bool,
 
     /// Whether data was modified after snapshot mode was entered (snapshot taken).
     #[field(storage = "flag", category = "transient")]
-    pub data_snapshot: bool,
+    data_snapshot: bool,
 
     /// Whether dependencies have been prefetched.
     #[field(storage = "flag", category = "transient")]
-    pub prefetched: bool,
+    prefetched: bool,
 
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
     /// Child tasks of this task.
     #[field(storage = "auto_set", category = "meta", filter_transient)]
-    pub children: AutoSet<TaskId>,
+    children: AutoSet<TaskId>,
 
     /// Follower nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    pub followers: CounterMap<TaskId, u32>,
+    followers: CounterMap<TaskId, u32>,
 
     // =========================================================================
     // DEPENDENCIES (data)
     // =========================================================================
     #[field(storage = "auto_set", category = "data", filter_transient)]
-    pub output_dependencies: AutoSet<TaskId>,
+    output_dependencies: AutoSet<TaskId>,
 
     /// Cells this task depends on.
     #[field(storage = "auto_set", category = "data", filter_transient)]
-    pub cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
+    cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
 
     /// Collectibles this task depends on.
     #[field(storage = "auto_set", category = "data", filter_transient)]
-    pub collectibles_dependencies: AutoSet<CollectiblesRef>,
+    collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     /// Outdated output dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient")]
-    pub outdated_output_dependencies: AutoSet<TaskId>,
+    outdated_output_dependencies: AutoSet<TaskId>,
 
     /// Outdated cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient")]
-    pub outdated_cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
+    outdated_cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient")]
-    pub outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
+    outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     // =========================================================================
     // DEPENDENTS - Tasks that depend on this task's cells
     // =========================================================================
     #[field(storage = "auto_set", category = "data", filter_transient)]
-    pub cell_dependents: AutoSet<(CellId, Option<u64>, TaskId)>,
+    cell_dependents: AutoSet<(CellId, Option<u64>, TaskId)>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
 
     #[field(storage = "auto_set", category = "meta", filter_transient)]
-    pub collectibles_dependents: AutoSet<(TraitTypeId, TaskId)>,
+    collectibles_dependents: AutoSet<(TraitTypeId, TaskId)>,
 
     // =========================================================================
     // CELL DATA (data)
     // =========================================================================
     /// Persistent cell data (serializable).
     #[field(storage = "auto_map", category = "data")]
-    pub persistent_cell_data: AutoMap<CellId, TypedSharedReference>,
+    persistent_cell_data: AutoMap<CellId, TypedSharedReference>,
 
     /// Transient cell data (not serializable).
     #[field(storage = "auto_map", category = "transient")]
-    pub transient_cell_data: AutoMap<CellId, SharedReference>,
+    transient_cell_data: AutoMap<CellId, SharedReference>,
 
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data")]
-    pub cell_type_max_index: AutoMap<ValueTypeId, u32>,
+    cell_type_max_index: AutoMap<ValueTypeId, u32>,
 
     // =========================================================================
     // TRANSIENT EXECUTION STATE (transient)
     // =========================================================================
     /// Activeness state for root/once tasks (transient).
     #[field(storage = "direct", category = "transient")]
-    pub activeness: ActivenessState,
+    activeness: ActivenessState,
 
     /// In-progress execution state (transient).
     #[field(storage = "direct", category = "transient")]
-    pub in_progress: InProgressState,
+    in_progress: InProgressState,
 
     /// In-progress cell state for cells being computed (transient).
     #[field(storage = "auto_map", category = "transient")]
-    pub in_progress_cells: AutoMap<CellId, InProgressCellState>,
+    in_progress_cells: AutoMap<CellId, InProgressCellState>,
+
+    #[field(storage = "direct", category = "data")]
+    pub persistent_task_type: Arc<CachedTaskType>,
+
+    #[field(storage = "direct", category = "transient")]
+    pub transient_task_type: Arc<TransientTask>,
 }
 
 // =============================================================================
@@ -457,7 +469,7 @@ impl TaskStorage {
     pub fn init_transient_task(
         &mut self,
         task_id: TaskId,
-        root_type: RootType,
+        task_type: TransientTaskType,
         should_track_activeness: bool,
     ) {
         // Mark as fully restored since transient tasks don't need restoration from disk
@@ -469,7 +481,10 @@ impl TaskStorage {
             distance: 0,
             effective: u32::MAX,
         };
-
+        let root_type = match task_type {
+            TransientTaskType::Root(_) => RootType::RootTask,
+            TransientTaskType::Once(_) => RootType::OnceTask,
+        };
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
             self.lazy.push(LazyField::Activeness(activeness));
@@ -482,6 +497,10 @@ impl TaskStorage {
                 RootType::OnceTask => "Once Task".to_string(),
             }
         });
+        self.set_transient_task_type(Arc::new(match task_type {
+            TransientTaskType::Root(f) => TransientTask::Root(f),
+            TransientTaskType::Once(f) => TransientTask::Once(Mutex::new(Some(f))),
+        }));
         self.set_in_progress(InProgressState::Scheduled {
             done_event,
             reason: TaskExecutionReason::Initial,

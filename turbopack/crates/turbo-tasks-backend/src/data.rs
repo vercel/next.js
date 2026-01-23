@@ -1,9 +1,16 @@
+use std::{
+    fmt::{self, Debug, Display},
+    pin::Pin,
+};
+
+use anyhow::Result;
 use bincode::{Decode, Encode};
+use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
 use turbo_tasks::{
-    CellId, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
-    backend::TurboTasksExecutionError,
-    event::{Event, EventListener},
+    CellId, RawVc, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
+    backend::{TransientTaskRoot, TurboTasksExecutionError},
+    event::{Event, EventDescription, EventListener},
 };
 
 // this traits are needed for the transient variants of `CachedDataItem`
@@ -23,6 +30,8 @@ macro_rules! transient_traits {
                 panic!(concat!(stringify!($name), " cannot be compared"));
             }
         }
+
+        impl Eq for $name {}
     };
 }
 
@@ -157,7 +166,47 @@ impl ActivenessState {
 
 transient_traits!(ActivenessState);
 
-impl Eq for ActivenessState {}
+type TransientTaskOnce =
+    Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
+
+pub enum TransientTask {
+    /// A root task that will track dependencies and re-execute when
+    /// dependencies change. Task will eventually settle to the correct
+    /// execution.
+    ///
+    /// Always active. Automatically scheduled.
+    Root(TransientTaskRoot),
+
+    // TODO implement these strongly consistency
+    /// A single root task execution. It won't track dependencies.
+    /// Task will definitely include all invalidations that happened before the
+    /// start of the task. It may or may not include invalidations that
+    /// happened after that. It may see these invalidations partially
+    /// applied.
+    ///
+    /// Active until done. Automatically scheduled.
+    Once(TransientTaskOnce),
+}
+
+impl Debug for TransientTask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TransientTask::Root(_) => f.write_str("TransientTask::Root"),
+            TransientTask::Once(_) => f.write_str("TransientTask::Once"),
+        }
+    }
+}
+
+impl Display for TransientTask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TransientTask::Root(_) => f.write_str("Root Task"),
+            TransientTask::Once(_) => f.write_str("Once Task"),
+        }
+    }
+}
+
+transient_traits!(TransientTask);
 
 #[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
 pub enum Dirtyness {
@@ -169,6 +218,15 @@ pub enum Dirtyness {
 pub enum RootType {
     RootTask,
     OnceTask,
+}
+
+impl Display for RootType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RootType::RootTask => f.write_str("Root Task"),
+            RootType::OnceTask => f.write_str("Once Task"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -203,16 +261,12 @@ pub enum InProgressState {
 
 transient_traits!(InProgressState);
 
-impl Eq for InProgressState {}
-
 #[derive(Debug)]
 pub struct InProgressCellState {
     pub event: Event,
 }
 
 transient_traits!(InProgressCellState);
-
-impl Eq for InProgressCellState {}
 
 impl InProgressCellState {
     pub fn new(task_id: TaskId, cell: CellId) -> Self {
@@ -256,33 +310,17 @@ pub struct LeafDistance {
 
 impl InProgressState {
     /// Create a new scheduled state with a done event.
-    pub fn new_scheduled<InnerFnDescription>(
-        reason: TaskExecutionReason,
-        description: impl FnOnce() -> InnerFnDescription,
-    ) -> Self
-    where
-        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
-    {
-        let done_event = Event::new(move || {
-            let inner = description();
-            move || format!("{} done_event", inner())
-        });
+    pub fn new_scheduled(reason: TaskExecutionReason, description: EventDescription) -> Self {
+        let done_event = Event::new(move || move || format!("{description} done_event"));
         InProgressState::Scheduled { done_event, reason }
     }
 
-    pub fn new_scheduled_with_listener<InnerFnDescription, InnerFnNote>(
+    pub fn new_scheduled_with_listener(
         reason: TaskExecutionReason,
-        description: impl FnOnce() -> InnerFnDescription,
-        note: impl FnOnce() -> InnerFnNote,
-    ) -> (Self, EventListener)
-    where
-        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
-        InnerFnNote: Fn() -> String + Sync + Send + 'static,
-    {
-        let done_event = Event::new(move || {
-            let inner = description();
-            move || format!("{} done_event", inner())
-        });
+        description: EventDescription,
+        note: EventDescription,
+    ) -> (Self, EventListener) {
+        let done_event = Event::new(move || move || format!("{description} done_event"));
         let listener = done_event.listen_with_note(note);
         (InProgressState::Scheduled { done_event, reason }, listener)
     }

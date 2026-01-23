@@ -77,16 +77,6 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn reverse_lookup_task_cache(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_id: TaskId,
-    ) -> Result<Option<Arc<CachedTaskType>>>;
-
-    /// Lookup and decode fields directly into TaskStorage.
-    /// # Safety
-    ///
-    /// `tx` must be a transaction from this BackingStorage instance.
     unsafe fn lookup_data(
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
@@ -187,23 +177,6 @@ where
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
                 unsafe { this.forward_lookup_task_cache(tx, key) }
-            }
-        }
-    }
-
-    unsafe fn reverse_lookup_task_cache(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_id: TaskId,
-    ) -> Result<Option<Arc<CachedTaskType>>> {
-        match self {
-            Either::Left(this) => {
-                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.reverse_lookup_task_cache(tx, task_id) }
-            }
-            Either::Right(this) => {
-                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.reverse_lookup_task_cache(tx, task_id) }
             }
         }
     }

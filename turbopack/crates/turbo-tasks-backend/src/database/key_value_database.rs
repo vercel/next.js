@@ -9,8 +9,7 @@ pub enum KeySpace {
     Infra = 0,
     TaskMeta = 1,
     TaskData = 2,
-    ForwardTaskCache = 3,
-    ReverseTaskCache = 4,
+    TaskCache = 3,
 }
 
 pub trait KeyValueDatabase {

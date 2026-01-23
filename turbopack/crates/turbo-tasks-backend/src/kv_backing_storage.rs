@@ -328,24 +328,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
                                 batch
                                     .put(
-                                        KeySpace::ForwardTaskCache,
+                                        KeySpace::TaskCache,
                                         WriteBuffer::Borrowed(&task_type_bytes),
                                         WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                                     )
                                     .with_context(|| {
                                         format!(
                                             "Unable to write task cache {task_type:?} => {task_id}"
-                                        )
-                                    })?;
-                                batch
-                                    .put(
-                                        KeySpace::ReverseTaskCache,
-                                        WriteBuffer::Borrowed(IntKey::new(task_id).as_ref()),
-                                        WriteBuffer::Borrowed(&task_type_bytes),
-                                    )
-                                    .with_context(|| {
-                                        format!(
-                                            "Unable to write task cache {task_id} => {task_type:?}"
                                         )
                                     })?;
                                 max_task_id = max_task_id.max(task_id);
@@ -415,21 +404,12 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
                         batch
                             .put(
-                                KeySpace::ForwardTaskCache,
+                                KeySpace::TaskCache,
                                 WriteBuffer::Borrowed(&task_type_bytes),
                                 WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                             )
                             .with_context(|| {
                                 format!("Unable to write task cache {task_type:?} => {task_id}")
-                            })?;
-                        batch
-                            .put(
-                                KeySpace::ReverseTaskCache,
-                                WriteBuffer::Borrowed(IntKey::new(task_id).as_ref()),
-                                WriteBuffer::Borrowed(&task_type_bytes),
-                            )
-                            .with_context(|| {
-                                format!("Unable to write task cache {task_id} => {task_type:?}")
                             })?;
                         next_task_id = next_task_id.max(task_id + 1);
                     }
@@ -467,8 +447,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         ) -> Result<Option<TaskId>> {
             let mut task_type_bytes = TurboBincodeBuffer::new();
             encode_task_type(task_type, &mut task_type_bytes, None)?;
-            let Some(bytes) = database.get(tx, KeySpace::ForwardTaskCache, &task_type_bytes)?
-            else {
+            let Some(bytes) = database.get(tx, KeySpace::TaskCache, &task_type_bytes)? else {
                 return Ok(None);
             };
             let bytes = bytes.borrow().try_into()?;
@@ -483,32 +462,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         inner
             .with_tx(tx, |tx| lookup(&self.inner.database, tx, task_type))
             .with_context(|| format!("Looking up task id for {task_type:?} from database failed"))
-    }
-
-    unsafe fn reverse_lookup_task_cache(
-        &self,
-        tx: Option<&T::ReadTransaction<'_>>,
-        task_id: TaskId,
-    ) -> Result<Option<Arc<CachedTaskType>>> {
-        let inner = &*self.inner;
-        fn lookup<D: KeyValueDatabase>(
-            database: &D,
-            tx: &D::ReadTransaction<'_>,
-            task_id: TaskId,
-        ) -> Result<Option<Arc<CachedTaskType>>> {
-            let Some(bytes) = database.get(
-                tx,
-                KeySpace::ReverseTaskCache,
-                IntKey::new(*task_id).as_ref(),
-            )?
-            else {
-                return Ok(None);
-            };
-            Ok(Some(turbo_bincode_decode(bytes.borrow())?))
-        }
-        inner
-            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id))
-            .with_context(|| format!("Looking up task type for {task_id} from database failed"))
     }
 
     unsafe fn lookup_data(

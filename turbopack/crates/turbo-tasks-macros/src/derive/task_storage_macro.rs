@@ -1,6 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Fields, Ident, ItemStruct, Meta, Token, Type, punctuated::Punctuated, spanned::Spanned};
+use syn::{
+    Fields, Ident, ItemStruct, Meta, Token, Type, Visibility, punctuated::Punctuated,
+    spanned::Spanned,
+};
 
 /// Derives the TaskStorage trait and generates optimized storage structures.
 pub fn task_storage(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -42,6 +45,7 @@ fn task_storage_impl(input: TokenStream) -> TokenStream {
 /// along with pre-computed values like the PascalCase variant name.
 #[derive(Debug, Clone)]
 struct FieldInfo {
+    is_pub: bool,
     /// The field's identifier (snake_case)
     field_name: Ident,
     /// The PascalCase variant name for use in LazyField enum
@@ -342,6 +346,7 @@ fn expect_string_literal<'a>(expr: &'a syn::Expr, attr_name: &str) -> Option<&'a
 fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let field_name = field.ident.as_ref().unwrap().clone();
     let field_type = field.ty.clone();
+    let is_pub = matches!(field.vis, Visibility::Public(_));
 
     // Pre-compute the PascalCase variant name once
     let variant_name = syn::Ident::new(&to_pascal_case(&field_name.to_string()), field_name.span());
@@ -521,6 +526,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     };
 
     FieldInfo {
+        is_pub,
         field_name,
         variant_name,
         field_type,
@@ -952,7 +958,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         #[doc = "Unified typed storage containing all task fields."]
         #[doc = "This is designed to be embedded in the actual InnerStorage for incremental migration."]
         #[automatically_derived]
-        #[derive(Debug, Default, PartialEq, turbo_tasks::ShrinkToFit)]
+        #[derive(Debug, Default, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
         pub struct TaskStorage {
             #(#field_defs,)*
@@ -1013,6 +1019,11 @@ fn generate_field_accessors(field: &FieldInfo) -> TokenStream {
 fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
+    let vis = if field.is_pub {
+        quote! {pub}
+    } else {
+        quote! {}
+    };
 
     let get_name = field.get_ident();
     let set_name = field.set_ident();
@@ -1022,7 +1033,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
     if field.is_inline() && field.use_default {
         // Inline with default: field is T stored directly, uses Default::default() for "empty"
         quote! {
-            fn #get_name(&self) -> Option<&#field_type> {
+            #vis fn #get_name(&self) -> Option<&#field_type> {
                 if self.#field_name != #field_type::default() {
                     Some(&self.#field_name)
                 } else {
@@ -1030,7 +1041,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
                 }
             }
 
-            fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
+            #vis fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
                 let old = std::mem::replace(&mut self.#field_name, value);
                 if old != #field_type::default() {
                     Some(old)
@@ -1039,7 +1050,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
                 }
             }
 
-            fn #take_name(&mut self) -> Option<#field_type> {
+            #vis fn #take_name(&mut self) -> Option<#field_type> {
                 let old = std::mem::take(&mut self.#field_name);
                 if old != #field_type::default() {
                     Some(old)
@@ -1053,15 +1064,15 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
         let inner_type = extract_option_inner_type(field_type);
 
         quote! {
-            fn #get_name(&self) -> Option<&#inner_type> {
+            #vis fn #get_name(&self) -> Option<&#inner_type> {
                 self.#field_name.as_ref()
             }
 
-            fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
+            #vis fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
                 self.#field_name.replace(value)
             }
 
-            fn #take_name(&mut self) -> Option<#inner_type> {
+            #vis fn #take_name(&mut self) -> Option<#inner_type> {
                 self.#field_name.take()
             }
         }
@@ -1073,16 +1084,16 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
         let constructor = field.lazy_constructor(quote! { value });
 
         quote! {
-            fn #get_name(&self) -> Option<&#field_type> {
+            #vis fn #get_name(&self) -> Option<&#field_type> {
                 self.find_lazy(#extractor)
             }
 
             #[doc = "Set the field value, returning the old value if present."]
-            fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
+            #vis fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
                 self.set_lazy(#matches_closure, #unwrap_owned, #constructor)
             }
 
-            fn #take_name(&mut self) -> Option<#field_type> {
+            #vis fn #take_name(&mut self) -> Option<#field_type> {
                 self.take_lazy(#matches_closure, #unwrap_owned)
             }
 
@@ -1090,7 +1101,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
             #[doc = ""]
             #[doc = "Unlike `get_or_create_lazy` for collections, this does NOT allocate"]
             #[doc = "if the field is absent - it returns None instead."]
-            fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
+            #vis fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
                 self.find_lazy_mut(#extractor)
             }
         }
@@ -1106,19 +1117,24 @@ fn generate_collection_field_accessors(
     let ref_name = field.ref_ident();
     let mut_name = field.mut_ident();
     let take_name = field.take_ident();
+    let vis = if field.is_pub {
+        quote! {pub}
+    } else {
+        quote! {}
+    };
 
     if field.is_inline() {
         // Inline: direct field access
         quote! {
-            fn #ref_name(&self) -> &#field_type {
+            #vis fn #ref_name(&self) -> &#field_type {
                 &self.#field_name
             }
 
-            fn #mut_name(&mut self) -> &mut #field_type {
+            #vis fn #mut_name(&mut self) -> &mut #field_type {
                 &mut self.#field_name
             }
 
-            fn #take_name(&mut self) -> #field_type {
+            #vis fn #take_name(&mut self) -> #field_type {
                 std::mem::take(&mut self.#field_name)
             }
         }
@@ -1130,11 +1146,11 @@ fn generate_collection_field_accessors(
         let constructor = field.lazy_constructor(quote! { Default::default() });
 
         quote! {
-            fn #ref_name(&self) -> Option<&#field_type> {
+            #vis fn #ref_name(&self) -> Option<&#field_type> {
                 self.find_lazy(#extractor)
             }
 
-            fn #mut_name(&mut self) -> &mut #field_type {
+            #vis fn #mut_name(&mut self) -> &mut #field_type {
                 self.get_or_create_lazy(
                     #matches_closure,
                     #unwrap_closure,
@@ -1142,7 +1158,7 @@ fn generate_collection_field_accessors(
                 )
             }
 
-            fn #take_name(&mut self) -> Option<#field_type> {
+            #vis fn #take_name(&mut self) -> Option<#field_type> {
                 self.take_lazy(
                     #matches_closure,
                     #unwrap_closure,
