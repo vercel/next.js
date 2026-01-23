@@ -216,9 +216,22 @@ impl StaticSortedFile {
         key: &K,
         value_block_cache: &BlockCache,
     ) -> Result<SstLookupResult> {
+        let hash_len = block.read_u8()?;
         let entry_count = block.read_u24::<BE>()? as usize;
         let offsets = &block[..entry_count * 4];
         let entries = &block[entry_count * 4..];
+
+        // Mask the search hash to only compare stored bytes (high bytes in BE)
+        // When hash_len >= 8, use full hash; otherwise mask to stored bytes
+        let masked_key_hash = if hash_len >= 8 {
+            key_hash
+        } else if hash_len == 0 {
+            0
+        } else {
+            // Mask to keep only the first hash_len bytes (high bytes in BE)
+            let mask = !((1u64 << ((8 - hash_len) * 8)) - 1);
+            key_hash & mask
+        };
 
         let mut l = 0;
         let mut r = entry_count;
@@ -230,8 +243,24 @@ impl StaticSortedFile {
                 key: mid_key,
                 ty,
                 val: mid_val,
-            } = get_key_entry(offsets, entries, entry_count, m)?;
-            match key_hash.cmp(&mid_hash).then_with(|| key.cmp(mid_key)) {
+            } = get_key_entry(offsets, entries, entry_count, m, hash_len)?;
+
+            // When hash_len < 8, we need to compute full hash from entry's key for proper comparison
+            // Entries are sorted by full hash, so we must compare full hashes
+            let comparison = if hash_len < 8 {
+                // Partial hash match (or no hash) - compute full hash from key data
+                if masked_key_hash == mid_hash {
+                    let full_entry_hash = crate::key::hash_key(&mid_key);
+                    key_hash.cmp(&full_entry_hash).then_with(|| key.cmp(mid_key))
+                } else {
+                    masked_key_hash.cmp(&mid_hash)
+                }
+            } else {
+                // Full hash stored - compare directly
+                key_hash.cmp(&mid_hash).then_with(|| key.cmp(mid_key))
+            };
+
+            match comparison {
                 Ordering::Less => {
                     r = m;
                 }
@@ -429,6 +458,7 @@ struct CurrentKeyBlock {
     entries: ArcSlice<u8>,
     entry_count: usize,
     index: usize,
+    hash_len: u8,
 }
 
 struct CurrentIndexBlock {
@@ -462,9 +492,10 @@ impl<'l> StaticSortedFileIter<'l> {
                 });
             }
             BLOCK_TYPE_KEY => {
+                let hash_len = block.read_u8()?;
                 let entry_count = block.read_u24::<BE>()? as usize;
-                let offsets_range = 4..4 + entry_count * 4;
-                let entries_range = 4 + entry_count * 4..block_arc.len();
+                let offsets_range = 5..5 + entry_count * 4;
+                let entries_range = 5 + entry_count * 4..block_arc.len();
                 let offsets = block_arc.clone().slice(offsets_range);
                 let entries = block_arc.slice(entries_range);
                 self.current_key_block = Some(CurrentKeyBlock {
@@ -472,6 +503,7 @@ impl<'l> StaticSortedFileIter<'l> {
                     entries,
                     entry_count,
                     index: 0,
+                    hash_len,
                 });
             }
             _ => {
@@ -489,10 +521,17 @@ impl<'l> StaticSortedFileIter<'l> {
                 entries,
                 entry_count,
                 index,
+                hash_len,
             }) = self.current_key_block.take()
             {
                 let GetKeyEntryResult { hash, key, ty, val } =
-                    get_key_entry(&offsets, &entries, entry_count, index)?;
+                    get_key_entry(&offsets, &entries, entry_count, index, hash_len)?;
+                // If hash_len < 8, we need to compute the full hash from key data
+                let full_hash = if hash_len < 8 {
+                    crate::key::hash_key(&key)
+                } else {
+                    hash
+                };
                 let value = if ty == KEY_BLOCK_ENTRY_TYPE_MEDIUM {
                     let mut val = val;
                     let block = val.read_u16::<BE>()?;
@@ -508,7 +547,7 @@ impl<'l> StaticSortedFileIter<'l> {
                     LazyLookupValue::Eager(value)
                 };
                 let entry = LookupEntry {
-                    hash,
+                    hash: full_hash,
                     // Safety: The key is a valid slice of the entries.
                     key: unsafe { ArcSlice::new_unchecked(key, ArcSlice::full_arc(&entries)) },
                     value,
@@ -519,6 +558,7 @@ impl<'l> StaticSortedFileIter<'l> {
                         entries,
                         entry_count,
                         index: index + 1,
+                        hash_len,
                     });
                 }
                 return Ok(Some(entry));
@@ -558,7 +598,9 @@ fn get_key_entry<'l>(
     entries: &'l [u8],
     entry_count: usize,
     index: usize,
+    hash_len: u8,
 ) -> Result<GetKeyEntryResult<'l>> {
+    let hash_len_usize = hash_len as usize;
     let mut offset = &offsets[index * 4..];
     let ty = offset.read_u8()?;
     let start = offset.read_u24::<BE>()? as usize;
@@ -567,29 +609,36 @@ fn get_key_entry<'l>(
     } else {
         (&offsets[(index + 1) * 4 + 1..]).read_u24::<BE>()? as usize
     };
-    let hash = (&entries[start..start + 8]).read_u64::<BE>()?;
+    // Read partial hash and extend to u64 (stored bytes are the high bytes in BE order)
+    let hash = if hash_len == 0 {
+        0
+    } else {
+        let mut hash_bytes = [0u8; 8];
+        hash_bytes[..hash_len_usize].copy_from_slice(&entries[start..start + hash_len_usize]);
+        u64::from_be_bytes(hash_bytes)
+    };
     Ok(match ty {
         KEY_BLOCK_ENTRY_TYPE_SMALL => GetKeyEntryResult {
             hash,
-            key: &entries[start + 8..end - 8],
+            key: &entries[start + hash_len_usize..end - 8],
             ty,
             val: &entries[end - 8..end],
         },
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => GetKeyEntryResult {
             hash,
-            key: &entries[start + 8..end - 2],
+            key: &entries[start + hash_len_usize..end - 2],
             ty,
             val: &entries[end - 2..end],
         },
         KEY_BLOCK_ENTRY_TYPE_BLOB => GetKeyEntryResult {
             hash,
-            key: &entries[start + 8..end - 4],
+            key: &entries[start + hash_len_usize..end - 4],
             ty,
             val: &entries[end - 4..end],
         },
         KEY_BLOCK_ENTRY_TYPE_DELETED => GetKeyEntryResult {
             hash,
-            key: &entries[start + 8..end],
+            key: &entries[start + hash_len_usize..end],
             ty,
             val: &[],
         },

@@ -45,6 +45,20 @@ const COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 100;
 /// The minimum bytes that are used per key entry for a sample.
 const MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 16;
 
+/// Computes the number of hash bytes to store per entry based on max key length and entry count.
+fn compute_hash_len(max_key_len: usize, entry_count: usize) -> u8 {
+    if max_key_len <= 8 {
+        0 // No hash needed, key data fits in 8 bytes
+    } else if max_key_len > 128 {
+        8 // Full hash for long keys
+    } else {
+        // Enough bytes to have good collision avoidance
+        // log2(entry_count) bits + 8 bits margin, rounded up to bytes
+        let bits_needed = (entry_count as f64).log2().ceil() as u32 + 8;
+        ((bits_needed + 7) / 8).min(8) as u8
+    }
+}
+
 /// Trait for entries from that SST files can be created
 pub trait Entry {
     /// Returns the hash of the key
@@ -431,9 +445,11 @@ fn write_key_blocks_and_compute_amqf(
     }
     let mut current_block_start = 0;
     let mut current_block_size = 0;
+    let mut current_block_max_key_len = 0;
     let mut last_hash = 0;
     for (i, entry) in entries.iter().enumerate() {
         let key_hash = entry.key_hash();
+        let key_len = entry.key_len();
 
         // Add to AMQF
         filter
@@ -443,13 +459,15 @@ fn write_key_blocks_and_compute_amqf(
 
         // Accumulate until the block is full
         if current_block_size > 0
-                && (current_block_size + entry.key_len() + KEY_BLOCK_ENTRY_META_OVERHEAD
+                && (current_block_size + key_len + KEY_BLOCK_ENTRY_META_OVERHEAD
                     > MAX_KEY_BLOCK_SIZE
                     || i - current_block_start >= MAX_KEY_BLOCK_ENTRIES) &&
                     // avoid breaking the block in the middle of a hash conflict
                     last_hash != key_hash
         {
-            let mut block = KeyBlockBuilder::new(buffer, (i - current_block_start) as u32);
+            let entry_count = i - current_block_start;
+            let hash_len = compute_hash_len(current_block_max_key_len, entry_count);
+            let mut block = KeyBlockBuilder::new(buffer, entry_count as u32, hash_len);
             for j in current_block_start..i {
                 let entry = &entries[j];
                 let value_location = &value_locations[j];
@@ -463,15 +481,19 @@ fn write_key_blocks_and_compute_amqf(
             writer.write_key_block(buffer, key_compression_dictionary)?;
             buffer.clear();
             current_block_size = 0;
+            current_block_max_key_len = 0;
             current_block_start = i;
         }
         current_block_size += entry.key_len() + KEY_BLOCK_ENTRY_META_OVERHEAD;
+        current_block_max_key_len = current_block_max_key_len.max(key_len);
         last_hash = key_hash;
     }
 
     // Finish the last block
     if current_block_size > 0 {
-        let mut block = KeyBlockBuilder::new(buffer, (entries.len() - current_block_start) as u32);
+        let entry_count = entries.len() - current_block_start;
+        let hash_len = compute_hash_len(current_block_max_key_len, entry_count);
+        let mut block = KeyBlockBuilder::new(buffer, entry_count as u32, hash_len);
         for j in current_block_start..entries.len() {
             let entry = &entries[j];
             let value_location = &value_locations[j];
@@ -510,20 +532,23 @@ fn write_key_blocks_and_compute_amqf(
 pub struct KeyBlockBuilder<'l> {
     current_entry: usize,
     header_size: usize,
+    hash_len: u8,
     buffer: &'l mut Vec<u8>,
 }
 
-/// The size of the key block header.
-const KEY_BLOCK_HEADER_SIZE: usize = 4;
+/// The size of the key block header (block type + hash_len + entry count).
+const KEY_BLOCK_HEADER_SIZE: usize = 5;
 
 impl<'l> KeyBlockBuilder<'l> {
     /// Creates a new key block builder for the number of entries.
-    pub fn new(buffer: &'l mut Vec<u8>, entry_count: u32) -> Self {
+    pub fn new(buffer: &'l mut Vec<u8>, entry_count: u32, hash_len: u8) -> Self {
         debug_assert!(entry_count < (1 << 24));
+        debug_assert!(hash_len <= 8);
 
         const ESTIMATED_KEY_SIZE: usize = 16;
         buffer.reserve(entry_count as usize * ESTIMATED_KEY_SIZE);
         buffer.write_u8(BLOCK_TYPE_KEY).unwrap();
+        buffer.write_u8(hash_len).unwrap();
         buffer.write_u24::<BE>(entry_count).unwrap();
         for _ in 0..entry_count {
             buffer.write_u32::<BE>(0).unwrap();
@@ -531,8 +556,16 @@ impl<'l> KeyBlockBuilder<'l> {
         Self {
             current_entry: 0,
             header_size: buffer.len(),
+            hash_len,
             buffer,
         }
+    }
+
+    /// Writes the first `hash_len` bytes of the hash (big-endian order).
+    fn write_hash<E: Entry>(&mut self, entry: &E) {
+        let hash_bytes = entry.key_hash().to_be_bytes();
+        self.buffer
+            .extend_from_slice(&hash_bytes[..self.hash_len as usize]);
     }
 
     /// Writes a small-sized value to the buffer.
@@ -548,7 +581,7 @@ impl<'l> KeyBlockBuilder<'l> {
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_SMALL as u32) << 24);
         BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
 
-        self.buffer.write_u64::<BE>(entry.key_hash()).unwrap();
+        self.write_hash(entry);
         entry.write_key_to(self.buffer);
         self.buffer.write_u16::<BE>(value_block).unwrap();
         self.buffer.write_u16::<BE>(value_size).unwrap();
@@ -564,7 +597,7 @@ impl<'l> KeyBlockBuilder<'l> {
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_MEDIUM as u32) << 24);
         BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
 
-        self.buffer.write_u64::<BE>(entry.key_hash()).unwrap();
+        self.write_hash(entry);
         entry.write_key_to(self.buffer);
         self.buffer.write_u16::<BE>(value_block).unwrap();
 
@@ -578,7 +611,7 @@ impl<'l> KeyBlockBuilder<'l> {
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_DELETED as u32) << 24);
         BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
 
-        self.buffer.write_u64::<BE>(entry.key_hash()).unwrap();
+        self.write_hash(entry);
         entry.write_key_to(self.buffer);
 
         self.current_entry += 1;
@@ -591,7 +624,7 @@ impl<'l> KeyBlockBuilder<'l> {
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_BLOB as u32) << 24);
         BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
 
-        self.buffer.write_u64::<BE>(entry.key_hash()).unwrap();
+        self.write_hash(entry);
         entry.write_key_to(self.buffer);
         self.buffer.write_u32::<BE>(blob).unwrap();
 
