@@ -55,7 +55,7 @@ fn compute_hash_len(max_key_len: usize, entry_count: usize) -> u8 {
         // Enough bytes to have good collision avoidance
         // log2(entry_count) bits + 8 bits margin, rounded up to bytes
         let bits_needed = (entry_count as f64).log2().ceil() as u32 + 8;
-        ((bits_needed + 7) / 8).min(8) as u8
+        bits_needed.div_ceil(8).min(8) as u8
     }
 }
 
