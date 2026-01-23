@@ -21,6 +21,7 @@ import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { resolveAndSetDeploymentId } from '../generate-deployment-id'
 import http from 'node:http'
 
 // @ts-expect-error types are in @types/serve-handler
@@ -53,7 +54,10 @@ export default async function analyze({
       reactProductionProfiling,
     })
 
-    process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
+    config.deploymentId = resolveAndSetDeploymentId(
+      config.deploymentId,
+      config.deploymentId != null ? 'user-config' : 'env-var'
+    )
 
     const distDir = path.join(dir, '.next')
     const telemetry = new Telemetry({ distDir })

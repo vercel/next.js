@@ -854,6 +854,10 @@ function bindingToApi(
   ): Promise<string> {
     // Avoid mutating the existing `nextConfig` object. NOTE: This is only a shallow clone.
     let nextConfigSerializable: Record<string, any> = { ...nextConfig }
+    // deploymentId is already evaluated to a string in config.ts, ensure it's typed correctly
+    if (nextConfigSerializable.deploymentId != null) {
+      nextConfigSerializable.deploymentId = nextConfig.deploymentId as string
+    }
 
     // These values are never read by Turbopack and are potentially non-serializable.
     nextConfigSerializable.exportPathMap = {}
