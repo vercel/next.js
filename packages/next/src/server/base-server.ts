@@ -524,7 +524,7 @@ export default abstract class Server<
         ? new SegmentPrefixRSCPathnameNormalizer()
         : undefined,
       data: this.enabledDirectories.pages
-        ? new NextDataPathnameNormalizer(this.buildId)
+        ? new NextDataPathnameNormalizer(this.buildId, this.deploymentId)
         : undefined,
     }
 
@@ -680,19 +680,21 @@ export default abstract class Server<
         return false
       }
 
-      if (params.path[0] !== this.buildId) {
-        // Ignore if its a middleware request when we aren't on edge.
-        if (getRequestMeta(req, 'middlewareInvoke')) {
-          return false
+      if (!this.nextConfig.deploymentId) {
+        if (params.path[0] !== this.buildId) {
+          // Ignore if its a middleware request when we aren't on edge.
+          if (getRequestMeta(req, 'middlewareInvoke')) {
+            return false
+          }
+
+          // Make sure to 404 if the buildId isn't correct
+          await this.render404(req, res, parsedUrl)
+          return true
         }
 
-        // Make sure to 404 if the buildId isn't correct
-        await this.render404(req, res, parsedUrl)
-        return true
+        // remove buildId from URL
+        params.path.shift()
       }
-
-      // remove buildId from URL
-      params.path.shift()
 
       const lastParam = params.path[params.path.length - 1]
 

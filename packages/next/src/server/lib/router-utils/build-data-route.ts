@@ -5,9 +5,15 @@ import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex
 import { normalizeRouteRegex } from '../../../lib/load-custom-routes'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 
-export function buildDataRoute(page: string, buildId: string) {
+export function buildDataRoute(
+  page: string,
+  buildId: string,
+  deploymentId: string
+) {
   const pagePath = normalizePagePath(page)
-  const dataRoute = path.posix.join('/_next/data', buildId, `${pagePath}.json`)
+  const dataRoute = deploymentId
+    ? path.posix.join('/_next/data', `${pagePath}.json`)
+    : path.posix.join('/_next/data', buildId, `${pagePath}.json`)
 
   let dataRouteRegex: string
   let namedDataRouteRegex: string | undefined
@@ -26,11 +32,15 @@ export function buildDataRoute(page: string, buildId: string) {
   } else {
     dataRouteRegex = normalizeRouteRegex(
       new RegExp(
-        `^${path.posix.join(
-          '/_next/data',
-          escapeStringRegexp(buildId),
-          `${pagePath}\\.json`
-        )}$`
+        `^${
+          deploymentId
+            ? path.posix.join('/_next/data', `${pagePath}\\.json`)
+            : path.posix.join(
+                '/_next/data',
+                escapeStringRegexp(buildId),
+                `${pagePath}\\.json`
+              )
+        }$`
       ).source
     )
   }

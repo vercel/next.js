@@ -634,6 +634,10 @@ export const getHandler = ({
           res.statusCode = 404
 
           if (isNextDataRequest) {
+            const deploymentId = getDeploymentId()
+            if (deploymentId) {
+              res.setHeader('x-nextjs-dpl-id', deploymentId)
+            }
             res.end('{"notFound":true}')
             return
           }
@@ -642,6 +646,10 @@ export const getHandler = ({
 
         if (result.value.kind === CachedRouteKind.REDIRECT) {
           if (isNextDataRequest) {
+            const deploymentId = getDeploymentId()
+            if (deploymentId) {
+              res.setHeader('x-nextjs-dpl-id', deploymentId)
+            }
             res.setHeader('content-type', JSON_CONTENT_TYPE_HEADER)
             res.end(JSON.stringify(result.value.props))
             return
@@ -712,6 +720,14 @@ export const getHandler = ({
           (isErrorPage && isMinimalMode && res.statusCode === 500)
         ) {
           return null
+        }
+
+        // Add deployment ID header for data requests
+        if (isNextDataRequest && !isErrorPage && !is500Page) {
+          const deploymentId = getDeploymentId()
+          if (deploymentId) {
+            res.setHeader('x-nextjs-dpl-id', deploymentId)
+          }
         }
 
         await sendRenderResult({
