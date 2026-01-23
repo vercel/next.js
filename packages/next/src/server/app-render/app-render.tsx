@@ -610,71 +610,80 @@ async function generateDynamicFlightRenderResult(
     waitUntil?: Promise<unknown>
   }
 ): Promise<RenderResult> {
-  const {
-    componentMod: { renderToReadableStream },
-    htmlRequestId,
-    renderOpts,
-    requestId,
-    workStore,
-  } = ctx
+  return getTracer().trace(
+    AppRenderSpan.generateDynamicFlightRenderResult,
+    { spanName: `render dynamic flight ${ctx.pagePath}` },
+    async () => {
+      const {
+        componentMod: { renderToReadableStream },
+        htmlRequestId,
+        renderOpts,
+        requestId,
+        workStore,
+      } = ctx
 
-  const {
-    dev = false,
-    onInstrumentationRequestError,
-    setReactDebugChannel,
-    nextExport = false,
-  } = renderOpts
+      const {
+        dev = false,
+        onInstrumentationRequestError,
+        setReactDebugChannel,
+        nextExport = false,
+      } = renderOpts
 
-  function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
-    return onInstrumentationRequestError?.(
-      err,
-      req,
-      createErrorContext(ctx, 'react-server-components-payload'),
-      silenceLog
-    )
-  }
+      function onFlightDataRenderError(
+        err: DigestedError,
+        silenceLog: boolean
+      ) {
+        return onInstrumentationRequestError?.(
+          err,
+          req,
+          createErrorContext(ctx, 'react-server-components-payload'),
+          silenceLog
+        )
+      }
 
-  const onError = createReactServerErrorHandler(
-    dev,
-    nextExport,
-    workStore.reactServerErrorsByDigest,
-    onFlightDataRenderError
-  )
+      const onError = createReactServerErrorHandler(
+        dev,
+        nextExport,
+        workStore.reactServerErrorsByDigest,
+        onFlightDataRenderError
+      )
 
-  const debugChannel = setReactDebugChannel && createDebugChannel()
+      const debugChannel = setReactDebugChannel && createDebugChannel()
 
-  if (debugChannel) {
-    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
-  }
+      if (debugChannel) {
+        setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
+      }
 
-  const { clientModules } = getClientReferenceManifest()
+      const { clientModules } = getClientReferenceManifest()
 
-  // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
-  // which contains the subset React.
-  const rscPayload = await workUnitAsyncStorage.run(
-    requestStore,
-    generateDynamicRSCPayload,
-    ctx,
-    options
-  )
+      // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
+      // which contains the subset React.
+      const rscPayload = await workUnitAsyncStorage.run(
+        requestStore,
+        generateDynamicRSCPayload,
+        ctx,
+        options
+      )
 
-  const flightReadableStream = workUnitAsyncStorage.run(
-    requestStore,
-    renderToReadableStream,
-    rscPayload,
-    clientModules,
-    {
-      onError,
-      temporaryReferences: options?.temporaryReferences,
-      filterStackFrame,
-      debugChannel: debugChannel?.serverSide,
+      const flightReadableStream = workUnitAsyncStorage.run(
+        requestStore,
+        renderToReadableStream,
+        rscPayload,
+        clientModules,
+        {
+          onError,
+          temporaryReferences: options?.temporaryReferences,
+          filterStackFrame,
+          debugChannel: debugChannel?.serverSide,
+        }
+      )
+
+      return new FlightRenderResult(
+        flightReadableStream,
+        { fetchMetrics: workStore.fetchMetrics },
+        options?.waitUntil
+      )
     }
-  )
-
-  return new FlightRenderResult(
-    flightReadableStream,
-    { fetchMetrics: workStore.fetchMetrics },
-    options?.waitUntil
   )
 }
 
@@ -1063,50 +1072,62 @@ async function prospectiveRuntimeServerPrerender(
 
   // We're not going to use the result of this render because the only time it could be used
   // is if it completes in a microtask and that's likely very rare for any non-trivial app
-  const initialServerPayload = await workUnitAsyncStorage.run(
-    initialServerPrerenderStore,
-    getPayload
+  const initialServerPayload = await getTracer().trace(
+    PrerenderSpan.runtimeProspectivePayload,
+    { spanName: 'create prospective RSC payload (runtime)' },
+    () => workUnitAsyncStorage.run(initialServerPrerenderStore, getPayload)
   )
 
-  const pendingInitialServerResult = workUnitAsyncStorage.run(
-    initialServerPrerenderStore,
-    ComponentMod.prerender,
-    initialServerPayload,
-    clientModules,
-    {
-      filterStackFrame,
-      onError: (err) => {
-        const digest = getDigestForWellKnownError(err)
+  const pendingInitialServerResult = getTracer().trace(
+    PrerenderSpan.runtimeProspectivePrerender,
+    { spanName: 'prerender server (runtime prospective)' },
+    () =>
+      workUnitAsyncStorage.run(
+        initialServerPrerenderStore,
+        ComponentMod.prerender,
+        initialServerPayload,
+        clientModules,
+        {
+          filterStackFrame,
+          onError: (err) => {
+            const digest = getDigestForWellKnownError(err)
 
-        if (digest) {
-          return digest
-        }
+            if (digest) {
+              return digest
+            }
 
-        if (initialServerPrerenderController.signal.aborted) {
-          // The render aborted before this error was handled which indicates
-          // the error is caused by unfinished components within the render
-          return
-        } else if (
-          process.env.NEXT_DEBUG_BUILD ||
-          process.env.__NEXT_VERBOSE_LOGGING
-        ) {
-          printDebugThrownValueForProspectiveRender(
-            err,
-            workStore.route,
-            Phase.ProspectiveRender
-          )
+            if (initialServerPrerenderController.signal.aborted) {
+              // The render aborted before this error was handled which indicates
+              // the error is caused by unfinished components within the render
+              return
+            } else if (
+              process.env.NEXT_DEBUG_BUILD ||
+              process.env.__NEXT_VERBOSE_LOGGING
+            ) {
+              printDebugThrownValueForProspectiveRender(
+                err,
+                workStore.route,
+                Phase.ProspectiveRender
+              )
+            }
+          },
+          // We don't want to stop rendering until the cacheSignal is complete so we pass
+          // a different signal to this render call than is used by dynamic APIs to signify
+          // transitioning out of the prerender environment
+          signal: initialServerRenderController.signal,
         }
-      },
-      // We don't want to stop rendering until the cacheSignal is complete so we pass
-      // a different signal to this render call than is used by dynamic APIs to signify
-      // transitioning out of the prerender environment
-      signal: initialServerRenderController.signal,
-    }
+      )
   )
 
   // Wait for all caches to be finished filling and for async imports to resolve
-  trackPendingModules(cacheSignal)
-  await cacheSignal.cacheReady()
+  await getTracer().trace(
+    PrerenderSpan.runtimeCacheReadyWait,
+    { spanName: 'wait for cache (runtime)' },
+    async () => {
+      trackPendingModules(cacheSignal)
+      await cacheSignal.cacheReady()
+    }
+  )
 
   initialServerRenderController.abort()
   initialServerPrerenderController.abort()
@@ -1307,55 +1328,61 @@ async function finalRuntimeServerPrerender(
 
   const { clientModules } = getClientReferenceManifest()
 
-  const finalRSCPayload = await workUnitAsyncStorage.run(
-    finalServerPrerenderStore,
-    getPayload
+  const finalRSCPayload = await getTracer().trace(
+    PrerenderSpan.runtimeFinalPayload,
+    { spanName: 'create final RSC payload (runtime)' },
+    () => workUnitAsyncStorage.run(finalServerPrerenderStore, getPayload)
   )
 
   let prerenderIsPending = true
-  const result = await prerenderAndAbortInSequentialTasksWithStages(
-    async () => {
-      // Static stage
-      const prerenderResult = await workUnitAsyncStorage.run(
-        finalServerPrerenderStore,
-        ComponentMod.prerender,
-        finalRSCPayload,
-        clientModules,
-        {
-          filterStackFrame,
-          onError,
-          signal: finalServerController.signal,
+  const result = await getTracer().trace(
+    PrerenderSpan.runtimeFinalPrerender,
+    { spanName: 'prerender server (runtime final)' },
+    () =>
+      prerenderAndAbortInSequentialTasksWithStages(
+        async () => {
+          // Static stage
+          const prerenderResult = await workUnitAsyncStorage.run(
+            finalServerPrerenderStore,
+            ComponentMod.prerender,
+            finalRSCPayload,
+            clientModules,
+            {
+              filterStackFrame,
+              onError,
+              signal: finalServerController.signal,
+            }
+          )
+          prerenderIsPending = false
+          return prerenderResult
+        },
+        () => {
+          // Advance to the runtime stage.
+          //
+          // We make runtime APIs hang during the first task (above), and unblock them in the following task (here).
+          // This makes sure that, at this point, we'll have finished all the static parts (what we'd prerender statically).
+          // We know that they don't contain any incorrect sync IO, because that'd have caused a build error.
+          // After we unblock Runtime APIs, if we encounter sync IO (e.g. `await cookies(); Date.now()`),
+          // we'll abort, but we'll produce at least as much output as a static prerender would.
+          resolveBlockedRuntimeAPIs()
+        },
+        () => {
+          // Abort.
+          if (finalServerController.signal.aborted) {
+            // If the server controller is already aborted we must have called something
+            // that required aborting the prerender synchronously such as with new Date()
+            serverIsDynamic = true
+            return
+          }
+
+          if (prerenderIsPending) {
+            // If prerenderIsPending then we have blocked for longer than a Task and we assume
+            // there is something unfinished.
+            serverIsDynamic = true
+          }
+          finalServerController.abort()
         }
       )
-      prerenderIsPending = false
-      return prerenderResult
-    },
-    () => {
-      // Advance to the runtime stage.
-      //
-      // We make runtime APIs hang during the first task (above), and unblock them in the following task (here).
-      // This makes sure that, at this point, we'll have finished all the static parts (what we'd prerender statically).
-      // We know that they don't contain any incorrect sync IO, because that'd have caused a build error.
-      // After we unblock Runtime APIs, if we encounter sync IO (e.g. `await cookies(); Date.now()`),
-      // we'll abort, but we'll produce at least as much output as a static prerender would.
-      resolveBlockedRuntimeAPIs()
-    },
-    () => {
-      // Abort.
-      if (finalServerController.signal.aborted) {
-        // If the server controller is already aborted we must have called something
-        // that required aborting the prerender synchronously such as with new Date()
-        serverIsDynamic = true
-        return
-      }
-
-      if (prerenderIsPending) {
-        // If prerenderIsPending then we have blocked for longer than a Task and we assume
-        // there is something unfinished.
-        serverIsDynamic = true
-      }
-      finalServerController.abort()
-    }
   )
 
   // Update the RSC payload stream to replace the sentinel with actual values.
@@ -4319,7 +4346,7 @@ async function prerenderToStream(
       // is if it completes in a microtask and that's likely very rare for any non-trivial app
       const initialServerPayload = await getTracer().trace(
         PrerenderSpan.initialRSCPayload,
-        { spanName: 'initial RSC payload' },
+        { spanName: 'create prospective RSC payload' },
         () =>
           workUnitAsyncStorage.run(
             initialServerPayloadPrerenderStore,
@@ -4355,7 +4382,7 @@ async function prerenderToStream(
 
       const pendingInitialServerResult = getTracer().trace(
         PrerenderSpan.initialServerPrerender,
-        { spanName: 'initial server prerender (prospective)' },
+        { spanName: 'prerender server (prospective)' },
         () =>
           workUnitAsyncStorage.run(
             initialServerPrerenderStore,
@@ -4415,7 +4442,7 @@ async function prerenderToStream(
       // Wait for all caches to be finished filling and for async imports to resolve
       await getTracer().trace(
         PrerenderSpan.cacheReadyWait,
-        { spanName: 'wait for cache ready' },
+        { spanName: 'wait for cache' },
         async () => {
           trackPendingModules(cacheSignal)
           await cacheSignal.cacheReady()
@@ -4488,7 +4515,7 @@ async function prerenderToStream(
         ).prerender
         const pendingInitialClientResult = getTracer().trace(
           PrerenderSpan.initialClientPrerender,
-          { spanName: 'initial client prerender' },
+          { spanName: 'prerender client (prospective)' },
           () =>
             workUnitAsyncStorage.run(
               initialClientPrerenderStore,
@@ -4614,7 +4641,7 @@ async function prerenderToStream(
 
       const finalAttemptRSCPayload = await getTracer().trace(
         PrerenderSpan.finalRSCPayload,
-        { spanName: 'final RSC payload' },
+        { spanName: 'create final RSC payload' },
         () =>
           workUnitAsyncStorage.run(
             finalServerPayloadPrerenderStore,
@@ -4655,7 +4682,7 @@ async function prerenderToStream(
       const reactServerResult = (reactServerPrerenderResult =
         await getTracer().trace(
           PrerenderSpan.finalServerPrerender,
-          { spanName: 'final server prerender' },
+          { spanName: 'prerender server (final)' },
           () =>
             createReactServerPrerenderResult(
               prerenderAndAbortInSequentialTasks(
@@ -4748,7 +4775,7 @@ async function prerenderToStream(
       ).prerender
       let { prelude: unprocessedPrelude, postponed } = await getTracer().trace(
         PrerenderSpan.finalClientPrerender,
-        { spanName: 'final client prerender' },
+        { spanName: 'prerender client (final)' },
         () =>
           prerenderAndAbortInSequentialTasks(
             () => {
