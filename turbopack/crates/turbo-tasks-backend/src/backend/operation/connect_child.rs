@@ -34,7 +34,7 @@ impl ConnectChildOperation {
         mut ctx: impl ExecuteContext<'_>,
     ) {
         if let Some(parent_task_id) = parent_task_id {
-            let parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
+            let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 new_children, ..
             })) = parent_task.get_in_progress()
@@ -51,6 +51,15 @@ impl ConnectChildOperation {
 
             if parent_task.children_contains(&child_task_id) {
                 // It is already connected, we can skip the rest
+                // but we still need to update the new_children set
+                let Some(InProgressState::InProgress(box InProgressStateInner {
+                    new_children,
+                    ..
+                })) = parent_task.get_in_progress_mut()
+                else {
+                    unreachable!();
+                };
+                new_children.insert(child_task_id);
                 return;
             }
         }
