@@ -674,7 +674,7 @@ export async function handler(
           isDebugDynamicAccesses ||
           isDebugFallbackShell
             ? {
-                nextExport: true,
+                isBuildTimePrerendering: true,
                 supportsDynamicResponse: false,
                 isStaticGeneration: true,
                 isDebugDynamicAccesses: isDebugDynamicAccesses,
@@ -725,7 +725,7 @@ export async function handler(
       }
 
       if (isDebugStaticShell || isDebugDynamicAccesses) {
-        context.renderOpts.nextExport = true
+        context.renderOpts.isBuildTimePrerendering = true
         context.renderOpts.supportsDynamicResponse = false
         context.renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
