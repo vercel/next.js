@@ -74,7 +74,10 @@ enum SourceType {
 
 type SourceData = ChunkPath | ModuleId | ModuleId[] | undefined
 interface RuntimeBackend {
-  registerChunk: (chunkPath: ChunkPath, params?: RuntimeParams) => void
+  registerChunk: (
+    chunkPath: ChunkPath | ChunkScript,
+    params?: RuntimeParams
+  ) => void
   /**
    * Returns the same Promise for the same chunk URL.
    */
@@ -398,6 +401,18 @@ function getPathFromScript(
     ? src.slice(CHUNK_BASE_PATH.length)
     : src
   return path as ChunkPath | ChunkListPath
+}
+
+/**
+ * Return the ChunkUrl from a ChunkScript.
+ */
+function getUrlFromScript(chunk: ChunkPath | ChunkScript): ChunkUrl {
+  if (typeof chunk === 'string') {
+    return getChunkRelativeUrl(chunk)
+  } else {
+    // This is already exactly what we want
+    return chunk.getAttribute('src')! as ChunkUrl
+  }
 }
 
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
