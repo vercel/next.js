@@ -43,8 +43,6 @@ pub struct WorkerAssetReference {
     pub request: WorkerRequest,
     pub issue_source: IssueSource,
     pub in_try: bool,
-    /// For web workers, the subtype (Worker vs SharedWorker)
-    pub web_worker_type: Option<WorkerReferenceSubType>,
     /// When true, skip creating WorkerLoaderModule and return the inner module directly.
     /// This is used when we're only tracing dependencies, not generating code.
     pub tracing_only: bool,
@@ -71,16 +69,19 @@ impl WorkerAssetReference {
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         in_try: bool,
-        worker_type: WorkerReferenceSubType,
         tracing_only: bool,
+        is_shared: bool,
     ) -> Self {
         WorkerAssetReference {
-            worker_type: WorkerType::WebWorker,
+            worker_type: if is_shared {
+                WorkerType::SharedWebWorker
+            } else {
+                WorkerType::WebWorker
+            },
             origin,
             request: WorkerRequest::Url(request),
             issue_source,
             in_try,
-            web_worker_type: Some(worker_type),
             tracing_only,
         }
     }
@@ -104,7 +105,6 @@ impl WorkerAssetReference {
             },
             issue_source,
             in_try,
-            web_worker_type: None,
             tracing_only,
         }
     }
@@ -117,15 +117,12 @@ impl ModuleReference for WorkerAssetReference {
         let asset_context = self.origin.asset_context().to_resolved().await?;
 
         let result = match (&self.worker_type, &self.request) {
-            (WorkerType::WebWorker, WorkerRequest::Url(request)) => {
+            (WorkerType::WebWorker | WorkerType::SharedWebWorker, WorkerRequest::Url(request)) => {
                 // Web worker resolution uses url_resolve
                 url_resolve(
                     *self.origin,
                     **request,
-                    ReferenceType::Worker(
-                        self.web_worker_type
-                            .unwrap_or(WorkerReferenceSubType::WebWorker),
-                    ),
+                    ReferenceType::Worker(self.worker_type.reference_sub_type()),
                     Some(self.issue_source),
                     self.in_try,
                 )
@@ -185,7 +182,7 @@ impl ModuleReference for WorkerAssetReference {
                         ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
                     else {
                         CodeGenerationIssue {
-                            severity: IssueSeverity::Bug,
+                            severity: IssueSeverity::Error,
                             title: StyledString::Text(rcstr!("non-chunkable module"))
                                 .resolved_cell(),
                             message: StyledString::Text(
@@ -213,7 +210,7 @@ impl ModuleReference for WorkerAssetReference {
                             .is_none()
                     {
                         CodeGenerationIssue {
-                            severity: IssueSeverity::Bug,
+                            severity: IssueSeverity::Error,
                             title: StyledString::Text(rcstr!("non-evaluatable module"))
                                 .resolved_cell(),
                             message: StyledString::Text(
@@ -235,15 +232,10 @@ impl ModuleReference for WorkerAssetReference {
                         continue;
                     }
 
-                    let loader = WorkerLoaderModule::new(
-                        *chunkable,
-                        self.worker_type,
-                        self.web_worker_type
-                            .unwrap_or(WorkerReferenceSubType::WebWorker),
-                        *asset_context,
-                    )
-                    .to_resolved()
-                    .await?;
+                    let loader =
+                        WorkerLoaderModule::new(*chunkable, self.worker_type, *asset_context)
+                            .to_resolved()
+                            .await?;
 
                     primary.push((
                         request_key.clone(),
@@ -274,6 +266,7 @@ impl ValueToString for WorkerAssetReference {
                 "new {}({})",
                 match self.worker_type {
                     WorkerType::WebWorker => "WebWorker",
+                    WorkerType::SharedWebWorker => "SharedbWorker",
                     WorkerType::NodeWorkerThread => "NodeWorkerThread",
                 },
                 match &self.request {

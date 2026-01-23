@@ -11,7 +11,6 @@ use turbopack_core::{
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
-    reference_type::WorkerReferenceSubType,
     resolve::ModuleResolveResult,
 };
 
@@ -24,7 +23,6 @@ use super::{chunk_item::WorkerLoaderChunkItem, worker_type::WorkerType};
 pub struct WorkerLoaderModule {
     pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
     pub worker_type: WorkerType,
-    pub web_worker_type: WorkerReferenceSubType,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
@@ -34,13 +32,11 @@ impl WorkerLoaderModule {
     pub fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         worker_type: WorkerType,
-        web_worker_type: WorkerReferenceSubType,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Self> {
         Self::cell(WorkerLoaderModule {
             inner: module,
             worker_type,
-            web_worker_type,
             asset_context,
         })
     }
@@ -91,7 +87,6 @@ impl ChunkableModule for WorkerLoaderModule {
                 module_graph,
                 chunking_context,
                 worker_type: this.worker_type,
-                web_worker_type: this.web_worker_type,
                 asset_context: this.asset_context,
             }
             .cell(),
@@ -122,7 +117,7 @@ impl ChunkableModuleReference for WorkerModuleReference {
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Isolated {
             _ty: match self.worker_type {
-                WorkerType::WebWorker => ChunkGroupType::Evaluated,
+                WorkerType::SharedWebWorker | WorkerType::WebWorker => ChunkGroupType::Evaluated,
                 WorkerType::NodeWorkerThread => ChunkGroupType::Entry,
             },
             merge_tag: None,

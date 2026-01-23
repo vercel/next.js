@@ -78,7 +78,7 @@ use turbopack_core::{
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
-    reference_type::{CommonJsReferenceSubType, ReferenceType, WorkerReferenceSubType},
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         FindContextFileResult, ImportUsage, ModulePart, find_context_file,
         origin::{PlainResolveOrigin, ResolveOrigin},
@@ -1927,13 +1927,9 @@ where
             | WellKnownFunctionKind::SharedWorkerConstructor => {
                 let args = linked_args().await?;
                 if let Some(url @ JsValue::Url(_, JsValueUrlKind::Relative)) = args.first() {
-                    let (name, worker_type) = match func {
-                        WellKnownFunctionKind::WorkerConstructor => {
-                            ("Worker", WorkerReferenceSubType::WebWorker)
-                        }
-                        WellKnownFunctionKind::SharedWorkerConstructor => {
-                            ("SharedWorker", WorkerReferenceSubType::SharedWorker)
-                        }
+                    let (name, is_shared) = match func {
+                        WellKnownFunctionKind::WorkerConstructor => ("Worker", false),
+                        WellKnownFunctionKind::SharedWorkerConstructor => ("SharedWorker", true),
                         _ => unreachable!(),
                     };
                     let pat = js_value_to_pattern(url);
@@ -1958,8 +1954,8 @@ where
                                 Request::parse(pat).to_resolved().await?,
                                 issue_source(source, span),
                                 in_try,
-                                worker_type,
                                 tracing_only,
+                                is_shared,
                             ),
                             ast_path.to_vec().into(),
                         );

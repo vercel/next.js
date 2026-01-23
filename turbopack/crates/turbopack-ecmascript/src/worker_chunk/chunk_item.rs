@@ -12,7 +12,6 @@ use turbopack_core::{
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
-    reference_type::WorkerReferenceSubType,
 };
 
 use super::{module::WorkerLoaderModule, worker_type::WorkerType};
@@ -31,7 +30,6 @@ pub struct WorkerLoaderChunkItem {
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub worker_type: WorkerType,
-    pub web_worker_type: WorkerReferenceSubType,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
@@ -42,12 +40,17 @@ impl WorkerLoaderChunkItem {
         let module = self.module.await?;
 
         Ok(match self.worker_type {
-            WorkerType::WebWorker => self.chunking_context.evaluated_chunk_group_assets(
-                module.inner.ident().with_modifier(rcstr!("worker")),
-                ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
-                *self.module_graph,
-                AvailabilityInfo::root(),
-            ),
+            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
+                self.chunking_context.evaluated_chunk_group_assets(
+                    module
+                        .inner
+                        .ident()
+                        .with_modifier(self.worker_type.chunk_modifier_str()),
+                    ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
+                    *self.module_graph,
+                    AvailabilityInfo::root(),
+                )
+            }
             // WorkerThreads are treated as an entry point, webworkers probably should too but
             // currently it would lead to a cascade that we need to address.
             WorkerType::NodeWorkerThread => {
@@ -115,7 +118,7 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
         let this = self.await?;
 
         let code = match this.worker_type {
-            WorkerType::WebWorker => {
+            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
                 // For web workers, generate code that creates a worker URL using the real
                 // entrypoint
                 let asset_context = *this.asset_context;
@@ -141,8 +144,7 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
                     .collect();
 
                 // Determine if this is a SharedWorker
-                let is_shared =
-                    matches!(this.web_worker_type, WorkerReferenceSubType::SharedWorker);
+                let is_shared = matches!(this.worker_type, WorkerType::SharedWebWorker);
 
                 formatdoc! {
                     r#"
@@ -208,7 +210,7 @@ impl OutputAssetsReference for WorkerLoaderChunkItem {
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         match this.worker_type {
-            WorkerType::WebWorker => {
+            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
                 let asset_context = *this.asset_context;
                 Ok(self
                     .chunk_group()
