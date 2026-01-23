@@ -50,10 +50,12 @@ export async function copy_styled_jsx_assets(task, opts) {
 }
 
 const externals = {
-  // don't bundle caniuse-lite data so users can
+  // don't bundle caniuse-lite and baseline-browser-mapping data so users can
   // update it manually
   'caniuse-lite': 'caniuse-lite',
   '/caniuse-lite(/.*)/': 'caniuse-lite$1',
+  'baseline-browser-mapping': 'baseline-browser-mapping',
+  '/baseline-browser-mapping(/.*)/': 'baseline-browser-mapping$1',
 
   postcss: 'postcss',
   // Ensure latest version is used
@@ -2682,6 +2684,16 @@ export async function build(task, opts) {
     ['precompile', 'compile', 'check_error_codes', 'generate_types'],
     opts
   )
+  // Write git commit hash to dist for stale build detection during tests
+  try {
+    const { stdout: commitHash } = await execa('git', ['rev-parse', 'HEAD'])
+    await fs.writeFile(
+      join(__dirname, 'dist', '.build-commit'),
+      commitHash.trim()
+    )
+  } catch (err) {
+    console.warn(`Warning: Could not write build commit hash: ${err.message}`)
+  }
 }
 
 export async function generate_types(task, opts) {

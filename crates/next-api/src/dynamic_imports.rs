@@ -20,22 +20,19 @@
 //!      won't occur
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use next_core::{
     next_app::ClientReferencesChunks, next_client_reference::EcmascriptClientReferenceModule,
     next_dynamic::NextDynamicEntryModule,
 };
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{
-        ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId,
-        availability_info::AvailabilityInfo,
-    },
+    chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
-    module_graph::{ModuleGraph, SingleModuleGraph},
+    module_graph::{ModuleGraph, ModuleGraphLayer},
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
@@ -84,12 +81,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 chunking_context.async_loader_chunk_item(*module, module_graph, availability_info);
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
-            let module_id = dynamic_entry
-                .chunk_item_id(chunking_context)
-                .to_resolved()
-                .await?;
-
-            Ok((*dynamic_entry, (module_id, async_chunk_group)))
+            Ok((*dynamic_entry, (*dynamic_entry, async_chunk_group)))
         })
         .try_join()
         .await?;
@@ -102,15 +94,17 @@ pub(crate) async fn collect_next_dynamic_chunks(
 #[turbo_tasks::value(transparent)]
 #[derive(Default)]
 pub struct DynamicImportedChunks(
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<
         ResolvedVc<NextDynamicEntryModule>,
-        (ResolvedVc<ModuleId>, ResolvedVc<OutputAssetsWithReferenced>),
+        (
+            ResolvedVc<NextDynamicEntryModule>,
+            ResolvedVc<OutputAssetsWithReferenced>,
+        ),
     >,
 );
 
-#[derive(
-    Clone, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
-)]
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum DynamicImportEntriesMapType {
     DynamicEntry(ResolvedVc<NextDynamicEntryModule>),
     ClientReference(ResolvedVc<EcmascriptClientReferenceModule>),
@@ -118,11 +112,14 @@ pub enum DynamicImportEntriesMapType {
 
 #[turbo_tasks::value(transparent)]
 pub struct DynamicImportEntries(
-    pub FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportEntriesMapType>,
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub  FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportEntriesMapType>,
 );
 
 #[turbo_tasks::function]
-pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<DynamicImportEntries>> {
+pub async fn map_next_dynamic(
+    graph: ResolvedVc<ModuleGraphLayer>,
+) -> Result<Vc<DynamicImportEntries>> {
     let actions = graph
         .await?
         .iter_nodes()

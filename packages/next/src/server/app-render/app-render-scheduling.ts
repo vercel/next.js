@@ -1,4 +1,5 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { unpatchedSetImmediate } from '../node-environment-extensions/fast-set-immediate.external'
 
 /*
 ==========================
@@ -112,12 +113,15 @@ export function createAtomicTimerGroup(delayMs = 0) {
     let didFirstTimerRun = false
 
     // As a sanity check, we schedule an immediate from the first timeout
-    // to check if the execution was interrupted.
+    // to check if the execution was interrupted (i.e. if it ran between the timeouts).
+    // Note that we're deliberately bypassing the "fast setImmediate" patch here --
+    // otherwise, this check would always fail, because the immediate
+    // would always run before the second timeout.
     let didImmediateRun = false
     function runFirstCallback(callback: () => void) {
       didFirstTimerRun = true
       if (shouldAttemptPatching) {
-        setImmediate(() => {
+        unpatchedSetImmediate(() => {
           didImmediateRun = true
         })
       }

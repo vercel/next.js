@@ -2,23 +2,14 @@ use std::{hash::Hash, sync::LazyLock};
 
 use anyhow::Result;
 use quick_cache::sync::Cache;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ReadRef, Vc, duration_span, mark_session_dependent, trace::TraceRawVcs,
-};
+use turbo_tasks::{ReadRef, Vc, duration_span, mark_session_dependent};
 
 use crate::{FetchError, FetchResult, HttpResponse, HttpResponseBody};
 
 const MAX_CLIENTS: usize = 16;
 static CLIENT_CACHE: LazyLock<Cache<ReadRef<FetchClientConfig>, reqwest::Client>> =
     LazyLock::new(|| Cache::new(MAX_CLIENTS));
-
-#[derive(Hash, PartialEq, Eq, Serialize, Deserialize, NonLocalValue, Debug, TraceRawVcs)]
-pub enum ProxyConfig {
-    Http(RcStr),
-    Https(RcStr),
-}
 
 /// Represents the configuration needed to construct a [`reqwest::Client`].
 ///
@@ -28,31 +19,8 @@ pub enum ProxyConfig {
 /// This is needed because [`reqwest::ClientBuilder`] does not implement the required traits. This
 /// factory cannot be a closure because closures do not implement `Eq` or `Hash`.
 #[turbo_tasks::value(shared)]
-#[derive(Hash)]
-pub struct FetchClientConfig {
-    /// Whether to load embedded webpki root certs with rustls. Default is true.
-    ///
-    /// Ignored for:
-    /// - Windows on ARM, which uses `native-tls` instead of `rustls-tls`.
-    /// - Ignored for WASM targets, which use the runtime's TLS implementation.
-    pub tls_built_in_webpki_certs: bool,
-    /// Whether to load native root certs using the `rustls-native-certs` crate. This may make
-    /// reqwest client initialization slower, so it's not used by default.
-    ///
-    /// Ignored for:
-    /// - Windows on ARM, which uses `native-tls` instead of `rustls-tls`.
-    /// - Ignored for WASM targets, which use the runtime's TLS implementation.
-    pub tls_built_in_native_certs: bool,
-}
-
-impl Default for FetchClientConfig {
-    fn default() -> Self {
-        Self {
-            tls_built_in_webpki_certs: true,
-            tls_built_in_native_certs: false,
-        }
-    }
-}
+#[derive(Hash, Default)]
+pub struct FetchClientConfig {}
 
 impl FetchClientConfig {
     /// Returns a cached instance of `reqwest::Client` it exists, otherwise constructs a new one.
@@ -77,20 +45,36 @@ impl FetchClientConfig {
     }
 
     fn try_build_uncached_reqwest_client(&self) -> reqwest::Result<reqwest::Client> {
-        let client_builder = reqwest::Client::builder();
-
-        // make sure this cfg matches the one in `Cargo.toml`!
-        #[cfg(not(any(
-            all(target_os = "windows", target_arch = "aarch64"),
-            target_arch = "wasm32"
-        )))]
-        let client_builder = client_builder
-            .use_rustls_tls()
-            .tls_built_in_root_certs(false)
-            .tls_built_in_webpki_certs(self.tls_built_in_webpki_certs)
-            .tls_built_in_native_certs(self.tls_built_in_native_certs);
-
-        client_builder.build()
+        #[allow(unused_mut)]
+        let mut builder = reqwest::Client::builder();
+        #[cfg(any(target_os = "linux", all(windows, not(target_arch = "aarch64"))))]
+        {
+            use std::sync::Once;
+            static ONCE: Once = Once::new();
+            ONCE.call_once(|| {
+                rustls::crypto::ring::default_provider()
+                    .install_default()
+                    .unwrap()
+            });
+            builder = builder.tls_backend_rustls();
+        }
+        #[cfg(all(windows, target_arch = "aarch64"))]
+        {
+            builder = builder.tls_backend_native();
+        }
+        #[cfg(target_os = "linux")]
+        {
+            // Add webpki_root_certs on Linux (in addition to reqwest's default
+            // `rustls-platform-verifier`), in case the user is building in a bare-bones docker
+            // image that does not contain any root certs (e.g. `oven/bun:slim`).
+            builder = builder.tls_certs_merge(webpki_root_certs::TLS_SERVER_ROOT_CERTS.iter().map(
+                |der| {
+                    reqwest::Certificate::from_der(der)
+                        .expect("webpki_root_certs should parse correctly")
+                },
+            ))
+        }
+        builder.build()
     }
 }
 
@@ -104,7 +88,6 @@ impl FetchClientConfig {
     ) -> Result<Vc<FetchResult>> {
         let url_ref = &*url;
         let this = self.await?;
-        let tls_built_in_native_certs = this.tls_built_in_native_certs;
         let response_result: reqwest::Result<HttpResponse> = async move {
             let reqwest_client = this.try_get_cached_reqwest_client()?;
 
@@ -139,12 +122,9 @@ impl FetchClientConfig {
             Err(err) => {
                 // the client failed to construct or the HTTP request failed
                 mark_session_dependent();
-                Ok(Vc::cell(Err(FetchError::from_reqwest_error(
-                    &err,
-                    &url,
-                    tls_built_in_native_certs,
-                )
-                .resolved_cell())))
+                Ok(Vc::cell(Err(
+                    FetchError::from_reqwest_error(&err, &url).resolved_cell()
+                )))
             }
         }
     }

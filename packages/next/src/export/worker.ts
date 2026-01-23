@@ -7,6 +7,8 @@ import type {
   ExportPagesResult,
   ExportPathEntry,
 } from './types'
+import type { AppPageModule } from '../server/route-modules/app-page/module'
+import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
 
@@ -22,6 +24,7 @@ import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
@@ -82,6 +85,7 @@ async function exportPageImpl(
     renderOpts: commonRenderOpts,
     outDir: commonOutDir,
     buildId,
+    deploymentId,
     renderResumeDataCache,
   } = input
 
@@ -173,6 +177,9 @@ async function exportPageImpl(
   if (trailingSlash && !req.url?.endsWith('/')) {
     req.url += '/'
   }
+
+  // Set the resolved pathname without trailing slash as request metadata.
+  addRequestMeta(req, 'resolvedPathname', removeTrailingSlash(updatedPath))
 
   if (
     locale &&
@@ -268,7 +275,7 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const sharedContext: AppSharedContext = { buildId }
+    const sharedContext: AppSharedContext = { buildId, deploymentId }
 
     return exportAppPage(
       req,
@@ -278,46 +285,46 @@ async function exportPageImpl(
       pathname,
       query,
       fallbackRouteParams,
-      renderOpts,
+      renderOpts as WorkerRenderOpts<AppPageModule>,
       htmlFilepath,
       debugOutput,
       isDynamicError,
       fileWriter,
       sharedContext
     )
-  }
+  } else {
+    const sharedContext: PagesSharedContext = {
+      buildId,
+      deploymentId,
+      customServer: undefined,
+    }
 
-  const sharedContext: PagesSharedContext = {
-    buildId,
-    deploymentId: commonRenderOpts.deploymentId,
-    customServer: undefined,
-  }
+    const renderContext: PagesRenderContext = {
+      isFallback: exportPath._pagesFallback ?? false,
+      isDraftMode: false,
+      developmentNotFoundSourcePage: undefined,
+    }
 
-  const renderContext: PagesRenderContext = {
-    isFallback: exportPath._pagesFallback ?? false,
-    isDraftMode: false,
-    developmentNotFoundSourcePage: undefined,
+    return exportPagesPage(
+      req,
+      res,
+      path,
+      page,
+      query,
+      params,
+      htmlFilepath,
+      htmlFilename,
+      pagesDataDir,
+      buildExport,
+      isDynamic,
+      sharedContext,
+      renderContext,
+      hasOrigQueryValues,
+      renderOpts as WorkerRenderOpts<PagesModule>,
+      components,
+      fileWriter
+    )
   }
-
-  return exportPagesPage(
-    req,
-    res,
-    path,
-    page,
-    query,
-    params,
-    htmlFilepath,
-    htmlFilename,
-    pagesDataDir,
-    buildExport,
-    isDynamic,
-    sharedContext,
-    renderContext,
-    hasOrigQueryValues,
-    renderOpts,
-    components,
-    fileWriter
-  )
 }
 
 export async function exportPages(
@@ -382,8 +389,11 @@ export async function exportPages(
       // Also tests for `inspect-brk`
       process.env.NODE_OPTIONS?.includes('--inspect')
 
-    const renderResumeDataCache = renderResumeDataCachesByPage[page]
-      ? createRenderResumeDataCache(renderResumeDataCachesByPage[page])
+    const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
+      ? createRenderResumeDataCache(
+          renderResumeDataCachesByPage[pageKey],
+          renderOpts.experimental.maxPostponedStateSizeBytes
+        )
       : undefined
 
     while (attempt < maxAttempts) {
@@ -407,6 +417,7 @@ export async function exportPages(
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
+            deploymentId: input.deploymentId,
             renderResumeDataCache,
           }),
           hasDebuggerAttached

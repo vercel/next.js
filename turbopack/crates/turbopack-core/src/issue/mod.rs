@@ -10,18 +10,20 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, IntoTraitRef, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc,
-    TaskInput, TransientValue, TryJoinIterExt, Upcast, ValueDefault, ValueToString, Vc, emit,
-    trace::TraceRawVcs,
+    TaskInput, TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault,
+    ValueToString, Vc, emit, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
     asset::{Asset, AssetContent},
+    condition::ContextCondition,
     ident::{AssetIdent, Layer},
     source::Source,
     source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
@@ -29,7 +31,9 @@ use crate::{
 };
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput)]
+#[derive(
+    PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput, Serialize, Deserialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
     Bug,
@@ -79,7 +83,7 @@ impl Display for IssueSeverity {
 /// Represents a section of structured styled text. This can be interpreted and
 /// rendered by various UIs as appropriate, e.g. HTML for display on the web,
 /// ANSI sequences in TTYs.
-#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash)]
+#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
 #[turbo_tasks::value(shared)]
 pub enum StyledString {
     /// Multiple [StyledString]s concatenated into a single line. Each item is
@@ -231,6 +235,59 @@ where
 #[turbo_tasks::value(transparent)]
 pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
+#[derive(TaskInput, Hash, Eq, PartialEq, Copy, Clone, Encode, Decode, TraceRawVcs, Debug)]
+pub struct IssueFilter {
+    /// The minimum severity for issues
+    severity: IssueSeverity,
+    /// The minimum severity for issues in node_modules
+    foreign_severity: IssueSeverity,
+}
+
+impl IssueFilter {
+    pub const fn everything() -> Self {
+        Self {
+            severity: IssueSeverity::Info,
+            foreign_severity: IssueSeverity::Info,
+        }
+    }
+
+    pub const fn warnings_and_foreign_errors() -> Self {
+        Self {
+            severity: IssueSeverity::Warning,
+            foreign_severity: IssueSeverity::Error,
+        }
+    }
+
+    /// Returns true if the issue is allowed by this filter. issue
+    async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<bool> {
+        if *self == IssueFilter::everything() {
+            return Ok(true);
+        }
+        let severity = issue.into_trait_ref().await?.severity();
+        // NOTE: Lower severities are _more_ severe
+        Ok(
+            if severity <= self.severity || severity <= self.foreign_severity {
+                // we need to check the path to see if it is foreign or not.  Only await the path if
+                // it might possibly matter
+                if severity <= self.severity && severity <= self.foreign_severity {
+                    // it matches no matter where the path is
+                    true
+                } else {
+                    let path = issue.file_path().await?;
+                    if ContextCondition::InNodeModules.matches(&path) {
+                        severity <= self.foreign_severity
+                    } else {
+                        severity <= self.severity
+                    }
+                }
+            } else {
+                // it is too low severity to match either way
+                false
+            },
+        )
+    }
+}
+
 /// A list of issues captured with [`Issue::peek_issues_with_path`] and
 /// [`Issue::take_issues`].
 #[turbo_tasks::value(shared)]
@@ -266,12 +323,20 @@ impl CapturedIssues {
     }
 
     // Returns all the issues as formatted `PlainIssues`.
-    pub async fn get_plain_issues(&self) -> Result<Vec<ReadRef<PlainIssue>>> {
+    pub async fn get_plain_issues(&self, filter: IssueFilter) -> Result<Vec<ReadRef<PlainIssue>>> {
         let mut list = self
             .issues
             .iter()
-            .map(|issue| async move { PlainIssue::from_issue(**issue, Some(*self.tracer)).await })
-            .try_join()
+            .map(async |issue| {
+                if filter.matches(*issue).await? {
+                    Ok(Some(
+                        PlainIssue::from_issue(**issue, Some(*self.tracer)).await?,
+                    ))
+                } else {
+                    Ok(None)
+                }
+            })
+            .try_flat_join()
             .await?;
         list.sort();
         Ok(list)
@@ -279,17 +344,7 @@ impl CapturedIssues {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    Hash,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
+    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
@@ -298,17 +353,7 @@ pub struct IssueSource {
 
 /// The end position is the first character after the range
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    Hash,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
+    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
@@ -627,7 +672,7 @@ async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<P
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash)]
+#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
 pub enum IssueStage {
     Config,
     AppStructure,

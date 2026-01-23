@@ -48,6 +48,7 @@ export default globalIgnores([
   'examples/with-typescript-graphql/lib/gql/',
   'test/development/basic/hmr/components/parse-error.js',
   'test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx',
+  'test/production/debug-build-path/fixtures/with-compile-error/app/broken/page.tsx',
   'packages/next-swc/docs/assets/**/*',
   'test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js',
   'test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js',

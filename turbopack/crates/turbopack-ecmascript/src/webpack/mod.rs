@@ -6,7 +6,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
@@ -62,6 +62,11 @@ impl Module for WebpackModuleAsset {
     fn references(&self) -> Vc<ModuleReferences> {
         module_references(*self.source, *self.runtime, *self.transforms)
     }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -75,6 +80,7 @@ impl Asset for WebpackModuleAsset {
 #[turbo_tasks::value(shared)]
 pub struct WebpackChunkAssetReference {
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     pub chunk_id: Lit,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,

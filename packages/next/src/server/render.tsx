@@ -306,7 +306,7 @@ export type PagesSharedContext = {
   /**
    * The deployment ID if the user is deploying to a platform that provides one.
    */
-  deploymentId: string | undefined
+  deploymentId: string
 
   /**
    * True if the user is using a custom server.
@@ -1499,6 +1499,7 @@ export async function renderToHTMLImpl(
     docComponentsRendered,
     dangerousAsPath: router.asPath,
     isDevelopment: !!dev,
+    deploymentId: sharedContext.deploymentId,
     dynamicImports: Array.from(dynamicImports),
     dynamicCssManifest: new Set(renderOpts.dynamicCssManifest || []),
     assetPrefix,

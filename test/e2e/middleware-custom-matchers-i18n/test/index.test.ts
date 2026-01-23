@@ -4,22 +4,14 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { fetchViaHTTP } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, isNextDeploy, nextTestSetup } from 'e2e-utils'
 
 const itif = (condition: boolean) => (condition ? it : it.skip)
 
-const isModeDeploy = process.env.NEXT_TEST_MODE === 'deploy'
-
 describe('Middleware custom matchers i18n', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, '../app')),
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, '../app')),
   })
-  afterAll(() => next.destroy())
 
   it.each(['/hello', '/en/hello', '/nl-NL/hello', '/nl-NL/about'])(
     'should match %s',
@@ -41,7 +33,7 @@ describe('Middleware custom matchers i18n', () => {
 
   // FIXME:
   // See https://linear.app/vercel/issue/EC-160/header-value-set-on-middleware-is-not-propagated-on-client-request-of
-  itif(!isModeDeploy).each(['hello', 'en_hello', 'nl-NL_hello', 'nl-NL_about'])(
+  itif(!isNextDeploy).each(['hello', 'en_hello', 'nl-NL_hello', 'nl-NL_about'])(
     'should match has query on client routing %s',
     async (id) => {
       const browser = await webdriver(next.url, '/routes')
@@ -56,41 +48,37 @@ describe('Middleware custom matchers i18n', () => {
 })
 
 describe('Middleware custom matchers with root', () => {
-  let next: NextInstance
+  const { next, isNextDeploy } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, '../app', 'pages')),
+      'next.config.js': new FileRef(
+        join(__dirname, '../app', 'next.config.js')
+      ),
+      'middleware.js': `
+      import { NextResponse } from 'next/server'
+      
+      export const config = {
+        matcher: [
+          '/',
+          '/((?!api|_next/static|favicon|.well-known|auth|sitemap|robots.txt|files).*)',
+        ],
+      };
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, '../app', 'pages')),
-        'next.config.js': new FileRef(
-          join(__dirname, '../app', 'next.config.js')
-        ),
-        'middleware.js': `
-        import { NextResponse } from 'next/server'
-        
-        export const config = {
-          matcher: [
-            '/',
-            '/((?!api|_next/static|favicon|.well-known|auth|sitemap|robots.txt|files).*)',
-          ],
-        };
-  
-        export default function middleware(request) {
-          const nextUrl = request.nextUrl.clone()
-          nextUrl.pathname = '/'
-          const res = NextResponse.rewrite(nextUrl)
-          res.headers.set('X-From-Middleware', 'true')
-          return res
-        }`,
-      },
-    })
+      export default function middleware(request) {
+        const nextUrl = request.nextUrl.clone()
+        nextUrl.pathname = '/'
+        const res = NextResponse.rewrite(nextUrl)
+        res.headers.set('X-From-Middleware', 'true')
+        return res
+      }`,
+    },
   })
-  afterAll(() => next.destroy())
 
   it('should not match', async () => {
-    const res = await fetchViaHTTP(
-      next.url,
-      `/_next/static/${next.buildId}/_buildManifest.js`
+    const res = await next.fetch(
+      isNextDeploy
+        ? '/_next/static/_buildManifest.js'
+        : `/_next/static/${next.buildId}/_buildManifest.js`
     )
     expect(res.status).toBe(200)
     expect(res.headers.get('x-from-middleware')).toBeFalsy()

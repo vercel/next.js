@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"60079087479e4c103d815f273878c7d1b8e902cc39":"action3","70f14702b5a021dd117f7ec7a3c838f397c2046d3b":"action","7fc18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default","e03128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"60079087479e4c103d815f273878c7d1b8e902cc39":{"name":"action3"},"70f14702b5a021dd117f7ec7a3c838f397c2046d3b":{"name":"action"},"7fc18c215a6b7cdc64bf709f3a714ffdef1bf9651d":{"name":"default"},"e03128060c414d59f8552e4788b846c0d2b7f74743":{"name":"$$RSC_SERVER_CACHE_0"}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 // Should be 0 111000 0, which is "70" in hex.
@@ -31,7 +31,7 @@ const $$RSC_SERVER_CACHE_0_INNER = async function cache(a, b) {
     </div>;
 };
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function cache() {
-    return $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, arguments);
+    return $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, Array.prototype.slice.call(arguments, 0, 2));
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {

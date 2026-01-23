@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use futures::future::BoxFuture;
 use next_core::{
     PageLoaderAsset, create_page_loader_entry_module, get_asset_path_from_pathname,
@@ -26,7 +27,6 @@ use next_core::{
     segment_config::ParseSegmentMode,
     util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -39,7 +39,6 @@ use turbo_tasks_fs::{
 use turbopack::{
     ModuleAssetContext,
     module_options::ModuleOptionsContext,
-    resolve_options_context::ResolveOptionsContext,
     transition::{FullContextTransition, Transition, TransitionOptions},
 };
 use turbopack_core::{
@@ -64,8 +63,8 @@ use turbopack_core::{
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::resolve::esm_resolve;
 use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_resolve::{ecmascript::esm_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
     dynamic_imports::{
@@ -586,17 +585,7 @@ struct PageEndpoint {
 }
 
 #[derive(
-    Copy,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
+    Copy, Clone, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 enum PageEndpointType {
     Api,
@@ -608,18 +597,14 @@ enum PageEndpointType {
     SsrOnly,
 }
 
-#[derive(
-    Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs, Encode, Decode)]
 enum SsrChunkType {
     Page,
     Data,
     Api,
 }
 
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TaskInput, TraceRawVcs,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
 enum EmitManifests {
     /// Don't emit any manifests
     None,
@@ -728,7 +713,10 @@ impl PageEndpoint {
 
         if *project.per_page_module_graph().await? {
             let next_mode = project.next_mode();
-            let should_trace = next_mode.await?.is_production();
+            let next_mode_ref = next_mode.await?;
+            let should_trace = next_mode_ref.is_production();
+            let should_read_binding_usage = next_mode_ref.is_production();
+
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
             // page
@@ -745,33 +733,34 @@ impl PageEndpoint {
                     vec![ChunkGroupEntry::Shared(module)],
                     visited_modules,
                     should_trace,
+                    should_read_binding_usage,
                 );
                 graphs.push(graph);
-                visited_modules = visited_modules.concatenate(graph);
+                visited_modules = VisitedModules::concatenate(visited_modules, graph);
             }
 
             let graph = SingleModuleGraph::new_with_entries_visited_intern(
                 vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
                 visited_modules,
                 should_trace,
+                should_read_binding_usage,
             );
             graphs.push(graph);
 
-            let mut graph = ModuleGraph::from_graphs(graphs);
-
-            if *project
+            let remove_unused_imports = *project
                 .next_config()
                 .turbopack_remove_unused_imports(next_mode)
-                .await?
-            {
-                graph = graph.without_unused_references(
-                    *compute_binding_usage_info(graph.to_resolved().await?, true)
-                        .resolve_strongly_consistent()
-                        .await?,
-                );
-            }
+                .await?;
 
-            Ok(graph)
+            let graph = if remove_unused_imports {
+                let graph = ModuleGraph::from_graphs(graphs.clone());
+                let binding_usage_info = compute_binding_usage_info(graph, true);
+                ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info)
+            } else {
+                ModuleGraph::from_graphs(graphs)
+            };
+
+            Ok(graph.connect())
         } else {
             Ok(*project.whole_app_module_graphs().await?.full)
         }
@@ -882,40 +871,23 @@ impl PageEndpoint {
                     runtime: NextRuntime::NodeJs,
                     regions: config.preferred_region.clone(),
                 }
-            } else if runtime == NextRuntime::Edge {
-                let modules = create_page_ssr_entry_module(
-                    this.pathname.clone(),
-                    reference_type,
-                    project_root,
-                    Vc::upcast(edge_module_context),
-                    self.source(),
-                    this.original_name.clone(),
-                    *this.pages_structure,
-                    runtime,
-                    this.pages_project.project().next_config(),
-                )
-                .await?;
-
-                InternalSsrChunkModule {
-                    ssr_module: modules.ssr_module,
-                    app_module: modules.app_module,
-                    document_module: modules.document_module,
-                    runtime,
-                    regions: config.preferred_region.clone(),
-                }
             } else {
                 let modules = create_page_ssr_entry_module(
                     this.pathname.clone(),
                     reference_type,
                     project_root,
-                    Vc::upcast(module_context),
+                    if runtime == NextRuntime::Edge {
+                        Vc::upcast(edge_module_context)
+                    } else {
+                        Vc::upcast(module_context)
+                    },
                     self.source(),
                     this.original_name.clone(),
                     *this.pages_structure,
                     runtime,
-                    this.pages_project.project().next_config(),
                 )
                 .await?;
+
                 InternalSsrChunkModule {
                     ssr_module: modules.ssr_module,
                     app_module: modules.app_module,
@@ -1096,11 +1068,15 @@ impl PageEndpoint {
                     .is_production()
                 {
                     let additional_assets = if emit_manifests == EmitManifests::Full {
-                        self.react_loadable_manifest(*dynamic_import_entries, NextRuntime::NodeJs)
-                            .await?
-                            .iter()
-                            .map(|m| **m)
-                            .collect()
+                        self.react_loadable_manifest(
+                            *dynamic_import_entries,
+                            project.client_chunking_context(),
+                            NextRuntime::NodeJs,
+                        )
+                        .await?
+                        .iter()
+                        .map(|m| **m)
+                        .collect()
                     } else {
                         vec![]
                     };
@@ -1224,6 +1200,7 @@ impl PageEndpoint {
     async fn react_loadable_manifest(
         &self,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         runtime: NextRuntime,
     ) -> Result<Vc<OutputAssets>> {
         let node_root = self.pages_project.project().node_root().owned().await?;
@@ -1236,6 +1213,7 @@ impl PageEndpoint {
         let loadable_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
         Ok(create_react_loadable_manifest(
             dynamic_import_entries,
+            chunking_context,
             client_relative_path,
             node_root.join(&format!(
                 "server/pages{loadable_path_prefix}/react-loadable-manifest",
@@ -1416,8 +1394,11 @@ impl PageEndpoint {
                     server_assets.push(pages_manifest);
                 }
                 if emit_manifests == EmitManifests::Full {
-                    let loadable_manifest_output =
-                        self.react_loadable_manifest(*dynamic_import_entries, NextRuntime::NodeJs);
+                    let loadable_manifest_output = self.react_loadable_manifest(
+                        *dynamic_import_entries,
+                        this.pages_project.project().client_chunking_context(),
+                        NextRuntime::NodeJs,
+                    );
                     server_assets.extend(loadable_manifest_output.await?.iter().copied());
                 }
 
@@ -1449,6 +1430,16 @@ impl PageEndpoint {
                         fxindexset![]
                     };
 
+                    if this
+                        .pages_project
+                        .project()
+                        .next_mode()
+                        .await?
+                        .is_production()
+                    {
+                        file_paths_from_root.insert(rcstr!("required-server-files.js"));
+                    }
+
                     let all_assets = assets.concatenate(*referenced_assets);
                     let assets_ref = assets.await?;
 
@@ -1471,7 +1462,11 @@ impl PageEndpoint {
 
                     if emit_manifests == EmitManifests::Full {
                         let loadable_manifest_output = self
-                            .react_loadable_manifest(*dynamic_import_entries, NextRuntime::Edge)
+                            .react_loadable_manifest(
+                                *dynamic_import_entries,
+                                this.pages_project.project().client_chunking_context(),
+                                NextRuntime::Edge,
+                            )
                             .await?;
                         if pages_structure.should_create_pages_entries {
                             server_assets.extend(loadable_manifest_output.iter().copied());

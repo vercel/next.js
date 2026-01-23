@@ -21,7 +21,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::Layer,
     issue::{IssueExt, IssueSeverity, StyledString},
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ResolveResult,
@@ -37,22 +37,25 @@ use turbopack_node::{
     execution_context::ExecutionContext,
 };
 
-use self::{
-    font_fallback::get_font_fallback,
-    options::{FontDataEntry, FontWeights, NextFontGoogleOptions, options_from_request},
-    stylesheet::build_stylesheet,
-    util::{get_font_axes, get_stylesheet_url},
-};
-use super::{
-    font_fallback::FontFallback,
-    util::{
-        FontCssProperties, FontFamilyType, can_use_next_font, get_request_hash, get_request_id,
-        get_scoped_font_family,
-    },
-};
 use crate::{
-    embed_js::next_js_file_path, mode::NextMode, next_app::metadata::split_extension,
-    next_font::issue::NextFontIssue, util::load_next_js_json_file,
+    embed_js::next_js_file_path,
+    mode::NextMode,
+    next_app::metadata::split_extension,
+    next_font::{
+        font_fallback::FontFallback,
+        google::{
+            font_fallback::get_font_fallback,
+            options::{FontDataEntry, FontWeights, NextFontGoogleOptions, options_from_request},
+            stylesheet::build_stylesheet,
+            util::{get_font_axes, get_stylesheet_url},
+        },
+        issue::NextFontIssue,
+        util::{
+            FontCssProperties, FontFamilyType, can_use_next_font, get_request_hash, get_request_id,
+            get_scoped_font_family,
+        },
+    },
+    util::load_next_js_json_file,
 };
 
 pub mod font_fallback;
@@ -74,7 +77,8 @@ pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac
 pub const GOOGLE_FONTS_INTERNAL_PREFIX: &str = "@vercel/turbopack-next/internal/font/google/font";
 
 #[turbo_tasks::value(transparent)]
-struct FontData(FxIndexMap<RcStr, FontDataEntry>);
+#[derive(Deserialize)]
+struct FontData(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, FontDataEntry>);
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {
@@ -756,7 +760,12 @@ async fn get_mock_stylesheet(
         .module();
 
     let entries = get_evaluate_entries(mocked_response_asset, asset_context, None);
-    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+        entries.graph_entries().to_resolved().await?,
+        false,
+        false,
+    ));
+    let module_graph = module_graph.connect();
 
     let root = mock_fs.root().owned().await?;
     let val = evaluate(

@@ -52,7 +52,6 @@ export function generateInterceptionRoutesRewrites(
             value: headerRegex,
           },
         ],
-        internal: true,
         regex: source.namedRegex,
       })
     }

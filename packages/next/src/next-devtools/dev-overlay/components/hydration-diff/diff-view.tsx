@@ -118,14 +118,24 @@ export function PseudoHtmlDiff({
       data-nextjs-container-errors-pseudo-html
       data-nextjs-container-errors-pseudo-html-collapse={isDiffCollapsed}
     >
-      <button
-        aria-expanded={!isDiffCollapsed}
-        aria-label="complete Component Stack"
-        data-nextjs-container-errors-pseudo-html-collapse-button
-        onClick={() => toggleCollapseHtml(!isDiffCollapsed)}
-      >
-        <CollapseIcon collapsed={isDiffCollapsed} />
-      </button>
+      <div data-nextjs-hydration-diff-header>
+        <button
+          aria-expanded={!isDiffCollapsed}
+          aria-label="complete Component Stack"
+          data-nextjs-container-errors-pseudo-html-collapse-button
+          onClick={() => toggleCollapseHtml(!isDiffCollapsed)}
+        >
+          <CollapseIcon collapsed={isDiffCollapsed} />
+        </button>
+        <div data-nextjs-hydration-diff-badge>
+          <span data-nextjs-hydration-diff-badge-item="client">
+            <span>+</span> Client
+          </span>
+          <span data-nextjs-hydration-diff-badge-item="server">
+            <span>-</span> Server
+          </span>
+        </div>
+      </div>
       <pre className="nextjs__container_errors__component-stack">
         <code>{htmlComponents}</code>
       </pre>

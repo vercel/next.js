@@ -72,9 +72,17 @@ function _ts_generator(thisArg, body) {
         },
         trys: [],
         ops: []
-    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
-    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() {
-        return this;
+    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype), d = Object.defineProperty;
+    return d(g, "next", {
+        value: verb(0)
+    }), d(g, "throw", {
+        value: verb(1)
+    }), d(g, "return", {
+        value: verb(2)
+    }), typeof Symbol === "function" && d(g, Symbol.iterator, {
+        value: function() {
+            return this;
+        }
     }), g;
     function verb(n) {
         return function(v) {
@@ -474,9 +482,29 @@ function commonJsRequire(id) {
 }
 contextPrototype.r = commonJsRequire;
 /**
+ * Remove fragments and query parameters since they are never part of the context map keys
+ *
+ * This matches how we parse patterns at resolving time.  Arguably we should only do this for
+ * strings passed to `import` but the resolve does it for `import` and `require` and so we do
+ * here as well.
+ */ function parseRequest(request) {
+    // Per the URI spec fragments can contain `?` characters, so we should trim it off first
+    // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
+    var hashIndex = request.indexOf('#');
+    if (hashIndex !== -1) {
+        request = request.substring(0, hashIndex);
+    }
+    var queryIndex = request.indexOf('?');
+    if (queryIndex !== -1) {
+        request = request.substring(0, queryIndex);
+    }
+    return request;
+}
+/**
  * `require.context` and require/import expression runtime.
  */ function moduleContext(map) {
     function moduleContext(id) {
+        id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
             return map[id].module();
         }
@@ -488,6 +516,7 @@ contextPrototype.r = commonJsRequire;
         return Object.keys(map);
     };
     moduleContext.resolve = function(id) {
+        id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
             return map[id].id();
         }
@@ -733,13 +762,13 @@ function applyModuleFactoryName(factory) {
 }
 /**
  * This file contains runtime types and functions that are shared between all
- * Turbopack *development* ECMAScript runtimes.
+ * Turbopack *browser* ECMAScript runtimes.
  *
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime-utils.ts" />
-// Used in WebWorkers to tell the runtime about the chunk base path
+// Used in WebWorkers to tell the runtime about the chunk suffix
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -778,9 +807,17 @@ function _ts_generator(thisArg, body) {
         },
         trys: [],
         ops: []
-    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
-    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() {
-        return this;
+    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype), d = Object.defineProperty;
+    return d(g, "next", {
+        value: verb(0)
+    }), d(g, "throw", {
+        value: verb(1)
+    }), d(g, "return", {
+        value: verb(2)
+    }), typeof Symbol === "function" && d(g, Symbol.iterator, {
+        value: function() {
+            return this;
+        }
     }), g;
     function verb(n) {
         return function(v) {
@@ -1096,7 +1133,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
     var entry = instrumentedBackendLoadChunks.get(thenable);
     if (entry === undefined) {
         var resolve = instrumentedBackendLoadChunks.set.bind(instrumentedBackendLoadChunks, thenable, loadedChunk);
-        entry = thenable.then(resolve).catch(function(error) {
+        entry = thenable.then(resolve).catch(function(cause) {
             var loadReason;
             switch(sourceType){
                 case 0:
@@ -1113,9 +1150,11 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
                         return `Unknown source type: ${sourceType}`;
                     });
             }
-            throw new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${error ? `: ${error}` : ''}`, error ? {
-                cause: error
+            var error = new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${cause ? `: ${cause}` : ''}`, cause ? {
+                cause: cause
             } : undefined);
+            error.name = 'ChunkLoadError';
+            throw error;
         });
         instrumentedBackendLoadChunks.set(thenable, entry);
     }
@@ -1129,9 +1168,9 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
 /**
  * Returns an absolute url to an asset.
  */ function resolvePathFromModule(moduleId) {
+    var _ref;
     var exported = this.r(moduleId);
-    var _exported_default;
-    return (_exported_default = exported === null || exported === void 0 ? void 0 : exported.default) !== null && _exported_default !== void 0 ? _exported_default : exported;
+    return (_ref = exported === null || exported === void 0 ? void 0 : exported.default) !== null && _ref !== void 0 ? _ref : exported;
 }
 browserContextPrototype.R = resolvePathFromModule;
 /**
@@ -1142,23 +1181,31 @@ browserContextPrototype.R = resolvePathFromModule;
 }
 browserContextPrototype.P = resolveAbsolutePath;
 /**
- * Returns a blob URL for the worker.
- * @param chunks list of chunks to load
- */ function getWorkerBlobURL(chunks) {
-    // It is important to reverse the array so when bootstrapping we can infer what chunk is being
-    // evaluated by poping urls off of this array.  See `getPathFromScript`
-    var bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
-self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
-self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
-importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c + self.TURBOPACK_CHUNK_SUFFIX).reverse());`;
-    var blob = new Blob([
-        bootstrap
-    ], {
-        type: 'text/javascript'
-    });
-    return URL.createObjectURL(blob);
+ * Returns a URL for the worker.
+ * The entrypoint is a pre-compiled worker runtime file. The params configure
+ * which module chunks to load and which module to run as the entry point.
+ *
+ * @param entrypoint URL path to the worker entrypoint chunk
+ * @param moduleChunks list of module chunk paths to load
+ * @param shared whether this is a SharedWorker (uses querystring for URL identity)
+ */ function getWorkerURL(entrypoint, moduleChunks, shared) {
+    var url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
+    var params = {
+        S: CHUNK_SUFFIX,
+        N: globalThis.NEXT_DEPLOYMENT_ID,
+        NC: moduleChunks.map(function(chunk) {
+            return getChunkRelativeUrl(chunk);
+        })
+    };
+    var paramsJson = JSON.stringify(params);
+    if (shared) {
+        url.searchParams.set('params', paramsJson);
+    } else {
+        url.hash = '#params=' + encodeURIComponent(paramsJson);
+    }
+    return url;
 }
-browserContextPrototype.b = getWorkerBlobURL;
+browserContextPrototype.b = getWorkerURL;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
@@ -1271,13 +1318,6 @@ function registerChunk(registration) {
     }
     return BACKEND.registerChunk(chunkPath, runtimeParams);
 }
-/**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript DOM runtime.
- *
- * It will be appended to the base development runtime code.
- */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
-/// <reference path="../../../shared/runtime-types.d.ts" />
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -1316,9 +1356,17 @@ function _ts_generator(thisArg, body) {
         },
         trys: [],
         ops: []
-    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
-    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() {
-        return this;
+    }, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype), d = Object.defineProperty;
+    return d(g, "next", {
+        value: verb(0)
+    }), d(g, "throw", {
+        value: verb(1)
+    }), d(g, "return", {
+        value: verb(2)
+    }), typeof Symbol === "function" && d(g, Symbol.iterator, {
+        value: function() {
+            return this;
+        }
     }), g;
     function verb(n) {
         return function(v) {
@@ -1397,6 +1445,18 @@ function _ts_generator(thisArg, body) {
             done: true
         };
     }
+}
+/**
+ * This file contains the runtime code specific to the Turbopack ECMAScript DOM runtime.
+ *
+ * It will be appended to the base runtime code.
+ */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
+/// <reference path="../../../shared/runtime-types.d.ts" />
+function getChunkSuffixFromScriptSrc() {
+    var _self_TURBOPACK_CHUNK_SUFFIX;
+    var _document_currentScript_getAttribute, _document_currentScript_getAttribute1, _document_currentScript, _document;
+    // TURBOPACK_CHUNK_SUFFIX is set in web workers
+    return ((_self_TURBOPACK_CHUNK_SUFFIX = self.TURBOPACK_CHUNK_SUFFIX) !== null && _self_TURBOPACK_CHUNK_SUFFIX !== void 0 ? _self_TURBOPACK_CHUNK_SUFFIX : (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute1 = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute1 === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript_getAttribute1.call(_document_currentScript, 'src')) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
 }
 var BACKEND;
 /**
@@ -1578,7 +1638,7 @@ var BACKEND;
             // ignore
             } else if (isJs(chunkUrl)) {
                 self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
-                importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
+                importScripts(chunkUrl);
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }

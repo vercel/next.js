@@ -4,36 +4,38 @@ use std::{
     hash::Hash,
     mem::take,
     num::NonZeroU32,
-    ops::ControlFlow,
+    ops::{ControlFlow, Deref},
+    sync::Arc,
     thread::yield_now,
     time::{Duration, Instant},
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use ringmap::RingSet;
 use rustc_hash::{FxBuildHasher, FxHashMap};
-use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 use smallvec::{SmallVec, smallvec};
+#[cfg(feature = "trace_aggregation_update_queue")]
+use tracing::span::Span;
 #[cfg(any(
     feature = "trace_aggregation_update",
     feature = "trace_find_and_schedule"
 ))]
-use tracing::{span::Span, trace_span};
-use turbo_tasks::{FxIndexMap, SessionId, TaskExecutionReason, TaskId};
+use tracing::trace_span;
+use turbo_tasks::{
+    FxIndexMap, TaskExecutionReason, TaskId, backend::CachedTaskType, event::EventDescription,
+};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
-        TaskDataCategory, get_mut, get_mut_or_insert_with,
+        TaskDataCategory,
         operation::{ExecuteContext, Operation, TaskGuard, invalidate::make_task_dirty},
-        storage::{count, get, get_many, iter_many, remove, update, update_count},
+        storage_schema::TaskStorageAccessors,
     },
-    data::{
-        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CollectibleRef, DirtyContainerCount,
-    },
+    data::{ActivenessState, AggregationNumber, CollectibleRef},
     utils::swap_retain,
 };
 
@@ -44,6 +46,7 @@ const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
 
 type TaskIdVec = SmallVec<[TaskId; 4]>;
+type TaskIdWithCountVec = SmallVec<[(TaskId, u32); 2]>;
 
 /// Returns true, when a node is aggregating its children and a partial subgraph.
 pub fn is_aggregating_node(aggregation_number: u32) -> bool {
@@ -61,9 +64,9 @@ fn get_followers_with_aggregation_number(
     aggregation_number: u32,
 ) -> TaskIdVec {
     if is_aggregating_node(aggregation_number) {
-        get_many!(task, Follower { task } count if *count > 0 => task)
+        task.iter_followers().map(|(&id, _count)| id).collect()
     } else {
-        get_many!(task, Child { task } => task)
+        task.iter_children().collect()
     }
 }
 
@@ -76,24 +79,94 @@ fn get_followers(task: &impl TaskGuard) -> TaskIdVec {
 /// Returns a list of tasks that are considered as "upper" tasks of the task. The upper tasks are
 /// aggregating over the task.
 pub fn get_uppers(task: &impl TaskGuard) -> TaskIdVec {
-    get_many!(task, Upper { task } count if *count > 0 => task)
-}
-
-/// Returns an iterator of tasks that are considered as "upper" tasks of the task. See `get_uppers`
-fn iter_uppers<'a>(task: &'a (impl TaskGuard + 'a)) -> impl Iterator<Item = TaskId> + 'a {
-    iter_many!(task, Upper { task } count if *count > 0 => task)
+    task.iter_upper().map(|(&id, _count)| id).collect()
 }
 
 /// Returns the aggregation number of the task.
 pub fn get_aggregation_number(task: &impl TaskGuard) -> u32 {
-    get!(task, AggregationNumber)
+    task.get_aggregation_number()
         .map(|a| a.effective)
         .unwrap_or_default()
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Debug)]
+pub struct ComputeDirtyAndCleanUpdate {
+    pub old_dirty_container_count: i32,
+    pub new_dirty_container_count: i32,
+    pub old_current_session_clean_container_count: i32,
+    pub new_current_session_clean_container_count: i32,
+    pub old_self_dirty: bool,
+    pub new_self_dirty: bool,
+    pub old_current_session_self_clean: bool,
+    pub new_current_session_self_clean: bool,
+}
+
+pub struct ComputeDirtyAndCleanUpdateResult {
+    pub dirty_count_update: i32,
+    pub current_session_clean_update: i32,
+}
+
+impl ComputeDirtyAndCleanUpdate {
+    pub fn compute(self) -> ComputeDirtyAndCleanUpdateResult {
+        let ComputeDirtyAndCleanUpdate {
+            old_dirty_container_count,
+            new_dirty_container_count,
+            old_current_session_clean_container_count,
+            new_current_session_clean_container_count,
+            old_self_dirty,
+            new_self_dirty,
+            old_current_session_self_clean,
+            new_current_session_self_clean,
+        } = self;
+        let was_dirty_without_clean = old_self_dirty || old_dirty_container_count > 0;
+        let is_dirty_without_clean = new_self_dirty || new_dirty_container_count > 0;
+        let was_dirty = old_self_dirty && !old_current_session_self_clean
+            || old_dirty_container_count > 0
+                && old_dirty_container_count > old_current_session_clean_container_count;
+        let is_dirty = new_self_dirty && !new_current_session_self_clean
+            || new_dirty_container_count > 0
+                && new_dirty_container_count > new_current_session_clean_container_count;
+        let was_flagged_clean = was_dirty_without_clean && !was_dirty;
+        let is_flagged_clean = is_dirty_without_clean && !is_dirty;
+
+        fn before_after_to_diff_value(before: bool, after: bool) -> i32 {
+            match (before, after) {
+                (true, false) => -1,
+                (false, true) => 1,
+                _ => 0,
+            }
+        }
+        let dirty_count_update =
+            before_after_to_diff_value(was_dirty_without_clean, is_dirty_without_clean);
+        let current_session_clean_update =
+            before_after_to_diff_value(was_flagged_clean, is_flagged_clean);
+
+        ComputeDirtyAndCleanUpdateResult {
+            dirty_count_update,
+            current_session_clean_update,
+        }
+    }
+}
+
+impl ComputeDirtyAndCleanUpdateResult {
+    pub fn aggregated_update(&self, task_id: TaskId) -> Option<AggregatedDataUpdate> {
+        if self.dirty_count_update != 0 || self.current_session_clean_update != 0 {
+            Some(AggregatedDataUpdate::new().dirty_container_update(
+                task_id,
+                self.dirty_count_update,
+                self.current_session_clean_update,
+            ))
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Encode, Decode, Clone, Debug)]
 pub struct InnerOfUppersHasNewFollowersJob {
+    #[bincode(with = "turbo_bincode::smallvec")]
     pub upper_ids: TaskIdVec,
+    #[bincode(with = "turbo_bincode::smallvec")]
     pub new_follower_ids: TaskIdVec,
 }
 
@@ -103,9 +176,11 @@ impl From<InnerOfUppersHasNewFollowersJob> for AggregationUpdateJob {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub struct InnerOfUppersLostFollowersJob {
+    #[bincode(with = "turbo_bincode::smallvec")]
     pub upper_ids: TaskIdVec,
+    #[bincode(with = "turbo_bincode::smallvec")]
     pub lost_follower_ids: TaskIdVec,
 }
 
@@ -115,7 +190,7 @@ impl From<InnerOfUppersLostFollowersJob> for AggregationUpdateJob {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub struct AggregatedDataUpdateJob {
     pub upper_ids: TaskIdVec,
     pub update: AggregatedDataUpdate,
@@ -128,7 +203,7 @@ impl From<AggregatedDataUpdateJob> for AggregationUpdateJob {
 }
 
 /// A job in the job queue for updating something in the aggregated graph.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub enum AggregationUpdateJob {
     /// Update the aggregation number of a task. This might result in balancing needed to update
     /// "upper" and "follower" edges.
@@ -147,10 +222,20 @@ pub enum AggregationUpdateJob {
         upper_ids: TaskIdVec,
         new_follower_id: TaskId,
     },
+    /// Notifies multiple upper tasks that one of its inner tasks has a new follower.
+    InnerOfUppersHasNewFollowerWithCount {
+        upper_ids: TaskIdWithCountVec,
+        new_follower_id: TaskId,
+    },
     /// Notifies an upper task that one of its inner tasks has new followers.
     InnerOfUpperHasNewFollowers {
         upper_id: TaskId,
         new_follower_ids: TaskIdVec,
+    },
+    /// Notifies an upper task that one of its inner tasks has new followers.
+    InnerOfUpperHasNewFollowersWithCount {
+        upper_id: TaskId,
+        new_follower_ids: TaskIdWithCountVec,
     },
     /// Notifies multiple upper tasks that one of its inner tasks has new followers.
     InnerOfUppersHasNewFollowers(Box<InnerOfUppersHasNewFollowersJob>),
@@ -177,23 +262,39 @@ pub enum AggregationUpdateJob {
         collectible_type: turbo_tasks::TraitTypeId,
     },
     /// Increases the active counter of the task
-    #[serde(skip)]
-    IncreaseActiveCount { task: TaskId },
+    IncreaseActiveCount {
+        // TODO: bgw: Add a way to skip the entire enum variant in bincode (generating an error
+        // upon attempted serialization) similar to #[serde(skip)] on variants
+        #[bincode(skip, default = "unreachable_decode")]
+        task: TaskId,
+        /// Set the task type if not already set
+        task_type: Option<Arc<CachedTaskType>>,
+    },
     /// Increases the active counters of the tasks
-    #[serde(skip)]
-    IncreaseActiveCounts { task_ids: TaskIdVec },
+    IncreaseActiveCounts {
+        #[bincode(skip, default = "unreachable_decode")]
+        task_ids: TaskIdVec,
+    },
     /// Decreases the active counter of the task
-    #[serde(skip)]
-    DecreaseActiveCount { task: TaskId },
+    DecreaseActiveCount {
+        #[bincode(skip, default = "unreachable_decode")]
+        task: TaskId,
+    },
     /// Decreases the active counters of the tasks
-    #[serde(skip)]
-    DecreaseActiveCounts { task_ids: TaskIdVec },
+    DecreaseActiveCounts {
+        #[bincode(skip, default = "unreachable_decode")]
+        task_ids: TaskIdVec,
+    },
     /// Balances the edges of the graph. This checks if the graph invariant is still met for this
     /// edge and coverts a upper edge to a follower edge or vice versa. Balancing might triggers
     /// more changes to the structure.
     BalanceEdge { upper_id: TaskId, task_id: TaskId },
     /// Does nothing. This is used to filter out transient jobs during serialization.
     Noop,
+}
+
+fn unreachable_decode<T>() -> T {
+    unreachable!("AggregatedDataUpdateJob variant should not have been encoded, cannot decode")
 }
 
 impl AggregationUpdateJob {
@@ -216,11 +317,34 @@ impl AggregationUpdateJob {
     }
 }
 
+#[derive(Default, Encode, Decode, Clone, Copy, Debug)]
+#[bincode(decode_bounds = "T: Default", borrow_decode_bounds = "T: Default")]
+pub struct SessionDependent<T> {
+    #[bincode(skip)]
+    pub value: T,
+}
+
+impl<T> SessionDependent<T> {
+    pub fn new(value: T) -> Self {
+        Self { value }
+    }
+}
+
+impl<T> Deref for SessionDependent<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
 /// Aggregated data update.
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Encode, Decode, Clone, Debug)]
 pub struct AggregatedDataUpdate {
     /// One of the inner tasks has changed its dirty state or aggregated dirty state.
-    dirty_container_update: Option<(TaskId, DirtyContainerCount)>,
+    /// (task id, dirty update, current session clean update)
+    // TODO Serialize the current session clean update as 0
+    dirty_container_update: Option<(TaskId, i32, SessionDependent<i32>)>,
     /// One of the inner tasks has changed its collectibles count or aggregated collectibles count.
     collectibles_update: Vec<(CollectibleRef, i32)>,
 }
@@ -230,40 +354,42 @@ impl AggregatedDataUpdate {
     /// upper task.
     fn from_task(task: &mut impl TaskGuard) -> Self {
         let aggregation = get_aggregation_number(task);
-        let mut dirty_container_count = Default::default();
+        let mut dirty_count = 0;
+        let mut current_session_clean_count = 0;
         let mut collectibles_update: Vec<_> =
-            get_many!(task, Collectible { collectible } count => (collectible, *count));
+            task.iter_collectibles().map(|(&k, &v)| (k, v)).collect();
         if is_aggregating_node(aggregation) {
-            dirty_container_count = get!(task, AggregatedDirtyContainerCount)
-                .cloned()
+            dirty_count = task
+                .get_aggregated_dirty_container_count()
+                .copied()
                 .unwrap_or_default();
-            let collectibles = iter_many!(
-                task,
-                AggregatedCollectible {
-                    collectible
-                } count if *count > 0 => {
-                    collectible
+            current_session_clean_count = task
+                .get_aggregated_current_session_clean_container_count()
+                .copied()
+                .unwrap_or_default();
+            for (collectible, count) in task.iter_aggregated_collectibles() {
+                if *count > 0 {
+                    collectibles_update.push((*collectible, 1));
                 }
-            );
-            for collectible in collectibles {
-                collectibles_update.push((collectible, 1));
             }
         }
-        if let Some(dirty) = get!(task, Dirty) {
-            dirty_container_count.update_with_dirty_state(dirty);
+        let (dirty, current_session_clean) = task.dirty_state();
+        if dirty {
+            dirty_count += 1;
+        }
+        if current_session_clean {
+            current_session_clean_count += 1;
         }
 
         let mut result = Self::new().collectibles_update(collectibles_update);
-        if !dirty_container_count.is_zero() {
-            let DirtyContainerCount {
-                count,
-                count_in_session,
-            } = dirty_container_count;
+        if dirty_count > 0 {
             result = result.dirty_container_update(
                 task.id(),
-                DirtyContainerCount {
-                    count: if count > 0 { 1 } else { 0 },
-                    count_in_session: count_in_session.map(|(s, c)| (s, if c > 0 { 1 } else { 0 })),
+                if dirty_count > 0 { 1 } else { 0 },
+                if dirty_count > 0 && dirty_count - current_session_clean_count <= 0 {
+                    1
+                } else {
+                    0
                 },
             );
         }
@@ -276,8 +402,9 @@ impl AggregatedDataUpdate {
             dirty_container_update,
             collectibles_update,
         } = &mut self;
-        if let Some((_, value)) = dirty_container_update.as_mut() {
-            *value = value.negate()
+        if let Some((_, value, current_session_clean_update)) = dirty_container_update.as_mut() {
+            *value = -*value;
+            current_session_clean_update.value = -current_session_clean_update.value;
         }
         for (_, value) in collectibles_update.iter_mut() {
             *value = -*value;
@@ -290,67 +417,153 @@ impl AggregatedDataUpdate {
     fn apply(
         &self,
         task: &mut impl TaskGuard,
-        session_id: SessionId,
         should_track_activeness: bool,
         queue: &mut AggregationUpdateQueue,
     ) -> AggregatedDataUpdate {
+        fn before_after_to_diff_value(before: bool, after: bool) -> i32 {
+            match (before, after) {
+                (true, false) => -1,
+                (false, true) => 1,
+                _ => 0,
+            }
+        }
+
         let Self {
             dirty_container_update,
             collectibles_update,
         } = self;
         let mut result = Self::default();
-        if let Some((dirty_container_id, count)) = dirty_container_update {
+        if let &Some((dirty_container_id, count, current_session_clean_update)) =
+            dirty_container_update
+        {
             if should_track_activeness {
                 // When a dirty container count is increased and the task is considered as active
                 // we need to schedule the dirty tasks in the new dirty container
-                let current_session_update = count.get(session_id);
-                if current_session_update > 0 && task.has_key(&CachedDataItemKey::Activeness {}) {
-                    queue.push_find_and_schedule_dirty(*dirty_container_id)
+                let current_session_update = count - *current_session_clean_update;
+                if current_session_update > 0 && task.has_activeness() {
+                    queue.push_find_and_schedule_dirty(dirty_container_id)
                 }
             }
 
-            let mut aggregated_update = DirtyContainerCount::default();
-            update!(
-                task,
-                AggregatedDirtyContainer {
-                    task: *dirty_container_id
-                },
-                |old: Option<DirtyContainerCount>| {
-                    let mut new = old.unwrap_or_default();
-                    aggregated_update = new.update_count(count);
-                    (!new.is_zero()).then_some(new)
-                }
-            );
+            // Update AggregatedDirtyContainer and compute aggregated update
+            let mut dirty_container_count_update = 0;
+            let old_dirty_single_container_count;
+            let new_dirty_single_container_count;
+            if count != 0 {
+                new_dirty_single_container_count =
+                    task.update_and_get_aggregated_dirty_containers(dirty_container_id, count);
+                old_dirty_single_container_count = new_dirty_single_container_count - count;
+                dirty_container_count_update = before_after_to_diff_value(
+                    old_dirty_single_container_count > 0,
+                    new_dirty_single_container_count > 0,
+                );
+            } else {
+                new_dirty_single_container_count = task
+                    .get_aggregated_dirty_containers(&dirty_container_id)
+                    .copied()
+                    .unwrap_or_default();
+                old_dirty_single_container_count = new_dirty_single_container_count;
+            }
 
-            if !aggregated_update.is_zero() {
-                let dirty_state = get!(task, Dirty).copied();
+            // Update AggregatedSessionDependentCleanContainer
+            let old_single_container_current_session_clean_count;
+            let new_single_container_current_session_clean_count;
+            if *current_session_clean_update != 0 {
+                new_single_container_current_session_clean_count = task
+                    .update_and_get_aggregated_current_session_clean_containers(
+                        dirty_container_id,
+                        *current_session_clean_update,
+                    );
+                old_single_container_current_session_clean_count =
+                    new_single_container_current_session_clean_count
+                        - *current_session_clean_update;
+            } else {
+                new_single_container_current_session_clean_count = task
+                    .get_aggregated_current_session_clean_containers(&dirty_container_id)
+                    .copied()
+                    .unwrap_or_default();
+                old_single_container_current_session_clean_count =
+                    new_single_container_current_session_clean_count;
+            }
+
+            // compute aggregated update
+            let was_single_container_clean = old_dirty_single_container_count > 0
+                && old_dirty_single_container_count
+                    <= old_single_container_current_session_clean_count;
+            let is_single_container_clean = new_dirty_single_container_count > 0
+                && new_dirty_single_container_count
+                    <= new_single_container_current_session_clean_count;
+            let current_session_clean_update =
+                before_after_to_diff_value(was_single_container_clean, is_single_container_clean);
+
+            if dirty_container_count_update != 0 || current_session_clean_update != 0 {
+                let (is_self_dirty, current_session_self_clean) = task.dirty_state();
+
                 let task_id = task.id();
-                update!(task, AggregatedDirtyContainerCount, |old: Option<
-                    DirtyContainerCount,
-                >| {
-                    let mut new = old.unwrap_or_default();
-                    if let Some(dirty_state) = dirty_state {
-                        new.update_with_dirty_state(&dirty_state);
-                    }
-                    let aggregated_update = new.update_count(&aggregated_update);
-                    if let Some(dirty_state) = dirty_state {
-                        new.undo_update_with_dirty_state(&dirty_state);
-                    }
-                    if !aggregated_update.is_zero() {
-                        result.dirty_container_update = Some((task_id, aggregated_update));
-                    }
-                    (!new.is_zero()).then_some(new)
-                });
-                if let Some((_, count)) = result.dirty_container_update.as_ref()
-                    && count.get(session_id) < 0
-                {
-                    // When the current task is no longer dirty, we need to fire the
-                    // aggregate root events and do some cleanup
-                    if let Some(activeness_state) = get_mut!(task, Activeness) {
-                        activeness_state.all_clean_event.notify(usize::MAX);
-                        activeness_state.unset_active_until_clean();
-                        if activeness_state.is_empty() {
-                            task.remove(&CachedDataItemKey::Activeness {});
+
+                // Update AggregatedDirtyContainerCount and compute aggregate value
+                let old_dirty_container_count;
+                let new_dirty_container_count;
+                if dirty_container_count_update != 0 {
+                    new_dirty_container_count = task
+                        .update_and_get_aggregated_dirty_container_count(
+                            dirty_container_count_update,
+                        );
+                    old_dirty_container_count =
+                        new_dirty_container_count - dirty_container_count_update;
+                } else {
+                    new_dirty_container_count = task
+                        .get_aggregated_dirty_container_count()
+                        .copied()
+                        .unwrap_or_default();
+                    old_dirty_container_count = new_dirty_container_count;
+                };
+
+                // Update AggregatedSessionDependentCleanContainerCount and compute aggregate value
+                let new_current_session_clean_container_count;
+                let old_current_session_clean_container_count;
+                if current_session_clean_update != 0 {
+                    new_current_session_clean_container_count = task
+                        .update_and_get_aggregated_current_session_clean_container_count(
+                            current_session_clean_update,
+                        );
+                    old_current_session_clean_container_count =
+                        new_current_session_clean_container_count - current_session_clean_update;
+                } else {
+                    new_current_session_clean_container_count = task
+                        .get_aggregated_current_session_clean_container_count()
+                        .copied()
+                        .unwrap_or_default();
+                    old_current_session_clean_container_count =
+                        new_current_session_clean_container_count;
+                };
+
+                let compute_result = ComputeDirtyAndCleanUpdate {
+                    old_dirty_container_count,
+                    new_dirty_container_count,
+                    old_current_session_clean_container_count,
+                    new_current_session_clean_container_count,
+                    old_self_dirty: is_self_dirty,
+                    new_self_dirty: is_self_dirty,
+                    old_current_session_self_clean: current_session_self_clean,
+                    new_current_session_self_clean: current_session_self_clean,
+                }
+                .compute();
+
+                if let Some(aggregated_update) = compute_result.aggregated_update(task_id) {
+                    result = aggregated_update;
+
+                    if let Some((_, count, current_session_clean)) = result.dirty_container_update
+                        && count - *current_session_clean < 0
+                    {
+                        // When the current task is no longer dirty, we need to fire the
+                        // aggregate root events and do some cleanup
+                        if let Some(activeness_state) = task.get_activeness_mut() {
+                            activeness_state.all_clean_event.notify(usize::MAX);
+                            activeness_state.unset_active_until_clean();
+                            if activeness_state.is_empty() {
+                                task.take_activeness();
+                            }
                         }
                     }
                 }
@@ -359,33 +572,22 @@ impl AggregatedDataUpdate {
         for (collectible, count) in collectibles_update {
             let mut added = false;
             let mut removed = false;
-            update!(
-                task,
-                AggregatedCollectible {
-                    collectible: *collectible
-                },
-                |old: Option<i32>| {
-                    let old = old.unwrap_or(0);
-                    let new = old + *count;
-                    if old <= 0 && new > 0 {
-                        added = true;
-                    } else if old > 0 && new <= 0 {
-                        removed = true;
-                    }
-                    (new != 0).then_some(new)
+            task.update_aggregated_collectibles(*collectible, |old: Option<i32>| {
+                let old = old.unwrap_or(0);
+                let new = old + *count;
+                if old <= 0 && new > 0 {
+                    added = true;
+                } else if old > 0 && new <= 0 {
+                    removed = true;
                 }
-            );
+                (new != 0).then_some(new)
+            });
             if added || removed {
                 let ty = collectible.collectible_type;
-                let dependent: TaskIdVec = get_many!(
-                    task,
-                    CollectiblesDependent {
-                        collectible_type,
-                        task,
-                    } if collectible_type == ty => {
-                        task
-                    }
-                );
+                let dependent: TaskIdVec = task
+                    .iter_collectibles_dependents()
+                    .filter_map(|(collectible_type, task)| (collectible_type == ty).then_some(task))
+                    .collect();
                 if !dependent.is_empty() {
                     queue.push(AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                         task_ids: dependent,
@@ -421,8 +623,17 @@ impl AggregatedDataUpdate {
     }
 
     /// Adds a dirty container update to the update.
-    pub fn dirty_container_update(mut self, task_id: TaskId, count: DirtyContainerCount) -> Self {
-        self.dirty_container_update = Some((task_id, count));
+    pub fn dirty_container_update(
+        mut self,
+        task_id: TaskId,
+        count: i32,
+        current_session_clean_update: i32,
+    ) -> Self {
+        self.dirty_container_update = Some((
+            task_id,
+            count,
+            SessionDependent::new(current_session_clean_update),
+        ));
         self
     }
 
@@ -434,21 +645,21 @@ impl AggregatedDataUpdate {
 }
 
 /// An aggregation number update job that is enqueued.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 struct AggregationNumberUpdate {
     base_aggregation_number: u32,
     distance: Option<NonZeroU32>,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[serde(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
 /// An aggregated data update job that is enqueued. See `AggregatedDataUpdate`.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 struct AggregationUpdateJobItem {
     job: AggregationUpdateJob,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[serde(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -456,7 +667,7 @@ impl AggregationUpdateJobItem {
     fn new(job: AggregationUpdateJob) -> Self {
         Self {
             job,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
     }
@@ -464,7 +675,7 @@ impl AggregationUpdateJobItem {
     fn entered(self) -> AggregationUpdateJobGuard {
         AggregationUpdateJobGuard {
             job: self.job,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             _guard: self.span.map(|s| s.entered()),
         }
     }
@@ -472,17 +683,17 @@ impl AggregationUpdateJobItem {
 
 struct AggregationUpdateJobGuard {
     job: AggregationUpdateJob,
-    #[cfg(feature = "trace_aggregation_update")]
+    #[cfg(feature = "trace_aggregation_update_queue")]
     _guard: Option<tracing::span::EnteredSpan>,
 }
 
 /// A balancing job that is enqueued. See `balance_edge`.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 struct BalanceJob {
     upper_id: TaskId,
     task_id: TaskId,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[serde(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -491,7 +702,7 @@ impl BalanceJob {
         Self {
             upper_id: upper,
             task_id: task,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
     }
@@ -513,11 +724,11 @@ impl PartialEq for BalanceJob {
 impl Eq for BalanceJob {}
 
 /// An optimization job that is enqueued. See `optimize_task`.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 struct OptimizeJob {
     task_id: TaskId,
-    #[cfg(feature = "trace_aggregation_update")]
-    #[serde(skip, default)]
+    #[cfg(feature = "trace_aggregation_update_queue")]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -525,7 +736,7 @@ impl OptimizeJob {
     fn new(task: TaskId) -> Self {
         Self {
             task_id: task,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
     }
@@ -546,11 +757,11 @@ impl PartialEq for OptimizeJob {
 impl Eq for OptimizeJob {}
 
 /// A job to find and schedule dirty tasks that is enqueued. See `find_and_schedule_dirty`.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 struct FindAndScheduleJob {
     task_id: TaskId,
     #[cfg(feature = "trace_find_and_schedule")]
-    #[serde(skip, default)]
+    #[bincode(skip)]
     span: Option<Span>,
 }
 
@@ -578,42 +789,73 @@ impl PartialEq for FindAndScheduleJob {
 
 impl Eq for FindAndScheduleJob {}
 
-/// Serializes the jobs in the queue. This is used to filter out transient jobs during
-/// serialization.
-fn serialize_jobs<S: Serializer>(
-    jobs: &VecDeque<AggregationUpdateJobItem>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    let mut seq = serializer.serialize_seq(Some(jobs.len()))?;
-    for job in jobs {
-        match job.job {
-            AggregationUpdateJob::IncreaseActiveCount { .. }
-            | AggregationUpdateJob::IncreaseActiveCounts { .. }
-            | AggregationUpdateJob::DecreaseActiveCount { .. }
-            | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
-                seq.serialize_element(&AggregationUpdateJobItem {
-                    job: AggregationUpdateJob::Noop,
-                    #[cfg(feature = "trace_aggregation_update")]
-                    span: None,
-                })?;
-            }
-            _ => {
-                seq.serialize_element(job)?;
+/// Encodes the jobs in the queue. This is used to filter out transient jobs during encoding.
+mod encode_jobs {
+    use bincode::{
+        de::{BorrowDecoder, Decoder},
+        enc::Encoder,
+        error::{DecodeError, EncodeError},
+    };
+
+    use super::*;
+
+    pub fn encode<E: Encoder>(
+        jobs: &VecDeque<AggregationUpdateJobItem>,
+        encoder: &mut E,
+    ) -> Result<(), EncodeError> {
+        usize::encode(&jobs.len(), encoder)?;
+        for job in jobs {
+            match job.job {
+                AggregationUpdateJob::IncreaseActiveCount { .. }
+                | AggregationUpdateJob::IncreaseActiveCounts { .. }
+                | AggregationUpdateJob::DecreaseActiveCount { .. }
+                | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
+                    AggregationUpdateJobItem {
+                        job: AggregationUpdateJob::Noop,
+                        #[cfg(feature = "trace_aggregation_update_queue")]
+                        span: None,
+                    }
+                    .encode(encoder)?;
+                }
+                _ => {
+                    job.encode(encoder)?;
+                }
             }
         }
+        Ok(())
     }
-    seq.end()
+
+    pub fn decode<Context, D: Decoder<Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<VecDeque<AggregationUpdateJobItem>, DecodeError> {
+        let len = usize::decode(decoder)?;
+        let mut jobs = VecDeque::with_capacity(len);
+        for _ in 0..len {
+            jobs.push_back(Decode::decode(decoder)?);
+        }
+        Ok(jobs)
+    }
+
+    pub fn borrow_decode<'de, Context, D: BorrowDecoder<'de, Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<VecDeque<AggregationUpdateJobItem>, DecodeError> {
+        decode(decoder)
+    }
 }
 
 /// A queue for aggregation update jobs.
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Default, Encode, Decode, Clone)]
 pub struct AggregationUpdateQueue {
-    #[serde(serialize_with = "serialize_jobs")]
+    #[bincode(with = "encode_jobs")]
     jobs: VecDeque<AggregationUpdateJobItem>,
-    number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
-    done_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
+    #[bincode(with = "turbo_bincode::indexmap")]
+    aggregation_number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
+    done_aggregation_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
+    #[bincode(with = "turbo_bincode::ringset")]
     find_and_schedule: FxRingSet<FindAndScheduleJob>,
+    #[bincode(with = "turbo_bincode::ringset")]
     balance_queue: FxRingSet<BalanceJob>,
+    #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
 }
 
@@ -622,8 +864,8 @@ impl AggregationUpdateQueue {
     pub fn new() -> Self {
         Self {
             jobs: VecDeque::with_capacity(0),
-            number_updates: FxIndexMap::default(),
-            done_number_updates: FxHashMap::default(),
+            aggregation_number_updates: FxIndexMap::default(),
+            done_aggregation_number_updates: FxHashMap::default(),
             find_and_schedule: FxRingSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
@@ -634,14 +876,14 @@ impl AggregationUpdateQueue {
     pub fn is_empty(&self) -> bool {
         let Self {
             jobs,
-            number_updates,
+            aggregation_number_updates,
             find_and_schedule,
             balance_queue,
             optimize_queue,
-            done_number_updates: _,
+            done_aggregation_number_updates: _,
         } = self;
         jobs.is_empty()
-            && number_updates.is_empty()
+            && aggregation_number_updates.is_empty()
             && find_and_schedule.is_empty()
             && balance_queue.is_empty()
             && optimize_queue.is_empty()
@@ -655,7 +897,7 @@ impl AggregationUpdateQueue {
                 base_aggregation_number,
                 distance,
             } => {
-                match self.number_updates.entry(task_id) {
+                match self.aggregation_number_updates.entry(task_id) {
                     Entry::Occupied(mut entry) => {
                         let update = entry.get_mut();
                         update.base_aggregation_number =
@@ -669,7 +911,7 @@ impl AggregationUpdateQueue {
                         }
                     }
                     Entry::Vacant(entry) => {
-                        match self.done_number_updates.entry(task_id) {
+                        match self.done_aggregation_number_updates.entry(task_id) {
                             HashMapEntry::Occupied(mut entry) => {
                                 let update = entry.get_mut();
                                 let change =
@@ -690,7 +932,7 @@ impl AggregationUpdateQueue {
                         entry.insert(AggregationNumberUpdate {
                             base_aggregation_number,
                             distance,
-                            #[cfg(feature = "trace_aggregation_update")]
+                            #[cfg(feature = "trace_aggregation_update_queue")]
                             span: Some(Span::current()),
                         });
                     }
@@ -732,14 +974,14 @@ impl AggregationUpdateQueue {
 
     /// Runs the job and all dependent jobs until it's done. It can persist the operation, so
     /// following code might not be executed when persisted.
-    pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext) {
+    pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext<'_>) {
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
     }
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
-    pub fn process(&mut self, ctx: &mut impl ExecuteContext) -> bool {
+    pub fn process(&mut self, ctx: &mut impl ExecuteContext<'_>) -> bool {
         if let Some(job) = self.jobs.pop_front() {
             let job: AggregationUpdateJobGuard = job.entered();
             match job.job {
@@ -761,6 +1003,7 @@ impl AggregationUpdateQueue {
                             ctx,
                             new_follower_ids[0],
                             upper_ids[0],
+                            1,
                         );
                     } else if uppers > followers {
                         if let Some(new_follower_id) = new_follower_ids.pop() {
@@ -793,7 +1036,18 @@ impl AggregationUpdateQueue {
                     new_follower_id,
                 } => {
                     if upper_ids.len() == 1 {
-                        self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_ids[0]);
+                        self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_ids[0], 1);
+                    } else {
+                        self.inner_of_uppers_has_new_follower(ctx, new_follower_id, upper_ids);
+                    }
+                }
+                AggregationUpdateJob::InnerOfUppersHasNewFollowerWithCount {
+                    upper_ids,
+                    new_follower_id,
+                } => {
+                    if upper_ids.len() == 1 {
+                        let (id, count) = upper_ids[0];
+                        self.inner_of_upper_has_new_follower(ctx, new_follower_id, id, count);
                     } else {
                         self.inner_of_uppers_has_new_follower(ctx, new_follower_id, upper_ids);
                     }
@@ -803,7 +1057,18 @@ impl AggregationUpdateQueue {
                     new_follower_ids,
                 } => {
                     if new_follower_ids.len() == 1 {
-                        self.inner_of_upper_has_new_follower(ctx, new_follower_ids[0], upper_id);
+                        self.inner_of_upper_has_new_follower(ctx, new_follower_ids[0], upper_id, 1);
+                    } else {
+                        self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
+                    }
+                }
+                AggregationUpdateJob::InnerOfUpperHasNewFollowersWithCount {
+                    upper_id,
+                    new_follower_ids,
+                } => {
+                    if new_follower_ids.len() == 1 {
+                        let (id, count) = new_follower_ids[0];
+                        self.inner_of_upper_has_new_follower(ctx, id, upper_id, count);
                     } else {
                         self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
                     }
@@ -812,7 +1077,7 @@ impl AggregationUpdateQueue {
                     upper_id,
                     new_follower_id,
                 } => {
-                    self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_id);
+                    self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_id, 1);
                 }
                 AggregationUpdateJob::InnerOfUppersLostFollowers(mut boxed) => {
                     let InnerOfUppersLostFollowersJob {
@@ -893,12 +1158,12 @@ impl AggregationUpdateQueue {
                         }
                     }
                 }
-                AggregationUpdateJob::IncreaseActiveCount { task } => {
-                    self.increase_active_count(ctx, task);
+                AggregationUpdateJob::IncreaseActiveCount { task, task_type } => {
+                    self.increase_active_count(ctx, task, task_type);
                 }
                 AggregationUpdateJob::IncreaseActiveCounts { mut task_ids } => {
                     if let Some(task_id) = task_ids.pop() {
-                        self.increase_active_count(ctx, task_id);
+                        self.increase_active_count(ctx, task_id, None);
                         if !task_ids.is_empty() {
                             self.jobs.push_front(AggregationUpdateJobItem::new(
                                 AggregationUpdateJob::IncreaseActiveCounts { task_ids },
@@ -908,7 +1173,7 @@ impl AggregationUpdateQueue {
                 }
             }
             false
-        } else if !self.number_updates.is_empty() {
+        } else if !self.aggregation_number_updates.is_empty() {
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
                 if let Some((
@@ -916,19 +1181,19 @@ impl AggregationUpdateQueue {
                     AggregationNumberUpdate {
                         base_aggregation_number,
                         distance,
-                        #[cfg(feature = "trace_aggregation_update")]
+                        #[cfg(feature = "trace_aggregation_update_queue")]
                         span,
                     },
-                )) = self.number_updates.pop()
+                )) = self.aggregation_number_updates.pop()
                 {
-                    #[cfg(feature = "trace_aggregation_update")]
+                    #[cfg(feature = "trace_aggregation_update_queue")]
                     let _guard = span.map(|s| s.entered());
-                    self.done_number_updates.insert(
+                    self.done_aggregation_number_updates.insert(
                         task_id,
                         AggregationNumberUpdate {
                             base_aggregation_number,
                             distance,
-                            #[cfg(feature = "trace_aggregation_update")]
+                            #[cfg(feature = "trace_aggregation_update_queue")]
                             span: None,
                         },
                     );
@@ -945,11 +1210,11 @@ impl AggregationUpdateQueue {
                 if let Some(BalanceJob {
                     upper_id: upper,
                     task_id: task,
-                    #[cfg(feature = "trace_aggregation_update")]
+                    #[cfg(feature = "trace_aggregation_update_queue")]
                     span,
                 }) = self.balance_queue.pop_front()
                 {
-                    #[cfg(feature = "trace_aggregation_update")]
+                    #[cfg(feature = "trace_aggregation_update_queue")]
                     let _guard = span.map(|s| s.entered());
                     self.balance_edge(ctx, upper, task);
                     remaining -= 1;
@@ -960,14 +1225,14 @@ impl AggregationUpdateQueue {
             false
         } else if let Some(OptimizeJob {
             task_id,
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             span,
         }) = self.optimize_queue.pop_front()
         {
             // Note: We must process one optimization completely before starting with the next one.
             // Otherwise this could lead to optimizing every node of a subgraph of inner nodes, as
             // all have the same upper count. Optimizing the root first
-            #[cfg(feature = "trace_aggregation_update")]
+            #[cfg(feature = "trace_aggregation_update_queue")]
             let _guard = span.map(|s| s.entered());
             self.optimize_task(ctx, task_id);
             false
@@ -1018,37 +1283,29 @@ impl AggregationUpdateQueue {
 
         if should_be_inner {
             // remove all follower edges
-            let count = remove!(upper, Follower { task: task_id }).unwrap_or_default();
+            let count = upper.remove_followers(&task_id).unwrap_or_default();
             match count.cmp(&0) {
-                std::cmp::Ordering::Less => upper.add_new(CachedDataItem::Follower {
-                    task: task_id,
-                    value: count,
-                }),
+                std::cmp::Ordering::Less => upper.add_followers(task_id, count),
                 std::cmp::Ordering::Greater => {
                     #[cfg(feature = "trace_aggregation_update")]
                     let _span = trace_span!("make inner").entered();
 
-                    if count!(upper, Follower).is_power_of_two() {
+                    if upper.followers_len().is_power_of_two() {
                         self.push_optimize_task(upper_id);
                     }
 
                     let upper_ids = get_uppers(&upper);
 
                     // Add the same amount of upper edges
-                    if update_count!(task, Upper { task: upper_id }, count) {
-                        if count!(task, Upper).is_power_of_two() {
+                    if task.update_upper_count(upper_id, count) {
+                        if task.upper_len().is_power_of_two() {
                             self.push_optimize_task(task_id);
                         }
                         // When this is a new inner node, update aggregated data and
                         // followers
                         let data = AggregatedDataUpdate::from_task(&mut task);
                         let followers = get_followers(&task);
-                        let diff = data.apply(
-                            &mut upper,
-                            ctx.session_id(),
-                            ctx.should_track_activeness(),
-                            self,
-                        );
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
 
                         if !upper_ids.is_empty() && !diff.is_empty() {
                             // Notify uppers about changed aggregated data
@@ -1067,9 +1324,7 @@ impl AggregationUpdateQueue {
                             });
                         }
 
-                        if ctx.should_track_activeness()
-                            && upper.has_key(&CachedDataItemKey::Activeness {})
-                        {
+                        if ctx.should_track_activeness() && upper.has_activeness() {
                             // If the upper node is has `Activeness` we need to schedule the
                             // dirty tasks in the new dirty container
                             self.push_find_and_schedule_dirty(task_id);
@@ -1088,7 +1343,7 @@ impl AggregationUpdateQueue {
                     if ctx.should_track_activeness() {
                         // Follower was removed, we might need to update the active count
                         let has_active_count =
-                            get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
+                            upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                         if has_active_count {
                             // TODO combine both operations to avoid the clone
                             self.push(AggregationUpdateJob::DecreaseActiveCount { task: task_id })
@@ -1099,12 +1354,9 @@ impl AggregationUpdateQueue {
             }
         } else if should_be_follower {
             // Remove the upper edge
-            let count = remove!(task, Upper { task: upper_id }).unwrap_or_default();
+            let count = task.remove_upper(&upper_id).unwrap_or_default();
             match count.cmp(&0) {
-                Ordering::Less => task.add_new(CachedDataItem::Upper {
-                    task: upper_id,
-                    value: count,
-                }),
+                Ordering::Less => task.add_upper(upper_id, count),
                 Ordering::Greater => {
                     #[cfg(feature = "trace_aggregation_update")]
                     let _span = trace_span!("make follower").entered();
@@ -1112,18 +1364,19 @@ impl AggregationUpdateQueue {
                     let upper_ids = get_uppers(&upper);
 
                     // Add the same amount of follower edges
-                    if update_count!(upper, Follower { task: task_id }, count) {
+                    if upper.update_followers_count(task_id, count) {
                         // May optimize the task
-                        if count!(upper, Follower).is_power_of_two() {
+                        if upper.followers_len().is_power_of_two() {
                             self.push_optimize_task(upper_id);
                         }
                         if ctx.should_track_activeness() {
                             // update active count
                             let has_active_count =
-                                get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
+                                upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                             if has_active_count {
                                 self.push(AggregationUpdateJob::IncreaseActiveCount {
                                     task: task_id,
+                                    task_type: None,
                                 });
                             }
                         }
@@ -1140,12 +1393,7 @@ impl AggregationUpdateQueue {
                     // followers
                     let data = AggregatedDataUpdate::from_task(&mut task).invert();
                     let followers = get_followers(&task);
-                    let diff = data.apply(
-                        &mut upper,
-                        ctx.session_id(),
-                        ctx.should_track_activeness(),
-                        self,
-                    );
+                    let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                     if !upper_ids.is_empty() && !diff.is_empty() {
                         self.push(
                             AggregatedDataUpdateJob {
@@ -1173,7 +1421,7 @@ impl AggregationUpdateQueue {
 
             // both nodes have the same aggregation number
             // We need to change the aggregation number of the task
-            let current = get!(task, AggregationNumber).copied().unwrap_or_default();
+            let current = task.get_aggregation_number().copied().unwrap_or_default();
             self.push(AggregationUpdateJob::UpdateAggregationNumber {
                 task_id,
                 base_aggregation_number: current.base + 1,
@@ -1207,36 +1455,38 @@ impl AggregationUpdateQueue {
         mut task: impl TaskGuard,
         ctx: &mut impl ExecuteContext<'_>,
     ) {
-        let session_id = ctx.session_id();
         // Task need to be scheduled if it's dirty or doesn't have output
-        let dirty = get!(task, Dirty).map_or(false, |d| d.get(session_id));
-        let should_schedule = if dirty {
-            Some(TaskExecutionReason::ActivateDirty)
-        } else if !task.has_key(&CachedDataItemKey::Output {}) {
-            Some(TaskExecutionReason::ActivateInitial)
+        let dirty = task.is_dirty();
+        let should_schedule = if let Some(parent_priority) = dirty {
+            Some((TaskExecutionReason::ActivateDirty, parent_priority))
+        } else if !task.has_output() {
+            Some((
+                TaskExecutionReason::ActivateInitial,
+                ctx.get_current_task_priority(),
+            ))
         } else {
             None
         };
 
         // if it has `Activeness` we can skip visiting the nested nodes since
         // this would already be scheduled by the `Activeness`
-        let is_active_until_clean = get!(task, Activeness).is_some_and(|a| a.active_until_clean);
+        let is_active_until_clean = task.get_activeness().is_some_and(|a| a.active_until_clean);
         if !is_active_until_clean {
-            let mut dirty_containers = iter_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task).peekable();
+            let mut dirty_containers = task.dirty_containers().peekable();
             let is_empty = dirty_containers.peek().is_none();
-            if !is_empty || dirty {
+            if !is_empty || dirty.is_some() {
                 self.extend_find_and_schedule_dirty(dirty_containers);
 
                 let activeness_state =
-                    get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
+                    task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
                 activeness_state.set_active_until_clean();
             }
         }
-        if let Some(reason) = should_schedule {
-            let description = || ctx.get_task_desc_fn(task_id);
-            if task.add(CachedDataItem::new_scheduled(reason, description)) {
+        if let Some((reason, parent_priority)) = should_schedule {
+            let description = EventDescription::new(|| task.get_task_desc_fn());
+            if task.add_scheduled(reason, description) {
                 drop(task);
-                ctx.schedule(task_id);
+                ctx.schedule(task_id, parent_priority);
             }
         }
     }
@@ -1244,21 +1494,12 @@ impl AggregationUpdateQueue {
     fn aggregated_data_update(
         &mut self,
         upper_ids: TaskIdVec,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         update: AggregatedDataUpdate,
     ) {
-        for upper_id in upper_ids {
-            let mut upper = ctx.task(
-                upper_id,
-                // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
-            );
-            let diff = update.apply(
-                &mut upper,
-                ctx.session_id(),
-                ctx.should_track_activeness(),
-                self,
-            );
+        // For performance reasons this should stay `Meta` and not `All`
+        ctx.for_each_task_meta(upper_ids.iter().copied(), |mut upper, ctx| {
+            let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
             if !diff.is_empty() {
                 let upper_ids = get_uppers(&upper);
                 if !upper_ids.is_empty() {
@@ -1271,12 +1512,12 @@ impl AggregationUpdateQueue {
                     );
                 }
             }
-        }
+        });
     }
 
     fn inner_of_uppers_lost_follower(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         lost_follower_id: TaskId,
         mut upper_ids: TaskIdVec,
         mut retry: u16,
@@ -1296,7 +1537,7 @@ impl AggregationUpdateQueue {
                 let mut keep_upper = false;
                 let mut follower_in_upper = false;
 
-                update!(follower, Upper { task: upper_id }, |old| {
+                follower.update_upper(upper_id, |old| {
                     let Some(old) = old else {
                         follower_in_upper = true;
                         return None;
@@ -1316,19 +1557,10 @@ impl AggregationUpdateQueue {
                 drop(follower);
 
                 if !data.is_empty() {
-                    for upper_id in removed_uppers.iter() {
-                        // remove data from upper
-                        let mut upper = ctx.task(
-                            *upper_id,
-                            // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
-                        );
-                        let diff = data.apply(
-                            &mut upper,
-                            ctx.session_id(),
-                            ctx.should_track_activeness(),
-                            self,
-                        );
+                    // remove data from upper
+                    // For performance reasons this should stay `Meta` and not `All`
+                    ctx.for_each_task_meta(removed_uppers.iter().copied(), |mut upper, ctx| {
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                         if !diff.is_empty() {
                             let upper_ids = get_uppers(&upper);
                             self.push(
@@ -1339,7 +1571,7 @@ impl AggregationUpdateQueue {
                                 .into(),
                             )
                         }
-                    }
+                    });
                 }
                 if !followers.is_empty() {
                     self.push(
@@ -1365,31 +1597,25 @@ impl AggregationUpdateQueue {
                 );
                 let mut inner_in_upper = false;
                 let mut removed_follower = false;
-                update!(
-                    upper,
-                    Follower {
-                        task: lost_follower_id
-                    },
-                    |old| {
-                        let Some(old) = old else {
-                            inner_in_upper = true;
-                            return None;
-                        };
-                        if old == 1 {
-                            removed_follower = true;
-                            return None;
-                        }
-                        Some(old - 1)
+                upper.update_followers(lost_follower_id, |old| {
+                    let Some(old) = old else {
+                        inner_in_upper = true;
+                        return None;
+                    };
+                    if old == 1 {
+                        removed_follower = true;
+                        return None;
                     }
-                );
+                    Some(old - 1)
+                });
                 if removed_follower {
                     // May optimize the task
-                    if count!(upper, Follower).is_power_of_two() {
+                    if upper.followers_len().is_power_of_two() {
                         self.push_optimize_task(upper_id);
                     }
 
                     let has_active_count = ctx.should_track_activeness()
-                        && get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
+                        && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                     let upper_ids = get_uppers(&upper);
                     drop(upper);
                     // update active count
@@ -1421,10 +1647,15 @@ impl AggregationUpdateQueue {
                     "inner_of_uppers_lost_follower is not able to remove follower \
                      {lost_follower_id} ({}) from {} as they don't exist as upper or follower \
                      edges",
-                    ctx.get_task_description(lost_follower_id),
+                    ctx.task(lost_follower_id, TaskDataCategory::Data)
+                        .get_task_description(),
                     upper_ids
                         .iter()
-                        .map(|id| format!("{} ({})", id, ctx.get_task_description(*id)))
+                        .map(|id| format!(
+                            "{} ({})",
+                            id,
+                            ctx.task(*id, TaskDataCategory::Data).get_task_description()
+                        ))
                         .collect::<Vec<_>>()
                         .join(", ")
                 );
@@ -1461,7 +1692,7 @@ impl AggregationUpdateQueue {
                 );
                 let mut remove_upper = false;
                 let mut follower_in_upper = false;
-                update!(follower, Upper { task: upper_id }, |old| {
+                follower.update_upper(upper_id, |old| {
                     let Some(old) = old else {
                         follower_in_upper = true;
                         return None;
@@ -1484,12 +1715,7 @@ impl AggregationUpdateQueue {
                             // For performance reasons this should stay `Meta` and not `All`
                             TaskDataCategory::Meta,
                         );
-                        let diff = data.apply(
-                            &mut upper,
-                            ctx.session_id(),
-                            ctx.should_track_activeness(),
-                            self,
-                        );
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                         if !diff.is_empty() {
                             let upper_ids = get_uppers(&upper);
                             self.push(
@@ -1524,32 +1750,26 @@ impl AggregationUpdateQueue {
                 );
                 let mut inner_in_upper = false;
                 let mut removed_follower = false;
-                update!(
-                    upper,
-                    Follower {
-                        task: lost_follower_id
-                    },
-                    |old| {
-                        let Some(old) = old else {
-                            inner_in_upper = true;
-                            return None;
-                        };
-                        if old == 1 {
-                            removed_follower = true;
-                            return None;
-                        }
-                        Some(old - 1)
+                upper.update_followers(lost_follower_id, |old| {
+                    let Some(old) = old else {
+                        inner_in_upper = true;
+                        return None;
+                    };
+                    if old == 1 {
+                        removed_follower = true;
+                        return None;
                     }
-                );
+                    Some(old - 1)
+                });
                 if removed_follower {
                     // May optimize the task
-                    if count!(upper, Follower).is_power_of_two() {
+                    if upper.followers_len().is_power_of_two() {
                         self.push_optimize_task(upper_id);
                     }
 
                     let upper_ids = get_uppers(&upper);
                     let has_active_count =
-                        get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
+                        upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                     drop(upper);
                     // update active count
                     if has_active_count {
@@ -1581,10 +1801,15 @@ impl AggregationUpdateQueue {
                      {upper_id} ({}) as they don't exist as upper or follower edges",
                     lost_follower_ids
                         .iter()
-                        .map(|id| format!("{} ({})", id, ctx.get_task_description(*id)))
+                        .map(|id| format!(
+                            "{} ({})",
+                            id,
+                            ctx.task(*id, TaskDataCategory::Data).get_task_description()
+                        ))
                         .collect::<Vec<_>>()
                         .join(", "),
-                    ctx.get_task_description(upper_id),
+                    ctx.task(upper_id, TaskDataCategory::Data)
+                        .get_task_description()
                 )
             }
             self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
@@ -1595,11 +1820,11 @@ impl AggregationUpdateQueue {
         }
     }
 
-    fn inner_of_uppers_has_new_follower(
+    fn inner_of_uppers_has_new_follower<T: TaskIdWithOptionalCount, const N: usize>(
         &mut self,
         ctx: &mut impl ExecuteContext,
         new_follower_id: TaskId,
-        mut upper_ids: TaskIdVec,
+        mut upper_ids: SmallVec<[T; N]>,
     ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span =
@@ -1613,11 +1838,12 @@ impl AggregationUpdateQueue {
             );
             get_aggregation_number(&follower)
         };
-        let mut upper_upper_ids_with_new_follower = SmallVec::new();
+        let mut upper_upper_ids_with_new_follower = FxHashMap::default();
         let mut tasks_for_which_increment_active_count = SmallVec::new();
         let mut is_active = false;
 
-        swap_retain(&mut upper_ids, |&mut upper_id| {
+        swap_retain(&mut upper_ids, |upper_item| {
+            let (upper_id, count) = upper_item.task_id_and_count();
             let mut upper = ctx.task(
                 upper_id,
                 // For performance reasons this should stay `Meta` and not `All`
@@ -1630,28 +1856,26 @@ impl AggregationUpdateQueue {
                 && upper_aggregation_number <= follower_aggregation_number
             {
                 // It's a follower of the upper node
-                if update_count!(
-                    upper,
-                    Follower {
-                        task: new_follower_id
-                    },
-                    1
-                ) {
+                if upper.update_followers_count(new_follower_id, count) {
                     // May optimize the task
-                    if count!(upper, Follower).is_power_of_two() {
+                    if upper.followers_len().is_power_of_two() {
                         self.push_optimize_task(upper_id);
                     }
 
                     if ctx.should_track_activeness() {
                         // update active count
                         let has_active_count =
-                            get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
+                            upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                         if has_active_count {
                             tasks_for_which_increment_active_count.push(new_follower_id);
                         }
                     }
                     // notify uppers about new follower
-                    upper_upper_ids_with_new_follower.extend(iter_uppers(&upper));
+                    for (&upper_id, _) in upper.iter_upper() {
+                        *upper_upper_ids_with_new_follower
+                            .entry(upper_id)
+                            .or_insert(0) += 1;
+                    }
                 }
 
                 // Balancing is only needed when they are equal. This is not perfect from
@@ -1666,8 +1890,7 @@ impl AggregationUpdateQueue {
                 false
             } else {
                 // It's an inner node, continue with the list
-                if ctx.should_track_activeness() && upper.has_key(&CachedDataItemKey::Activeness {})
-                {
+                if ctx.should_track_activeness() && upper.has_activeness() {
                     is_active = true;
                 }
                 true
@@ -1682,12 +1905,13 @@ impl AggregationUpdateQueue {
             );
             let mut uppers_count: Option<usize> = None;
             let mut persistent_uppers = 0;
-            swap_retain(&mut upper_ids, |&mut upper_id| {
-                if update_count!(follower, Upper { task: upper_id }, 1) {
+
+            swap_retain(&mut upper_ids, |upper_item| {
+                let (upper_id, count) = upper_item.task_id_and_count();
+                if follower.update_upper_count(upper_id, count) {
                     // It's a new upper
                     let uppers_count = uppers_count.get_or_insert_with(|| {
-                        let count =
-                            iter_many!(follower, Upper { .. } count if *count > 0 => ()).count();
+                        let count = follower.upper_len();
                         count - 1
                     });
                     *uppers_count += 1;
@@ -1704,7 +1928,7 @@ impl AggregationUpdateQueue {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new inner").entered();
             if !upper_ids.is_empty() {
-                let new_count = count!(follower, Upper);
+                let new_count = follower.upper_len();
                 if (new_count - persistent_uppers).next_power_of_two()
                     != new_count.next_power_of_two()
                 {
@@ -1717,44 +1941,40 @@ impl AggregationUpdateQueue {
 
                 let has_data = !data.is_empty();
                 if has_data || !is_active {
-                    for upper_id in upper_ids.iter() {
-                        // add data to upper
-                        let mut upper = ctx.task(
-                            *upper_id,
-                            // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
-                        );
-                        if has_data {
-                            let diff = data.apply(
-                                &mut upper,
-                                ctx.session_id(),
-                                ctx.should_track_activeness(),
-                                self,
-                            );
-                            if !diff.is_empty() {
-                                let upper_ids = get_uppers(&upper);
-                                self.push(
-                                    AggregatedDataUpdateJob {
-                                        upper_ids,
-                                        update: diff,
-                                    }
-                                    .into(),
-                                )
+                    // add data to upper
+                    // For performance reasons this should stay `Meta` and not `All`
+                    ctx.for_each_task_meta(
+                        upper_ids.iter().map(|entry| entry.task_id()),
+                        |mut upper, ctx| {
+                            if has_data {
+                                let diff =
+                                    data.apply(&mut upper, ctx.should_track_activeness(), self);
+                                if !diff.is_empty() {
+                                    let upper_ids = get_uppers(&upper);
+                                    self.push(
+                                        AggregatedDataUpdateJob {
+                                            upper_ids,
+                                            update: diff,
+                                        }
+                                        .into(),
+                                    )
+                                }
                             }
-                        }
-                        if !is_active {
-                            // We need to check this again, since this might have changed in the
-                            // meantime due to race conditions
-                            if upper.has_key(&CachedDataItemKey::Activeness {}) {
-                                is_active = true;
+
+                            if !is_active {
+                                // We need to check this again, since this might have changed in the
+                                // meantime due to race conditions
+                                if upper.has_activeness() {
+                                    is_active = true;
+                                }
                             }
-                        }
-                    }
+                        },
+                    );
                 }
                 if !children.is_empty() {
                     self.push(
                         InnerOfUppersHasNewFollowersJob {
-                            upper_ids: upper_ids.clone(),
+                            upper_ids: upper_ids.into_iter().map(|entry| entry.task_id()).collect(),
                             new_follower_ids: children,
                         }
                         .into(),
@@ -1775,17 +1995,17 @@ impl AggregationUpdateQueue {
         if !upper_upper_ids_with_new_follower.is_empty() {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new follower").entered();
-            self.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
-                upper_ids: upper_upper_ids_with_new_follower,
+            self.push(AggregationUpdateJob::InnerOfUppersHasNewFollowerWithCount {
+                upper_ids: upper_upper_ids_with_new_follower.into_iter().collect(),
                 new_follower_id,
             });
         }
     }
 
-    fn inner_of_upper_has_new_followers(
+    fn inner_of_upper_has_new_followers<T: TaskIdWithOptionalCount, const N: usize>(
         &mut self,
-        ctx: &mut impl ExecuteContext,
-        new_follower_ids: TaskIdVec,
+        ctx: &mut impl ExecuteContext<'_>,
+        new_follower_ids: SmallVec<[T; N]>,
         upper_id: TaskId,
     ) {
         #[cfg(feature = "trace_aggregation_update")]
@@ -1797,13 +2017,14 @@ impl AggregationUpdateQueue {
 
         let mut followers_with_aggregation_number = new_follower_ids
             .into_iter()
-            .map(|new_follower_id| {
+            .map(|new_follower_entry| {
+                let (new_follower_id, count) = new_follower_entry.task_id_and_count();
                 let follower = ctx.task(
                     new_follower_id,
                     // For performance reasons this should stay `Meta` and not `All`
                     TaskDataCategory::Meta,
                 );
-                (new_follower_id, get_aggregation_number(&follower))
+                (new_follower_id, count, get_aggregation_number(&follower))
             })
             .collect::<SmallVec<[_; 4]>>();
 
@@ -1819,7 +2040,7 @@ impl AggregationUpdateQueue {
                 TaskDataCategory::Meta,
             );
             if ctx.should_track_activeness() {
-                let activeness_state = get!(upper, Activeness);
+                let activeness_state = upper.get_activeness();
                 is_active = activeness_state.is_some();
                 has_active_count = activeness_state.is_some_and(|a| a.active_counter > 0);
             }
@@ -1828,15 +2049,15 @@ impl AggregationUpdateQueue {
 
             if !is_root_node(upper_aggregation_number) {
                 followers_with_aggregation_number.retain(
-                    |(follower_id, follower_aggregation_number)| {
+                    |(follower_id, count, follower_aggregation_number)| {
                         if upper_aggregation_number > *follower_aggregation_number {
                             // It's an inner node, continue with the list
                             return true;
                         }
                         // It's a follower of the upper node
-                        if update_count!(upper, Follower { task: *follower_id }, 1) {
+                        if upper.update_followers_count(*follower_id, *count) {
                             // May optimize the task
-                            if count!(upper, Follower).is_power_of_two() {
+                            if upper.followers_len().is_power_of_two() {
                                 self.push_optimize_task(upper_id);
                             }
 
@@ -1867,17 +2088,17 @@ impl AggregationUpdateQueue {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new inner").entered();
             let mut upper_data_updates = Vec::new();
-            let mut upper_new_followers = SmallVec::new();
+            let mut upper_new_followers = FxHashMap::default();
             swap_retain(
                 &mut inner_tasks_with_aggregation_number,
-                |&mut (inner_id, _)| {
+                |&mut (inner_id, count, _)| {
                     let mut inner = ctx.task(
                         inner_id,
                         // For performance reasons this should stay `Meta` and not `All`
                         TaskDataCategory::Meta,
                     );
-                    if update_count!(inner, Upper { task: upper_id }, 1) {
-                        if count!(inner, Upper).is_power_of_two() {
+                    if inner.update_upper_count(upper_id, count) {
+                        if inner.upper_len().is_power_of_two() {
                             self.push_optimize_task(inner_id);
                         }
 
@@ -1890,7 +2111,9 @@ impl AggregationUpdateQueue {
                         if !data.is_empty() {
                             upper_data_updates.push(data);
                         }
-                        upper_new_followers.extend(children);
+                        for &child_id in &children {
+                            *upper_new_followers.entry(child_id).or_insert(0) += 1;
+                        }
 
                         // Balancing is only needed when they are equal (or could have become equal
                         // in the meantime). This is not perfect from
@@ -1912,9 +2135,9 @@ impl AggregationUpdateQueue {
             );
 
             if !upper_new_followers.is_empty() {
-                self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+                self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowersWithCount {
                     upper_id,
-                    new_follower_ids: upper_new_followers,
+                    new_follower_ids: upper_new_followers.into_iter().collect(),
                 });
             }
             if !upper_data_updates.is_empty() {
@@ -1927,12 +2150,7 @@ impl AggregationUpdateQueue {
                 let diffs = upper_data_updates
                     .into_iter()
                     .filter_map(|data| {
-                        let diff = data.apply(
-                            &mut upper,
-                            ctx.session_id(),
-                            ctx.should_track_activeness(),
-                            self,
-                        );
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                         (!diff.is_empty()).then_some(diff)
                     })
                     .collect::<Vec<_>>();
@@ -1969,13 +2187,13 @@ impl AggregationUpdateQueue {
                         // For performance reasons this should stay `Meta` and not `All`
                         TaskDataCategory::Meta,
                     );
-                    is_active = upper.has_key(&CachedDataItemKey::Activeness {});
+                    is_active = upper.has_activeness();
                 }
                 if is_active {
                     self.extend_find_and_schedule_dirty(
                         inner_tasks_with_aggregation_number
                             .into_iter()
-                            .map(|(id, _)| id),
+                            .map(|(id, _, _)| id),
                     );
                 }
             }
@@ -2005,9 +2223,10 @@ impl AggregationUpdateQueue {
 
     fn inner_of_upper_has_new_follower(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         new_follower_id: TaskId,
         upper_id: TaskId,
+        count: u32,
     ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("process new follower").entered();
@@ -2036,26 +2255,21 @@ impl AggregationUpdateQueue {
             let _span = trace_span!("new follower").entered();
 
             // It's a follower of the upper node
-            if update_count!(
-                upper,
-                Follower {
-                    task: new_follower_id
-                },
-                1
-            ) {
+            if upper.update_followers_count(new_follower_id, count) {
                 // May optimize the task
-                if count!(upper, Follower).is_power_of_two() {
+                if upper.followers_len().is_power_of_two() {
                     self.push_optimize_task(upper_id);
                 }
 
                 let has_active_count = ctx.should_track_activeness()
-                    && get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
+                    && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                 let upper_ids = get_uppers(&upper);
                 drop(upper);
                 // update active count
                 if has_active_count {
                     self.push(AggregationUpdateJob::IncreaseActiveCount {
                         task: new_follower_id,
+                        task_type: None,
                     });
                 }
                 // notify uppers about new follower
@@ -2081,7 +2295,7 @@ impl AggregationUpdateQueue {
             let _span = trace_span!("new inner").entered();
 
             // It's an inner node, continue with the list
-            let mut is_active = upper.has_key(&CachedDataItemKey::Activeness {});
+            let mut is_active = upper.has_activeness();
             drop(upper);
 
             let mut inner = ctx.task(
@@ -2089,8 +2303,8 @@ impl AggregationUpdateQueue {
                 // For performance reasons this should stay `Meta` and not `All`
                 TaskDataCategory::Meta,
             );
-            if update_count!(inner, Upper { task: upper_id }, 1) {
-                if count!(inner, Upper).is_power_of_two() {
+            if inner.update_upper_count(upper_id, count) {
+                if inner.upper_len().is_power_of_two() {
                     self.push_optimize_task(new_follower_id);
                 }
                 // It's a new upper
@@ -2105,12 +2319,7 @@ impl AggregationUpdateQueue {
                         // For performance reasons this should stay `Meta` and not `All`
                         TaskDataCategory::Meta,
                     );
-                    let diff = data.apply(
-                        &mut upper,
-                        ctx.session_id(),
-                        ctx.should_track_activeness(),
-                        self,
-                    );
+                    let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                     if !diff.is_empty() {
                         let upper_ids = get_uppers(&upper);
                         self.push(
@@ -2134,7 +2343,7 @@ impl AggregationUpdateQueue {
                         // For performance reasons this should stay `Meta` and not `All`
                         TaskDataCategory::Meta,
                     );
-                    is_active = upper.has_key(&CachedDataItemKey::Activeness {});
+                    is_active = upper.has_activeness();
                 }
                 if is_active {
                     self.push_find_and_schedule_dirty(new_follower_id);
@@ -2146,7 +2355,7 @@ impl AggregationUpdateQueue {
     /// Decreases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn decrease_active_count(&mut self, ctx: &mut impl ExecuteContext, task_id: TaskId) {
+    fn decrease_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("decrease active count").entered();
 
@@ -2155,12 +2364,12 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
-        let state = get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
+        let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_zero = state.decrement_active_counter();
         let is_empty = state.is_empty();
         if is_empty {
-            task.remove(&CachedDataItemKey::Activeness {});
+            task.take_activeness();
         }
         debug_assert!(
             !(is_new && is_zero),
@@ -2190,22 +2399,36 @@ impl AggregationUpdateQueue {
     /// Increases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn increase_active_count(&mut self, ctx: &mut impl ExecuteContext, task_id: TaskId) {
+    fn increase_active_count(
+        &mut self,
+        ctx: &mut impl ExecuteContext,
+        task_id: TaskId,
+        task_type: Option<Arc<CachedTaskType>>,
+    ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
         let mut task = ctx.task(
             task_id,
-            // For performance reasons this should stay `Meta` and not `All`
-            TaskDataCategory::Meta,
+            if task_type.is_some() {
+                TaskDataCategory::All
+            } else {
+                // For performance reasons this should stay `Meta` and not `All`
+                TaskDataCategory::Meta
+            },
         );
-        let state = get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
+        if let Some(task_type) = task_type
+            && !task.has_persistent_task_type()
+        {
+            let _ = task.set_persistent_task_type(task_type);
+        }
+        let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
         let is_empty = state.is_empty();
         // This can happen if active count was negative before
         if is_empty {
-            task.remove(&CachedDataItemKey::Activeness {});
+            task.take_activeness();
         }
         debug_assert!(
             !is_new || is_positive_now,
@@ -2232,7 +2455,7 @@ impl AggregationUpdateQueue {
 
     fn update_aggregation_number(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
         base_effective_distance: Option<std::num::NonZero<u32>>,
         base_aggregation_number: u32,
@@ -2246,7 +2469,7 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
-        let current = get!(task, AggregationNumber).copied().unwrap_or_default();
+        let current = task.get_aggregation_number().copied().unwrap_or_default();
         let old = current.effective;
         // The base aggregation number can only increase
         let mut base_aggregation_number = max(current.base, base_aggregation_number);
@@ -2266,12 +2489,10 @@ impl AggregationUpdateQueue {
         };
         if old >= aggregation_number {
             if base_aggregation_number != current.base && distance != current.distance {
-                task.insert(CachedDataItem::AggregationNumber {
-                    value: AggregationNumber {
-                        base: base_aggregation_number,
-                        distance,
-                        effective: old,
-                    },
+                task.set_aggregation_number(AggregationNumber {
+                    base: base_aggregation_number,
+                    distance,
+                    effective: old,
                 });
             }
         } else {
@@ -2283,43 +2504,34 @@ impl AggregationUpdateQueue {
                 aggregation_number
             )
             .entered();
-            task.insert(CachedDataItem::AggregationNumber {
-                value: AggregationNumber {
-                    base: base_aggregation_number,
-                    distance,
-                    effective: aggregation_number,
-                },
+            task.set_aggregation_number(AggregationNumber {
+                base: base_aggregation_number,
+                distance,
+                effective: aggregation_number,
             });
 
             if !is_aggregating_node(old) && is_aggregating_node(aggregation_number) {
                 // When converted from leaf to aggregating node, all children become
                 // followers
-                let children: Vec<_> = get_many!(task, Child { task } => task);
-                task.extend_new(
-                    CachedDataItemType::Follower,
-                    children
-                        .iter()
-                        .map(|&task| CachedDataItem::Follower { task, value: 1 }),
-                );
+                let children: Vec<_> = task.iter_children().collect();
+                task.update_followers_counts(children.into_iter(), 1);
             }
 
             if is_aggregating_node(aggregation_number) {
                 // followers might become inner nodes when the aggregation number is
                 // increased
-                let followers = iter_many!(task, Follower { task } count if *count > 0 => task);
-                for follower_id in followers {
+                for (&follower_id, _) in task.iter_followers() {
                     self.push(AggregationUpdateJob::BalanceEdge {
                         upper_id: task_id,
                         task_id: follower_id,
                     });
                 }
-                let uppers = iter_uppers(&task);
-                for upper_id in uppers {
+                let uppers = task.iter_upper();
+                for (&upper_id, _count) in uppers {
                     self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
                 }
             } else {
-                let children = iter_many!(task, Child { task } => task);
-                for child_id in children {
+                for child_id in task.iter_children() {
                     self.push(AggregationUpdateJob::UpdateAggregationNumber {
                         task_id: child_id,
                         base_aggregation_number: aggregation_number + 1,
@@ -2343,24 +2555,24 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
-        let aggregation_number = get!(task, AggregationNumber).copied().unwrap_or_default();
+        let aggregation_number = task.get_aggregation_number().copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
         }
         let follower_count = if is_aggregating_node(aggregation_number.effective) {
-            let follower_count = count!(task, Follower);
+            let follower_count = task.followers_len();
             if follower_count == 0 {
                 return;
             }
             follower_count
         } else {
-            let children_count = count!(task, Child);
+            let children_count = task.children_len();
             if children_count == 0 {
                 return;
             }
             children_count
         };
-        let upper_count = count!(task, Upper);
+        let upper_count = task.upper_len();
         if upper_count <= 1
             || upper_count.saturating_sub(1) * follower_count
                 <= max(
@@ -2463,13 +2675,38 @@ impl AggregationUpdateQueue {
 }
 
 impl Operation for AggregationUpdateQueue {
-    fn execute(mut self, ctx: &mut impl ExecuteContext) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             if self.process(ctx) {
                 return;
             }
         }
+    }
+}
+
+trait TaskIdWithOptionalCount {
+    fn task_id(&self) -> TaskId;
+    fn task_id_and_count(&self) -> (TaskId, u32);
+}
+
+impl TaskIdWithOptionalCount for TaskId {
+    fn task_id(&self) -> TaskId {
+        *self
+    }
+
+    fn task_id_and_count(&self) -> (TaskId, u32) {
+        (*self, 1)
+    }
+}
+
+impl TaskIdWithOptionalCount for (TaskId, u32) {
+    fn task_id(&self) -> TaskId {
+        self.0
+    }
+
+    fn task_id_and_count(&self) -> (TaskId, u32) {
+        (self.0, self.1)
     }
 }
 

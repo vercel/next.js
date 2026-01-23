@@ -3,6 +3,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
 } from '../../../shared/lib/app-router-types'
+import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -22,25 +23,6 @@ export type RouterChangeByServerResponse = ({
   serverResponse: FetchServerResponseResult
 }) => void
 
-export interface Mutable {
-  mpaNavigation?: boolean
-  patchedTree?: FlightRouterState
-  renderedSearch?: string
-  canonicalUrl?: string
-  scrollableSegments?: FlightSegmentPath[]
-  pendingPush?: boolean
-  cache?: CacheNode
-  hashFragment?: string
-  shouldScroll?: boolean
-  preserveCustomHistoryState?: boolean
-  onlyHashChange?: boolean
-  collectedDebugInfo?: Array<unknown>
-}
-
-export interface ServerActionMutable extends Mutable {
-  inFlightServerAction?: Promise<any> | null
-}
-
 /**
  * Refresh triggers a refresh of the full page data.
  * - fetches the Flight data and fills rsc at the root of the cache.
@@ -48,12 +30,10 @@ export interface ServerActionMutable extends Mutable {
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
-  origin: Location['origin']
 }
 
 export interface HmrRefreshAction {
   type: typeof ACTION_HMR_REFRESH
-  origin: Location['origin']
 }
 
 export type ServerActionDispatcher = (
@@ -133,27 +113,25 @@ export type AppHistoryState = {
 
 /**
  * Server-patch applies the provided Flight data to the cache and router tree.
- * - Only triggered in layout-router.
- * - Creates a new cache and router state with the Flight data applied.
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
-  navigatedAt: number
-  serverResponse: FetchServerResponseResult
   previousTree: FlightRouterState
+  url: URL
+  nextUrl: string | null
+  seed: NavigationSeed | null
+  mpa: boolean
 }
 
 /**
  * PrefetchKind defines the type of prefetching that should be done.
  * - `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully.
  * - `full` - prefetch the page data fully.
- * - `temporary` - a temporary prefetch entry is added to the cache, this is used when prefetch={false} is used in next/link or when you push a route programmatically.
  */
 
 export enum PrefetchKind {
   AUTO = 'auto',
   FULL = 'full',
-  TEMPORARY = 'temporary',
 }
 
 /**
@@ -225,7 +203,17 @@ export type AppRouterState = {
    * - This is the url you see in the browser.
    */
   canonicalUrl: string
+
+  /**
+   * The search query observed by the server during rendering. This may be
+   * different from the canonical URL's search query if the server performed
+   * a rewrite. Even though a client component won't observe this (unless it
+   * were passed from a Server component), the client router needs to know this
+   * so it can properly cache segment data; it'ss part of a page segment's
+   * cache key.
+   */
   renderedSearch: string
+
   /**
    * The underlying "url" representing the UI state, which is used for intercepting routes.
    */

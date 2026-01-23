@@ -120,10 +120,13 @@ pub async fn get_browser_runtime_code(
             )?;
         }
         ChunkSuffix::FromScriptSrc => {
+            if chunk_loading == &ChunkLoading::Edge {
+                panic!("ChunkSuffix::FromScriptSrc is not supported in Edge runtimes");
+            }
             writedoc!(
                 code,
                 r#"
-                    const CHUNK_SUFFIX = (self.TURBOPACK_CHUNK_SUFFIX ?? document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, "")) || "";
+                    const CHUNK_SUFFIX = getChunkSuffixFromScriptSrc();
                 "#
             )?;
         }
@@ -201,4 +204,16 @@ pub async fn get_browser_runtime_code(
     )?;
 
     Ok(Code::cell(code.build()))
+}
+
+/// Returns the code for the ECMAScript worker entrypoint bootstrap.
+pub fn get_worker_runtime_code(
+    asset_context: Vc<Box<dyn AssetContext>>,
+    generate_source_map: bool,
+) -> Result<Vc<Code>> {
+    Ok(embed_static_code(
+        asset_context,
+        rcstr!("browser/runtime/base/worker-entrypoint.ts"),
+        generate_source_map,
+    ))
 }

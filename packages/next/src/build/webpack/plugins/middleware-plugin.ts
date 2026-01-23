@@ -22,6 +22,7 @@ import {
   SERVER_REFERENCE_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
+  SERVER_FILES_MANIFEST,
 } from '../../../shared/lib/constants'
 import type { ProxyConfig } from '../../analysis/get-page-static-info'
 import type { Telemetry } from '../../../telemetry/storage'
@@ -133,6 +134,10 @@ function getEntryFiles(
       `server/${NEXT_FONT_MANIFEST}.js`,
       `server/${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`
     )
+
+    if (!opts.dev) {
+      files.push(`${SERVER_FILES_MANIFEST}.js`)
+    }
   }
 
   if (hasInstrumentationHook) {

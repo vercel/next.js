@@ -247,7 +247,7 @@ describe('app dir - prefetching', () => {
             'prefetch-auto',
             {
               children: [
-                ['slug', 'vercel', 'd'],
+                ['slug', 'vercel', 'd', null],
                 { children: ['__PAGE__', {}] },
               ],
             },

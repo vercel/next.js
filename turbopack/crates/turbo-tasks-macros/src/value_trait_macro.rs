@@ -1,9 +1,8 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{quote, quote_spanned};
+use quote::{ToTokens, quote, quote_spanned};
 use syn::{
-    FnArg, ItemTrait, Pat, Receiver, TraitItem, TraitItemFn, parse_macro_input, parse_quote,
-    spanned::Spanned,
+    FnArg, ItemTrait, Pat, Receiver, TraitItem, TraitItemFn, parse_macro_input, spanned::Spanned,
 };
 
 use crate::{
@@ -71,7 +70,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut dynamic_trait_fns = Vec::new();
     let mut trait_methods: Vec<TokenStream2> = Vec::new();
     let mut native_functions = Vec::new();
-    let mut items = Vec::with_capacity(raw_items.len());
+    let mut items: Vec<TokenStream2> = Vec::with_capacity(raw_items.len());
     let mut errors = Vec::new();
 
     for item in raw_items.iter() {
@@ -97,7 +96,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             Ok(None) => {
                 // There is no turbo_tasks::function annotation, preserve this item as is in the
                 // trait
-                items.push(item.clone());
+                items.push(item.to_token_stream());
                 // But we still need to add a forwarding implementation to the
                 // impl for `turbo_tasks::Dynamic<Box<dyn T>>`
                 // This will have the same signature, but simply forward the call
@@ -195,7 +194,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             #turbo_signature #dynamic_block
         });
 
-        let default = if let Some(default) = default {
+        let default_block = if let Some(default) = default {
             let inline_function_ident = turbo_fn.inline_ident();
             let inline_extension_trait_ident =
                 Ident::new(&format!("{trait_ident}_{ident}_inline"), ident.span());
@@ -206,7 +205,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let native_function = NativeFn {
                 function_global_name: global_name(&function_path_string),
                 function_path_string,
-                function_path: parse_quote! {
+                function_path: quote! {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
                 },
                 is_method: turbo_fn.is_method(),
@@ -249,26 +248,28 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             });
 
-            Some(turbo_fn.static_block(&native_function_ident))
+            turbo_fn.static_block(&native_function_ident)
         } else {
             trait_methods.push(quote! {
                 (stringify!(#ident), None),
             });
-            None
+            quote! { ; }
         };
 
-        items.push(TraitItem::Fn(TraitItemFn {
-            sig: turbo_fn.trait_signature(),
-            default,
-            attrs: attrs.iter().map(|a| (*a).clone()).collect(),
-            semi_token: Default::default(),
-        }));
+        let trait_sig = turbo_fn.trait_signature();
+        items.push(quote! {
+            #(#attrs)*
+            #trait_sig #default_block
+        });
     }
 
     let value_debug_impl = if debug {
         quote! {
+            #[automatically_derived]
             unsafe impl turbo_tasks::Dynamic<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
+            #[automatically_derived]
             unsafe impl turbo_tasks::Upcast<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
+            #[automatically_derived]
             unsafe impl turbo_tasks::UpcastStrict<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
         }
     } else {
@@ -313,6 +314,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::macro_helpers::CollectableTrait(&#trait_type_ident)
         }
 
+        #[automatically_derived]
         impl turbo_tasks::VcValueTrait for Box<dyn #trait_ident> {
             type ValueTrait = dyn #trait_ident;
 
@@ -333,9 +335,12 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
+        #[automatically_derived]
         unsafe impl turbo_tasks::Dynamic<Box<dyn #trait_ident>> for Box<dyn #trait_ident> {}
+        #[automatically_derived]
         unsafe impl turbo_tasks::Upcast<Box<dyn #trait_ident>> for Box<dyn #trait_ident> {}
 
+        #[automatically_derived]
         impl<T> #trait_ident for T
         where
             T: turbo_tasks::Dynamic<Box<dyn #trait_ident>> + #(#supertraits +)* #(#extended_supertraits +)*,
@@ -344,8 +349,11 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         #(
+            #[automatically_derived]
             unsafe impl turbo_tasks::Dynamic<Box<dyn #supertraits>> for Box<dyn #trait_ident> {}
+            #[automatically_derived]
             unsafe impl turbo_tasks::Upcast<Box<dyn #supertraits>> for Box<dyn #trait_ident> {}
+            #[automatically_derived]
             unsafe impl turbo_tasks::UpcastStrict<Box<dyn #supertraits>> for Box<dyn #trait_ident> {
             }
         )*

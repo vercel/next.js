@@ -1,9 +1,8 @@
 'use client'
 
-import { useActionState } from 'react'
-import { getSentinelValue } from '../getSentinelValue'
+import { ReactNode, useActionState } from 'react'
 
-export function Form({ action }) {
+export function Form({ action }: { action: () => Promise<ReactNode> }) {
   const [result, formAction] = useActionState(action, 'initial')
 
   return (
@@ -11,7 +10,6 @@ export function Form({ action }) {
       <h1>Inline Server Action with Cache Components</h1>
       <button>Submit</button>
       <p>{result}</p>
-      <div id="page">{getSentinelValue()}</div>
     </form>
   )
 }

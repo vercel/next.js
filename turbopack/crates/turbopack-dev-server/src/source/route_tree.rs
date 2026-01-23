@@ -1,19 +1,19 @@
 use std::{fmt::Write, mem::replace};
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
     fxindexmap, trace::TraceRawVcs,
 };
 
-use super::{GetContentSourceContent, GetContentSourceContents};
+use crate::source::{GetContentSourceContent, GetContentSourceContents};
 
 /// The type of the route. This will decide about the remaining segments of the
 /// route after the base.
 #[derive(
-    TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    TaskInput, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum RouteType {
     Exact,
@@ -24,7 +24,7 @@ pub enum RouteType {
 
 /// Some normal segment of a route.
 #[derive(
-    TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    TaskInput, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum BaseSegment {
     Static(RcStr),
@@ -51,8 +51,8 @@ pub struct RouteTrees(Vec<ResolvedVc<RouteTree>>);
 impl RouteTrees {
     /// Merges the list of RouteTrees into one RouteTree.
     #[turbo_tasks::function]
-    pub async fn merge(self: Vc<Self>) -> Result<Vc<RouteTree>> {
-        let trees = &*self.await?;
+    pub async fn merge(&self) -> Result<Vc<RouteTree>> {
+        let trees = &self.0;
         if trees.is_empty() {
             return Ok(RouteTree::default().cell());
         }
@@ -106,6 +106,7 @@ impl RouteTrees {
 pub struct RouteTree {
     base: Vec<BaseSegment>,
     sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     static_segments: FxIndexMap<RcStr, ResolvedVc<RouteTree>>,
     dynamic_segments: Vec<ResolvedVc<RouteTree>>,
     catch_all_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,

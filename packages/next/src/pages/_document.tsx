@@ -928,13 +928,24 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { docComponentsRendered, locale, scriptLoader, __NEXT_DATA__ } =
-    useHtmlContext()
+  const {
+    docComponentsRendered,
+    locale,
+    scriptLoader,
+    deploymentId,
+    __NEXT_DATA__,
+  } = useHtmlContext()
 
   docComponentsRendered.Html = true
   handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
 
-  return <html {...props} lang={props.lang || locale || undefined} />
+  return (
+    <html
+      {...props}
+      lang={props.lang || locale || undefined}
+      data-dpl-id={deploymentId || undefined}
+    />
+  )
 }
 
 export function Main() {

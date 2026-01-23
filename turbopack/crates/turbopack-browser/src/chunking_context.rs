@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -13,11 +13,12 @@ use turbopack_core::{
     chunk::{
         Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, ModuleId, SourceMapSourceType, SourceMapsType,
+        EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
-        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
+        chunk_id_strategy::ModuleIdStrategy,
     },
+    context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -27,7 +28,6 @@ use turbopack_core::{
         chunk_group_info::ChunkGroup,
     },
     output::{OutputAsset, OutputAssets},
-    reference::ModuleReference,
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -40,6 +40,7 @@ use crate::ecmascript::{
     chunk::EcmascriptBrowserChunk,
     evaluate::chunk::EcmascriptBrowserEvaluateChunk,
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
+    worker::EcmascriptBrowserWorkerEntrypoint,
 };
 
 #[turbo_tasks::value]
@@ -60,11 +61,11 @@ pub const CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR: &str =
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ContentHashing {
     /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
@@ -161,11 +162,8 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn module_id_strategy(
-        mut self,
-        module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    ) -> Self {
-        self.chunking_context.module_id_strategy = module_id_strategy;
+    pub fn module_id_strategy(mut self, module_id_strategy: ResolvedVc<ModuleIdStrategy>) -> Self {
+        self.chunking_context.module_id_strategy = Some(module_id_strategy);
         self
     }
 
@@ -174,11 +172,8 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn unused_references(
-        mut self,
-        unused_references: Option<ResolvedVc<BindingUsageInfo>>,
-    ) -> Self {
-        self.chunking_context.unused_references = unused_references;
+    pub fn unused_references(mut self, unused_references: ResolvedVc<UnusedReferences>) -> Self {
+        self.chunking_context.unused_references = Some(unused_references);
         self
     }
 
@@ -252,12 +247,14 @@ pub struct BrowserChunkingContext {
     /// This path is used to compute the url to request assets from
     client_root: FileSystemPath,
     /// This path is used to compute the url to request chunks or assets from
+    #[bincode(with = "turbo_bincode::indexmap")]
     client_roots: FxIndexMap<RcStr, FileSystemPath>,
     /// Chunks are placed at this path
     chunk_root_path: FileSystemPath,
     /// Static assets are placed at this path
     asset_root_path: FileSystemPath,
     /// Static assets are placed at this path
+    #[bincode(with = "turbo_bincode::indexmap")]
     asset_root_paths: FxIndexMap<RcStr, FileSystemPath>,
     /// Base path that will be prepended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
@@ -270,6 +267,7 @@ pub struct BrowserChunkingContext {
     asset_base_path: Option<RcStr>,
     /// URL prefix that will be prepended to all static asset URLs when loading
     /// them.
+    #[bincode(with = "turbo_bincode::indexmap")]
     asset_base_paths: FxIndexMap<RcStr, RcStr>,
     /// Enable HMR for this chunking
     enable_hot_module_replacement: bool,
@@ -298,11 +296,11 @@ pub struct BrowserChunkingContext {
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The module id strategy to use
-    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    module_id_strategy: Option<ResolvedVc<ModuleIdStrategy>>,
     /// The module export usage info, if available.
     export_usage: Option<ResolvedVc<BindingUsageInfo>>,
     /// Which references are unused and should be skipped (e.g. during codegen).
-    unused_references: Option<ResolvedVc<BindingUsageInfo>>,
+    unused_references: Option<ResolvedVc<UnusedReferences>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Whether to use absolute URLs for static assets (e.g. in CSS: `url("/absolute/path")`)
@@ -349,7 +347,7 @@ impl BrowserChunkingContext {
                 source_maps_type: SourceMapsType::Full,
                 current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,
-                module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
+                module_id_strategy: None,
                 export_usage: None,
                 unused_references: None,
                 chunking_configs: Default::default(),
@@ -699,6 +697,8 @@ impl ChunkingContext for BrowserChunkingContext {
             )
             .await?;
 
+            let chunks = chunks.await?;
+
             let mut assets = chunks
                 .iter()
                 .map(|chunk| self.generate_chunk(**chunk).to_resolved())
@@ -764,6 +764,8 @@ impl ChunkingContext for BrowserChunkingContext {
                 input_availability_info,
             )
             .await?;
+
+            let chunks = chunks.await?;
 
             let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
                 .iter()
@@ -833,8 +835,10 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn chunk_item_id_from_ident(&self, ident: Vc<AssetIdent>) -> Vc<ModuleId> {
-        self.module_id_strategy.get_module_id(ident)
+    fn chunk_item_id_strategy(&self) -> Vc<ModuleIdStrategy> {
+        *self
+            .module_id_strategy
+            .unwrap_or_else(|| ModuleIdStrategy::default().resolved_cell())
     }
 
     #[turbo_tasks::function]
@@ -859,23 +863,23 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn async_loader_chunk_item_id(
+    async fn async_loader_chunk_item_ident(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
-    ) -> Result<Vc<ModuleId>> {
+    ) -> Result<Vc<AssetIdent>> {
         Ok(if self.await?.manifest_chunks {
-            self.chunk_item_id_from_ident(ManifestLoaderChunkItem::asset_ident_for(module))
+            ManifestLoaderChunkItem::asset_ident_for(module)
         } else {
-            self.chunk_item_id_from_ident(AsyncLoaderModule::asset_ident_for(module))
+            AsyncLoaderModule::asset_ident_for(module)
         })
     }
 
     #[turbo_tasks::function]
     async fn module_export_usage(
-        self: Vc<Self>,
+        &self,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
-        if let Some(export_usage) = self.await?.export_usage {
+        if let Some(export_usage) = self.export_usage {
             Ok(export_usage.await?.used_exports(module).await?)
         } else {
             Ok(ModuleExportUsage::all())
@@ -883,22 +887,28 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn is_reference_unused(
-        self: Vc<Self>,
-        reference: ResolvedVc<Box<dyn ModuleReference>>,
-    ) -> Result<Vc<bool>> {
-        if let Some(unused_references) = self.await?.unused_references {
-            Ok(Vc::cell(
-                unused_references.await?.is_reference_unused(&reference),
-            ))
+    fn unused_references(&self) -> Vc<UnusedReferences> {
+        if let Some(unused_references) = self.unused_references {
+            *unused_references
         } else {
-            Ok(Vc::cell(false))
+            Vc::cell(Default::default())
         }
     }
 
     #[turbo_tasks::function]
     async fn debug_ids_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.debug_ids))
+    }
+
+    #[turbo_tasks::function]
+    fn worker_entrypoint(
+        self: Vc<Self>,
+        asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Vc<Box<dyn OutputAsset>> {
+        Vc::upcast(EcmascriptBrowserWorkerEntrypoint::new(
+            Vc::upcast(self),
+            asset_context,
+        ))
     }
 }
 

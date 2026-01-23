@@ -1,27 +1,76 @@
 import type {
-  Mutable,
   ReadonlyReducerState,
   ReducerState,
-  RefreshAction,
 } from '../router-reducer-types'
-import { handleNavigationResult } from './navigate-reducer'
-import { refresh as refreshUsingSegmentCache } from '../../segment-cache/navigation'
+import {
+  convertServerPatchToFullTree,
+  navigateToKnownRoute,
+} from '../../segment-cache/navigation'
+import { revalidateEntireCache } from '../../segment-cache/cache'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
+import { FreshnessPolicy } from '../ppr-navigations'
+import { invalidateBfCache } from '../../segment-cache/bfcache'
 
-export function refreshReducer(
+export function refreshReducer(state: ReadonlyReducerState): ReducerState {
+  // TODO: Currently, all refreshes purge the prefetch cache. In the future,
+  // only client-side refreshes will have this behavior; the server-side
+  // `refresh` should send new data without purging the prefetch cache.
+  const currentNextUrl = state.nextUrl
+  const currentRouterState = state.tree
+  revalidateEntireCache(currentNextUrl, currentRouterState)
+  return refreshDynamicData(state, FreshnessPolicy.RefreshAll)
+}
+
+export function refreshDynamicData(
   state: ReadonlyReducerState,
-  action: RefreshAction
+  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh
 ): ReducerState {
-  const currentUrl = new URL(state.canonicalUrl, action.origin)
-  const result = refreshUsingSegmentCache(
-    currentUrl,
-    state.tree,
-    state.nextUrl,
-    state.renderedSearch,
-    state.canonicalUrl
+  // During a refresh, invalidate the BFCache, which may contain dynamic data.
+  invalidateBfCache()
+
+  const currentNextUrl = state.nextUrl
+
+  // We always send the last next-url, not the current when performing a dynamic
+  // request. This is because we update the next-url after a navigation, but we
+  // want the same interception route to be matched that used the last next-url.
+  const nextUrlForRefresh = hasInterceptionRouteInCurrentTree(state.tree)
+    ? state.previousNextUrl || currentNextUrl
+    : null
+
+  // A refresh is modeled as a navigation to the current URL, but where any
+  // existing dynamic data (including in shared layouts) is re-fetched.
+  const currentCanonicalUrl = state.canonicalUrl
+  const currentUrl = new URL(currentCanonicalUrl, location.origin)
+  const currentRenderedSearch = state.renderedSearch
+  const currentFlightRouterState = state.tree
+  const shouldScroll = false
+
+  // Create a NavigationSeed from the current FlightRouterState.
+  // TODO: Eventually we will store this type directly on the state object
+  // instead of reconstructing it on demand. Part of a larger series of
+  // refactors to unify the various tree types that the client deals with.
+  const refreshSeed = convertServerPatchToFullTree(
+    currentFlightRouterState,
+    null,
+    currentRenderedSearch
   )
 
-  const mutable: Mutable = {}
-  mutable.preserveCustomHistoryState = false
-
-  return handleNavigationResult(currentUrl, state, mutable, false, result)
+  const now = Date.now()
+  const navigateType = 'replace'
+  return navigateToKnownRoute(
+    now,
+    state,
+    currentUrl,
+    currentCanonicalUrl,
+    refreshSeed,
+    currentUrl,
+    currentRenderedSearch,
+    state.cache,
+    currentFlightRouterState,
+    freshnessPolicy,
+    nextUrlForRefresh,
+    shouldScroll,
+    navigateType,
+    null
+  )
 }

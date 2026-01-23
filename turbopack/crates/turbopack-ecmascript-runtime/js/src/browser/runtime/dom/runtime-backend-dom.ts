@@ -1,14 +1,24 @@
 /**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript DOM runtime.
+ * This file contains the runtime code specific to the Turbopack ECMAScript DOM runtime.
  *
- * It will be appended to the base development runtime code.
+ * It will be appended to the base runtime code.
  */
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime-types.d.ts" />
+
+function getChunkSuffixFromScriptSrc() {
+  // TURBOPACK_CHUNK_SUFFIX is set in web workers
+  return (
+    (self.TURBOPACK_CHUNK_SUFFIX ??
+      document?.currentScript
+        ?.getAttribute?.('src')
+        ?.replace(/^(.*(?=\?)|^.*$)/, '')) ||
+    ''
+  )
+}
 
 type ChunkResolver = {
   resolved: boolean
@@ -154,7 +164,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         // ignore
       } else if (isJs(chunkUrl)) {
         self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
-        importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl)
+        importScripts(chunkUrl)
       } else {
         throw new Error(
           `can't infer type of chunk from URL ${chunkUrl} in worker`

@@ -1,4 +1,4 @@
-import type { AdapterOptions } from '../../server/web/adapter'
+import type { AdapterOptions, EdgeHandler } from '../../server/web/adapter'
 
 import '../../server/web/globals'
 
@@ -8,12 +8,14 @@ import { adapter } from '../../server/web/adapter'
 import * as _mod from 'VAR_USERLAND'
 import { edgeInstrumentationOnRequestError } from '../../server/web/globals'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
+import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
+import type { RequestMeta } from '../../server/request-meta'
 
 const mod = { ..._mod }
 
 const page: string = 'VAR_DEFINITION_PAGE'
 const isProxy = page === '/proxy' || page === '/src/proxy'
-const handler = (isProxy ? mod.proxy : mod.middleware) || mod.default
+const handlerUserland = (isProxy ? mod.proxy : mod.middleware) || mod.default
 
 class ProxyMissingExportError extends Error {
   constructor(message: string) {
@@ -25,7 +27,7 @@ class ProxyMissingExportError extends Error {
 
 // TODO: This spams logs during development. Find a better way to handle this.
 // Removing this will spam "fn is not a function" logs which is worse.
-if (typeof handler !== 'function') {
+if (typeof handlerUserland !== 'function') {
   throw new ProxyMissingExportError(
     `The ${isProxy ? 'Proxy' : 'Middleware'} file "${page}" must export a function named \`${isProxy ? 'proxy' : 'middleware'}\` or a default function.`
   )
@@ -69,12 +71,57 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
   }
 }
 
-export default function nHandler(
-  opts: Omit<AdapterOptions, 'IncrementalCache' | 'page' | 'handler'>
-) {
+const internalHandler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     page,
-    handler: errorHandledHandler(handler),
+    handler: errorHandledHandler(handlerUserland),
   })
 }
+
+export async function handler(
+  request: Request,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    signal?: AbortSignal
+    requestMeta?: RequestMeta
+  }
+): Promise<Response> {
+  const result = await internalHandler({
+    request: {
+      url: request.url,
+      method: request.method,
+      headers: toNodeOutgoingHttpHeaders(request.headers),
+      nextConfig: {
+        basePath: process.env.__NEXT_BASE_PATH,
+        i18n: process.env.__NEXT_I18N_CONFIG as any,
+        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+        experimental: {
+          cacheLife: process.env.__NEXT_CACHE_LIFE as any,
+          authInterrupts: Boolean(
+            process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
+          ),
+          clientParamParsingOrigins: process.env
+            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+        },
+      },
+      page: {
+        name: page,
+      },
+      body:
+        request.method !== 'GET' && request.method !== 'HEAD'
+          ? (request.body ?? undefined)
+          : undefined,
+      waitUntil: ctx.waitUntil,
+      requestMeta: ctx.requestMeta,
+      signal: ctx.signal || new AbortController().signal,
+    },
+  })
+
+  ctx.waitUntil?.(result.waitUntil)
+
+  return result.response
+}
+
+// backwards compat
+export default internalHandler

@@ -1,5 +1,7 @@
+use std::fmt::Display;
+
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
@@ -11,9 +13,9 @@ use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
 use turbopack_wasm::source::WebAssemblySourceType;
 
-use super::{CustomModuleType, RuleCondition, match_mode::MatchMode};
+use crate::module_options::{CustomModuleType, RuleCondition, match_mode::MatchMode};
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ModuleRule {
     condition: RuleCondition,
     effects: Vec<ModuleRuleEffect>,
@@ -152,4 +154,25 @@ pub enum ModuleType {
         source_ty: WebAssemblySourceType,
     },
     Custom(ResolvedVc<Box<dyn CustomModuleType>>),
+}
+
+impl Display for ModuleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModuleType::Ecmascript { .. } => write!(f, "Ecmascript"),
+            ModuleType::Typescript { .. } => write!(f, "Typescript"),
+            ModuleType::TypescriptDeclaration { .. } => write!(f, "TypescriptDeclaration"),
+            ModuleType::EcmascriptExtensionless { .. } => write!(f, "EcmascriptExtensionless"),
+            ModuleType::Json => write!(f, "Json"),
+            ModuleType::Raw => write!(f, "Raw"),
+            ModuleType::NodeAddon => write!(f, "NodeAddon"),
+            ModuleType::CssModule => write!(f, "CssModule"),
+            ModuleType::Css { .. } => write!(f, "Css"),
+            ModuleType::StaticUrlJs { .. } => write!(f, "StaticUrlJs"),
+            ModuleType::StaticUrlCss { .. } => write!(f, "StaticUrlCss"),
+            ModuleType::InlinedBytesJs => write!(f, "InlinedBytesJs"),
+            ModuleType::WebAssembly { .. } => write!(f, "WebAssembly"),
+            ModuleType::Custom(_) => write!(f, "Custom"),
+        }
+    }
 }

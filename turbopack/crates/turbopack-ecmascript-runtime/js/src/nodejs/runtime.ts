@@ -99,16 +99,16 @@ function loadRuntimeChunkPath(
     const chunkModules: CompressedModuleFactories = require(resolved)
     installCompressedModuleFactories(chunkModules, 0, moduleFactories)
     loadedChunks.add(chunkPath)
-  } catch (e) {
+  } catch (cause) {
     let errorMessage = `Failed to load chunk ${chunkPath}`
 
     if (sourcePath) {
       errorMessage += ` from runtime for chunk ${sourcePath}`
     }
 
-    throw new Error(errorMessage, {
-      cause: e,
-    })
+    const error = new Error(errorMessage, { cause })
+    error.name = 'ChunkLoadError'
+    throw error
   }
 }
 
@@ -133,15 +133,13 @@ function loadChunkAsync(
       const chunkModules: CompressedModuleFactories = require(resolved)
       installCompressedModuleFactories(chunkModules, 0, moduleFactories)
       entry = loadedChunk
-    } catch (e) {
+    } catch (cause) {
       const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`
+      const error = new Error(errorMessage, { cause })
+      error.name = 'ChunkLoadError'
 
       // Cache the failure promise, future requests will also get this same rejection
-      entry = Promise.reject(
-        new Error(errorMessage, {
-          cause: e,
-        })
-      )
+      entry = Promise.reject(error)
     }
     chunkCache.set(chunkPath, entry)
   }
@@ -180,11 +178,15 @@ function loadWebAssemblyModule(
 }
 contextPrototype.u = loadWebAssemblyModule
 
-function getWorkerBlobURL(_chunks: ChunkPath[]): string {
-  throw new Error('Worker blobs are not implemented yet for Node.js')
+function getWorkerURL(
+  _entrypoint: ChunkPath,
+  _moduleChunks: ChunkPath[],
+  _shared: boolean
+): URL {
+  throw new Error('Worker urls are not implemented yet for Node.js')
 }
 
-nodeContextPrototype.b = getWorkerBlobURL
+nodeContextPrototype.b = getWorkerURL
 
 function instantiateModule(
   id: ModuleId,

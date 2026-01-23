@@ -68,7 +68,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.0";
+const nextjsReactPeerVersion = "19.2.3";
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -281,6 +281,9 @@ export class NextInstance {
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
+                    (this.buildArgs?.length
+                      ? ` ${this.buildArgs.join(' ')}`
+                      : '') +
                     ' && pnpm post-build',
                 },
               },
@@ -903,5 +906,10 @@ export class NextInstance {
     return () => {
       return this.cliOutput.slice(length)
     }
+  }
+
+  public async waitForMinPrerenderAge(minAgeMS: number): Promise<void> {
+    // For tests we usually have a low revalidate time.
+    // We assume the prerender is old enough by default for those small revalidation times.
   }
 }

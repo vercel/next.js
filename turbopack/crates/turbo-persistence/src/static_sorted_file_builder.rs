@@ -8,9 +8,11 @@ use std::{
 
 use anyhow::{Context, Result};
 use byteorder::{BE, ByteOrder, WriteBytesExt};
+use turbo_bincode::{TurboBincodeBuffer, turbo_bincode_encode};
 
 use crate::{
     compression::compress_into_buffer,
+    meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
         KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
@@ -88,6 +90,8 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub block_count: u16,
     /// The file size of the SST file
     pub size: u64,
+    /// The status flags for this SST file
+    pub flags: MetaEntryFlags,
     /// The number of entries in the SST file
     pub entries: u64,
 }
@@ -96,6 +100,7 @@ pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
     total_key_size: usize,
     file: &Path,
+    flags: MetaEntryFlags,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
     debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
 
@@ -137,10 +142,11 @@ pub fn write_static_stored_file<E: Entry>(
     let meta = StaticSortedFileBuilderMeta {
         min_hash,
         max_hash,
-        amqf: Cow::Owned(amqf),
+        amqf: Cow::Owned(amqf.into_vec()),
         key_compression_dictionary_length: key_dict.len().try_into().unwrap(),
         block_count,
         size: file.stream_position()?,
+        flags,
         entries: entries.len() as u64,
     };
     Ok((meta, file.into_inner()?))
@@ -390,7 +396,7 @@ fn write_key_blocks_and_compute_amqf(
     key_compression_dictionary: &[u8],
     writer: &mut BlockWriter<'_>,
     buffer: &mut Vec<u8>,
-) -> Result<Vec<u8>> {
+) -> Result<TurboBincodeBuffer> {
     let mut filter = qfilter::Filter::new(entries.len() as u64, AMQF_FALSE_POSITIVE_RATE)
         // This won't fail as we limit the number of entries per SST file
         .expect("Filter can't be constructed");
@@ -497,7 +503,7 @@ fn write_key_blocks_and_compute_amqf(
     writer.write_index_block(buffer, key_compression_dictionary)?;
     buffer.clear();
 
-    Ok(pot::to_vec(&filter).expect("AMQF serialization failed"))
+    Ok(turbo_bincode_encode(&AmqfBincodeWrapper(filter)).expect("AMQF serialization failed"))
 }
 
 /// Builder for a single key block

@@ -5,14 +5,18 @@ use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use tracing::{Instrument, field::Empty};
 use turbo_prehash::BuildHasherExt;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, MappedReadRef, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{
-        ChunkItemBatchGroup, ChunkItemWithAsyncModuleInfo, ChunkingConfig,
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo,
+        ChunkingConfig,
         chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
     },
-    module_graph::{ModuleGraph, chunk_group_info::RoaringBitmapWrapper},
+    module_graph::{
+        ModuleGraph,
+        chunk_group_info::{ModuleToChunkGroups, RoaringBitmapWrapper},
+    },
 };
 
 pub async fn make_production_chunks(
@@ -26,12 +30,13 @@ pub async fn make_production_chunks(
         "make production chunks",
         chunk_items = chunk_items.len(),
         chunks_before_limits = Empty,
+        merge_iterations = Empty,
         chunks = Empty,
         total_size = Empty
     );
     let span = span_outer.clone();
     async move {
-        let chunk_group_info = module_graph.chunk_group_info().await?;
+        let module_chunk_groups = module_graph.chunk_group_info().module_chunk_groups();
         let merged_modules = module_graph.merged_modules().await?;
 
         #[derive(Default)]
@@ -42,56 +47,59 @@ pub async fn make_production_chunks(
 
         let mut grouped_chunk_items = FxIndexMap::<_, GroupedChunkItems<'_>>::default();
 
+        enum Prepared {
+            ChunkItem(MappedReadRef<ModuleToChunkGroups, RoaringBitmapWrapper>),
+            Batch(ReadRef<ChunkItemBatchWithAsyncModuleInfo>),
+            None,
+        }
+
         // Helper Vec to keep ReadRefs on batches and allow references into them
-        let batch_read_refs = chunk_items
+        let prepared = chunk_items
             .iter()
             .copied()
             .map(async |item| {
-                Ok(
-                    if let ChunkItemOrBatchWithInfo::Batch { batch, .. } = item {
-                        Some(batch.await?)
-                    } else {
-                        None
-                    },
-                )
+                Ok(match item {
+                    &ChunkItemOrBatchWithInfo::ChunkItem {
+                        chunk_item:
+                            ChunkItemWithAsyncModuleInfo {
+                                module: Some(module),
+                                ..
+                            },
+                        ..
+                    } => Prepared::ChunkItem(
+                        if let Some(module_chunk_groups) =
+                            module_chunk_groups.get(&ResolvedVc::upcast(module)).await?
+                        {
+                            module_chunk_groups
+                        } else {
+                            // Merged modules don't have a chunk group in chunk_group_info, so
+                            // lookup using the original module.
+                            let original_module = merged_modules
+                                .get_original_module(ResolvedVc::upcast(module))
+                                .await?
+                                .context("every module should have a chunk group")?;
+                            module_chunk_groups
+                                .get(&original_module)
+                                .await?
+                                .context("every module should have a chunk group")?
+                        },
+                    ),
+                    &ChunkItemOrBatchWithInfo::ChunkItem {
+                        chunk_item: ChunkItemWithAsyncModuleInfo { module: None, .. },
+                        ..
+                    } => Prepared::None,
+                    ChunkItemOrBatchWithInfo::Batch { batch, .. } => Prepared::Batch(batch.await?),
+                })
             })
             .try_join()
             .await?;
 
-        let batch_group_read_refs = batch_groups.iter().try_join().await?;
-
         // Put chunk items into `grouped_chunk_items` based on their chunk groups
-        for (i, chunk_item) in chunk_items.into_iter().enumerate() {
-            let chunk_groups = match chunk_item {
-                &ChunkItemOrBatchWithInfo::ChunkItem {
-                    chunk_item:
-                        ChunkItemWithAsyncModuleInfo {
-                            module: Some(module),
-                            ..
-                        },
-                    ..
-                } => Some(
-                    chunk_group_info
-                        .module_chunk_groups
-                        .get(&ResolvedVc::upcast(module))
-                        .or_else(|| {
-                            // Merged modules don't have a chunk group in chunk_group_info, so
-                            // lookup using the original module.
-                            merged_modules
-                                .get_original_module(ResolvedVc::upcast(module))
-                                .and_then(|module| {
-                                    chunk_group_info.module_chunk_groups.get(&module)
-                                })
-                        })
-                        .context("every module should have a chunk group")?,
-                ),
-                &ChunkItemOrBatchWithInfo::ChunkItem {
-                    chunk_item: ChunkItemWithAsyncModuleInfo { module: None, .. },
-                    ..
-                } => None,
-                ChunkItemOrBatchWithInfo::Batch { .. } => {
-                    batch_read_refs[i].as_ref().unwrap().chunk_groups.as_ref()
-                }
+        for (chunk_item, prepared) in chunk_items.into_iter().zip(prepared.iter()) {
+            let chunk_groups = match prepared {
+                Prepared::None => None,
+                Prepared::ChunkItem(data) => Some(&**data),
+                Prepared::Batch(data) => data.chunk_groups.as_ref(),
             };
             let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups);
             grouped_chunk_items
@@ -101,8 +109,12 @@ pub async fn make_production_chunks(
                 .push(chunk_item);
         }
 
-        for (i, batch_group) in batch_groups.into_iter().enumerate() {
-            let data = &batch_group_read_refs[i].chunk_groups;
+        let batch_group_read_refs = batch_groups.iter().try_join().await?;
+
+        for (batch_group, batch_group_read_ref) in
+            batch_groups.into_iter().zip(batch_group_read_refs.iter())
+        {
+            let data = &batch_group_read_ref.chunk_groups;
             let key = BuildHasherDefault::<FxHasher>::default().prehash(Some(data));
             grouped_chunk_items.entry(key).or_default().batch_group = Some(batch_group);
         }
@@ -203,6 +215,7 @@ pub async fn make_production_chunks(
                     unreachable!();
                 };
 
+                let mut iterations = 0;
                 while chunks_to_merge.len() > 1 {
                     // Find best candidate
                     let mut selection: Vec<MergeCandidate<'_>> = Vec::new();
@@ -211,23 +224,35 @@ pub async fn make_production_chunks(
                         // Exist early when no better overlaps are possible
                         if let Some((_, _, best_overlap, _)) = best_combination.as_ref() {
                             let candidate_best_possible_value = candidate.chunk_groups_len();
-                            if *best_overlap >= candidate_best_possible_value {
+
+                            /// Limit combinational complexity
+                            /// When we found a good merge combination we don't want to continue
+                            /// searching forever since the combinational complexity would be
+                            /// O(N^3). This limit makes it O(N * M * M) where M is the max
+                            /// combinational complexity. With a small and constant M this is
+                            /// effectively O(N).
+                            const MAX_COMBINATIONAL_COMPLEXITY: usize = 32;
+
+                            if *best_overlap > candidate_best_possible_value
+                                || selection.len() > MAX_COMBINATIONAL_COMPLEXITY
+                            {
                                 chunks_to_merge.push(candidate);
                                 break;
                             }
                         }
 
+                        let is_big_candidate = candidate.size > merge_threshold;
+
                         // Check all combination with the new candidate
                         for (i, other) in selection.iter().enumerate() {
+                            iterations += 1;
                             let overlap = overlap(&candidate.chunk_groups, &other.chunk_groups);
                             // It need to have at least two chunk groups in common
                             if overlap <= 1 {
                                 continue;
                             }
                             // If the candidate is already big enough, avoid shrinking the sharing
-                            if candidate.size > merge_threshold
-                                && overlap != candidate.chunk_groups_len()
-                            {
+                            if is_big_candidate && overlap != candidate.chunk_groups_len() {
                                 continue;
                             }
                             if other.size > merge_threshold && overlap != other.chunk_groups_len() {
@@ -491,6 +516,7 @@ pub async fn make_production_chunks(
                         break;
                     }
                 }
+                span.record("merge_iterations", iterations);
 
                 let mut remained_size = 0;
                 let mut remained_chunk_items = Vec::new();

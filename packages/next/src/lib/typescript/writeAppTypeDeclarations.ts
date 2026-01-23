@@ -5,16 +5,21 @@ import { promises as fs } from 'fs'
 export async function writeAppTypeDeclarations({
   baseDir,
   distDir,
+  distDirRoot,
   imageImportsEnabled,
   hasPagesDir,
   hasAppDir,
 }: {
   baseDir: string
   distDir: string
+  /** The root dist directory without /dev suffix, used for fixed type paths */
+  distDirRoot?: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
   hasAppDir: boolean
 }): Promise<void> {
+  // Use distDirRoot for fixed paths in next-env.d.ts, fallback to distDir
+  const typesDistDir = distDirRoot ?? distDir
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
 
@@ -42,37 +47,39 @@ export async function writeAppTypeDeclarations({
    *
    * @see https://www.typescriptlang.org/docs/handbook/triple-slash-directives.html
    */
-  const directives: string[] = [
+  const lines: string[] = [
     // Include the core Next.js typings.
     '/// <reference types="next" />',
   ]
 
   if (imageImportsEnabled) {
-    directives.push('/// <reference types="next/image-types/global" />')
+    lines.push('/// <reference types="next/image-types/global" />')
   }
 
   if (hasAppDir && hasPagesDir) {
-    directives.push(
+    lines.push(
       '/// <reference types="next/navigation-types/compat/navigation" />'
     )
   }
 
+  // Use fixed path for the entry type file (always at .next/types/routes.d.ts)
+  // This entry file re-exports from actual type files which may be at different paths
   const routeTypesPath = path.posix.join(
-    distDir.replaceAll(path.win32.sep, path.posix.sep),
+    typesDistDir.replaceAll(path.win32.sep, path.posix.sep),
     'types/routes.d.ts'
   )
 
   // Use ESM import instead of triple-slash reference for better ESLint compatibility
-  directives.push(`import "./${routeTypesPath}";`)
+  lines.push(`import "./${routeTypesPath}";`)
 
   // Push the notice in.
-  directives.push(
+  lines.push(
     '',
     '// NOTE: This file should not be edited',
     `// see https://nextjs.org/docs/${hasAppDir ? 'app' : 'pages'}/api-reference/config/typescript for more information.`
   )
 
-  const content = directives.join(eol) + eol
+  const content = lines.join(eol) + eol
 
   // Avoids an un-necessary write on read-only fs
   if (currentContent === content) {

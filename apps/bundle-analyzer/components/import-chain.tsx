@@ -21,6 +21,7 @@ import type {
 } from '@/lib/analyze-data'
 import { splitIdent } from '@/lib/utils'
 import clsx from 'clsx'
+import { Button } from '@/components/ui/button'
 
 interface ImportChainProps {
   startFileId: number
@@ -130,7 +131,7 @@ export function ImportChain({
   environmentFilter,
 }: ImportChainProps) {
   // Filter to include only the current route
-  const [showAll, setShowAll] = useState(false)
+  const [currentRouteOnly, setCurrentRouteOnly] = useState(true)
 
   // Track which dependent is selected at each level
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
@@ -168,7 +169,7 @@ export function ImportChain({
     const startModuleIndices = getModuleIndicesFromSourceIndex(
       startFileId
     ).filter((moduleIndex) => {
-      if (!showAll && !depthMap.has(moduleIndex)) {
+      if (currentRouteOnly && !depthMap.has(moduleIndex)) {
         return false
       }
       let module = modulesData.module(moduleIndex)
@@ -232,7 +233,7 @@ export function ImportChain({
       // Filter out dependents that would create a cycle
       const validDependents = dependentModuleIndices.filter(
         ({ index, depth }) =>
-          !visitedModules.has(index) && (isFinite(depth) || showAll)
+          !visitedModules.has(index) && (isFinite(depth) || !currentRouteOnly)
       )
 
       if (validDependents.length === 0) {
@@ -276,7 +277,7 @@ export function ImportChain({
       const selectedDepInfo = dependentsInfo[actualIdx]
       const selectedDepModule = modulesData.module(selectedDepInfo.moduleIndex)
 
-      if (!selectedDepModule) break
+      if (!selectedDepModule || selectedDepModule.ident == null) break
 
       result.push({
         moduleIndex: selectedDepInfo.moduleIndex,
@@ -304,7 +305,7 @@ export function ImportChain({
     analyzeData,
     modulesData,
     selectedIndices,
-    showAll,
+    currentRouteOnly,
     depthMap,
     environmentFilter,
   ])
@@ -336,7 +337,23 @@ export function ImportChain({
 
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-foreground">Import chain</h3>
+      <div className="flex items-center space-x-2">
+        <h3 className="text-xs font-semibold text-foreground flex-1">
+          Import Chain
+        </h3>
+        <label
+          className="inline-flex items-center space-x-2 text-xs cursor-pointer"
+          title="Only include dependent modules that are part of the current route's bundle"
+        >
+          <span>Current route only</span>
+          <input
+            type="checkbox"
+            className="form-checkbox h-4 w-4 text-primary"
+            checked={currentRouteOnly}
+            onChange={() => setCurrentRouteOnly((prev) => !prev)}
+          />
+        </label>
+      </div>
       <div className="space-y-0">
         {chain.map((level, index) => {
           const previousPath = index > 0 ? chain[index - 1].path : null
@@ -503,22 +520,18 @@ export function ImportChain({
         })}
         {chain.length === 0 && (
           <p className="text-muted-foreground italic text-xs">
-            No dependents found
+            No dependents found.{' '}
+            {currentRouteOnly ? (
+              <Button
+                variant="link"
+                className="inline p-0 text-xs h-auto"
+                onClick={() => setCurrentRouteOnly(false)}
+              >
+                Show all routes.
+              </Button>
+            ) : null}
           </p>
         )}
-      </div>
-      <div className="pt-2">
-        <label className="inline-flex items-center space-x-2 text-sm cursor-pointer">
-          <input
-            type="checkbox"
-            className="form-checkbox h-4 w-4 text-primary"
-            checked={showAll}
-            onChange={() => setShowAll((prev) => !prev)}
-          />
-          <span>
-            Show all dependents (including those outside current route)
-          </span>
-        </label>
       </div>
     </div>
   )

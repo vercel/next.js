@@ -5,27 +5,62 @@ export const BUILTIN_PREFIX = '__next_builtin__'
 const nextInternalPrefixRegex =
   /^(.*[\\/])?next[\\/]dist[\\/]client[\\/]components[\\/]builtin[\\/]/
 
-export function normalizeConventionFilePath(
+/**
+ * Normalize a file path to be relative to the project directory.
+ * Handles Turbopack [project] prefix and monorepo setups.
+ */
+export function normalizeFilePath(
   projectDir: string,
-  conventionPath: string | undefined
-) {
+  filePath: string | undefined
+): string {
   // Turbopack project path is formed as: "<project root>/<cwd>".
   // When project root is not the working directory, we can extract the relative project root path.
   // This is mostly used for running Next.js inside a monorepo.
   const cwd = process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd()
-  const relativeProjectRoot = projectDir.replace(cwd, '')
+  const relativeProjectRoot = projectDir.replace(cwd, '').replace(/^[\\/]/, '')
 
-  let relativePath = (conventionPath || '')
+  let relativePath = (filePath || '')
     // remove turbopack [project] prefix
-    .replace(/^\[project\]/, '')
-    // remove turbopack relative project path, everything after [project] and before the working directory.
-    .replace(relativeProjectRoot, '')
-    // remove the project root from the path
+    .replace(/^\[project\][\\/]?/, '')
+    // remove the project root from the path (absolute)
     .replace(projectDir, '')
-    // remove cwd prefix
+    // remove cwd prefix (absolute)
     .replace(cwd, '')
+    // normalize path separators and remove leading slash
+    .replace(/\\/g, '/')
+    .replace(/^\//, '')
+
+  // remove relative project path prefix (e.g., "test/e2e/app-dir/actions/")
+  if (relativeProjectRoot && relativePath.startsWith(relativeProjectRoot)) {
+    relativePath = relativePath
+      .slice(relativeProjectRoot.length)
+      .replace(/^\//, '')
+  }
+
+  // Handle case where filename is relative to a parent of projectDir
+  // (e.g., in tests where filename is "test/tmp/next-test-XXX/app/page.js"
+  // but projectDir is the test temp directory)
+  if (relativePath.includes('/')) {
+    const projectDirName = projectDir.split(/[\\/]/).pop() || ''
+    if (projectDirName) {
+      const projectDirWithSlash = projectDirName + '/'
+      const idx = relativePath.indexOf(projectDirWithSlash)
+      if (idx >= 0) {
+        relativePath = relativePath.slice(idx + projectDirWithSlash.length)
+      }
+    }
+  }
+
+  return relativePath
+}
+
+export function normalizeConventionFilePath(
+  projectDir: string,
+  conventionPath: string | undefined
+) {
+  let relativePath = normalizeFilePath(projectDir, conventionPath)
     // remove /(src/)?app/ dir prefix
-    .replace(/^([\\/])*(src[\\/])?app[\\/]/, '')
+    .replace(/^(src\/)?app\//, '')
 
   // If it's internal file only keep the filename, strip nextjs internal prefix
   if (nextInternalPrefixRegex.test(relativePath)) {
@@ -34,7 +69,7 @@ export function normalizeConventionFilePath(
     relativePath = `${BUILTIN_PREFIX}${relativePath}`
   }
 
-  return relativePath.replace(/\\/g, '/')
+  return relativePath
 }
 
 // if a filepath is a builtin file. e.g.
