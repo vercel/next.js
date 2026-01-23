@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
@@ -152,4 +154,25 @@ pub enum ModuleType {
         source_ty: WebAssemblySourceType,
     },
     Custom(ResolvedVc<Box<dyn CustomModuleType>>),
+}
+
+impl Display for ModuleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModuleType::Ecmascript { .. } => write!(f, "Ecmascript"),
+            ModuleType::Typescript { .. } => write!(f, "Typescript"),
+            ModuleType::TypescriptDeclaration { .. } => write!(f, "TypescriptDeclaration"),
+            ModuleType::EcmascriptExtensionless { .. } => write!(f, "EcmascriptExtensionless"),
+            ModuleType::Json => write!(f, "Json"),
+            ModuleType::Raw => write!(f, "Raw"),
+            ModuleType::NodeAddon => write!(f, "NodeAddon"),
+            ModuleType::CssModule => write!(f, "CssModule"),
+            ModuleType::Css { .. } => write!(f, "Css"),
+            ModuleType::StaticUrlJs { .. } => write!(f, "StaticUrlJs"),
+            ModuleType::StaticUrlCss { .. } => write!(f, "StaticUrlCss"),
+            ModuleType::InlinedBytesJs => write!(f, "InlinedBytesJs"),
+            ModuleType::WebAssembly { .. } => write!(f, "WebAssembly"),
+            ModuleType::Custom(_) => write!(f, "Custom"),
+        }
+    }
 }
