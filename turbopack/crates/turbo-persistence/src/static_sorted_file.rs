@@ -172,8 +172,7 @@ impl StaticSortedFile {
         let rotated_key = rotate_key(key);
 
         // Binary search on key table (only 4 bytes per comparison)
-        if let Some(index) =
-            self.binary_search_key_table(rotated_key, key_table_start, entry_count)?
+        if let Some(index) = self.binary_search_key_table(rotated_key, key_table_start, entry_count)
         {
             // Found - read value from value table
             let value_offset = value_table_start + index * VALUE_SIZE;
@@ -185,34 +184,40 @@ impl StaticSortedFile {
         Ok(None)
     }
 
-    /// Binary search on a key table (u32 keys, 4 bytes each).
+    /// Binary search on a key table (u32 keys stored as big-endian, 4 bytes each).
     /// Returns the index if found, None otherwise.
+    ///
+    /// Uses the standard library's optimized binary search which is well-tuned
+    /// for cache efficiency. Keys are compared as big-endian bytes directly
+    /// (byte-wise comparison of BE bytes is equivalent to numeric comparison).
     fn binary_search_key_table(
         &self,
         rotated_key: u32,
         key_table_start: usize,
         entry_count: usize,
-    ) -> Result<Option<usize>> {
-        let mut l = 0;
-        let mut r = entry_count;
-        while l < r {
-            let m = (l + r) / 2;
-            let key_offset = key_table_start + m * 4;
-            let mid_key = (&self.mmap[key_offset..key_offset + 4]).read_u32::<BE>()?;
-
-            match rotated_key.cmp(&mid_key) {
-                Ordering::Less => {
-                    r = m;
-                }
-                Ordering::Equal => {
-                    return Ok(Some(m));
-                }
-                Ordering::Greater => {
-                    l = m + 1;
-                }
-            }
+    ) -> Option<usize> {
+        if entry_count == 0 {
+            return None;
         }
-        Ok(None)
+
+        let key_table_end = key_table_start + entry_count * 4;
+        let key_bytes = &self.mmap[key_table_start..key_table_end];
+
+        // SAFETY: &[u8] can always be reinterpreted as &[[u8; 4]] when the length
+        // is a multiple of 4, since [u8; 4] has alignment 1. We've ensured the
+        // slice length is exactly entry_count * 4.
+        let key_table: &[[u8; 4]] =
+            unsafe { std::slice::from_raw_parts(key_bytes.as_ptr().cast(), entry_count) };
+
+        // Convert search key to big-endian bytes for comparison.
+        // Comparing [u8; 4] lexicographically is equivalent to comparing
+        // the u32 values when both are in big-endian format.
+        let search_key = rotated_key.to_be_bytes();
+
+        match key_table.binary_search(&search_key) {
+            Ok(index) => Some(index),
+            Err(_) => None,
+        }
     }
 
     /// Looks up a u32 key in a direct-variable SST file.
@@ -259,8 +264,7 @@ impl StaticSortedFile {
         let rotated_key = rotate_key(key);
 
         // Binary search on key table
-        if let Some(index) =
-            self.binary_search_key_table(rotated_key, key_table_start, entry_count)?
+        if let Some(index) = self.binary_search_key_table(rotated_key, key_table_start, entry_count)
         {
             // Found - read value location (8 bytes)
             let loc_offset = value_loc_start + index * 8;
