@@ -980,9 +980,5 @@
   "979": "invariant: expected %s bytes of postponed state but only received %s bytes",
   "980": "Failed to load client middleware manifest",
   "981": "resolvedPathname must be set in request metadata",
-  "982": "`serializeResumeDataCache` should not be called in edge runtime.",
-  "983": "deploymentId function must return a string. https://nextjs.org/docs/messages/deploymentid-not-a-string",
-  "984": "The deploymentId \"%s\" cannot start with the \"dpl_\" prefix. Please choose a different deploymentId in your next.config.js. https://vercel.com/docs/skew-protection#custom-skew-protection-deployment-id",
-  "985": "The deploymentId \"%s\" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId. https://nextjs.org/docs/messages/deploymentid-too-long",
-  "986": "The deploymentId \"%s\" contains invalid characters. Only alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), and underscores (_) are allowed. https://nextjs.org/docs/messages/deploymentid-invalid-characters"
+  "982": "`serializeResumeDataCache` should not be called in edge runtime."
 }

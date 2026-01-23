@@ -77,8 +77,6 @@ import {
 } from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
-import type { NextConfigComplete } from '../config-shared'
-import { evaluateDeploymentId } from '../evaluate-deployment-id'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
@@ -256,9 +254,7 @@ export async function createHotReloaderTurbopack(
       rootPath,
       projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
       distDir,
-      nextConfig: opts.nextConfig as NextConfigComplete & {
-        deploymentId?: string
-      },
+      nextConfig: opts.nextConfig,
       watch: {
         enable: dev,
         pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
@@ -328,9 +324,7 @@ export async function createHotReloaderTurbopack(
     distDir,
     encryptionKey,
     dev: true,
-    deploymentId: evaluateDeploymentId(nextConfig.deploymentId),
-    runtimeServerDeploymentId:
-      nextConfig.experimental.runtimeServerDeploymentId,
+    deploymentId: nextConfig.deploymentId,
   })
 
   // Dev specific

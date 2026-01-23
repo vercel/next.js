@@ -182,7 +182,6 @@ export type RouteHandler<
  * the rewrites normalized to the object shape that the router expects.
  */
 export type NormalizedRouteManifest = {
-  readonly deploymentId?: string | undefined
   readonly dynamicRoutes: ReadonlyArray<ManifestRoute>
   readonly rewrites: {
     readonly beforeFiles: ReadonlyArray<ManifestRewriteRoute>
@@ -466,7 +465,7 @@ export default abstract class Server<
     } else {
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
-        : (this.nextConfig.deploymentId as string) || ''
+        : this.nextConfig.deploymentId || ''
 
       this.deploymentId = id
       process.env.NEXT_DEPLOYMENT_ID = id
