@@ -238,7 +238,7 @@ impl StaticSortedFile {
         // Read footer (last 6 bytes: u32 entry_count, u16 block_count)
         let footer_start = self.mmap.len().saturating_sub(6);
         let entry_count = (&self.mmap[footer_start..footer_start + 4]).read_u32::<BE>()? as usize;
-        let _block_count =
+        let block_count =
             (&self.mmap[footer_start + 4..footer_start + 6]).read_u16::<BE>()? as usize;
 
         if entry_count == 0 {
@@ -253,6 +253,7 @@ impl StaticSortedFile {
         let value_loc_end = footer_start;
         let value_loc_start = value_loc_end - entry_count * 8;
         let key_table_start = value_loc_start - entry_count * 4;
+        let block_offsets_start = key_table_start - block_count * 4;
 
         // Rotate the key for comparison (keys are stored rotated)
         let rotated_key = rotate_key(key);
@@ -268,11 +269,13 @@ impl StaticSortedFile {
             let offset_or_payload =
                 (&self.mmap[loc_offset + 4..loc_offset + 8]).read_u32::<BE>()?;
 
-            // Decode value type from sentinels
-            return self.decode_value_location(
+            // Decode value type from sentinels using direct-variable layout
+            return self.decode_direct_variable_value(
                 block_index,
                 value_size,
                 offset_or_payload,
+                block_offsets_start,
+                block_count,
                 value_block_cache,
             );
         }
@@ -280,12 +283,17 @@ impl StaticSortedFile {
         Ok(SstLookupResult::NotFound)
     }
 
-    /// Decodes value location and fetches the value.
-    fn decode_value_location(
+    /// Decodes value location and fetches the value for direct-variable format.
+    ///
+    /// This uses the direct-variable file layout where block offsets are stored
+    /// before the key table, not at the end of the file.
+    fn decode_direct_variable_value(
         &self,
         block_index: u16,
         value_size: u16,
         offset_or_payload: u32,
+        block_offsets_start: usize,
+        block_count: usize,
         value_block_cache: &BlockCache,
     ) -> Result<SstLookupResult> {
         // Sentinel values for special types
@@ -306,17 +314,109 @@ impl StaticSortedFile {
             }
             _ if value_size == MEDIUM_SENTINEL => {
                 // Medium entry (whole block is the value)
-                let value = self.read_value_block(block_index)?;
+                let value =
+                    self.read_direct_variable_block(block_index, block_offsets_start, block_count)?;
                 Ok(SstLookupResult::Found(LookupValue::Slice { value }))
             }
             _ => {
                 // Small entry
-                let value = self.get_value_block(block_index, value_block_cache)?.slice(
-                    offset_or_payload as usize..(offset_or_payload as usize + value_size as usize),
-                );
+                let value = self
+                    .get_direct_variable_block(
+                        block_index,
+                        block_offsets_start,
+                        block_count,
+                        value_block_cache,
+                    )?
+                    .slice(
+                        offset_or_payload as usize
+                            ..(offset_or_payload as usize + value_size as usize),
+                    );
                 Ok(SstLookupResult::Found(LookupValue::Slice { value }))
             }
         }
+    }
+
+    /// Gets block boundaries for direct-variable format.
+    ///
+    /// In direct-variable layout:
+    /// - Block offsets are stored at `block_offsets_start`
+    /// - Each offset is u32 giving the end position of that block (relative to file start)
+    /// - Block 0 starts at position 0 (value blocks are at the beginning of the file)
+    fn get_direct_variable_block_range(
+        &self,
+        block_index: u16,
+        block_offsets_start: usize,
+        block_count: usize,
+    ) -> Result<(usize, usize)> {
+        let idx = block_index as usize;
+        if idx >= block_count {
+            bail!(
+                "Block index {} out of bounds (block_count={})",
+                idx,
+                block_count
+            );
+        }
+
+        // Block start: 0 for first block, otherwise end of previous block
+        let block_start = if idx == 0 {
+            0
+        } else {
+            let prev_offset_pos = block_offsets_start + (idx - 1) * 4;
+            (&self.mmap[prev_offset_pos..prev_offset_pos + 4]).read_u32::<BE>()? as usize
+        };
+
+        // Block end: read from offsets table
+        let offset_pos = block_offsets_start + idx * 4;
+        let block_end = (&self.mmap[offset_pos..offset_pos + 4]).read_u32::<BE>()? as usize;
+
+        Ok((block_start, block_end))
+    }
+
+    /// Gets a value block for direct-variable format (cached).
+    fn get_direct_variable_block(
+        &self,
+        block_index: u16,
+        block_offsets_start: usize,
+        block_count: usize,
+        value_block_cache: &BlockCache,
+    ) -> Result<ArcSlice<u8>> {
+        let cache_key = (self.meta.sequence_number, block_index);
+        match value_block_cache.get_value_or_guard(&cache_key, None) {
+            GuardResult::Value(value) => Ok(value),
+            GuardResult::Guard(guard) => {
+                let value =
+                    self.read_direct_variable_block(block_index, block_offsets_start, block_count)?;
+                let _ = guard.insert(value.clone());
+                Ok(value)
+            }
+            GuardResult::Timeout => unreachable!(),
+        }
+    }
+
+    /// Reads and decompresses a value block for direct-variable format.
+    fn read_direct_variable_block(
+        &self,
+        block_index: u16,
+        block_offsets_start: usize,
+        block_count: usize,
+    ) -> Result<ArcSlice<u8>> {
+        let (block_start, block_end) =
+            self.get_direct_variable_block_range(block_index, block_offsets_start, block_count)?;
+
+        #[cfg(unix)]
+        let _ = self.mmap.advise_range(
+            memmap2::Advice::Sequential,
+            block_start,
+            block_end - block_start,
+        );
+
+        // Read uncompressed length (first 4 bytes of block)
+        let uncompressed_length = (&self.mmap[block_start..block_start + 4]).read_u32::<BE>()?;
+        let compressed_data = &self.mmap[block_start + 4..block_end];
+
+        // Decompress the block (no compression dictionary for direct-variable format)
+        let buffer = decompress_into_arc(uncompressed_length, compressed_data, None, false)?;
+        Ok(ArcSlice::from(buffer))
     }
 
     /// Looks up a key in this file.
