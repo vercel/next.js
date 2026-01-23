@@ -173,6 +173,16 @@ impl ModuleReference for WorkerAssetReference {
         let result_ref = result.await?;
         let mut primary = Vec::with_capacity(result_ref.primary.len());
 
+        let get_issue_severity = || async {
+            let reference_type = ReferenceType::Worker(self.worker_type.reference_sub_type());
+            let resolve_options = self.origin.resolve_options(reference_type).await?;
+            Ok::<_, anyhow::Error>(if self.in_try || resolve_options.loose_errors {
+                IssueSeverity::Warning
+            } else {
+                IssueSeverity::Error
+            })
+        };
+
         for (request_key, resolve_item) in result_ref.primary.iter() {
             match resolve_item {
                 ModuleResolveResultItem::Module(module) => {
@@ -182,7 +192,7 @@ impl ModuleReference for WorkerAssetReference {
                         ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
                     else {
                         CodeGenerationIssue {
-                            severity: IssueSeverity::Error,
+                            severity: get_issue_severity().await?,
                             title: StyledString::Text(rcstr!("non-chunkable module"))
                                 .resolved_cell(),
                             message: StyledString::Text(
@@ -210,7 +220,7 @@ impl ModuleReference for WorkerAssetReference {
                             .is_none()
                     {
                         CodeGenerationIssue {
-                            severity: IssueSeverity::Error,
+                            severity: get_issue_severity().await?,
                             title: StyledString::Text(rcstr!("non-evaluatable module"))
                                 .resolved_cell(),
                             message: StyledString::Text(
@@ -266,7 +276,7 @@ impl ValueToString for WorkerAssetReference {
                 "new {}({})",
                 match self.worker_type {
                     WorkerType::WebWorker => "WebWorker",
-                    WorkerType::SharedWebWorker => "SharedbWorker",
+                    WorkerType::SharedWebWorker => "SharedWorker",
                     WorkerType::NodeWorkerThread => "NodeWorkerThread",
                 },
                 match &self.request {

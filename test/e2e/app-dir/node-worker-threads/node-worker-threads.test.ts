@@ -4,6 +4,9 @@ describe('node-worker-threads', () => {
   const { next, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    dependencies: {
+      pino: '9.6.0',
+    },
   })
 
   if (skipped) {
@@ -32,5 +35,17 @@ describe('node-worker-threads', () => {
     expect(res.status).toBe(200)
     expect(data.success).toBe(true)
     expect(data.message).toBe('pong')
+  })
+
+  it('should handle pino logger with transport (thread-stream)', async () => {
+    // Pino with transports uses thread-stream internally, which creates worker_threads
+    // with a broad pattern like join(__dirname, 'lib', 'worker.js') that can match
+    // non-evaluatable files like package.json. This tests that we properly downgrade
+    // those errors to warnings via loose_errors.
+    const res = await next.fetch('/api/pino-test')
+    const data = await res.json()
+    console.log('Pino test response:', data)
+    expect(res.status).toBe(200)
+    expect(data.success).toBe(true)
   })
 })
