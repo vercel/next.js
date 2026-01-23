@@ -49,7 +49,6 @@ export interface MappedPages {
 // to pass it through function arguments.
 // Not exhaustive, but should be extended to as needed whilst refactoring
 export const NextBuildContext: Partial<{
-  deploymentId?: string | undefined
   compilerIdx?: number
   pluginState: Record<string, any>
   // core fields
@@ -97,7 +96,6 @@ export const NextBuildContext: Partial<{
   isCompileMode?: boolean
   debugPrerender: boolean
   analyze: boolean
-  preservedDeploymentId?: string
   debugBuildPaths?: {
     app: string[]
     pages: string[]

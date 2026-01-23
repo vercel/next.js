@@ -14,8 +14,6 @@ import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loa
 import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
-import type { NextConfigComplete } from '../../server/config-shared'
-import { evaluateDeploymentId } from '../../server/evaluate-deployment-id'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
@@ -59,9 +57,7 @@ export async function turbopackBuild(): Promise<{
       rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
       projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
-      nextConfig: config as NextConfigComplete & {
-        deploymentId?: string
-      },
+      nextConfig: config,
       watch: {
         enable: false,
       },
@@ -142,8 +138,7 @@ export async function turbopackBuild(): Promise<{
       distDir,
       encryptionKey,
       dev: false,
-      deploymentId: evaluateDeploymentId(config.deploymentId),
-      runtimeServerDeploymentId: config.experimental.runtimeServerDeploymentId,
+      deploymentId: config.deploymentId,
     })
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(
