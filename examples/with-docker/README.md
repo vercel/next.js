@@ -72,6 +72,23 @@ docker run -p 3000:3000 nextjs-standalone-bun-image
 
 **Open your browser:** Navigate to [http://localhost:3000](http://localhost:3000)
 
+### In existing projects
+
+To add Docker support to your existing Next.js project:
+
+1. Copy the [`Dockerfile`](https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile) (or [`Dockerfile.bun`](https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile.bun) for Bun) to your project root.
+2. Copy the [`.dockerignore`](https://github.com/vercel/next.js/blob/canary/examples/with-docker/.dockerignore) to your project root.
+3. Add the following to your `next.config.js` (or `next.config.ts`):
+
+```js
+// next.config.js
+module.exports = {
+  output: "standalone",
+};
+```
+
+This will build the project as a standalone app inside the Docker image.
+
 ## Project Structure
 
 ```
@@ -151,8 +168,24 @@ This example can be deployed to any container-based platform:
 - AWS ECS/Fargate
 - Azure Container Instances
 - DigitalOcean App Platform
-
 - Any Kubernetes cluster
+
+### Deploying to Google Cloud Run
+
+1. Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) so you can use `gcloud` on the command line.
+2. Run `gcloud auth login` to log in to your account.
+3. [Create a new project](https://cloud.google.com/run/docs/quickstarts/build-and-deploy) in Google Cloud Run (e.g. `nextjs-docker`). Ensure billing is turned on.
+4. Build your container image using Cloud Build:
+   ```bash
+   gcloud builds submit --tag gcr.io/PROJECT-ID/nextjs-docker --project PROJECT-ID
+   ```
+   This will also enable Cloud Build for your project.
+5. Deploy to Cloud Run:
+   ```bash
+   gcloud run deploy --image gcr.io/PROJECT-ID/nextjs-docker --project PROJECT-ID --platform managed --allow-unauthenticated
+   ```
+   - You will be prompted for the service name: press Enter to accept the default name, `nextjs-docker`.
+   - You will be prompted for [region](https://cloud.google.com/run/docs/quickstarts/build-and-deploy#follow-cloud-run): select the region of your choice, for example `us-central1`.
 
 ## Learn More
 
@@ -181,7 +214,3 @@ This project is open source and available under the [MIT License](LICENSE).
 ## Contributing
 
 Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](../../issues).
-
----
-
-Made with ❤️ by [Kristiyan Velkov](https://kristiyanvelkov.com/)
