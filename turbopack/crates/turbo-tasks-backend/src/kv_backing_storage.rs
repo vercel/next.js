@@ -41,7 +41,7 @@ struct IntKey([u8; 4]);
 
 impl IntKey {
     fn new(value: u32) -> Self {
-        Self(value.to_le_bytes())
+        Self(value.to_be_bytes())
     }
 }
 
@@ -52,7 +52,7 @@ impl AsRef<[u8]> for IntKey {
 }
 
 fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
-    let n = u32::from_le_bytes(bytes.borrow().try_into()?);
+    let n = u32::from_be_bytes(bytes.borrow().try_into()?);
     Ok(n)
 }
 
@@ -326,7 +326,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                     .put(
                                         KeySpace::TaskCache,
                                         WriteBuffer::Borrowed(&task_type_bytes),
-                                        WriteBuffer::Borrowed(&task_id.to_le_bytes()),
+                                        WriteBuffer::Borrowed(&task_id.to_be_bytes()),
                                     )
                                     .with_context(|| {
                                         format!(
@@ -409,7 +409,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                             .put(
                                 KeySpace::TaskCache,
                                 WriteBuffer::Borrowed(&task_type_bytes),
-                                WriteBuffer::Borrowed(&task_id.to_le_bytes()),
+                                WriteBuffer::Borrowed(&task_id.to_be_bytes()),
                             )
                             .with_context(|| {
                                 format!("Unable to write task cache {task_type:?} => {task_id}")
@@ -463,7 +463,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 return Ok(None);
             };
             let bytes = bytes.borrow().try_into()?;
-            let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
+            let id = TaskId::try_from(u32::from_be_bytes(bytes)).unwrap();
             Ok(Some(id))
         }
         if inner.database.is_empty() {
@@ -565,7 +565,7 @@ where
             KeySpace::Infra,
             IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref(),
         )? {
-            Some(bytes) => u32::from_le_bytes(Borrow::<[u8]>::borrow(&bytes).try_into()?),
+            Some(bytes) => u32::from_be_bytes(Borrow::<[u8]>::borrow(&bytes).try_into()?),
             None => 1,
         },
     )
@@ -585,7 +585,7 @@ where
             .put(
                 KeySpace::Infra,
                 WriteBuffer::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
-                WriteBuffer::Borrowed(&next_task_id.to_le_bytes()),
+                WriteBuffer::Borrowed(&next_task_id.to_be_bytes()),
             )
             .context("Unable to write next free task id")?;
     }
