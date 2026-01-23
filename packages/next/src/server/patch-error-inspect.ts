@@ -164,6 +164,25 @@ function ignoreListAnonymousStackFramesIfSandwiched(
   )
 }
 
+function unignoreModuleEvaluationFramesIfLeading(
+  sourceMappedFrames: Array<{
+    stack: IgnorableStackFrame
+    code: string | null
+  }>
+): void {
+  // Un-ignore "module evaluation" frames at the top of the stack
+  // when there are no non-ignored frames before them.
+  // These frames represent meaningful error locations during module initialization.
+  for (const frame of sourceMappedFrames) {
+    if (!frame.stack.ignored) {
+      break
+    }
+    if (frame.stack.methodName === 'module evaluation') {
+      frame.stack.ignored = false
+    }
+  }
+}
+
 /**
  * @param frame
  * @param sourceMapCache
@@ -418,6 +437,7 @@ function parseAndSourceMap(
   }
 
   ignoreListAnonymousStackFramesIfSandwiched(sourceMappedFrames)
+  unignoreModuleEvaluationFramesIfLeading(sourceMappedFrames)
 
   let sourceMappedStack = ''
   for (let i = 0; i < sourceMappedFrames.length; i++) {
