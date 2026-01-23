@@ -150,6 +150,10 @@ describe('deployment-id-handling disabled', () => {
   const deploymentId = Date.now() + ''
   const { next } = nextTestSetup({
     files: join(__dirname, 'app'),
+    env: {
+      NEXT_DEPLOYMENT_ID: '',
+      CUSTOM_DEPLOYMENT_ID: '',
+    },
   })
   it.each([
     { urlPath: '/' },

@@ -16,6 +16,7 @@ import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { evaluateDeploymentId } from '../../server/evaluate-deployment-id'
+import { resolveAndSetDeploymentId } from '../generate-deployment-id'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
@@ -235,6 +236,11 @@ export async function workerMain(workerData: {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
 
+  // Ensure NEXT_DEPLOYMENT_ID is available for config loading
+  if (NextBuildContext.preservedDeploymentId) {
+    process.env.NEXT_DEPLOYMENT_ID = NextBuildContext.preservedDeploymentId
+  }
+
   /// load the config because it's not serializable
   const config = (NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
@@ -244,6 +250,17 @@ export async function workerMain(workerData: {
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
     }
   ))
+
+  // Handle deployment ID resolution for cases where it's not set in config
+  if (!config.deploymentId && NextBuildContext.preservedDeploymentId) {
+    config.deploymentId = resolveAndSetDeploymentId(
+      undefined,
+      'env-var',
+      NextBuildContext.preservedDeploymentId
+    )
+    NextBuildContext.deploymentId = config.deploymentId
+  }
+
   // Matches handling in build/index.ts
   // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
   // Ensures the `config.distDir` option is matched.

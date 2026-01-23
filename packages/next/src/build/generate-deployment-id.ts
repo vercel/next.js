@@ -51,17 +51,7 @@ export function resolveAndSetDeploymentId(
       process.env['NEXT_DEPLOYMENT_ID'] = envDeploymentId
     }
     if (envDeploymentId.length > 0) {
-      if (envDeploymentId.length > 32) {
-        throw new Error(
-          `The deploymentId "${envDeploymentId}" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId. https://nextjs.org/docs/messages/deploymentid-too-long`
-        )
-      }
-      const validCharacterPattern = /^[a-zA-Z0-9_-]+$/
-      if (!validCharacterPattern.test(envDeploymentId)) {
-        throw new Error(
-          `The deploymentId "${envDeploymentId}" contains invalid characters. Only alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), and underscores (_) are allowed. https://nextjs.org/docs/messages/deploymentid-invalid-characters`
-        )
-      }
+      // Don't validate environment variables, only user-provided config values
       process.env['NEXT_DEPLOYMENT_ID'] = envDeploymentId
       return envDeploymentId
     }
