@@ -1347,7 +1347,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .flatten()
             } {
                 // Task exists in backing storage
-                // So we only need to insert it into the in-memory cahce
+                // So we only need to insert it into the in-memory cache
                 self.track_cache_hit(&task_type);
                 let task_type = match raw_entry(&self.task_cache, &task_type) {
                     RawEntry::Occupied(_) => ArcOrOwned::Owned(task_type),
