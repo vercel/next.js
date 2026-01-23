@@ -30,10 +30,10 @@ function formatDuration(startedAt, completedAt) {
   if (!startedAt || !completedAt) return 'N/A'
   const start = new Date(startedAt)
   const end = new Date(completedAt)
-  
+
   // Validate that both dates are valid (not Invalid Date objects)
   if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'N/A'
-  
+
   const seconds = Math.floor((end - start) / 1000)
 
   if (seconds < 60) return `${seconds}s`
@@ -61,7 +61,7 @@ function escapeMarkdownTableCell(text) {
 
 function stripTimestamps(logContent) {
   // Remove GitHub Actions timestamp prefixes like "2026-01-23T10:11:12.8077557Z "
-  return logContent.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s*/gm, '')
+  return logContent.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s/gm, '')
 }
 
 // ============================================================================
@@ -217,13 +217,14 @@ function extractSections(logContent) {
       // End current section
       const lineCount = i - currentSection.startLine
       if (lineCount > 0 || sections.length === 0) {
-        const content = stripTimestamps(
-          lines.slice(currentSection.startLine, i).join('\n').trim()
-        )
+        const rawContent = lines.slice(currentSection.startLine, i).join('\n')
+        const hasError = rawContent.includes('##[error]')
+        const content = stripTimestamps(rawContent.trim())
         sections.push({
           name: currentSection.name,
           lineCount: lineCount,
           content: content,
+          hasError: hasError,
         })
       }
       // Start new section with group name
@@ -235,13 +236,14 @@ function extractSections(logContent) {
     if (line.includes('##[endgroup]')) {
       // End current section
       const lineCount = i - currentSection.startLine
-      const content = stripTimestamps(
-        lines.slice(currentSection.startLine, i).join('\n').trim()
-      )
+      const rawContent = lines.slice(currentSection.startLine, i).join('\n')
+      const hasError = rawContent.includes('##[error]')
+      const content = stripTimestamps(rawContent.trim())
       sections.push({
         name: currentSection.name,
         lineCount: lineCount,
         content: content,
+        hasError: hasError,
       })
       // Start new section with no name
       currentSection = { name: null, startLine: i + 1 }
@@ -252,13 +254,14 @@ function extractSections(logContent) {
   // Add final section if there are remaining lines
   const finalLineCount = lines.length - currentSection.startLine
   if (finalLineCount > 0) {
-    const content = stripTimestamps(
-      lines.slice(currentSection.startLine).join('\n').trim()
-    )
+    const rawContent = lines.slice(currentSection.startLine).join('\n')
+    const hasError = rawContent.includes('##[error]')
+    const content = stripTimestamps(rawContent.trim())
     sections.push({
       name: currentSection.name,
       lineCount: finalLineCount,
       content: content,
+      hasError: hasError,
     })
   }
 
@@ -329,11 +332,14 @@ function generateJobMd(jobMetadata, testResults, testGroups, sections) {
       const section = sections[i]
       const sectionNum = i + 1
       const filename = `job-${jobMetadata.id}-section-${sectionNum}.txt`
+      const errorPrefix = section.hasError ? '[error] ' : ''
 
       if (section.name) {
-        lines.push(`- [${section.name} (${section.lineCount} lines)](${filename})`)
+        lines.push(
+          `- ${errorPrefix}[${section.name} (${section.lineCount} lines)](${filename})`
+        )
       } else {
-        lines.push(`- [${section.lineCount} lines](${filename})`)
+        lines.push(`- ${errorPrefix}[${section.lineCount} lines](${filename})`)
       }
     }
     lines.push('')
@@ -393,7 +399,9 @@ function generateJobMd(jobMetadata, testResults, testGroups, sections) {
           .replace(/\n/g, ' ')
           .substring(0, 60)
           .replace(/\|/g, '\\|')
-        lines.push(`| ${escapeMarkdownTableCell(shortFile)} | ${escapeMarkdownTableCell(test.testName)} | ${shortError}... |`)
+        lines.push(
+          `| ${escapeMarkdownTableCell(shortFile)} | ${escapeMarkdownTableCell(test.testName)} | ${shortError}... |`
+        )
       }
       lines.push('')
     }
