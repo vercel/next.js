@@ -151,7 +151,7 @@ impl ModuleReference for WorkerAssetReference {
                     reference_type.clone(),
                     *self.origin,
                     Request::parse(path.owned().await?),
-                    self.origin.resolve_options(reference_type),
+                    self.origin.resolve_options(),
                     self.in_try,
                     Some(self.issue_source),
                 )
@@ -174,8 +174,7 @@ impl ModuleReference for WorkerAssetReference {
         let mut primary = Vec::with_capacity(result_ref.primary.len());
 
         let get_issue_severity = || async {
-            let reference_type = ReferenceType::Worker(self.worker_type.reference_sub_type());
-            let resolve_options = self.origin.resolve_options(reference_type).await?;
+            let resolve_options = self.origin.resolve_options().await?;
             Ok::<_, anyhow::Error>(if self.in_try || resolve_options.loose_errors {
                 IssueSeverity::Warning
             } else {

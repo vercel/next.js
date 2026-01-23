@@ -311,7 +311,7 @@ impl Module for CachedExternalModule {
                         origin
                             .resolve_asset(
                                 Request::parse_string(self.request.clone()),
-                                origin.resolve_options(ReferenceType::Undefined),
+                                origin.resolve_options(),
                                 ReferenceType::Undefined,
                             )
                             .await?
