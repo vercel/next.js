@@ -279,8 +279,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         let mut batch = self.inner.database.write_batch()?;
 
         // these buffers should be large, because they're temporary and re-used.
-        // From measuring a large application the largest TaskType was ~342b, so this should be big
-        // enough to trigger no resizes.
+        // From measuring a large application the largest TaskType was ~365b, so this should be big
+        // enough to trigger no resizes in the loop.
         const INITIAL_ENCODE_BUFFER_CAPACITY: usize = 512;
         #[cfg(feature = "print_cache_item_size")]
         let all_stats: std::sync::Mutex<
