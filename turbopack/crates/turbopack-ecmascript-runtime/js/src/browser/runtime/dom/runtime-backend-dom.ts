@@ -20,14 +20,6 @@ function getAssetSuffixFromScriptSrc() {
   )
 }
 
-function normalizeChunkUrl(chunkUrl: ChunkUrl): string {
-  try {
-    return new URL(chunkUrl, location.origin).pathname
-  } catch {
-    return chunkUrl.replace(/[?#].*$/, '')
-  }
-}
-
 type ChunkResolver = {
   resolved: boolean
   loadingStarted: boolean
@@ -50,15 +42,6 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
       const resolver = getOrCreateResolver(chunkUrl)
       resolver.resolve()
-      // Also resolve any pending loaders that reference the same chunk path but
-      // with a different suffix/query (e.g. cross-deployment).
-      const normalizedChunkUrl = normalizeChunkUrl(chunkUrl)
-      for (const [key, otherResolver] of chunkResolvers) {
-        if (otherResolver === resolver) continue
-        if (normalizeChunkUrl(key) === normalizedChunkUrl) {
-          otherResolver.resolve()
-        }
-      }
 
       if (params == null) {
         return
