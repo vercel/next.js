@@ -556,6 +556,23 @@ function fetchNextData({
             throw error
           }
 
+          let dplResponseHeader = response.headers.get('x-nextjs-dpl-id')
+          if (dplResponseHeader != null && dplResponseHeader !== deploymentId) {
+            // When not found, or we want to force a MPA navigation because of Skew Protection
+            const error = new Error(
+              `Loaded static props were from an outdated deployment, forcing a hard reload`
+            )
+            /**
+             * We should only trigger a server-side transition if this was
+             * caused on a client-side transition. Otherwise, we'd get into
+             * an infinite loop.
+             */
+            if (!isServerRender) {
+              markAssetError(error)
+            }
+            throw error
+          }
+
           return {
             dataHref,
             json: parseJSON ? tryToParseAsJSON(text) : null,
