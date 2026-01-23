@@ -43,6 +43,7 @@ rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 triomphe = { workspace = true }
@@ -55,6 +56,7 @@ urlencoding = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+rand = { workspace = true }
 rstest = { workspace = true }
 sha2 = "0.10.2"
 tempfile = { workspace = true }

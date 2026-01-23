@@ -226,4 +226,75 @@ describe('LRUCache', () => {
       expect(cache.has('key149')).toBe(true) // recent keys retained
     })
   })
+
+  describe('onEvict Callback', () => {
+    it('should call onEvict when an entry is evicted', () => {
+      const evicted: Array<{ key: string; value: string }> = []
+      const cache = new LRUCache<string>(2, undefined, (key, value) => {
+        evicted.push({ key, value })
+      })
+
+      cache.set('a', 'value-a')
+      cache.set('b', 'value-b')
+      expect(evicted.length).toBe(0)
+
+      cache.set('c', 'value-c') // should evict 'a'
+      expect(evicted.length).toBe(1)
+      expect(evicted[0]).toEqual({ key: 'a', value: 'value-a' })
+    })
+
+    it('should not call onEvict when updating existing entry', () => {
+      const evicted: string[] = []
+      const cache = new LRUCache<string>(2, undefined, (key) => {
+        evicted.push(key)
+      })
+
+      cache.set('a', 'value-a')
+      cache.set('a', 'new-value-a')
+      expect(evicted.length).toBe(0)
+    })
+
+    it('should call onEvict for each evicted entry when multiple are evicted', () => {
+      const evicted: string[] = []
+      const cache = new LRUCache<string>(
+        10,
+        (value) => value.length,
+        (key) => {
+          evicted.push(key)
+        }
+      )
+
+      cache.set('key1', 'ab') // size 2
+      cache.set('key2', 'cd') // size 2
+      cache.set('key3', 'ef') // size 2, total = 6
+      cache.set('key4', 'ghijklmno') // size 9, should evict key1, key2, key3
+
+      expect(evicted).toEqual(['key1', 'key2', 'key3'])
+    })
+
+    it('should work without onEvict callback', () => {
+      const cache = new LRUCache<string>(2)
+      cache.set('a', 'value-a')
+      cache.set('b', 'value-b')
+      cache.set('c', 'value-c') // should evict without error
+      expect(cache.has('a')).toBe(false)
+    })
+
+    it('should pass the evicted value to the callback', () => {
+      const evicted: Array<{ id: number }> = []
+      const cache = new LRUCache<{ id: number }>(
+        1,
+        undefined,
+        (_key, value) => {
+          evicted.push(value)
+        }
+      )
+
+      cache.set('obj1', { id: 1 })
+      cache.set('obj2', { id: 2 }) // should evict obj1
+
+      expect(evicted.length).toBe(1)
+      expect(evicted[0]).toEqual({ id: 1 })
+    })
+  })
 })

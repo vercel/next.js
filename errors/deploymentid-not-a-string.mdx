@@ -1,0 +1,34 @@
+---
+title: '`deploymentId` function must return a string'
+---
+
+## Why This Error Occurred
+
+The `deploymentId` option in your `next.config.js` is defined as a function, but it did not return a string value.
+
+## Possible Ways to Fix It
+
+Always return a string from your `deploymentId` function:
+
+```js
+// ✅ Correct
+module.exports = {
+  deploymentId: () => {
+    return process.env.GIT_HASH || Date.now().toString()
+  },
+}
+
+// ❌ Incorrect
+module.exports = {
+  deploymentId: () => {
+    // Missing return statement or returning non-string
+    return null
+  },
+}
+```
+
+The `deploymentId` can be:
+
+- A string: `deploymentId: 'my-deployment-123'`
+- A function that returns a string: `deploymentId: () => process.env.GIT_HASH || ''`
+- `undefined` (will be empty string, or use `NEXT_DEPLOYMENT_ID` environment variable if set)

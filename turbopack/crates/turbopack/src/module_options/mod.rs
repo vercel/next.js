@@ -132,9 +132,6 @@ async fn rule_condition_from_webpack_condition(
                 }
                 None => {}
             }
-            if let Some(content) = content {
-                rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
-            }
             match &query {
                 Some(ConditionQuery::Constant(value)) => {
                     rule_conditions.push(RuleCondition::ResourceQueryEquals(value.clone().into()));
@@ -143,6 +140,10 @@ async fn rule_condition_from_webpack_condition(
                     rule_conditions.push(RuleCondition::ResourceQueryEsRegex(regex.await?));
                 }
                 None => {}
+            }
+            // Add the content condition last since matching requires a more expensive file read.
+            if let Some(content) = content {
+                rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
             }
             RuleCondition::All(rule_conditions)
         }

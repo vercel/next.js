@@ -82,7 +82,7 @@ pub const TURBOPACK_DYNAMIC: &TurbopackRuntimeFunctionShortcut = make_shortcut!(
 pub const TURBOPACK_RESOLVE_ABSOLUTE_PATH: &TurbopackRuntimeFunctionShortcut = make_shortcut!("P");
 pub const TURBOPACK_RELATIVE_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("U");
 pub const TURBOPACK_RESOLVE_MODULE_ID_PATH: &TurbopackRuntimeFunctionShortcut = make_shortcut!("R");
-pub const TURBOPACK_WORKER_BLOB_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("b");
+pub const TURBOPACK_WORKER_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("b");
 pub const TURBOPACK_ASYNC_MODULE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("a");
 pub const TURBOPACK_EXTERNAL_REQUIRE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("x");
 pub const TURBOPACK_EXTERNAL_IMPORT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("y");
@@ -115,7 +115,7 @@ pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctio
         "__turbopack_resolve_module_id_path__",
         TURBOPACK_RESOLVE_MODULE_ID_PATH,
     ),
-    ("__turbopack_worker_blob_url__", TURBOPACK_WORKER_BLOB_URL),
+    ("__turbopack_worker_url__", TURBOPACK_WORKER_URL),
     ("__turbopack_external_require__", TURBOPACK_EXTERNAL_REQUIRE),
     ("__turbopack_external_import__", TURBOPACK_EXTERNAL_IMPORT),
     ("__turbopack_refresh__", TURBOPACK_REFRESH),

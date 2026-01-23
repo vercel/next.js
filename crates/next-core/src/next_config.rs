@@ -2109,6 +2109,13 @@ mod tests {
                         "browser",
                         {
                             "path": { "type": "glob", "value": "*.svg"},
+                            "query": {
+                                "type": "regex",
+                                "value": {
+                                    "source": "@someQuery",
+                                    "flags": ""
+                                }
+                            },
                             "content": {
                                 "source": "@someTag",
                                 "flags": ""
@@ -2143,7 +2150,10 @@ mod tests {
                                         source: rcstr!("@someTag"),
                                         flags: rcstr!(""),
                                     }),
-                                    query: None,
+                                    query: Some(ConfigConditionQuery::Regex(RegexComponents {
+                                        source: rcstr!("@someQuery"),
+                                        flags: rcstr!(""),
+                                    })),
                                 },
                             ]
                             .into(),

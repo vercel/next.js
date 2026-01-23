@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="3834607a-5e38-b3f2-d7f2-094bfde98e30")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="2edabdcd-1a50-190d-01a5-132504146b5c")}catch(e){}}();
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -521,7 +521,7 @@ function applyModuleFactoryName(factory) {
  * shared runtime utils.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime-utils.ts" />
-// Used in WebWorkers to tell the runtime about the chunk base path
+// Used in WebWorkers to tell the runtime about the chunk suffix
 const browserContextPrototype = Context.prototype;
 var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
@@ -684,24 +684,29 @@ browserContextPrototype.R = resolvePathFromModule;
 }
 browserContextPrototype.P = resolveAbsolutePath;
 /**
- * Returns a blob URL for the worker.
- * @param chunks list of chunks to load
- */ function getWorkerBlobURL(chunks) {
-    // It is important to reverse the array so when bootstrapping we can infer what chunk is being
-    // evaluated by poping urls off of this array.  See `getPathFromScript`
-    let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
-self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
-self.NEXT_DEPLOYMENT_ID = ${JSON.stringify(globalThis.NEXT_DEPLOYMENT_ID)};
-self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
-importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
-    let blob = new Blob([
-        bootstrap
-    ], {
-        type: 'text/javascript'
-    });
-    return URL.createObjectURL(blob);
+ * Returns a URL for the worker.
+ * The entrypoint is a pre-compiled worker runtime file. The params configure
+ * which module chunks to load and which module to run as the entry point.
+ *
+ * @param entrypoint URL path to the worker entrypoint chunk
+ * @param moduleChunks list of module chunk paths to load
+ * @param shared whether this is a SharedWorker (uses querystring for URL identity)
+ */ function getWorkerURL(entrypoint, moduleChunks, shared) {
+    const url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
+    const params = {
+        S: CHUNK_SUFFIX,
+        N: globalThis.NEXT_DEPLOYMENT_ID,
+        NC: moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk))
+    };
+    const paramsJson = JSON.stringify(params);
+    if (shared) {
+        url.searchParams.set('params', paramsJson);
+    } else {
+        url.hash = '#params=' + encodeURIComponent(paramsJson);
+    }
+    return url;
 }
-browserContextPrototype.b = getWorkerBlobURL;
+browserContextPrototype.b = getWorkerURL;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
@@ -1699,7 +1704,7 @@ let BACKEND;
             // ignore
             } else if (isJs(chunkUrl)) {
                 self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
-                importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
+                importScripts(chunkUrl);
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
@@ -1862,5 +1867,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=3834607a-5e38-b3f2-d7f2-094bfde98e30
+//# debugId=2edabdcd-1a50-190d-01a5-132504146b5c
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map

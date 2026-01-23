@@ -13,6 +13,7 @@ use crate::{
         ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets,
         availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
     },
+    context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -444,8 +445,21 @@ pub trait ChunkingContext {
     /// Returns whether debug IDs are enabled for this chunking context.
     #[turbo_tasks::function]
     fn debug_ids_enabled(self: Vc<Self>) -> Vc<bool>;
-}
 
+    /// Returns the worker entrypoint for this chunking context.
+    /// The asset_context should come from the origin where the worker was created.
+    #[turbo_tasks::function]
+    async fn worker_entrypoint(
+        self: Vc<Self>,
+        asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let _ = asset_context;
+        bail!(
+            "Worker entrypoint is not supported by {name}",
+            name = self.name().await?
+        );
+    }
+}
 pub trait ChunkingContextExt {
     fn root_chunk_group(
         self: Vc<Self>,

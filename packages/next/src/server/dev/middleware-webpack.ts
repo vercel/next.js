@@ -28,7 +28,7 @@ import type {
   NullableMappedPosition,
   RawSourceMap,
 } from 'next/dist/compiled/source-map08'
-import { formatFrameSourceFile } from '../../next-devtools/shared/webpack-module-path'
+import { formatStackFrameFile } from '../../next-devtools/shared/webpack-module-path'
 import type { MappedPosition } from 'source-map'
 import { inspect } from 'util'
 
@@ -140,7 +140,7 @@ export function getIgnoredSources(
     // bundlerFilePath case: webpack://./app/page.tsx
     const webpackSourceURL = moduleFilenames[index]
     // Format the path to the normal file path
-    const formattedFilePath = formatFrameSourceFile(webpackSourceURL)
+    const formattedFilePath = formatStackFrameFile(webpackSourceURL)
     if (shouldIgnoreSource(formattedFilePath)) {
       ignoreList.add(index)
     }

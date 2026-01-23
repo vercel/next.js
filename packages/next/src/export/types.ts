@@ -23,6 +23,7 @@ export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
 
 export interface ExportPagesInput {
   buildId: string
+  deploymentId: string
   exportPaths: ExportPathEntry[]
   parentSpanId: number
   dir: string
@@ -41,6 +42,7 @@ export interface ExportPagesInput {
 
 export interface ExportPageInput {
   buildId: string
+  deploymentId: string
   exportPath: ExportPathEntry
   distDir: string
   outDir: string

@@ -182,6 +182,7 @@ export type RouteHandler<
  * the rewrites normalized to the object shape that the router expects.
  */
 export type NormalizedRouteManifest = {
+  readonly deploymentId?: string | undefined
   readonly dynamicRoutes: ReadonlyArray<ManifestRoute>
   readonly rewrites: {
     readonly beforeFiles: ReadonlyArray<ManifestRewriteRoute>
@@ -324,6 +325,7 @@ export default abstract class Server<
   protected readonly pagesManifest?: PagesManifest
   protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
+  protected readonly deploymentId: string
   protected readonly minimalMode: boolean
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
@@ -454,20 +456,19 @@ export default abstract class Server<
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
 
-    let deploymentId
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
         throw new Error(
           'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
         )
       }
-      deploymentId = process.env.NEXT_DEPLOYMENT_ID
+      this.deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
-        : this.nextConfig.deploymentId || ''
+        : (this.nextConfig.deploymentId as string) || ''
 
-      deploymentId = id
+      this.deploymentId = id
       process.env.NEXT_DEPLOYMENT_ID = id
     }
 
@@ -530,7 +531,6 @@ export default abstract class Server<
       dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: deploymentId,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
       previewProps: this.getPrerenderManifest().preview,
@@ -562,6 +562,8 @@ export default abstract class Server<
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
+        optimisticRouting:
+          this.nextConfig.experimental.optimisticRouting ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(

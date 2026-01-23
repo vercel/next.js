@@ -197,6 +197,9 @@ module.exports = {
             {
               any: [
                 { path: '*.svg' },
+                // 'query' matches anywhere in the full query string,
+                // which can be empty, or start with `?`.
+                { query: /[?&]svgr(?=&|$)/ },
                 // 'content' is always a RegExp, and can match
                 // anywhere in the file.
                 { content: /\<svg\W/ },

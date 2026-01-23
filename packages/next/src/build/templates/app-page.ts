@@ -611,6 +611,7 @@ export async function handler(
         page: normalizedSrcPage,
         sharedContext: {
           buildId,
+          deploymentId,
         },
         serverComponentsHmrCache: getRequestMeta(
           req,
@@ -659,7 +660,6 @@ export async function handler(
           trailingSlash: nextConfig.trailingSlash,
           images: nextConfig.images,
           previewProps: prerenderManifest.preview,
-          deploymentId: deploymentId,
           enableTainting: nextConfig.experimental.taint,
           htmlLimitedBots: nextConfig.htmlLimitedBots,
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
@@ -686,6 +686,9 @@ export async function handler(
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
             dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
+            optimisticRouting: Boolean(
+              nextConfig.experimental.optimisticRouting
+            ),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
             clientTraceMetadata:
