@@ -30,6 +30,10 @@ function formatDuration(startedAt, completedAt) {
   if (!startedAt || !completedAt) return 'N/A'
   const start = new Date(startedAt)
   const end = new Date(completedAt)
+  
+  // Validate that both dates are valid (not Invalid Date objects)
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'N/A'
+  
   const seconds = Math.floor((end - start) / 1000)
 
   if (seconds < 60) return `${seconds}s`
