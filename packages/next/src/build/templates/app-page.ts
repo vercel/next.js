@@ -724,12 +724,6 @@ export async function handler(
         },
       }
 
-      if (isDebugStaticShell || isDebugDynamicAccesses) {
-        context.renderOpts.isBuildTimePrerendering = true
-        context.renderOpts.supportsDynamicResponse = false
-        context.renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
-      }
-
       // When we're revalidating in the background, we should not allow dynamic
       // responses.
       if (forceStaticRender) {
