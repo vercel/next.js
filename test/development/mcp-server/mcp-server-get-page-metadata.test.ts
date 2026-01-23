@@ -38,8 +38,10 @@ describe('mcp-server get_page_metadata tool', () => {
       const metadata = JSON.parse(metadataText)
 
       expect(metadata.sessions).toHaveLength(1)
-      expect(metadata.sessions[0].url).toBe('/')
-      expect(metadata.sessions[0].routerType).toBe('app')
+      expect(metadata.sessions[0]).toMatchObject({
+        url: '/',
+        routerType: 'app',
+      })
       expect(metadata.sessions[0].segments).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ path: 'app/layout.tsx' }),
@@ -78,8 +80,10 @@ describe('mcp-server get_page_metadata tool', () => {
         expect(paths).toContain('app/parallel/page.tsx')
       })
 
-      expect(metadata.sessions[0].url).toBe('/parallel')
-      expect(metadata.sessions[0].routerType).toBe('app')
+      expect(metadata.sessions[0]).toMatchObject({
+        url: '/parallel',
+        routerType: 'app',
+      })
       expect(metadata.sessions[0].segments).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ path: 'app/layout.tsx' }),
@@ -89,12 +93,8 @@ describe('mcp-server get_page_metadata tool', () => {
             isBoundary: true,
             isBuiltin: true,
           }),
-          expect.objectContaining({
-            path: 'app/parallel/@content/page.tsx',
-          }),
-          expect.objectContaining({
-            path: 'app/parallel/@sidebar/page.tsx',
-          }),
+          expect.objectContaining({ path: 'app/parallel/@content/page.tsx' }),
+          expect.objectContaining({ path: 'app/parallel/@sidebar/page.tsx' }),
           expect.objectContaining({ path: 'app/parallel/page.tsx' }),
         ])
       )
@@ -126,11 +126,10 @@ describe('mcp-server get_page_metadata tool', () => {
           (s: any) => s.url === '/parallel'
         )
 
-        expect(rootSession).toBeTruthy()
-        expect(parallelSession).toBeTruthy()
-
-        // Check root session
-        expect(rootSession.routerType).toBe('app')
+        expect(rootSession).toMatchObject({
+          url: '/',
+          routerType: 'app',
+        })
         expect(rootSession.segments).toEqual(
           expect.arrayContaining([
             expect.objectContaining({ path: 'app/layout.tsx' }),
@@ -138,8 +137,10 @@ describe('mcp-server get_page_metadata tool', () => {
           ])
         )
 
-        // Check parallel session
-        expect(parallelSession.routerType).toBe('app')
+        expect(parallelSession).toMatchObject({
+          url: '/parallel',
+          routerType: 'app',
+        })
         expect(parallelSession.segments).toEqual(
           expect.arrayContaining([
             expect.objectContaining({ path: 'app/layout.tsx' }),
@@ -205,9 +206,11 @@ describe('mcp-server get_page_metadata tool', () => {
         expect(metadata.sessions).toHaveLength(1)
       })
 
-      expect(metadata.sessions[0].url).toBe('/')
-      expect(metadata.sessions[0].routerType).toBe('pages')
-      expect(metadata.sessions[0].segments).toHaveLength(0)
+      expect(metadata.sessions[0]).toMatchObject({
+        url: '/',
+        routerType: 'pages',
+        segments: [],
+      })
     })
 
     it('should show pages router type for about page', async () => {
@@ -221,9 +224,11 @@ describe('mcp-server get_page_metadata tool', () => {
         expect(metadata.sessions).toHaveLength(1)
       })
 
-      expect(metadata.sessions[0].url).toBe('/about')
-      expect(metadata.sessions[0].routerType).toBe('pages')
-      expect(metadata.sessions[0].segments).toHaveLength(0)
+      expect(metadata.sessions[0]).toMatchObject({
+        url: '/about',
+        routerType: 'pages',
+        segments: [],
+      })
     })
   })
 })

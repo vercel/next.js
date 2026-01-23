@@ -66,23 +66,23 @@ describe('mcp-server get_errors tool', () => {
       expect(errors.sessionErrors[0].runtimeErrors).toHaveLength(1)
     })
 
-    // Verify proper URL display in session header (now shows pathname only)
-    expect(errors.sessionErrors[0].url).toBe('/runtime-error')
-
-    // Check the structure of the error
-    const sessionError = errors.sessionErrors[0]
-    expect(sessionError.buildError).toBeNull()
-    expect(sessionError.runtimeErrors[0].type).toBe('runtime')
-    expect(sessionError.runtimeErrors[0].errorName).toBe('Error')
-    expect(sessionError.runtimeErrors[0].message).toBe('Test runtime error')
-    expect(sessionError.runtimeErrors[0].stack).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          file: expect.stringContaining('app/runtime-error/page.tsx'),
-          methodName: 'RuntimeErrorPage',
-        }),
-      ])
-    )
+    expect(errors.sessionErrors[0]).toMatchObject({
+      url: '/runtime-error',
+      buildError: null,
+      runtimeErrors: [
+        {
+          type: 'runtime',
+          errorName: 'Error',
+          message: 'Test runtime error',
+          stack: expect.arrayContaining([
+            expect.objectContaining({
+              file: expect.stringContaining('app/runtime-error/page.tsx'),
+              methodName: 'RuntimeErrorPage',
+            }),
+          ]),
+        },
+      ],
+    })
   })
 
   it('should capture build errors when directly visiting error page', async () => {
@@ -97,16 +97,18 @@ describe('mcp-server get_errors tool', () => {
       expect(errors.sessionErrors[0].buildError).toBeTruthy()
     })
 
-    // Verify proper URL display in session header (now shows pathname only)
-    expect(errors.sessionErrors[0].url).toBe('/build-error')
-
-    const sessionError = errors.sessionErrors[0]
+    expect(errors.sessionErrors[0]).toMatchObject({
+      url: '/build-error',
+      buildError: expect.any(String),
+    })
 
     // Check the build error contains the expected syntax error message
-    expect(stripAnsi(sessionError.buildError)).toContain(
+    expect(stripAnsi(errors.sessionErrors[0].buildError)).toContain(
       'Unexpected token. Did you mean'
     )
-    expect(stripAnsi(sessionError.buildError)).toContain('build-error/page.tsx')
+    expect(stripAnsi(errors.sessionErrors[0].buildError)).toContain(
+      'build-error/page.tsx'
+    )
   })
 
   it('should capture errors from multiple browser sessions', async () => {
@@ -144,34 +146,37 @@ describe('mcp-server get_errors tool', () => {
         (s: any) => s.url === '/runtime-error-2'
       )
 
-      expect(session1).toBeTruthy()
-      expect(session2).toBeTruthy()
+      expect(session1).toMatchObject({
+        url: '/runtime-error',
+        runtimeErrors: [
+          {
+            type: 'runtime',
+            message: 'Test runtime error',
+            stack: expect.arrayContaining([
+              expect.objectContaining({
+                file: expect.stringContaining('app/runtime-error/page.tsx'),
+                methodName: 'RuntimeErrorPage',
+              }),
+            ]),
+          },
+        ],
+      })
 
-      // Check session 1
-      expect(session1.runtimeErrors).toHaveLength(1)
-      expect(session1.runtimeErrors[0].type).toBe('runtime')
-      expect(session1.runtimeErrors[0].message).toBe('Test runtime error')
-      expect(session1.runtimeErrors[0].stack).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            file: expect.stringContaining('app/runtime-error/page.tsx'),
-            methodName: 'RuntimeErrorPage',
-          }),
-        ])
-      )
-
-      // Check session 2
-      expect(session2.runtimeErrors).toHaveLength(1)
-      expect(session2.runtimeErrors[0].type).toBe('runtime')
-      expect(session2.runtimeErrors[0].message).toBe('Test runtime error 2')
-      expect(session2.runtimeErrors[0].stack).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            file: expect.stringContaining('app/runtime-error-2/page.tsx'),
-            methodName: 'RuntimeErrorPage',
-          }),
-        ])
-      )
+      expect(session2).toMatchObject({
+        url: '/runtime-error-2',
+        runtimeErrors: [
+          {
+            type: 'runtime',
+            message: 'Test runtime error 2',
+            stack: expect.arrayContaining([
+              expect.objectContaining({
+                file: expect.stringContaining('app/runtime-error-2/page.tsx'),
+                methodName: 'RuntimeErrorPage',
+              }),
+            ]),
+          },
+        ],
+      })
     } finally {
       await s1.close()
       await s2.close()
@@ -206,10 +211,11 @@ describe('mcp-server get_errors tool', () => {
       expect(errors.configErrors.length).toBeGreaterThan(0)
     })
 
-    // Check config error content
-    expect(errors.configErrors[0].message).toContain(
-      'Invalid next.config.js options detected'
-    )
+    expect(errors.configErrors[0]).toMatchObject({
+      message: expect.stringContaining(
+        'Invalid next.config.js options detected'
+      ),
+    })
     expect(errors.configErrors[0].message).toContain('invalidTestProperty')
 
     // Stop server, fix the config, and restart

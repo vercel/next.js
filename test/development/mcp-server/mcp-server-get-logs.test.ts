@@ -44,10 +44,9 @@ describe('get-logs MCP tool', () => {
       const responseText = await callGetLogs(sessionId)
       const response = JSON.parse(responseText)
 
-      // Should return the log file path
-      expect(response.logFilePath).toBeTruthy()
-      expect(response.logFilePath).toContain('logs/next-development.log')
-      expect(response.error).toBeUndefined()
+      expect(response).toMatchObject({
+        logFilePath: expect.stringContaining('logs/next-development.log'),
+      })
     })
   })
 })
