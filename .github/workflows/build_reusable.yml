@@ -214,6 +214,7 @@ jobs:
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
           key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       # local action -> needs to run after checkout
       - name: Install Rust
