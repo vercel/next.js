@@ -731,6 +731,16 @@ function getPathFromScript(chunkScript) {
     const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
 }
+/**
+ * Return the ChunkUrl from a ChunkScript.
+ */ function getUrlFromScript(chunk) {
+    if (typeof chunk === 'string') {
+        return getChunkRelativeUrl(chunk);
+    } else {
+        // This is already exactly what we want
+        return chunk.getAttribute('src');
+    }
+}
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
@@ -1564,16 +1574,17 @@ function createModuleHot(moduleId, hotData) {
     runtimeChunkLists.add(chunkListPath);
 }
 function registerChunk(registration) {
-    const chunkPath = getPathFromScript(registration[0]);
+    const chunk = registration[0];
     let runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {
         runtimeParams = registration[1];
     } else {
+        let chunkPath = getPathFromScript(chunk);
         runtimeParams = undefined;
         installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories, (id)=>addModuleToChunk(id, chunkPath));
     }
-    return BACKEND.registerChunk(chunkPath, runtimeParams);
+    return BACKEND.registerChunk(chunk, runtimeParams);
 }
 /**
  * Subscribes to chunk list updates from the update server and applies them.
@@ -1621,8 +1632,9 @@ let BACKEND;
  */ const chunkResolvers = new Map();
 (()=>{
     BACKEND = {
-        async registerChunk (chunkPath, params) {
-            const chunkUrl = getChunkRelativeUrl(chunkPath);
+        async registerChunk (chunk, params) {
+            let chunkPath = getPathFromScript(chunk);
+            let chunkUrl = getUrlFromScript(chunk);
             const resolver = getOrCreateResolver(chunkUrl);
             resolver.resolve();
             if (params == null) {
