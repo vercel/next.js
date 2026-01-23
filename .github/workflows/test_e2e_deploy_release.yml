@@ -88,6 +88,7 @@ jobs:
       stepName: 'test-deploy-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
+      enablePnpmCache: 'yes'
       overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
 
   test-deploy-adapter:
