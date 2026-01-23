@@ -1,5 +1,6 @@
 use std::{
     cell::SyncUnsafeCell,
+    collections::VecDeque,
     fs::File,
     io::Write,
     mem::{replace, take},
@@ -82,6 +83,9 @@ pub struct WriteBatch<K: StoreKey + Send, S: ParallelScheduler, const FAMILIES: 
     /// The list of new SST files that have been created.
     /// Tuple of (sequence number, file).
     new_sst_files: Mutex<Vec<(u32, File)>>,
+    /// Queue of full collectors waiting to be written to disk.
+    /// Tuple of (family, collector). Any thread may drain this queue to help with IO work.
+    pending_writes: Mutex<VecDeque<(u32, Collector<K>)>>,
 }
 
 impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
@@ -101,6 +105,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                 .map(|_| Mutex::new(GlobalCollectorState::Unsharded(Collector::new()))),
             meta_collectors: [(); FAMILIES].map(|_| Mutex::new(Vec::new())),
             new_sst_files: Mutex::new(Vec::new()),
+            pending_writes: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -175,29 +180,24 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                 }
             }
         }
-        // After flushing write all the full global collectors to disk.
-        // TODO: This can distribute work unfairly
-        // * a thread could fill up multiple global collectors and then get stuck writing them all
-        //   out, if multiple threads could work on it we could take care of spare IO parallism
-        // * we can also have too much IO parallism with many threads concurrently writing files.
-        //
-        // Ideally we would limit the amount of data buffered in memory and control the amount of IO
-        // parallism.  Consider:
-        // * store full-buffers as a field on WireBatch (queued writes)
-        // * each thread will attempt to poll and flush a full buffer after flushing its local
-        //   buffer.
-        // This will distribute the writing work more fairly, but now we have the problem of to
-        // many concurrent writes contending for filesystem locks.  So we could also use a semaphore
-        // to restrict how many concurrent writes occur.  But then we would accumulate 'fullBuffers'
-        // leading to too much memory consumption.  So really we also need to slow down the threads
-        // submitting work data.  To do this we could simply use a tokio semaphore and make all
-        // these operations async, or we could integrate with the parallel::map operation that is
-        // driving the work to slow down task submission in this case.
-        for mut global_collector in full_collectors {
-            // When the global collector is full, we create a new SST file.
-            let sst = self.create_sst_file(family, global_collector.sorted())?;
+
+        // Queue full collectors to be written to disk.
+        // Any thread may help drain this queue, distributing IO work more fairly.
+        // TODO: Consider adding back-pressure by making collector acquisition async, which would
+        // allow using a tokio semaphore to limit memory consumption when disk IO is slow.
+        if !full_collectors.is_empty() {
+            let mut pending = self.pending_writes.lock();
+            for collector in full_collectors {
+                pending.push_back((family, collector));
+            }
+        }
+
+        // Opportunistically drain pending writes. By pushing to a shared queue and then looping
+        // here we give other threads an opportunity to help drain.
+        while let Some((family, mut collector)) = self.pending_writes.lock().pop_front() {
+            let sst = self.create_sst_file(family, collector.sorted())?;
             self.new_sst_files.lock().push(sst);
-            drop(global_collector);
+            drop(collector);
         }
         Ok(())
     }
