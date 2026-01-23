@@ -121,6 +121,7 @@ impl Storage {
         preprocess: &'l PP,
         process: &'l P,
         process_snapshot: &'l PS,
+        initial_buffer_capacity: usize,
     ) -> Vec<SnapshotShard<'l, PP, P, PS>> {
         if !self.snapshot_mode() {
             self.start_snapshot();
@@ -165,7 +166,7 @@ impl Storage {
                 process,
                 preprocess,
                 process_snapshot,
-                scratch_buffer: TurboBincodeBuffer::new(),
+                scratch_buffer: TurboBincodeBuffer::with_capacity(initial_buffer_capacity),
             }
         })
     }

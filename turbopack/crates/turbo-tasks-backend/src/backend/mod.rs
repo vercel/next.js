@@ -1025,11 +1025,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task_id,
                 meta.map(|d| {
                     encode_task_data_into(task_id, &d, SpecificTaskDataCategory::Meta, buffer)
-                        .map(|()| buffer.clone())
                 }),
                 data.map(|d| {
                     encode_task_data_into(task_id, &d, SpecificTaskDataCategory::Data, buffer)
-                        .map(|()| buffer.clone())
                 }),
             )
         };
@@ -1045,18 +1043,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task_id,
                 inner.flags.meta_modified().then(|| {
                     encode_task_data_into(task_id, &inner, SpecificTaskDataCategory::Meta, buffer)
-                        .map(|()| buffer.clone())
                 }),
                 inner.flags.data_modified().then(|| {
                     encode_task_data_into(task_id, &inner, SpecificTaskDataCategory::Data, buffer)
-                        .map(|()| buffer.clone())
                 }),
             )
         };
 
-        let snapshot = self
-            .storage
-            .take_snapshot(&preprocess, &process, &process_snapshot);
+        /// How big of a buffer to allocate initially.  Based on metrics from a large application
+        /// this should cover about 98% of values with no resizes
+        const SCRATCH_BUFFER_SIZE: usize = 4096;
+
+        let snapshot = self.storage.take_snapshot(
+            &preprocess,
+            &process,
+            &process_snapshot,
+            SCRATCH_BUFFER_SIZE,
+        );
 
         #[cfg(feature = "print_cache_item_size")]
         #[derive(Default)]
@@ -3539,20 +3542,23 @@ fn far_future() -> Instant {
 }
 
 /// Encodes task data into a provided buffer, clearing it first.
-/// This allows reusing the buffer across multiple encode calls to avoid allocations.
+/// This allows reusing the buffer across multiple encode calls to optimize allocations.
 fn encode_task_data_into(
     task: TaskId,
     data: &TaskStorage,
     category: SpecificTaskDataCategory,
-    buffer: &mut TurboBincodeBuffer,
-) -> Result<()> {
-    buffer.clear();
-    let mut encoder = new_turbo_bincode_encoder(buffer);
+    scratch_buffer: &mut TurboBincodeBuffer,
+) -> Result<TurboBincodeBuffer> {
+    scratch_buffer.clear();
+    let mut encoder = new_turbo_bincode_encoder(scratch_buffer);
     data.encode(category, &mut encoder)?;
 
     if cfg!(feature = "verify_serialization") {
         TaskStorage::new()
-            .decode(category, &mut new_turbo_bincode_decoder(&buffer[..]))
+            .decode(
+                category,
+                &mut new_turbo_bincode_decoder(&scratch_buffer[..]),
+            )
             .with_context(|| {
                 format!(
                     "expected to be able to decode serialized data for '{category:?}' information \
@@ -3561,5 +3567,5 @@ fn encode_task_data_into(
             })?;
     }
 
-    Ok(())
+    Ok(scratch_buffer.clone())
 }
