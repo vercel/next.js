@@ -14,6 +14,7 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
+    module::Module,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{
@@ -178,6 +179,8 @@ impl ModuleReference for WorkerAssetReference {
         for (request_key, resolve_item) in result_ref.primary.iter() {
             match resolve_item {
                 ModuleResolveResultItem::Module(module) => {
+                    let module_ident = module.ident().to_string().await?;
+
                     let Some(chunkable) =
                         ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
                     else {
@@ -185,9 +188,18 @@ impl ModuleReference for WorkerAssetReference {
                             severity: IssueSeverity::Bug,
                             title: StyledString::Text(rcstr!("non-chunkable module"))
                                 .resolved_cell(),
-                            message: StyledString::Text(rcstr!("asset is not chunkable"))
-                                .resolved_cell(),
+                            message: StyledString::Text(
+                                format!(
+                                    "Worker entry point module '{}' is not chunkable and cannot \
+                                     be used as a worker module. This may happen if the module \
+                                     type doesn't support bundling.",
+                                    module_ident
+                                )
+                                .into(),
+                            )
+                            .resolved_cell(),
                             path: self.origin.origin_path().owned().await?,
+                            source: Some(self.issue_source),
                         }
                         .resolved_cell()
                         .emit();
@@ -204,11 +216,19 @@ impl ModuleReference for WorkerAssetReference {
                             severity: IssueSeverity::Bug,
                             title: StyledString::Text(rcstr!("non-evaluatable module"))
                                 .resolved_cell(),
-                            message: StyledString::Text(rcstr!(
-                                "Worker thread module must be evaluatable"
-                            ))
+                            message: StyledString::Text(
+                                format!(
+                                    "Worker thread entry point module '{}' must be evaluatable to \
+                                     serve as an entry point. This module cannot be used as a \
+                                     Node.js worker_threads Worker entry point because it doesn't \
+                                     support direct evaluation.",
+                                    module_ident
+                                )
+                                .into(),
+                            )
                             .resolved_cell(),
                             path: self.origin.origin_path().owned().await?,
+                            source: Some(self.issue_source),
                         }
                         .resolved_cell()
                         .emit();
