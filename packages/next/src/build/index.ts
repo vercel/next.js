@@ -1009,8 +1009,10 @@ export default async function build(
         )
       loadedConfig = config
 
+      // Reading the config can modify environment variables that influence the bundler selection.
       bundler = finalizeBundlerFromConfig(bundler)
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
+      // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
 
       // Collect all possible sources of deployment ID
