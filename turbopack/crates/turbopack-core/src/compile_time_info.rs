@@ -167,16 +167,18 @@ pub enum DefinableNameSegment {
 // Hash can't be derived because DefinableNameSegmentRef must have a matching
 // Hash implementation for Equivalent lookups, and derived discriminants are
 // not guaranteed to match between different enum types.
+// Also, we must use s.as_str().hash() instead of s.hash() because RcStr's Hash
+// implementation for prehashed strings is not compatible with str's Hash.
 impl std::hash::Hash for DefinableNameSegment {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
             Self::Name(s) => {
                 0u8.hash(state);
-                s.hash(state);
+                s.as_str().hash(state);
             }
             Self::Call(s) => {
                 1u8.hash(state);
-                s.hash(state);
+                s.as_str().hash(state);
             }
             Self::TypeOf => {
                 2u8.hash(state);
@@ -454,10 +456,114 @@ impl CompileTimeInfoBuilder {
 
 #[cfg(test)]
 mod test {
+    use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash, Hasher},
+    };
+
+    use smallvec::smallvec;
     use turbo_rcstr::rcstr;
     use turbo_tasks::FxIndexMap;
 
-    use crate::compile_time_info::{DefinableNameSegment, FreeVarReference, FreeVarReferences};
+    use crate::compile_time_info::{
+        DefinableNameSegment, DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference,
+        FreeVarReferences,
+    };
+
+    fn hash_value<T: Hash>(value: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    #[test]
+    fn hash_segment_name_matches() {
+        let segment = DefinableNameSegment::Name(rcstr!("process"));
+        let segment_ref = DefinableNameSegmentRef::Name("process");
+        assert_eq!(
+            hash_value(&segment),
+            hash_value(&segment_ref),
+            "DefinableNameSegment::Name and DefinableNameSegmentRef::Name must have matching Hash"
+        );
+    }
+
+    #[test]
+    fn hash_segment_call_matches() {
+        let segment = DefinableNameSegment::Call(rcstr!("foo"));
+        let segment_ref = DefinableNameSegmentRef::Call("foo");
+        assert_eq!(
+            hash_value(&segment),
+            hash_value(&segment_ref),
+            "DefinableNameSegment::Call and DefinableNameSegmentRef::Call must have matching Hash"
+        );
+    }
+
+    #[test]
+    fn hash_segment_typeof_matches() {
+        let segment = DefinableNameSegment::TypeOf;
+        let segment_ref = DefinableNameSegmentRef::TypeOf;
+        assert_eq!(
+            hash_value(&segment),
+            hash_value(&segment_ref),
+            "DefinableNameSegment::TypeOf and DefinableNameSegmentRef::TypeOf must have matching \
+             Hash"
+        );
+    }
+
+    #[test]
+    fn hash_segments_vec_matches() {
+        let segments: Vec<DefinableNameSegment> = vec![
+            DefinableNameSegment::Name(rcstr!("process")),
+            DefinableNameSegment::Name(rcstr!("env")),
+            DefinableNameSegment::Name(rcstr!("NODE_ENV")),
+        ];
+        let segments_ref = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::Name("env"),
+            DefinableNameSegmentRef::Name("NODE_ENV"),
+        ]);
+        assert_eq!(
+            hash_value(&segments),
+            hash_value(&segments_ref),
+            "Vec<DefinableNameSegment> and DefinableNameSegmentRefs must have matching Hash"
+        );
+    }
+
+    #[test]
+    fn hash_segments_with_typeof_matches() {
+        let segments: Vec<DefinableNameSegment> = vec![
+            DefinableNameSegment::Name(rcstr!("process")),
+            DefinableNameSegment::TypeOf,
+        ];
+        let segments_ref = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::TypeOf,
+        ]);
+        assert_eq!(
+            hash_value(&segments),
+            hash_value(&segments_ref),
+            "Vec<DefinableNameSegment> with TypeOf and DefinableNameSegmentRefs must have \
+             matching Hash"
+        );
+    }
+
+    #[test]
+    fn hash_segments_with_call_matches() {
+        let segments: Vec<DefinableNameSegment> = vec![
+            DefinableNameSegment::Name(rcstr!("foo")),
+            DefinableNameSegment::Call(rcstr!("bar")),
+        ];
+        let segments_ref = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("foo"),
+            DefinableNameSegmentRef::Call("bar"),
+        ]);
+        assert_eq!(
+            hash_value(&segments),
+            hash_value(&segments_ref),
+            "Vec<DefinableNameSegment> with Call and DefinableNameSegmentRefs must have matching \
+             Hash"
+        );
+    }
 
     #[test]
     fn macro_parser() {
@@ -532,6 +638,60 @@ mod test {
                     FreeVarReference::Value(rcstr!("c").into())
                 )
             ]))
+        );
+    }
+
+    #[test]
+    fn indexmap_lookup_with_equivalent() {
+        // Test that DefinableNameSegmentRefs can be used to look up Vec<DefinableNameSegment>
+        // in an IndexMap using the Equivalent trait
+        let mut map: FxIndexMap<Vec<DefinableNameSegment>, &str> = FxIndexMap::default();
+        map.insert(
+            vec![
+                DefinableNameSegment::Name(rcstr!("process")),
+                DefinableNameSegment::Name(rcstr!("env")),
+                DefinableNameSegment::Name(rcstr!("NODE_ENV")),
+            ],
+            "production",
+        );
+        map.insert(
+            vec![
+                DefinableNameSegment::Name(rcstr!("process")),
+                DefinableNameSegment::Name(rcstr!("turbopack")),
+            ],
+            "true",
+        );
+
+        // Lookup using DefinableNameSegmentRefs
+        let key = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::Name("env"),
+            DefinableNameSegmentRef::Name("NODE_ENV"),
+        ]);
+        assert_eq!(
+            map.get(&key),
+            Some(&"production"),
+            "IndexMap lookup with Equivalent trait should work"
+        );
+
+        let key2 = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::Name("turbopack"),
+        ]);
+        assert_eq!(
+            map.get(&key2),
+            Some(&"true"),
+            "IndexMap lookup with Equivalent trait should work for shorter keys"
+        );
+
+        let key3 = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::Name("nonexistent"),
+        ]);
+        assert_eq!(
+            map.get(&key3),
+            None,
+            "IndexMap lookup should return None for nonexistent keys"
         );
     }
 }
