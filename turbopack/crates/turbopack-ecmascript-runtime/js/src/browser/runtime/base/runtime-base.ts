@@ -42,12 +42,12 @@ type RuntimeParams = {
 }
 
 type ChunkRegistration = [
-  chunkPath: ChunkScript,
+  chunkPath: { getAttribute: (name: string) => string | null } | undefined,
   ...([RuntimeParams] | CompressedModuleFactories),
 ]
 
 type ChunkList = {
-  script: ChunkListScript
+  script: { getAttribute: (name: string) => string | null } | undefined
   chunks: ChunkData[]
   source: 'entry' | 'dynamic'
 }
@@ -392,10 +392,7 @@ function getPathFromScript(
   if (typeof chunkScript === 'string') {
     return chunkScript as ChunkPath | ChunkListPath
   }
-  const chunkUrl =
-    typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined'
-      ? TURBOPACK_NEXT_CHUNK_URLS.pop()!
-      : chunkScript.getAttribute('src')!
+  const chunkUrl = chunkScript.src!
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
   const path = src.startsWith(CHUNK_BASE_PATH)
     ? src.slice(CHUNK_BASE_PATH.length)
@@ -411,7 +408,7 @@ function getUrlFromScript(chunk: ChunkPath | ChunkScript): ChunkUrl {
     return getChunkRelativeUrl(chunk)
   } else {
     // This is already exactly what we want
-    return chunk.getAttribute('src')! as ChunkUrl
+    return chunk.src! as ChunkUrl
   }
 }
 

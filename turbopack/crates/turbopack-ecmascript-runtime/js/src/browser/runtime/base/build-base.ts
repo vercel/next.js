@@ -85,7 +85,12 @@ function instantiateModule(
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function registerChunk(registration: ChunkRegistration) {
-  const chunk = registration[0]
+  const chunk =
+    registration[0] === undefined &&
+    typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined'
+      ? // for Worker importScripts loading
+        ({ src: TURBOPACK_NEXT_CHUNK_URLS.pop()! } as ChunkScript)
+      : ({ src: registration[0]!.getAttribute('src')! } as ChunkScript)
   let runtimeParams: RuntimeParams | undefined
   // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
   if (registration.length === 2) {

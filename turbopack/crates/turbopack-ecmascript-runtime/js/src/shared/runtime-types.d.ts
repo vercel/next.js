@@ -7,7 +7,7 @@
  * specific to the runtime context.
  */
 
-type CurrentScript = { getAttribute: (name: string) => string | null }
+type CurrentScript = { src: ChunkUrl | null }
 type ChunkListPath = string & { readonly brand: unique symbol }
 type ChunkListScript = CurrentScript & { readonly brand: unique symbol }
 /**
