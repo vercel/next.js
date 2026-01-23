@@ -133,11 +133,11 @@ struct TaskStorageSchema {
     // Persisted flags come first, then transient flags.
     // =========================================================================
     /// Whether the task has an invalidator.
-    #[field(storage = "flag", category = "meta")]
+    #[field(storage = "flag", category = "data")]
     invalidator: bool,
 
     /// Whether the task output is immutable (persisted).
-    #[field(storage = "flag", category = "meta")]
+    #[field(storage = "flag", category = "data")]
     immutable: bool,
 
     /// Whether clean in current session (transient flag).
