@@ -50,6 +50,15 @@ function sanitizeFilename(name) {
     .substring(0, 100)
 }
 
+function escapeMarkdownTableCell(text) {
+  if (!text) return ''
+  // Escape pipe characters and newlines for markdown table cells
+  return String(text)
+    .replace(/\|/g, '\\|')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, '')
+}
+
 function stripTimestamps(logContent) {
   // Remove GitHub Actions timestamp prefixes like "2026-01-23T10:11:12.8077557Z "
   return logContent.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s*/gm, '')
@@ -238,7 +247,7 @@ function generateIndexMd(branchInfo, runMetadata, failedJobs, jobTestCounts) {
       ? `${testCount.failed}/${testCount.total}`
       : 'N/A'
     lines.push(
-      `| ${job.id} | ${job.name} | ${duration} | ${testsStr} | [Details](job-${job.id}.md) |`
+      `| ${job.id} | ${escapeMarkdownTableCell(job.name)} | ${duration} | ${testsStr} | [Details](job-${job.id}.md) |`
     )
   }
 
@@ -281,7 +290,7 @@ function generateJobMd(jobMetadata, testResults, testGroups, allGroups) {
       const displayName =
         group.groupName.substring(0, 60) +
         (group.groupName.length > 60 ? '...' : '')
-      lines.push(`| ${groupNum} | ${displayName} | [View](${filename}) |`)
+      lines.push(`| ${groupNum} | ${escapeMarkdownTableCell(displayName)} | [View](${filename}) |`)
     }
     lines.push('')
   }
@@ -340,7 +349,7 @@ function generateJobMd(jobMetadata, testResults, testGroups, allGroups) {
           .replace(/\n/g, ' ')
           .substring(0, 60)
           .replace(/\|/g, '\\|')
-        lines.push(`| ${shortFile} | ${test.testName} | ${shortError}... |`)
+        lines.push(`| ${escapeMarkdownTableCell(shortFile)} | ${escapeMarkdownTableCell(test.testName)} | ${shortError}... |`)
       }
       lines.push('')
     }
