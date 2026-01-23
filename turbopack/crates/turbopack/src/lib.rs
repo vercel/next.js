@@ -674,10 +674,12 @@ async fn process_default_internal(
                                 ModuleIssue::new(
                                     *ident,
                                     rcstr!("Invalid module type"),
-                                    rcstr!(
+                                    format!(
                                         "The module type must be Ecmascript or Typescript to add \
-                                         Ecmascript transforms"
-                                    ),
+                                         Ecmascript transforms (got {})",
+                                        module_type
+                                    )
+                                    .into(),
                                     Some(IssueSource::from_source_only(current_source)),
                                 )
                                 .to_resolved()

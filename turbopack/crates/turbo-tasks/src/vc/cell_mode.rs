@@ -2,7 +2,7 @@ use std::{any::type_name, marker::PhantomData};
 
 use super::{read::VcRead, traits::VcValueType};
 use crate::{
-    RawVc, Vc, backend::VerificationMode, keyed::Keyed, manager::find_cell_by_type,
+    RawVc, Vc, backend::VerificationMode, keyed::KeyedEq, manager::find_cell_by_type,
     task::shared_reference::TypedSharedReference,
 };
 
@@ -93,8 +93,8 @@ pub struct VcCellKeyedCompareMode<T> {
 impl<T> VcCellMode<T> for VcCellKeyedCompareMode<T>
 where
     T: VcValueType + PartialEq,
-    VcReadTarget<T>: Keyed,
-    <VcReadTarget<T> as Keyed>::Key: std::hash::Hash,
+    VcReadTarget<T>: KeyedEq,
+    <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
 {
     fn cell(inner: VcReadTarget<T>) -> Vc<T> {
         let cell = find_cell_by_type::<T>();

@@ -7,32 +7,30 @@ mod leaf_distance_update;
 mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
-
 use std::{
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Display, Formatter},
     mem::transmute,
-    sync::atomic::Ordering,
+    sync::{Arc, atomic::Ordering},
 };
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
     CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
-    TypedSharedReference,
+    TypedSharedReference, backend::CachedTaskType,
 };
 
 use crate::{
     backend::{
-        OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
+        EventDescription, OperationGuard, TaskDataCategory, TurboTasksBackend,
+        TurboTasksBackendInner,
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     backing_storage::{BackingStorage, BackingStorageSealed},
-    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState},
+    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
-pub trait Operation:
-    Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> + Into<AnyOperation>
-{
+pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> {
     fn execute(self, ctx: &mut impl ExecuteContext<'_>);
 }
 
@@ -70,7 +68,16 @@ pub trait ExecuteContext<'e>: Sized {
             func,
         )
     }
-    fn is_once_task(&self, task_id: TaskId) -> bool;
+    fn for_each_task_all(
+        &mut self,
+        task_ids: impl IntoIterator<Item = TaskId>,
+        func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+    ) {
+        self.for_each_task(
+            task_ids.into_iter().map(|id| (id, TaskDataCategory::All)),
+            func,
+        )
+    }
     fn task_pair(
         &mut self,
         task_id1: TaskId,
@@ -84,8 +91,6 @@ pub trait ExecuteContext<'e>: Sized {
     where
         T: Clone + Into<AnyOperation>;
     fn suspending_requested(&self) -> bool;
-    fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static;
-    fn get_task_description(&self, task_id: TaskId) -> String;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
 }
@@ -178,10 +183,9 @@ where
         match result {
             Ok(()) => storage,
             Err(e) => {
-                let task_name = self.backend.get_task_description(task_id);
                 panic!(
                     "Failed to restore task data (corrupted database or bug): {:?}",
-                    e.context(format!("{category:?} for {task_name} ({task_id}))"))
+                    e.context(format!("{category:?} for {task_id})"))
                 )
             }
         }
@@ -373,12 +377,14 @@ where
                 );
             }
 
+            let mut task_type = None;
             let mut task = self.backend.storage.access_mut(task_id);
             if let Some(storage) = storage_for_data
                 && !task.flags.is_restored(TaskDataCategory::Data)
             {
                 task.restore_from(storage, TaskDataCategory::Data);
                 task.flags.set_restored(TaskDataCategory::Data);
+                task_type = task.get_persistent_task_type().cloned()
             }
             if let Some(storage) = storage_for_meta
                 && !task.flags.is_restored(TaskDataCategory::Meta)
@@ -389,6 +395,10 @@ where
             prepared_task_callback(self, task_id, category, task);
             #[cfg(debug_assertions)]
             self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
+            if let Some(task_type) = task_type {
+                // Insert into the task cache to avoid future lookups
+                self.backend.task_cache.entry(task_type).or_insert(task_id);
+            }
         }
     }
 }
@@ -460,7 +470,7 @@ where
         TaskGuardImpl {
             task,
             task_id,
-            backend: self.backend,
+            _backend: self.backend,
             #[cfg(debug_assertions)]
             category,
             #[cfg(debug_assertions)]
@@ -490,7 +500,7 @@ where
             let guard: TaskGuardImpl<'_, B> = TaskGuardImpl {
                 task,
                 task_id,
-                backend,
+                _backend: backend,
                 #[cfg(debug_assertions)]
                 category: _category,
                 #[cfg(debug_assertions)]
@@ -498,17 +508,6 @@ where
             };
             func(guard, this);
         });
-    }
-
-    fn is_once_task(&self, task_id: TaskId) -> bool {
-        if !task_id.is_transient() {
-            return false;
-        }
-        if let Some(ty) = self.backend.transient_tasks.get(&task_id) {
-            matches!(**ty, TransientTask::Once(_))
-        } else {
-            false
-        }
     }
 
     fn task_pair(
@@ -586,7 +585,7 @@ where
             TaskGuardImpl {
                 task: task1,
                 task_id: task_id1,
-                backend: self.backend,
+                _backend: self.backend,
                 #[cfg(debug_assertions)]
                 category,
                 #[cfg(debug_assertions)]
@@ -595,7 +594,7 @@ where
             TaskGuardImpl {
                 task: task2,
                 task_id: task_id2,
-                backend: self.backend,
+                _backend: self.backend,
                 #[cfg(debug_assertions)]
                 category,
                 #[cfg(debug_assertions)]
@@ -636,14 +635,6 @@ where
         self.backend.suspending_requested()
     }
 
-    fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static {
-        self.backend.get_task_desc_fn(task_id)
-    }
-
-    fn get_task_description(&self, task_id: TaskId) -> String {
-        self.backend.get_task_description(task_id)
-    }
-
     fn should_track_dependencies(&self) -> bool {
         self.backend.should_track_dependencies()
     }
@@ -667,6 +658,43 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
             transaction: TransactionState::None,
             #[cfg(debug_assertions)]
             active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
+        }
+    }
+}
+
+pub enum TaskTypeRef<'l> {
+    Cached(&'l Arc<CachedTaskType>),
+    Transient(&'l Arc<TransientTask>),
+}
+
+impl TaskTypeRef<'_> {
+    pub fn to_owned(&self) -> TaskType {
+        match self {
+            TaskTypeRef::Cached(ty) => TaskType::Cached(Arc::clone(ty)),
+            TaskTypeRef::Transient(ty) => TaskType::Transient(Arc::clone(ty)),
+        }
+    }
+}
+
+impl Display for TaskTypeRef<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TaskTypeRef::Cached(ty) => write!(f, "{}", ty),
+            TaskTypeRef::Transient(ty) => write!(f, "{}", ty),
+        }
+    }
+}
+
+pub enum TaskType {
+    Cached(Arc<CachedTaskType>),
+    Transient(Arc<TransientTask>),
+}
+
+impl Display for TaskType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TaskType::Cached(ty) => write!(f, "{}", ty),
+            TaskType::Transient(ty) => write!(f, "{}", ty),
         }
     }
 }
@@ -848,14 +876,11 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// Add a scheduled task item. Returns true if the task was successfully added (wasn't already
     /// present).
     #[must_use]
-    fn add_scheduled<InnerFn>(
+    fn add_scheduled(
         &mut self,
         reason: TaskExecutionReason,
-        description: impl FnOnce() -> InnerFn,
-    ) -> bool
-    where
-        InnerFn: Fn() -> String + Sync + Send + 'static,
-    {
+        description: EventDescription,
+    ) -> bool {
         if self.has_in_progress() {
             false
         } else {
@@ -863,8 +888,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             true
         }
     }
-
-    // ============ Collectible APIs ============
 
     /// Insert an outdated collectible with count. Returns true if it was newly inserted.
     #[must_use]
@@ -877,12 +900,35 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         self.add_outdated_collectibles(collectible, value);
         true
     }
+    fn get_task_type(&self) -> TaskTypeRef<'_> {
+        if let Some(task_type) = self.get_persistent_task_type() {
+            TaskTypeRef::Cached(task_type)
+        } else if let Some(task_type) = self.get_transient_task_type() {
+            TaskTypeRef::Transient(task_type)
+        } else {
+            panic!("Every task must have a task type {self:?}");
+        }
+    }
+    fn get_task_desc_fn(&self) -> impl Fn() -> String + Send + Sync + 'static {
+        let task_type = self.get_task_type().to_owned();
+        let task_id = self.id();
+        move || format!("{task_id:?} {task_type}")
+    }
+    fn get_task_description(&self) -> String {
+        let task_type = self.get_task_type().to_owned();
+        let task_id = self.id();
+        format!("{task_id:?} {task_type}")
+    }
+    fn get_task_name(&self) -> String {
+        let task_type = self.get_task_type().to_owned();
+        format!("{task_type}")
+    }
 }
 
 pub struct TaskGuardImpl<'a, B: BackingStorage> {
     task_id: TaskId,
     task: StorageWriteGuard<'a>,
-    backend: &'a TurboTasksBackendInner<B>,
+    _backend: &'a TurboTasksBackendInner<B>,
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
     #[cfg(debug_assertions)]
@@ -933,9 +979,6 @@ impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut d = f.debug_struct("TaskGuard");
         d.field("task_id", &self.task_id);
-        if let Some(task_type) = self.backend.task_cache.lookup_reverse(&self.task_id) {
-            d.field("task_type", &task_type);
-        };
         d.field("storage", &*self.task);
         d.finish()
     }

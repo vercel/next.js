@@ -22,7 +22,7 @@ use crate::database::{
 mod parallel_scheduler;
 
 /// Number of key families, see KeySpace enum for their numbers.
-const FAMILIES: usize = 5;
+const FAMILIES: usize = 4;
 
 const MB: u64 = 1024 * 1024;
 const COMPACT_CONFIG: CompactConfig = CompactConfig {
