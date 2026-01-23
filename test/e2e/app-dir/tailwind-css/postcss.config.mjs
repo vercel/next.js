@@ -2,7 +2,7 @@
 import 'fs'
 import 'path'
 
-module.exports = {
+export default {
   plugins: {
     tailwindcss: {},
     autoprefixer: {},
