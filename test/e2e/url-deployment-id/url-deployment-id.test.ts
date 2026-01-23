@@ -55,6 +55,40 @@ import { nextTestSetup } from 'e2e-utils'
       })
     })
 
+    describe('dynamic RSC page (headers)', () => {
+      it('should include dpl query in dynamic RSC page', async () => {
+        const $ = await next.render$('/dynamic')
+        const src = $('#imported-src').text()
+        expect(src).toContain('dpl=' + deploymentId)
+      })
+
+      it('should include dpl query in new URL pattern', async () => {
+        const $ = await next.render$('/dynamic')
+        const url = $('#new-url').text()
+        expect(url).toContain('dpl=' + deploymentId)
+      })
+    })
+
+    describe('dynamic client page (headers in layout)', () => {
+      it('should include dpl query in dynamic client page', async () => {
+        const $ = await next.render$('/dynamic-client')
+        const src = $('#imported-src').text()
+        expect(src).toContain('dpl=' + deploymentId)
+      })
+
+      it('should include dpl query in new URL pattern', async () => {
+        const $ = await next.render$('/dynamic-client')
+        const url = $('#new-url').text()
+        expect(url).toContain('dpl=' + deploymentId)
+      })
+
+      it('should include dpl query after hydration', async () => {
+        const browser = await next.browser('/dynamic-client')
+        const url = await browser.elementByCss('#imported-src').text()
+        expect(url).toContain('dpl=' + deploymentId)
+      })
+    })
+
     describe('API route', () => {
       it('should return import src with dpl query', async () => {
         const data = await next
