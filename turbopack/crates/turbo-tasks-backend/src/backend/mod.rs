@@ -1177,14 +1177,28 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .into_iter()
                     .collect::<Vec<_>>();
                 if !task_cache_stats.is_empty() {
+                    use turbo_tasks::util::FormatBytes;
                     task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
                         (stats_b.data_compressed + stats_b.meta_compressed, key_b)
                             .cmp(&(stats_a.data_compressed + stats_a.meta_compressed, key_a))
                     });
-                    println!("Task cache stats:");
-                    for (task_desc, stats) in task_cache_stats {
-                        use turbo_tasks::util::FormatBytes;
+                    println!(
+                        "Task cache stats: {} ({})",
+                        FormatBytes(
+                            task_cache_stats
+                                .iter()
+                                .map(|(_, s)| s.data_compressed + s.meta_compressed)
+                                .sum::<usize>()
+                        ),
+                        FormatBytes(
+                            task_cache_stats
+                                .iter()
+                                .map(|(_, s)| s.data + s.meta)
+                                .sum::<usize>()
+                        )
+                    );
 
+                    for (task_desc, stats) in task_cache_stats {
                         println!(
                             "  {} ({}) {task_desc} = {} ({}) meta {} x {} ({}), {} ({}) data {} x \
                              {} ({})",
