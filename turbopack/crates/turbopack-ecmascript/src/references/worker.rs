@@ -173,15 +173,6 @@ impl ModuleReference for WorkerAssetReference {
         let result_ref = result.await?;
         let mut primary = Vec::with_capacity(result_ref.primary.len());
 
-        let get_issue_severity = || async {
-            let resolve_options = self.origin.resolve_options().await?;
-            Ok::<_, anyhow::Error>(if self.in_try || resolve_options.loose_errors {
-                IssueSeverity::Warning
-            } else {
-                IssueSeverity::Error
-            })
-        };
-
         for (request_key, resolve_item) in result_ref.primary.iter() {
             match resolve_item {
                 ModuleResolveResultItem::Module(module) => {
@@ -191,7 +182,7 @@ impl ModuleReference for WorkerAssetReference {
                         ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
                     else {
                         CodeGenerationIssue {
-                            severity: get_issue_severity().await?,
+                            severity: self.get_module_type_issue_severity().await?,
                             title: StyledString::Text(rcstr!("non-chunkable module"))
                                 .resolved_cell(),
                             message: StyledString::Text(
@@ -219,7 +210,7 @@ impl ModuleReference for WorkerAssetReference {
                             .is_none()
                     {
                         CodeGenerationIssue {
-                            severity: get_issue_severity().await?,
+                            severity: self.get_module_type_issue_severity().await?,
                             title: StyledString::Text(rcstr!("non-evaluatable module"))
                                 .resolved_cell(),
                             message: StyledString::Text(
@@ -263,6 +254,19 @@ impl ModuleReference for WorkerAssetReference {
             affecting_sources: result_ref.affecting_sources.clone(),
         }
         .cell())
+    }
+}
+
+impl WorkerAssetReference {
+    /// Downgrade errors to warnings if we are in a try context or if loos errors is enabled
+    async fn get_module_type_issue_severity(&self) -> Result<IssueSeverity> {
+        Ok(
+            if self.in_try || self.origin.resolve_options().await?.loose_errors {
+                IssueSeverity::Warning
+            } else {
+                IssueSeverity::Error
+            },
+        )
     }
 }
 
