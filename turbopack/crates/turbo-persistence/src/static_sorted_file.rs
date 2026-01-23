@@ -221,18 +221,6 @@ impl StaticSortedFile {
         let offsets = &block[..entry_count * 4];
         let entries = &block[entry_count * 4..];
 
-        // Mask the search hash to only compare stored bytes (high bytes in BE)
-        // When hash_len >= 8, use full hash; otherwise mask to stored bytes
-        let masked_key_hash = if hash_len >= 8 {
-            key_hash
-        } else if hash_len == 0 {
-            0
-        } else {
-            // Mask to keep only the first hash_len bytes (high bytes in BE)
-            let mask = !((1u64 << ((8 - hash_len) * 8)) - 1);
-            key_hash & mask
-        };
-
         let mut l = 0;
         let mut r = entry_count;
         // binary search for the key
@@ -245,20 +233,7 @@ impl StaticSortedFile {
                 val: mid_val,
             } = get_key_entry(offsets, entries, entry_count, m, hash_len)?;
 
-            // When hash_len < 8, we need to compute full hash from entry's key for proper comparison
-            // Entries are sorted by full hash, so we must compare full hashes
-            let comparison = if hash_len < 8 {
-                // Partial hash match (or no hash) - compute full hash from key data
-                if masked_key_hash == mid_hash {
-                    let full_entry_hash = crate::key::hash_key(&mid_key);
-                    key_hash.cmp(&full_entry_hash).then_with(|| key.cmp(mid_key))
-                } else {
-                    masked_key_hash.cmp(&mid_hash)
-                }
-            } else {
-                // Full hash stored - compare directly
-                key_hash.cmp(&mid_hash).then_with(|| key.cmp(mid_key))
-            };
+            let comparison = compare_hash_key(mid_hash, mid_key, key_hash, key);
 
             match comparison {
                 Ordering::Less => {
@@ -526,11 +501,11 @@ impl<'l> StaticSortedFileIter<'l> {
             {
                 let GetKeyEntryResult { hash, key, ty, val } =
                     get_key_entry(&offsets, &entries, entry_count, index, hash_len)?;
-                // If hash_len < 8, we need to compute the full hash from key data
-                let full_hash = if hash_len < 8 {
+                // Convert hash slice to u64, computing from key if partial hash stored
+                let full_hash = if hash.len() < 8 {
                     crate::key::hash_key(&key)
                 } else {
-                    hash
+                    u64::from_be_bytes(hash.try_into().unwrap())
                 };
                 let value = if ty == KEY_BLOCK_ENTRY_TYPE_MEDIUM {
                     let mut val = val;
@@ -586,10 +561,42 @@ impl<'l> StaticSortedFileIter<'l> {
 }
 
 struct GetKeyEntryResult<'l> {
-    hash: u64,
+    hash: &'l [u8],
     key: &'l [u8],
     ty: u8,
     val: &'l [u8],
+}
+
+/// Compares a query (full_hash + query_key) against an entry (partial_hash + entry_key).
+/// Returns the ordering of query relative to entry.
+/// When partial_hash.len() < 8, computes full hash from entry_key only if partial bytes match.
+fn compare_hash_key<K: QueryKey>(
+    partial_hash: &[u8],
+    entry_key: &[u8],
+    full_hash: u64,
+    query_key: &K,
+) -> Ordering {
+    let full_hash_bytes = full_hash.to_be_bytes();
+
+    // Compare query's hash bytes against entry's partial hash bytes
+    let partial_cmp = full_hash_bytes[..partial_hash.len()].cmp(partial_hash);
+
+    if partial_cmp != Ordering::Equal {
+        return partial_cmp;
+    }
+
+    // Partial bytes match - need full comparison
+    if partial_hash.len() < 8 {
+        // Compute full hash from entry key
+        let entry_full_hash = crate::key::hash_key(&entry_key);
+        match full_hash.cmp(&entry_full_hash) {
+            Ordering::Equal => query_key.cmp(entry_key),
+            ord => ord,
+        }
+    } else {
+        // Full hash stored - just compare keys
+        query_key.cmp(entry_key)
+    }
 }
 
 /// Reads a key entry from a key block.
@@ -609,14 +616,8 @@ fn get_key_entry<'l>(
     } else {
         (&offsets[(index + 1) * 4 + 1..]).read_u24::<BE>()? as usize
     };
-    // Read partial hash and extend to u64 (stored bytes are the high bytes in BE order)
-    let hash = if hash_len == 0 {
-        0
-    } else {
-        let mut hash_bytes = [0u8; 8];
-        hash_bytes[..hash_len_usize].copy_from_slice(&entries[start..start + hash_len_usize]);
-        u64::from_be_bytes(hash_bytes)
-    };
+    // Return the raw hash bytes slice (0-8 bytes depending on hash_len)
+    let hash = &entries[start..start + hash_len_usize];
     Ok(match ty {
         KEY_BLOCK_ENTRY_TYPE_SMALL => GetKeyEntryResult {
             hash,
