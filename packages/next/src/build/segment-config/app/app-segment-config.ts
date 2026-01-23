@@ -38,12 +38,15 @@ const InstantConfigRuntimeSchema = z
   })
   .strict()
 
-const InstantConfigSchema = z.discriminatedUnion('prefetch', [
-  InstantConfigStaticSchema,
-  InstantConfigRuntimeSchema,
+const InstantConfigSchema = z.union([
+  z.discriminatedUnion('prefetch', [
+    InstantConfigStaticSchema,
+    InstantConfigRuntimeSchema,
+  ]),
+  z.literal(false),
 ])
 
-export type InstantConfig = InstantConfigStatic | InstantConfigRuntime
+export type InstantConfig = InstantConfigStatic | InstantConfigRuntime | false
 export type InstantConfigForTypeCheckInternal =
   | __GenericInstantConfig
   | InstantConfig
@@ -175,7 +178,7 @@ export function parseAppSegmentConfig(
           case 'unstable_instant': {
             return {
               // @TODO replace this link with a link to the docs when they are written
-              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`, or \`false\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
             }
           }
           default:
