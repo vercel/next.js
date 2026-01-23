@@ -226,9 +226,24 @@ impl Hasher for ShortKeyHasher {
     }
 
     fn finish(&self) -> u64 {
-        // Convert bytes to u64 and rotate right by 2 bits
-        // This moves the 2 LSBs to become the 2 MSBs
-        u64::from_be_bytes(self.bytes).rotate_right(2 + 8 * (8 - self.pos as u32))
+        // Convert collected bytes to u64 (big-endian: first byte is most significant)
+        let raw = u64::from_be_bytes(self.bytes);
+
+        // Rotate right by (8 - pos) bytes to align the key bytes to the LSB side.
+        // This makes trailing zeros significant: [1] and [1, 0] produce different hashes
+        // because they have different pos values and thus different rotations.
+        let shift = 8 * (8 - self.pos as u32);
+        let rotated = raw.rotate_right(shift);
+
+        // Create bit-reversed version for mixing.
+        // reverse_bits() mirrors all 64 bits: bit 0 ↔ bit 63, bit 1 ↔ bit 62, etc.
+        let reversed = rotated.reverse_bits();
+
+        // Interleave bits from original and reversed using mask 0xCCCC...
+        // Binary: 0xC = 1100, so this selects bits 2-3, 6-7, 10-11, ... from each nibble.
+        // Each output nibble gets bits 2-3 from original OR'd with bits 2-3 from reversed,
+        // combining nearby bits with their distant mirror positions for better distribution.
+        (rotated & 0xCCCC_CCCC_CCCC_CCCC) | (reversed & 0xCCCC_CCCC_CCCC_CCCC)
     }
 }
 
@@ -295,45 +310,48 @@ mod tests {
     #[test]
     fn hash_short_keys_exact_values() {
         // Test exact hash values for short keys of various lengths (0-8 bytes)
-        // Values computed as: u64::from_be_bytes([bytes padded with zeros]).rotate_right(2)
+        // Values computed using bit interleaving
 
         // Empty key (0 bytes)
         assert_eq!(hash_key(&[0u8; 0]), 0x0000_0000_0000_0000);
 
         // 1 byte
-        assert_eq!(hash_key(&[0x01]), 0x4000_0000_0000_0000);
+        assert_eq!(hash_key(&[0x01]), 0x8000_0000_0000_0000);
+        assert_eq!(hash_key(&[0x02]), 0x4000_0000_0000_0000);
+        assert_eq!(hash_key(&[0x04]), 0x0000_0000_0000_0004);
+        assert_eq!(hash_key(&[0x08]), 0x0000_0000_0000_0008);
 
         // 2 bytes
-        assert_eq!(hash_key(&[0x01, 0x02]), 0x8000_0000_0000_0040);
+        assert_eq!(hash_key(&[0x01, 0x02]), 0x4080_0000_0000_0000);
 
         // 3 bytes
-        assert_eq!(hash_key(&[0x01, 0x02, 0x03]), 0xC000_0000_0000_4080);
+        assert_eq!(hash_key(&[0x01, 0x02, 0x03]), 0xC040_8000_0000_0000);
 
         // 4 bytes
-        assert_eq!(hash_key(&[0x01, 0x02, 0x03, 0x04]), 0x0000_0000_0040_80C1);
+        assert_eq!(hash_key(&[0x01, 0x02, 0x03, 0x04]), 0x00C0_4080_0000_0004);
 
         // 5 bytes
         assert_eq!(
             hash_key(&[0x01, 0x02, 0x03, 0x04, 0x05]),
-            0x4000_0000_4080_C101
+            0x8000_C040_8000_0404
         );
 
         // 6 bytes
         assert_eq!(
             hash_key(&[0x01, 0x02, 0x03, 0x04, 0x05, 0x06]),
-            0x8000_0040_80C1_0141
+            0x4080_00C0_4084_0404
         );
 
         // 7 bytes
         assert_eq!(
             hash_key(&[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07]),
-            0xC000_4080_C101_4181
+            0xC040_8000_C444_8404
         );
 
         // 8 bytes
         assert_eq!(
             hash_key(&[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]),
-            0x0040_80C1_0141_81C2
+            0x00C0_4084_04C4_4488
         );
     }
 }
