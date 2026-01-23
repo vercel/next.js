@@ -236,6 +236,7 @@ impl ModuleOptions {
                     ref module_css_condition,
                     ..
                 },
+            ref static_url_tag,
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             environment,
@@ -454,13 +455,13 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
@@ -468,13 +469,13 @@ impl ModuleOptions {
                     UrlReferenceSubType::EcmaScriptNewUrl,
                 )),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
         ];

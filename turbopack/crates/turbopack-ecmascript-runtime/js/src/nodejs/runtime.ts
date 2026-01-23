@@ -27,6 +27,7 @@ interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
   R: ResolvePathFromModule
   x: ExternalRequire
   y: ExternalImport
+  q: ExportUrl
 }
 
 const nodeContextPrototype = Context.prototype as TurbopackNodeBuildContext
@@ -62,6 +63,18 @@ function resolvePathFromModule(
   return url.pathToFileURL(resolved).href
 }
 nodeContextPrototype.R = resolvePathFromModule
+
+/**
+ * Exports a URL value. No suffix is added in Node.js runtime.
+ */
+function exportUrl(
+  this: TurbopackBaseContext<Module>,
+  urlValue: string,
+  id: ModuleId | undefined
+) {
+  exportValue.call(this, urlValue, id)
+}
+nodeContextPrototype.q = exportUrl
 
 function loadRuntimeChunk(sourcePath: ChunkPath, chunkData: ChunkData): void {
   if (typeof chunkData === 'string') {

@@ -8,19 +8,6 @@ function defaultLoader({
   width,
   quality,
 }: ImageLoaderPropsWithConfig): string {
-  if (
-    src.startsWith('/') &&
-    src.includes('?') &&
-    config.localPatterns?.length === 1 &&
-    config.localPatterns[0].pathname === '**' &&
-    config.localPatterns[0].search === ''
-  ) {
-    throw new Error(
-      `Image with src "${src}" is using a query string which is not configured in images.localPatterns.` +
-        `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
-    )
-  }
-
   if (process.env.NODE_ENV !== 'production') {
     const missingValues = []
 
@@ -37,7 +24,35 @@ function defaultLoader({
         )}`
       )
     }
+  }
 
+  // Extract dpl parameter early so validation uses the clean URL
+  let deploymentId = getDeploymentId()
+  if (src.startsWith('/')) {
+    const srcUrl = new URL(src, 'http://n')
+    const srcDpl = srcUrl.searchParams.get('dpl')
+    if (srcDpl) {
+      deploymentId = srcDpl
+      // Remove the dpl parameter from the src URL to avoid duplication
+      srcUrl.searchParams.delete('dpl')
+      src = srcUrl.href.slice('http://n'.length)
+    }
+  }
+
+  if (
+    src.startsWith('/') &&
+    src.includes('?') &&
+    config.localPatterns?.length === 1 &&
+    config.localPatterns[0].pathname === '**' &&
+    config.localPatterns[0].search === ''
+  ) {
+    throw new Error(
+      `Image with src "${src}" is using a query string which is not configured in images.localPatterns.` +
+        `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
+    )
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
     if (src.startsWith('//')) {
       throw new Error(
         `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
@@ -95,7 +110,6 @@ function defaultLoader({
 
   const q = findClosestQuality(quality, config)
 
-  let deploymentId = getDeploymentId()
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
     src.startsWith('/') && deploymentId ? `&dpl=${deploymentId}` : ''
   }`

@@ -202,6 +202,8 @@ pub struct ModuleOptionsContext {
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
+    pub static_url_tag: Option<RcStr>,
+
     /// Generate (non-emitted) output assets for static assets and externals, to facilitate
     /// generating a list of all non-bundled files that will be required at runtime.
     pub enable_externals_tracing: Option<ResolvedVc<ExternalsTracingOptions>>,

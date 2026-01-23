@@ -171,8 +171,8 @@ async fn build_manifest(
         let runtime_server_deployment_id_available =
             *next_config.runtime_server_deployment_id_available().await?;
         let suffix_path = if !runtime_server_deployment_id_available {
-            let chunk_suffix_path = next_config.chunk_suffix_path().owned().await?;
-            chunk_suffix_path.unwrap_or_default()
+            let asset_suffix_path = next_config.asset_suffix_path().owned().await?;
+            asset_suffix_path.unwrap_or_default()
         } else {
             rcstr!("")
         };

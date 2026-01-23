@@ -621,6 +621,12 @@ nodeContextPrototype.c = moduleCache;
     return url.pathToFileURL(resolved).href;
 }
 nodeContextPrototype.R = resolvePathFromModule;
+/**
+ * Exports a URL value. No suffix is added in Node.js runtime.
+ */ function exportUrl(urlValue, id) {
+    exportValue.call(this, urlValue, id);
+}
+nodeContextPrototype.q = exportUrl;
 function loadRuntimeChunk(sourcePath, chunkData) {
     if (typeof chunkData === 'string') {
         loadRuntimeChunkPath(sourcePath, chunkData);
