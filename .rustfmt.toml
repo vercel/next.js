@@ -1,3 +1,4 @@
+edition = "2024"
 max_width = 100
 
 comment_width = 100

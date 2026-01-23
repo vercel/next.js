@@ -266,25 +266,6 @@ impl NodeJsChunkingContext {
 
 #[turbo_tasks::value_impl]
 impl NodeJsChunkingContext {
-    #[turbo_tasks::function]
-    async fn generate_chunk(
-        self: Vc<Self>,
-        chunk: ResolvedVc<Box<dyn Chunk>>,
-    ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        Ok(
-            if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
-            {
-                Vc::upcast(EcmascriptBuildNodeChunk::new(self, *ecmascript_chunk))
-            } else if let Some(output_asset) =
-                ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(chunk)
-            {
-                *output_asset
-            } else {
-                bail!("Unable to generate output asset for chunk");
-            },
-        )
-    }
-
     /// Returns the kind of runtime to include in output chunks.
     ///
     /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
@@ -303,6 +284,30 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.asset_prefix.clone())
+    }
+}
+
+impl NodeJsChunkingContext {
+    async fn generate_chunk(
+        self: Vc<Self>,
+        chunk: ResolvedVc<Box<dyn Chunk>>,
+    ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
+        Ok(
+            if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
+            {
+                ResolvedVc::upcast(
+                    EcmascriptBuildNodeChunk::new(self, *ecmascript_chunk)
+                        .to_resolved()
+                        .await?,
+                )
+            } else if let Some(output_asset) =
+                ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(chunk)
+            {
+                output_asset
+            } else {
+                bail!("Unable to generate output asset for chunk");
+            },
+        )
     }
 }
 
@@ -499,7 +504,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             let assets = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()
                 .await?;
 
@@ -551,7 +556,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             let extra_chunks = extra_chunks.await?;
             let mut other_chunks = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()
                 .await?;
             other_chunks.extend(extra_chunks.iter().copied());
