@@ -29,7 +29,7 @@ use crate::{
         KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
         VALUE_BLOCK_CACHE_SIZE,
     },
-    family_format::FormatConfig,
+    family_format::{FormatConfig, key_to_range_value},
     key::{StoreKey, hash_key},
     lookup_entry::{LookupEntry, LookupValue},
     merge_iter::MergeIter,
@@ -1463,15 +1463,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Get a value from a direct-key fixed-value family.
     ///
-    /// This is optimized for families with fixed-size integer keys and fixed-size values
+    /// This is optimized for families with u32 integer keys and fixed-size values
     /// stored inline without compression (e.g., TaskIdToTaskTypeHash).
     ///
-    /// The key should be the raw key bytes (e.g., TaskId as 4 bytes big-endian).
+    /// The key is a u32 (e.g., TaskId). It will be rotated internally for lookup.
     /// Returns the fixed-size value bytes if found.
-    pub fn get_direct_fixed<const KEY_SIZE: usize, const VALUE_SIZE: usize>(
+    pub fn get_direct_fixed<const VALUE_SIZE: usize>(
         &self,
         family: usize,
-        key: &[u8; KEY_SIZE],
+        key: u32,
     ) -> Result<Option<[u8; VALUE_SIZE]>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         debug_assert!(
@@ -1481,32 +1481,29 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         );
         let inner = self.inner.read();
         for meta in inner.meta_files.iter().rev() {
-            match meta.lookup_direct_fixed::<KEY_SIZE, VALUE_SIZE>(
-                family as u32,
-                key,
-                &self.amqf_cache,
-            )? {
-                MetaLookupResult::FamilyMiss
-                | MetaLookupResult::RangeMiss
-                | MetaLookupResult::QuickFilterMiss => {
+            match meta.lookup_direct_fixed::<VALUE_SIZE>(family as u32, key)? {
+                MetaLookupResult::FamilyMiss | MetaLookupResult::RangeMiss => {
                     // Continue searching other meta files
+                }
+                MetaLookupResult::QuickFilterMiss => {
+                    unreachable!("Direct-fixed format doesn't use AMQF")
                 }
                 MetaLookupResult::SstLookup(result) => match result {
                     SstLookupResult::Found(LookupValue::Slice { value }) => {
                         // Convert ArcSlice to fixed array
                         let mut result = [0u8; VALUE_SIZE];
                         result.copy_from_slice(&value);
-                        // For direct-key formats, we use key bytes as hash for access tracking
-                        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
-                        inner.accessed_key_hashes[family].insert(key_hash);
+                        // For direct-key formats, we use rotated key as range value for access
+                        // tracking
+                        let key_range_value = key_to_range_value(key);
+                        inner.accessed_key_hashes[family].insert(key_range_value);
                         return Ok(Some(result));
                     }
                     SstLookupResult::Found(LookupValue::Deleted) => {
                         return Ok(None);
                     }
                     SstLookupResult::Found(LookupValue::Blob { .. }) => {
-                        // Fixed values shouldn't be stored as blob
-                        return Ok(None);
+                        unreachable!("Direct-fixed format cannot store blob values")
                     }
                     SstLookupResult::NotFound => {
                         // Continue searching other meta files
@@ -1519,15 +1516,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Get a value from a direct-key variable-value family.
     ///
-    /// This is optimized for families with fixed-size integer keys but variable-size
+    /// This is optimized for families with u32 integer keys but variable-size
     /// values stored in compressed blocks (e.g., TaskMeta, TaskData).
     ///
-    /// The key should be the raw key bytes (e.g., TaskId as 4 bytes big-endian).
-    pub fn get_direct_variable<const KEY_SIZE: usize>(
-        &self,
-        family: usize,
-        key: &[u8; KEY_SIZE],
-    ) -> Result<Option<ArcSlice<u8>>> {
+    /// The key is a u32 (e.g., TaskId). It will be rotated internally for lookup.
+    pub fn get_direct_variable(&self, family: usize, key: u32) -> Result<Option<ArcSlice<u8>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         debug_assert!(
             self.family_configs[family].uses_direct_keys()
@@ -1537,30 +1530,25 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         );
         let inner = self.inner.read();
         for meta in inner.meta_files.iter().rev() {
-            match meta.lookup_direct_variable::<KEY_SIZE>(
-                family as u32,
-                key,
-                &self.amqf_cache,
-                &self.key_block_cache,
-                &self.value_block_cache,
-            )? {
-                MetaLookupResult::FamilyMiss
-                | MetaLookupResult::RangeMiss
-                | MetaLookupResult::QuickFilterMiss => {
+            match meta.lookup_direct_variable(family as u32, key, &self.value_block_cache)? {
+                MetaLookupResult::FamilyMiss | MetaLookupResult::RangeMiss => {
                     // Continue searching other meta files
+                }
+                MetaLookupResult::QuickFilterMiss => {
+                    unreachable!("Direct-variable format doesn't use AMQF")
                 }
                 MetaLookupResult::SstLookup(result) => match result {
                     SstLookupResult::Found(LookupValue::Slice { value }) => {
-                        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
-                        inner.accessed_key_hashes[family].insert(key_hash);
+                        let key_range_value = key_to_range_value(key);
+                        inner.accessed_key_hashes[family].insert(key_range_value);
                         return Ok(Some(value));
                     }
                     SstLookupResult::Found(LookupValue::Deleted) => {
                         return Ok(None);
                     }
                     SstLookupResult::Found(LookupValue::Blob { sequence_number }) => {
-                        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
-                        inner.accessed_key_hashes[family].insert(key_hash);
+                        let key_range_value = key_to_range_value(key);
+                        inner.accessed_key_hashes[family].insert(key_range_value);
                         let blob = self.read_blob(sequence_number)?;
                         return Ok(Some(blob));
                     }
@@ -1788,16 +1776,4 @@ pub struct MetaFileEntryInfo {
     pub flags: MetaEntryFlags,
     pub key_compression_dictionary_size: u16,
     pub block_count: u16,
-}
-
-/// Converts key bytes to a u64 hash for AMQF filter and access tracking.
-///
-/// For keys smaller than 8 bytes, pads with zeros on the right.
-/// For keys larger than 8 bytes, uses only the first 8 bytes.
-#[inline]
-fn key_bytes_to_hash<const KEY_SIZE: usize>(key: &[u8]) -> u64 {
-    let mut hash_bytes = [0u8; 8];
-    let copy_len = KEY_SIZE.min(8);
-    hash_bytes[..copy_len].copy_from_slice(&key[..copy_len]);
-    u64::from_be_bytes(hash_bytes)
 }

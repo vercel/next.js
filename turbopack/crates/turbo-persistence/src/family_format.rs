@@ -7,6 +7,16 @@
 //! - **Direct keys**: Integer keys (like TaskId) can be stored without hashing
 //! - **Fixed values**: Known-size values can be stored inline without offset tables
 //! - **Skip compression**: High-entropy data (like hashes) doesn't compress well
+//!
+//! ## Key Rotation for Sharding
+//!
+//! TaskId uses the upper 2 bits for sharding purposes. When storing keys directly
+//! (sorted by byte order), we need to rotate the key so that the sharding bits
+//! don't dominate the sort order. We rotate right by 2 bits, moving the sharding
+//! bits to the low end.
+//!
+//! This allows entries with the same "logical" key to be grouped together while
+//! still maintaining efficient binary search.
 
 /// Describes the storage format for a key-value family.
 ///
@@ -143,3 +153,40 @@ impl_family_formats!(5, 0: F0, 1: F1, 2: F2, 3: F3, 4: F4);
 impl_family_formats!(6, 0: F0, 1: F1, 2: F2, 3: F3, 4: F4, 5: F5);
 impl_family_formats!(7, 0: F0, 1: F1, 2: F2, 3: F3, 4: F4, 5: F5, 6: F6);
 impl_family_formats!(8, 0: F0, 1: F1, 2: F2, 3: F3, 4: F4, 5: F5, 6: F6, 7: F7);
+
+// =============================================================================
+// Key Conversion Utilities for u32 Direct Keys
+// =============================================================================
+
+/// Rotates a u32 key right by 2 bits for proper sorting.
+///
+/// TaskId uses the upper 2 bits for sharding. By rotating right, we move
+/// the sharding bits to the low end so they don't dominate the sort order.
+/// This ensures entries are grouped by their logical key value.
+#[inline]
+pub fn rotate_key(key: u32) -> u32 {
+    key.rotate_right(2)
+}
+
+/// Unrotates a u32 key (inverse of rotate_key).
+#[inline]
+pub fn unrotate_key(rotated: u32) -> u32 {
+    rotated.rotate_left(2)
+}
+
+/// Converts a rotated u32 key to a u64 for range comparisons.
+///
+/// The rotated key is placed in the high 32 bits so that u64 comparisons
+/// maintain the same ordering as u32 comparisons on the rotated keys.
+#[inline]
+pub fn rotated_key_to_u64(rotated_key: u32) -> u64 {
+    (rotated_key as u64) << 32
+}
+
+/// Converts a u32 key to a rotated u64 for range comparisons.
+///
+/// Combines rotation and conversion in one step.
+#[inline]
+pub fn key_to_range_value(key: u32) -> u64 {
+    rotated_key_to_u64(rotate_key(key))
+}

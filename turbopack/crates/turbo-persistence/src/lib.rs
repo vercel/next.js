@@ -30,7 +30,8 @@ pub use arc_slice::ArcSlice;
 pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
 pub use family_format::{
     DefaultFormat, DirectKeyFixedValue, DirectKeyVariableValue, FamilyFormat, FamilyFormats,
-    FormatConfig, TaskIdKeyedFormat, TaskIdToHashFormat,
+    FormatConfig, TaskIdKeyedFormat, TaskIdToHashFormat, key_to_range_value, rotate_key,
+    rotated_key_to_u64, unrotate_key,
 };
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
 pub use meta_file::MetaEntryFlags;

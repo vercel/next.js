@@ -21,6 +21,7 @@ use turbo_bincode::turbo_bincode_decode;
 
 use crate::{
     ArcSlice, QueryKey,
+    family_format::key_to_range_value,
     lookup_entry::LookupValue,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
@@ -147,7 +148,36 @@ pub struct AmqfBincodeWrapper(
     #[bincode(with = "turbo_bincode::serde_self_describing")] pub qfilter::Filter,
 );
 
-pub struct MetaEntry {
+/// The format type of a meta file.
+///
+/// This determines how entries are stored and interpreted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum MetaFileFormat {
+    /// Standard hashed key format with AMQF filters.
+    /// Uses 8-byte key hashes for range checks.
+    Hashed = 0,
+    /// Direct u32 key format with fixed-size values.
+    /// No AMQF filter, uses simple key range checks.
+    DirectFixed = 1,
+    /// Direct u32 key format with variable-size values.
+    /// No AMQF filter, uses simple key range checks.
+    DirectVariable = 2,
+}
+
+impl MetaFileFormat {
+    fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(Self::Hashed),
+            1 => Some(Self::DirectFixed),
+            2 => Some(Self::DirectVariable),
+            _ => None,
+        }
+    }
+}
+
+/// Entry for hashed key format (standard format with AMQF).
+pub struct HashedMetaEntry {
     /// The metadata for the static sorted file.
     sst_data: StaticSortedFileMetaData,
     /// The key family of the SST file.
@@ -173,7 +203,61 @@ pub struct MetaEntry {
     sst: OnceLock<StaticSortedFile>,
 }
 
-impl MetaEntry {
+/// Entry for direct-key fixed-value format.
+///
+/// Uses u32 keys directly (no hashing) with fixed-size inline values.
+/// No AMQF filter - uses simple key range checks.
+pub struct DirectFixedMetaEntry {
+    /// The sequence number of the SST file.
+    sequence_number: u32,
+    /// The key family of the SST file.
+    family: u32,
+    /// The minimum key value (rotated).
+    min_key: u32,
+    /// The maximum key value (rotated).
+    max_key: u32,
+    /// The size of the SST file in bytes.
+    size: u64,
+    /// The status flags for this entry.
+    flags: MetaEntryFlags,
+    /// The static sorted file that is lazily loaded
+    sst: OnceLock<StaticSortedFile>,
+}
+
+/// Entry for direct-key variable-value format.
+///
+/// Uses u32 keys directly (no hashing) with variable-size values in compressed blocks.
+/// No AMQF filter - uses simple key range checks.
+pub struct DirectVariableMetaEntry {
+    /// The sequence number of the SST file.
+    sequence_number: u32,
+    /// The key family of the SST file.
+    family: u32,
+    /// The minimum key value (rotated).
+    min_key: u32,
+    /// The maximum key value (rotated).
+    max_key: u32,
+    /// The size of the SST file in bytes.
+    size: u64,
+    /// The number of blocks in the SST file.
+    block_count: u16,
+    /// The status flags for this entry.
+    flags: MetaEntryFlags,
+    /// The static sorted file that is lazily loaded
+    sst: OnceLock<StaticSortedFile>,
+}
+
+/// A meta file entry, which can be one of several formats.
+pub enum MetaEntry {
+    /// Standard hashed key format with AMQF.
+    Hashed(HashedMetaEntry),
+    /// Direct u32 key format with fixed-size values.
+    DirectFixed(DirectFixedMetaEntry),
+    /// Direct u32 key format with variable-size values.
+    DirectVariable(DirectVariableMetaEntry),
+}
+
+impl HashedMetaEntry {
     pub fn sequence_number(&self) -> u32 {
         self.sst_data.sequence_number
     }
@@ -273,6 +357,229 @@ impl MetaEntry {
     }
 }
 
+impl DirectFixedMetaEntry {
+    pub fn sequence_number(&self) -> u32 {
+        self.sequence_number
+    }
+
+    pub fn size(&self) -> u64 {
+        self.size
+    }
+
+    pub fn flags(&self) -> MetaEntryFlags {
+        self.flags
+    }
+
+    pub fn min_key(&self) -> u32 {
+        self.min_key
+    }
+
+    pub fn max_key(&self) -> u32 {
+        self.max_key
+    }
+
+    /// Returns the key family and key range of this file (as u64 for compatibility).
+    pub fn range(&self) -> StaticSortedFileRange {
+        StaticSortedFileRange {
+            family: self.family,
+            min_hash: (self.min_key as u64) << 32,
+            max_hash: (self.max_key as u64) << 32,
+        }
+    }
+
+    pub fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
+        self.sst.get_or_try_init(|| {
+            StaticSortedFile::open(
+                &meta.db_path,
+                StaticSortedFileMetaData {
+                    sequence_number: self.sequence_number,
+                    key_compression_dictionary_length: 0,
+                    block_count: 1,
+                },
+            )
+            .with_context(|| {
+                format!(
+                    "Unable to open static sorted file referenced from {:08}.meta",
+                    meta.sequence_number()
+                )
+            })
+        })
+    }
+}
+
+impl DirectVariableMetaEntry {
+    pub fn sequence_number(&self) -> u32 {
+        self.sequence_number
+    }
+
+    pub fn size(&self) -> u64 {
+        self.size
+    }
+
+    pub fn flags(&self) -> MetaEntryFlags {
+        self.flags
+    }
+
+    pub fn min_key(&self) -> u32 {
+        self.min_key
+    }
+
+    pub fn max_key(&self) -> u32 {
+        self.max_key
+    }
+
+    pub fn block_count(&self) -> u16 {
+        self.block_count
+    }
+
+    /// Returns the key family and key range of this file (as u64 for compatibility).
+    pub fn range(&self) -> StaticSortedFileRange {
+        StaticSortedFileRange {
+            family: self.family,
+            min_hash: (self.min_key as u64) << 32,
+            max_hash: (self.max_key as u64) << 32,
+        }
+    }
+
+    pub fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
+        self.sst.get_or_try_init(|| {
+            StaticSortedFile::open(
+                &meta.db_path,
+                StaticSortedFileMetaData {
+                    sequence_number: self.sequence_number,
+                    key_compression_dictionary_length: 0,
+                    block_count: self.block_count,
+                },
+            )
+            .with_context(|| {
+                format!(
+                    "Unable to open static sorted file referenced from {:08}.meta",
+                    meta.sequence_number()
+                )
+            })
+        })
+    }
+}
+
+impl MetaEntry {
+    pub fn sequence_number(&self) -> u32 {
+        match self {
+            MetaEntry::Hashed(e) => e.sequence_number(),
+            MetaEntry::DirectFixed(e) => e.sequence_number(),
+            MetaEntry::DirectVariable(e) => e.sequence_number(),
+        }
+    }
+
+    pub fn size(&self) -> u64 {
+        match self {
+            MetaEntry::Hashed(e) => e.size(),
+            MetaEntry::DirectFixed(e) => e.size(),
+            MetaEntry::DirectVariable(e) => e.size(),
+        }
+    }
+
+    pub fn flags(&self) -> MetaEntryFlags {
+        match self {
+            MetaEntry::Hashed(e) => e.flags(),
+            MetaEntry::DirectFixed(e) => e.flags(),
+            MetaEntry::DirectVariable(e) => e.flags(),
+        }
+    }
+
+    /// Returns the key family and hash/key range of this file.
+    pub fn range(&self) -> StaticSortedFileRange {
+        match self {
+            MetaEntry::Hashed(e) => e.range(),
+            MetaEntry::DirectFixed(e) => e.range(),
+            MetaEntry::DirectVariable(e) => e.range(),
+        }
+    }
+
+    /// Returns min_hash for hashed entries, or min_key shifted to u64 for direct entries.
+    pub fn min_hash(&self) -> u64 {
+        match self {
+            MetaEntry::Hashed(e) => e.min_hash(),
+            MetaEntry::DirectFixed(e) => (e.min_key() as u64) << 32,
+            MetaEntry::DirectVariable(e) => (e.min_key() as u64) << 32,
+        }
+    }
+
+    /// Returns max_hash for hashed entries, or max_key shifted to u64 for direct entries.
+    pub fn max_hash(&self) -> u64 {
+        match self {
+            MetaEntry::Hashed(e) => e.max_hash(),
+            MetaEntry::DirectFixed(e) => (e.max_key() as u64) << 32,
+            MetaEntry::DirectVariable(e) => (e.max_key() as u64) << 32,
+        }
+    }
+
+    /// Returns block_count (only meaningful for hashed and direct-variable).
+    pub fn block_count(&self) -> u16 {
+        match self {
+            MetaEntry::Hashed(e) => e.block_count(),
+            MetaEntry::DirectFixed(_) => 1,
+            MetaEntry::DirectVariable(e) => e.block_count(),
+        }
+    }
+
+    /// Returns key_compression_dictionary_length (only meaningful for hashed).
+    pub fn key_compression_dictionary_length(&self) -> u16 {
+        match self {
+            MetaEntry::Hashed(e) => e.key_compression_dictionary_length(),
+            MetaEntry::DirectFixed(_) | MetaEntry::DirectVariable(_) => 0,
+        }
+    }
+
+    /// Returns the AMQF size (only valid for hashed entries).
+    pub fn amqf_size(&self) -> u32 {
+        match self {
+            MetaEntry::Hashed(e) => e.amqf_size(),
+            MetaEntry::DirectFixed(_) | MetaEntry::DirectVariable(_) => 0,
+        }
+    }
+
+    /// Returns raw AMQF data (only valid for hashed entries).
+    pub fn raw_amqf<'l>(&self, amqf_data: &'l [u8]) -> &'l [u8] {
+        match self {
+            MetaEntry::Hashed(e) => e.raw_amqf(amqf_data),
+            MetaEntry::DirectFixed(_) | MetaEntry::DirectVariable(_) => &[],
+        }
+    }
+
+    /// Returns the hashed entry if this is a hashed format.
+    pub fn as_hashed(&self) -> Option<&HashedMetaEntry> {
+        match self {
+            MetaEntry::Hashed(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Returns the direct-fixed entry if this is a direct-fixed format.
+    pub fn as_direct_fixed(&self) -> Option<&DirectFixedMetaEntry> {
+        match self {
+            MetaEntry::DirectFixed(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Returns the direct-variable entry if this is a direct-variable format.
+    pub fn as_direct_variable(&self) -> Option<&DirectVariableMetaEntry> {
+        match self {
+            MetaEntry::DirectVariable(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Returns a reference to the SST file for this entry.
+    pub fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
+        match self {
+            MetaEntry::Hashed(e) => e.sst(meta),
+            MetaEntry::DirectFixed(e) => e.sst(meta),
+            MetaEntry::DirectVariable(e) => e.sst(meta),
+        }
+    }
+}
+
 /// The result of a lookup operation.
 pub enum MetaLookupResult {
     /// The key was not found because it is from a different key family.
@@ -355,6 +662,12 @@ impl MetaFile {
             bail!("Invalid magic number");
         }
         let family = file.read_u32::<BE>()?;
+
+        // Read format byte
+        let format_byte = file.read_u8()?;
+        let format = MetaFileFormat::from_u8(format_byte)
+            .with_context(|| format!("Invalid meta file format byte: {format_byte}"))?;
+
         let obsolete_count = file.read_u32::<BE>()?;
         let mut obsolete_sst_files = Vec::with_capacity(obsolete_count as usize);
         for _ in 0..obsolete_count {
@@ -363,29 +676,73 @@ impl MetaFile {
         }
         let count = file.read_u32::<BE>()?;
         let mut entries = Vec::with_capacity(count as usize);
-        let mut start_of_amqf_data_offset = 0;
-        for _ in 0..count {
-            let entry = MetaEntry {
-                sst_data: StaticSortedFileMetaData {
-                    sequence_number: file.read_u32::<BE>()?,
-                    key_compression_dictionary_length: file.read_u16::<BE>()?,
-                    block_count: file.read_u16::<BE>()?,
-                },
-                family,
-                min_hash: file.read_u64::<BE>()?,
-                max_hash: file.read_u64::<BE>()?,
-                size: file.read_u64::<BE>()?,
-                flags: MetaEntryFlags(file.read_u32::<BE>()?),
-                start_of_amqf_data_offset,
-                end_of_amqf_data_offset: file.read_u32::<BE>()?,
-                amqf: OnceLock::new(),
-                sst: OnceLock::new(),
-            };
-            start_of_amqf_data_offset = entry.end_of_amqf_data_offset;
-            entries.push(entry);
+
+        // Track AMQF offsets (only used for hashed format)
+        let mut start_of_amqf_data_offset = 0u32;
+        let mut start_of_used_keys_amqf_data_offset = 0u32;
+        let mut end_of_used_keys_amqf_data_offset = 0u32;
+
+        match format {
+            MetaFileFormat::Hashed => {
+                for _ in 0..count {
+                    let hashed_entry = HashedMetaEntry {
+                        sst_data: StaticSortedFileMetaData {
+                            sequence_number: file.read_u32::<BE>()?,
+                            key_compression_dictionary_length: file.read_u16::<BE>()?,
+                            block_count: file.read_u16::<BE>()?,
+                        },
+                        family,
+                        min_hash: file.read_u64::<BE>()?,
+                        max_hash: file.read_u64::<BE>()?,
+                        size: file.read_u64::<BE>()?,
+                        flags: MetaEntryFlags(file.read_u32::<BE>()?),
+                        start_of_amqf_data_offset,
+                        end_of_amqf_data_offset: file.read_u32::<BE>()?,
+                        amqf: OnceLock::new(),
+                        sst: OnceLock::new(),
+                    };
+                    start_of_amqf_data_offset = hashed_entry.end_of_amqf_data_offset;
+                    entries.push(MetaEntry::Hashed(hashed_entry));
+                }
+                start_of_used_keys_amqf_data_offset = start_of_amqf_data_offset;
+                end_of_used_keys_amqf_data_offset = file.read_u32::<BE>()?;
+            }
+            MetaFileFormat::DirectFixed => {
+                // Direct-fixed format: seq_num(4) + min_key(4) + max_key(4) + size(8) + flags(4) =
+                // 24 bytes
+                for _ in 0..count {
+                    let entry = DirectFixedMetaEntry {
+                        sequence_number: file.read_u32::<BE>()?,
+                        family,
+                        min_key: file.read_u32::<BE>()?,
+                        max_key: file.read_u32::<BE>()?,
+                        size: file.read_u64::<BE>()?,
+                        flags: MetaEntryFlags(file.read_u32::<BE>()?),
+                        sst: OnceLock::new(),
+                    };
+                    entries.push(MetaEntry::DirectFixed(entry));
+                }
+                // No AMQF data for direct formats
+            }
+            MetaFileFormat::DirectVariable => {
+                // Direct-variable format: seq_num(4) + min_key(4) + max_key(4) + size(8) +
+                // block_count(2) + flags(4) = 26 bytes
+                for _ in 0..count {
+                    let entry = DirectVariableMetaEntry {
+                        sequence_number: file.read_u32::<BE>()?,
+                        family,
+                        min_key: file.read_u32::<BE>()?,
+                        max_key: file.read_u32::<BE>()?,
+                        size: file.read_u64::<BE>()?,
+                        block_count: file.read_u16::<BE>()?,
+                        flags: MetaEntryFlags(file.read_u32::<BE>()?),
+                        sst: OnceLock::new(),
+                    };
+                    entries.push(MetaEntry::DirectVariable(entry));
+                }
+                // No AMQF data for direct formats
+            }
         }
-        let start_of_used_keys_amqf_data_offset = start_of_amqf_data_offset;
-        let end_of_used_keys_amqf_data_offset = file.read_u32::<BE>()?;
 
         let offset = file.stream_position()?;
         let file = file.into_inner();
@@ -446,10 +803,11 @@ impl MetaFile {
     pub fn retain_entries(&mut self, mut predicate: impl FnMut(u32) -> bool) -> bool {
         let old_len = self.entries.len();
         self.entries.retain(|entry| {
-            if predicate(entry.sst_data.sequence_number) {
+            let seq = entry.sequence_number();
+            if predicate(seq) {
                 true
             } else {
-                self.obsolete_entries.push(entry.sst_data.sequence_number);
+                self.obsolete_entries.push(seq);
                 false
             }
         });
@@ -482,116 +840,22 @@ impl MetaFile {
         }
         let mut miss_result = MetaLookupResult::RangeMiss;
         for entry in self.entries.iter().rev() {
-            if key_hash < entry.min_hash || key_hash > entry.max_hash {
+            // Hashed lookup only works with hashed format entries
+            let hashed_entry = entry
+                .as_hashed()
+                .expect("lookup called on non-hashed entry");
+            if key_hash < hashed_entry.min_hash() || key_hash > hashed_entry.max_hash() {
                 continue;
             }
             {
-                let amqf = entry.amqf(self, amqf_cache)?;
+                let amqf = hashed_entry.amqf(self, amqf_cache)?;
                 if !amqf.contains_fingerprint(key_hash) {
                     miss_result = MetaLookupResult::QuickFilterMiss;
                     continue;
                 }
             }
-            let result =
-                entry
-                    .sst(self)?
-                    .lookup(key_hash, key, key_block_cache, value_block_cache)?;
-            if !matches!(result, SstLookupResult::NotFound) {
-                return Ok(MetaLookupResult::SstLookup(result));
-            }
-        }
-        Ok(miss_result)
-    }
-
-    /// Lookup for direct-key fixed-value format.
-    ///
-    /// This is optimized for families with fixed-size integer keys and fixed-size values
-    /// stored inline without compression (e.g., TaskIdToTaskTypeHash).
-    ///
-    /// The key should be the raw key bytes (e.g., TaskId as 4 bytes).
-    pub fn lookup_direct_fixed<const KEY_SIZE: usize, const VALUE_SIZE: usize>(
-        &self,
-        key_family: u32,
-        key: &[u8; KEY_SIZE],
-        amqf_cache: &AmqfCache,
-    ) -> Result<MetaLookupResult> {
-        if key_family != self.family {
-            return Ok(MetaLookupResult::FamilyMiss);
-        }
-
-        // Convert key to hash for AMQF filtering
-        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
-
-        let mut miss_result = MetaLookupResult::RangeMiss;
-        for entry in self.entries.iter().rev() {
-            debug_assert!(
-                entry.flags.uses_direct_keys() && entry.flags.uses_fixed_values(),
-                "lookup_direct_fixed called on non-direct-fixed SST"
-            );
-
-            if key_hash < entry.min_hash || key_hash > entry.max_hash {
-                continue;
-            }
-            {
-                let amqf = entry.amqf(self, amqf_cache)?;
-                if !amqf.contains_fingerprint(key_hash) {
-                    miss_result = MetaLookupResult::QuickFilterMiss;
-                    continue;
-                }
-            }
-            let result = entry
-                .sst(self)?
-                .lookup_direct_fixed::<KEY_SIZE, VALUE_SIZE>(key)?;
-            if let Some(value) = result {
-                return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
-                    LookupValue::Slice {
-                        value: ArcSlice::from(value.to_vec().into_boxed_slice()),
-                    },
-                )));
-            }
-        }
-        Ok(miss_result)
-    }
-
-    /// Lookup for direct-key variable-value format.
-    ///
-    /// This is optimized for families with fixed-size integer keys but variable-size
-    /// values stored in compressed blocks (e.g., TaskMeta, TaskData).
-    ///
-    /// The key should be the raw key bytes (e.g., TaskId as 4 bytes).
-    pub fn lookup_direct_variable<const KEY_SIZE: usize>(
-        &self,
-        key_family: u32,
-        key: &[u8; KEY_SIZE],
-        amqf_cache: &AmqfCache,
-        key_block_cache: &BlockCache,
-        value_block_cache: &BlockCache,
-    ) -> Result<MetaLookupResult> {
-        if key_family != self.family {
-            return Ok(MetaLookupResult::FamilyMiss);
-        }
-
-        // Convert key to hash for AMQF filtering
-        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
-
-        let mut miss_result = MetaLookupResult::RangeMiss;
-        for entry in self.entries.iter().rev() {
-            debug_assert!(
-                entry.flags.uses_direct_keys() && !entry.flags.uses_fixed_values(),
-                "lookup_direct_variable called on non-direct-variable SST"
-            );
-
-            if key_hash < entry.min_hash || key_hash > entry.max_hash {
-                continue;
-            }
-            {
-                let amqf = entry.amqf(self, amqf_cache)?;
-                if !amqf.contains_fingerprint(key_hash) {
-                    miss_result = MetaLookupResult::QuickFilterMiss;
-                    continue;
-                }
-            }
-            let result = entry.sst(self)?.lookup_direct_variable::<KEY_SIZE>(
+            let result = hashed_entry.sst(self)?.lookup(
+                key_hash,
                 key,
                 key_block_cache,
                 value_block_cache,
@@ -601,6 +865,93 @@ impl MetaFile {
             }
         }
         Ok(miss_result)
+    }
+
+    /// Lookup for direct-key fixed-value format.
+    ///
+    /// This is optimized for families with u32 integer keys and fixed-size values
+    /// stored inline without compression (e.g., TaskIdToTaskTypeHash).
+    ///
+    /// The key is a u32 (e.g., TaskId). It will be rotated internally for lookup.
+    /// No AMQF filter is used - only key range checks.
+    pub fn lookup_direct_fixed<const VALUE_SIZE: usize>(
+        &self,
+        key_family: u32,
+        key: u32,
+    ) -> Result<MetaLookupResult> {
+        if key_family != self.family {
+            return Ok(MetaLookupResult::FamilyMiss);
+        }
+
+        // Convert key to range value for range checks (rotated, in high 32 bits)
+        let key_range_value = key_to_range_value(key);
+
+        for entry in self.entries.iter().rev() {
+            let direct_entry = entry
+                .as_direct_fixed()
+                .expect("lookup_direct_fixed called on non-direct-fixed SST");
+
+            // Simple range check (no AMQF for direct-fixed format)
+            let min_key = (direct_entry.min_key() as u64) << 32;
+            let max_key = (direct_entry.max_key() as u64) << 32;
+            if key_range_value < min_key || key_range_value > max_key {
+                continue;
+            }
+
+            let result = direct_entry
+                .sst(self)?
+                .lookup_direct_fixed::<VALUE_SIZE>(key)?;
+            if let Some(value) = result {
+                return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
+                    LookupValue::Slice {
+                        value: ArcSlice::from(value.to_vec().into_boxed_slice()),
+                    },
+                )));
+            }
+        }
+        Ok(MetaLookupResult::RangeMiss)
+    }
+
+    /// Lookup for direct-key variable-value format.
+    ///
+    /// This is optimized for families with u32 integer keys but variable-size
+    /// values stored in compressed blocks (e.g., TaskMeta, TaskData).
+    ///
+    /// The key is a u32 (e.g., TaskId). It will be rotated internally for lookup.
+    /// Uses simple key range checks (no AMQF filter).
+    pub fn lookup_direct_variable(
+        &self,
+        key_family: u32,
+        key: u32,
+        value_block_cache: &BlockCache,
+    ) -> Result<MetaLookupResult> {
+        if key_family != self.family {
+            return Ok(MetaLookupResult::FamilyMiss);
+        }
+
+        // Convert key to range value for range checks
+        let key_range_value = key_to_range_value(key);
+
+        for entry in self.entries.iter().rev() {
+            let direct_entry = entry
+                .as_direct_variable()
+                .expect("lookup_direct_variable called on non-direct-variable SST");
+
+            // Simple range check (no AMQF for direct-variable format)
+            let min_key = (direct_entry.min_key() as u64) << 32;
+            let max_key = (direct_entry.max_key() as u64) << 32;
+            if key_range_value < min_key || key_range_value > max_key {
+                continue;
+            }
+
+            let result = direct_entry
+                .sst(self)?
+                .lookup_direct_variable(key, value_block_cache)?;
+            if !matches!(result, SstLookupResult::NotFound) {
+                return Ok(MetaLookupResult::SstLookup(result));
+            }
+        }
+        Ok(MetaLookupResult::RangeMiss)
     }
 
     pub fn batch_lookup<K: QueryKey>(
@@ -629,8 +980,14 @@ impl MetaFile {
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
         for entry in self.entries.iter().rev() {
+            // batch_lookup only works with hashed format entries
+            let hashed_entry = entry
+                .as_hashed()
+                .expect("batch_lookup called on non-hashed entry");
+            let min_hash = hashed_entry.min_hash();
+            let max_hash = hashed_entry.max_hash();
             let start_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.min_hash).then(Ordering::Greater))
+                .binary_search_by(|(hash, _, _)| hash.cmp(&min_hash).then(Ordering::Greater))
                 .err()
                 .unwrap();
             if start_index >= cells.len() {
@@ -641,7 +998,7 @@ impl MetaFile {
                 continue;
             }
             let end_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.max_hash).then(Ordering::Less))
+                .binary_search_by(|(hash, _, _)| hash.cmp(&max_hash).then(Ordering::Less))
                 .err()
                 .unwrap()
                 .checked_sub(1);
@@ -659,7 +1016,7 @@ impl MetaFile {
                 }
                 continue;
             }
-            let amqf = entry.amqf(self, amqf_cache)?;
+            let amqf = hashed_entry.amqf(self, amqf_cache)?;
             for (hash, index, result) in &mut cells[start_index..=end_index] {
                 if result.is_some() {
                     continue;
@@ -671,7 +1028,7 @@ impl MetaFile {
                     }
                     continue;
                 }
-                let sst_result = entry.sst(self)?.lookup(
+                let sst_result = hashed_entry.sst(self)?.lookup(
                     *hash,
                     &keys[*index],
                     key_block_cache,
@@ -697,16 +1054,4 @@ impl MetaFile {
         }
         Ok(lookup_result)
     }
-}
-
-/// Converts key bytes to a u64 hash for AMQF filter and range queries.
-///
-/// For keys smaller than 8 bytes, pads with zeros on the right.
-/// For keys larger than 8 bytes, uses only the first 8 bytes.
-#[inline]
-fn key_bytes_to_hash<const KEY_SIZE: usize>(key: &[u8]) -> u64 {
-    let mut hash_bytes = [0u8; 8];
-    let copy_len = KEY_SIZE.min(8);
-    hash_bytes[..copy_len].copy_from_slice(&key[..copy_len]);
-    u64::from_be_bytes(hash_bytes)
 }

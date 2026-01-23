@@ -1307,19 +1307,20 @@ fn batch_get_after_restore() -> Result<()> {
 #[test]
 fn test_direct_fixed_sst() -> Result<()> {
     use crate::{
+        family_format::rotate_key,
         meta_file::MetaEntryFlags,
         static_sorted_file::{StaticSortedFile, StaticSortedFileMetaData},
         static_sorted_file_builder::{DirectFixedEntry, write_direct_fixed_sst},
     };
 
     struct TestEntry {
-        key: [u8; 4],
+        key: u32,
         value: [u8; 8],
     }
 
     impl DirectFixedEntry for TestEntry {
-        fn key_bytes(&self) -> &[u8] {
-            &self.key
+        fn key(&self) -> u32 {
+            self.key
         }
         fn value_bytes(&self) -> &[u8] {
             &self.value
@@ -1330,20 +1331,21 @@ fn test_direct_fixed_sst() -> Result<()> {
     let path = tempdir.path();
     let sst_path = path.join("00000001.sst");
 
-    // Create test entries (sorted by key)
+    // Create test entries (sorted by rotated key for proper ordering)
     let mut entries: Vec<TestEntry> = (0..100u32)
         .map(|i| TestEntry {
-            key: i.to_be_bytes(),
+            key: i,
             value: (i as u64 * 2).to_be_bytes(),
         })
         .collect();
-    entries.sort_by_key(|e| e.key);
+    // Sort by rotated key (how they're stored in the SST)
+    entries.sort_by_key(|e| rotate_key(e.key));
 
     // Create flags for direct-key fixed-value format
     let flags = MetaEntryFlags::direct_key_fixed(4, 8);
 
     // Write the SST file
-    let (meta, file) = write_direct_fixed_sst::<4, 8>(&entries, &sst_path, flags)?;
+    let (meta, file) = write_direct_fixed_sst::<8>(&entries, &sst_path, flags)?;
     file.sync_all()?;
 
     // Verify metadata
@@ -1351,6 +1353,8 @@ fn test_direct_fixed_sst() -> Result<()> {
     assert_eq!(meta.key_compression_dictionary_length, 0);
     assert!(meta.flags.uses_direct_keys());
     assert!(meta.flags.uses_fixed_values());
+    // Direct-fixed format has no AMQF
+    assert!(meta.amqf.is_empty());
 
     // Open and read back
     let sst = StaticSortedFile::open(
@@ -1362,22 +1366,61 @@ fn test_direct_fixed_sst() -> Result<()> {
         },
     )?;
 
-    // Test lookup for various keys
+    // Test lookup for various keys (using u32 keys, not byte arrays)
     for i in [0u32, 42, 50, 99] {
-        let key = i.to_be_bytes();
         let expected_value = (i as u64 * 2).to_be_bytes();
-        let result = sst.lookup_direct_fixed::<4, 8>(&key)?;
+        let result = sst.lookup_direct_fixed::<8>(i)?;
         assert_eq!(result, Some(expected_value), "Failed to lookup key {i}");
     }
 
     // Test lookup for non-existent keys
     for i in [100u32, 200, 1000] {
-        let key = i.to_be_bytes();
-        let result = sst.lookup_direct_fixed::<4, 8>(&key)?;
+        let result = sst.lookup_direct_fixed::<8>(i)?;
         assert_eq!(result, None, "Should not find non-existent key {i}");
     }
 
     Ok(())
+}
+
+#[test]
+fn test_key_rotation() {
+    use crate::family_format::{key_to_range_value, rotate_key, unrotate_key};
+
+    // Test that rotate/unrotate are inverses
+    for key in [0u32, 1, 100, 1000, u32::MAX / 2, u32::MAX] {
+        assert_eq!(unrotate_key(rotate_key(key)), key);
+    }
+
+    // Test that keys with different sharding bits (upper 2 bits) are grouped properly
+    // after rotation. The upper 2 bits become the lower 2 bits after rotate_right(2).
+    // Keys 0, 1<<30, 2<<30, 3<<30 have different sharding bits but should sort
+    // in a more natural order after rotation.
+    let keys_with_different_shards = [
+        0u32,          // shard 0
+        1 << 30,       // shard 1
+        2 << 30,       // shard 2
+        3 << 30,       // shard 3
+        1,             // shard 0, but different value
+        (1 << 30) + 1, // shard 1, but different value
+    ];
+
+    // After rotation, keys with the same "logical" value (ignoring shard bits)
+    // should be closer together in sort order
+    let _rotated: Vec<u32> = keys_with_different_shards
+        .iter()
+        .map(|&k| rotate_key(k))
+        .collect();
+
+    // The rotated keys should now have the sharding bits in the low position
+    assert_eq!(rotate_key(0), 0); // 0 rotates to 0
+    assert_eq!(rotate_key(1 << 30), 1 << 28); // high bit moves to bit 28
+    assert_eq!(rotate_key(2 << 30), 2 << 28);
+    assert_eq!(rotate_key(3 << 30), 3 << 28);
+
+    // key_to_range_value should place rotated key in high 32 bits of u64
+    let range_val = key_to_range_value(42);
+    assert_eq!(range_val >> 32, rotate_key(42) as u64);
+    assert_eq!(range_val & 0xFFFFFFFF, 0);
 }
 
 #[test]

@@ -16,6 +16,7 @@ use crate::{
     QueryKey,
     arc_slice::ArcSlice,
     compression::decompress_into_arc,
+    family_format::rotate_key,
     lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
 };
 
@@ -23,10 +24,7 @@ use crate::{
 pub const BLOCK_TYPE_INDEX: u8 = 0;
 /// The block header for a key block.
 pub const BLOCK_TYPE_KEY: u8 = 1;
-/// The block header for a direct-key fixed-value block (no compression, no offset table).
-pub const BLOCK_TYPE_DIRECT_FIXED: u8 = 2;
-/// The block header for a direct-key variable-value block (direct keys, variable values).
-pub const BLOCK_TYPE_DIRECT_VARIABLE: u8 = 3;
+// Note: Direct formats don't use block type headers - entries are stored directly
 
 /// The tag for a small-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_SMALL: u8 = 0;
@@ -139,135 +137,186 @@ impl StaticSortedFile {
         Ok(iter)
     }
 
-    /// Looks up a key in a direct-fixed SST file.
+    /// Looks up a u32 key in a direct-fixed SST file.
     ///
-    /// This is optimized for files with fixed-size keys and values stored inline
-    /// without compression. Uses binary search directly on the mmap'd data.
+    /// This is optimized for files with u32 keys (rotated for sharding) and
+    /// fixed-size values stored in a separate section for cache-efficient lookups.
+    /// Uses binary search on the key table (only 4 bytes per comparison).
     ///
+    /// File layout:
+    /// ```text
+    /// [key table: u32 × entry_count]
+    /// [value table: VALUE_SIZE × entry_count]
+    /// [footer: u32 entry_count]
+    /// ```
+    ///
+    /// The key is automatically rotated before lookup.
     /// Returns the value bytes if found, or None if not found.
-    pub fn lookup_direct_fixed<const KEY_SIZE: usize, const VALUE_SIZE: usize>(
+    pub fn lookup_direct_fixed<const VALUE_SIZE: usize>(
         &self,
-        key: &[u8],
+        key: u32,
     ) -> Result<Option<[u8; VALUE_SIZE]>> {
-        debug_assert_eq!(key.len(), KEY_SIZE);
-
-        let entry_size = KEY_SIZE + VALUE_SIZE;
-        // The file layout is: [entries][single block_offset u32]
-        // So entry data occupies: file_size - 4 bytes
-        let data_end = self.mmap.len().saturating_sub(4);
-        let entry_count = data_end / entry_size;
+        // Read entry count from footer (last 4 bytes)
+        let footer_start = self.mmap.len().saturating_sub(4);
+        let entry_count = (&self.mmap[footer_start..]).read_u32::<BE>()? as usize;
 
         if entry_count == 0 {
             return Ok(None);
         }
 
-        // Binary search for the key
-        let mut l = 0;
-        let mut r = entry_count;
-        while l < r {
-            let m = (l + r) / 2;
-            let entry_start = m * entry_size;
-            let mid_key = &self.mmap[entry_start..entry_start + KEY_SIZE];
+        // Calculate section boundaries
+        let key_table_start = 0;
+        let value_table_start = entry_count * 4;
 
-            match key.cmp(mid_key) {
-                Ordering::Less => {
-                    r = m;
-                }
-                Ordering::Equal => {
-                    // Found it - extract the value
-                    let value_start = entry_start + KEY_SIZE;
-                    let mut value = [0u8; VALUE_SIZE];
-                    value.copy_from_slice(&self.mmap[value_start..value_start + VALUE_SIZE]);
-                    return Ok(Some(value));
-                }
-                Ordering::Greater => {
-                    l = m + 1;
-                }
-            }
+        // Rotate the key for comparison (keys are stored rotated)
+        let rotated_key = rotate_key(key);
+
+        // Binary search on key table (only 4 bytes per comparison)
+        if let Some(index) =
+            self.binary_search_key_table(rotated_key, key_table_start, entry_count)?
+        {
+            // Found - read value from value table
+            let value_offset = value_table_start + index * VALUE_SIZE;
+            let mut value = [0u8; VALUE_SIZE];
+            value.copy_from_slice(&self.mmap[value_offset..value_offset + VALUE_SIZE]);
+            return Ok(Some(value));
         }
 
         Ok(None)
     }
 
-    /// Looks up a key in a direct-variable SST file.
-    ///
-    /// This is for files with fixed-size keys stored directly (no hash prefix)
-    /// but variable-size values stored in separate compressed blocks.
-    pub fn lookup_direct_variable<const KEY_SIZE: usize>(
+    /// Binary search on a key table (u32 keys, 4 bytes each).
+    /// Returns the index if found, None otherwise.
+    fn binary_search_key_table(
         &self,
-        key: &[u8],
-        key_block_cache: &BlockCache,
-        value_block_cache: &BlockCache,
-    ) -> Result<SstLookupResult> {
-        debug_assert_eq!(key.len(), KEY_SIZE);
-
-        // Convert key to hash for AMQF and index lookups
-        let key_hash = key_bytes_to_hash::<KEY_SIZE>(key);
-
-        let mut current_block = self.meta.block_count - 1;
-        loop {
-            let block = self.get_key_block(current_block, key_block_cache)?;
-            let mut block_slice = &block[..];
-            let block_type = block_slice.read_u8()?;
-            match block_type {
-                BLOCK_TYPE_INDEX => {
-                    current_block = self.lookup_index_block(block_slice, key_hash)?;
-                }
-                BLOCK_TYPE_DIRECT_VARIABLE => {
-                    return self.lookup_direct_key_block::<KEY_SIZE>(
-                        block_slice,
-                        key,
-                        value_block_cache,
-                    );
-                }
-                BLOCK_TYPE_KEY => {
-                    // Fall back to regular key block lookup (shouldn't happen for direct files)
-                    bail!("Unexpected regular key block in direct-variable SST file");
-                }
-                _ => {
-                    bail!("Invalid block type");
-                }
-            }
-        }
-    }
-
-    /// Looks up a key in a direct-key block (no hash prefix).
-    fn lookup_direct_key_block<const KEY_SIZE: usize>(
-        &self,
-        mut block: &[u8],
-        key: &[u8],
-        value_block_cache: &BlockCache,
-    ) -> Result<SstLookupResult> {
-        let entry_count = block.read_u24::<BE>()? as usize;
-        let offsets = &block[..entry_count * 4];
-        let entries = &block[entry_count * 4..];
-
+        rotated_key: u32,
+        key_table_start: usize,
+        entry_count: usize,
+    ) -> Result<Option<usize>> {
         let mut l = 0;
         let mut r = entry_count;
-        // binary search for the key
         while l < r {
             let m = (l + r) / 2;
-            let GetDirectKeyEntryResult {
-                key: mid_key,
-                ty,
-                val: mid_val,
-            } = get_direct_key_entry::<KEY_SIZE>(offsets, entries, entry_count, m)?;
+            let key_offset = key_table_start + m * 4;
+            let mid_key = (&self.mmap[key_offset..key_offset + 4]).read_u32::<BE>()?;
 
-            match key.cmp(mid_key) {
+            match rotated_key.cmp(&mid_key) {
                 Ordering::Less => {
                     r = m;
                 }
                 Ordering::Equal => {
-                    return Ok(self
-                        .handle_key_match(ty, mid_val, value_block_cache)?
-                        .into());
+                    return Ok(Some(m));
                 }
                 Ordering::Greater => {
                     l = m + 1;
                 }
             }
         }
+        Ok(None)
+    }
+
+    /// Looks up a u32 key in a direct-variable SST file.
+    ///
+    /// This is for files with u32 keys stored directly (rotated, no hash prefix)
+    /// but variable-size values stored in separate compressed blocks.
+    ///
+    /// File layout:
+    /// ```text
+    /// [value blocks (compressed)]
+    /// [value block offsets: u32 × block_count]
+    /// [key table: u32 × entry_count]
+    /// [value location index: 8 bytes × entry_count]
+    /// [footer: u32 entry_count, u16 block_count]
+    /// ```
+    ///
+    /// The key is automatically rotated before lookup.
+    pub fn lookup_direct_variable(
+        &self,
+        key: u32,
+        value_block_cache: &BlockCache,
+    ) -> Result<SstLookupResult> {
+        // Read footer (last 6 bytes: u32 entry_count, u16 block_count)
+        let footer_start = self.mmap.len().saturating_sub(6);
+        let entry_count = (&self.mmap[footer_start..footer_start + 4]).read_u32::<BE>()? as usize;
+        let _block_count =
+            (&self.mmap[footer_start + 4..footer_start + 6]).read_u16::<BE>()? as usize;
+
+        if entry_count == 0 {
+            return Ok(SstLookupResult::NotFound);
+        }
+
+        // Calculate section boundaries (working backwards from footer)
+        // Footer: 6 bytes
+        // Value location index: entry_count * 8 bytes
+        // Key table: entry_count * 4 bytes
+        // Block offsets: block_count * 4 bytes
+        let value_loc_end = footer_start;
+        let value_loc_start = value_loc_end - entry_count * 8;
+        let key_table_start = value_loc_start - entry_count * 4;
+
+        // Rotate the key for comparison (keys are stored rotated)
+        let rotated_key = rotate_key(key);
+
+        // Binary search on key table
+        if let Some(index) =
+            self.binary_search_key_table(rotated_key, key_table_start, entry_count)?
+        {
+            // Found - read value location (8 bytes)
+            let loc_offset = value_loc_start + index * 8;
+            let block_index = (&self.mmap[loc_offset..loc_offset + 2]).read_u16::<BE>()?;
+            let value_size = (&self.mmap[loc_offset + 2..loc_offset + 4]).read_u16::<BE>()?;
+            let offset_or_payload =
+                (&self.mmap[loc_offset + 4..loc_offset + 8]).read_u32::<BE>()?;
+
+            // Decode value type from sentinels
+            return self.decode_value_location(
+                block_index,
+                value_size,
+                offset_or_payload,
+                value_block_cache,
+            );
+        }
+
         Ok(SstLookupResult::NotFound)
+    }
+
+    /// Decodes value location and fetches the value.
+    fn decode_value_location(
+        &self,
+        block_index: u16,
+        value_size: u16,
+        offset_or_payload: u32,
+        value_block_cache: &BlockCache,
+    ) -> Result<SstLookupResult> {
+        // Sentinel values for special types
+        const BLOB_SENTINEL: u16 = 0xFFFF;
+        const DELETED_SENTINEL: u16 = 0xFFFE;
+        const MEDIUM_SENTINEL: u16 = 0xFFFF;
+
+        match block_index {
+            BLOB_SENTINEL => {
+                // Blob entry
+                Ok(SstLookupResult::Found(LookupValue::Blob {
+                    sequence_number: offset_or_payload,
+                }))
+            }
+            DELETED_SENTINEL => {
+                // Deleted entry
+                Ok(SstLookupResult::Found(LookupValue::Deleted))
+            }
+            _ if value_size == MEDIUM_SENTINEL => {
+                // Medium entry (whole block is the value)
+                let value = self.read_value_block(block_index)?;
+                Ok(SstLookupResult::Found(LookupValue::Slice { value }))
+            }
+            _ => {
+                // Small entry
+                let value = self.get_value_block(block_index, value_block_cache)?.slice(
+                    offset_or_payload as usize..(offset_or_payload as usize + value_size as usize),
+                );
+                Ok(SstLookupResult::Found(LookupValue::Slice { value }))
+            }
+        }
     }
 
     /// Looks up a key in this file.
@@ -725,73 +774,6 @@ fn get_key_entry<'l>(
         KEY_BLOCK_ENTRY_TYPE_DELETED => GetKeyEntryResult {
             hash,
             key: &entries[start + 8..end],
-            ty,
-            val: &[],
-        },
-        _ => {
-            bail!("Invalid key block entry type");
-        }
-    })
-}
-
-// =============================================================================
-// Direct Key Format Support
-// =============================================================================
-
-/// Converts key bytes to a u64 hash for AMQF filter and index lookups.
-///
-/// For keys smaller than 8 bytes, pads with zeros on the right.
-/// For keys larger than 8 bytes, uses only the first 8 bytes.
-#[inline]
-fn key_bytes_to_hash<const KEY_SIZE: usize>(key: &[u8]) -> u64 {
-    let mut hash_bytes = [0u8; 8];
-    let copy_len = KEY_SIZE.min(8);
-    hash_bytes[..copy_len].copy_from_slice(&key[..copy_len]);
-    u64::from_be_bytes(hash_bytes)
-}
-
-struct GetDirectKeyEntryResult<'l> {
-    key: &'l [u8],
-    ty: u8,
-    val: &'l [u8],
-}
-
-/// Reads a direct-key entry from a direct-key block.
-/// Direct-key blocks store keys without the 8-byte hash prefix.
-fn get_direct_key_entry<'l, const KEY_SIZE: usize>(
-    offsets: &[u8],
-    entries: &'l [u8],
-    entry_count: usize,
-    index: usize,
-) -> Result<GetDirectKeyEntryResult<'l>> {
-    let mut offset = &offsets[index * 4..];
-    let ty = offset.read_u8()?;
-    let start = offset.read_u24::<BE>()? as usize;
-    let end = if index == entry_count - 1 {
-        entries.len()
-    } else {
-        (&offsets[(index + 1) * 4 + 1..]).read_u24::<BE>()? as usize
-    };
-
-    // Direct keys: no hash prefix, key is at the start
-    Ok(match ty {
-        KEY_BLOCK_ENTRY_TYPE_SMALL => GetDirectKeyEntryResult {
-            key: &entries[start..start + KEY_SIZE],
-            ty,
-            val: &entries[end - 8..end], // value_block(2) + value_size(2) + value_offset(4)
-        },
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM => GetDirectKeyEntryResult {
-            key: &entries[start..start + KEY_SIZE],
-            ty,
-            val: &entries[end - 2..end], // value_block(2)
-        },
-        KEY_BLOCK_ENTRY_TYPE_BLOB => GetDirectKeyEntryResult {
-            key: &entries[start..start + KEY_SIZE],
-            ty,
-            val: &entries[end - 4..end], // blob(4)
-        },
-        KEY_BLOCK_ENTRY_TYPE_DELETED => GetDirectKeyEntryResult {
-            key: &entries[start..start + KEY_SIZE],
             ty,
             val: &[],
         },

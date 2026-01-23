@@ -33,30 +33,71 @@ Therefore there are there value types:
 
 ### Meta file
 
-A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
+A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files. The file format varies based on the type of entries it describes.
 
-- Header
+- Header (common to all formats)
   - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
+  - 1 byte format type:
+    - 0: Hashed (standard format with AMQF)
+    - 1: DirectFixed (u32 keys with fixed-size values)
+    - 2: DirectVariable (u32 keys with variable-size values)
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
   - 4 bytes count of described SST files
-  - foreach described SST file
-    - 4 bytes sequence number of the SST file
-    - 2 bytes key Compression Dictionary length
-    - 2 bytes block count
-    - 8 bytes min hash
-    - 8 bytes max hash
-    - 8 bytes SST file size
-    - 4 bytes flags
-      - bit 0: cold (compacted and not recently accessed)
-      - bit 1: fresh (not yet compacted)
-    - 4 bytes end of AMQF offset relative to start of all AMQF data
-  - 4 bytes end of AMQF offset relative to start of all AMQF data of the "used key hashes" AMQF
+
+#### Hashed Format (format byte = 0)
+
+- foreach described SST file (40 bytes per entry)
+  - 4 bytes sequence number of the SST file
+  - 2 bytes key Compression Dictionary length
+  - 2 bytes block count
+  - 8 bytes min hash
+  - 8 bytes max hash
+  - 8 bytes SST file size
+  - 4 bytes flags
+    - bit 0: cold (compacted and not recently accessed)
+    - bit 1: fresh (not yet compacted)
+  - 4 bytes end of AMQF offset relative to start of all AMQF data
+- 4 bytes end of AMQF offset relative to start of all AMQF data of the "used key hashes" AMQF
 - foreach described SST file
   - serialized AMQF
 - serialized "used key hashes" AMQF
+
+#### DirectFixed Format (format byte = 1)
+
+For families with u32 keys and fixed-size values. No AMQF filter - uses simple key range checks.
+
+- foreach described SST file (24 bytes per entry)
+  - 4 bytes sequence number of the SST file
+  - 4 bytes min key (rotated u32)
+  - 4 bytes max key (rotated u32)
+  - 8 bytes SST file size
+  - 4 bytes flags
+    - bit 0: cold (compacted and not recently accessed)
+    - bit 1: fresh (not yet compacted)
+    - bit 2: direct_key (always set)
+    - bit 3: fixed_value (always set)
+    - bit 4: uncompressed (always set)
+    - bits 8-15: key_size (always 4 for u32)
+    - bits 16-23: value_size
+
+#### DirectVariable Format (format byte = 2)
+
+For families with u32 keys and variable-size values. No AMQF filter - uses simple key range checks.
+
+- foreach described SST file (26 bytes per entry)
+  - 4 bytes sequence number of the SST file
+  - 4 bytes min key (rotated u32)
+  - 4 bytes max key (rotated u32)
+  - 8 bytes SST file size
+  - 2 bytes block count
+  - 4 bytes flags
+    - bit 0: cold (compacted and not recently accessed)
+    - bit 1: fresh (not yet compacted)
+    - bit 2: direct_key (always set)
+    - bits 8-15: key_size (always 4 for u32)
 
 ### SST file
 
@@ -131,6 +172,75 @@ TODO: 8 bytes key hash is a bit inefficient for small keys.
 
 - no header, all bytes are data referenced by other blocks
 - max block size: 4 GB
+
+### Direct-Key SST Formats
+
+For families with u32 integer keys (like TaskId), there are optimized formats that skip the 8-byte key hash prefix. This saves space and allows more efficient binary search.
+
+#### Key Rotation for Sharding
+
+TaskId uses the upper 2 bits for sharding purposes. To ensure proper sorting, keys are stored **rotated** using `rotate_right(2)`, which moves the sharding bits from the high end to the low end. This ensures that entries are grouped by their "logical" key value while still maintaining efficient binary search.
+
+The rotation is:
+- `stored_key = key.rotate_right(2)`
+- `original_key = stored_key.rotate_left(2)`
+
+For range checks, we use a "range value" which is the rotated key placed in the high 32 bits of a u64:
+- `range_value = (rotated_key as u64) << 32`
+
+#### Direct-Fixed Format
+
+For families with u32 keys AND fixed-size values (like TaskIdToTaskTypeHash with 8-byte hash values):
+
+- **Separated keys and values** - keys in one section, values in another for cache-efficient binary search
+- **No AMQF filter** - only min/max key range checks
+- **No compression** - data stored raw for direct mmap access
+- **Direct binary search** - only 4 bytes touched per comparison
+
+File layout:
+```
+[key table: u32 × entry_count, sorted by rotated key]
+[value table: VALUE_SIZE × entry_count, same order as keys]
+[footer: u32 entry_count]
+```
+
+Lookup: binary search key table (4 bytes per comparison) → use index to read value from value table
+
+#### Direct-Variable Format
+
+For families with u32 keys but variable-size values (like TaskMeta, TaskData):
+
+- **Separated keys and value locations** - keys in one section for efficient binary search
+- **Value location index** - 8 bytes per entry encoding block/offset/size
+- **Compression** applied to value blocks only
+- **No AMQF filter** - uses simple key range checks
+
+File layout:
+```
+[value blocks (compressed)]
+[value block offsets: u32 × block_count]
+[key table: u32 × entry_count, sorted by rotated key]
+[value location index: 8 bytes × entry_count]
+[footer: u32 entry_count, u16 block_count]
+```
+
+Value location index entry (8 bytes):
+- `[u16 block_index][u16 value_size][u32 offset]`
+- Sentinels: block_index=0xFFFF → blob, block_index=0xFFFE → deleted, value_size=0xFFFF → medium
+
+Lookup: binary search key table → read value location index[i] → fetch value from block
+
+#### Size Savings
+
+For a family like TaskIdToTaskTypeHash (u32 key -> u64 hash):
+- **Standard format**: ~20 bytes/entry (8-byte hash prefix + overhead)
+- **Direct-fixed format**: 12 bytes/entry (4-byte key + 8-byte value)
+- **Savings**: ~40%
+
+For TaskMeta/TaskData (u32 key -> variable value):
+- **Standard format**: 8-byte hash prefix + variable block entries + index blocks
+- **Direct-variable format**: 4-byte key + 8-byte location index = 12 bytes metadata per entry
+- **Benefits**: Unified key lookup (only 4 bytes per binary search comparison), no index block traversal
 
 ### Blob file
 
