@@ -1962,7 +1962,7 @@ impl JsValue {
         loop {
             match current {
                 JsValue::FreeVar(name) => {
-                    segments.push(DefinableNameSegmentRef::Name(&name));
+                    segments.push(DefinableNameSegmentRef::Name(name));
                     break;
                 }
                 JsValue::Member(_, obj, prop) => {
@@ -1976,7 +1976,7 @@ impl JsValue {
                 JsValue::WellKnownObject(obj) => {
                     if let Some(name) = obj.as_define_name() {
                         for segment in name.iter().rev() {
-                            segments.push(DefinableNameSegmentRef::Name(*segment));
+                            segments.push(DefinableNameSegmentRef::Name(segment));
                         }
                         break;
                     } else {
@@ -1986,7 +1986,7 @@ impl JsValue {
                 JsValue::WellKnownFunction(func) => {
                     if let Some(name) = func.as_define_name() {
                         for segment in name.iter().rev() {
-                            segments.push(DefinableNameSegmentRef::Name(*segment));
+                            segments.push(DefinableNameSegmentRef::Name(segment));
                         }
                         break;
                     } else {

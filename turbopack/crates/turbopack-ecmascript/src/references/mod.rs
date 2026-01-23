@@ -496,7 +496,7 @@ impl AnalysisState<'_> {
                     *self.origin,
                     value,
                     *self.compile_time_info,
-                    &*self.compile_time_info_ref,
+                    &self.compile_time_info_ref,
                     attributes,
                     self.allow_project_root_tracing,
                 )
@@ -2794,7 +2794,7 @@ async fn handle_member(
                     .get(&name)
                     .await?
                 {
-                    handle_free_var_reference(ast_path, &*value, span, state, analysis).await?;
+                    handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
                     return Ok(());
                 }
             }
@@ -2826,7 +2826,7 @@ async fn handle_typeof(
             .get(&name)
             .await?
         {
-            handle_free_var_reference(ast_path, &*value, span, state, analysis).await?;
+            handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
             return Ok(());
         }
     }
@@ -2841,16 +2841,15 @@ async fn handle_free_var(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some(name) = var.get_definable_name() {
-        if let Some(value) = state
+    if let Some(name) = var.get_definable_name()
+        && let Some(value) = state
             .compile_time_info_ref
             .free_var_references
             .get(&name)
             .await?
-        {
-            handle_free_var_reference(ast_path, &*value, span, state, analysis).await?;
-            return Ok(());
-        }
+    {
+        handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
+        return Ok(());
     }
 
     Ok(())
