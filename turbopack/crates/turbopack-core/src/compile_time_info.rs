@@ -157,11 +157,32 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialOrd, Ord)]
 pub enum DefinableNameSegment {
     Name(RcStr),
     Call(RcStr),
     TypeOf,
+}
+
+// Hash can't be derived because DefinableNameSegmentRef must have a matching
+// Hash implementation for Equivalent lookups, and derived discriminants are
+// not guaranteed to match between different enum types.
+impl std::hash::Hash for DefinableNameSegment {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Name(s) => {
+                0u8.hash(state);
+                s.hash(state);
+            }
+            Self::Call(s) => {
+                1u8.hash(state);
+                s.hash(state);
+            }
+            Self::TypeOf => {
+                2u8.hash(state);
+            }
+        }
+    }
 }
 
 impl From<RcStr> for DefinableNameSegment {
@@ -182,11 +203,32 @@ impl From<String> for DefinableNameSegment {
     }
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub enum DefinableNameSegmentRef<'a> {
     Name(&'a str),
     Call(&'a str),
     TypeOf,
+}
+
+// Hash can't be derived because it must match DefinableNameSegment's Hash
+// implementation for Equivalent lookups, and derived discriminants are
+// not guaranteed to match between different enum types.
+impl std::hash::Hash for DefinableNameSegmentRef<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Name(s) => {
+                0u8.hash(state);
+                s.hash(state);
+            }
+            Self::Call(s) => {
+                1u8.hash(state);
+                s.hash(state);
+            }
+            Self::TypeOf => {
+                2u8.hash(state);
+            }
+        }
+    }
 }
 
 impl Equivalent<DefinableNameSegment> for DefinableNameSegmentRef<'_> {
@@ -200,8 +242,18 @@ impl Equivalent<DefinableNameSegment> for DefinableNameSegmentRef<'_> {
     }
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub struct DefinableNameSegmentRefs<'a>(pub SmallVec<[DefinableNameSegmentRef<'a>; 4]>);
+
+// Hash can't be derived because it must match Vec<DefinableNameSegment>'s Hash.
+impl std::hash::Hash for DefinableNameSegmentRefs<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.len().hash(state);
+        for segment in &self.0 {
+            segment.hash(state);
+        }
+    }
+}
 
 impl Equivalent<Vec<DefinableNameSegment>> for DefinableNameSegmentRefs<'_> {
     fn equivalent(&self, key: &Vec<DefinableNameSegment>) -> bool {
