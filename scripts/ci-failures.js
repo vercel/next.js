@@ -201,20 +201,68 @@ function extractTestCaseGroups(logContent) {
   return groups
 }
 
-function extractAllGroups(logContent) {
-  // Extract ALL ##[group]...##[endgroup] blocks (top-level groups)
-  const groups = []
-  const regex = /##\[group\]([^\n]*)([\s\S]*?)##\[endgroup\]/g
-  let match = regex.exec(logContent)
+function extractSections(logContent) {
+  // Split the log into sections at ##[group] and ##[endgroup] boundaries
+  const sections = []
+  const lines = logContent.split('\n')
 
-  while (match !== null) {
-    const groupName = match[1].trim()
-    const content = stripTimestamps(match[2].trim())
-    groups.push({ groupName, content })
-    match = regex.exec(logContent)
+  let currentSection = { name: null, startLine: 0 }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // Check for group start
+    const groupMatch = line.match(/##\[group\](.*)/)
+    if (groupMatch) {
+      // End current section
+      const lineCount = i - currentSection.startLine
+      if (lineCount > 0 || sections.length === 0) {
+        const content = stripTimestamps(
+          lines.slice(currentSection.startLine, i).join('\n').trim()
+        )
+        sections.push({
+          name: currentSection.name,
+          lineCount: lineCount,
+          content: content,
+        })
+      }
+      // Start new section with group name
+      currentSection = { name: groupMatch[1].trim() || null, startLine: i + 1 }
+      continue
+    }
+
+    // Check for group end
+    if (line.includes('##[endgroup]')) {
+      // End current section
+      const lineCount = i - currentSection.startLine
+      const content = stripTimestamps(
+        lines.slice(currentSection.startLine, i).join('\n').trim()
+      )
+      sections.push({
+        name: currentSection.name,
+        lineCount: lineCount,
+        content: content,
+      })
+      // Start new section with no name
+      currentSection = { name: null, startLine: i + 1 }
+      continue
+    }
   }
 
-  return groups
+  // Add final section if there are remaining lines
+  const finalLineCount = lines.length - currentSection.startLine
+  if (finalLineCount > 0) {
+    const content = stripTimestamps(
+      lines.slice(currentSection.startLine).join('\n').trim()
+    )
+    sections.push({
+      name: currentSection.name,
+      lineCount: finalLineCount,
+      content: content,
+    })
+  }
+
+  return sections
 }
 
 // ============================================================================
@@ -254,7 +302,7 @@ function generateIndexMd(branchInfo, runMetadata, failedJobs, jobTestCounts) {
   return lines.join('\n')
 }
 
-function generateJobMd(jobMetadata, testResults, testGroups, allGroups) {
+function generateJobMd(jobMetadata, testResults, testGroups, sections) {
   const duration = formatDuration(
     jobMetadata.started_at,
     jobMetadata.completed_at
@@ -273,24 +321,20 @@ function generateJobMd(jobMetadata, testResults, testGroups, allGroups) {
     '',
   ]
 
-  // Add groups table
-  if (allGroups.length > 0) {
-    lines.push(
-      '## Groups',
-      '',
-      '| # | Group Name | File |',
-      '|---|------------|------|'
-    )
+  // Add sections list with line counts and links to section files
+  if (sections.length > 0) {
+    lines.push('## Sections', '')
 
-    for (let i = 0; i < allGroups.length; i++) {
-      const group = allGroups[i]
-      const groupNum = i + 1
-      const sanitizedName = sanitizeFilename(group.groupName)
-      const filename = `job-${jobMetadata.id}-group-${groupNum}-${sanitizedName}.md`
-      const displayName =
-        group.groupName.substring(0, 60) +
-        (group.groupName.length > 60 ? '...' : '')
-      lines.push(`| ${groupNum} | ${escapeMarkdownTableCell(displayName)} | [View](${filename}) |`)
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i]
+      const sectionNum = i + 1
+      const filename = `job-${jobMetadata.id}-section-${sectionNum}.txt`
+
+      if (section.name) {
+        lines.push(`- [${section.name} (${section.lineCount} lines)](${filename})`)
+      } else {
+        lines.push(`- [${section.lineCount} lines](${filename})`)
+      }
     }
     lines.push('')
   }
@@ -398,23 +442,6 @@ function generateTestMd(jobMetadata, testPath, content, testResultJson) {
   return lines.join('\n')
 }
 
-function generateGroupMd(jobMetadata, groupNumber, groupName, content) {
-  const lines = [
-    `# Group: ${groupName}`,
-    '',
-    `Job: [${jobMetadata.name}](job-${jobMetadata.id}.md)`,
-    `Group #: ${groupNumber}`,
-    '',
-    '## Output',
-    '',
-    '```',
-    content,
-    '```',
-  ]
-
-  return lines.join('\n')
-}
-
 // ============================================================================
 // Main Function
 // ============================================================================
@@ -496,26 +523,16 @@ async function main() {
       jobTestCounts[id] = { failed, total }
     }
 
-    // Extract all groups (top-level)
-    const allGroups = extractAllGroups(logs)
+    // Extract sections from the log
+    const sections = extractSections(logs)
 
-    // Write individual group files
-    for (let i = 0; i < allGroups.length; i++) {
-      const group = allGroups[i]
-      const groupNum = i + 1
-      const sanitizedName = sanitizeFilename(group.groupName)
-      const groupMd = generateGroupMd(
-        jobMetadata,
-        groupNum,
-        group.groupName,
-        group.content
-      )
+    // Write individual section files
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i]
+      const sectionNum = i + 1
       await fs.writeFile(
-        path.join(
-          OUTPUT_DIR,
-          `job-${id}-group-${groupNum}-${sanitizedName}.md`
-        ),
-        groupMd
+        path.join(OUTPUT_DIR, `job-${id}-section-${sectionNum}.txt`),
+        section.content
       )
     }
 
@@ -542,7 +559,7 @@ async function main() {
     }
 
     // Generate job markdown
-    const jobMd = generateJobMd(jobMetadata, testResults, testGroups, allGroups)
+    const jobMd = generateJobMd(jobMetadata, testResults, testGroups, sections)
     await fs.writeFile(path.join(OUTPUT_DIR, `job-${id}.md`), jobMd)
   }
 
