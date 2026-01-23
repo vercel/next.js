@@ -1132,12 +1132,9 @@ function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
 }
 
 function registerChunk(registration: ChunkRegistration) {
-  const chunk =
-    registration[0] === undefined &&
-    typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined'
-      ? // for Worker importScripts loading
-        ({ src: TURBOPACK_NEXT_CHUNK_URLS.pop()! } as ChunkScript)
-      : ({ src: registration[0]!.getAttribute('src')! } as ChunkScript)
+  const chunk = getChunkFromRegistration(registration[0]) as
+    | ChunkPath
+    | ChunkScript
   let runtimeParams: RuntimeParams | undefined
   // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
   if (registration.length === 2) {
@@ -1159,12 +1156,9 @@ function registerChunk(registration: ChunkRegistration) {
  * Subscribes to chunk list updates from the update server and applies them.
  */
 function registerChunkList(chunkList: ChunkList) {
-  const chunkListScript =
-    chunkList.script === undefined &&
-    typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined'
-      ? // for Worker importScripts loading
-        ({ src: TURBOPACK_NEXT_CHUNK_URLS.pop()! } as ChunkListScript)
-      : ({ src: chunkList.script!.getAttribute('src')! } as ChunkScript)
+  const chunkListScript = getChunkFromRegistration(chunkList.script) as
+    | ChunkListPath
+    | ChunkListScript
   const chunkListPath = getPathFromScript(chunkListScript)
   // The "chunk" is also registered to finish the loading in the backend
   BACKEND.registerChunk(chunkListPath as string as ChunkPath)

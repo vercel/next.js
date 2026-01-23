@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="2a295d68-8fbb-d5cd-7538-88025453bac9")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="03178dfb-da5f-714f-0925-63c49edb4e28")}catch(e){}}();
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -727,7 +727,7 @@ function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
     }
-    const chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined' ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute('src');
+    const chunkUrl = chunkScript.src;
     const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
     const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
@@ -739,7 +739,26 @@ function getPathFromScript(chunkScript) {
         return getChunkRelativeUrl(chunk);
     } else {
         // This is already exactly what we want
-        return chunk.getAttribute('src');
+        return chunk.src;
+    }
+}
+/**
+ * Determine the chunk to register. Note that this function has side-effects!
+ */ function getChunkFromRegistration(chunk) {
+    if (typeof chunk === 'string') {
+        return chunk;
+    } else if (!chunk) {
+        if (typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined') {
+            return {
+                src: TURBOPACK_NEXT_CHUNK_URLS.pop()
+            };
+        } else {
+            throw new Error('chunk path empty but not in a worker');
+        }
+    } else {
+        return {
+            src: chunk.getAttribute('src')
+        };
     }
 }
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
@@ -1575,7 +1594,7 @@ function createModuleHot(moduleId, hotData) {
     runtimeChunkLists.add(chunkListPath);
 }
 function registerChunk(registration) {
-    const chunk = registration[0];
+    const chunk = getChunkFromRegistration(registration[0]);
     let runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {
@@ -1590,7 +1609,7 @@ function registerChunk(registration) {
 /**
  * Subscribes to chunk list updates from the update server and applies them.
  */ function registerChunkList(chunkList) {
-    const chunkListScript = chunkList.script;
+    const chunkListScript = getChunkFromRegistration(chunkList.script);
     const chunkListPath = getPathFromScript(chunkListScript);
     // The "chunk" is also registered to finish the loading in the backend
     BACKEND.registerChunk(chunkListPath);
@@ -1885,5 +1904,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=2a295d68-8fbb-d5cd-7538-88025453bac9
+//# debugId=03178dfb-da5f-714f-0925-63c49edb4e28
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map

@@ -41,13 +41,18 @@ type RuntimeParams = {
   runtimeModuleIds: ModuleId[]
 }
 
+type ChunkRegistrationChunk =
+  | ChunkPath
+  | { getAttribute: (name: string) => string | null }
+  | undefined
+
 type ChunkRegistration = [
-  chunkPath: { getAttribute: (name: string) => string | null } | undefined,
+  chunkPath: ChunkRegistrationChunk,
   ...([RuntimeParams] | CompressedModuleFactories),
 ]
 
 type ChunkList = {
-  script: { getAttribute: (name: string) => string | null } | undefined
+  script: ChunkRegistrationChunk
   chunks: ChunkData[]
   source: 'entry' | 'dynamic'
 }
@@ -409,6 +414,25 @@ function getUrlFromScript(chunk: ChunkPath | ChunkScript): ChunkUrl {
   } else {
     // This is already exactly what we want
     return chunk.src! as ChunkUrl
+  }
+}
+
+/**
+ * Determine the chunk to register. Note that this function has side-effects!
+ */
+function getChunkFromRegistration(
+  chunk: ChunkRegistrationChunk
+): ChunkPath | CurrentScript {
+  if (typeof chunk === 'string') {
+    return chunk
+  } else if (!chunk) {
+    if (typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined') {
+      return { src: TURBOPACK_NEXT_CHUNK_URLS.pop()! } as CurrentScript
+    } else {
+      throw new Error('chunk path empty but not in a worker')
+    }
+  } else {
+    return { src: chunk.getAttribute('src')! } as CurrentScript
   }
 }
 

@@ -1228,7 +1228,7 @@ function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
     }
-    var chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined' ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute('src');
+    var chunkUrl = chunkScript.src;
     var src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
     var path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
@@ -1240,7 +1240,26 @@ function getPathFromScript(chunkScript) {
         return getChunkRelativeUrl(chunk);
     } else {
         // This is already exactly what we want
-        return chunk.getAttribute('src');
+        return chunk.src;
+    }
+}
+/**
+ * Determine the chunk to register. Note that this function has side-effects!
+ */ function getChunkFromRegistration(chunk) {
+    if (typeof chunk === 'string') {
+        return chunk;
+    } else if (!chunk) {
+        if (typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined') {
+            return {
+                src: TURBOPACK_NEXT_CHUNK_URLS.pop()
+            };
+        } else {
+            throw new Error('chunk path empty but not in a worker');
+        }
+    } else {
+        return {
+            src: chunk.getAttribute('src')
+        };
     }
 }
 var regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
@@ -1323,7 +1342,7 @@ function instantiateModule(id, sourceType, sourceData) {
 }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function registerChunk(registration) {
-    var chunk = registration[0];
+    var chunk = getChunkFromRegistration(registration[0]);
     var runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {
