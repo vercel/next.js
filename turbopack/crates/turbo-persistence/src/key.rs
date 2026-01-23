@@ -200,11 +200,50 @@ impl<T: StoreKey> StoreKey for &'_ T {
     }
 }
 
+/// A hasher for short keys (len <= 8) that collects bytes directly into a [u8; 8].
+struct ShortKeyHasher {
+    bytes: [u8; 8],
+    pos: usize,
+}
+
+impl ShortKeyHasher {
+    fn new() -> Self {
+        Self {
+            bytes: [0u8; 8],
+            pos: 0,
+        }
+    }
+}
+
+impl Hasher for ShortKeyHasher {
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            if self.pos < 8 {
+                self.bytes[self.pos] = b;
+                self.pos += 1;
+            }
+        }
+    }
+
+    fn finish(&self) -> u64 {
+        // Convert bytes to u64 and rotate right by 2 bits
+        // This moves the 2 LSBs to become the 2 MSBs
+        u64::from_be_bytes(self.bytes).rotate_right(2 + 8 * (8 - self.pos as u32))
+    }
+}
+
 /// Hashes a key with a fast, deterministic hash function.
 pub fn hash_key(key: &impl KeyBase) -> u64 {
-    let mut hasher = twox_hash::XxHash64::with_seed(0);
-    key.hash(&mut hasher);
-    hasher.finish()
+    let key_len = key.len();
+    if key_len <= 8 {
+        let mut hasher = ShortKeyHasher::new();
+        key.hash(&mut hasher);
+        hasher.finish()
+    } else {
+        let mut hasher = twox_hash::XxHash64::with_seed(0);
+        key.hash(&mut hasher);
+        hasher.finish()
+    }
 }
 
 #[cfg(test)]
@@ -230,10 +269,71 @@ mod tests {
 
     #[test]
     fn hash() {
+        // Small keys (len <= 8) - uses ShortKeyHasher
         let h1 = hash_key(&[1, 2, 3, 4]);
         let h2 = hash_key(&(&[1, 2], &[3, 4]));
         let h3 = hash_key(&(vec![1, 2, 3], 4u8));
         assert_eq!(h2, h1);
         assert_eq!(h3, h1);
+
+        // Exactly 8 bytes - still uses ShortKeyHasher
+        let h4 = hash_key(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let h5 = hash_key(&(&[1, 2, 3, 4], &[5, 6, 7, 8]));
+        assert_eq!(h5, h4);
+
+        // Big keys (len > 8) - uses XxHash64
+        let h6 = hash_key(&[1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        let h7 = hash_key(&(&[1, 2, 3, 4, 5], &[6, 7, 8, 9]));
+        assert_eq!(h7, h6);
+
+        // Longer key
+        let h8 = hash_key(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let h9 = hash_key(&(&[1, 2, 3, 4, 5, 6, 7, 8], &[9, 10, 11, 12, 13, 14, 15, 16]));
+        assert_eq!(h9, h8);
+    }
+
+    #[test]
+    fn hash_short_keys_exact_values() {
+        // Test exact hash values for short keys of various lengths (0-8 bytes)
+        // Values computed as: u64::from_be_bytes([bytes padded with zeros]).rotate_right(2)
+
+        // Empty key (0 bytes)
+        assert_eq!(hash_key(&[0u8; 0]), 0x0000_0000_0000_0000);
+
+        // 1 byte
+        assert_eq!(hash_key(&[0x01]), 0x4000_0000_0000_0000);
+
+        // 2 bytes
+        assert_eq!(hash_key(&[0x01, 0x02]), 0x8000_0000_0000_0040);
+
+        // 3 bytes
+        assert_eq!(hash_key(&[0x01, 0x02, 0x03]), 0xC000_0000_0000_4080);
+
+        // 4 bytes
+        assert_eq!(hash_key(&[0x01, 0x02, 0x03, 0x04]), 0x0000_0000_0040_80C1);
+
+        // 5 bytes
+        assert_eq!(
+            hash_key(&[0x01, 0x02, 0x03, 0x04, 0x05]),
+            0x4000_0000_4080_C101
+        );
+
+        // 6 bytes
+        assert_eq!(
+            hash_key(&[0x01, 0x02, 0x03, 0x04, 0x05, 0x06]),
+            0x8000_0040_80C1_0141
+        );
+
+        // 7 bytes
+        assert_eq!(
+            hash_key(&[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07]),
+            0xC000_4080_C101_4181
+        );
+
+        // 8 bytes
+        assert_eq!(
+            hash_key(&[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]),
+            0x0040_80C1_0141_81C2
+        );
     }
 }
