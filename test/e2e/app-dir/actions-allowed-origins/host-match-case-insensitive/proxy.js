@@ -15,7 +15,7 @@ export async function proxy(request) {
 
   // To keep E2E tests consistent, set the origin to a fixed domain
   // fixed domain is example.com
-  requestHeaders.set('origin', `https://${ORIGIN_DOMAIN}`)
+  requestHeaders.set('origin', ORIGIN_DOMAIN)
 
   // Production proxies (e.g. Nginx/Cloudflare) can send a mis-cased host.
   // This proxy intentionally reproduces that by setting x-forwarded-host with caps.
