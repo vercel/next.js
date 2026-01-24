@@ -355,7 +355,7 @@ impl WorkerAssetReferenceCodeGen {
                                 require: Expr = pm.create_require(*key_expr.take())
                             );
 
-                            // For web workers, modify the options to set type: undefined
+                            // For web workers, remove type: "module" if it exists
                             if matches!(
                                 reference.worker_type,
                                 WorkerType::WebWorker | WorkerType::SharedWebWorker
