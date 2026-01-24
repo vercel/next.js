@@ -21,18 +21,6 @@ export async function proxy(request) {
   // This proxy intentionally reproduces that by setting x-forwarded-host with caps.
   requestHeaders.set('x-forwarded-host', X_FORWARDED_HOST)
 
-  const origin = request.headers.get('origin')
-  const host = request.headers.get('host')
-  const xForwardedHost = request.headers.get('x-forwarded-host')
-  console.log(
-    'origin:',
-    origin,
-    'host:',
-    host,
-    'x-forwarded-host:',
-    xForwardedHost
-  )
-
   return NextResponse.next({
     request: {
       headers: requestHeaders,
