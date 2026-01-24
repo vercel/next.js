@@ -279,8 +279,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         let mut batch = self.inner.database.write_batch()?;
 
         // these buffers should be large, because they're temporary and re-used.
-        const INITIAL_ENCODE_BUFFER_CAPACITY: usize = 1024;
-
+        // From measuring a large application the largest TaskType was ~365b, so this should be big
+        // enough to trigger no resizes in the loop.
+        const INITIAL_ENCODE_BUFFER_CAPACITY: usize = 512;
+        #[cfg(feature = "print_cache_item_size")]
+        let all_stats: std::sync::Mutex<
+            std::collections::HashMap<&'static str, TaskTypeCacheStats>,
+        > = std::sync::Mutex::new(std::collections::HashMap::new());
         // Start organizing the updates in parallel
         match &mut batch {
             &mut WriteBatch::Concurrent(ref batch, _) => {
@@ -337,6 +342,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                             "Unable to write task cache {task_type:?} => {task_id}"
                                         )
                                     })?;
+                                #[cfg(feature = "print_cache_item_size")]
+                                all_stats
+                                    .lock()
+                                    .unwrap()
+                                    .entry(task_type.get_name())
+                                    .or_default()
+                                    .add(&task_type_bytes);
                                 max_task_id = max_task_id.max(task_id);
                             }
 
@@ -411,6 +423,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                             .with_context(|| {
                                 format!("Unable to write task cache {task_type:?} => {task_id}")
                             })?;
+                        #[cfg(feature = "print_cache_item_size")]
+                        all_stats
+                            .lock()
+                            .unwrap()
+                            .entry(task_type.get_name())
+                            .or_default()
+                            .add(&task_type_bytes);
                         next_task_id = next_task_id.max(task_id + 1);
                     }
                 }
@@ -422,6 +441,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 )?;
             }
         }
+        #[cfg(feature = "print_cache_item_size")]
+        print_task_type_cache_stats(all_stats.into_inner().unwrap());
 
         {
             let _span = tracing::trace_span!("commit").entered();
@@ -668,6 +689,67 @@ type SerializedTasks = Vec<
     )>,
 >;
 
+#[cfg(feature = "print_cache_item_size")]
+#[derive(Default)]
+struct TaskTypeCacheStats {
+    key_size: usize,
+    key_size_compressed: usize,
+    count: usize,
+}
+
+#[cfg(feature = "print_cache_item_size")]
+impl TaskTypeCacheStats {
+    fn compressed_size(data: &[u8]) -> Result<usize> {
+        Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
+            data,
+            &mut Vec::new(),
+            lzzzz::lz4::ACC_LEVEL_DEFAULT,
+        )?)
+    }
+    fn add(&mut self, key_bytes: &[u8]) {
+        self.key_size += key_bytes.len();
+        self.key_size_compressed += Self::compressed_size(key_bytes).unwrap_or(0);
+        self.count += 1;
+    }
+}
+
+#[cfg(feature = "print_cache_item_size")]
+fn print_task_type_cache_stats(stats: std::collections::HashMap<&'static str, TaskTypeCacheStats>) {
+    use turbo_tasks::util::FormatBytes;
+
+    let mut stats: Vec<_> = stats.into_iter().collect();
+    if stats.is_empty() {
+        return;
+    }
+    stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
+        (stats_b.key_size_compressed, *key_b).cmp(&(stats_a.key_size_compressed, *key_a))
+    });
+    println!(
+        "Task type cache stats: {} ({})",
+        FormatBytes(
+            stats
+                .iter()
+                .map(|(_, s)| s.key_size_compressed)
+                .sum::<usize>()
+        ),
+        FormatBytes(stats.iter().map(|(_, s)| s.key_size).sum::<usize>())
+    );
+    for (fn_name, stats) in stats {
+        println!(
+            "  {} ({}) {fn_name}  x {} avg {} ({})",
+            FormatBytes(stats.key_size_compressed),
+            FormatBytes(stats.key_size),
+            stats.count,
+            FormatBytes(
+                stats
+                    .key_size_compressed
+                    .checked_div(stats.count)
+                    .unwrap_or(0)
+            ),
+            FormatBytes(stats.key_size.checked_div(stats.count).unwrap_or(0)),
+        );
+    }
+}
 fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync, I>(
     tasks: Vec<I>,
     batch: Option<&B>,
