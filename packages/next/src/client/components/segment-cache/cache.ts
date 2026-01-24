@@ -36,6 +36,7 @@ import {
   type PartialSegmentVaryPath,
   getRouteVaryPath,
   getFulfilledRouteVaryPath,
+  getFulfilledSegmentVaryPath,
   getSegmentVaryPathForRequest,
   appendLayoutVaryPath,
   finalizeLayoutVaryPath,
@@ -1140,7 +1141,8 @@ function convertTreePrefetchToRouteTree(
 
         childPartialVaryPath = appendLayoutVaryPath(
           partialVaryPath,
-          childParamKey
+          childParamKey,
+          childSegmentName
         )
         childSegment = [
           childSegmentName,
@@ -1309,7 +1311,12 @@ function convertFlightRouterStateToRouteTree(
   if (Array.isArray(originalSegment)) {
     isPage = false
     const paramCacheKey = originalSegment[1]
-    partialVaryPath = appendLayoutVaryPath(parentPartialVaryPath, paramCacheKey)
+    const paramName = originalSegment[0]
+    partialVaryPath = appendLayoutVaryPath(
+      parentPartialVaryPath,
+      paramCacheKey,
+      paramName
+    )
     varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
     segment = originalSegment
   } else {
@@ -1804,13 +1811,36 @@ export async function fetchSegmentOnCacheMiss(
       return null
     }
     const staleAt = Date.now() + getStaleTimeMs(serverData.staleTime)
+    const fulfilledEntry = fulfillSegmentCacheEntry(
+      segmentCacheEntry,
+      serverData.rsc,
+      staleAt,
+      serverData.isPartial
+    )
+
+    // If the server tells us which params the segment varies by, we can re-key
+    // the entry to a more generic vary path. This allows the entry to be reused
+    // across different param values for params that the segment doesn't
+    // actually depend on.
+    const varyParams = serverData.varyParams
+    if (varyParams !== null) {
+      // Re-key the entry by storing it at a more generic vary path where
+      // unused params are replaced with Fallback.
+      const fulfilledVaryPath = getFulfilledSegmentVaryPath(
+        tree.varyPath,
+        varyParams
+      )
+      const isRevalidation = false
+      setInCacheMap(
+        segmentCacheMap,
+        fulfilledVaryPath,
+        fulfilledEntry,
+        isRevalidation
+      )
+    }
+
     return {
-      value: fulfillSegmentCacheEntry(
-        segmentCacheEntry,
-        serverData.rsc,
-        staleAt,
-        serverData.isPartial
-      ),
+      value: fulfilledEntry,
       // Return a promise that resolves when the network connection closes, so
       // the scheduler can track the number of concurrent network connections.
       closed: closed.promise,

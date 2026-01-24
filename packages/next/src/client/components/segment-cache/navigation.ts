@@ -681,6 +681,7 @@ function convertServerPatchToFullTreeImpl(
     null,
     isEmptySeedDataPartial,
     false,
+    null,
   ]
 
   return {
