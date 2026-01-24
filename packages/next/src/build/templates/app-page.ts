@@ -1592,3 +1592,8 @@ function createPPRBoundarySentinel() {
     },
   })
 }
+
+// A page acts as a hot module accept boundary
+if (typeof module !== 'undefined' && module.hot) {
+  module.hot.accept()
+}

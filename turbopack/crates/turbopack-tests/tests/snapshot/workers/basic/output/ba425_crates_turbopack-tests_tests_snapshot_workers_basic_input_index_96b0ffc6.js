@@ -865,11 +865,15 @@ function formatDependencyChain(dependencyChain) {
     return `Dependency chain: ${dependencyChain.join(' -> ')}`;
 }
 /**
+ * Detects if we're in a server (Node.js) environment for server-side HMR.
+ * In server HMR mode, root modules auto-accept updates without explicit module.hot.accept().
+ */ const isServerHMR = typeof process !== 'undefined' && process.versions?.node;
+/**
  * Walks the dependency tree to find all modules affected by a change.
  * Returns information about whether the update can be accepted and which
  * modules need to be invalidated.
  *
- * Copied directly from browser implementation.
+ * Copied directly from browser implementation with server HMR support.
  */ function getAffectedModuleEffects(moduleId) {
     const outdatedModules = new Set();
     const queue = [
@@ -890,6 +894,14 @@ function formatDependencyChain(dependencyChain) {
         // We've arrived at the runtime of the chunk, which means that nothing
         // else above can accept this update.
         if (moduleId === undefined) {
+            // In server HMR mode, auto-accept root modules
+            if (isServerHMR) {
+                return {
+                    type: 'accepted',
+                    moduleId,
+                    outdatedModules
+                };
+            }
             return {
                 type: 'unaccepted',
                 dependencyChain
@@ -910,6 +922,10 @@ function formatDependencyChain(dependencyChain) {
             };
         }
         if (runtimeModules.has(moduleId)) {
+            // In server HMR mode, auto-accept runtime modules
+            if (isServerHMR) {
+                continue;
+            }
             queue.push({
                 moduleId: undefined,
                 dependencyChain: [
@@ -933,6 +949,10 @@ function formatDependencyChain(dependencyChain) {
                     moduleId
                 ]
             });
+        }
+        // If no parents and we're at a root module in server HMR mode, auto-accept
+        if (module.parents.length === 0 && isServerHMR) {
+            continue;
         }
     }
     return {

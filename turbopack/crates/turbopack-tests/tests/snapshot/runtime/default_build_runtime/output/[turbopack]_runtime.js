@@ -625,25 +625,28 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
     const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
     return instance.exports;
 }
-var SourceType = /*#__PURE__*/ function(SourceType) {
-    /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   * SourceData is a ChunkPath.
-   */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
-    /**
-   * The module was instantiated because a parent module imported it.
-   * SourceData is a ModuleId.
-   */ SourceType[SourceType["Parent"] = 1] = "Parent";
-    return SourceType;
-}(SourceType || {});
-process.env.TURBOPACK = '1';
-const nodeContextPrototype = Context.prototype;
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../shared/runtime/runtime-utils.ts" />
+/// <reference path="../../shared-node/base-externals-utils.ts" />
+/// <reference path="../../shared-node/node-externals-utils.ts" />
+/// <reference path="../../shared-node/node-wasm-utils.ts" />
+/// <reference path="./nodejs-globals.d.ts" />
+/**
+ * Base Node.js runtime shared between production and development.
+ * Contains chunk loading, module caching, and other non-HMR functionality.
+ */ process.env.TURBOPACK = '1';
 const url = require('url');
-const moduleFactories = new Map();
-nodeContextPrototype.M = moduleFactories;
-const moduleCache = Object.create(null);
-nodeContextPrototype.c = moduleCache;
+// Use global module factories and cache to persist across chunk reloads during HMR
+// This ensures that when Node.js clears the require cache for a chunk file,
+// we don't lose our granular HMR updates to individual modules
+if (!globalThis.__turbopack_module_factories__) {
+    globalThis.__turbopack_module_factories__ = new Map();
+}
+if (!globalThis.__turbopack_module_cache__) {
+    globalThis.__turbopack_module_cache__ = Object.create(null);
+}
+const moduleFactories = globalThis.__turbopack_module_factories__;
+// Module cache - typed as base Module, can be cast to HotModule in dev mode
+const moduleCache = globalThis.__turbopack_module_cache__;
 /**
  * Returns an absolute path to the given module's id.
  */ function resolvePathFromModule(moduleId) {
@@ -656,13 +659,11 @@ nodeContextPrototype.c = moduleCache;
     const resolved = path.resolve(RUNTIME_ROOT, strippedAssetPrefix);
     return url.pathToFileURL(resolved).href;
 }
-nodeContextPrototype.R = resolvePathFromModule;
 /**
  * Exports a URL value. No suffix is added in Node.js runtime.
  */ function exportUrl(urlValue, id) {
     exportValue.call(this, urlValue, id);
 }
-nodeContextPrototype.q = exportUrl;
 function loadRuntimeChunk(sourcePath, chunkData) {
     if (typeof chunkData === 'string') {
         loadRuntimeChunkPath(sourcePath, chunkData);
@@ -753,6 +754,23 @@ contextPrototype.u = loadWebAssemblyModule;
 function getWorkerURL(_entrypoint, _moduleChunks, _shared) {
     throw new Error('Worker urls are not implemented yet for Node.js');
 }
+const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ */ function isJs(chunkUrlOrPath) {
+    return regexJsUrl.test(chunkUrlOrPath);
+}
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-base.ts" />
+/**
+ * Production Node.js runtime.
+ * Uses ModuleWithDirection and simple module instantiation without HMR support.
+ */ // moduleCache and moduleFactories are declared in runtime-base.ts
+const nodeContextPrototype = Context.prototype;
+nodeContextPrototype.q = exportUrl;
+nodeContextPrototype.M = moduleFactories;
+// Cast moduleCache to ModuleWithDirection for production mode
+nodeContextPrototype.c = moduleCache;
+nodeContextPrototype.R = resolvePathFromModule;
 nodeContextPrototype.b = getWorkerURL;
 function instantiateModule(id, sourceType, sourceData) {
     const moduleFactory = moduleFactories.get(id);
@@ -762,10 +780,10 @@ function instantiateModule(id, sourceType, sourceData) {
         // and contains e.g. a `require("something")` call.
         let instantiationReason;
         switch(sourceType){
-            case 0:
+            case SourceType.Runtime:
                 instantiationReason = `as a runtime entry of chunk ${sourceData}`;
                 break;
-            case 1:
+            case SourceType.Parent:
                 instantiationReason = `because it was required from module ${sourceData}`;
                 break;
             default:
@@ -773,7 +791,7 @@ function instantiateModule(id, sourceType, sourceData) {
         }
         throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`);
     }
-    const module1 = createModuleObject(id);
+    const module1 = createModuleWithDirection(id);
     const exports = module1.exports;
     moduleCache[id] = module1;
     const context = new Context(module1, exports);
@@ -784,6 +802,7 @@ function instantiateModule(id, sourceType, sourceData) {
         module1.error = error;
         throw error;
     }
+    ;
     module1.loaded = true;
     if (module1.namespaceObject && module1.exports !== module1.namespaceObject) {
         // in case of a circular dependency: cjs1 -> esm2 -> cjs1
@@ -802,12 +821,12 @@ function getOrInstantiateModuleFromParent(id, sourceModule) {
         }
         return module1;
     }
-    return instantiateModule(id, 1, sourceModule.id);
+    return instantiateModule(id, SourceType.Parent, sourceModule.id);
 }
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(chunkPath, moduleId) {
-    return instantiateModule(moduleId, 0, chunkPath);
+    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
@@ -822,27 +841,10 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
     }
     return instantiateRuntimeModule(chunkPath, moduleId);
 }
-const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
-/**
- * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
- */ function isJs(chunkUrlOrPath) {
-    return regexJsUrl.test(chunkUrlOrPath);
-}
-function __turbopack_server_hmr_apply__(_update) {
-    // TODO: Implement actual HMR logic to update module factories
-    // For now, just return true to indicate we "accepted" the update
-    return true;
-}
-globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__;
 module.exports = (sourcePath)=>({
         m: (id)=>getOrInstantiateRuntimeModule(sourcePath, id),
         c: (chunkData)=>loadRuntimeChunk(sourcePath, chunkData)
     });
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
-/// <reference path="../shared-node/base-externals-utils.ts" />
-/// <reference path="../shared-node/node-externals-utils.ts" />
-/// <reference path="../shared-node/node-wasm-utils.ts" />
-export { };
 
 
 //# sourceMappingURL=%5Bturbopack%5D_runtime.js.map

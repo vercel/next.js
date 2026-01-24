@@ -1,3 +1,5 @@
+import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 export {
   createTemporaryReferenceSet,
@@ -45,7 +47,6 @@ export { collectSegmentData } from './collect-segment-data'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
-import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
 
 let SegmentViewNode: typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentViewNode =
   () => null
@@ -58,7 +59,6 @@ if (process.env.NODE_ENV === 'development') {
   SegmentViewStateNode = mod.SegmentViewStateNode
 }
 
-// For hot-reloader
 declare global {
   var __next__clear_chunk_cache__: (() => void) | null | undefined
   var __turbopack_clear_chunk_cache__: () => void | null | undefined

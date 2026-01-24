@@ -175,25 +175,17 @@ function setupServerHmr(project: Project) {
 
       for await (const result of subscription) {
         const update = result as NodeJsHmrUpdate
-
-        // Only process partial updates with actual code changes
         if (update.type !== 'partial') {
           continue
         }
 
-        const entries = update.instruction?.entries
-        if (!entries || Object.keys(entries).length === 0) {
+        const instruction = update.instruction
+        if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
           continue
         }
 
         if (typeof __turbopack_server_hmr_apply__ === 'function') {
-          const applied = __turbopack_server_hmr_apply__(update as any)
-
-          if (applied) {
-            console.log(`[Server HMR] Applied update for ${chunkPath}`)
-            // TODO: Notify clients to refresh and get updated server content
-            // This will trigger the client to re-fetch the page with new server components
-          }
+          __turbopack_server_hmr_apply__(update)
         }
       }
     })().catch((err) => {
@@ -204,40 +196,46 @@ function setupServerHmr(project: Project) {
 
   // Listen to the Rust bindings update us on changing server HMR chunk paths
   ;(async () => {
-    const serverHmrChunkPaths = project.hmrIdentifiersSubscribe(
-      HmrTarget.Server
-    )
-
-    // Process chunk paths (both initial and subsequent updates)
-    for await (const data of serverHmrChunkPaths) {
-      const currentChunkPaths = new Set(
-        data.chunkPaths.filter((path) => path.endsWith('.js'))
+    try {
+      const serverHmrChunkPaths = project.hmrIdentifiersSubscribe(
+        HmrTarget.Server
       )
 
-      // Clean up subscriptions for removed chunk paths (like when pages are deleted)
-      const chunkPathsToRemove = []
-      for (const chunkPath of serverHmrSubscriptions.keys()) {
-        if (!currentChunkPaths.has(chunkPath)) {
-          chunkPathsToRemove.push(chunkPath)
+      // Process chunk paths (both initial and subsequent updates)
+      for await (const data of serverHmrChunkPaths) {
+        const currentChunkPaths = new Set<string>(
+          data.chunkPaths.filter((path) => path.endsWith('.js'))
+        )
+
+        // Clean up subscriptions for removed chunk paths (like when pages are deleted)
+        const chunkPathsToRemove: string[] = []
+        for (const chunkPath of serverHmrSubscriptions.keys()) {
+          if (!currentChunkPaths.has(chunkPath)) {
+            chunkPathsToRemove.push(chunkPath)
+          }
+        }
+
+        for (const chunkPath of chunkPathsToRemove) {
+          const subscription = serverHmrSubscriptions.get(chunkPath)
+          subscription?.return?.()
+          serverHmrSubscriptions.delete(chunkPath)
+        }
+
+        // Subscribe to HMR events for new server chunks
+        for (const chunkPath of currentChunkPaths) {
+          if (!serverHmrSubscriptions.has(chunkPath)) {
+            subscribeToServerHmr(chunkPath)
+          }
         }
       }
-
-      for (const chunkPath of chunkPathsToRemove) {
-        const subscription = serverHmrSubscriptions.get(chunkPath)
-        subscription?.return?.()
-        serverHmrSubscriptions.delete(chunkPath)
-      }
-
-      // Subscribe to HMR events for new server chunks
-      for (const chunkPath of currentChunkPaths) {
-        if (!serverHmrSubscriptions.has(chunkPath)) {
-          subscribeToServerHmr(chunkPath)
-        }
-      }
+    } catch (err) {
+      console.error('[Server HMR Setup] Error in chunk path subscription:', err)
     }
-  })().catch((err) => {
-    console.error('[Server HMR] error:', err)
-  })
+  })()
+
+  return {
+    serverHmrSubscriptions,
+  }
 }
 
 /**
@@ -566,6 +564,13 @@ export async function createHotReloaderTurbopack(
     )
 
     for (const file of serverPaths) {
+      // Skip clearing cache for server chunks with active HMR subscriptions
+      // Server HMR already applied granular updates to the turbopack module cache
+      const relativePath = relative(distDir, file)
+      if (serverHmrSubscriptions?.has(relativePath)) {
+        continue
+      }
+
       clearModuleContext(file)
       deleteCache(file)
     }
@@ -608,8 +613,12 @@ export async function createHotReloaderTurbopack(
     }
   }
 
+  let serverHmrSubscriptions:
+    | ReturnType<typeof setupServerHmr>['serverHmrSubscriptions']
+    | undefined
   if (experimentalServerFastRefresh) {
-    setupServerHmr(project)
+    const result = setupServerHmr(project)
+    serverHmrSubscriptions = result.serverHmrSubscriptions
   }
 
   let hmrEventHappened = false
