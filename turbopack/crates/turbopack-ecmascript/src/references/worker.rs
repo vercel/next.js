@@ -356,8 +356,10 @@ impl WorkerAssetReferenceCodeGen {
                             );
 
                             // For web workers, modify the options to set type: undefined
-                            if reference.worker_type == WorkerType::WebWorker
-                                && let Some(opts) = args.get_mut(1)
+                            if matches!(
+                                reference.worker_type,
+                                WorkerType::WebWorker | WorkerType::SharedWebWorker
+                            ) && let Some(opts) = args.get_mut(1)
                                 && opts.spread.is_none()
                             {
                                 *opts.expr = *quote_expr!(
