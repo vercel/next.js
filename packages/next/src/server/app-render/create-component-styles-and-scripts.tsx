@@ -4,6 +4,7 @@ import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import { renderCssResource } from './render-css-resource'
+import type { CollectedInlineCss } from './types'
 
 export async function createComponentStylesAndScripts({
   filePath,
@@ -11,12 +12,14 @@ export async function createComponentStylesAndScripts({
   injectedCSS,
   injectedJS,
   ctx,
+  collectedInlineCss,
 }: {
   filePath: string
   getComponent: () => any
   injectedCSS: Set<string>
   injectedJS: Set<string>
   ctx: AppRenderContext
+  collectedInlineCss?: CollectedInlineCss
 }): Promise<[React.ComponentType<any>, React.ReactNode, React.ReactNode]> {
   const {
     componentMod: { createElement },
@@ -27,7 +30,12 @@ export async function createComponentStylesAndScripts({
     injectedJS
   )
 
-  const styles = renderCssResource(entryCssFiles, ctx)
+  const styles = renderCssResource(
+    entryCssFiles,
+    ctx,
+    undefined,
+    collectedInlineCss
+  )
 
   const scripts = jsHrefs
     ? jsHrefs.map((href, index) =>

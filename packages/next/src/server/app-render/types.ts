@@ -220,3 +220,17 @@ export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
   RequestLifecycleOpts
 
 export type PreloadCallbacks = (() => void)[]
+
+/**
+ * Collected inline CSS to be injected via ServerInsertedHTML.
+ * This avoids duplicating CSS in both the HTML (as <style> tags) and
+ * the RSC payload (serialized in <script> tags).
+ */
+export interface CollectedInlineCss {
+  styles: Array<{
+    href: string
+    content: string
+    precedence: string
+    nonce?: string
+  }>
+}

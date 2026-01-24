@@ -11,6 +11,7 @@ import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import type { ClientTraceDataEntry } from '../lib/trace/tracer'
+import type { CollectedInlineCss } from './types'
 
 export function makeGetServerInsertedHTML({
   polyfills,
@@ -18,12 +19,14 @@ export function makeGetServerInsertedHTML({
   serverCapturedErrors,
   tracingMetadata,
   basePath,
+  collectedInlineCss,
 }: {
   polyfills: JSX.IntrinsicElements['script'][]
   renderServerInsertedHTML: () => React.ReactNode
   tracingMetadata: ClientTraceDataEntry[] | undefined
   serverCapturedErrors: Array<unknown>
   basePath: string
+  collectedInlineCss?: CollectedInlineCss
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
 
@@ -33,6 +36,18 @@ export function makeGetServerInsertedHTML({
   })
   let traceMetaTags = (tracingMetadata || []).map(({ key, value }, index) => (
     <meta key={`next-trace-data-${index}`} name={key} content={value} />
+  ))
+
+  // Collected inline CSS styles - only need to be rendered once
+  let inlineCssStyles = (collectedInlineCss?.styles || []).map((css, index) => (
+    <style
+      key={`inline-css-${index}`}
+      href={css.href}
+      precedence={css.precedence}
+      nonce={css.nonce}
+    >
+      {css.content}
+    </style>
   ))
 
   return async function getServerInsertedHTML() {
@@ -78,6 +93,7 @@ export function makeGetServerInsertedHTML({
       polyfillTags.length === 0 &&
       traceMetaTags.length === 0 &&
       errorMetaTags.length === 0 &&
+      inlineCssStyles.length === 0 &&
       Array.isArray(serverInsertedHTML) &&
       serverInsertedHTML.length === 0
     ) {
@@ -86,6 +102,7 @@ export function makeGetServerInsertedHTML({
 
     const stream = await renderToReadableStream(
       <>
+        {inlineCssStyles}
         {polyfillTags}
         {serverInsertedHTML}
         {traceMetaTags}
@@ -98,9 +115,10 @@ export function makeGetServerInsertedHTML({
       }
     )
 
-    // The polyfills and trace metadata have been flushed, so they don't need to be rendered again
+    // The polyfills, trace metadata, and inline CSS have been flushed, so they don't need to be rendered again
     polyfillTags = []
     traceMetaTags = []
+    inlineCssStyles = []
 
     // There's no need to wait for the stream to be ready
     // e.g. calling `await stream.allReady` because `streamToString` will

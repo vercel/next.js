@@ -1,5 +1,5 @@
 import type { ComponentType, ErrorInfo, JSX, ReactNode } from 'react'
-import type { RenderOpts, PreloadCallbacks } from './types'
+import type { RenderOpts, PreloadCallbacks, CollectedInlineCss } from './types'
 import type {
   ActionResult,
   DynamicParamTypesShort,
@@ -1425,7 +1425,8 @@ function getRenderedSearch(query: NextParsedUrlQuery): string {
 async function getRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
-  is404: boolean
+  is404: boolean,
+  collectedInlineCss?: CollectedInlineCss
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
@@ -1484,6 +1485,7 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     MetadataOutlet,
+    collectedInlineCss,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -2528,6 +2530,11 @@ async function renderToStream(
     createServerInsertedHTML()
   const getServerInsertedMetadata = createServerInsertedMetadata(nonce)
 
+  // Collector for inline CSS to be injected via ServerInsertedHTML.
+  // This prevents CSS from being duplicated in both HTML (as <style> tags)
+  // and RSC payload (serialized in <script> tags).
+  const collectedInlineCss: CollectedInlineCss = { styles: [] }
+
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
     experimental.clientTraceMetadata
@@ -2670,7 +2677,8 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              res.statusCode === 404
+              res.statusCode === 404,
+              collectedInlineCss
             )
 
           if (isBypassingCachesInDev(renderOpts, requestStore)) {
@@ -2780,7 +2788,8 @@ async function renderToStream(
             getRSCPayload,
             tree,
             ctx,
-            res.statusCode === 404
+            res.statusCode === 404,
+            collectedInlineCss
           )
 
         const debugChannel = setReactDebugChannel && createDebugChannel()
@@ -2872,6 +2881,7 @@ async function renderToStream(
             serverCapturedErrors: allCapturedErrors,
             basePath,
             tracingMetadata: tracingMetadata,
+            collectedInlineCss,
           })
           return await continueDynamicHTMLResume(htmlStream, {
             // If the prelude is empty (i.e. is no static shell), we should wait for initial HTML to be rendered
@@ -2935,6 +2945,7 @@ async function renderToStream(
         serverCapturedErrors: allCapturedErrors,
         basePath,
         tracingMetadata: tracingMetadata,
+        collectedInlineCss,
       })
       /**
        * Rules of Static & Dynamic HTML:
@@ -3142,6 +3153,7 @@ async function renderToStream(
             serverCapturedErrors: [],
             basePath,
             tracingMetadata: tracingMetadata,
+            collectedInlineCss,
           }),
           getServerInsertedMetadata,
           validateRootLayout: dev,
@@ -4132,6 +4144,11 @@ async function prerenderToStream(
     createServerInsertedHTML()
   const getServerInsertedMetadata = createServerInsertedMetadata(nonce)
 
+  // Collector for inline CSS to be injected via ServerInsertedHTML.
+  // This prevents CSS from being duplicated in both HTML (as <style> tags)
+  // and RSC payload (serialized in <script> tags).
+  const collectedInlineCss: CollectedInlineCss = { styles: [] }
+
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
     experimental.clientTraceMetadata
@@ -4318,7 +4335,8 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        res.statusCode === 404
+        res.statusCode === 404,
+        collectedInlineCss
       )
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
@@ -4592,7 +4610,8 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        res.statusCode === 404
+        res.statusCode === 404,
+        collectedInlineCss
       )
 
       const serverDynamicTracking = createDynamicTrackingState(
@@ -4799,6 +4818,7 @@ async function prerenderToStream(
         serverCapturedErrors: allCapturedErrors,
         basePath,
         tracingMetadata: tracingMetadata,
+        collectedInlineCss,
       })
 
       const flightData = await streamToBuffer(reactServerResult.asStream())
@@ -4999,7 +5019,8 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        res.statusCode === 404
+        res.statusCode === 404,
+        collectedInlineCss
       )
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResultFromRender(
@@ -5063,6 +5084,7 @@ async function prerenderToStream(
         serverCapturedErrors: allCapturedErrors,
         basePath,
         tracingMetadata: tracingMetadata,
+        collectedInlineCss,
       })
 
       // After awaiting here we've waited for the entire RSC render to complete. Crucially this means
@@ -5245,7 +5267,8 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        res.statusCode === 404
+        res.statusCode === 404,
+        collectedInlineCss
       )
 
       const reactServerResult = (reactServerPrerenderResult =
@@ -5302,6 +5325,7 @@ async function prerenderToStream(
         serverCapturedErrors: allCapturedErrors,
         basePath,
         tracingMetadata: tracingMetadata,
+        collectedInlineCss,
       })
       return {
         digestErrorsMap: reactServerErrorsByDigest,
@@ -5501,6 +5525,7 @@ async function prerenderToStream(
             serverCapturedErrors: [],
             basePath,
             tracingMetadata: tracingMetadata,
+            collectedInlineCss,
           }),
           getServerInsertedMetadata,
           validateRootLayout: dev,

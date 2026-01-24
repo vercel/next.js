@@ -93,5 +93,28 @@ describe('app dir - css - experimental inline css', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toContain('font')
     })
+
+    it('should not include CSS content in RSC inline payload on initial HTML', async () => {
+      const $ = await next.render$('/')
+
+      // Get the RSC inline payload from script tags
+      const rscScripts = $('script')
+        .filter(function () {
+          const content = $(this).html()
+          return content && content.includes('self.__next_f.push')
+        })
+        .toArray()
+
+      // Combine all RSC payload content
+      const rscPayload = rscScripts.map((script) => $(script).html()).join('\n')
+
+      // CSS content should be in the HTML <style> tags
+      const styleContent = $('style').text()
+      expect(styleContent).toContain('color')
+
+      // CSS content "color:yellow" should NOT be in the RSC payload
+      // (The CSS is injected via ServerInsertedHTML, not the RSC tree)
+      expect(rscPayload).not.toContain('color:yellow')
+    })
   })
 })

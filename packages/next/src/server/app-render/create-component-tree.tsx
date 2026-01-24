@@ -3,7 +3,7 @@ import type {
   CacheNodeSeedData,
   LoadingModuleData,
 } from '../../shared/lib/app-router-types'
-import type { PreloadCallbacks } from './types'
+import type { PreloadCallbacks, CollectedInlineCss } from './types'
 import {
   isClientReference,
   isUseCacheFunction,
@@ -52,6 +52,7 @@ export function createComponentTree(props: {
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
   MetadataOutlet: ComponentType
+  collectedInlineCss?: CollectedInlineCss
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -87,6 +88,7 @@ async function createComponentTreeInternal(
     preloadCallbacks,
     authInterrupts,
     MetadataOutlet,
+    collectedInlineCss,
   }: {
     loaderTree: LoaderTree
     parentParams: Params
@@ -99,6 +101,7 @@ async function createComponentTreeInternal(
     preloadCallbacks: PreloadCallbacks
     authInterrupts: boolean
     MetadataOutlet: ComponentType | null
+    collectedInlineCss?: CollectedInlineCss
   },
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
@@ -153,6 +156,7 @@ async function createComponentTreeInternal(
     injectedCSS: injectedCSSWithCurrentLayout,
     injectedJS: injectedJSWithCurrentLayout,
     injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+    collectedInlineCss,
   })
 
   const [Template, templateStyles, templateScripts] = template
@@ -162,6 +166,7 @@ async function createComponentTreeInternal(
         getComponent: template[0],
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedJS: injectedJSWithCurrentLayout,
+        collectedInlineCss,
       })
     : [Fragment]
 
@@ -172,6 +177,7 @@ async function createComponentTreeInternal(
         getComponent: error[0],
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedJS: injectedJSWithCurrentLayout,
+        collectedInlineCss,
       })
     : []
 
@@ -182,6 +188,7 @@ async function createComponentTreeInternal(
         getComponent: loading[0],
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedJS: injectedJSWithCurrentLayout,
+        collectedInlineCss,
       })
     : []
 
@@ -216,6 +223,7 @@ async function createComponentTreeInternal(
         getComponent: notFound[0],
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedJS: injectedJSWithCurrentLayout,
+        collectedInlineCss,
       })
     : []
 
@@ -233,6 +241,7 @@ async function createComponentTreeInternal(
           getComponent: forbidden[0],
           injectedCSS: injectedCSSWithCurrentLayout,
           injectedJS: injectedJSWithCurrentLayout,
+          collectedInlineCss,
         })
       : []
 
@@ -244,6 +253,7 @@ async function createComponentTreeInternal(
           getComponent: unauthorized[0],
           injectedCSS: injectedCSSWithCurrentLayout,
           injectedJS: injectedJSWithCurrentLayout,
+          collectedInlineCss,
         })
       : []
 
@@ -537,6 +547,7 @@ async function createComponentTreeInternal(
               // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
               // but we only want to throw on the first one.
               MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
+              collectedInlineCss,
             },
             false
           )

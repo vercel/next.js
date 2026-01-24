@@ -3,7 +3,7 @@ import { getPreloadableFonts } from './get-preloadable-fonts'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
-import type { PreloadCallbacks } from './types'
+import type { PreloadCallbacks, CollectedInlineCss } from './types'
 import { renderCssResource } from './render-css-resource'
 
 export function getLayerAssets({
@@ -13,6 +13,7 @@ export function getLayerAssets({
   injectedJS: injectedJSWithCurrentLayout,
   injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
   preloadCallbacks,
+  collectedInlineCss,
 }: {
   layoutOrPagePath: string | undefined
   injectedCSS: Set<string>
@@ -20,6 +21,7 @@ export function getLayerAssets({
   injectedFontPreloadTags: Set<string>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
+  collectedInlineCss?: CollectedInlineCss
 }): React.ReactNode {
   const {
     componentMod: { createElement },
@@ -74,7 +76,12 @@ export function getLayerAssets({
     }
   }
 
-  const styles = renderCssResource(styleTags, ctx, preloadCallbacks)
+  const styles = renderCssResource(
+    styleTags,
+    ctx,
+    preloadCallbacks,
+    collectedInlineCss
+  )
 
   const scripts = scriptTags
     ? scriptTags.map((href, index) => {
