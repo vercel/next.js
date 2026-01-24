@@ -28,6 +28,12 @@ const WORKER_FORWARDED_GLOBALS = [];
    */ SourceType[SourceType["Update"] = 2] = "Update";
     return SourceType;
 }(SourceType || {});
+/**
+ * Flag indicating which module object type to create when a module is merged. Set to `true`
+ * by each runtime that uses ModuleWithDirection (browser dev-base.ts, nodejs dev-base.ts,
+ * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
+ * uses plain Module objects.
+ */ let createModuleWithDirectionFlag = false;
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -51,9 +57,12 @@ function defineProp(obj, name, options) {
 function getOverwrittenModule(moduleCache, id) {
     let module = moduleCache[id];
     if (!module) {
-        // This is invoked when a module is merged into another module, thus it wasn't invoked via
-        // instantiateModule and the cache entry wasn't created yet.
-        module = createModuleObject(id);
+        if (createModuleWithDirectionFlag) {
+            // set in development modes for hmr support
+            module = createModuleWithDirection(id);
+        } else {
+            module = createModuleObject(id);
+        }
         moduleCache[id] = module;
     }
     return module;
@@ -626,30 +635,18 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
     const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
     return instance.exports;
 }
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../hmr-types.d.ts" />
-/// <reference path="../../shared/runtime/runtime-utils.ts" />
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../shared/runtime/runtime-utils.ts" />
 /// <reference path="../../shared-node/base-externals-utils.ts" />
 /// <reference path="../../shared-node/node-externals-utils.ts" />
 /// <reference path="../../shared-node/node-wasm-utils.ts" />
-var SourceType = /*#__PURE__*/ function(SourceType) {
-    /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   * SourceData is a ChunkPath.
-   */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
-    /**
-   * The module was instantiated because a parent module imported it.
-   * SourceData is a ModuleId.
-   */ SourceType[SourceType["Parent"] = 1] = "Parent";
-    return SourceType;
-}(SourceType || {});
-process.env.TURBOPACK = '1';
-const nodeContextPrototype = Context.prototype;
+/// <reference path="./nodejs-globals.d.ts" />
+/**
+ * Base Node.js runtime shared between production and development.
+ * Contains chunk loading, module caching, and other non-HMR functionality.
+ */ process.env.TURBOPACK = '1';
 const url = require('url');
 const moduleFactories = new Map();
-nodeContextPrototype.M = moduleFactories;
 const moduleCache = Object.create(null);
-nodeContextPrototype.c = moduleCache;
 /**
  * Returns an absolute path to the given module's id.
  */ function resolvePathFromModule(moduleId) {
@@ -662,13 +659,11 @@ nodeContextPrototype.c = moduleCache;
     const resolved = path.resolve(RUNTIME_ROOT, strippedAssetPrefix);
     return url.pathToFileURL(resolved).href;
 }
-nodeContextPrototype.R = resolvePathFromModule;
 /**
  * Exports a URL value. No suffix is added in Node.js runtime.
  */ function exportUrl(urlValue, id) {
     exportValue.call(this, urlValue, id);
 }
-nodeContextPrototype.q = exportUrl;
 function loadRuntimeChunk(sourcePath, chunkData) {
     if (typeof chunkData === 'string') {
         loadRuntimeChunkPath(sourcePath, chunkData);
@@ -682,6 +677,7 @@ const loadedChunk = Promise.resolve(undefined);
 const chunkCache = new Map();
 function clearChunkCache() {
     chunkCache.clear();
+    loadedChunks.clear();
 }
 function loadRuntimeChunkPath(sourcePath, chunkPath) {
     if (!isJs(chunkPath)) {
@@ -780,67 +776,637 @@ contextPrototype.u = loadWebAssemblyModule;
     };
     return new WorkerConstructor(workerPath, options);
 }
-nodeContextPrototype.b = createWorker;
-function instantiateModule(id, sourceType, sourceData) {
+const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ */ function isJs(chunkUrlOrPath) {
+    return regexJsUrl.test(chunkUrlOrPath);
+}
+/// <reference path="./runtime-utils.ts" />
+/// <reference path="./runtime-types.d.ts" />
+/// <reference path="./dev-extensions.ts" />
+/// <reference path="./dev-protocol.d.ts" />
+/**
+ * Shared HMR (Hot Module Replacement) implementation.
+ *
+ * This file contains the complete HMR implementation that's shared between
+ * browser and Node.js runtimes. It manages module hot state, dependency
+ * tracking, the module.hot API, and the full HMR update flow.
+ */ /**
+ * The development module cache shared across the runtime.
+ * Browser runtime declares this directly.
+ * Node.js runtime assigns globalThis.__turbopack_module_cache__ to this.
+ */ let devModuleCache;
+/**
+ * Module IDs that are instantiated as part of the runtime of a chunk.
+ */ let runtimeModules;
+/**
+ * Maps module IDs to persisted data between executions of their hot module
+ * implementation (`hot.data`).
+ */ const moduleHotData = new Map();
+/**
+ * Maps module instances to their hot module state.
+ * Uses WeakMap so it works with both HotModule and ModuleWithDirection.
+ */ const moduleHotState = new WeakMap();
+/**
+ * Modules that call `module.hot.invalidate()` (while being updated).
+ */ const queuedInvalidatedModules = new Set();
+class UpdateApplyError extends Error {
+    name = 'UpdateApplyError';
+    dependencyChain;
+    constructor(message, dependencyChain){
+        super(message);
+        this.dependencyChain = dependencyChain;
+    }
+}
+/**
+ * Records parent-child relationship when a module imports another.
+ * Should be called during module instantiation.
+ */ // eslint-disable-next-line @typescript-eslint/no-unused-vars
+function trackModuleImport(parentModule, childModuleId, childModule) {
+    // Record that parent imports child
+    if (parentModule.children.indexOf(childModuleId) === -1) {
+        parentModule.children.push(childModuleId);
+    }
+    // Record that child is imported by parent
+    if (childModule && childModule.parents.indexOf(parentModule.id) === -1) {
+        childModule.parents.push(parentModule.id);
+    }
+}
+function formatDependencyChain(dependencyChain) {
+    return `Dependency chain: ${dependencyChain.join(' -> ')}`;
+}
+/**
+ * Walks the dependency tree to find all modules affected by a change.
+ * Returns information about whether the update can be accepted and which
+ * modules need to be invalidated.
+ *
+ * @param moduleId - The module that changed
+ * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept().
+ *                           This is used for server-side HMR where pages auto-accept at the top level.
+ */ function getAffectedModuleEffects(moduleId, autoAcceptRootModules) {
+    const outdatedModules = new Set();
+    const queue = [
+        {
+            moduleId,
+            dependencyChain: []
+        }
+    ];
+    let nextItem;
+    while(nextItem = queue.shift()){
+        const { moduleId, dependencyChain } = nextItem;
+        if (moduleId != null) {
+            if (outdatedModules.has(moduleId)) {
+                continue;
+            }
+            outdatedModules.add(moduleId);
+        }
+        // We've arrived at the runtime of the chunk, which means that nothing
+        // else above can accept this update.
+        if (moduleId === undefined) {
+            if (autoAcceptRootModules) {
+                return {
+                    type: 'accepted',
+                    moduleId,
+                    outdatedModules
+                };
+            }
+            return {
+                type: 'unaccepted',
+                dependencyChain
+            };
+        }
+        const module = devModuleCache[moduleId];
+        const hotState = moduleHotState.get(module);
+        if (// The module is not in the cache. Since this is a "modified" update,
+        // it means that the module was never instantiated before.
+        !module || hotState.selfAccepted && !hotState.selfInvalidated) {
+            continue;
+        }
+        if (hotState.selfDeclined) {
+            return {
+                type: 'self-declined',
+                dependencyChain,
+                moduleId
+            };
+        }
+        if (runtimeModules.has(moduleId)) {
+            if (autoAcceptRootModules) {
+                continue;
+            }
+            queue.push({
+                moduleId: undefined,
+                dependencyChain: [
+                    ...dependencyChain,
+                    moduleId
+                ]
+            });
+            continue;
+        }
+        for (const parentId of module.parents){
+            const parent = devModuleCache[parentId];
+            if (!parent) {
+                continue;
+            }
+            // TODO(alexkirsz) Dependencies: check accepted and declined
+            // dependencies here.
+            queue.push({
+                moduleId: parentId,
+                dependencyChain: [
+                    ...dependencyChain,
+                    moduleId
+                ]
+            });
+        }
+        // If no parents and we're at a root module, auto-accept if configured
+        if (module.parents.length === 0 && autoAcceptRootModules) {
+            continue;
+        }
+    }
+    return {
+        type: 'accepted',
+        moduleId,
+        outdatedModules
+    };
+}
+/**
+ * Computes all modules that need to be invalidated based on which modules changed.
+ *
+ * @param invalidated - The modules that have been invalidated
+ * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ */ function computedInvalidatedModules(invalidated, autoAcceptRootModules) {
+    const outdatedModules = new Set();
+    for (const moduleId of invalidated){
+        const effect = getAffectedModuleEffects(moduleId, autoAcceptRootModules);
+        switch(effect.type){
+            case 'unaccepted':
+                throw new UpdateApplyError(`cannot apply update: unaccepted module. ${formatDependencyChain(effect.dependencyChain)}.`, effect.dependencyChain);
+            case 'self-declined':
+                throw new UpdateApplyError(`cannot apply update: self-declined module. ${formatDependencyChain(effect.dependencyChain)}.`, effect.dependencyChain);
+            case 'accepted':
+                for (const outdatedModuleId of effect.outdatedModules){
+                    outdatedModules.add(outdatedModuleId);
+                }
+                break;
+            // TODO(alexkirsz) Dependencies: handle dependencies effects.
+            default:
+                invariant(effect, (effect)=>`Unknown effect type: ${effect?.type}`);
+        }
+    }
+    return outdatedModules;
+}
+/**
+ * Creates the module.hot API object and its internal state.
+ * This provides the HMR API that user code calls (module.hot.accept(), etc.)
+ */ function createModuleHot(moduleId, hotData) {
+    const hotState = {
+        selfAccepted: false,
+        selfDeclined: false,
+        selfInvalidated: false,
+        disposeHandlers: []
+    };
+    const hot = {
+        // TODO(alexkirsz) This is not defined in the HMR API. It was used to
+        // decide whether to warn whenever an HMR-disposed module required other
+        // modules. We might want to remove it.
+        active: true,
+        data: hotData ?? {},
+        // TODO(alexkirsz) Support full (dep, callback, errorHandler) form.
+        accept: (modules, _callback, _errorHandler)=>{
+            if (modules === undefined) {
+                hotState.selfAccepted = true;
+            } else if (typeof modules === 'function') {
+                hotState.selfAccepted = modules;
+            } else {
+                throw new Error('unsupported `accept` signature');
+            }
+        },
+        decline: (dep)=>{
+            if (dep === undefined) {
+                hotState.selfDeclined = true;
+            } else {
+                throw new Error('unsupported `decline` signature');
+            }
+        },
+        dispose: (callback)=>{
+            hotState.disposeHandlers.push(callback);
+        },
+        addDisposeHandler: (callback)=>{
+            hotState.disposeHandlers.push(callback);
+        },
+        removeDisposeHandler: (callback)=>{
+            const idx = hotState.disposeHandlers.indexOf(callback);
+            if (idx >= 0) {
+                hotState.disposeHandlers.splice(idx, 1);
+            }
+        },
+        invalidate: ()=>{
+            hotState.selfInvalidated = true;
+            queuedInvalidatedModules.add(moduleId);
+        },
+        // NOTE(alexkirsz) This is part of the management API, which we don't
+        // implement, but the Next.js React Refresh runtime uses this to decide
+        // whether to schedule an update.
+        status: ()=>'idle',
+        // NOTE(alexkirsz) Since we always return "idle" for now, these are no-ops.
+        addStatusHandler: (_handler)=>{},
+        removeStatusHandler: (_handler)=>{},
+        // NOTE(jridgewell) Check returns the list of updated modules, but we don't
+        // want the webpack code paths to ever update (the turbopack paths handle
+        // this already).
+        check: ()=>Promise.resolve(null)
+    };
+    return {
+        hot,
+        hotState
+    };
+}
+/**
+ * Processes queued invalidated modules and adds them to the outdated modules set.
+ * Modules that call module.hot.invalidate() are queued and processed here.
+ *
+ * @param outdatedModules - The current set of outdated modules
+ * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ */ function applyInvalidatedModules(outdatedModules, autoAcceptRootModules) {
+    if (queuedInvalidatedModules.size > 0) {
+        computedInvalidatedModules(queuedInvalidatedModules, autoAcceptRootModules).forEach((moduleId)=>{
+            outdatedModules.add(moduleId);
+        });
+        queuedInvalidatedModules.clear();
+    }
+    return outdatedModules;
+}
+/**
+ * Computes which outdated modules have self-accepted and can be hot reloaded.
+ */ function computeOutdatedSelfAcceptedModules(outdatedModules) {
+    const outdatedSelfAcceptedModules = [];
+    for (const moduleId of outdatedModules){
+        const module = devModuleCache[moduleId];
+        const hotState = moduleHotState.get(module);
+        if (module && hotState?.selfAccepted && !hotState.selfInvalidated) {
+            outdatedSelfAcceptedModules.push({
+                moduleId,
+                errorHandler: hotState.selfAccepted
+            });
+        }
+    }
+    return outdatedSelfAcceptedModules;
+}
+/**
+ * Disposes of an instance of a module.
+ * Runs hot.dispose handlers and manages persistent hot data.
+ *
+ * NOTE: mode = "replace" will not remove modules from devModuleCache.
+ * This must be done in a separate step afterwards.
+ */ function disposeModule(moduleId, mode) {
+    const module = devModuleCache[moduleId];
+    if (!module) {
+        return;
+    }
+    const hotState = moduleHotState.get(module);
+    if (!hotState) {
+        return;
+    }
+    const data = {};
+    // Run the `hot.dispose` handler, if any, passing in the persistent
+    // `hot.data` object.
+    for (const disposeHandler of hotState.disposeHandlers){
+        disposeHandler(data);
+    }
+    // This used to warn in `getOrInstantiateModuleFromParent` when a disposed
+    // module is still importing other modules.
+    if (module.hot) {
+        module.hot.active = false;
+    }
+    moduleHotState.delete(module);
+    // TODO(alexkirsz) Dependencies: delete the module from outdated deps.
+    // Remove the disposed module from its children's parent list.
+    // It will be added back once the module re-instantiates and imports its
+    // children again.
+    for (const childId of module.children){
+        const child = devModuleCache[childId];
+        if (!child) {
+            continue;
+        }
+        const idx = child.parents.indexOf(module.id);
+        if (idx >= 0) {
+            child.parents.splice(idx, 1);
+        }
+    }
+    switch(mode){
+        case 'clear':
+            delete devModuleCache[module.id];
+            moduleHotData.delete(module.id);
+            break;
+        case 'replace':
+            moduleHotData.set(module.id, data);
+            break;
+        default:
+            invariant(mode, (mode)=>`invalid mode: ${mode}`);
+    }
+}
+/**
+ * Dispose phase: runs dispose handlers and cleans up outdated/disposed modules.
+ * Returns the parent modules of outdated modules for use in the apply phase.
+ */ function disposePhase(outdatedModules, disposedModules) {
+    for (const moduleId of outdatedModules){
+        disposeModule(moduleId, 'replace');
+    }
+    for (const moduleId of disposedModules){
+        disposeModule(moduleId, 'clear');
+    }
+    // Removing modules from the module cache is a separate step.
+    // We also want to keep track of previous parents of the outdated modules.
+    const outdatedModuleParents = new Map();
+    for (const moduleId of outdatedModules){
+        const oldModule = devModuleCache[moduleId];
+        outdatedModuleParents.set(moduleId, oldModule?.parents);
+        delete devModuleCache[moduleId];
+    }
+    // TODO(alexkirsz) Dependencies: remove outdated dependency from module
+    // children.
+    return {
+        outdatedModuleParents
+    };
+}
+/* eslint-disable @typescript-eslint/no-unused-vars */ /**
+ * Shared module instantiation logic.
+ * This handles the full module instantiation flow for both browser and Node.js.
+ * Only React Refresh hooks differ between platforms (passed as callback).
+ */ function instantiateModuleShared(moduleId, sourceType, sourceData, moduleFactories, devModuleCache, runtimeModules, createModuleObjectFn, createContextFn, runModuleExecutionHooksFn) {
+    // 1. Factory validation (same in both browser and Node.js)
+    const id = moduleId;
     const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {
-        // This can happen if modules incorrectly handle HMR disposes/updates,
-        // e.g. when they keep a `setTimeout` around which still executes old code
-        // and contains e.g. a `require("something")` call.
-        let instantiationReason;
-        switch(sourceType){
-            case 0:
-                instantiationReason = `as a runtime entry of chunk ${sourceData}`;
-                break;
-            case 1:
-                instantiationReason = `because it was required from module ${sourceData}`;
-                break;
-            default:
-                invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
-        }
-        throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`);
+        throw new Error(`Module ${id} was instantiated, but the module factory is not available.`);
     }
-    const module1 = createModuleObject(id);
-    const exports = module1.exports;
-    moduleCache[id] = module1;
-    const context = new Context(module1, exports);
-    // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
+    // 2. Hot API setup (same in both - works for browser, included for Node.js)
+    const hotData = moduleHotData.get(id);
+    const { hot, hotState } = createModuleHot(id, hotData);
+    // 3. Parent assignment logic (same in both)
+    let parents;
+    switch(sourceType){
+        case SourceType.Runtime:
+            runtimeModules.add(id);
+            parents = [];
+            break;
+        case SourceType.Parent:
+            parents = [
+                sourceData
+            ];
+            break;
+        case SourceType.Update:
+            parents = sourceData || [];
+            break;
+        default:
+            throw new Error(`Unknown source type: ${sourceType}`);
+    }
+    // 4. Module creation (platform creates base module object)
+    const module = createModuleObjectFn(id);
+    const exports = module.exports;
+    module.parents = parents;
+    module.children = [];
+    module.hot = hot;
+    devModuleCache[id] = module;
+    moduleHotState.set(module, hotState);
+    // 5. Module execution (React Refresh hooks are platform-specific)
     try {
-        moduleFactory(context, module1, exports);
+        runModuleExecutionHooksFn(module, (refresh)=>{
+            const context = createContextFn(module, exports, refresh);
+            moduleFactory.call(exports, context, module, exports);
+        });
     } catch (error) {
-        module1.error = error;
+        module.error = error;
         throw error;
     }
-    module1.loaded = true;
-    if (module1.namespaceObject && module1.exports !== module1.namespaceObject) {
+    // 6. ESM interop (same in both)
+    if (module.namespaceObject && module.exports !== module.namespaceObject) {
         // in case of a circular dependency: cjs1 -> esm2 -> cjs1
-        interopEsm(module1.exports, module1.namespaceObject);
+        interopEsm(module.exports, module.namespaceObject);
     }
-    return module1;
+    return module;
 }
 /**
- * Retrieves a module from the cache, or instantiate it if it is not cached.
- */ // @ts-ignore
-function getOrInstantiateModuleFromParent(id, sourceModule) {
-    const module1 = moduleCache[id];
-    if (module1) {
-        if (module1.error) {
-            throw module1.error;
+ * Analyzes update entries and chunks to determine which modules were added, modified, or deleted.
+ * This is pure logic that doesn't depend on the runtime environment.
+ */ function computeChangedModules(entries, updates, chunkModulesMap) {
+    const chunksAdded = new Map();
+    const chunksDeleted = new Map();
+    const added = new Map();
+    const modified = new Map();
+    const deleted = new Set();
+    for (const [chunkPath, mergedChunkUpdate] of Object.entries(updates)){
+        switch(mergedChunkUpdate.type){
+            case 'added':
+                {
+                    const updateAdded = new Set(mergedChunkUpdate.modules);
+                    for (const moduleId of updateAdded){
+                        added.set(moduleId, entries[moduleId]);
+                    }
+                    chunksAdded.set(chunkPath, updateAdded);
+                    break;
+                }
+            case 'deleted':
+                {
+                    const updateDeleted = chunkModulesMap ? new Set(chunkModulesMap.get(chunkPath)) : new Set();
+                    for (const moduleId of updateDeleted){
+                        deleted.add(moduleId);
+                    }
+                    chunksDeleted.set(chunkPath, updateDeleted);
+                    break;
+                }
+            case 'partial':
+                {
+                    const updateAdded = new Set(mergedChunkUpdate.added);
+                    const updateDeleted = new Set(mergedChunkUpdate.deleted);
+                    for (const moduleId of updateAdded){
+                        added.set(moduleId, entries[moduleId]);
+                    }
+                    for (const moduleId of updateDeleted){
+                        deleted.add(moduleId);
+                    }
+                    chunksAdded.set(chunkPath, updateAdded);
+                    chunksDeleted.set(chunkPath, updateDeleted);
+                    break;
+                }
+            default:
+                throw new Error('Unknown merged chunk update type');
         }
-        return module1;
     }
-    return instantiateModule(id, 1, sourceModule.id);
+    // If a module was added from one chunk and deleted from another in the same update,
+    // consider it to be modified, as it means the module was moved from one chunk to another
+    // AND has new code in a single update.
+    for (const moduleId of added.keys()){
+        if (deleted.has(moduleId)) {
+            added.delete(moduleId);
+            deleted.delete(moduleId);
+        }
+    }
+    for (const [moduleId, entry] of Object.entries(entries)){
+        // Modules that haven't been added to any chunk but have new code are considered
+        // to be modified.
+        // This needs to be under the previous loop, as we need it to get rid of modules
+        // that were added and deleted in the same update.
+        if (!added.has(moduleId)) {
+            modified.set(moduleId, entry);
+        }
+    }
+    return {
+        added,
+        deleted,
+        modified,
+        chunksAdded,
+        chunksDeleted
+    };
 }
 /**
- * Instantiates a runtime module.
+ * Compiles new module code and walks the dependency tree to find all outdated modules.
+ * Uses the evalModuleEntry function to compile code (platform-specific).
+ *
+ * @param added - Map of added modules
+ * @param modified - Map of modified modules
+ * @param evalModuleEntry - Function to compile module code
+ * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ */ function computeOutdatedModules(added, modified, evalModuleEntry, autoAcceptRootModules) {
+    const newModuleFactories = new Map();
+    // Compile added modules
+    for (const [moduleId, entry] of added){
+        if (entry != null) {
+            newModuleFactories.set(moduleId, evalModuleEntry(entry));
+        }
+    }
+    // Walk dependency tree to find all modules affected by modifications
+    const outdatedModules = computedInvalidatedModules(modified.keys(), autoAcceptRootModules);
+    // Compile modified modules
+    for (const [moduleId, entry] of modified){
+        newModuleFactories.set(moduleId, evalModuleEntry(entry));
+    }
+    return {
+        outdatedModules,
+        newModuleFactories
+    };
+}
+/**
+ * Updates module factories and re-instantiates self-accepted modules.
+ * Uses the instantiateModule function (platform-specific via callback).
+ */ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, reportError) {
+    // Update module factories
+    for (const [moduleId, factory] of newModuleFactories.entries()){
+        applyModuleFactoryNameFn(factory);
+        moduleFactories.set(moduleId, factory);
+    }
+    // TODO(alexkirsz) Run new runtime entries here.
+    // TODO(alexkirsz) Dependencies: call accept handlers for outdated deps.
+    // Re-instantiate all outdated self-accepted modules
+    for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules){
+        try {
+            instantiateModuleFn(moduleId, SourceType.Update, outdatedModuleParents.get(moduleId));
+        } catch (err) {
+            if (typeof errorHandler === 'function') {
+                try {
+                    errorHandler(err, {
+                        moduleId,
+                        module: devModuleCache[moduleId]
+                    });
+                } catch (err2) {
+                    reportError(err2);
+                    reportError(err);
+                }
+            } else {
+                reportError(err);
+            }
+        }
+    }
+}
+/**
+ * Internal implementation that orchestrates the full HMR update flow:
+ * invalidation, disposal, and application of new modules.
+ *
+ * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ */ function applyInternal(outdatedModules, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules) {
+    outdatedModules = applyInvalidatedModules(outdatedModules, autoAcceptRootModules);
+    // Find self-accepted modules to re-instantiate
+    const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
+    // Run dispose handlers, save hot.data, clear caches
+    const { outdatedModuleParents } = disposePhase(outdatedModules, disposedModules);
+    let error;
+    function reportError(err) {
+        if (!error) error = err; // Keep first error
+    }
+    applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, reportError);
+    if (error) {
+        throw error;
+    }
+    // Recursively apply any queued invalidations from new module execution
+    if (queuedInvalidatedModules.size > 0) {
+        applyInternal(new Set(), [], new Map(), moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules);
+    }
+}
+/**
+ * Main entry point for applying an ECMAScript merged update.
+ * This is called by both browser and Node.js runtimes with platform-specific callbacks.
+ *
+ * @param options.autoAcceptRootModules - If true, root modules auto-accept updates without explicit
+ *                                   module.hot.accept(). Used for server-side HMR where pages
+ *                                   auto-accept at the top level.
+ */ function applyEcmascriptMergedUpdateShared(options) {
+    const { added, modified, disposedModules, evalModuleEntry, instantiateModule, applyModuleFactoryName, moduleFactories, devModuleCache, autoAcceptRootModules } = options;
+    const { outdatedModules, newModuleFactories } = computeOutdatedModules(added, modified, evalModuleEntry, autoAcceptRootModules);
+    applyInternal(outdatedModules, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModule, applyModuleFactoryName, autoAcceptRootModules);
+}
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-base.ts" />
+/// <reference path="../../shared/runtime/dev-extensions.ts" />
+/// <reference path="../../shared/runtime/hmr-runtime.ts" />
+/**
+ * Development Node.js runtime.
+ * Uses HotModule and shared HMR logic for hot module replacement support.
+ */ // Cast the module cache to HotModule for development mode
+// (hmr-runtime.ts declares devModuleCache as `let` variable expecting assignment)
+// This is safe because HotModule extends Module
+devModuleCache = moduleCache;
+// this is read in runtime-utils.ts so it creates a module with direction for hmr
+createModuleWithDirectionFlag = true;
+if (!globalThis.__turbopack_runtime_modules__) {
+    globalThis.__turbopack_runtime_modules__ = new Set();
+}
+runtimeModules = globalThis.__turbopack_runtime_modules__;
+const nodeDevContextPrototype = Context.prototype;
+nodeDevContextPrototype.q = exportUrl;
+nodeDevContextPrototype.M = moduleFactories;
+nodeDevContextPrototype.c = devModuleCache;
+nodeDevContextPrototype.R = resolvePathFromModule;
+nodeDevContextPrototype.b = createWorker;
+nodeDevContextPrototype.C = clearChunkCache;
+/**
+ * Instantiates a module in development mode using shared HMR logic.
+ */ function instantiateModule(id, sourceType, sourceData) {
+    // Node.js: creates base module object (hot API added by shared code)
+    const createModuleObjectFn = (moduleId)=>{
+        return createModuleWithDirection(moduleId);
+    };
+    // Node.js: creates Context (no refresh parameter)
+    const createContext = (module1, exports, _refresh)=>{
+        return new Context(module1, exports);
+    };
+    // Node.js: no hooks wrapper, just execute directly
+    const runWithHooks = (module1, exec)=>{
+        exec(undefined); // no refresh context
+    };
+    // Use shared instantiation logic (includes hot API setup)
+    const newModule = instantiateModuleShared(id, sourceType, sourceData, moduleFactories, devModuleCache, runtimeModules, createModuleObjectFn, createContext, runWithHooks);
+    newModule.loaded = true;
+    return newModule;
+}
+/**
+ * Instantiates a runtime module in development mode.
  */ function instantiateRuntimeModule(chunkPath, moduleId) {
-    return instantiateModule(moduleId, 0, chunkPath);
+    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module1 = moduleCache[moduleId];
+    const module1 = devModuleCache[moduleId];
     if (module1) {
         if (module1.error) {
             throw module1.error;
@@ -849,22 +1415,126 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
     }
     return instantiateRuntimeModule(chunkPath, moduleId);
 }
-const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
- * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
- */ function isJs(chunkUrlOrPath) {
-    return regexJsUrl.test(chunkUrlOrPath);
+ * Retrieves a module from the cache, or instantiate it if it is not cached.
+ * Also tracks parent-child relationships for HMR dependency tracking.
+ */ // @ts-ignore
+function getOrInstantiateModuleFromParent(id, sourceModule) {
+    // Track parent-child relationship
+    trackModuleImport(sourceModule, id, devModuleCache[id]);
+    const module1 = devModuleCache[id];
+    if (module1) {
+        if (module1.error) {
+            throw module1.error;
+        }
+        return module1;
+    }
+    const newModule = instantiateModule(id, SourceType.Parent, sourceModule.id);
+    // Track again after instantiation to ensure the relationship is recorded
+    trackModuleImport(sourceModule, id, newModule);
+    return newModule;
 }
-function __turbopack_server_hmr_apply__(_update) {
-    // TODO: Implement actual HMR logic to update module factories
-    // For now, just return true to indicate we "accepted" the update
-    return true;
-}
-globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__;
 module.exports = (sourcePath)=>({
         m: (id)=>getOrInstantiateRuntimeModule(sourcePath, id),
         c: (chunkData)=>loadRuntimeChunk(sourcePath, chunkData)
     });
+/// <reference path="../../shared/runtime/dev-protocol.d.ts" />
+/// <reference path="../../shared/runtime/hmr-runtime.ts" />
+/* eslint-disable @typescript-eslint/no-unused-vars */ let serverHmrUpdateHandler = null;
+function initializeServerHmr(moduleFactories, devModuleCache) {
+    if (serverHmrUpdateHandler != null) {
+        throw new Error('[Server HMR] Server HMR client is already initialized');
+    }
+    // Register the update handler for the server runtime
+    serverHmrUpdateHandler = (msg)=>{
+        handleNodejsUpdate(msg, moduleFactories, devModuleCache);
+    };
+}
+/**
+ * Emits an HMR message to the registered update handler.
+ * Node uses a simpler listener pattern than the browser's websocket connection.
+ *
+ * Note: This is only called via __turbopack_server_hmr_apply__ which ensures
+ * the handler is initialized first via ensureHmrClientInitialized().
+ */ function emitMessage(msg) {
+    if (serverHmrUpdateHandler == null) {
+        console.warn('[Server HMR] No update handler registered to receive message:', msg);
+        return false;
+    }
+    try {
+        serverHmrUpdateHandler(msg.data);
+        return true;
+    } catch (err) {
+        console.error('[Server HMR] Listener error:', err);
+        return false;
+    }
+}
+/**
+ * Handles server message updates and applies them to the Node.js runtime.
+ * Uses shared HMR update logic from hmr-runtime.ts.
+ */ function handleNodejsUpdate(msg, moduleFactories, devModuleCache) {
+    if (msg.type !== 'partial') {
+        return;
+    }
+    const instruction = msg.instruction;
+    if (instruction.type !== 'EcmascriptMergedUpdate') {
+        return;
+    }
+    try {
+        const { entries = {}, chunks = {} } = instruction;
+        // Node.js eval function (no source maps)
+        const evalModuleEntry = (entry)=>{
+            // eslint-disable-next-line no-eval
+            return (0, eval)(entry.code);
+        };
+        const { added, modified } = computeChangedModules(entries, chunks, undefined // no chunkModulesMap for Node.js
+        );
+        // Use shared HMR update implementation
+        applyEcmascriptMergedUpdateShared({
+            added,
+            modified,
+            disposedModules: [],
+            evalModuleEntry,
+            instantiateModule,
+            applyModuleFactoryName: ()=>{},
+            moduleFactories,
+            devModuleCache,
+            autoAcceptRootModules: true
+        });
+    } catch (e) {
+        console.error('[Server HMR] Update failed, full reload needed:', e);
+        throw e;
+    }
+}
+/// <reference path="../../shared/runtime/dev-protocol.d.ts" />
+/// <reference path="./hmr-client.ts" />
+/**
+ * Note: hmr-runtime.ts is embedded before this file, so its functions
+ * (initializeServerHmr, emitMessage) are available in the same scope.
+ */ // Initialize server HMR client (connects to shared HMR infrastructure)
+let hmrClientInitialized = false;
+function ensureHmrClientInitialized() {
+    if (hmrClientInitialized) return;
+    hmrClientInitialized = true;
+    // initializeServerHmr is from hmr-client.ts (embedded before this file)
+    // moduleFactories is from dev-runtime.ts
+    // devModuleCache is the HotModule-typed cache from dev-runtime.ts
+    initializeServerHmr(moduleFactories, devModuleCache);
+}
+function __turbopack_server_hmr_apply__(update) {
+    try {
+        ensureHmrClientInitialized();
+        // emitMessage returns false if any listener failed to apply the update
+        return emitMessage({
+            type: 'turbopack-message',
+            data: update
+        });
+    } catch (err) {
+        console.error('[Server HMR] Failed to apply update:', err);
+        return false;
+    }
+}
+globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__;
 
 
 //# sourceMappingURL=%5Bturbopack%5D_runtime.js.map
