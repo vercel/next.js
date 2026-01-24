@@ -68,10 +68,14 @@ export const isCsrfOriginAllowed = (
   originDomain: string,
   allowedOrigins: string[] = []
 ): boolean => {
-  return allowedOrigins.some(
-    (allowedOrigin) =>
-      allowedOrigin &&
-      (allowedOrigin === originDomain ||
-        matchWildcardDomain(originDomain, allowedOrigin))
-  )
+  const normalizedOrigin = originDomain.toLowerCase()
+
+  return allowedOrigins.some((allowedOrigin) => {
+    if (!allowedOrigin) return false
+    const normalizedAllowed = allowedOrigin.toLowerCase()
+    return (
+      normalizedAllowed === normalizedOrigin ||
+      matchWildcardDomain(normalizedOrigin, normalizedAllowed)
+    )
+  })
 }
