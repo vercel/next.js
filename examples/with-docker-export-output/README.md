@@ -33,7 +33,7 @@ A production-ready example demonstrating how to Dockerize Next.js applications u
 #### Using Docker Compose
 
 ```bash
-docker compose up nextjs-static-export --build
+docker compose up --build
 ```
 
 **Access:** [http://localhost:8080](http://localhost:8080)
@@ -59,7 +59,7 @@ docker run -p 8080:8080 nextjs-static-export
 #### Using Docker Compose
 
 ```bash
-docker compose up nextjs-static-export-with-serve --build
+docker compose --profile serve up --build
 ```
 
 **Access:** [http://localhost:3000](http://localhost:3000)
@@ -219,25 +219,3 @@ This example can be deployed to any container-based platform:
 - [Learn Docker](https://docs.docker.com/get-started/) - Get started with Docker fundamentals, containerization, and deployment
 - [Docker Documentation](https://docs.docker.com/) - Comprehensive Docker documentation and reference guides
 - [React.js Docker Guide](https://docs.docker.com/language/nodejs/) - Official Docker guide for React.js applications following best practices for containerization
-- [Front-end Production Dockerfiles](https://github.com/kristiyan-velkov/frontend-prod-dockerfiles) - Production-ready Dockerfiles for React.js, Angular, Vue.js, Next.js, Nuxt.js and more front-end applications.
-
-## Author
-
-**Kristiyan Velkov**
-
-- [Website](https://kristiyanvelkov.com/)
-- [LinkedIn](https://www.linkedin.com/in/kristiyan-velkov-763130b3/)
-- [GitHub](https://github.com/kristiyan-velkov)
-- [X (Twitter)](https://x.com/krisvelkov)
-
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## Contributing
-
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/kristiyanvelkov/next-docker-example/issues).
-
----
-
-Made with ❤️ by [Kristiyan Velkov](https://kristiyanvelkov.com/)

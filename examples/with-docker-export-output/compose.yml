@@ -1,4 +1,5 @@
 services:
+  # Default Nginx service (runs with: docker compose up)
   nextjs-static-export:
     build:
       context: .
@@ -11,11 +12,14 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
+  # Serve variant (use with: docker compose --profile serve up)
   nextjs-static-export-with-serve:
     build:
       context: .
       dockerfile: Dockerfile.serve
     image: nextjs-static-export-serve-image
+    profiles:
+      - serve
     container_name: nextjs-static-export-serve-container
     environment:
       NODE_ENV: production
