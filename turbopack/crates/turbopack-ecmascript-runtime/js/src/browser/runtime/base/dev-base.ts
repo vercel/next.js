@@ -381,11 +381,12 @@ function applyEcmascriptMergedUpdate(update: EcmascriptMergedUpdate) {
     modified,
     disposedModules,
     evalModuleEntry: _eval, // browser's eval with source maps
-    instantiateModuleFn: instantiateModule, // now wraps shared logic
-    applyModuleFactoryNameFn: applyModuleFactoryName,
+    instantiateModule, // now wraps shared logic
+    applyModuleFactoryName,
     moduleFactories,
     devModuleCache,
-    autoAcceptRootModules: false, // Browser HMR requires explicit accept calls
+    runtimeModules,
+    autoAcceptAtRoot: false,
   })
 }
 

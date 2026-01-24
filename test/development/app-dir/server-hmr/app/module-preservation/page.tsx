@@ -1,4 +1,4 @@
-import { evaluatedAt } from './unmodified-module'
+import { evaluatedAt } from '../unmodified-module'
 
 const pageLoadId = Math.random().toString(36).slice(2)
 

@@ -83,12 +83,19 @@ function trackModuleImport(
   childModule: ModuleWithDirection | undefined
 ): void {
   // Record that parent imports child
-  if (parentModule.children.indexOf(childModuleId) === -1) {
+  if (
+    parentModule.children &&
+    parentModule.children.indexOf(childModuleId) === -1
+  ) {
     parentModule.children.push(childModuleId)
   }
 
   // Record that child is imported by parent
-  if (childModule && childModule.parents.indexOf(parentModule.id) === -1) {
+  if (
+    childModule &&
+    childModule.parents &&
+    childModule.parents.indexOf(parentModule.id) === -1
+  ) {
     childModule.parents.push(parentModule.id)
   }
 }
@@ -102,14 +109,13 @@ function formatDependencyChain(dependencyChain: ModuleId[]): string {
  * Returns information about whether the update can be accepted and which
  * modules need to be invalidated.
  *
- * Copied directly from browser implementation.
- *
- * @param moduleId - The module to check for effects
- * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ * @param moduleId - The module that changed
+ * @param autoAcceptAtRoot - If true, root modules auto-accept updates without explicit module.hot.accept().
+ *                           This is used for server-side HMR where pages auto-accept at the top level.
  */
 function getAffectedModuleEffects(
   moduleId: ModuleId,
-  autoAcceptRootModules: boolean
+  autoAcceptAtRoot: boolean
 ): ModuleEffect {
   const outdatedModules: Set<ModuleId> = new Set()
 
@@ -124,25 +130,34 @@ function getAffectedModuleEffects(
 
   let nextItem
   while ((nextItem = queue.shift())) {
-    const { moduleId: currentModuleId, dependencyChain } = nextItem
+    const { moduleId, dependencyChain } = nextItem
+
+    if (moduleId != null) {
+      if (outdatedModules.has(moduleId)) {
+        // Avoid infinite loops caused by cycles between modules in the dependency chain.
+        continue
+      }
+
+      outdatedModules.add(moduleId)
+    }
 
     // We've arrived at the runtime of the chunk, which means that nothing
     // else above can accept this update.
-    if (currentModuleId === undefined) {
+    if (moduleId === undefined) {
+      if (autoAcceptAtRoot) {
+        return {
+          type: 'accepted',
+          moduleId,
+          outdatedModules,
+        }
+      }
       return {
         type: 'unaccepted',
         dependencyChain,
       }
     }
 
-    if (outdatedModules.has(currentModuleId)) {
-      // Avoid infinite loops caused by cycles between modules in the dependency chain.
-      continue
-    }
-
-    outdatedModules.add(currentModuleId)
-
-    const module = devModuleCache[currentModuleId]
+    const module = devModuleCache[moduleId]
     const hotState = moduleHotState.get(module)!
 
     if (
@@ -159,14 +174,17 @@ function getAffectedModuleEffects(
       return {
         type: 'self-declined',
         dependencyChain,
-        moduleId: currentModuleId,
+        moduleId,
       }
     }
 
-    if (runtimeModules.has(currentModuleId)) {
+    if (runtimeModules.has(moduleId)) {
+      if (autoAcceptAtRoot) {
+        continue
+      }
       queue.push({
         moduleId: undefined,
-        dependencyChain: [...dependencyChain, currentModuleId],
+        dependencyChain: [...dependencyChain, moduleId],
       })
       continue
     }
@@ -184,8 +202,13 @@ function getAffectedModuleEffects(
 
       queue.push({
         moduleId: parentId,
-        dependencyChain: [...dependencyChain, currentModuleId],
+        dependencyChain: [...dependencyChain, moduleId],
       })
+    }
+
+    // If no parents and we're at a root module, auto-accept if configured
+    if (module.parents.length === 0 && autoAcceptAtRoot) {
+      continue
     }
   }
 
@@ -199,19 +222,17 @@ function getAffectedModuleEffects(
 /**
  * Computes all modules that need to be invalidated based on which modules changed.
  *
- * Copied directly from browser implementation.
- *
- * @param invalidated - The modules to check for invalidation
- * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ * @param invalidated - The modules that have been invalidated
+ * @param autoAcceptAtRoot - If true, root modules auto-accept updates without explicit module.hot.accept()
  */
 function computedInvalidatedModules(
   invalidated: Iterable<ModuleId>,
-  autoAcceptRootModules: boolean
+  autoAcceptAtRoot: boolean
 ): Set<ModuleId> {
   const outdatedModules = new Set<ModuleId>()
 
   for (const moduleId of invalidated) {
-    const effect = getAffectedModuleEffects(moduleId, autoAcceptRootModules)
+    const effect = getAffectedModuleEffects(moduleId, autoAcceptAtRoot)
 
     switch (effect.type) {
       case 'unaccepted':
@@ -331,18 +352,17 @@ function createModuleHot(
  * Processes queued invalidated modules and adds them to the outdated modules set.
  * Modules that call module.hot.invalidate() are queued and processed here.
  *
- * @param outdatedModules - The set of already outdated modules
- * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ * @param outdatedModules - The current set of outdated modules
+ * @param autoAcceptAtRoot - If true, root modules auto-accept updates without explicit module.hot.accept()
  */
-
 function applyInvalidatedModules(
   outdatedModules: Set<ModuleId>,
-  autoAcceptRootModules: boolean
+  autoAcceptAtRoot: boolean
 ): Set<ModuleId> {
   if (queuedInvalidatedModules.size > 0) {
     computedInvalidatedModules(
       queuedInvalidatedModules,
-      autoAcceptRootModules
+      autoAcceptAtRoot
     ).forEach((moduleId) => {
       outdatedModules.add(moduleId)
     })
@@ -611,7 +631,7 @@ function computeChangedModules(
         break
       }
       default:
-        throw new Error(`Unknown merged chunk update`)
+        throw new Error('Unknown merged chunk update type')
     }
   }
 
@@ -645,13 +665,13 @@ function computeChangedModules(
  * @param added - Map of added modules
  * @param modified - Map of modified modules
  * @param evalModuleEntry - Function to compile module code
- * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ * @param autoAcceptAtRoot - If true, root modules auto-accept updates without explicit module.hot.accept()
  */
 function computeOutdatedModules(
   added: Map<ModuleId, EcmascriptModuleEntry | undefined>,
   modified: Map<ModuleId, EcmascriptModuleEntry>,
   evalModuleEntry: (entry: EcmascriptModuleEntry) => HotModuleFactoryFunction,
-  autoAcceptRootModules: boolean
+  autoAcceptAtRoot: boolean
 ): {
   outdatedModules: Set<ModuleId>
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>
@@ -668,9 +688,10 @@ function computeOutdatedModules(
   // Walk dependency tree to find all modules affected by modifications
   const outdatedModules = computedInvalidatedModules(
     modified.keys(),
-    autoAcceptRootModules
+    autoAcceptAtRoot
   )
 
+  // Compile modified modules
   for (const [moduleId, entry] of modified) {
     newModuleFactories.set(moduleId, evalModuleEntry(entry))
   }
@@ -736,7 +757,7 @@ function applyPhase(
  * Internal implementation that orchestrates the full HMR update flow:
  * invalidation, disposal, and application of new modules.
  *
- * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ * @param autoAcceptAtRoot - If true, root modules auto-accept updates without explicit module.hot.accept()
  */
 function applyInternal(
   outdatedModules: Set<ModuleId>,
@@ -750,12 +771,9 @@ function applyInternal(
     sourceData: SourceData
   ) => HotModule,
   applyModuleFactoryNameFn: (factory: HotModuleFactoryFunction) => void,
-  autoAcceptRootModules: boolean
+  autoAcceptAtRoot: boolean
 ) {
-  outdatedModules = applyInvalidatedModules(
-    outdatedModules,
-    autoAcceptRootModules
-  )
+  outdatedModules = applyInvalidatedModules(outdatedModules, autoAcceptAtRoot)
 
   // Find self-accepted modules to re-instantiate
   const outdatedSelfAcceptedModules =
@@ -798,7 +816,7 @@ function applyInternal(
       devModuleCache,
       instantiateModuleFn,
       applyModuleFactoryNameFn,
-      autoAcceptRootModules
+      autoAcceptAtRoot
     )
   }
 }
@@ -806,39 +824,44 @@ function applyInternal(
 /**
  * Main entry point for applying an ECMAScript merged update.
  * This is called by both browser and Node.js runtimes with platform-specific callbacks.
+ *
+ * @param options.autoAcceptAtRoot - If true, root modules auto-accept updates without explicit
+ *                                   module.hot.accept(). Used for server-side HMR where pages
+ *                                   auto-accept at the top level.
  */
 function applyEcmascriptMergedUpdateShared(options: {
   added: Map<ModuleId, EcmascriptModuleEntry | undefined>
   modified: Map<ModuleId, EcmascriptModuleEntry>
   disposedModules: Iterable<ModuleId>
   evalModuleEntry: (entry: EcmascriptModuleEntry) => HotModuleFactoryFunction
-  instantiateModuleFn: (
+  instantiateModule: (
     moduleId: ModuleId,
     sourceType: SourceType,
     sourceData: SourceData
   ) => HotModule
-  applyModuleFactoryNameFn: (factory: HotModuleFactoryFunction) => void
+  applyModuleFactoryName: (factory: HotModuleFactoryFunction) => void
   moduleFactories: ModuleFactories
   devModuleCache: ModuleCache<HotModule>
-  autoAcceptRootModules: boolean
+  runtimeModules: Set<ModuleId>
+  autoAcceptAtRoot: boolean
 }) {
   const {
     added,
     modified,
     disposedModules,
     evalModuleEntry,
-    instantiateModuleFn,
-    applyModuleFactoryNameFn,
+    instantiateModule,
+    applyModuleFactoryName,
     moduleFactories,
     devModuleCache,
-    autoAcceptRootModules,
+    autoAcceptAtRoot,
   } = options
 
   const { outdatedModules, newModuleFactories } = computeOutdatedModules(
     added,
     modified,
     evalModuleEntry,
-    autoAcceptRootModules
+    autoAcceptAtRoot
   )
 
   applyInternal(
@@ -847,8 +870,8 @@ function applyEcmascriptMergedUpdateShared(options: {
     newModuleFactories,
     moduleFactories,
     devModuleCache,
-    instantiateModuleFn,
-    applyModuleFactoryNameFn,
-    autoAcceptRootModules
+    instantiateModule,
+    applyModuleFactoryName,
+    autoAcceptAtRoot
   )
 }

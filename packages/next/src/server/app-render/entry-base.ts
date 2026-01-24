@@ -59,7 +59,6 @@ if (process.env.NODE_ENV === 'development') {
   SegmentViewStateNode = mod.SegmentViewStateNode
 }
 
-// For hot-reloader
 declare global {
   var __next__clear_chunk_cache__: (() => void) | null | undefined
   var __turbopack_clear_chunk_cache__: () => void | null | undefined

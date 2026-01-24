@@ -69,6 +69,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     this.chunking_context.environment(),
+                    RuntimeType::Development,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
@@ -76,6 +77,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
             RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     this.chunking_context.environment(),
+                    RuntimeType::Production,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
