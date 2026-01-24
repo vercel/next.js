@@ -7762,6 +7762,11 @@
     "styles": ["normal"],
     "subsets": ["cyrillic", "cyrillic-ext", "devanagari", "latin", "latin-ext"]
   },
+  "LINE Seed JP": {
+    "weights": ["100", "400", "700", "800"],
+    "styles": ["normal"],
+    "subsets": ["cyrillic", "greek-ext", "latin", "latin-ext"]
+  },
   "LXGW Marker Gothic": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -11076,9 +11081,34 @@
     "subsets": ["latin", "latin-ext", "multani"]
   },
   "Noto Sans Myanmar": {
-    "weights": ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal"],
-    "subsets": ["myanmar"]
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "myanmar"]
   },
   "Noto Sans NKo": {
     "weights": ["400"],

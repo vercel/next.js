@@ -12388,6 +12388,18 @@ export declare function Kurale<
     'cyrillic' | 'cyrillic-ext' | 'devanagari' | 'latin' | 'latin-ext'
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function LINE_Seed_JP<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '100' | '400' | '700' | '800' | Array<'100' | '400' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek-ext' | 'latin' | 'latin-ext'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function LXGW_Marker_Gothic<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -17701,8 +17713,8 @@ export declare function Noto_Sans_Multani<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Myanmar<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight:
+>(options?: {
+  weight?:
     | '100'
     | '200'
     | '300'
@@ -17712,6 +17724,7 @@ export declare function Noto_Sans_Myanmar<
     | '700'
     | '800'
     | '900'
+    | 'variable'
     | Array<
         '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
       >
@@ -17721,7 +17734,8 @@ export declare function Noto_Sans_Myanmar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'myanmar'>
+  subsets?: Array<'latin' | 'latin-ext' | 'myanmar'>
+  axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_NKo<
   T extends CssVariable | undefined = undefined,
