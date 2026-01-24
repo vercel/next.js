@@ -2,9 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { join } from 'path'
 
-describe('app-dir action csrf validation is case insensitive', () => {
+describe('app-dir action case-insensitive host-origin comparison', () => {
   const { next, skipped } = nextTestSetup({
-    files: join(__dirname, 'csrf-validation-case-insensitive'),
+    files: join(__dirname, 'host-match-case-insensitive'),
     skipDeployment: true,
     dependencies: {
       'server-only': 'latest',
