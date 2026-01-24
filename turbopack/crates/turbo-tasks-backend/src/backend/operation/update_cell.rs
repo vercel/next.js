@@ -107,21 +107,17 @@ impl UpdateCellOperation {
                 Lazy::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
             });
 
-            let tasks_with_keys = task
-                .iter_cell_dependents()
-                .filter(|&(dependent_cell, key, _)| {
-                    dependent_cell == cell
-                        && key.is_none_or(|key_hash| {
-                            updated_key_hashes_set
-                                .as_ref()
-                                .is_none_or(|set| set.contains(&key_hash))
-                        })
-                })
-                .map(|(_, key, task)| (task, key))
-                .filter(|&(dependent_task_id, _)| {
-                    // once tasks are never invalidated
-                    !ctx.is_once_task(dependent_task_id)
-                });
+            let tasks_with_keys =
+                task.iter_cell_dependents()
+                    .filter_map(|(dependent_cell, key, task)| {
+                        (dependent_cell == cell
+                            && key.is_none_or(|key_hash| {
+                                updated_key_hashes_set
+                                    .as_ref()
+                                    .is_none_or(|set| set.contains(&key_hash))
+                            }))
+                        .then_some((task, key))
+                    });
             let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> =
                 FxIndexMap::default();
             for (task, key) in tasks_with_keys {

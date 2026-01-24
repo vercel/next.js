@@ -5,6 +5,7 @@ use std::{
     mem::take,
     num::NonZeroU32,
     ops::{ControlFlow, Deref},
+    sync::Arc,
     thread::yield_now,
     time::{Duration, Instant},
 };
@@ -21,8 +22,10 @@ use tracing::span::Span;
     feature = "trace_aggregation_update",
     feature = "trace_find_and_schedule"
 ))]
-use tracing::{span::Span, trace_span};
-use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId};
+use tracing::trace_span;
+use turbo_tasks::{
+    FxIndexMap, TaskExecutionReason, TaskId, backend::CachedTaskType, event::EventDescription,
+};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -264,6 +267,8 @@ pub enum AggregationUpdateJob {
         // upon attempted serialization) similar to #[serde(skip)] on variants
         #[bincode(skip, default = "unreachable_decode")]
         task: TaskId,
+        /// Set the task type if not already set
+        task_type: Option<Arc<CachedTaskType>>,
     },
     /// Increases the active counters of the tasks
     IncreaseActiveCounts {
@@ -1153,12 +1158,12 @@ impl AggregationUpdateQueue {
                         }
                     }
                 }
-                AggregationUpdateJob::IncreaseActiveCount { task } => {
-                    self.increase_active_count(ctx, task);
+                AggregationUpdateJob::IncreaseActiveCount { task, task_type } => {
+                    self.increase_active_count(ctx, task, task_type);
                 }
                 AggregationUpdateJob::IncreaseActiveCounts { mut task_ids } => {
                     if let Some(task_id) = task_ids.pop() {
-                        self.increase_active_count(ctx, task_id);
+                        self.increase_active_count(ctx, task_id, None);
                         if !task_ids.is_empty() {
                             self.jobs.push_front(AggregationUpdateJobItem::new(
                                 AggregationUpdateJob::IncreaseActiveCounts { task_ids },
@@ -1371,6 +1376,7 @@ impl AggregationUpdateQueue {
                             if has_active_count {
                                 self.push(AggregationUpdateJob::IncreaseActiveCount {
                                     task: task_id,
+                                    task_type: None,
                                 });
                             }
                         }
@@ -1476,11 +1482,12 @@ impl AggregationUpdateQueue {
                 activeness_state.set_active_until_clean();
             }
         }
-        if let Some((reason, parent_priority)) = should_schedule
-            && task.add_scheduled(reason, || ctx.get_task_desc_fn(task_id))
-        {
-            drop(task);
-            ctx.schedule(task_id, parent_priority);
+        if let Some((reason, parent_priority)) = should_schedule {
+            let description = EventDescription::new(|| task.get_task_desc_fn());
+            if task.add_scheduled(reason, description) {
+                drop(task);
+                ctx.schedule(task_id, parent_priority);
+            }
         }
     }
 
@@ -1640,10 +1647,15 @@ impl AggregationUpdateQueue {
                     "inner_of_uppers_lost_follower is not able to remove follower \
                      {lost_follower_id} ({}) from {} as they don't exist as upper or follower \
                      edges",
-                    ctx.get_task_description(lost_follower_id),
+                    ctx.task(lost_follower_id, TaskDataCategory::Data)
+                        .get_task_description(),
                     upper_ids
                         .iter()
-                        .map(|id| format!("{} ({})", id, ctx.get_task_description(*id)))
+                        .map(|id| format!(
+                            "{} ({})",
+                            id,
+                            ctx.task(*id, TaskDataCategory::Data).get_task_description()
+                        ))
                         .collect::<Vec<_>>()
                         .join(", ")
                 );
@@ -1789,10 +1801,15 @@ impl AggregationUpdateQueue {
                      {upper_id} ({}) as they don't exist as upper or follower edges",
                     lost_follower_ids
                         .iter()
-                        .map(|id| format!("{} ({})", id, ctx.get_task_description(*id)))
+                        .map(|id| format!(
+                            "{} ({})",
+                            id,
+                            ctx.task(*id, TaskDataCategory::Data).get_task_description()
+                        ))
                         .collect::<Vec<_>>()
                         .join(", "),
-                    ctx.get_task_description(upper_id),
+                    ctx.task(upper_id, TaskDataCategory::Data)
+                        .get_task_description()
                 )
             }
             self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
@@ -1987,7 +2004,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_upper_has_new_followers<T: TaskIdWithOptionalCount, const N: usize>(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         new_follower_ids: SmallVec<[T; N]>,
         upper_id: TaskId,
     ) {
@@ -2252,6 +2269,7 @@ impl AggregationUpdateQueue {
                 if has_active_count {
                     self.push(AggregationUpdateJob::IncreaseActiveCount {
                         task: new_follower_id,
+                        task_type: None,
                     });
                 }
                 // notify uppers about new follower
@@ -2337,7 +2355,7 @@ impl AggregationUpdateQueue {
     /// Decreases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn decrease_active_count(&mut self, ctx: &mut impl ExecuteContext, task_id: TaskId) {
+    fn decrease_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("decrease active count").entered();
 
@@ -2381,15 +2399,29 @@ impl AggregationUpdateQueue {
     /// Increases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn increase_active_count(&mut self, ctx: &mut impl ExecuteContext, task_id: TaskId) {
+    fn increase_active_count(
+        &mut self,
+        ctx: &mut impl ExecuteContext,
+        task_id: TaskId,
+        task_type: Option<Arc<CachedTaskType>>,
+    ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
         let mut task = ctx.task(
             task_id,
-            // For performance reasons this should stay `Meta` and not `All`
-            TaskDataCategory::Meta,
+            if task_type.is_some() {
+                TaskDataCategory::All
+            } else {
+                // For performance reasons this should stay `Meta` and not `All`
+                TaskDataCategory::Meta
+            },
         );
+        if let Some(task_type) = task_type
+            && !task.has_persistent_task_type()
+        {
+            let _ = task.set_persistent_task_type(task_type);
+        }
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
@@ -2423,7 +2455,7 @@ impl AggregationUpdateQueue {
 
     fn update_aggregation_number(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
         base_effective_distance: Option<std::num::NonZero<u32>>,
         base_aggregation_number: u32,

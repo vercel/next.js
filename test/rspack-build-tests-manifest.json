@@ -3556,6 +3556,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/mdx-font-preload/mdx-font-preload.test.ts": {
+    "passed": [
+      "mdx-font-preload should apply font class from layout",
+      "mdx-font-preload should preload font from layout on MDX page",
+      "mdx-font-preload should render MDX page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/mdx-no-mdx-components/mdx.test.ts": {
     "passed": [
       "mdx app directory should allow importing client components",
@@ -8367,6 +8378,21 @@
       "compiler.define compiler.defineServer should not render the inlined variable on client side",
       "compiler.define compiler.defineServer should render the inlined expression on server side",
       "compiler.define compiler.defineServer should render the inlined variable on server side"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/deployment-id-function/deployment-id-function.test.ts": {
+    "passed": [
+      "deploymentId function support should throw error when deploymentId exceeds 32 characters",
+      "deploymentId function support should throw error when deploymentId function returns non-string",
+      "deploymentId function support should throw error when deploymentId function returns string exceeding 32 characters",
+      "deploymentId function support should work with deploymentId as a function returning string",
+      "deploymentId function support should work with deploymentId as a string",
+      "deploymentId function support should work with deploymentId function using environment variable",
+      "deploymentId function support should work with useSkewCookie and deploymentId function"
     ],
     "failed": [],
     "pending": [],
@@ -20089,6 +20115,7 @@
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for isolatedDevBuild disabled",
       "config telemetry production mode emits telemetry for isolatedDevBuild enabled by default",
       "config telemetry production mode emits telemetry for middleware related options",
@@ -20103,9 +20130,7 @@
       "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
-    "failed": [
-      "config telemetry production mode emits telemetry for filesystem cache in dev mode"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -22099,7 +22124,9 @@
   },
   "test/production/standalone-mode/required-server-files/required-server-files-app.test.ts": {
     "passed": [
+      "required server files app router should de-dupe HTML/RSC requests for ISR pages",
       "required server files app router should handle optional catchall",
+      "required server files app router should isolate cache between different ISR request groups",
       "required server files app router should not fail caching",
       "required server files app router should not override params with query params",
       "required server files app router should not send cache tags in minimal mode for SSR",
@@ -22161,7 +22188,6 @@
       "required server files should bubble error correctly for gip page",
       "required server files should bubble error correctly for gsp page",
       "required server files should bubble error correctly for gssp page",
-      "required server files should cap de-dupe previousCacheItem expires time",
       "required server files should correctly handle a mismatch in buildIds when normalizing next data",
       "required server files should de-dupe HTML/data requests",
       "required server files should favor valid route params over routes-matches",
@@ -22245,7 +22271,6 @@
       "required server files should bubble error correctly for gip page",
       "required server files should bubble error correctly for gsp page",
       "required server files should bubble error correctly for gssp page",
-      "required server files should cap de-dupe previousCacheItem expires time",
       "required server files should correctly handle a mismatch in buildIds when normalizing next data",
       "required server files should de-dupe HTML/data requests",
       "required server files should favor valid route params over routes-matches",
