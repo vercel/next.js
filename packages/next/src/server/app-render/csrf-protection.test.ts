@@ -77,4 +77,11 @@ describe('isCsrfOriginAllowed', () => {
     expect(isCsrfOriginAllowed('vercel.com', ['*'])).toBe(false)
     expect(isCsrfOriginAllowed('vercel.com', ['**'])).toBe(false)
   })
+
+  it('is case-insensitive for allowedOrigins', () => {
+    expect(isCsrfOriginAllowed('Example.com', ['example.com'])).toBe(true)
+    expect(isCsrfOriginAllowed('example.com', ['EXAMPLE.COM'])).toBe(true)
+    expect(isCsrfOriginAllowed('Sub.Example.com', ['*.example.com'])).toBe(true)
+    expect(isCsrfOriginAllowed('sub.example.com', ['*.EXAMPLE.COM'])).toBe(true)
+  })
 })
