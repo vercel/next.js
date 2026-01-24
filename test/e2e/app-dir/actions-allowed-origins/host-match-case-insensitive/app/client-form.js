@@ -2,10 +2,10 @@
 
 import { useActionState } from 'react'
 import { DEFAULT_MESSAGE } from './const'
+import { ORIGIN_DOMAIN, X_FORWARDED_HOST } from '../domain'
 
 export function ClientForm({ action }) {
   const [state, formAction, isPending] = useActionState(action, null)
-
   return (
     <>
       <form action={formAction} style={{ marginBottom: '20px' }}>
@@ -14,6 +14,8 @@ export function ClientForm({ action }) {
           <br />
           you can check if the server action csrf validation is case-insensitive
         </p>
+        <p>Current Origin: {ORIGIN_DOMAIN}</p>
+        <p>Current X-Forwarded-Host: {X_FORWARDED_HOST}</p>
         <div style={{ display: 'flex', gap: '10px' }}>
           <input
             type="text"
