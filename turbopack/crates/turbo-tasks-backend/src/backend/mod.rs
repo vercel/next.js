@@ -1023,43 +1023,31 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                        buffer: &mut TurboBincodeBuffer| {
             (
                 task_id,
-                meta.map(|d| {
-                    encode_task_data_into(task_id, &d, SpecificTaskDataCategory::Meta, buffer)
-                }),
-                data.map(|d| {
-                    encode_task_data_into(task_id, &d, SpecificTaskDataCategory::Data, buffer)
-                }),
+                meta.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Meta, buffer)),
+                data.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Data, buffer)),
             )
         };
-        let process_snapshot = |task_id: TaskId,
-                                inner: Box<TaskStorage>,
-                                buffer: &mut TurboBincodeBuffer| {
-            if task_id.is_transient() {
-                return (task_id, None, None);
-            }
+        let process_snapshot =
+            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
+                if task_id.is_transient() {
+                    return (task_id, None, None);
+                }
 
-            // Encode meta/data directly from TaskStorage snapshot
-            (
-                task_id,
-                inner.flags.meta_modified().then(|| {
-                    encode_task_data_into(task_id, &inner, SpecificTaskDataCategory::Meta, buffer)
-                }),
-                inner.flags.data_modified().then(|| {
-                    encode_task_data_into(task_id, &inner, SpecificTaskDataCategory::Data, buffer)
-                }),
-            )
-        };
+                // Encode meta/data directly from TaskStorage snapshot
+                (
+                    task_id,
+                    inner.flags.meta_modified().then(|| {
+                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Meta, buffer)
+                    }),
+                    inner.flags.data_modified().then(|| {
+                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Data, buffer)
+                    }),
+                )
+            };
 
-        /// How big of a buffer to allocate initially.  Based on metrics from a large application
-        /// this should cover about 98% of values with no resizes
-        const SCRATCH_BUFFER_SIZE: usize = 4096;
-
-        let snapshot = self.storage.take_snapshot(
-            &preprocess,
-            &process,
-            &process_snapshot,
-            SCRATCH_BUFFER_SIZE,
-        );
+        let snapshot = self
+            .storage
+            .take_snapshot(&preprocess, &process, &process_snapshot);
 
         #[cfg(feature = "print_cache_item_size")]
         #[derive(Default)]
@@ -3541,9 +3529,11 @@ fn far_future() -> Instant {
     Instant::now() + Duration::from_secs(86400 * 365 * 30)
 }
 
-/// Encodes task data into a provided buffer, clearing it first.
-/// This allows reusing the buffer across multiple encode calls to optimize allocations.
-fn encode_task_data_into(
+/// Encodes task data, using the provided buffer as a scratch space.  Returns a new exactly sized
+/// buffer.
+/// This allows reusing the buffer across multiple encode calls to optimize allocations and
+/// resulting buffer sizes.
+fn encode_task_data(
     task: TaskId,
     data: &TaskStorage,
     category: SpecificTaskDataCategory,
@@ -3566,6 +3556,5 @@ fn encode_task_data_into(
                 )
             })?;
     }
-
-    Ok(scratch_buffer.clone())
+    Ok(SmallVec::from_slice(&scratch_buffer))
 }

@@ -121,7 +121,6 @@ impl Storage {
         preprocess: &'l PP,
         process: &'l P,
         process_snapshot: &'l PS,
-        initial_buffer_capacity: usize,
     ) -> Vec<SnapshotShard<'l, PP, P, PS>> {
         if !self.snapshot_mode() {
             self.start_snapshot();
@@ -157,7 +156,9 @@ impl Storage {
                 // Safety: guard must outlive the iterator.
                 drop(guard);
             }
-
+            /// How big of a buffer to allocate initially.  Based on metrics from a large
+            /// application this should cover about 98% of values with no resizes
+            const SCRATCH_BUFFER_SIZE: usize = 4096;
             SnapshotShard {
                 direct_snapshots,
                 modified,
@@ -166,7 +167,7 @@ impl Storage {
                 process,
                 preprocess,
                 process_snapshot,
-                scratch_buffer: TurboBincodeBuffer::with_capacity(initial_buffer_capacity),
+                scratch_buffer: TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_SIZE),
             }
         })
     }
