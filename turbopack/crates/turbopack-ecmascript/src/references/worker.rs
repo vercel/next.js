@@ -122,7 +122,7 @@ impl ModuleReference for WorkerAssetReference {
                 url_resolve(
                     *self.origin,
                     **request,
-                    ReferenceType::Worker(self.worker_type.reference_sub_type()),
+                    self.worker_type.reference_type(),
                     Some(self.issue_source),
                     self.in_try,
                 )

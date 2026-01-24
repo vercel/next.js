@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
@@ -137,6 +137,10 @@ impl ModuleReference for WorkerModuleReference {
 impl ValueToString for WorkerModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.worker_type.reference_str())
+        Vc::cell(match self.worker_type {
+            WorkerType::WebWorker => rcstr!("web worker module"),
+            WorkerType::NodeWorkerThread => rcstr!("node worker thread module"),
+            WorkerType::SharedWebWorker => rcstr!("shared web worker module"),
+        })
     }
 }
