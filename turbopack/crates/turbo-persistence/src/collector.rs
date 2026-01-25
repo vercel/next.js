@@ -15,15 +15,37 @@ pub struct Collector<K: StoreKey, const SIZE_SHIFT: usize = 0> {
     total_key_size: usize,
     total_value_size: usize,
     entries: Vec<CollectorEntry<K>>,
+    /// Maximum number of entries before the collector is considered full
+    max_entries: usize,
+    /// Maximum total data size (keys + values) before the collector is considered full
+    data_threshold: usize,
 }
 
 impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
-    /// Creates a new collector. Note that this allocates the full capacity for the entries.
+    /// Creates a new collector with default limits. Note that this allocates the full capacity for
+    /// the entries.
     pub fn new() -> Self {
+        Self::with_config(
+            MAX_ENTRIES_PER_INITIAL_FILE,
+            DATA_THRESHOLD_PER_INITIAL_FILE,
+        )
+    }
+
+    /// Creates a new collector with custom limits.
+    ///
+    /// The limits are shifted right by `SIZE_SHIFT` to support thread-local collectors
+    /// that use smaller buffers.
+    pub fn with_config(max_entries: usize, data_threshold: usize) -> Self {
+        let max_entries = max_entries >> SIZE_SHIFT;
+        let data_threshold = data_threshold >> SIZE_SHIFT;
         Self {
             total_key_size: 0,
             total_value_size: 0,
-            entries: Vec::with_capacity(MAX_ENTRIES_PER_INITIAL_FILE >> SIZE_SHIFT),
+            entries: Vec::with_capacity(
+                max_entries.min(MAX_ENTRIES_PER_INITIAL_FILE >> SIZE_SHIFT),
+            ),
+            max_entries,
+            data_threshold,
         }
     }
 
@@ -34,9 +56,8 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
 
     /// Returns true if the collector is full.
     pub fn is_full(&self) -> bool {
-        self.entries.len() >= MAX_ENTRIES_PER_INITIAL_FILE >> SIZE_SHIFT
-            || self.total_key_size + self.total_value_size
-                > DATA_THRESHOLD_PER_INITIAL_FILE >> SIZE_SHIFT
+        self.entries.len() >= self.max_entries
+            || self.total_key_size + self.total_value_size > self.data_threshold
     }
 
     /// Adds a normal key-value pair to the collector.

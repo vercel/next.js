@@ -25,7 +25,7 @@ use crate::{
     compaction::selector::{Compactable, get_merge_segments},
     compression::decompress_into_arc,
     constants::{
-        DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
+        DATA_THRESHOLD_PER_COMPACTED_FILE, DbConfig, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
     key::{StoreKey, hash_key},
@@ -121,6 +121,8 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
     value_block_cache: BlockCache,
+    /// Per-family configuration for file limits.
+    config: DbConfig<FAMILIES>,
     /// Statistics for the database.
     #[cfg(feature = "stats")]
     stats: TrackedStats,
@@ -157,6 +159,11 @@ impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, 
         Self::open_with_parallel_scheduler(path, Default::default())
     }
 
+    /// Open a TurboPersistence database at the given path with custom per-family configuration.
+    pub fn open_with_config(path: PathBuf, config: DbConfig<FAMILIES>) -> Result<Self> {
+        Self::open_with_config_and_parallel_scheduler(path, config, Default::default())
+    }
+
     /// Open a TurboPersistence database at the given path in read only mode.
     /// This will read the directory. No Cleanup is performed.
     pub fn open_read_only(path: PathBuf) -> Result<Self> {
@@ -165,7 +172,12 @@ impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, 
 }
 
 impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> {
-    fn new(path: PathBuf, read_only: bool, parallel_scheduler: S) -> Self {
+    fn new(
+        path: PathBuf,
+        read_only: bool,
+        parallel_scheduler: S,
+        config: DbConfig<FAMILIES>,
+    ) -> Self {
         Self {
             parallel_scheduler,
             path,
@@ -191,6 +203,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 Default::default(),
                 Default::default(),
             ),
+            config,
             #[cfg(feature = "stats")]
             stats: TrackedStats::default(),
         }
@@ -201,7 +214,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// properly. Cleanup only requires to read a few bytes from a few files and to delete
     /// files, so it's fast.
     pub fn open_with_parallel_scheduler(path: PathBuf, parallel_scheduler: S) -> Result<Self> {
-        let mut db = Self::new(path, false, parallel_scheduler);
+        Self::open_with_config_and_parallel_scheduler(path, DbConfig::default(), parallel_scheduler)
+    }
+
+    /// Open a TurboPersistence database at the given path with custom per-family configuration.
+    pub fn open_with_config_and_parallel_scheduler(
+        path: PathBuf,
+        config: DbConfig<FAMILIES>,
+        parallel_scheduler: S,
+    ) -> Result<Self> {
+        let mut db = Self::new(path, false, parallel_scheduler, config);
         db.open_directory(false)?;
         Ok(db)
     }
@@ -212,7 +234,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         path: PathBuf,
         parallel_scheduler: S,
     ) -> Result<Self> {
-        let mut db = Self::new(path, true, parallel_scheduler);
+        let mut db = Self::new(path, true, parallel_scheduler, DbConfig::default());
         db.open_directory(false)?;
         Ok(db)
     }
@@ -422,6 +444,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             self.path.clone(),
             current,
             self.parallel_scheduler.clone(),
+            self.config.family_configs,
         ))
     }
 
@@ -1079,10 +1102,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             collector.total_key_size += key_size;
                                             collector.total_value_size += value_size;
 
+                                            let family_config =
+                                                &self.config.family_configs[family as usize];
                                             if collector.total_key_size + collector.total_value_size
-                                                > DATA_THRESHOLD_PER_COMPACTED_FILE
+                                                > family_config.data_threshold_per_compacted_file
                                                 || collector.entries.len()
-                                                    >= MAX_ENTRIES_PER_COMPACTED_FILE
+                                                    >= family_config.max_entries_per_compacted_file
                                             {
                                                 let selected_total_key_size =
                                                     collector.last_entries_total_key_size;

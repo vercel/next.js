@@ -10,7 +10,8 @@ use anyhow::{Ok, Result};
 use parking_lot::Mutex;
 use smallvec::SmallVec;
 use turbo_persistence::{
-    ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
+    ArcSlice, CompactConfig, DbConfig, FamilyConfig, KeyBase, StoreKey, TurboPersistence,
+    ValueBuffer,
 };
 use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
 
@@ -46,7 +47,26 @@ pub struct TurboKeyValueDatabase {
 
 impl TurboKeyValueDatabase {
     pub fn new(versioned_path: PathBuf, is_ci: bool, is_short_session: bool) -> Result<Self> {
-        let db = Arc::new(TurboPersistence::open(versioned_path)?);
+        // Configure per-family limits based on keyspace characteristics
+        let mut config = DbConfig::<FAMILIES>::default();
+
+        // Infra (family 0): Only 2 keys ever exist, minimal allocation needed
+        config.family_configs[KeySpace::Infra as usize] = FamilyConfig {
+            max_entries_per_initial_file: 16,
+            max_entries_per_compacted_file: 16,
+            ..Default::default()
+        };
+
+        // TaskCache (family 3): Index with collision semantics - maximize entries per file
+        // to minimize files to scan during get_multiple lookups.
+        // Use usize::MAX to effectively disable entry limit; data threshold controls file size.
+        config.family_configs[KeySpace::TaskCache as usize] = FamilyConfig {
+            max_entries_per_initial_file: usize::MAX,
+            max_entries_per_compacted_file: usize::MAX,
+            ..Default::default()
+        };
+
+        let db = Arc::new(TurboPersistence::open_with_config(versioned_path, config)?);
         Ok(Self {
             db: db.clone(),
             compact_join_handle: Mutex::new(None),

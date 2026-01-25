@@ -26,6 +26,7 @@ mod write_batch;
 mod tests;
 
 pub use arc_slice::ArcSlice;
+pub use constants::{DbConfig, FamilyConfig};
 pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
 pub use meta_file::MetaEntryFlags;

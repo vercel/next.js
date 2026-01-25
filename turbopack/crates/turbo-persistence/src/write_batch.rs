@@ -19,7 +19,7 @@ use crate::{
     collector::Collector,
     collector_entry::CollectorEntry,
     compression::compress_into_buffer,
-    constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    constants::{FamilyConfig, MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     key::StoreKey,
     meta_file::MetaEntryFlags,
     meta_file_builder::MetaFileBuilder,
@@ -82,25 +82,39 @@ pub struct WriteBatch<K: StoreKey + Send, S: ParallelScheduler, const FAMILIES: 
     /// The list of new SST files that have been created.
     /// Tuple of (sequence number, file).
     new_sst_files: Mutex<Vec<(u32, File)>>,
+    /// Per-family configuration for file limits.
+    family_configs: [FamilyConfig; FAMILIES],
 }
 
 impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
     WriteBatch<K, S, FAMILIES>
 {
-    /// Creates a new write batch for a database.
-    pub(crate) fn new(path: PathBuf, current: u32, parallel_scheduler: S) -> Self {
+    /// Creates a new write batch for a database with per-family configuration.
+    pub(crate) fn new(
+        path: PathBuf,
+        current: u32,
+        parallel_scheduler: S,
+        family_configs: [FamilyConfig; FAMILIES],
+    ) -> Self {
         const {
             assert!(FAMILIES <= usize_from_u32(u32::MAX));
         };
+        let collectors = std::array::from_fn(|i| {
+            let config = &family_configs[i];
+            Mutex::new(GlobalCollectorState::Unsharded(Collector::with_config(
+                config.max_entries_per_initial_file,
+                config.data_threshold_per_initial_file,
+            )))
+        });
         Self {
             parallel_scheduler,
             db_path: path,
             current_sequence_number: AtomicU32::new(current),
             thread_locals: ThreadLocal::new(),
-            collectors: [(); FAMILIES]
-                .map(|_| Mutex::new(GlobalCollectorState::Unsharded(Collector::new()))),
+            collectors,
             meta_collectors: [(); FAMILIES].map(|_| Mutex::new(Vec::new())),
             new_sst_files: Mutex::new(Vec::new()),
+            family_configs,
         }
     }
 
@@ -124,8 +138,14 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         family: u32,
     ) -> Result<&'l mut Collector<K, THREAD_LOCAL_SIZE_SHIFT>> {
         debug_assert!(usize_from_u32(family) < FAMILIES);
-        let collector =
-            state.collectors[usize_from_u32(family)].get_or_insert_with(|| Collector::new());
+        let family_idx = usize_from_u32(family);
+        let config = &self.family_configs[family_idx];
+        let collector = state.collectors[family_idx].get_or_insert_with(|| {
+            Collector::with_config(
+                config.max_entries_per_initial_file,
+                config.data_threshold_per_initial_file,
+            )
+        });
         if collector.is_full() {
             self.flush_thread_local_collector(family, collector)?;
         }
@@ -138,9 +158,18 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         family: u32,
         collector: &mut Collector<K, THREAD_LOCAL_SIZE_SHIFT>,
     ) -> Result<()> {
+        let family_idx = usize_from_u32(family);
+        let config = &self.family_configs[family_idx];
+        let new_collector = || {
+            Collector::with_config(
+                config.max_entries_per_initial_file,
+                config.data_threshold_per_initial_file,
+            )
+        };
+
         let mut full_collectors = SmallVec::<[_; 2]>::new();
         {
-            let mut global_collector_state = self.collectors[usize_from_u32(family)].lock();
+            let mut global_collector_state = self.collectors[family_idx].lock();
             for entry in collector.drain() {
                 match &mut *global_collector_state {
                     GlobalCollectorState::Unsharded(collector) => {
@@ -148,7 +177,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                         if collector.is_full() {
                             // When full, split the entries into shards.
                             let mut shards: [Collector<K>; 4] =
-                                [(); COLLECTOR_SHARDS].map(|_| Collector::new());
+                                [(); COLLECTOR_SHARDS].map(|_| new_collector());
                             for entry in collector.drain() {
                                 let shard = (entry.key.hash >> COLLECTOR_SHARD_SHIFT) as usize;
                                 shards[shard].add_entry(entry);
@@ -157,8 +186,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                             // and the collector is full after the split.
                             for collector in shards.iter_mut() {
                                 if collector.is_full() {
-                                    full_collectors
-                                        .push(replace(&mut *collector, Collector::new()));
+                                    full_collectors.push(replace(&mut *collector, new_collector()));
                                 }
                             }
                             *global_collector_state = GlobalCollectorState::Sharded(shards);
@@ -169,7 +197,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                         let collector = &mut shards[shard];
                         collector.add_entry(entry);
                         if collector.is_full() {
-                            full_collectors.push(replace(&mut *collector, Collector::new()));
+                            full_collectors.push(replace(&mut *collector, new_collector()));
                         }
                     }
                 }
@@ -252,7 +280,9 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
             })?;
 
         // Now we flush the global collector(s).
-        let mut collector_state = self.collectors[usize_from_u32(family)].lock();
+        let family_idx = usize_from_u32(family);
+        let config = &self.family_configs[family_idx];
+        let mut collector_state = self.collectors[family_idx].lock();
         match &mut *collector_state {
             GlobalCollectorState::Unsharded(collector) => {
                 if !collector.is_empty() {
@@ -264,7 +294,10 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
             GlobalCollectorState::Sharded(_) => {
                 let GlobalCollectorState::Sharded(mut shards) = replace(
                     &mut *collector_state,
-                    GlobalCollectorState::Unsharded(Collector::new()),
+                    GlobalCollectorState::Unsharded(Collector::with_config(
+                        config.max_entries_per_initial_file,
+                        config.data_threshold_per_initial_file,
+                    )),
                 ) else {
                     unreachable!();
                 };
@@ -333,8 +366,13 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         let mut new_sst_files = take(self.new_sst_files.get_mut());
         let shared_new_sst_files = Mutex::new(&mut new_sst_files);
 
-        let new_collectors =
-            [(); FAMILIES].map(|_| Mutex::new(GlobalCollectorState::Unsharded(Collector::new())));
+        let new_collectors = std::array::from_fn(|i| {
+            let config = &self.family_configs[i];
+            Mutex::new(GlobalCollectorState::Unsharded(Collector::with_config(
+                config.max_entries_per_initial_file,
+                config.data_threshold_per_initial_file,
+            )))
+        });
         let collectors = replace(&mut self.collectors, new_collectors);
         let collectors = collectors
             .into_iter()
