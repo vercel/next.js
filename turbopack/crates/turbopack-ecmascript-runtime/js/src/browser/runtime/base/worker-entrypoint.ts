@@ -3,7 +3,7 @@
  */
 
 interface WorkerBootstrapConfig {
-  // TURBOPACK_CHUNK_SUFFIX
+  // TURBOPACK_ASSET_SUFFIX
   S?: string
   // NEXT_DEPLOYMENT_ID
   N?: string
@@ -42,7 +42,7 @@ interface WorkerBootstrapConfig {
   // types and ensure that the next chunk URLs are same-origin.
   const config: WorkerBootstrapConfig = JSON.parse(paramsString)
 
-  const TURBOPACK_CHUNK_SUFFIX = typeof config.S === 'string' ? config.S : ''
+  const TURBOPACK_ASSET_SUFFIX = typeof config.S === 'string' ? config.S : ''
   const NEXT_DEPLOYMENT_ID = typeof config.N === 'string' ? config.N : ''
   // In a normal browser context, the runtime can figure out which chunk is
   // currently executing via `document.currentScript`. Workers don't have that
@@ -55,7 +55,7 @@ interface WorkerBootstrapConfig {
   const TURBOPACK_NEXT_CHUNK_URLS = Array.isArray(config.NC) ? config.NC : []
 
   Object.assign(self, {
-    TURBOPACK_CHUNK_SUFFIX,
+    TURBOPACK_ASSET_SUFFIX,
     TURBOPACK_NEXT_CHUNK_URLS,
     NEXT_DEPLOYMENT_ID,
   })

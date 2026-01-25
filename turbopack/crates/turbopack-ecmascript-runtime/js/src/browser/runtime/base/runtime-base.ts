@@ -12,7 +12,7 @@
 /// <reference path="../../../shared/runtime-utils.ts" />
 
 // Used in WebWorkers to tell the runtime about the chunk suffix
-declare var TURBOPACK_CHUNK_SUFFIX: string
+declare var TURBOPACK_ASSET_SUFFIX: string
 // Used in WebWorkers to tell the runtime about the current chunk url since it
 // can't be detected via `document.currentScript`. Note it's stored in reversed
 // order to use `push` and `pop`
@@ -20,7 +20,7 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
-declare var CHUNK_SUFFIX: string
+declare var ASSET_SUFFIX: string
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -314,6 +314,18 @@ function resolveAbsolutePath(modulePath?: string): string {
 browserContextPrototype.P = resolveAbsolutePath
 
 /**
+ * Exports a URL with the static suffix appended.
+ */
+function exportUrl(
+  this: TurbopackBrowserBaseContext<Module>,
+  url: string,
+  id: ModuleId | undefined
+) {
+  exportValue.call(this, `${url}${ASSET_SUFFIX}`, id)
+}
+browserContextPrototype.q = exportUrl
+
+/**
  * Returns a URL for the worker.
  * The entrypoint is a pre-compiled worker runtime file. The params configure
  * which module chunks to load and which module to run as the entry point.
@@ -330,7 +342,7 @@ function getWorkerURL(
   const url = new URL(getChunkRelativeUrl(entrypoint), location.origin)
 
   const params = {
-    S: CHUNK_SUFFIX,
+    S: ASSET_SUFFIX,
     N: (globalThis as any).NEXT_DEPLOYMENT_ID,
     NC: moduleChunks.map((chunk) => getChunkRelativeUrl(chunk)),
   }
@@ -361,7 +373,7 @@ function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
   return `${CHUNK_BASE_PATH}${chunkPath
     .split('/')
     .map((p) => encodeURIComponent(p))
-    .join('/')}${CHUNK_SUFFIX}` as ChunkUrl
+    .join('/')}${ASSET_SUFFIX}` as ChunkUrl
 }
 
 /**
