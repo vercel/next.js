@@ -6,7 +6,7 @@ version: experimental
 
 ## Usage
 
-Experimental support for inlining CSS in the `<head>`. When this flag is enabled, all places where we normally generate a `<link>` tag will instead have a generated `<style>` tag.
+Experimental support for inlining CSS in the `<head>`. When enabled, CSS that would normally be loaded via `<link>` tags is instead embedded directly in `<style>` tags.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -31,6 +31,48 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+### Options
+
+| Value      | Description                               |
+| ---------- | ----------------------------------------- |
+| `false`    | CSS is loaded via `<link>` tags (default) |
+| `true`     | All CSS is inlined                        |
+| `'shared'` | Only root layout CSS is inlined           |
+
+### The `'shared'` Option
+
+When using `inlineCss: 'shared'`, only the CSS from your root layout is inlined. This is particularly useful when using utility-first CSS frameworks like Tailwind CSS, where the root layout CSS is shared across all pages.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    inlineCss: 'shared',
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    inlineCss: 'shared',
+  },
+}
+
+module.exports = nextConfig
+```
+
+With `'shared'` mode:
+
+- **Root layout CSS** is inlined in the initial HTML and excluded from RSC payloads during client-side navigation (since the client already has it)
+- **Page-specific CSS** is loaded via `<link>` tags and included in RSC payloads for navigations
+
+This provides the performance benefits of inlined CSS for shared styles while avoiding potential issues with page-specific CSS during client-side navigation.
+
 ## Trade-Offs
 
 ### When to Use Inline CSS
@@ -43,7 +85,7 @@ Inlining CSS can be beneficial in several scenarios:
 
 - **Slow Connections**: For users on slower networks where each request adds considerable latency, inlining CSS can provide a noticeable performance boost by reducing network roundtrips.
 
-- **Atomic CSS Bundles (e.g., Tailwind)**: With utility-first frameworks like Tailwind CSS, the size of the styles required for a page is often O(1) relative to the complexity of the design. This makes inlining a compelling choice because the entire set of styles for the current page is lightweight and doesn’t grow with the page size. Inlining Tailwind styles ensures minimal payload and eliminates the need for additional network requests, which can further enhance performance.
+- **Atomic CSS Bundles (e.g., Tailwind)**: With utility-first frameworks like Tailwind CSS, the size of the styles required for a page is often O(1) relative to the complexity of the design. This makes inlining a compelling choice because the entire set of styles for the current page is lightweight and doesn't grow with the page size. Inlining Tailwind styles ensures minimal payload and eliminates the need for additional network requests, which can further enhance performance.
 
 ### When Not to Use Inline CSS
 
@@ -61,6 +103,5 @@ Evaluate these trade-offs carefully, and consider combining inlining with other 
 > This feature is currently experimental and has some known limitations:
 >
 > - CSS inlining is applied globally and cannot be configured on a per-page basis
-> - Styles are duplicated during initial page load - once within `<style>` tags for SSR and once in the RSC payload
 > - When navigating to statically rendered pages, styles will use `<link>` tags instead of inline CSS to avoid duplication
 > - This feature is not available in development mode and only works in production builds

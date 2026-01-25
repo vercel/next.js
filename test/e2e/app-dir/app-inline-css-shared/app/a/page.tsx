@@ -4,8 +4,9 @@ import './styles.css'
 export default async function PageA() {
   await connection()
   return (
-    <main className="page-a" id="page-a">
-      <p>Page A</p>
+    <main id="page-a" className="p-4">
+      <h1 className="text-2xl font-bold text-blue-500">Page A</h1>
+      <p className="page-a-custom">This has page-specific CSS</p>
     </main>
   )
 }

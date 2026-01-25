@@ -1,4 +1,5 @@
 /* Page A specific CSS - should NOT be inlined, loaded via <link> */
-.page-a {
+.page-a-custom {
   font-size: 32px;
+  color: green;
 }
