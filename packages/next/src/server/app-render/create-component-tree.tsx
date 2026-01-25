@@ -36,6 +36,21 @@ import {
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
+import {
+  HTTPAccessErrorStatus,
+  type HTTPAccessErrorStatusCode,
+} from '../../client/components/http-access-fallback/http-access-fallback'
+
+/**
+ * State for pre-triggering HTTP access error rendering during prerender.
+ * When set, the component tree will render the appropriate fallback component
+ * (not-found, forbidden, or unauthorized) instead of the page content.
+ */
+export type PrerenderHTTPErrorState =
+  | {
+      triggeredStatus: HTTPAccessErrorStatusCode
+    }
+  | undefined
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -52,6 +67,7 @@ export function createComponentTree(props: {
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
   MetadataOutlet: ComponentType
+  prerenderHTTPError?: PrerenderHTTPErrorState
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -87,6 +103,7 @@ async function createComponentTreeInternal(
     preloadCallbacks,
     authInterrupts,
     MetadataOutlet,
+    prerenderHTTPError,
   }: {
     loaderTree: LoaderTree
     parentParams: Params
@@ -99,6 +116,7 @@ async function createComponentTreeInternal(
     preloadCallbacks: PreloadCallbacks
     authInterrupts: boolean
     MetadataOutlet: ComponentType | null
+    prerenderHTTPError?: PrerenderHTTPErrorState
   },
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
@@ -522,26 +540,65 @@ async function createComponentTreeInternal(
             }
           }
 
-          const seedData = await createComponentTreeInternal(
-            {
-              loaderTree: parallelRoute,
-              parentParams: currentParams,
-              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              injectedCSS: injectedCSSWithCurrentLayout,
-              injectedJS: injectedJSWithCurrentLayout,
-              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-              ctx,
-              missingSlots,
-              preloadCallbacks,
-              authInterrupts,
-              // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
-              // but we only want to throw on the first one.
-              MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
-            },
-            false
-          )
+          // When prerenderHTTPError is set and we're at the children route,
+          // render the appropriate fallback element instead of recursing into
+          // the child tree (which would throw the error again).
+          // We only apply this at the level immediately above the page - check
+          // if the child segment contains a page component.
+          if (prerenderHTTPError && isChildrenRouteKey) {
+            const parsedChildTree = parseLoaderTree(parallelRoute)
+            const childHasPage = typeof parsedChildTree.page !== 'undefined'
 
-          childCacheNodeSeedData = seedData
+            // Only apply the fallback if the child has a page (we're at the
+            // immediate parent of the page that threw the error)
+            if (childHasPage) {
+              const { triggeredStatus } = prerenderHTTPError
+              const fallbackElements = {
+                [HTTPAccessErrorStatus.NOT_FOUND]: notFoundElement,
+                [HTTPAccessErrorStatus.FORBIDDEN]: forbiddenElement,
+                [HTTPAccessErrorStatus.UNAUTHORIZED]: unauthorizedElement,
+              }
+              const fallbackElement = fallbackElements[triggeredStatus]
+
+              if (fallbackElement) {
+                // Create seed data with the fallback element directly
+                // instead of recursing into the page that would throw
+                childCacheNodeSeedData = [
+                  fallbackElement,
+                  {}, // No parallel routes for the fallback
+                  null, // No loading data
+                  false, // Not partial
+                  false, // No runtime prefetch
+                ]
+              }
+            }
+          }
+
+          // Only recurse if we didn't already set the fallback
+          if (childCacheNodeSeedData === null) {
+            const seedData = await createComponentTreeInternal(
+              {
+                loaderTree: parallelRoute,
+                parentParams: currentParams,
+                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                injectedCSS: injectedCSSWithCurrentLayout,
+                injectedJS: injectedJSWithCurrentLayout,
+                injectedFontPreloadTags:
+                  injectedFontPreloadTagsWithCurrentLayout,
+                ctx,
+                missingSlots,
+                preloadCallbacks,
+                authInterrupts,
+                // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+                // but we only want to throw on the first one.
+                MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
+                prerenderHTTPError,
+              },
+              false
+            )
+
+            childCacheNodeSeedData = seedData
+          }
         }
 
         const templateNode = createElement(

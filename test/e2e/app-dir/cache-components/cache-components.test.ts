@@ -1,5 +1,20 @@
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
+import type { Playwright } from 'next-webdriver'
+
+/**
+ * Helper to verify no connection errors occurred in the browser console.
+ * Used to detect issues where HTTP error handling causes premature stream closure.
+ */
+async function expectNoConnectionErrors(browser: Playwright): Promise<void> {
+  const logs = await browser.log()
+  const connectionClosedErrors = logs.filter(
+    (log: { message: string }) =>
+      log.message.includes('Connection closed') ||
+      log.message.includes('client-side exception')
+  )
+  expect(connectionClosedErrors).toHaveLength(0)
+}
 
 describe('cache-components', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -62,6 +77,90 @@ describe('cache-components', () => {
       expect(await browser.elementById('layout').text()).toBe('at buildtime')
       expect(await browser.elementById('page').text()).toBe('at buildtime')
     }
+  })
+
+  it('should handle not-found thrown in a Suspense boundary', async () => {
+    // This tests that notFound() works correctly when thrown inside a Suspense
+    // boundary during streaming. The not-found page should be rendered properly
+    // without "Connection closed" errors.
+    const browser = await next.browser('/cases/not-found-suspense')
+
+    // Wait for the not-found component to appear
+    const notFoundText = await browser
+      .waitForElementByCss('#not-found-component')
+      .text()
+    expect(notFoundText).toBe('Not Found from Suspense!')
+
+    // Check that there are no console errors about "Connection closed"
+    await expectNoConnectionErrors(browser)
+  })
+
+  it('should handle not-found with async component in layout Suspense boundary', async () => {
+    // This tests the exact reproduction case from the issue:
+    // - notFound() called directly in page
+    // - Async component wrapped in Suspense in layout
+    // - cacheComponents: true
+    // The not-found page should render and the async component should also render.
+    const browser = await next.browser('/cases/not-found-with-layout-suspense')
+
+    // Wait for the not-found component to appear
+    const notFoundHeading = await browser
+      .waitForElementByCss('#not-found-heading')
+      .text()
+    expect(notFoundHeading).toBe('404 - Page Not Found')
+
+    // The async component in the layout should also render
+    const asyncData = await browser.waitForElementByCss('#async-data').text()
+    expect(asyncData).toBe('Data: Fetched Data')
+
+    // Check that there are no console errors about "Connection closed"
+    await expectNoConnectionErrors(browser)
+  })
+
+  it('should handle forbidden with async component in layout Suspense boundary', async () => {
+    // This tests that forbidden() works correctly with cacheComponents
+    // - forbidden() called directly in page
+    // - Async component wrapped in Suspense in layout
+    // - cacheComponents: true + authInterrupts: true
+    // The forbidden page should render and the async component should also render.
+    const browser = await next.browser('/cases/forbidden-with-layout-suspense')
+
+    // Wait for the forbidden component to appear
+    const forbiddenHeading = await browser
+      .waitForElementByCss('#forbidden-heading')
+      .text()
+    expect(forbiddenHeading).toBe('403 - Forbidden')
+
+    // The async component in the layout should also render
+    const asyncData = await browser.waitForElementByCss('#async-data').text()
+    expect(asyncData).toBe('Data: Fetched Data')
+
+    // Check that there are no console errors about "Connection closed"
+    await expectNoConnectionErrors(browser)
+  })
+
+  it('should handle unauthorized with async component in layout Suspense boundary', async () => {
+    // This tests that unauthorized() works correctly with cacheComponents
+    // - unauthorized() called directly in page
+    // - Async component wrapped in Suspense in layout
+    // - cacheComponents: true + authInterrupts: true
+    // The unauthorized page should render and the async component should also render.
+    const browser = await next.browser(
+      '/cases/unauthorized-with-layout-suspense'
+    )
+
+    // Wait for the unauthorized component to appear
+    const unauthorizedHeading = await browser
+      .waitForElementByCss('#unauthorized-heading')
+      .text()
+    expect(unauthorizedHeading).toBe('401 - Unauthorized')
+
+    // The async component in the layout should also render
+    const asyncData = await browser.waitForElementByCss('#async-data').text()
+    expect(asyncData).toBe('Data: Fetched Data')
+
+    // Check that there are no console errors about "Connection closed"
+    await expectNoConnectionErrors(browser)
   })
 
   it('should prerender pages that render in a microtask', async () => {
