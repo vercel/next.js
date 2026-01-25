@@ -21,6 +21,7 @@ use crate::{
     collector_entry::CollectorEntry,
     compression::compress_into_buffer,
     constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    io_semaphore::IoSemaphore,
     key::StoreKey,
     meta_file::MetaEntryFlags,
     meta_file_builder::MetaFileBuilder,
@@ -67,7 +68,7 @@ enum GlobalCollectorState<K: StoreKey + Send> {
 }
 
 /// A write batch.
-pub struct WriteBatch<K: StoreKey + Send, S: ParallelScheduler, const FAMILIES: usize> {
+pub struct WriteBatch<'db, K: StoreKey + Send, S: ParallelScheduler, const FAMILIES: usize> {
     /// Parallel scheduler
     parallel_scheduler: S,
     /// The database path
@@ -86,13 +87,20 @@ pub struct WriteBatch<K: StoreKey + Send, S: ParallelScheduler, const FAMILIES: 
     /// Queue of full collectors waiting to be written to disk.
     /// Tuple of (family, collector). Any thread may drain this queue to help with IO work.
     pending_writes: Mutex<VecDeque<(u32, Collector<K>)>>,
+    /// Semaphore to limit concurrent SST file writes.
+    io_semaphore: &'db IoSemaphore,
 }
 
-impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
-    WriteBatch<K, S, FAMILIES>
+impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
+    WriteBatch<'db, K, S, FAMILIES>
 {
     /// Creates a new write batch for a database.
-    pub(crate) fn new(path: PathBuf, current: u32, parallel_scheduler: S) -> Self {
+    pub(crate) fn new(
+        path: PathBuf,
+        current: u32,
+        parallel_scheduler: S,
+        io_semaphore: &'db IoSemaphore,
+    ) -> Self {
         const {
             assert!(FAMILIES <= usize_from_u32(u32::MAX));
         };
@@ -106,6 +114,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
             meta_collectors: [(); FAMILIES].map(|_| Mutex::new(Vec::new())),
             new_sst_files: Mutex::new(Vec::new()),
             pending_writes: Mutex::new(VecDeque::new()),
+            io_semaphore,
         }
     }
 
@@ -437,6 +446,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
         let path = self.db_path.join(format!("{seq:08}.sst"));
+        let _permit = self.io_semaphore.acquire();
         let (meta, file) = self
             .parallel_scheduler
             .block_in_place(|| {

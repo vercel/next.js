@@ -10,6 +10,7 @@ mod compaction;
 mod compression;
 mod constants;
 mod db;
+mod io_semaphore;
 mod key;
 mod lookup_entry;
 mod merge_iter;

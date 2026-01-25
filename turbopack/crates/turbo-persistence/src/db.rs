@@ -29,6 +29,7 @@ use crate::{
         KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
         VALUE_BLOCK_CACHE_SIZE,
     },
+    io_semaphore::{IoSemaphore, max_concurrent_sst_writes},
     key::{StoreKey, hash_key},
     lookup_entry::{LookupEntry, LookupValue},
     merge_iter::MergeIter,
@@ -128,6 +129,8 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     /// Statistics for the database.
     #[cfg(feature = "stats")]
     stats: TrackedStats,
+    /// Semaphore to limit concurrent SST file writes.
+    io_semaphore: IoSemaphore,
 }
 
 /// The inner state of the database.
@@ -204,6 +207,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             ),
             #[cfg(feature = "stats")]
             stats: TrackedStats::default(),
+            io_semaphore: IoSemaphore::new(max_concurrent_sst_writes()),
         }
     }
 
@@ -416,7 +420,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// This data will only become visible after the WriteBatch is committed.
     pub fn write_batch<K: StoreKey + Send + Sync + 'static>(
         &self,
-    ) -> Result<WriteBatch<K, S, FAMILIES>> {
+    ) -> Result<WriteBatch<'_, K, S, FAMILIES>> {
         if self.read_only {
             bail!("Cannot write to a read-only database");
         }
@@ -435,6 +439,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             self.path.clone(),
             current,
             self.parallel_scheduler.clone(),
+            &self.io_semaphore,
         ))
     }
 
@@ -454,7 +459,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// visible to readers.
     pub fn commit_write_batch<K: StoreKey + Send + Sync + 'static>(
         &self,
-        mut write_batch: WriteBatch<K, S, FAMILIES>,
+        mut write_batch: WriteBatch<'_, K, S, FAMILIES>,
     ) -> Result<()> {
         if self.read_only {
             unreachable!("It's not possible to create a write batch for a read-only database");
@@ -993,6 +998,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                                 fn create_sst_file<'l, S: ParallelScheduler>(
                                     parallel_scheduler: &S,
+                                    io_semaphore: &IoSemaphore,
                                     entries: &[LookupEntry<'l>],
                                     total_key_size: usize,
                                     path: &Path,
@@ -1002,6 +1008,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 {
                                     let _span =
                                         tracing::trace_span!("write merged sst file").entered();
+                                    let _permit = io_semaphore.acquire();
                                     let (meta, file) = parallel_scheduler.block_in_place(|| {
                                         write_static_stored_file(
                                             entries,
@@ -1096,6 +1103,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                                     flags.set_cold(!is_used);
                                                     collector.new_sst_files.push(create_sst_file(
                                                         &self.parallel_scheduler,
+                                                        &self.io_semaphore,
                                                         &collector.entries,
                                                         selected_total_key_size,
                                                         path,
@@ -1145,6 +1153,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         keys_written += collector.entries.len() as u64;
                                         collector.new_sst_files.push(create_sst_file(
                                             &self.parallel_scheduler,
+                                            &self.io_semaphore,
                                             &collector.entries,
                                             collector.total_key_size,
                                             path,
@@ -1173,6 +1182,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         keys_written += part1.len() as u64;
                                         collector.new_sst_files.push(create_sst_file(
                                             &self.parallel_scheduler,
+                                            &self.io_semaphore,
                                             part1,
                                             // We don't know the exact sizes so we estimate them
                                             collector.last_entries_total_key_size / 2,
@@ -1184,6 +1194,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         keys_written += part2.len() as u64;
                                         collector.new_sst_files.push(create_sst_file(
                                             &self.parallel_scheduler,
+                                            &self.io_semaphore,
                                             part2,
                                             collector.last_entries_total_key_size / 2,
                                             path,
