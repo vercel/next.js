@@ -47,11 +47,15 @@ import {
   finalizeMetadataVaryPath,
   getPartialPageVaryPath,
   getPartialLayoutVaryPath,
+  getRenderedSearchFromVaryPath,
 } from './vary-path'
 import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
-import type { NormalizedSearch, RouteCacheKey } from './cache-key'
-// TODO: Rename this module to avoid confusion with other types of cache keys
+import type {
+  NormalizedPathname,
+  NormalizedSearch,
+  RouteCacheKey,
+} from './cache-key'
 import { createCacheKey as createPrefetchRequestKey } from './cache-key'
 import {
   doesStaticSegmentAppearInURL,
@@ -95,6 +99,7 @@ import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { readFromBFCacheDuringRegularNavigation } from './bfcache'
+import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
 
 /**
  * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
@@ -192,7 +197,7 @@ export const enum EntryStatus {
   Rejected = 3,
 }
 
-type PendingRouteCacheEntry = RouteCacheEntryShared & {
+export type PendingRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Empty | EntryStatus.Pending
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
@@ -220,6 +225,12 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   tree: RouteTree
   metadata: RouteTree
   isPPREnabled: boolean
+  // When true, this entry should not be used as a template for route
+  // prediction. Set when we discover that the URL was rewritten by middleware
+  // to a different route structure (e.g., /foo was rewritten to /bar). Since
+  // rewrite behavior can vary by param value, we can't safely predict the
+  // route structure for other URLs matching this pattern.
+  hasDynamicRewrite: boolean
 }
 
 export type RouteCacheEntry =
@@ -428,13 +439,24 @@ export function readRouteCacheEntry(
     key.nextUrl
   )
   const isRevalidation = false
-  return getFromCacheMap(
+  const existingEntry = getFromCacheMap(
     now,
     getCurrentRouteCacheVersion(),
     routeCacheMap,
     varyPath,
     isRevalidation
   )
+  if (existingEntry !== null) {
+    return existingEntry
+  }
+
+  // No cache hit. Attempt to construct from template using the new
+  // optimistic routing mechanism (pattern-based matching).
+  if (process.env.__NEXT_OPTIMISTIC_ROUTING) {
+    return matchKnownRoute(key.pathname, key.search)
+  }
+
+  return null
 }
 
 export function readSegmentCacheEntry(
@@ -480,23 +502,8 @@ export function waitForSegmentCacheEntry(
   return promiseWithResolvers.promise
 }
 
-/**
- * Checks if an entry for a route exists in the cache. If so, it returns the
- * entry, If not, it adds an empty entry to the cache and returns it.
- */
-export function readOrCreateRouteCacheEntry(
-  now: number,
-  task: PrefetchTask,
-  key: RouteCacheKey
-): RouteCacheEntry {
-  attachInvalidationListener(task)
-
-  const existingEntry = readRouteCacheEntry(now, key)
-  if (existingEntry !== null) {
-    return existingEntry
-  }
-  // Create a pending entry and add it to the cache.
-  const pendingEntry: PendingRouteCacheEntry = {
+function createDetachedRouteCacheEntry(): PendingRouteCacheEntry {
+  return {
     canonicalUrl: null,
     status: EntryStatus.Empty,
     blockedTasks: null,
@@ -518,6 +525,25 @@ export function readOrCreateRouteCacheEntry(
     staleAt: Infinity,
     version: getCurrentRouteCacheVersion(),
   }
+}
+
+/**
+ * Checks if an entry for a route exists in the cache. If so, it returns the
+ * entry, If not, it adds an empty entry to the cache and returns it.
+ */
+export function readOrCreateRouteCacheEntry(
+  now: number,
+  task: PrefetchTask,
+  key: RouteCacheKey
+): RouteCacheEntry {
+  attachInvalidationListener(task)
+
+  const existingEntry = readRouteCacheEntry(now, key)
+  if (existingEntry !== null) {
+    return existingEntry
+  }
+  // Create a pending entry and add it to the cache.
+  const pendingEntry = createDetachedRouteCacheEntry()
   const varyPath: RouteVaryPath = getRouteVaryPath(
     key.pathname,
     key.search,
@@ -528,7 +554,12 @@ export function readOrCreateRouteCacheEntry(
   return pendingEntry
 }
 
-export function requestOptimisticRouteCacheEntry(
+// TODO: This function predates the new optimisticRouting feature and will be
+// removed once optimisticRouting is stable. The new mechanism (matchKnownRoute)
+// handles search param variations more robustly as part of the general route
+// prediction system. This fallback remains for when optimisticRouting is
+// disabled (staticChildren is null).
+export function deprecated_requestOptimisticRouteCacheEntry(
   now: number,
   requestedUrl: URL,
   nextUrl: string | null
@@ -613,11 +644,11 @@ export function requestOptimisticRouteCacheEntry(
   optimisticUrl.search = optimisticCanonicalSearch
   const optimisticCanonicalUrl = createHrefFromUrl(optimisticUrl)
 
-  const optimisticRouteTree = createOptimisticRouteTree(
+  const optimisticRouteTree = deprecated_createOptimisticRouteTree(
     routeWithNoSearchParams.tree,
     optimisticRenderedSearch
   )
-  const optimisticMetadataTree = createOptimisticRouteTree(
+  const optimisticMetadataTree = deprecated_createOptimisticRouteTree(
     routeWithNoSearchParams.metadata,
     optimisticRenderedSearch
   )
@@ -634,6 +665,7 @@ export function requestOptimisticRouteCacheEntry(
     metadata: optimisticMetadataTree,
     couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
     isPPREnabled: routeWithNoSearchParams.isPPREnabled,
+    hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
 
     // Override the rendered search with the optimistic value.
     renderedSearch: optimisticRenderedSearch,
@@ -650,7 +682,7 @@ export function requestOptimisticRouteCacheEntry(
   return optimisticEntry
 }
 
-function createOptimisticRouteTree(
+function deprecated_createOptimisticRouteTree(
   tree: RouteTree,
   newRenderedSearch: NormalizedSearch
 ): RouteTree {
@@ -663,7 +695,7 @@ function createOptimisticRouteTree(
     clonedSlots = {}
     for (const parallelRouteKey in originalSlots) {
       const childTree = originalSlots[parallelRouteKey]
-      clonedSlots[parallelRouteKey] = createOptimisticRouteTree(
+      clonedSlots[parallelRouteKey] = deprecated_createOptimisticRouteTree(
         childTree,
         newRenderedSearch
       )
@@ -961,16 +993,9 @@ function pingBlockedTasks(entry: {
   }
 }
 
-function fulfillRouteCacheEntry(
-  now: number,
-  entry: RouteCacheEntry,
-  tree: RouteTree,
-  metadataVaryPath: PageVaryPath,
-  couldBeIntercepted: boolean,
-  canonicalUrl: string,
-  renderedSearch: NormalizedSearch,
-  isPPREnabled: boolean
-): FulfilledRouteCacheEntry {
+export function createMetadataRouteTree(
+  metadataVaryPath: PageVaryPath
+): RouteTree {
   // The Head is not actually part of the route tree, but other than that, it's
   // fetched and cached like a segment. Some functions expect a RouteTree
   // object, so rather than fork the logic in all those places, we use this
@@ -989,10 +1014,25 @@ function fulfillRouteCacheEntry(
     hasLoadingBoundary: HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
     hasRuntimePrefetch: false,
   }
+  return metadata
+}
+
+export function fulfillRouteCacheEntry(
+  now: number,
+  entry: PendingRouteCacheEntry,
+  tree: RouteTree,
+  metadataVaryPath: PageVaryPath,
+  couldBeIntercepted: boolean,
+  canonicalUrl: string,
+  isPPREnabled: boolean
+): FulfilledRouteCacheEntry {
+  // Get the rendered search from the vary path
+  const renderedSearch =
+    getRenderedSearchFromVaryPath(metadataVaryPath) ?? ('' as NormalizedSearch)
   const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.tree = tree
-  fulfilledEntry.metadata = metadata
+  fulfilledEntry.metadata = createMetadataRouteTree(metadataVaryPath)
   // Route structure is essentially static — it only changes on deploy.
   // Always use the static stale time.
   // NOTE: An exception is rewrites/redirects in middleware or proxy, which can
@@ -1002,8 +1042,55 @@ function fulfillRouteCacheEntry(
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.isPPREnabled = isPPREnabled
+  fulfilledEntry.hasDynamicRewrite = false
   pingBlockedTasks(entry)
   return fulfilledEntry
+}
+
+export function writeRouteIntoCache(
+  now: number,
+  pathname: NormalizedPathname,
+  tree: RouteTree,
+  metadataVaryPath: PageVaryPath,
+  couldBeIntercepted: boolean,
+  canonicalUrl: string,
+  isPPREnabled: boolean
+): FulfilledRouteCacheEntry {
+  const pendingEntry = createDetachedRouteCacheEntry()
+  const fulfilledEntry = fulfillRouteCacheEntry(
+    now,
+    pendingEntry,
+    tree,
+    metadataVaryPath,
+    couldBeIntercepted,
+    canonicalUrl,
+    isPPREnabled
+  )
+  // nextUrl is always null here because we only write to the route cache for
+  // non-intercepted routes. Intercepted routes are deopted in attemptOptimisticRouting.
+  const renderedSearch = fulfilledEntry.renderedSearch
+  const varyPath = getRouteVaryPath(pathname, renderedSearch, null)
+  const isRevalidation = false
+  setInCacheMap(routeCacheMap, varyPath, fulfilledEntry, isRevalidation)
+  return fulfilledEntry
+}
+
+/**
+ * Marks a route cache entry as having a dynamic rewrite. Called when we
+ * discover that a route pattern has dynamic rewrite behavior - i.e., we used
+ * an optimistic route tree for prediction, but the server responded with a
+ * different rendered pathname.
+ *
+ * Once marked, attempts to use this entry as a template for prediction will
+ * bail out to server resolution.
+ */
+export function markRouteEntryAsDynamicRewrite(
+  entry: FulfilledRouteCacheEntry
+): void {
+  entry.hasDynamicRewrite = true
+  // Note: The caller is responsible for also calling invalidateRouteCacheEntries
+  // to invalidate other entries that may have been derived from this template
+  // before we knew it had a dynamic rewrite.
 }
 
 function fulfillSegmentCacheEntry(
@@ -1629,15 +1716,16 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
-      fulfillRouteCacheEntry(
+      discoverKnownRoute(
         Date.now(),
+        pathname,
         entry,
         routeTree,
         metadataVaryPath,
         couldBeIntercepted,
         canonicalUrl,
-        renderedSearch,
-        routeIsPPREnabled
+        routeIsPPREnabled,
+        false // hasDynamicRewrite
       )
     } else {
       // PPR is not enabled for this route. The server responds with a
@@ -1679,7 +1767,8 @@ export async function fetchRouteOnCacheMiss(
         entry,
         couldBeIntercepted,
         canonicalUrl,
-        routeIsPPREnabled
+        routeIsPPREnabled,
+        pathname
       )
     }
 
@@ -1996,10 +2085,9 @@ function writeDynamicTreeResponseIntoCache(
   entry: PendingRouteCacheEntry,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  routeIsPPREnabled: boolean
+  routeIsPPREnabled: boolean,
+  originalPathname: string
 ) {
-  // Get the URL that was used to render the target page. This may be different
-  // from the URL in the request URL, if the page was rewritten.
   const renderedSearch = getRenderedSearch(response)
 
   const normalizedFlightDataResult = normalizeFlightData(serverData.f)
@@ -2044,15 +2132,16 @@ function writeDynamicTreeResponseIntoCache(
     return
   }
 
-  const fulfilledEntry = fulfillRouteCacheEntry(
+  const fulfilledEntry = discoverKnownRoute(
     now,
+    originalPathname,
     entry,
     routeTree,
     metadataVaryPath,
     couldBeIntercepted,
     canonicalUrl,
-    renderedSearch,
-    routeIsPPREnabled
+    routeIsPPREnabled,
+    false // hasDynamicRewrite
   )
 
   // If the server sent segment data as part of the response, we should write
