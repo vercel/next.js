@@ -92,10 +92,9 @@ jobs:
 
   test-deploy-adapter:
     name: Run Deploy Adapter Tests
-    needs: ['test-deploy']
+    needs: setup
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
-    if: ${{ always() }}
     strategy:
       fail-fast: false
       matrix:
