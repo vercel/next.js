@@ -140,6 +140,9 @@ export class NextDeployInstance extends NextInstance {
       if (process.env.IS_WEBPACK_TEST) {
         additionalEnv.push(`IS_WEBPACK_TEST=1`)
       }
+      if (process.env.NEXT_ENABLE_ADAPTER) {
+        additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
+      }
 
       const deployRes = await execa(
         'vercel',
@@ -151,8 +154,6 @@ export class NextDeployInstance extends NextInstance {
           'NEXT_TELEMETRY_DISABLED=1',
           '--build-env',
           'VERCEL_NEXT_BUNDLED_SERVER=1',
-          '--build-env',
-          'NEXT_ENABLE_ADAPTER=1',
           ...additionalEnv.flatMap((pair) => [
             '--env',
             pair,
