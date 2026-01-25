@@ -205,6 +205,7 @@ describe('Error overlay - RSC build errors', () => {
     'PureComponent',
     'useDeferredValue',
     'useEffect',
+    'useEffectEvent',
     'useImperativeHandle',
     'useInsertionEffect',
     'useLayoutEffect',
