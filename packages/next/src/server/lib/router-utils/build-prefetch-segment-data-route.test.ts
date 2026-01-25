@@ -10,6 +10,9 @@ describe('buildPrefetchSegmentDataRoute', () => {
     expect(route).toMatchInlineSnapshot(`
      {
        "destination": "/blog/[...slug].segments/$c$slug$[slug]/__PAGE__.segment.rsc",
+       "routeKeys": {
+         "nxtPslug": "nxtPslug",
+       },
        "source": "^/blog/(?<nxtPslug>.+?)\\.segments/\\$c\\$slug\\$\\k<nxtPslug>/__PAGE__\\.segment\\.rsc$",
      }
     `)

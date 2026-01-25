@@ -3,14 +3,14 @@ use std::{mem::take, sync::Arc};
 use anyhow::Result;
 use parking_lot::Mutex;
 use swc_core::common::{
+    SourceMap,
     errors::{DiagnosticBuilder, DiagnosticId, Emitter, Level},
     source_map::SmallPos,
-    SourceMap,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
+    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     source::Source,
 };
 
@@ -20,7 +20,7 @@ pub struct IssueCollector {
 }
 
 impl IssueCollector {
-    pub async fn emit(self) -> Result<()> {
+    pub async fn emit(self, loose_errors: bool) -> Result<()> {
         let issues = {
             let mut inner = self.inner.lock();
             take(&mut inner.emitted_issues)
@@ -28,7 +28,11 @@ impl IssueCollector {
 
         for issue in issues {
             AnalyzeIssue::new(
-                issue.severity,
+                if loose_errors && issue.severity <= IssueSeverity::Error {
+                    IssueSeverity::Warning
+                } else {
+                    issue.severity
+                },
                 issue.source.ident(),
                 Vc::cell(issue.title),
                 issue.message.cell(),
@@ -51,7 +55,7 @@ impl IssueCollector {
                 Vc::cell(issue.title.clone()),
                 issue.message.clone().cell(),
                 issue.code.clone(),
-                issue.issue_source.clone(),
+                issue.issue_source,
             )
         })
     }
@@ -98,7 +102,8 @@ impl IssueEmitter {
 }
 
 impl Emitter for IssueEmitter {
-    fn emit(&mut self, db: &DiagnosticBuilder<'_>) {
+    fn emit(&mut self, db: &mut DiagnosticBuilder<'_>) {
+        let db = db.take();
         let level = db.level;
         let mut message = db
             .message

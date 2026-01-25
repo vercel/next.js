@@ -34,12 +34,16 @@ describe('app-dir - server components externals', () => {
   if (!isTurbopack) {
     it('should externalize serversExternalPackages for server rendering layer', async () => {
       await next.fetch('/client')
-      const ssrBundle = await next.readFile('.next/server/app/client/page.js')
+      const ssrBundle = await next.readFile(
+        `${next.distDir}/server/app/client/page.js`
+      )
       expect(ssrBundle).not.toContain('external-package-mark:index')
       expect(ssrBundle).not.toContain('external-package-mark:subpath')
 
       await next.fetch('/')
-      const rscBundle = await next.readFile('.next/server/app/page.js')
+      const rscBundle = await next.readFile(
+        `${next.distDir}/server/app/page.js`
+      )
       expect(rscBundle).not.toContain('external-package-mark:index')
       expect(rscBundle).not.toContain('external-package-mark:subpath')
     })

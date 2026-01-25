@@ -1,8 +1,8 @@
-import { getUtils } from './server-utils'
+import { getServerUtils } from './server-utils'
 
 describe('getParamsFromRouteMatches', () => {
   it('should return nothing for a non-dynamic route', () => {
-    const { getParamsFromRouteMatches } = getUtils({
+    const { getParamsFromRouteMatches } = getServerUtils({
       page: '/',
       basePath: '',
       rewrites: {},
@@ -16,7 +16,7 @@ describe('getParamsFromRouteMatches', () => {
   })
 
   it('should return the params from the route matches', () => {
-    const { getParamsFromRouteMatches } = getUtils({
+    const { getParamsFromRouteMatches } = getServerUtils({
       page: '/[slug]',
       basePath: '',
       rewrites: {},
@@ -30,7 +30,7 @@ describe('getParamsFromRouteMatches', () => {
   })
 
   it('should handle optional params', () => {
-    const { getParamsFromRouteMatches } = getUtils({
+    const { getParamsFromRouteMatches } = getServerUtils({
       page: '/[slug]/[[...optional]]',
       basePath: '',
       rewrites: {},
@@ -51,7 +51,7 @@ describe('getParamsFromRouteMatches', () => {
   })
 
   it('should handle rest params', () => {
-    const { getParamsFromRouteMatches } = getUtils({
+    const { getParamsFromRouteMatches } = getServerUtils({
       page: '/[slug]/[...rest]',
       basePath: '',
       rewrites: {},

@@ -1,7 +1,6 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Borrow,
     fs::{self, File},
-    hash::BuildHasherDefault,
     io::{BufWriter, Read, Write},
     mem::transmute,
     path::PathBuf,
@@ -10,13 +9,15 @@ use std::{
 
 use anyhow::{Ok, Result};
 use byteorder::WriteBytesExt;
-use rustc_hash::{FxHashMap, FxHasher};
+use rustc_hash::FxHashMap;
 use turbo_tasks::FxDashMap;
 
 use crate::database::{
     by_key_space::ByKeySpace,
     key_value_database::{KeySpace, KeyValueDatabase},
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
+    write_batch::{
+        BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer,
+    },
 };
 
 const CACHE_SIZE_LIMIT: usize = 100 * 1024 * 1024;
@@ -86,8 +87,7 @@ impl<T: KeyValueDatabase> StartupCacheLayer<T> {
                         KeySpace::Infra => 8,
                         KeySpace::TaskMeta => 1024 * 1024,
                         KeySpace::TaskData => 1024 * 1024,
-                        KeySpace::ForwardTaskCache => 1024 * 1024,
-                        KeySpace::ReverseTaskCache => 1024 * 1024,
+                        KeySpace::TaskCache => 1024 * 1024,
                     },
                     Default::default(),
                 )
@@ -103,12 +103,6 @@ impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
         = T::ReadTransaction<'l>
     where
         Self: 'l;
-
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        T::lower_read_transaction(tx)
-    }
 
     fn is_empty(&self) -> bool {
         self.database.is_empty()
@@ -268,7 +262,12 @@ impl<'a, B: BaseWriteBatch<'a>> BaseWriteBatch<'a> for StartupCacheWriteBatch<'a
 }
 
 impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for StartupCacheWriteBatch<'a, B> {
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &mut self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
         if !self.fresh_db {
             let cache = self.cache.get(key_space);
             cache.insert(key.to_vec(), Some(value.to_vec()));
@@ -276,17 +275,21 @@ impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for StartupCacheWriteBatc
         self.batch.put(key_space, key, value)
     }
 
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         if !self.fresh_db {
             let cache = self.cache.get(key_space);
             cache.insert(key.to_vec(), None);
         }
         self.batch.delete(key_space, key)
+    }
+
+    fn flush(&mut self, key_space: KeySpace) -> Result<()> {
+        self.batch.flush(key_space)
     }
 }
 
 impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a> for StartupCacheWriteBatch<'a, B> {
-    fn put(&self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
         if !self.fresh_db {
             let cache = self.cache.get(key_space);
             cache.insert(key.to_vec(), Some(value.to_vec()));
@@ -294,12 +297,16 @@ impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a> for StartupCacheW
         self.batch.put(key_space, key, value)
     }
 
-    fn delete(&self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         if !self.fresh_db {
             let cache = self.cache.get(key_space);
             cache.insert(key.to_vec(), None);
         }
         self.batch.delete(key_space, key)
+    }
+
+    unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
+        unsafe { self.batch.flush(key_space) }
     }
 }
 
@@ -314,8 +321,7 @@ fn write_key_value_pair(
         KeySpace::Infra => 0,
         KeySpace::TaskMeta => 1,
         KeySpace::TaskData => 2,
-        KeySpace::ForwardTaskCache => 3,
-        KeySpace::ReverseTaskCache => 4,
+        KeySpace::TaskCache => 3,
     })?;
     let key_len = key.len();
     size_buffer.copy_from_slice(&(key_len as u32).to_be_bytes());
@@ -336,8 +342,7 @@ fn read_key_value_pair<'l>(
         0 => KeySpace::Infra,
         1 => KeySpace::TaskMeta,
         2 => KeySpace::TaskData,
-        3 => KeySpace::ForwardTaskCache,
-        4 => KeySpace::ReverseTaskCache,
+        3 => KeySpace::TaskCache,
         _ => return Err(anyhow::anyhow!("Invalid key space")),
     };
     *pos += 1;

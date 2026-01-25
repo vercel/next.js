@@ -1,22 +1,22 @@
 use std::{future::Future, hash::Hash, ops::Deref};
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    Vc, trace::TraceRawVcs,
 };
 
 use crate::{
     chunk::{ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext},
     module_graph::{
+        ModuleGraph,
         async_module_info::AsyncModulesInfo,
         chunk_group_info::RoaringBitmapWrapper,
         module_batch::{ChunkableModuleBatchGroup, ChunkableModuleOrBatch, ModuleBatch},
-        ModuleGraph,
     },
 };
 
@@ -49,7 +49,7 @@ pub async fn attach_async_info_to_chunkable_module(
 }
 
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue, TaskInput,
+    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
 )]
 pub enum ChunkItemOrBatchWithAsyncModuleInfo {
     ChunkItem(ChunkItemWithAsyncModuleInfo),
@@ -60,6 +60,9 @@ type ChunkItemOrBatchWithAsyncModuleInfoByChunkType = Either<
     ChunkItemBatchWithAsyncModuleInfoByChunkTypeData,
     ReadRef<ChunkItemBatchWithAsyncModuleInfoByChunkType>,
 >;
+
+#[turbo_tasks::value(transparent)]
+pub struct ChunkItemOrBatchWithAsyncModuleInfos(Vec<ChunkItemOrBatchWithAsyncModuleInfo>);
 
 impl ChunkItemOrBatchWithAsyncModuleInfo {
     pub async fn from_chunkable_module_or_batch(
@@ -222,6 +225,9 @@ type ChunkItemBatchGroupByChunkTypeT = SmallVec<
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItemBatchGroupByChunkType(ChunkItemBatchGroupByChunkTypeT);
 
+#[turbo_tasks::value(transparent)]
+pub struct ChunkItemBatchGroups(Vec<ResolvedVc<ChunkItemBatchGroup>>);
+
 #[turbo_tasks::value]
 pub struct ChunkItemBatchGroup {
     pub items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
@@ -280,13 +286,11 @@ impl ChunkItemBatchGroup {
                         ChunkItemBatchGroup {
                             items,
                             chunk_groups: this.chunk_groups.clone(),
-                        },
+                        }
+                        .resolved_cell(),
                     )
                 })
-                .map(async |(ty, batch_group)| Ok((ty, batch_group.resolved_cell())))
-                .try_join()
-                .await?
-                .into()
+                .collect()
         };
         Ok(Vc::cell(result))
     }

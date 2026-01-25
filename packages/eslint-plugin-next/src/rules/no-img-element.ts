@@ -1,9 +1,9 @@
-import path = require('path')
+import path from 'path'
 import { defineRule } from '../utils/define-rule'
 
 const url = 'https://nextjs.org/docs/messages/no-img-element'
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description:

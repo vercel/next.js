@@ -20,7 +20,7 @@ mod webpack;
 pub enum RenderType {
     /// App is completely rendered on client side, the initial HTML is empty.
     ClientSideRendered,
-    /// App is intially rendered on server side, then hydrated on client side.
+    /// App is initially rendered on server side, then hydrated on client side.
     ServerSidePrerendered,
     /// App is rendered on server side, but additional client side javascript
     /// emits events on hydration and changes

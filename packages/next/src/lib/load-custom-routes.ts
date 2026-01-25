@@ -9,7 +9,7 @@ import { isFullStringUrl } from './url'
 
 export type RouteHas =
   | {
-      type: string
+      type: 'header' | 'cookie' | 'query'
       key: string
       value?: string
     }
@@ -31,6 +31,11 @@ export type Rewrite = {
    * @internal - used internally for routing
    */
   internal?: boolean
+
+  /**
+   * @internal - used internally for routing
+   */
+  regex?: string
 }
 
 export type Header = {
@@ -55,6 +60,7 @@ export type Redirect = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  priority?: boolean
 
   /**
    * @internal - used internally for routing
@@ -719,6 +725,39 @@ export default async function loadCustomRoutes(
     )
   }
 
+  const cacheControlSources: string[] = []
+  for (const headerRoute of headers) {
+    if (!headerRoute.source.startsWith('/_next/')) {
+      continue
+    }
+    for (const header of headerRoute.headers) {
+      if (header.key.toLowerCase() === 'cache-control') {
+        cacheControlSources.push(headerRoute.source)
+        break
+      }
+    }
+  }
+  if (cacheControlSources.length > 0) {
+    console.warn(
+      bold(yellow(`Warning: `)) +
+        `Custom Cache-Control headers detected for the following routes:\n` +
+        cacheControlSources.map((source) => `  - ${source}`).join('\n') +
+        `\n\nSetting a custom Cache-Control header can break Next.js development behavior.`
+    )
+  }
+
+  if (config.experimental?.useSkewCookie && config.deploymentId) {
+    headers.unshift({
+      source: '/:path*',
+      headers: [
+        {
+          key: 'Set-Cookie',
+          value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+        },
+      ],
+    })
+  }
+
   if (!config.skipTrailingSlashRedirect) {
     if (config.trailingSlash) {
       redirects.unshift(
@@ -728,6 +767,7 @@ export default async function loadCustomRoutes(
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
           // don't run this redirect for _next/data requests
           missing: [
             {
@@ -742,6 +782,7 @@ export default async function loadCustomRoutes(
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         }
       )
       if (config.basePath) {
@@ -752,6 +793,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         })
       }
     } else {
@@ -761,6 +803,7 @@ export default async function loadCustomRoutes(
         permanent: true,
         locale: config.i18n ? false : undefined,
         internal: true,
+        priority: true,
       })
       if (config.basePath) {
         redirects.unshift({
@@ -770,6 +813,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         })
       }
     }

@@ -16,13 +16,16 @@ export function getServerActionRequestMetadata(
   let contentType: string | null
 
   if (req.headers instanceof Headers) {
-    actionId = req.headers.get(ACTION_HEADER.toLowerCase()) ?? null
+    actionId = req.headers.get(ACTION_HEADER) ?? null
     contentType = req.headers.get('content-type')
   } else {
-    actionId = (req.headers[ACTION_HEADER.toLowerCase()] as string) ?? null
+    actionId = (req.headers[ACTION_HEADER] as string) ?? null
     contentType = req.headers['content-type'] ?? null
   }
 
+  // We don't actually support URL encoded actions, and the action handler will bail out if it sees one.
+  // But we still want it to flow through to the action handler, to prevent changes in behavior when a regular
+  // page component tries to handle a POST.
   const isURLEncodedAction = Boolean(
     req.method === 'POST' && contentType === 'application/x-www-form-urlencoded'
   )

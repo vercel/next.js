@@ -3,7 +3,7 @@ name = "turbopack-ecmascript-hmr-protocol"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -16,5 +16,6 @@ workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+turbo-rcstr = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }

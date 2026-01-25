@@ -4,7 +4,7 @@ This examples shows how to use Docker with Next.js based on the [deployment docu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io) or [bun](https://bun.sh/docs/cli/bun-create) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-docker nextjs-docker
@@ -18,17 +18,28 @@ yarn create next-app --example with-docker nextjs-docker
 pnpm create next-app --example with-docker nextjs-docker
 ```
 
+```bash
+bun create next-app --example with-docker nextjs-docker
+```
+
 ## Using Docker
 
 1. [Install Docker](https://docs.docker.com/get-docker/) on your machine.
-1. Build your container: `docker build -t nextjs-docker .`.
+1. Build your container: 
+    ```bash
+    # For npm, pnpm or yarn
+    docker build -t nextjs-docker .
+    
+    # For bun
+    docker build -f Dockerfile.bun -t nextjs-docker .
+    ```
 1. Run your container: `docker run -p 3000:3000 nextjs-docker`.
 
 You can view your images created with `docker images`.
 
 ### In existing projects
 
-To add support for Docker to an existing project, just copy the [`Dockerfile`](https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile) into the root of the project and add the following to the `next.config.js` file:
+To add Docker support, copy [`Dockerfile`](https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile) to the project root. If using Bun, copy [`Dockerfile.bun`](https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile.bun) instead. Then add the following to next.config.js:
 
 ```js
 // next.config.js
@@ -59,6 +70,8 @@ First, run the development server:
 npm run dev
 # or
 yarn dev
+# or
+bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

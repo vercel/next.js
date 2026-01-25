@@ -3,7 +3,7 @@ name = "swc-ast-explorer"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 
 # don't publish this crate (for now)
 publish = false

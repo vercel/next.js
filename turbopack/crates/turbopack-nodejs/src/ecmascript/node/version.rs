@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{chunk::MinifyType, version::Version};
 use turbopack_ecmascript::chunk::{CodeAndIds, EcmascriptChunkContent};
 
@@ -17,21 +17,17 @@ pub(super) struct EcmascriptBuildNodeChunkVersion {
 impl EcmascriptBuildNodeChunkVersion {
     #[turbo_tasks::function]
     pub async fn new(
-        output_root: Vc<FileSystemPath>,
-        chunk_path: Vc<FileSystemPath>,
+        output_root: FileSystemPath,
+        chunk_path: FileSystemPath,
         content: Vc<EcmascriptChunkContent>,
         minify_type: MinifyType,
     ) -> Result<Vc<Self>> {
-        let output_root = output_root.await?;
-        let chunk_path = chunk_path.await?;
+        let output_root = output_root.clone();
+        let chunk_path = chunk_path.clone();
         let chunk_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {
-            bail!(
-                "chunk path {} is not in client root {}",
-                chunk_path.to_string(),
-                output_root.to_string()
-            );
+            bail!("chunk path {chunk_path} is not in client root {output_root}");
         };
         let chunk_items = content.await?.chunk_item_code_and_ids().await?;
         Ok(EcmascriptBuildNodeChunkVersion {

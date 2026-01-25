@@ -1,14 +1,15 @@
 use std::io::Write;
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use either::Either;
 use indoc::writedoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, IntoTraitRef, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc,
+    FxIndexMap, IntoTraitRef, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
@@ -26,10 +27,12 @@ use super::{
     version::EcmascriptDevChunkListVersion,
 };
 use crate::chunking_context::{
-    CurrentChunkMethod, CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR,
+    CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(
+    Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode,
+)]
 enum CurrentChunkMethodWithData {
     StringLiteral(RcStr),
     DocumentCurrentScript,
@@ -39,6 +42,7 @@ enum CurrentChunkMethodWithData {
 #[turbo_tasks::value]
 pub(super) struct EcmascriptDevChunkListContent {
     current_chunk_method: CurrentChunkMethodWithData,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
 }
@@ -112,14 +116,11 @@ impl EcmascriptDevChunkListContent {
 
         let by_merger = by_merger
             .into_iter()
-            .map(|(merger, contents)| async move {
+            .map(|(merger, contents)| (merger, Vc::cell(contents)))
+            .map(async |(merger, contents)| {
                 Ok((
                     merger.to_resolved().await?,
-                    merger
-                        .merge(Vc::cell(contents))
-                        .version()
-                        .into_trait_ref()
-                        .await?,
+                    merger.merge(contents).version().into_trait_ref().await?,
                 ))
             })
             .try_join()
@@ -154,8 +155,10 @@ impl EcmascriptDevChunkListContent {
         // `TURBOPACK_CHUNK_LISTS` global variable.
         writedoc!(
             code,
+            // `||=` would be better but we need to be es2020 compatible
+            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
             r#"
-                (globalThis.TURBOPACK_CHUNK_LISTS = globalThis.TURBOPACK_CHUNK_LISTS || []).push({{
+                (globalThis.TURBOPACK_CHUNK_LISTS || (globalThis.TURBOPACK_CHUNK_LISTS = [])).push({{
                     script: {script_or_path},
                     chunks: {:#},
                     source: {:#}
@@ -175,7 +178,7 @@ impl VersionedContent for EcmascriptDevChunkListContent {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
         Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
+            FileContent::Content(File::from(code.source_code().clone())).cell(),
         ))
     }
 

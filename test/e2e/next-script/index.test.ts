@@ -1,4 +1,4 @@
-import webdriver, { BrowserInterface } from 'next-webdriver'
+import webdriver, { Playwright } from 'next-webdriver'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
@@ -45,7 +45,7 @@ describe('beforeInteractive in document Head', () => {
   afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
-    let browser: BrowserInterface
+    let browser: Playwright
 
     try {
       browser = await webdriver(next.url, '/')
@@ -101,7 +101,7 @@ describe('beforeInteractive in document body', () => {
   afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
-    let browser: BrowserInterface
+    let browser: Playwright
 
     try {
       browser = await webdriver(next.url, '/')
@@ -158,7 +158,7 @@ describe('empty strategy in document Head', () => {
   afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
-    let browser: BrowserInterface
+    let browser: Playwright
 
     try {
       browser = await webdriver(next.url, '/')
@@ -213,7 +213,7 @@ describe('empty strategy in document body', () => {
   afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
-    let browser: BrowserInterface
+    let browser: Playwright
 
     try {
       browser = await webdriver(next.url, '/')
@@ -256,7 +256,7 @@ describe('empty strategy in document body', () => {
       afterAll(() => next.destroy())
 
       it('Partytown snippet is not injected to head if not enabled in configuration', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         try {
           browser = await webdriver(next.url, '/')
@@ -306,7 +306,7 @@ describe('empty strategy in document body', () => {
       afterAll(() => next.destroy())
 
       it('Partytown snippets are injected to head if enabled in configuration', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         try {
           browser = await webdriver(next.url, '/')
@@ -331,7 +331,7 @@ describe('empty strategy in document body', () => {
       })
 
       it('Worker scripts are modified by Partytown to execute on a worker thread', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         try {
           browser = await webdriver(next.url, '/')
@@ -391,7 +391,7 @@ describe('empty strategy in document body', () => {
         })
 
       it('Inline worker script through children is modified by Partytown to execute on a worker thread', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         next = await createNextApp(
           `<Script id="inline-script" strategy="worker">{"document.getElementById('text').textContent += 'abc'"}</Script>`
@@ -416,7 +416,7 @@ describe('empty strategy in document body', () => {
       })
 
       it('Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         next = await createNextApp(
           `<Script id="inline-script" strategy="worker" dangerouslySetInnerHTML={{__html: "document.getElementById('text').textContent += 'abcd'"}}/>`
@@ -506,7 +506,7 @@ describe('empty strategy in document body', () => {
       afterAll(() => next.destroy())
 
       it('Partytown config script is overwritten', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         try {
           browser = await webdriver(next.url, '/')

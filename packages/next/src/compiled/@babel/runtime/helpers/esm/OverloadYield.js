@@ -1,3 +1,4 @@
-export default function _OverloadYield(value, kind) {
-  this.v = value, this.k = kind;
+function _OverloadYield(e, d) {
+  this.v = e, this.k = d;
 }
+export { _OverloadYield as default };

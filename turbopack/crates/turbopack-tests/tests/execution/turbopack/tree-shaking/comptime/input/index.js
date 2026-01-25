@@ -1,1 +1,1 @@
-import "../../../side-effects-optimization/comptime/input/index.js";
+import '../../../side-effects-optimization/comptime/input/index.js'

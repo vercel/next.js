@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rustc_hash::FxHashMap;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{ChunkItemExt, ModuleId},
@@ -13,7 +13,7 @@ use crate::chunk::{
 };
 
 #[turbo_tasks::value(transparent, serialization = "none")]
-pub struct CodeAndIds(SmallVec<[(ReadRef<ModuleId>, ReadRef<Code>); 1]>);
+pub struct CodeAndIds(SmallVec<[(ModuleId, ReadRef<Code>); 1]>);
 
 #[turbo_tasks::value(transparent, serialization = "none")]
 pub struct BatchGroupCodeAndIds(
@@ -47,9 +47,9 @@ pub async fn item_code_and_ids(
             async_info,
             ..
         }) => {
-            let id = chunk_item.id();
+            let id = chunk_item.id().await?;
             let code = chunk_item.code(async_info.map(|info| *info));
-            smallvec![(id.await?, code.await?)]
+            smallvec![(id, code.await?)]
         }
         EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => batch
             .await?

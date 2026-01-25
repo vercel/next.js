@@ -79,17 +79,17 @@ For example, in the [functions API Reference](/docs/app/api-reference/functions)
 └── ...
 ```
 
-But, in the [routing section](/docs/app/building-your-application/routing), the files are prefixed with a two-digit number, sorted in the order developers should learn these concepts:
+But, in the [app router section](/docs/app), the files are prefixed with a two-digit number, sorted in the order developers should learn these concepts:
 
 ```txt
-01-routing
-├── 01-defining-routes.mdx
-├── 02-pages.mdx
-├── 03-layouts-and-templates.mdx
+01-getting-started
+├── 01-installation.mdx
+├── 02-project-structure.mdx
+├── 03-layouts-and-pages.mdx
 └── ...
 ```
 
-To quickly find a page, you can use `⌘ + P` (Mac) or `Ctrl + P` (Windows) to open the search bar on VSCode. Then, type the slug of the page you're looking for. E.g. `defining-routes`
+To quickly find a page, you can use `⌘ + P` (Mac) or `Ctrl + P` (Windows) to open the search bar on VSCode. Then, type the slug of the page you're looking for. E.g. `installation`
 
 > **Why not use a manifest?**
 >
@@ -230,7 +230,7 @@ When writing JavaScript code blocks, we use the following language and extension
 
 > **Good to know**:
 >
-> - Make sure to use **`js`** extension with **JSX** code at JavaScript files.
+> - Make sure to use **`.js`** extension for JavaScript files with **JSX** code.
 > - For example, ```jsx filename="app/layout.js"
 
 ### TS and JS Switcher
@@ -328,7 +328,7 @@ For information that is important but not critical, use notes. Notes are a good 
 Related Links guide the user's learning journey by adding links to logical next steps.
 
 - Links will be displayed in cards under the main content of the page.
-- Links will be automatically generated for pages that have child pages. For example, the [Optimizing](/docs/app/building-your-application/optimizing) section has links to all of its child pages.
+- Links will be automatically generated for pages that have child pages.
 
 Create related links using the `related` field in the page's metadata.
 

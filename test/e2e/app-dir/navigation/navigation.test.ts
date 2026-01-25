@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
-import type { Request, Response } from 'playwright'
+import { getTitle, retry, waitFor } from 'next-test-utils'
 
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -11,7 +10,7 @@ describe('app dir - navigation', () => {
     it('should set query correctly', async () => {
       const browser = await next.browser('/')
       expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
-        `""`
+        `"<empty-query>"`
       )
 
       await browser.elementById('set-query').click()
@@ -44,7 +43,7 @@ describe('app dir - navigation', () => {
 
       const browser = await next.browser('/search-params?name=名', {
         beforePageLoad(page) {
-          page.on('response', async (res: Response) => {
+          page.on('response', async (res) => {
             requests.push({
               pathname: new URL(res.url()).pathname,
               ok: res.ok(),
@@ -447,7 +446,6 @@ describe('app dir - navigation', () => {
           .elementByCss('button')
           .click()
           .waitForElementByCss('#result-page')
-        // eslint-disable-next-line jest/no-standalone-expect
         expect(await browser.elementByCss('#result-page').text()).toBe(
           'Result Page'
         )
@@ -497,7 +495,7 @@ describe('app dir - navigation', () => {
 
           const browser = await next.browser(path, {
             beforePageLoad(page) {
-              page.on('request', async (req: Request) => {
+              page.on('request', async (req) => {
                 requestedPathnames.push(new URL(req.url()).pathname)
               })
             },
@@ -893,10 +891,10 @@ describe('app dir - navigation', () => {
         .elementByCss("[href='/metadata-await-promise/nested']")
         .click()
 
-      await waitFor(resolveMetadataDuration)
+      await waitFor(resolveMetadataDuration + 500)
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
-      expect(await browser.elementByCss('title').text()).toBe('Async Title')
+      expect(await getTitle(browser)).toBe('Async Title')
     })
 
     it('shows a fallback when prefetch completed', async () => {
@@ -912,9 +910,11 @@ describe('app dir - navigation', () => {
         .click()
 
       if (!isNextDev) {
-        expect(await browser.elementByCss('title').text()).toBe('Async Title')
-
-        await waitFor(resolveMetadataDuration + 500)
+        expect(
+          await browser
+            .waitForElementByCss('title', resolveMetadataDuration + 500)
+            .text()
+        ).toBe('Async Title')
       }
 
       expect(await browser.elementById('page-content').text()).toBe('Content')

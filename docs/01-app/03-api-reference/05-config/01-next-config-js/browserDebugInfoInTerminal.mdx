@@ -1,0 +1,34 @@
+---
+title: browserDebugInfoInTerminal
+description: Forward browser console logs and errors to your terminal during development.
+redirect: /docs/app/api-reference/config/next-config-js/logging#browser-console-logs
+---
+
+This configuration option has been moved to [`logging.browserToTerminal`](/docs/app/api-reference/config/next-config-js/logging#browser-console-logs).
+
+## Migration
+
+To migrate to the new configuration, replace `experimental.browserDebugInfoInTerminal` with `logging.browserToTerminal`:
+
+```js filename="next.config.js"
+// Before
+module.exports = {
+  experimental: {
+    browserDebugInfoInTerminal: true,
+  },
+}
+
+// After
+module.exports = {
+  logging: {
+    browserToTerminal: true,
+  },
+}
+```
+
+The new `logging.browserToTerminal` option supports the log level values (`true`, `'warn'`, `'error'`). Note that the object configuration options (`depthLimit`, `edgeLimit`, `showSourceLocation`) are no longer available in the new configuration.
+
+| Version   | Changes                                              |
+| --------- | ---------------------------------------------------- |
+| `v15.4.0` | experimental `browserDebugInfoInTerminal` introduced |
+| `v16.2.x` | Moved to stable as `logging.browserToTerminal`       |

@@ -15,13 +15,11 @@ pub(crate) mod process;
 pub(crate) mod references;
 pub(crate) mod util;
 
-pub use asset::CssModuleAsset;
-pub use module_asset::ModuleCssAsset;
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
+use bincode::{Decode, Encode};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
-pub use self::process::*;
 use crate::references::import::ImportAssetReference;
+pub use crate::{asset::CssModuleAsset, module_asset::ModuleCssAsset, process::*};
 
 #[derive(
     PartialOrd,
@@ -33,11 +31,11 @@ use crate::references::import::ImportAssetReference;
     Copy,
     Clone,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum CssModuleAssetType {
     /// Default parsing mode.
@@ -45,12 +43,4 @@ pub enum CssModuleAssetType {
     Default,
     /// The CSS is parsed as CSS modules.
     Module,
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

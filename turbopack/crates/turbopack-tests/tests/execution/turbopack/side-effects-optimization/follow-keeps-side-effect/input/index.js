@@ -1,5 +1,5 @@
-import getValue from "./reexport.js";
+import getValue from './reexport.js'
 
-it("should not optimize away side effects", () => {
-  expect(getValue()).toBe(42);
-});
+it('should not optimize away side effects', () => {
+  expect(getValue()).toBe(42)
+})

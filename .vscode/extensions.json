@@ -6,6 +6,7 @@
     "dbaeumer.vscode-eslint",
     "usernamehw.errorlens",
     "ast-grep.ast-grep-vscode",
+    "tekumara.typos-vscode",
 
     // Testing
     "orta.vscode-jest",

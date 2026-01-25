@@ -5,7 +5,6 @@ import fs from 'fs-extra'
 const testedExamples = [
   // Internal features
   'active-class-name',
-  'amp',
   'api-routes-cors',
   'api-routes-middleware',
   'api-routes-rest',

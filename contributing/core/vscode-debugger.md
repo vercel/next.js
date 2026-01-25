@@ -24,4 +24,4 @@ To see the changes you make to the Next.js codebase during development, you can 
 
 When developing/debugging Next.js, you can set breakpoints anywhere in the `packages/next` source code that will stop the debugger at certain locations so you can examine the behavior. Read more about [breakpoints in the VS Code documentation](https://code.visualstudio.com/docs/nodejs/nodejs-debugging#_breakpoints).
 
-To ensure that the original names are displayed in the "Variables" section, build the Next.js source code with `NEXT_SERVER_EVAL_SOURCE_MAPS=1`. This is automatically applied when using `pnpm dev`.
+To ensure that the original names are displayed in the "Variables" section, build the Next.js source code with `NEXT_SERVER_NO_MANGLE=1`. This is automatically applied when using `pnpm dev`.

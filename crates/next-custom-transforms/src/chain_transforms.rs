@@ -41,9 +41,6 @@ pub struct TransformOptions {
     pub disable_next_ssg: bool,
 
     #[serde(default)]
-    pub disable_page_config: bool,
-
-    #[serde(default)]
     pub pages_dir: Option<PathBuf>,
 
     #[serde(default)]
@@ -121,6 +118,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub css_env: Option<swc_core::ecma::preset_env::Config>,
+
+    #[serde(default)]
+    pub track_dynamic_imports: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -165,7 +165,7 @@ where
                     .css_env
                     .as_ref()
                     .map(|env| {
-                        targets_to_versions(env.targets.clone())
+                        targets_to_versions(env.targets.clone(), None)
                             .expect("failed to parse env.targets")
                     })
                     .unwrap_or_default();
@@ -249,7 +249,6 @@ where
                 crate::transforms::next_ssg::next_ssg(eliminated_packages),
                 !opts.disable_next_ssg,
             ),
-            crate::transforms::amp_attributes::amp_attributes(),
             next_dynamic(
                 opts.is_development,
                 opts.is_server_compiler,
@@ -268,10 +267,6 @@ where
                 NextDynamicMode::Webpack,
                 file.name.clone(),
                 opts.pages_dir.clone().or_else(|| opts.app_dir.clone()),
-            ),
-            Optional::new(
-                crate::transforms::page_config::page_config(opts.is_development, opts.is_page_file),
-                !opts.disable_page_config,
             ),
             relay_plugin,
             match &opts.remove_console {
@@ -327,11 +322,20 @@ where
                     None,
                     config.clone(),
                     comments.clone(),
+                    unresolved_mark,
                     cm.clone(),
                     use_cache_telemetry_tracker,
                     ServerActionsMode::Webpack,
                 )),
                 None => Either::Right(noop_pass()),
+            },
+            match &opts.track_dynamic_imports {
+                true => Either::Left(
+                    crate::transforms::track_dynamic_imports::track_dynamic_imports(
+                        unresolved_mark,
+                    ),
+                ),
+                false => Either::Right(noop_pass()),
             },
             match &opts.cjs_require_optimizer {
                 Some(config) => Either::Left(visit_mut_pass(
@@ -421,32 +425,60 @@ where
         #[serde(untagged)]
         enum Deser<T> {
             Bool(bool),
-            Obj(T),
             EmptyObject(EmptyStruct),
+            #[serde(untagged)]
+            Obj(T),
         }
 
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct EmptyStruct {}
 
-        use serde::__private::de;
+        let res = Deser::deserialize(deserializer)?;
+        Ok(match res {
+            Deser::Bool(v) => BoolOr::Bool(v),
+            Deser::EmptyObject(_) => BoolOr::Bool(true),
+            Deser::Obj(v) => BoolOr::Data(v),
+        })
+    }
+}
 
-        let content = de::Content::deserialize(deserializer)?;
+#[cfg(test)]
+mod tests {
+    use serde::Deserialize;
+    use serde_json::json;
 
-        let deserializer = de::ContentRefDeserializer::<D::Error>::new(&content);
+    use super::BoolOr;
 
-        let res = Deser::deserialize(deserializer);
+    #[test]
+    fn test_bool_or() {
+        let v: BoolOr<usize> = serde_json::from_value(json!(false)).unwrap();
+        assert_eq!(v, BoolOr::Bool(false));
 
-        match res {
-            Ok(v) => Ok(match v {
-                Deser::Bool(v) => BoolOr::Bool(v),
-                Deser::Obj(v) => BoolOr::Data(v),
-                Deser::EmptyObject(_) => BoolOr::Bool(true),
-            }),
-            Err(..) => {
-                let d = de::ContentDeserializer::<D::Error>::new(content);
-                Ok(BoolOr::Data(T::deserialize(d)?))
-            }
+        let v: BoolOr<usize> = serde_json::from_value(json!(true)).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        let v: BoolOr<usize> = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        let v: Result<BoolOr<usize>, _> = serde_json::from_value(json!({"a": 1}));
+        assert!(v.is_err());
+
+        let v: BoolOr<usize> = serde_json::from_value(json!(1)).unwrap();
+        assert_eq!(v, BoolOr::Data(1));
+
+        let v: BoolOr<usize> = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        #[derive(Debug, Eq, PartialEq, Deserialize)]
+        struct SomeStruct {
+            field: Option<usize>,
         }
+
+        let v: BoolOr<SomeStruct> = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        let v: BoolOr<SomeStruct> = serde_json::from_value(json!({"field": 32})).unwrap();
+        assert_eq!(v, BoolOr::Data(SomeStruct { field: Some(32) }));
     }
 }

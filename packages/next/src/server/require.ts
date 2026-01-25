@@ -10,7 +10,7 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 import { LRUCache } from '../server/lib/lru-cache'
-import { loadManifest } from './load-manifest'
+import { loadManifest } from './load-manifest.external'
 import { promises } from 'fs'
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -29,17 +29,23 @@ export function getMaybePagePath(
   // If we have a cached path, we can return it directly.
   if (pagePath) return pagePath
 
-  const serverBuildPath = path.join(distDir, SERVER_DIRECTORY)
+  const serverBuildPath = path.join(
+    /* turbopackIgnore: true */ distDir,
+    SERVER_DIRECTORY
+  )
   let appPathsManifest: undefined | PagesManifest
 
   if (isAppPath) {
     appPathsManifest = loadManifest(
-      path.join(serverBuildPath, APP_PATHS_MANIFEST),
+      path.join(
+        /* turbopackIgnore: true */ serverBuildPath,
+        APP_PATHS_MANIFEST
+      ),
       !isDev
     ) as PagesManifest
   }
   const pagesManifest = loadManifest(
-    path.join(serverBuildPath, PAGES_MANIFEST),
+    path.join(/* turbopackIgnore: true */ serverBuildPath, PAGES_MANIFEST),
     !isDev
   ) as PagesManifest
 
@@ -78,7 +84,14 @@ export function getMaybePagePath(
     return null
   }
 
-  pagePath = path.join(serverBuildPath, pagePath)
+  // Handle absolute paths (e.g., built-in components)
+  if (path.isAbsolute(pagePath)) {
+    // Use the absolute path as-is
+    pagePathCache?.set(cacheKey, pagePath)
+    return pagePath
+  }
+
+  pagePath = path.join(/* turbopackIgnore: true */ serverBuildPath, pagePath)
 
   pagePathCache?.set(cacheKey, pagePath)
   return pagePath
@@ -106,21 +119,16 @@ export async function requirePage(
 ): Promise<any> {
   const pagePath = getPagePath(page, distDir, undefined, isAppPath)
   if (pagePath.endsWith('.html')) {
-    return promises.readFile(pagePath, 'utf8').catch((err) => {
-      throw new MissingStaticPage(page, err.message)
-    })
+    return promises
+      .readFile(/* turbopackIgnore: true */ pagePath, 'utf8')
+      .catch((err) => {
+        throw new MissingStaticPage(page, err.message)
+      })
   }
 
-  // since require is synchronous we can set the specific runtime
-  // we are requiring for the require-hook and then clear after
-  try {
-    process.env.__NEXT_PRIVATE_RUNTIME_TYPE = isAppPath ? 'app' : 'pages'
-    const mod = process.env.NEXT_MINIMAL
-      ? // @ts-ignore
-        __non_webpack_require__(pagePath)
-      : require(pagePath)
-    return mod
-  } finally {
-    process.env.__NEXT_PRIVATE_RUNTIME_TYPE = ''
-  }
+  const mod = process.env.NEXT_MINIMAL
+    ? // @ts-ignore
+      __non_webpack_require__(pagePath)
+    : require(/* turbopackIgnore: true */ pagePath)
+  return mod
 }

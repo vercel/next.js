@@ -1,6 +1,8 @@
+import { connection } from 'next/server'
 import { redirectAction } from '../action'
 
-export default function Page() {
+export default async function Page() {
+  await connection()
   return (
     <form action={redirectAction}>
       <input type="hidden" name="payload" value={'payload-value'} />
@@ -8,5 +10,3 @@ export default function Page() {
     </form>
   )
 }
-
-export const dynamic = 'force-dynamic'

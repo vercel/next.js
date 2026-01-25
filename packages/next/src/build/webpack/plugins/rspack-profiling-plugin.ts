@@ -16,7 +16,7 @@ export class RspackProfilingPlugin {
   }
 
   apply(compiler: any) {
-    compiler.hooks.compilation.tap(
+    compiler.hooks.thisCompilation.tap(
       { name: pluginName, stage: -Infinity },
       (compilation: any) => {
         const rspack = getRspackCore()

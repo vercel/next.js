@@ -1,12 +1,12 @@
 ---
-title: No async client component
+title: No async Client Component
 ---
 
 > Client components cannot be async functions.
 
 ## Why This Error Occurred
 
-The error occurs when you try to define a client component as an async function. React client components [do not support](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md#why-cant-client-components-be-async-functions) async functions. For example:
+The error occurs when you try to define a Client Component as an async function. React Client Components [do not support](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md#why-cant-client-components-be-async-functions) async functions. For example:
 
 ```tsx
 'use client'
@@ -19,9 +19,9 @@ async function ClientComponent() {
 
 ## Possible Ways to Fix It
 
-1. **Convert to a Server Component**: If possible, convert your client component to a server component. This allows you to use `async`/`await` directly in your component.
-2. **Remove the `async` keyword**: If you need to keep it as a client component, remove the `async` keyword and handle data fetching differently.
-3. **Use React hooks for data fetching**: Utilize hooks like `useEffect` for client-side data fetching, or use third-party libraries.
+1. **Convert to a Server Component**: If possible, convert your Client Component to a Server Component. This allows you to use `async`/`await` directly in your component.
+2. **Remove the `async` keyword**: If you need to keep it as a Client Component, remove the `async` keyword and handle data fetching differently.
+3. **Use React Hooks for data fetching**: Utilize hooks like `useEffect` for client-side data fetching, or use third-party libraries.
 4. **Leverage the `use` hook with a Context Provider**: Pass promises to child components using context, then resolve them with the `use` hook.
 
 ### Recommended: Server-side data fetching

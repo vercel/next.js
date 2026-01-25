@@ -1,21 +1,31 @@
-use std::{borrow::Cow, future::Future, mem::replace, panic, pin::Pin};
+use std::{
+    any::{Any, TypeId},
+    future::Future,
+    mem::replace,
+    panic,
+    pin::Pin,
+    sync::Arc,
+};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use auto_hash_map::AutoSet;
+use futures::{StreamExt, TryStreamExt};
 use parking_lot::Mutex;
-use rustc_hash::FxHashSet;
-use tracing::{Instrument, Span};
+use rustc_hash::{FxHashMap, FxHashSet};
+use tokio::task_local;
+use tracing::Instrument;
 
 use crate::{
-    self as turbo_tasks,
+    self as turbo_tasks, CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
     debug::ValueDebugFormat,
     emit,
     event::{Event, EventListener},
-    manager::turbo_tasks_future_scope,
+    spawn,
     trace::TraceRawVcs,
     util::SharedError,
-    CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
 };
+
+const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 
 /// A trait to emit a task effect as collectible. This trait only has one
 /// implementation, `EffectInstance` and no other implementation is allowed.
@@ -74,7 +84,7 @@ impl EffectInstance {
                     EffectState::NotStarted(_) => {
                         let EffectState::NotStarted(inner) = std::mem::replace(
                             &mut *guard,
-                            EffectState::Started(Event::new(|| "Effect".to_string())),
+                            EffectState::Started(Event::new(|| || "Effect".to_string())),
                         ) else {
                             unreachable!();
                         };
@@ -87,28 +97,10 @@ impl EffectInstance {
                     listener.await;
                 }
                 State::NotStarted(EffectInner { future }) => {
-                    let join_handle = tokio::spawn(
-                        turbo_tasks_future_scope(turbo_tasks::turbo_tasks(), future)
-                            .instrument(Span::current()),
-                    );
+                    let join_handle = spawn(ApplyEffectsContext::in_current_scope(future));
                     let result = match join_handle.await {
-                        Ok(Err(err)) => Err(SharedError::new(err)),
-                        Err(err) => {
-                            let any = err.into_panic();
-                            let panic = match any.downcast::<String>() {
-                                Ok(owned) => Some(Cow::Owned(*owned)),
-                                Err(any) => match any.downcast::<&'static str>() {
-                                    Ok(str) => Some(Cow::Borrowed(*str)),
-                                    Err(_) => None,
-                                },
-                            };
-                            Err(SharedError::new(if let Some(panic) = panic {
-                                anyhow!("Task effect panicked: {panic}")
-                            } else {
-                                anyhow!("Task effect panicked")
-                            }))
-                        }
-                        Ok(Ok(())) => Ok(()),
+                        Err(err) => Err(SharedError::new(err)),
+                        Ok(()) => Ok(()),
                     };
                     let event = {
                         let mut guard = self.inner.lock();
@@ -136,7 +128,7 @@ impl Effect for EffectInstance {}
 /// and can't read any Vcs. These need to be read before. ReadRefs can be passed into the future.
 ///
 /// Effects are executed in parallel, so they might need to use async locking to avoid problems.
-/// Order of execution of multiple effects is not defined. You must not use mutliple conflicting
+/// Order of execution of multiple effects is not defined. You must not use multiple conflicting
 /// effects to avoid non-deterministic behavior.
 pub fn effect(future: impl Future<Output = Result<()>> + Send + Sync + 'static) {
     emit::<Box<dyn Effect>>(ResolvedVc::upcast(
@@ -162,24 +154,27 @@ pub fn effect(future: impl Future<Output = Result<()>> + Send + Sync + 'static) 
 /// apply_effects(operation).await?;
 /// ```
 pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
-    let effects: AutoSet<Vc<Box<dyn Effect>>> = source.take_collectibles();
+    let effects: AutoSet<ResolvedVc<Box<dyn Effect>>> = source.take_collectibles();
     if effects.is_empty() {
         return Ok(());
     }
     let span = tracing::info_span!("apply effects", count = effects.len());
-    async move {
-        let mut first_error = anyhow::Ok(());
-        for effect in effects {
-            let Some(effect) = Vc::try_resolve_downcast_type::<EffectInstance>(effect).await?
-            else {
-                panic!("Effect must only be implemented by EffectInstance");
-            };
-            apply_effect(&effect.await?, &mut first_error).await;
-        }
-        first_error
-    }
-    .instrument(span)
-    .await
+    APPLY_EFFECTS_CONTEXT
+        .scope(Default::default(), async move {
+            // Limit the concurrency of effects
+            futures::stream::iter(effects)
+                .map(Ok)
+                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
+                    let Some(effect) = ResolvedVc::try_downcast_type::<EffectInstance>(effect)
+                    else {
+                        panic!("Effect must only be implemented by EffectInstance");
+                    };
+                    effect.await?.apply().await
+                })
+                .await
+        })
+        .instrument(span)
+        .await
 }
 
 /// Capture effects from an turbo-tasks operation. Since this captures collectibles it might
@@ -202,11 +197,11 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
 /// result_with_effects.effects.apply().await?;
 /// ```
 pub async fn get_effects(source: impl CollectiblesSource) -> Result<Effects> {
-    let effects: AutoSet<Vc<Box<dyn Effect>>> = source.take_collectibles();
+    let effects: AutoSet<ResolvedVc<Box<dyn Effect>>> = source.take_collectibles();
     let effects = effects
         .into_iter()
         .map(|effect| async move {
-            if let Some(effect) = Vc::try_resolve_downcast_type::<EffectInstance>(effect).await? {
+            if let Some(effect) = ResolvedVc::try_downcast_type::<EffectInstance>(effect) {
                 Ok(effect.await?)
             } else {
                 panic!("Effect must only be implemented by EffectInstance");
@@ -248,33 +243,87 @@ impl Effects {
     /// Applies all effects that have been captured by this struct.
     pub async fn apply(&self) -> Result<()> {
         let span = tracing::info_span!("apply effects", count = self.effects.len());
-        async move {
-            let mut first_error = anyhow::Ok(());
-            for effect in self.effects.iter() {
-                apply_effect(effect, &mut first_error).await;
-            }
-            first_error
-        }
-        .instrument(span)
-        .await
+        APPLY_EFFECTS_CONTEXT
+            .scope(Default::default(), async move {
+                // Limit the concurrency of effects
+                futures::stream::iter(self.effects.iter())
+                    .map(Ok)
+                    .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
+                        effect.apply().await
+                    })
+                    .await
+            })
+            .instrument(span)
+            .await
     }
 }
 
-async fn apply_effect(
-    effect: &ReadRef<EffectInstance>,
-    first_error: &mut std::result::Result<(), anyhow::Error>,
-) {
-    match effect.apply().await {
-        Err(err) if first_error.is_ok() => {
-            *first_error = Err(err);
-        }
-        _ => {}
+task_local! {
+    /// The context of the current effects application.
+    static APPLY_EFFECTS_CONTEXT: Arc<Mutex<ApplyEffectsContext>>;
+}
+
+#[derive(Default)]
+pub struct ApplyEffectsContext {
+    data: FxHashMap<TypeId, Box<dyn Any + Send + Sync>>,
+}
+
+impl ApplyEffectsContext {
+    fn in_current_scope<F: Future>(f: F) -> impl Future<Output = F::Output> {
+        let current = Self::current();
+        APPLY_EFFECTS_CONTEXT.scope(current, f)
+    }
+
+    fn current() -> Arc<Mutex<Self>> {
+        APPLY_EFFECTS_CONTEXT
+            .try_with(|mutex| mutex.clone())
+            .expect("No effect context found")
+    }
+
+    fn with_context<T, F: FnOnce(&mut Self) -> T>(f: F) -> T {
+        APPLY_EFFECTS_CONTEXT
+            .try_with(|mutex| f(&mut mutex.lock()))
+            .expect("No effect context found")
+    }
+
+    pub fn set<T: Any + Send + Sync>(value: T) {
+        Self::with_context(|this| {
+            this.data.insert(TypeId::of::<T>(), Box::new(value));
+        })
+    }
+
+    pub fn with<T: Any + Send + Sync, R>(f: impl FnOnce(&mut T) -> R) -> Option<R> {
+        Self::with_context(|this| {
+            this.data
+                .get_mut(&TypeId::of::<T>())
+                .map(|value| {
+                    // Safety: the map is keyed by TypeId
+                    unsafe { value.downcast_unchecked_mut() }
+                })
+                .map(f)
+        })
+    }
+
+    pub fn with_or_insert_with<T: Any + Send + Sync, R>(
+        insert_with: impl FnOnce() -> T,
+        f: impl FnOnce(&mut T) -> R,
+    ) -> R {
+        Self::with_context(|this| {
+            let value = this.data.entry(TypeId::of::<T>()).or_insert_with(|| {
+                let value = insert_with();
+                Box::new(value)
+            });
+            f(
+                // Safety: the map is keyed by TypeId
+                unsafe { value.downcast_unchecked_mut() },
+            )
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{apply_effects, get_effects, CollectiblesSource};
+    use crate::{CollectiblesSource, apply_effects, get_effects};
 
     #[test]
     #[allow(dead_code)]

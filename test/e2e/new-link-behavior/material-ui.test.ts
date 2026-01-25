@@ -18,11 +18,7 @@ describe('New Link Behavior with material-ui', () => {
       '@emotion/styled': 'latest',
       '@mui/icons-material': 'latest',
       '@mui/material': 'latest',
-      next: 'latest',
       'prop-types': 'latest',
-      // Use minimum peer dep version instead of v9 of eslint to avoid breaking changes
-      eslint: '8.56.0',
-      'eslint-config-next': 'latest',
     },
   })
 

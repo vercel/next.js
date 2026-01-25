@@ -2,12 +2,13 @@ use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
-    marker_trait::impl_auto_marker_trait, trace::TraceRawVcs, CollectiblesSource, RawVc,
-    ReadVcFuture, ResolvedVc, TaskInput, Upcast, Vc, VcValueTrait, VcValueType,
+    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskInput, UpcastStrict, Vc, VcValueTrait,
+    VcValueType, marker_trait::impl_auto_marker_trait, trace::TraceRawVcs,
 };
 
 /// A "subtype" (can be converted via [`.connect()`]) of [`Vc`] that
@@ -48,6 +49,10 @@ use crate::{
 /// [`State`]: crate::State
 /// [`ReadRef`]: crate::ReadRef
 #[must_use]
+#[derive(Serialize, Deserialize, Encode, Decode)]
+#[serde(transparent, bound = "")]
+#[bincode(bounds = "T: ?Sized")]
+#[repr(transparent)]
 pub struct OperationVc<T>
 where
     T: ?Sized,
@@ -93,7 +98,7 @@ impl<T: ?Sized> OperationVc<T> {
     #[inline(always)]
     pub fn upcast<K>(vc: Self) -> OperationVc<K>
     where
-        T: Upcast<K>,
+        T: UpcastStrict<K>,
         K: VcValueTrait + ?Sized,
     {
         OperationVc {
@@ -129,7 +134,11 @@ impl<T: ?Sized> OperationVc<T> {
     where
         T: VcValueType,
     {
-        self.connect().node.into_read().strongly_consistent().into()
+        self.connect()
+            .node
+            .into_read(T::has_serialization())
+            .strongly_consistent()
+            .into()
     }
 }
 
@@ -186,33 +195,18 @@ where
     }
 }
 
-impl<T> From<RawVc> for OperationVc<T>
+impl<T> TryFrom<RawVc> for OperationVc<T>
 where
     T: ?Sized,
 {
-    fn from(raw: RawVc) -> Self {
-        Self {
-            node: Vc::from(raw),
+    type Error = anyhow::Error;
+
+    fn try_from(raw: RawVc) -> Result<Self> {
+        if !matches!(raw, RawVc::TaskOutput(..)) {
+            anyhow::bail!("Given RawVc {raw:?} is not a TaskOutput");
         }
-    }
-}
-
-impl<T> Serialize for OperationVc<T>
-where
-    T: ?Sized,
-{
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.node.serialize(serializer)
-    }
-}
-
-impl<'de, T> Deserialize<'de> for OperationVc<T>
-where
-    T: ?Sized,
-{
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(OperationVc {
-            node: Vc::deserialize(deserializer)?,
+        Ok(Self {
+            node: Vc::from(raw),
         })
     }
 }
@@ -230,17 +224,21 @@ impl<T> CollectiblesSource for OperationVc<T>
 where
     T: ?Sized,
 {
-    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
+    fn drop_collectibles<Vt: VcValueTrait>(self) {
+        self.node.node.drop_collectibles::<Vt>();
+    }
+
+    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
         self.node.node.take_collectibles()
     }
 
-    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
+    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
         self.node.node.peek_collectibles()
     }
 }
 
-/// Indicates that a type does not contain any instances of [`Vc`] or
-/// [`ResolvedVc`][crate::ResolvedVc]. It may contain [`OperationVc`].
+/// Indicates that a type does not contain any instances of [`Vc`] or [`ResolvedVc`]. It may contain
+/// [`OperationVc`].
 ///
 /// # Safety
 ///

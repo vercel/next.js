@@ -5,13 +5,13 @@ use lightningcss::{
     traits::ToCss,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext},
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 
 use crate::{
@@ -20,7 +20,8 @@ use crate::{
     references::css_resolve,
 };
 
-#[turbo_tasks::value(into = "new", eq = "manual", serialization = "none")]
+#[turbo_tasks::value(eq = "manual", serialization = "none", shared)]
+#[derive(PartialEq)]
 pub enum ImportAttributes {
     LightningCss {
         #[turbo_tasks(trace_ignore)]
@@ -32,11 +33,7 @@ pub enum ImportAttributes {
     },
 }
 
-impl PartialEq for ImportAttributes {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
+impl Eq for ImportAttributes {}
 
 impl ImportAttributes {
     pub fn new_from_lightningcss(prelude: &ImportRule<'static>) -> Self {
@@ -138,8 +135,8 @@ impl ModuleReference for ImportAssetReference {
         Ok(css_resolve(
             *self.origin,
             *self.request,
-            Value::new(CssReferenceSubType::AtImport(import_context)),
-            Some(self.issue_source.clone()),
+            CssReferenceSubType::AtImport(import_context),
+            Some(self.issue_source),
         ))
     }
 }
@@ -158,23 +155,22 @@ impl ValueToString for ImportAssetReference {
 impl CodeGenerateable for ImportAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
-        self: Vc<Self>,
+        &self,
         _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let this = &*self.await?;
         let mut imports = vec![];
         if let Request::Uri {
             protocol,
             remainder,
             ..
-        } = &*this.request.await?
+        } = &*self.request.await?
         {
             imports.push(CssImport::External(ResolvedVc::cell(
-                format!("{}{}", protocol, remainder).into(),
+                format!("{protocol}{remainder}").into(),
             )))
         }
 
-        Ok(CodeGeneration { imports }.into())
+        Ok(CodeGeneration { imports }.cell())
     }
 }
 

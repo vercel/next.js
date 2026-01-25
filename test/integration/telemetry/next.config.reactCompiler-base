@@ -1,5 +1,3 @@
 module.exports = {
-  experimental: {
-    reactCompiler: true
-  }
+  reactCompiler: true
 }

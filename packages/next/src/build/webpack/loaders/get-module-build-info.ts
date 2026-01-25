@@ -1,6 +1,6 @@
 import type {
-  MiddlewareConfig,
-  MiddlewareMatcher,
+  ProxyConfig,
+  ProxyMatcher,
   RSCModuleType,
 } from '../../analysis/get-page-static-info'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -26,9 +26,26 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
   return webpackModule.buildInfo as ModuleBuildInfo
 }
 
+/**
+ * Location info for a server action (1-indexed line and column)
+ */
+export interface ServerActionLocation {
+  line: number
+  col: number
+}
+
+/**
+ * Server action info including name and optional source location
+ */
+export interface ServerActionInfo {
+  name: string
+  loc?: ServerActionLocation
+}
+
 export interface RSCMeta {
   type: RSCModuleType
-  actionIds?: Record<string, string>
+  /** Map of action ID to export name (old format) or action info (new format with location) */
+  actionIds?: Record<string, string | ServerActionInfo>
   clientRefs?: string[]
   clientEntryType?: 'cjs' | 'auto'
   isClientRef?: boolean
@@ -39,7 +56,7 @@ export interface RouteMeta {
   page: string
   absolutePagePath: string
   preferredRegion: string | string[] | undefined
-  middlewareConfig: MiddlewareConfig
+  middlewareConfig: ProxyConfig
   // references to other modules that this route needs
   // e.g. related routes, not-found routes, etc
   relatedModules?: string[]
@@ -47,7 +64,7 @@ export interface RouteMeta {
 
 export interface EdgeMiddlewareMeta {
   page: string
-  matchers?: MiddlewareMatcher[]
+  matchers?: ProxyMatcher[]
 }
 
 export interface EdgeSSRMeta {

@@ -1,0 +1,27 @@
+*arrow function 907* (const after eval) = (...) => undefined
+
+ConstAfterEvalClass (const after eval) = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+d1 (const after eval) = 2
+
+default_function_export_const_after_eval (const after eval) = (...) => undefined
+
+i (const after eval) = (0 | ???*0*)
+- *0* updated with update expression
+  ⚠️  This value might have side effects
+
+named_const_export_const_after_eval (const after eval) = 3
+
+named_function_export_const_after_eval (const after eval) = ((...) => undefined | 2)
+
+named_let_export_const_after_eval (const after eval) = 2
+
+named_let_export_const_after_eval_2 (const after eval) = (???*0* | 5)
+- *0* named_let_export_const_after_eval_2
+  ⚠️  pattern without value
+
+named_let_export_not_const_after_eval = (1 | 5)
+
+named_let_export_not_const_after_eval_2 = (1 | 3)

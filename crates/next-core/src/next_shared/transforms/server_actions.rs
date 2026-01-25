@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::server_actions::{
-    server_actions, Config, ServerActionsMode,
+    Config, ServerActionsMode, server_actions,
 };
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
@@ -40,8 +40,9 @@ pub async fn get_server_actions_transform_rule(
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![transformer]),
+            preprocess: ResolvedVc::cell(vec![transformer]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![]),
         }],
     ))
 }
@@ -70,6 +71,7 @@ impl CustomTransformer for NextServerActions {
                 cache_kinds: self.cache_kinds.owned().await?,
             },
             ctx.comments.clone(),
+            ctx.unresolved_mark,
             ctx.source_map.clone(),
             Default::default(),
             ServerActionsMode::Turbopack,

@@ -15,19 +15,19 @@ pub mod wrapping_source;
 use std::collections::BTreeSet;
 
 use anyhow::Result;
-use futures::{stream::Stream as StreamTrait, TryStreamExt};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
+use futures::{TryStreamExt, stream::Stream as StreamTrait};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::SharedError, Completion, NonLocalValue, OperationVc, ResolvedVc,
-    Upcast, Value, ValueDefault, Vc,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, Upcast, ValueDefault, Vc,
+    trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, Xxh3Hash64Hasher};
 use turbopack_core::version::{Version, VersionedContent};
 
-use self::{
+use crate::source::{
     headers::Headers, issue_context::IssueFilePathContentSource, query::Query,
     route_tree::RouteTree,
 };
@@ -67,13 +67,14 @@ impl Version for ProxyResult {
 pub trait GetContentSourceContent {
     /// Specifies data requirements for the get function. Restricting data
     /// passed allows to cache the get method.
+    #[turbo_tasks::function]
     fn vary(self: Vc<Self>) -> Vc<ContentSourceDataVary> {
         ContentSourceDataVary::default().cell()
     }
 
     /// Get the content
-    fn get(self: Vc<Self>, path: RcStr, data: Value<ContentSourceData>)
-        -> Vc<ContentSourceContent>;
+    #[turbo_tasks::function]
+    fn get(self: Vc<Self>, path: RcStr, data: ContentSourceData) -> Vc<ContentSourceContent>;
 }
 
 #[turbo_tasks::value(transparent)]
@@ -103,17 +104,14 @@ pub enum ContentSourceContent {
 /// is handled.
 #[turbo_tasks::value_trait]
 pub trait ContentSourceSideEffect {
+    #[turbo_tasks::function]
     fn apply(self: Vc<Self>) -> Vc<Completion>;
 }
 
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for ContentSourceContent {
     #[turbo_tasks::function]
-    fn get(
-        self: Vc<Self>,
-        _path: RcStr,
-        _data: Value<ContentSourceData>,
-    ) -> Vc<ContentSourceContent> {
+    fn get(self: Vc<Self>, _path: RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
         self
     }
 }
@@ -181,8 +179,19 @@ impl HeaderList {
 /// Note that you might not receive information that has not been requested via
 /// `ContentSource::vary()`. So make sure to request all information that's
 /// needed.
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Clone, Debug, Hash, Default)]
+#[derive(
+    PartialEq,
+    Eq,
+    NonLocalValue,
+    TraceRawVcs,
+    Clone,
+    Debug,
+    Hash,
+    Default,
+    TaskInput,
+    Encode,
+    Decode,
+)]
 pub struct ContentSourceData {
     /// HTTP method, if requested.
     pub method: Option<RcStr>,
@@ -252,7 +261,7 @@ impl ValueDefault for Body {
 }
 
 /// Filter function that describes which information is required.
-#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, Serialize, Deserialize, NonLocalValue)]
+#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, NonLocalValue, Encode, Decode)]
 pub enum ContentSourceDataFilter {
     All,
     Subset(BTreeSet<String>),
@@ -316,7 +325,7 @@ impl ContentSourceDataFilter {
 /// Describes additional information that need to be sent to requests to
 /// ContentSource. By sending these information ContentSource responses are
 /// cached-keyed by them and they can access them.
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Clone, Hash)]
 pub struct ContentSourceDataVary {
     pub method: bool,
@@ -411,9 +420,11 @@ impl ContentSourceDataVary {
 /// A source of content that the dev server uses to respond to http requests.
 #[turbo_tasks::value_trait]
 pub trait ContentSource {
+    #[turbo_tasks::function]
     fn get_routes(self: Vc<Self>) -> Vc<RouteTree>;
 
     /// Gets any content sources wrapped in this content source.
+    #[turbo_tasks::function]
     fn get_children(self: Vc<Self>) -> Vc<ContentSources> {
         ContentSources::empty()
     }
@@ -422,7 +433,7 @@ pub trait ContentSource {
 pub trait ContentSourceExt {
     fn issue_file_path(
         self: Vc<Self>,
-        file_path: Vc<FileSystemPath>,
+        file_path: FileSystemPath,
         description: RcStr,
     ) -> Vc<Box<dyn ContentSource>>;
 }
@@ -433,13 +444,13 @@ where
 {
     fn issue_file_path(
         self: Vc<Self>,
-        file_path: Vc<FileSystemPath>,
+        file_path: FileSystemPath,
         description: RcStr,
     ) -> Vc<Box<dyn ContentSource>> {
         Vc::upcast(IssueFilePathContentSource::new_file_path(
             file_path,
             description,
-            Vc::upcast(self),
+            Vc::upcast_non_strict(self),
         ))
     }
 }
@@ -475,7 +486,7 @@ impl ContentSource for NoContentSource {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum RewriteType {
     Location {
         /// The new path and query used to lookup content. This _does not_ need to be the original

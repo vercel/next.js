@@ -1,5 +1,5 @@
 import type { Duplex } from 'stream'
-import type { IncomingMessage, ServerResponse } from 'webpack-dev-server'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { parseUrl } from '../../../lib/url'
 import { warnOnce } from '../../../build/output/log'
 import { isCsrfOriginAllowed } from '../../app-render/csrf-protection'
@@ -85,7 +85,7 @@ export const blockCrossSite = (
   // ensure websocket requests from allowed origin
   const rawOrigin = req.headers['origin']
 
-  if (rawOrigin) {
+  if (rawOrigin && rawOrigin !== 'null') {
     const parsedOrigin = parseUrl(rawOrigin)
 
     if (parsedOrigin) {

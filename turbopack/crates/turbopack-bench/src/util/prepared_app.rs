@@ -5,19 +5,19 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chromiumoxide::{
+    Browser, Page,
     cdp::{
         browser_protocol::network::EventResponseReceived,
         js_protocol::runtime::{AddBindingParams, EventBindingCalled, EventExceptionThrown},
     },
-    Browser, Page,
 };
 use futures::{FutureExt, StreamExt};
 use tokio::{sync::Semaphore, task::spawn_blocking};
 use url::Url;
 
-use crate::{bundlers::Bundler, util::PageGuard, BINDING_NAME};
+use crate::{BINDING_NAME, bundlers::Bundler, util::PageGuard};
 
 async fn copy_dir(from: PathBuf, to: PathBuf) -> anyhow::Result<()> {
     copy_dir_inner(from, to, Arc::new(Semaphore::new(64))).await
@@ -153,7 +153,7 @@ impl<'a> PreparedApp<'a> {
         // be completed.
         page.evaluate_expression(format!("window.location='{destination}'"))
             .await
-            .context("Unable to evaluate javascript to naviagate to target page")?;
+            .context("Unable to evaluate javascript to navigate to target page")?;
 
         // Wait for HTML response completed
         loop {
@@ -208,7 +208,7 @@ fn stop_process(proc: &mut Child) -> Result<()> {
     use std::time::Duration;
 
     use nix::{
-        sys::signal::{kill, Signal},
+        sys::signal::{Signal, kill},
         unistd::Pid,
     };
     use owo_colors::OwoColorize;

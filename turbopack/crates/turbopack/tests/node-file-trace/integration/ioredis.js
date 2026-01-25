@@ -1,1 +1,0 @@
-const ioredis = require("ioredis");
