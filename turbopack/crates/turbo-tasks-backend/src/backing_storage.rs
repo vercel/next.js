@@ -43,12 +43,6 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     type ReadTransaction<'l>;
     fn next_free_task_id(&self) -> Result<TaskId>;
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>>;
-    fn serialize(
-        &self,
-        task: TaskId,
-        data: &TaskStorage,
-        category: SpecificTaskDataCategory,
-    ) -> Result<SmallVec<[u8; 16]>>;
 
     fn save_snapshot<I>(
         &self,
@@ -126,14 +120,7 @@ where
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
         either::for_both!(self, this => this.uncompleted_operations())
     }
-    fn serialize(
-        &self,
-        task: TaskId,
-        data: &TaskStorage,
-        category: SpecificTaskDataCategory,
-    ) -> Result<SmallVec<[u8; 16]>> {
-        either::for_both!(self, this => this.serialize(task, data, category))
-    }
+
     fn save_snapshot<I>(
         &self,
         operations: Vec<Arc<AnyOperation>>,

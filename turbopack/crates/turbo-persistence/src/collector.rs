@@ -2,7 +2,7 @@ use std::mem::take;
 
 use crate::{
     ValueBuffer,
-    collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey},
+    collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey, TINY_VALUE_THRESHOLD},
     constants::{
         DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
     },
@@ -47,11 +47,19 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         };
         let value = if value.len() > MAX_SMALL_VALUE_SIZE {
             CollectorEntryValue::Medium {
-                value: value.into_vec(),
+                value: value.into_boxed_slice(),
+            }
+        } else if value.len() <= TINY_VALUE_THRESHOLD {
+            let slice: &[u8] = &value;
+            let mut arr = [0u8; TINY_VALUE_THRESHOLD];
+            arr[..slice.len()].copy_from_slice(slice);
+            CollectorEntryValue::Tiny {
+                value: arr,
+                len: slice.len() as u8,
             }
         } else {
             CollectorEntryValue::Small {
-                value: value.into_small_vec(),
+                value: value.into_boxed_slice(),
             }
         };
         self.total_key_size += key.len();

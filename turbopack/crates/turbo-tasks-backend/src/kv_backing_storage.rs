@@ -7,8 +7,8 @@ use std::{
 
 use anyhow::{Context, Result};
 use turbo_bincode::{
-    TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder, turbo_bincode_decode,
-    turbo_bincode_encode, turbo_bincode_encode_into,
+    TurboBincodeBuffer, new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode,
+    turbo_bincode_encode_into,
 };
 use turbo_tasks::{
     TaskId,
@@ -248,15 +248,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             Ok(operations)
         }
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
-    }
-
-    fn serialize(
-        &self,
-        task: TaskId,
-        data: &TaskStorage,
-        category: SpecificTaskDataCategory,
-    ) -> Result<TurboBincodeBuffer> {
-        encode_task_data(task, data, category)
     }
 
     fn save_snapshot<I>(
@@ -796,31 +787,4 @@ where
 
         Ok(result)
     })
-}
-
-fn encode_task_data(
-    task: TaskId,
-    data: &TaskStorage,
-    category: SpecificTaskDataCategory,
-) -> Result<TurboBincodeBuffer> {
-    // TODO: see if the caller can pass us a buffer instead of us allocating a new one.
-    // This should be possible and save a lot of small allocations.
-    let mut buffer = TurboBincodeBuffer::new();
-    let mut encoder = new_turbo_bincode_encoder(&mut buffer);
-    data.encode(category, &mut encoder)?;
-
-    if !cfg!(feature = "verify_serialization") {
-        return Ok(buffer);
-    }
-
-    TaskStorage::new()
-        .decode(category, &mut new_turbo_bincode_decoder(buffer.borrow()))
-        .with_context(|| {
-            format!(
-                "expected to be able to decode serialized data for '{category:?}' information for \
-                 {task}"
-            )
-        })?;
-
-    Ok(buffer)
 }

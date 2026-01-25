@@ -16,7 +16,7 @@ use std::{
     },
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::IndexSet;
 use parking_lot::{Condvar, Mutex};
@@ -24,6 +24,7 @@ use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
+use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
     CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
     ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT, TaskExecutionReason,
@@ -1017,42 +1018,32 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             (meta, data)
         };
-        let process =
-            |task_id: TaskId, (meta, data): (Option<TaskStorage>, Option<TaskStorage>)| {
-                // TODO: perf: Instead of returning a `Vec` of individually allocated `SmallVec`s,
-                // it'd be better to append everything to a flat per-task or
-                // per-shard `Vec<u8>`, and have each `serialize` call return
-                // `(start_idx, end_idx)`.
+        let process = |task_id: TaskId,
+                       (meta, data): (Option<TaskStorage>, Option<TaskStorage>),
+                       buffer: &mut TurboBincodeBuffer| {
+            (
+                task_id,
+                meta.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Meta, buffer)),
+                data.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Data, buffer)),
+            )
+        };
+        let process_snapshot =
+            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
+                if task_id.is_transient() {
+                    return (task_id, None, None);
+                }
+
+                // Encode meta/data directly from TaskStorage snapshot
                 (
                     task_id,
-                    meta.map(|d| {
-                        self.backing_storage
-                            .serialize(task_id, &d, SpecificTaskDataCategory::Meta)
+                    inner.flags.meta_modified().then(|| {
+                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Meta, buffer)
                     }),
-                    data.map(|d| {
-                        self.backing_storage
-                            .serialize(task_id, &d, SpecificTaskDataCategory::Data)
+                    inner.flags.data_modified().then(|| {
+                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Data, buffer)
                     }),
                 )
             };
-        let process_snapshot = |task_id: TaskId, inner: Box<TaskStorage>| {
-            if task_id.is_transient() {
-                return (task_id, None, None);
-            }
-
-            // Encode meta/data directly from TaskStorage snapshot
-            (
-                task_id,
-                inner.flags.meta_modified().then(|| {
-                    self.backing_storage
-                        .serialize(task_id, &inner, SpecificTaskDataCategory::Meta)
-                }),
-                inner.flags.data_modified().then(|| {
-                    self.backing_storage
-                        .serialize(task_id, &inner, SpecificTaskDataCategory::Data)
-                }),
-            )
-        };
 
         let snapshot = self
             .storage
@@ -3536,4 +3527,34 @@ fn far_future() -> Instant {
     // or convert specific date in the future to instant.
     // 1000 years overflows on macOS, 100 years overflows on FreeBSD.
     Instant::now() + Duration::from_secs(86400 * 365 * 30)
+}
+
+/// Encodes task data, using the provided buffer as a scratch space.  Returns a new exactly sized
+/// buffer.
+/// This allows reusing the buffer across multiple encode calls to optimize allocations and
+/// resulting buffer sizes.
+fn encode_task_data(
+    task: TaskId,
+    data: &TaskStorage,
+    category: SpecificTaskDataCategory,
+    scratch_buffer: &mut TurboBincodeBuffer,
+) -> Result<TurboBincodeBuffer> {
+    scratch_buffer.clear();
+    let mut encoder = new_turbo_bincode_encoder(scratch_buffer);
+    data.encode(category, &mut encoder)?;
+
+    if cfg!(feature = "verify_serialization") {
+        TaskStorage::new()
+            .decode(
+                category,
+                &mut new_turbo_bincode_decoder(&scratch_buffer[..]),
+            )
+            .with_context(|| {
+                format!(
+                    "expected to be able to decode serialized data for '{category:?}' information \
+                     for {task}"
+                )
+            })?;
+    }
+    Ok(SmallVec::from_slice(scratch_buffer))
 }
