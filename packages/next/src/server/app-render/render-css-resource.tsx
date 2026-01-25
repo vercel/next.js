@@ -9,14 +9,12 @@ import type { PreloadCallbacks, CollectedInlineCss } from './types'
  * For inlined CSS, renders a <style> tag with the CSS content directly embedded.
  * For external CSS files, renders a <link> tag pointing to the CSS file.
  *
- * When collectedInlineCss is provided, inline CSS is collected for injection
- * via ServerInsertedHTML instead of being rendered in the component tree.
- * This avoids duplicating CSS in both HTML and RSC payload.
- *
  * The inlineCssMode determines the inlining behavior:
  * - `false` or `undefined`: No CSS inlining (render as <link> tags)
- * - `true`: Inline ALL CSS
- * - `'shared'`: Only inline root layout CSS (safer for client navigations)
+ * - `true`: Inline ALL CSS (note: CSS will be duplicated in HTML and RSC payload)
+ * - `'shared'`: Only inline root layout CSS (safer for client navigations).
+ *   In this mode, collectedInlineCss is used to inject CSS via ServerInsertedHTML
+ *   to avoid duplicating CSS in both HTML and RSC payload.
  */
 export function renderCssResource(
   entryCssFiles: CssResource[],
@@ -97,18 +95,6 @@ export function renderCssResource(
         !ctx.parsedRequestHeaders.isRSCRequest
       ) {
         // inlineCss: true mode - inline ALL CSS for non-RSC requests
-        // When collectedInlineCss is provided, collect CSS for ServerInsertedHTML
-        // injection instead of rendering in the component tree. This prevents
-        // CSS from being duplicated in both HTML and RSC payload.
-        if (collectedInlineCss) {
-          collectedInlineCss.styles.push({
-            href: fullHref,
-            content: entryCssFile.content!,
-            precedence: precedence,
-            nonce: ctx.nonce,
-          })
-          return null
-        }
         return createElement(
           'style',
           {

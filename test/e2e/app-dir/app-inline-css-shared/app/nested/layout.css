@@ -1,0 +1,12 @@
+/* Nested layout CSS - should NOT be inlined (only root layout is inlined) */
+.nested-layout-wrapper {
+  border: 2px solid orange;
+  padding: 16px;
+}
+
+.nested-header {
+  background-color: orange;
+  color: white;
+  padding: 8px;
+  margin-bottom: 16px;
+}

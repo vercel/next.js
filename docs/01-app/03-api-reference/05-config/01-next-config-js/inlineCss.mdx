@@ -39,9 +39,19 @@ module.exports = nextConfig
 | `true`     | All CSS is inlined                        |
 | `'shared'` | Only root layout CSS is inlined           |
 
-### The `'shared'` Option
+### The `'shared'` Option (Recommended for Tailwind)
 
-When using `inlineCss: 'shared'`, only the CSS from your root layout is inlined. This is particularly useful when using utility-first CSS frameworks like Tailwind CSS, where the root layout CSS is shared across all pages.
+When using `inlineCss: 'shared'`, only the CSS from your root layout is inlined. This mode is ideal for utility-first CSS frameworks like Tailwind CSS, where:
+
+- Tailwind CSS is typically imported once in the root layout
+- The styles are shared across all pages
+- The CSS bundle doesn't grow significantly per page (O(1) complexity)
+
+This mode provides optimized performance by:
+
+- Inlining root layout CSS in the initial HTML for fast First Contentful Paint
+- Excluding root layout CSS from RSC payloads during navigation (client already has it)
+- Loading page-specific CSS via `<link>` tags to avoid duplication issues
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -105,3 +115,4 @@ Evaluate these trade-offs carefully, and consider combining inlining with other 
 > - CSS inlining is applied globally and cannot be configured on a per-page basis
 > - When navigating to statically rendered pages, styles will use `<link>` tags instead of inline CSS to avoid duplication
 > - This feature is not available in development mode and only works in production builds
+> - When using `inlineCss: true`, styles are duplicated during initial page load - once within `<style>` tags for SSR and once in the RSC payload. Consider using `'shared'` mode if this is a concern.

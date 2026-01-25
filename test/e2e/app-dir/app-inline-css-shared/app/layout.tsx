@@ -8,6 +8,7 @@ export default function RootLayout({ children }) {
         <nav className="flex gap-4 p-4">
           <Link
             href="/"
+            id="link-home"
             prefetch={false}
             className="text-blue-500 hover:underline"
           >
@@ -20,6 +21,22 @@ export default function RootLayout({ children }) {
             className="text-blue-500 hover:underline"
           >
             Page A
+          </Link>
+          <Link
+            href="/b"
+            id="link-b"
+            prefetch={false}
+            className="text-blue-500 hover:underline"
+          >
+            Page B
+          </Link>
+          <Link
+            href="/nested"
+            id="link-nested"
+            prefetch={false}
+            className="text-blue-500 hover:underline"
+          >
+            Nested
           </Link>
         </nav>
         {children}

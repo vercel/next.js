@@ -1,0 +1,5 @@
+/* Page B specific CSS - should NOT be inlined, loaded via <link> */
+.page-b-custom {
+  font-weight: bold;
+  color: purple;
+}

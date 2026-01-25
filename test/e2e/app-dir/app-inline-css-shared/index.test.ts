@@ -118,5 +118,72 @@ describe('app dir - css - experimental inline css shared mode', () => {
       expect(await customElement.getComputedCss('fontSize')).toBe('32px')
       expect(await customElement.getComputedCss('color')).toBe('rgb(0, 128, 0)') // green
     })
+
+    it('should maintain styles after multiple navigations', async () => {
+      const browser = await next.browser('/')
+
+      // Verify initial page
+      expect(await browser.elementByCss('h1').getComputedCss('color')).toBe(
+        'rgb(59, 130, 246)'
+      )
+
+      // Navigate: Home → A
+      await browser.elementByCss('#link-a').click()
+      await browser.waitForElementByCss('#page-a')
+      expect(await browser.elementByCss('h1').getComputedCss('color')).toBe(
+        'rgb(59, 130, 246)'
+      )
+
+      // Navigate: A → B
+      await browser.elementByCss('#link-b').click()
+      await browser.waitForElementByCss('#page-b')
+      expect(await browser.elementByCss('h1').getComputedCss('color')).toBe(
+        'rgb(59, 130, 246)'
+      )
+      // Page B specific styles
+      expect(
+        await browser.elementByCss('.page-b-custom').getComputedCss('color')
+      ).toBe('rgb(128, 0, 128)') // purple
+
+      // Navigate: B → Home
+      await browser.elementByCss('#link-home').click()
+      await browser.waitForElementByCss('#page-home')
+      expect(await browser.elementByCss('h1').getComputedCss('color')).toBe(
+        'rgb(59, 130, 246)'
+      )
+    })
+
+    it('should only inline root layout CSS, not nested layout CSS', async () => {
+      const $ = await next.render$('/nested')
+
+      // Tailwind (root layout) CSS should be inlined
+      const styleContent = $('style').text()
+      expect(styleContent).toMatch(/\.text-blue-500|--tw-|\.bg-white/)
+
+      // Nested layout CSS should NOT be in the inline styles
+      expect(styleContent).not.toContain('.nested-layout-wrapper')
+      expect(styleContent).not.toContain('.nested-header')
+
+      // Nested layout CSS should be loaded via <link> tag
+      const linkTags = $('link[rel="stylesheet"]')
+      expect(linkTags.length).toBeGreaterThan(0)
+    })
+
+    it('should include nested layout CSS in RSC payload for navigations', async () => {
+      // Fetch the RSC payload for /nested (navigation request)
+      const rscPayload = await (
+        await next.fetch(`/nested?${NEXT_RSC_UNION_QUERY}`, {
+          method: 'GET',
+          headers: {
+            rsc: '1',
+          },
+        })
+      ).text()
+
+      // Nested layout CSS should be referenced in the RSC payload
+      expect(rscPayload).toContain('__PAGE__') // sanity check
+      // The nested layout CSS should be referenced (as link or stylesheet)
+      expect(rscPayload).toMatch(/stylesheet|\.css/)
+    })
   })
 })
