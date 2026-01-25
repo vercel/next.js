@@ -3556,5 +3556,5 @@ fn encode_task_data(
                 )
             })?;
     }
-    Ok(SmallVec::from_slice(&scratch_buffer))
+    Ok(SmallVec::from_slice(scratch_buffer))
 }
