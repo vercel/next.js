@@ -1354,8 +1354,69 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             result_size = tracing::field::Empty
         )
         .entered();
+        let results = self.get_impl(family, key, false)?;
+        debug_assert!(results.len() <= 1, "get() should return at most one result");
+        match results.into_iter().next() {
+            Some(value) => {
+                span.record("result_size", value.len());
+                Ok(Some(value))
+            }
+            None => {
+                span.record("result_size", "not found");
+                Ok(None)
+            }
+        }
+    }
+
+    /// Looks up a key and returns all matching values.
+    ///
+    /// This is useful for keyspaces where keys are not unique and collisions are possible.
+    /// Unlike `get`, which returns only the first match, this method returns all
+    /// entries with the same key from all SST files.  By default however we assume these collisions
+    /// are extremely rare and thus optimize for there being exactly 0 or 1 results.
+    ///
+    /// Note: This method does NOT deduplicate values. If the same key-value pair exists
+    /// in multiple SST files (e.g., before compaction), it will be returned multiple times.
+    pub fn get_multiple<K: QueryKey>(
+        &self,
+        family: usize,
+        key: &K,
+    ) -> Result<SmallVec<[ArcSlice<u8>; 1]>> {
+        debug_assert!(family < FAMILIES, "Family index out of bounds");
+        let span = tracing::trace_span!(
+            "database read multiple",
+            name = family,
+            result_count = tracing::field::Empty,
+            result_size = tracing::field::Empty
+        )
+        .entered();
+        let results = self.get_impl(family, key, true)?;
+        span.record("result_count", results.len());
+        span.record(
+            "result_size",
+            results.iter().map(|r| r.len()).sum::<usize>(),
+        );
+        Ok(results)
+    }
+
+    /// Shared implementation for `get` and `get_multiple`.
+    ///
+    /// If `find_all` is false, stops after finding the first match.
+    /// If `find_all` is true, continues to find all matches across all meta files.
+    fn get_impl<K: QueryKey>(
+        &self,
+        family: usize,
+        key: &K,
+        find_all: bool,
+    ) -> Result<SmallVec<[ArcSlice<u8>; 1]>> {
         let hash = hash_key(key);
         let inner = self.inner.read();
+        let mut output: SmallVec<[ArcSlice<u8>; 1]> = SmallVec::new();
+        // Track whether we found the key in any SST (even if deleted).
+        // Used for miss_global stat: only fires if key was never found anywhere.
+        #[cfg(feature = "stats")]
+        let mut found_in_sst = false;
+
         for meta in inner.meta_files.iter().rev() {
             match meta.lookup(
                 family as u32,
@@ -1363,6 +1424,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 key,
                 &self.key_block_cache,
                 &self.value_block_cache,
+                find_all,
             )? {
                 MetaLookupResult::FamilyMiss => {
                     #[cfg(feature = "stats")]
@@ -1377,28 +1439,39 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     self.stats.miss_amqf.fetch_add(1, Ordering::Relaxed);
                 }
                 MetaLookupResult::SstLookup(result) => match result {
-                    SstLookupResult::Found(result) => {
+                    SstLookupResult::Found(values) => {
+                        #[cfg(feature = "stats")]
+                        {
+                            found_in_sst = true;
+                        }
                         inner.accessed_key_hashes[family].insert(hash);
-                        match result {
-                            LookupValue::Deleted => {
-                                #[cfg(feature = "stats")]
-                                self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
-                                span.record("result_size", "deleted");
-                                return Ok(None);
+                        for value in values {
+                            match value {
+                                LookupValue::Deleted => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                                    if !find_all {
+                                        // For get, deleted means "key was deleted", stop looking
+                                        return Ok(SmallVec::new());
+                                    }
+                                    // For get_multiple, skip deleted entries but keep looking
+                                }
+                                LookupValue::Slice { value } => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                                    output.push(value);
+                                }
+                                LookupValue::Blob { sequence_number } => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
+                                    let blob = self.read_blob(sequence_number)?;
+                                    output.push(blob);
+                                }
                             }
-                            LookupValue::Slice { value } => {
-                                #[cfg(feature = "stats")]
-                                self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
-                                span.record("result_size", value.len());
-                                return Ok(Some(value));
-                            }
-                            LookupValue::Blob { sequence_number } => {
-                                #[cfg(feature = "stats")]
-                                self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
-                                let blob = self.read_blob(sequence_number)?;
-                                span.record("result_size", blob.len());
-                                return Ok(Some(blob));
-                            }
+                        }
+                        if !find_all {
+                            // For get, we found a non-deleted value, return it
+                            return Ok(output);
                         }
                     }
                     SstLookupResult::NotFound => {
@@ -1408,10 +1481,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 },
             }
         }
+
         #[cfg(feature = "stats")]
-        self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
-        span.record("result_size", "not found");
-        Ok(None)
+        if !found_in_sst {
+            self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+        }
+
+        Ok(output)
     }
 
     pub fn batch_get<K: QueryKey>(

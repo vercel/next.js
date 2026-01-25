@@ -11,6 +11,7 @@ use byteorder::{BE, ReadBytesExt};
 use memmap2::Mmap;
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
+use smallvec::SmallVec;
 
 use crate::{
     QueryKey,
@@ -47,15 +48,15 @@ const _: () = assert!(
 
 /// The result of a lookup operation.
 pub enum SstLookupResult {
-    /// The key was found.
-    Found(LookupValue),
+    /// One or more values were found.
+    Found(SmallVec<[LookupValue; 1]>),
     /// The key was not found.
     NotFound,
 }
 
 impl From<LookupValue> for SstLookupResult {
     fn from(value: LookupValue) -> Self {
-        SstLookupResult::Found(value)
+        SstLookupResult::Found(smallvec::smallvec![value])
     }
 }
 
@@ -148,14 +149,20 @@ impl StaticSortedFile {
     }
 
     /// Looks up a key in this file.
+    ///
+    /// If `find_all` is false, returns after finding the first match.
+    /// If `find_all` is true, returns all entries with the same key (useful for
+    /// keyspaces where keys are hashes and collisions are possible).
     pub fn lookup<K: QueryKey>(
         &self,
         key_hash: u64,
         key: &K,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
+        find_all: bool,
     ) -> Result<SstLookupResult> {
-        let mut current_block = self.meta.block_count - 1;
+        let this = &self;
+        let mut current_block = this.meta.block_count - 1;
         loop {
             let mut key_block_arc = self.get_key_block(current_block, key_block_cache)?;
             let block_type = key_block_arc.read_u8()?;
@@ -171,6 +178,7 @@ impl StaticSortedFile {
                         key,
                         has_hash,
                         value_block_cache,
+                        find_all,
                     );
                 }
                 _ => {
@@ -227,6 +235,9 @@ impl StaticSortedFile {
     }
 
     /// Looks up a key in a key block and the value in a value block.
+    ///
+    /// If `find_all` is false, returns after finding the first match.
+    /// If `find_all` is true, collects all entries with the same key.
     fn lookup_key_block<K: QueryKey>(
         &self,
         mut block: ArcSlice<u8>,
@@ -234,6 +245,7 @@ impl StaticSortedFile {
         key: &K,
         has_hash: bool,
         value_block_cache: &BlockCache,
+        find_all: bool,
     ) -> Result<SstLookupResult> {
         let hash_len: u8 = if has_hash { 8 } else { 0 };
         let entry_count = block.read_u24::<BE>()? as usize;
@@ -242,33 +254,58 @@ impl StaticSortedFile {
 
         let mut l = 0;
         let mut r = entry_count;
-        // binary search for the key
+        let mut found = false;
+        // binary search for the first matching key
+        // TODO: we actually need to find the last matching key
         while l < r {
             let m = (l + r) / 2;
             let GetKeyEntryResult {
                 hash: mid_hash,
                 key: mid_key,
-                ty,
-                val: mid_val,
+                ..
             } = get_key_entry(offsets, entries, entry_count, m, hash_len)?;
 
             let comparison = compare_hash_key(mid_hash, mid_key, key_hash, key);
 
             match comparison {
-                Ordering::Less => {
+                Ordering::Less => r = m,
+                Ordering::Equal => {
+                    found = true;
                     r = m;
                 }
-                Ordering::Equal => {
-                    return Ok(self
-                        .handle_key_match(ty, mid_val, &block, value_block_cache)?
-                        .into());
-                }
-                Ordering::Greater => {
-                    l = m + 1;
-                }
+                Ordering::Greater => l = m + 1,
             }
         }
-        Ok(SstLookupResult::NotFound)
+
+        if !found {
+            return Ok(SstLookupResult::NotFound);
+        }
+
+        // l is now the index of the first matching element
+        let GetKeyEntryResult { ty, val, .. } =
+            get_key_entry(offsets, entries, entry_count, l, hash_len)?;
+
+        // Collect all entries with matching key starting from l
+        let mut results = SmallVec::new();
+        results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+        if find_all {
+            // duplicates, if there are anyu will be immediately following this one.
+            for i in (l + 1)..entry_count {
+                let GetKeyEntryResult {
+                    hash,
+                    key: entry_key,
+                    ty,
+                    val,
+                } = get_key_entry(offsets, entries, entry_count, i, hash_len)?;
+                let comparison = compare_hash_key(hash, entry_key, key_hash, key);
+                if comparison != Ordering::Equal {
+                    break;
+                }
+                results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+            }
+        }
+
+        Ok(SstLookupResult::Found(results))
     }
 
     /// Handles a key match by looking up the value.

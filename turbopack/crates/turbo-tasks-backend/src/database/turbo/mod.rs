@@ -8,13 +8,14 @@ use std::{
 
 use anyhow::{Ok, Result};
 use parking_lot::Mutex;
+use smallvec::SmallVec;
 use turbo_persistence::{
     ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
 use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
 
 use crate::database::{
-    key_value_database::{KeySpace, KeyValueDatabase},
+    key_value_database::{KeySpace, KeyValueDatabase, LookupSemantics},
     turbo::parallel_scheduler::TurboTasksParallelScheduler,
     write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
 };
@@ -81,6 +82,11 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         key_space: KeySpace,
         key: &[u8],
     ) -> Result<Option<Self::ValueBuffer<'l>>> {
+        debug_assert!(
+            key_space.lookup_semantics() != LookupSemantics::MultipleValues,
+            "KeySpace {:?} may have multiple values - use get_multiple instead",
+            key_space
+        );
         self.db.get(key_space as usize, &key)
     }
 
@@ -91,6 +97,20 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         keys: &[&[u8]],
     ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
         self.db.batch_get(key_space as usize, keys)
+    }
+
+    fn get_multiple<'l, 'db: 'l>(
+        &'l self,
+        _transaction: &'l Self::ReadTransaction<'db>,
+        key_space: KeySpace,
+        key: &[u8],
+    ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
+        debug_assert!(
+            key_space.lookup_semantics() != LookupSemantics::SingleValue,
+            "KeySpace {:?} has single values - use get instead of get_multiple",
+            key_space
+        );
+        self.db.get_multiple(key_space as usize, &key)
     }
 
     type ConcurrentWriteBatch<'l>

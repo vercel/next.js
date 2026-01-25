@@ -1303,3 +1303,211 @@ fn batch_get_after_restore() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn get_multiple_same_key_different_batches() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Create a database and write the same key with different values in separate batches.
+    // Before compaction, all values should be retrievable via get_multiple.
+    let key = vec![42u8, 42u8, 42u8]; // The key we'll write multiple times
+
+    {
+        let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+
+        // Write first value for the key
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![1u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Write second value for the same key in a new batch (new SST file)
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![2u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Write third value for the same key
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![3u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Now get_multiple should return all three values (newest first, as we iterate in reverse)
+        let results = db.get_multiple(0, &key.as_slice())?;
+
+        // All three values should be present
+        assert_eq!(results.len(), 3, "Should have 3 values before compaction");
+
+        // Convert to sorted Vec for comparison (order may vary based on SST iteration order)
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(values, vec![1, 2, 3], "Should have all three values");
+
+        // Regular get should return only the newest value
+        let single = db.get(0, &key.as_slice())?;
+        assert_eq!(
+            single.as_deref(),
+            Some(&[3u8][..]),
+            "Regular get should return newest value"
+        );
+
+        db.shutdown()?;
+    }
+
+    // Reopen and verify persistence
+    {
+        let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 3, "Should still have 3 values after reopen");
+
+        db.shutdown()?;
+    }
+
+    // After compaction, only the newest value should remain
+    {
+        let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+
+        db.full_compact()?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            1,
+            "Should have only 1 value after compaction"
+        );
+        assert_eq!(
+            results[0].as_ref(),
+            &[3u8],
+            "Should be the newest value after compaction"
+        );
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn get_multiple_same_key_same_batch() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Test writing the same key multiple times within a single batch.
+    // The SST file should contain all entries, and get_multiple should return them all.
+    let key = vec![99u8];
+
+    {
+        let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+
+        let batch = db.write_batch()?;
+        // Write multiple values for the same key in the same batch
+        batch.put(0, key.clone(), vec![10u8].into())?;
+        batch.put(0, key.clone(), vec![20u8].into())?;
+        batch.put(0, key.clone(), vec![30u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Within a single SST file, entries with same key are sorted and all present
+        let results = db.get_multiple(0, &key.as_slice())?;
+
+        // All three values should be present in the SST (no compaction yet)
+        assert_eq!(
+            results.len(),
+            3,
+            "Should have 3 values in same batch before compaction"
+        );
+
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(values, vec![10, 20, 30]);
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn get_multiple_different_keys() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Test that get_multiple only returns values for the specific key,
+    // not values for other keys.
+    {
+        let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], vec![100u8].into())?;
+        batch.put(0, vec![2u8], vec![200u8].into())?;
+        batch.put(0, vec![3u8], vec![200u8].into())?; // Same value, different key
+        db.commit_write_batch(batch)?;
+
+        // get_multiple for key [1] should only return value [100]
+        let results = db.get_multiple(0, &[1u8].as_slice())?;
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].as_ref(), &[100u8]);
+
+        // get_multiple for key [2] should only return value [200]
+        let results = db.get_multiple(0, &[2u8].as_slice())?;
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].as_ref(), &[200u8]);
+
+        // get_multiple for non-existent key should return empty
+        let results = db.get_multiple(0, &[99u8].as_slice())?;
+        assert_eq!(results.len(), 0);
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn get_multiple_empty_result() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    {
+        let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], vec![100u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Query for a key that doesn't exist
+        let results = db.get_multiple(0, &[99u8].as_slice())?;
+        assert!(
+            results.is_empty(),
+            "Should return empty vec for non-existent key"
+        );
+
+        // Query empty database for different family
+        let results = db.get_multiple(1, &[1u8].as_slice())?;
+        assert!(
+            results.is_empty(),
+            "Should return empty vec for different family"
+        );
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}

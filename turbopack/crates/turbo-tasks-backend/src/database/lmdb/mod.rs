@@ -7,7 +7,7 @@ use lmdb::{
 };
 
 use crate::database::{
-    key_value_database::{KeySpace, KeyValueDatabase},
+    key_value_database::{KeySpace, KeyValueDatabase, LookupSemantics},
     write_batch::{BaseWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer},
 };
 
@@ -81,6 +81,11 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
         key_space: super::key_value_database::KeySpace,
         key: &[u8],
     ) -> Result<Option<Self::ValueBuffer<'l>>> {
+        debug_assert!(
+            key_space.lookup_semantics() != LookupSemantics::MultipleValues,
+            "KeySpace {:?} may have multiple values - use get_multiple instead",
+            key_space
+        );
         let db = match key_space {
             KeySpace::Infra => self.infra_db,
             KeySpace::TaskMeta => self.meta_db,
