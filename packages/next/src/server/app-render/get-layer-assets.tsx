@@ -40,9 +40,6 @@ export function getLayerAssets({
   // Track root layout CSS paths for inlineCss: 'shared' mode
   // Root layout CSS is guaranteed to be shared across all pages
   if (isRootLayout && collectedInlineCss && styleTags.length > 0) {
-    if (!collectedInlineCss.rootLayoutCSSPaths) {
-      collectedInlineCss.rootLayoutCSSPaths = new Set()
-    }
     for (const css of styleTags) {
       collectedInlineCss.rootLayoutCSSPaths.add(css.path)
     }

@@ -2535,6 +2535,7 @@ async function renderToStream(
   // and RSC payload (serialized in <script> tags).
   const collectedInlineCss: CollectedInlineCss = {
     styles: [],
+    rootLayoutCSSPaths: new Set(),
     inlineCssMode: experimental.inlineCss,
   }
 
@@ -4152,6 +4153,7 @@ async function prerenderToStream(
   // and RSC payload (serialized in <script> tags).
   const collectedInlineCss: CollectedInlineCss = {
     styles: [],
+    rootLayoutCSSPaths: new Set(),
     inlineCssMode: experimental.inlineCss,
   }
 

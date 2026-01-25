@@ -11,7 +11,9 @@ import type { PreloadCallbacks, CollectedInlineCss } from './types'
  *
  * The inlineCssMode determines the inlining behavior:
  * - `false` or `undefined`: No CSS inlining (render as <link> tags)
- * - `true`: Inline ALL CSS (note: CSS will be duplicated in HTML and RSC payload)
+ * - `true`: Inline ALL CSS. Note: This causes CSS duplication because styles
+ *   appear both in initial HTML <style> tags AND in the RSC payload's serialized
+ *   <script> content. The client then re-injects them, causing double styles.
  * - `'shared'`: Only inline root layout CSS (safer for client navigations).
  *   In this mode, collectedInlineCss is used to inject CSS via ServerInsertedHTML
  *   to avoid duplicating CSS in both HTML and RSC payload.
@@ -54,47 +56,28 @@ export function renderCssResource(
 
       // Check if this CSS is from the root layout (shared across all pages)
       const isRootLayoutCSS = rootLayoutCSSPaths?.has(entryCssFile.path)
+      const isRSCRequest = ctx.parsedRequestHeaders.isRSCRequest
 
-      // In 'shared' mode, handle root layout CSS specially:
-      // - For RSC requests: skip root layout CSS entirely (client already has it from initial HTML)
-      // - For non-RSC requests: inline only root layout CSS
-      if (inlineCssMode === 'shared') {
-        if (ctx.parsedRequestHeaders.isRSCRequest) {
-          // For RSC/navigation requests, skip root layout CSS
-          // (client already has it from the initial HTML load)
-          if (isRootLayoutCSS) {
-            return null
-          }
-          // Page-specific CSS should still be included in RSC payload
-          // Fall through to render as <link> tag
-        } else if (isRootLayoutCSS && entryCssFile.inlined) {
-          // For initial HTML requests, inline only root layout CSS
-          if (collectedInlineCss) {
-            collectedInlineCss.styles.push({
-              href: fullHref,
-              content: entryCssFile.content!,
-              precedence: precedence,
-              nonce: ctx.nonce,
-            })
-            return null
-          }
-          return createElement(
-            'style',
-            {
-              key: index,
-              nonce: ctx.nonce,
-              precedence: precedence,
-              href: fullHref,
-            },
-            entryCssFile.content
-          )
+      // Handle inlineCss: 'shared' mode
+      if (inlineCssMode === 'shared' && isRootLayoutCSS) {
+        // RSC requests: skip root layout CSS (client already has it from initial HTML)
+        if (isRSCRequest) {
+          return null
         }
-        // For page-specific CSS in 'shared' mode, fall through to render as <link> tag
-      } else if (
-        entryCssFile.inlined &&
-        !ctx.parsedRequestHeaders.isRSCRequest
-      ) {
-        // inlineCss: true mode - inline ALL CSS for non-RSC requests
+        // Initial HTML: collect for ServerInsertedHTML injection
+        if (entryCssFile.inlined) {
+          collectedInlineCss!.styles.push({
+            href: fullHref,
+            content: entryCssFile.content!,
+            precedence: precedence,
+            nonce: ctx.nonce,
+          })
+          return null
+        }
+      }
+
+      // Handle inlineCss: true mode - inline ALL CSS for non-RSC requests
+      if (inlineCssMode === true && entryCssFile.inlined && !isRSCRequest) {
         return createElement(
           'style',
           {
@@ -106,6 +89,8 @@ export function renderCssResource(
           entryCssFile.content
         )
       }
+
+      // Default: render as <link> tag
 
       preloadCallbacks?.push(() => {
         ctx.componentMod.preloadStyle(

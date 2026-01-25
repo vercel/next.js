@@ -238,7 +238,7 @@ export interface CollectedInlineCss {
    * Used when `inlineCss: 'shared'` to only inline root layout CSS
    * (which is guaranteed to be shared across all pages).
    */
-  rootLayoutCSSPaths?: Set<string>
+  rootLayoutCSSPaths: Set<string>
   /**
    * The inlineCss mode from config.
    * - `false` or `undefined`: No CSS inlining
