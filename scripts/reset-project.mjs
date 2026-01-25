@@ -31,27 +31,48 @@ export async function resetProject({
     )
   }
 
-  const createRes = await fetch(
-    `https://vercel.com/api/v8/projects?teamId=${teamId}`,
-    {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        Authorization: `Bearer ${TEST_TOKEN}`,
-      },
-      body: JSON.stringify({
-        framework: 'nextjs',
-        name: projectName,
-      }),
+  // Retry logic for project creation since deletion may be async
+  const maxRetries = 5
+  let createRes
+  let lastError
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    createRes = await fetch(
+      `https://vercel.com/api/v8/projects?teamId=${teamId}`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: `Bearer ${TEST_TOKEN}`,
+        },
+        body: JSON.stringify({
+          framework: 'nextjs',
+          name: projectName,
+        }),
+      }
+    )
+
+    if (createRes.ok) {
+      break
     }
-  )
+
+    // If conflict (project still exists), wait and retry
+    if (createRes.status === 409 && attempt < maxRetries - 1) {
+      const delay = Math.pow(2, attempt) * 1000 // exponential backoff: 1s, 2s, 4s, 8s
+      console.log(
+        `Project still exists (attempt ${attempt + 1}/${maxRetries}), waiting ${delay}ms before retrying...`
+      )
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      continue
+    }
+
+    lastError = `Failed to create project. Got status: ${
+      createRes.status
+    }, ${await createRes.text()}`
+  }
 
   if (!createRes.ok) {
-    throw new Error(
-      `Failed to create project. Got status: ${
-        createRes.status
-      }, ${await createRes.text()}`
-    )
+    throw new Error(lastError)
   }
 
   const { id: projectId } = await createRes.json()
@@ -75,6 +96,7 @@ export async function resetProject({
         },
         body: JSON.stringify({
           ssoProtection: null,
+          passwordProtection: null,
         }),
       }
     )
