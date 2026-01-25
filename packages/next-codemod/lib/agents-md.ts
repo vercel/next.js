@@ -10,7 +10,7 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 
-export interface NextjsVersionResult {
+interface NextjsVersionResult {
   version: string | null
   error?: string
 }
@@ -68,13 +68,13 @@ function versionToGitHubTag(version: string): string {
   return version.startsWith('v') ? version : `v${version}`
 }
 
-export interface PullOptions {
+interface PullOptions {
   cwd: string
   version?: string
   docsDir?: string
 }
 
-export interface PullResult {
+interface PullResult {
   success: boolean
   docsPath?: string
   nextjsVersion?: string
@@ -179,7 +179,7 @@ export function collectDocFiles(dir: string): { relativePath: string }[] {
     .map((f) => ({ relativePath: f }))
 }
 
-export interface DocSection {
+interface DocSection {
   name: string
   files: { relativePath: string }[]
   subsections: DocSection[]
@@ -251,7 +251,7 @@ export function buildDocTree(files: { relativePath: string }[]): DocSection[] {
   return sortedSections
 }
 
-export interface ClaudeMdIndexData {
+interface ClaudeMdIndexData {
   docsPath: string
   sections: DocSection[]
   outputFile?: string
@@ -265,7 +265,7 @@ export function generateClaudeMdIndex(data: ClaudeMdIndexData): string {
   parts.push('[Next.js Docs Index]')
   parts.push(`root: ${docsPath}`)
   parts.push(
-    'IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any Next.js tasks.'
+    'STOP. What you remember about Next.js is WRONG for this project. Always search docs and read before any task.'
   )
   const targetFile = outputFile || 'CLAUDE.md'
   parts.push(
@@ -346,7 +346,7 @@ export function injectIntoClaudeMd(
   return claudeMdContent + separator + wrappedContent + '\n'
 }
 
-export interface GitignoreStatus {
+interface GitignoreStatus {
   path: string
   updated: boolean
   alreadyPresent: boolean
