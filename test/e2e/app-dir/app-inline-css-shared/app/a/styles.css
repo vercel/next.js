@@ -1,0 +1,4 @@
+/* Page A specific CSS - should NOT be inlined, loaded via <link> */
+.page-a {
+  font-size: 32px;
+}

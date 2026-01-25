@@ -143,6 +143,12 @@ async function createComponentTreeInternal(
     unauthorized,
   } = modules
 
+  const isLayout = typeof layout !== 'undefined'
+  /**
+   * Checks if the current segment is a root layout.
+   */
+  const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
   const injectedFontPreloadTagsWithCurrentLayout = new Set(
@@ -157,6 +163,7 @@ async function createComponentTreeInternal(
     injectedJS: injectedJSWithCurrentLayout,
     injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
     collectedInlineCss,
+    isRootLayout: rootLayoutAtThisLevel,
   })
 
   const [Template, templateStyles, templateScripts] = template
@@ -192,7 +199,6 @@ async function createComponentTreeInternal(
       })
     : []
 
-  const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
   const { mod: layoutOrPageMod, modType } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
@@ -206,10 +212,6 @@ async function createComponentTreeInternal(
     () => getLayoutOrPageModule(tree)
   )
 
-  /**
-   * Checks if the current segment is a root layout.
-   */
-  const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
   /**
    * Checks if the current segment or any level above it has a root layout.
    */

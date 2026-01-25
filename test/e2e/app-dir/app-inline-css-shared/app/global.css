@@ -1,0 +1,8 @@
+/* Root layout CSS - should be inlined and shared across all pages */
+p {
+  color: blue;
+}
+
+body {
+  background-color: white;
+}

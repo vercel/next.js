@@ -199,7 +199,7 @@ export const experimentalSchema = {
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
-  inlineCss: z.boolean().optional(),
+  inlineCss: z.union([z.boolean(), z.literal('shared')]).optional(),
   esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
   serverActions: z
     .object({

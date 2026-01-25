@@ -12,7 +12,7 @@ export function getClientStyleLoader({
   isAppDir?: boolean
   isDevelopment: boolean
   assetPrefix: string
-  experimentalInlineCss?: boolean
+  experimentalInlineCss?: boolean | 'shared'
 }): webpack.RuleSetUseItem {
   const isRspack = Boolean(process.env.NEXT_RSPACK)
   const shouldEnableApp = typeof isAppDir === 'boolean' ? isAppDir : hasAppDir
@@ -54,6 +54,7 @@ export function getClientStyleLoader({
   return {
     loader: MiniCssExtractPlugin.loader,
     options: {
+      // Both `true` and `'shared'` modes inline CSS, so use '/' for both
       publicPath: experimentalInlineCss ? '/' : `${assetPrefix}/_next/`,
       esModule: false,
     },

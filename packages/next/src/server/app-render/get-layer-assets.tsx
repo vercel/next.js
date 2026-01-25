@@ -14,6 +14,7 @@ export function getLayerAssets({
   injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
   preloadCallbacks,
   collectedInlineCss,
+  isRootLayout,
 }: {
   layoutOrPagePath: string | undefined
   injectedCSS: Set<string>
@@ -22,6 +23,7 @@ export function getLayerAssets({
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
   collectedInlineCss?: CollectedInlineCss
+  isRootLayout?: boolean
 }): React.ReactNode {
   const {
     componentMod: { createElement },
@@ -34,6 +36,17 @@ export function getLayerAssets({
         true
       )
     : { styles: [], scripts: [] }
+
+  // Track root layout CSS paths for inlineCss: 'shared' mode
+  // Root layout CSS is guaranteed to be shared across all pages
+  if (isRootLayout && collectedInlineCss && styleTags.length > 0) {
+    if (!collectedInlineCss.rootLayoutCSSPaths) {
+      collectedInlineCss.rootLayoutCSSPaths = new Set()
+    }
+    for (const css of styleTags) {
+      collectedInlineCss.rootLayoutCSSPaths.add(css.path)
+    }
+  }
 
   const preloadedFontFiles = layoutOrPagePath
     ? getPreloadableFonts(

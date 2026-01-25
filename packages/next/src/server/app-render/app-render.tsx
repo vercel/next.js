@@ -2533,7 +2533,10 @@ async function renderToStream(
   // Collector for inline CSS to be injected via ServerInsertedHTML.
   // This prevents CSS from being duplicated in both HTML (as <style> tags)
   // and RSC payload (serialized in <script> tags).
-  const collectedInlineCss: CollectedInlineCss = { styles: [] }
+  const collectedInlineCss: CollectedInlineCss = {
+    styles: [],
+    inlineCssMode: experimental.inlineCss,
+  }
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -4147,7 +4150,10 @@ async function prerenderToStream(
   // Collector for inline CSS to be injected via ServerInsertedHTML.
   // This prevents CSS from being duplicated in both HTML (as <style> tags)
   // and RSC payload (serialized in <script> tags).
-  const collectedInlineCss: CollectedInlineCss = { styles: [] }
+  const collectedInlineCss: CollectedInlineCss = {
+    styles: [],
+    inlineCssMode: experimental.inlineCss,
+  }
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),

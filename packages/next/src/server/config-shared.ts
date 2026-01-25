@@ -741,8 +741,12 @@ export interface ExperimentalConfig {
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.
    * Supports app-router in production mode only.
+   *
+   * - `false`: No CSS inlining (default)
+   * - `true`: Inline ALL CSS
+   * - `'shared'`: Only inline root layout CSS (safer for client navigations)
    */
-  inlineCss?: boolean
+  inlineCss?: boolean | 'shared'
 
   // TODO: Remove this config when the API is stable.
   /**

@@ -12,6 +12,11 @@ import type { PreloadCallbacks, CollectedInlineCss } from './types'
  * When collectedInlineCss is provided, inline CSS is collected for injection
  * via ServerInsertedHTML instead of being rendered in the component tree.
  * This avoids duplicating CSS in both HTML and RSC payload.
+ *
+ * The inlineCssMode determines the inlining behavior:
+ * - `false` or `undefined`: No CSS inlining (render as <link> tags)
+ * - `true`: Inline ALL CSS
+ * - `'shared'`: Only inline root layout CSS (safer for client navigations)
  */
 export function renderCssResource(
   entryCssFiles: CssResource[],
@@ -22,6 +27,10 @@ export function renderCssResource(
   const {
     componentMod: { createElement },
   } = ctx
+
+  const inlineCssMode = collectedInlineCss?.inlineCssMode
+  const rootLayoutCSSPaths = collectedInlineCss?.rootLayoutCSSPaths
+
   return entryCssFiles
     .map((entryCssFile, index) => {
       // `Precedence` is an opt-in signal for React to handle resource
@@ -45,7 +54,49 @@ export function renderCssResource(
         entryCssFile.path
       )}${getAssetQueryString(ctx, true)}`
 
-      if (entryCssFile.inlined && !ctx.parsedRequestHeaders.isRSCRequest) {
+      // Check if this CSS is from the root layout (shared across all pages)
+      const isRootLayoutCSS = rootLayoutCSSPaths?.has(entryCssFile.path)
+
+      // In 'shared' mode, handle root layout CSS specially:
+      // - For RSC requests: skip root layout CSS entirely (client already has it from initial HTML)
+      // - For non-RSC requests: inline only root layout CSS
+      if (inlineCssMode === 'shared') {
+        if (ctx.parsedRequestHeaders.isRSCRequest) {
+          // For RSC/navigation requests, skip root layout CSS
+          // (client already has it from the initial HTML load)
+          if (isRootLayoutCSS) {
+            return null
+          }
+          // Page-specific CSS should still be included in RSC payload
+          // Fall through to render as <link> tag
+        } else if (isRootLayoutCSS && entryCssFile.inlined) {
+          // For initial HTML requests, inline only root layout CSS
+          if (collectedInlineCss) {
+            collectedInlineCss.styles.push({
+              href: fullHref,
+              content: entryCssFile.content!,
+              precedence: precedence,
+              nonce: ctx.nonce,
+            })
+            return null
+          }
+          return createElement(
+            'style',
+            {
+              key: index,
+              nonce: ctx.nonce,
+              precedence: precedence,
+              href: fullHref,
+            },
+            entryCssFile.content
+          )
+        }
+        // For page-specific CSS in 'shared' mode, fall through to render as <link> tag
+      } else if (
+        entryCssFile.inlined &&
+        !ctx.parsedRequestHeaders.isRSCRequest
+      ) {
+        // inlineCss: true mode - inline ALL CSS for non-RSC requests
         // When collectedInlineCss is provided, collect CSS for ServerInsertedHTML
         // injection instead of rendering in the component tree. This prevents
         // CSS from being duplicated in both HTML and RSC payload.

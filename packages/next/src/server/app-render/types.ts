@@ -159,7 +159,7 @@ export interface RenderOptsPartial {
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
     optimisticRouting: boolean
-    inlineCss: boolean
+    inlineCss: boolean | 'shared'
     authInterrupts: boolean
 
     /**
@@ -233,4 +233,17 @@ export interface CollectedInlineCss {
     precedence: string
     nonce?: string
   }>
+  /**
+   * CSS file paths that belong to the root layout.
+   * Used when `inlineCss: 'shared'` to only inline root layout CSS
+   * (which is guaranteed to be shared across all pages).
+   */
+  rootLayoutCSSPaths?: Set<string>
+  /**
+   * The inlineCss mode from config.
+   * - `false` or `undefined`: No CSS inlining
+   * - `true`: Inline ALL CSS
+   * - `'shared'`: Only inline root layout CSS
+   */
+  inlineCssMode?: boolean | 'shared'
 }

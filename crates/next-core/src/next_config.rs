@@ -994,7 +994,7 @@ pub struct ExperimentalConfig {
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
 
-    pub inline_css: Option<bool>,
+    pub inline_css: Option<InlineCssConfig>,
     instrumentation_hook: Option<bool>,
     client_trace_metadata: Option<Vec<String>>,
     large_page_data_bytes: Option<f64>,
@@ -1118,6 +1118,38 @@ fn test_esm_externals_deserialization() {
         config.esm_externals,
         Some(EsmExternals::Loose(EsmExternalsValue::Loose))
     );
+}
+
+/// Value for the `inlineCss` experimental config option.
+/// Can be:
+/// - `false`: No CSS inlining (default)
+/// - `true`: Inline ALL CSS
+/// - `"shared"`: Only inline root layout CSS (safer for client navigations)
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum InlineCssMode {
+    Shared,
+}
+
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(untagged)]
+pub enum InlineCssConfig {
+    Mode(InlineCssMode),
+    Bool(bool),
+}
+
+impl InlineCssConfig {
+    /// Returns whether CSS inlining is enabled (either `true` or `"shared"`).
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Bool(enabled) => *enabled,
+            Self::Mode(_) => true,
+        }
+    }
 }
 
 #[derive(
@@ -1630,7 +1662,13 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn inline_css(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.inline_css.unwrap_or(false))
+        Vc::cell(
+            self.experimental
+                .inline_css
+                .as_ref()
+                .map(|c| c.is_enabled())
+                .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]
