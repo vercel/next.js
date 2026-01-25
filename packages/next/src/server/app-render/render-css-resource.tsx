@@ -2,7 +2,7 @@ import type { CssResource } from '../../build/webpack/plugins/flight-manifest-pl
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
-import type { PreloadCallbacks, CollectedInlineCss } from './types'
+import type { PreloadCallbacks } from './types'
 
 /**
  * Abstracts the rendering of CSS files based on whether they are inlined or not.
@@ -21,15 +21,15 @@ import type { PreloadCallbacks, CollectedInlineCss } from './types'
 export function renderCssResource(
   entryCssFiles: CssResource[],
   ctx: AppRenderContext,
-  preloadCallbacks?: PreloadCallbacks,
-  collectedInlineCss?: CollectedInlineCss
+  preloadCallbacks?: PreloadCallbacks
 ) {
   const {
     componentMod: { createElement },
+    collectedInlineCss,
   } = ctx
 
-  const inlineCssMode = collectedInlineCss?.inlineCssMode
-  const rootLayoutCSSPaths = collectedInlineCss?.rootLayoutCSSPaths
+  const inlineCssMode = collectedInlineCss.inlineCssMode
+  const rootLayoutCSSPaths = collectedInlineCss.rootLayoutCSSPaths
 
   return entryCssFiles
     .map((entryCssFile, index) => {
@@ -55,7 +55,7 @@ export function renderCssResource(
       )}${getAssetQueryString(ctx, true)}`
 
       // Check if this CSS is from the root layout (shared across all pages)
-      const isRootLayoutCSS = rootLayoutCSSPaths?.has(entryCssFile.path)
+      const isRootLayoutCSS = rootLayoutCSSPaths.has(entryCssFile.path)
       const isRSCRequest = ctx.parsedRequestHeaders.isRSCRequest
 
       // Handle inlineCss: 'shared' mode
@@ -66,7 +66,7 @@ export function renderCssResource(
         }
         // Initial HTML: collect for ServerInsertedHTML injection
         if (entryCssFile.inlined) {
-          collectedInlineCss!.styles.push({
+          collectedInlineCss.styles.push({
             href: fullHref,
             content: entryCssFile.content!,
             precedence: precedence,

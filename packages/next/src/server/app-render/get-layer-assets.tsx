@@ -3,7 +3,7 @@ import { getPreloadableFonts } from './get-preloadable-fonts'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
-import type { PreloadCallbacks, CollectedInlineCss } from './types'
+import type { PreloadCallbacks } from './types'
 import { renderCssResource } from './render-css-resource'
 
 export function getLayerAssets({
@@ -13,7 +13,6 @@ export function getLayerAssets({
   injectedJS: injectedJSWithCurrentLayout,
   injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
   preloadCallbacks,
-  collectedInlineCss,
   isRootLayout,
 }: {
   layoutOrPagePath: string | undefined
@@ -22,7 +21,6 @@ export function getLayerAssets({
   injectedFontPreloadTags: Set<string>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
-  collectedInlineCss?: CollectedInlineCss
   isRootLayout?: boolean
 }): React.ReactNode {
   const {
@@ -39,9 +37,9 @@ export function getLayerAssets({
 
   // Track root layout CSS paths for inlineCss: 'shared' mode
   // Root layout CSS is guaranteed to be shared across all pages
-  if (isRootLayout && collectedInlineCss && styleTags.length > 0) {
+  if (isRootLayout && styleTags.length > 0) {
     for (const css of styleTags) {
-      collectedInlineCss.rootLayoutCSSPaths.add(css.path)
+      ctx.collectedInlineCss.rootLayoutCSSPaths.add(css.path)
     }
   }
 
@@ -86,12 +84,7 @@ export function getLayerAssets({
     }
   }
 
-  const styles = renderCssResource(
-    styleTags,
-    ctx,
-    preloadCallbacks,
-    collectedInlineCss
-  )
+  const styles = renderCssResource(styleTags, ctx, preloadCallbacks)
 
   const scripts = scriptTags
     ? scriptTags.map((href, index) => {
