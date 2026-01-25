@@ -194,7 +194,8 @@ jobs:
       - run: corepack enable
       - run: pwd
 
-      - run: rm -rf .git
+      # clean up any previous artifacts to avoid hitting disk space limits
+      - run: rm -rf ./* && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
 
       - uses: actions/checkout@v4
         with:
@@ -228,9 +229,6 @@ jobs:
           cache-provider: 'turbo'
           save-if: ${{ github.ref_name == 'canary' }}
           shared-key: ${{ inputs.rustCacheKey }}-${{ inputs.buildNativeTarget }}-build-${{ inputs.rustBuildProfile }}-${{ hashFiles('.cargo/config.toml') }}
-
-      # clean up any previous artifacts to avoid hitting disk space limits
-      - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
 
       # Configure a git user so that Create Next App can initialize git repos during integration tests.
       - name: Set CI git user
