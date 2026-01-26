@@ -51,7 +51,7 @@ export function getDigestForWellKnownError(error: unknown): string | undefined {
 
 export function createReactServerErrorHandler(
   shouldFormatError: boolean,
-  isNextExport: boolean,
+  isBuildTimePrerendering: boolean,
   reactServerErrors: Map<string, DigestedError>,
   onReactServerRenderError: (err: DigestedError, silenceLog: boolean) => void,
   spanToRecordOn?: any
@@ -121,7 +121,7 @@ export function createReactServerErrorHandler(
     // Don't log the suppressed error during export
     if (
       !(
-        isNextExport &&
+        isBuildTimePrerendering &&
         err?.message?.includes(
           'The specific message is omitted in production builds to avoid leaking sensitive details.'
         )
@@ -147,7 +147,7 @@ export function createReactServerErrorHandler(
 
 export function createHTMLErrorHandler(
   shouldFormatError: boolean,
-  isNextExport: boolean,
+  isBuildTimePrerendering: boolean,
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
   onHTMLRenderSSRError: (err: DigestedError, errorInfo?: ErrorInfo) => void,
@@ -204,7 +204,7 @@ export function createHTMLErrorHandler(
     // Don't log the suppressed error during export
     if (
       !(
-        isNextExport &&
+        isBuildTimePrerendering &&
         err?.message?.includes(
           'The specific message is omitted in production builds to avoid leaking sensitive details.'
         )

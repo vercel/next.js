@@ -27,9 +27,9 @@ pub use crate::chunk::{
         ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
     },
     chunking_context::{
-        ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType, UnusedReferences,
+        AssetSuffix, ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -89,7 +89,7 @@ pub struct ModuleIds(Vec<ModuleId>);
 
 /// A [Module] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
-pub trait ChunkableModule: Module + Asset {
+pub trait ChunkableModule: Module {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
@@ -114,7 +114,7 @@ impl ChunkableModules {
 // with other module types (as a MergeableModule cannot prevent itself from being merged with other
 // module types)
 #[turbo_tasks::value_trait]
-pub trait MergeableModule: Module + Asset {
+pub trait MergeableModule: Module {
     /// Even though MergeableModule is implemented, this allows a dynamic condition to determine
     /// mergeability
     #[turbo_tasks::function]

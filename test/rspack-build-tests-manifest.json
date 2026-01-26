@@ -3556,6 +3556,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/mdx-font-preload/mdx-font-preload.test.ts": {
+    "passed": [
+      "mdx-font-preload should apply font class from layout",
+      "mdx-font-preload should preload font from layout on MDX page",
+      "mdx-font-preload should render MDX page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/mdx-no-mdx-components/mdx.test.ts": {
     "passed": [
       "mdx app directory should allow importing client components",
@@ -7102,7 +7113,6 @@
       "runtime prefetching in a page includes headers, but not dynamic content",
       "runtime prefetching in a page includes root params, but not dynamic content",
       "runtime prefetching in a page includes search params, but not dynamic content",
-      "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a private cache includes cookies, but not dynamic content",
       "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
       "runtime prefetching in a private cache includes headers, but not dynamic content",
@@ -7118,7 +7128,9 @@
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
     ],
-    "failed": [],
+    "failed": [
+      "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11023,6 +11035,27 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/url-deployment-id/url-deployment-id.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "URL asset references with deploymentId API route should return import src with dpl query",
+      "URL asset references with deploymentId API route should return new URL with dpl query",
+      "URL asset references with deploymentId dynamic RSC page (headers) should include dpl query in dynamic RSC page",
+      "URL asset references with deploymentId dynamic RSC page (headers) should include dpl query in new URL pattern",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query after hydration",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query in dynamic client page",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query in new URL pattern",
+      "URL asset references with deploymentId import src attribute should include dpl query in RSC page",
+      "URL asset references with deploymentId import src attribute should include dpl query in client page",
+      "URL asset references with deploymentId import src attribute should include dpl query in client page (after hydration)",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in RSC page",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in client page",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in client page (after hydration)"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -22099,7 +22132,9 @@
   },
   "test/production/standalone-mode/required-server-files/required-server-files-app.test.ts": {
     "passed": [
+      "required server files app router should de-dupe HTML/RSC requests for ISR pages",
       "required server files app router should handle optional catchall",
+      "required server files app router should isolate cache between different ISR request groups",
       "required server files app router should not fail caching",
       "required server files app router should not override params with query params",
       "required server files app router should not send cache tags in minimal mode for SSR",
@@ -22161,7 +22196,6 @@
       "required server files should bubble error correctly for gip page",
       "required server files should bubble error correctly for gsp page",
       "required server files should bubble error correctly for gssp page",
-      "required server files should cap de-dupe previousCacheItem expires time",
       "required server files should correctly handle a mismatch in buildIds when normalizing next data",
       "required server files should de-dupe HTML/data requests",
       "required server files should favor valid route params over routes-matches",
@@ -22245,7 +22279,6 @@
       "required server files should bubble error correctly for gip page",
       "required server files should bubble error correctly for gsp page",
       "required server files should bubble error correctly for gssp page",
-      "required server files should cap de-dupe previousCacheItem expires time",
       "required server files should correctly handle a mismatch in buildIds when normalizing next data",
       "required server files should de-dupe HTML/data requests",
       "required server files should favor valid route params over routes-matches",

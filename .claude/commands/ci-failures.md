@@ -1,90 +1,75 @@
 # Check CI Failures
 
-Analyze failing tests from PR CI runs with parallel subagent log analysis.
+Analyze failing tests from PR CI runs.
 
 ## Usage
 
 ```
-/ci-failures [pr-number]
+/ci-failures
 ```
 
-If no PR number provided, detect from current branch.
+Automatically detects PR from current branch.
 
 ## Instructions
 
-1. Get the PR number from argument or current branch:
+1. Run the script to fetch CI failure data:
 
    ```bash
-   gh pr view --json number,headRefName --jq '"\(.number) \(.headRefName)"'
+   node scripts/ci-failures.js
    ```
 
-2. **CRITICAL: Always fetch fresh run IDs** - never trust cached IDs from conversation summaries:
+   This fetches workflow runs, failed jobs, and logs, then generates markdown files.
+
+2. Read the generated index file for a summary:
 
    ```bash
-   gh api "repos/vercel/next.js/actions/runs?branch={branch}&per_page=10" \
-     --jq '.workflow_runs[] | select(.name == "build-and-test") | "\(.id) attempts:\(.run_attempt) status:\(.status) conclusion:\(.conclusion)"'
+   # Read scripts/ci-failures/index.md
    ```
 
-3. **Prioritize the MOST RECENT run, even if in-progress:**
-   - If the latest run is `in_progress` or `queued`, check it FIRST - it has the most relevant failures
-   - Individual jobs complete before the overall run - analyze them as they finish
-   - Only fall back to older completed runs if the current run has no completed jobs yet
+   The index shows all failed jobs with links to details.
 
-4. Get all failed jobs from the run (works for in-progress runs too):
-
-   ```bash
-   gh api "repos/vercel/next.js/actions/runs/{run_id}/jobs?per_page=100" \
-     --jq '.jobs[] | select(.conclusion == "failure") | "\(.id) \(.name)"'
-   ```
-
-   **Note:** For runs with >100 jobs, paginate:
-
-   ```bash
-   gh api "repos/vercel/next.js/actions/runs/{run_id}/jobs?per_page=100&page=2"
-   ```
-
-5. Spawn parallel haiku subagents to analyze logs (limit to 3-4 to avoid rate limits):
-   - **CRITICAL: Use the API endpoint for logs, NOT `gh run view`**
-   - `gh run view --job --log` FAILS when run is in-progress
-   - **Do NOT group by job name** (e.g., "test dev", "turbopack") - group by failure pattern instead
-   - Agent prompt should extract structured data using:
-     ```bash
-     # Extract assertion failures with context:
-     gh api "repos/vercel/next.js/actions/jobs/{job_id}/logs" 2>&1 | \
-       grep -B3 -A10 "expect.*\(toBe\|toContain\|toEqual\|toStartWith\|toMatch\)" | head -100
-     # Also check for test file paths:
-     gh api "repos/vercel/next.js/actions/jobs/{job_id}/logs" 2>&1 | \
-       grep -E "^\s+at Object\.|FAIL\s+test/" | head -20
-     ```
+3. Spawn parallel haiku subagents to analyze the failing jobs (limit to 3-4 to avoid rate limits)
    - **Agent prompt template** (copy-paste for each agent):
-     ```
-     Analyze CI logs for these jobs: {job_ids}
-     For each failing test, extract:
-     1. TEST FILE: (full path, e.g., test/production/required-server-files-ssr-404/test/index.test.ts)
-     2. TEST NAME: (the specific test case name)
-     3. EXPECTED: (exact expected value from assertion)
-     4. RECEIVED: (exact received value from assertion)
-     5. CATEGORY: (assertion|timeout|routing|source-map|build|cli-output)
-     6. ROOT CAUSE: (one sentence hypothesis)
-     Return structured findings grouped by TEST FILE, not by job.
-     ```
 
-6. **Deduplicate by test file** before summarizing:
+   ```
+   Analyze CI results for these jobs: scripts/ci-failures/job-{id1}.md scripts/ci-failures/job-{id2}.md
+   For each failing test, extract:
+   1. TEST FILE: (full path, e.g., test/production/required-server-files-ssr-404/test/index.test.ts)
+   2. TEST NAME: (the specific test case name)1
+   3. JOB TYPE: (the kind of the job, e.g. turbopack production, webpack dev, rust check)
+   4. EXPECTED: (exact expected value from assertion)
+   5. RECEIVED: (exact received value from assertion)
+   6. CATEGORY: (assertion|timeout|routing|source-map|build|cli-output)
+   7. ROOT CAUSE: (one sentence hypothesis)
+   8. LOG FILE: (analysed log file that led to conclusion)
+   Return structured findings grouped by TEST FILE, not by job.
+
+   Also extract other failures that are not related to tests.
+   Identify if they are likely transient.
+
+   ```
+
+4. **Deduplicate by test file** before summarizing:
    - Group all failures by TEST FILE path, not by CI job name
    - If multiple jobs fail the same test file, count them but report once
    - Identify systemic issues (same test failing across many jobs)
 
-7. Create summary table **grouped by test file**:
-   | Test File | Issue (Expected vs Received) | Jobs | Priority |
-   |-----------|------------------------------|------|----------|
-   | `test/production/required-server-files-ssr-404/...` | `"second"` vs `"[slug]"` (routing) | 3 | HIGH |
-   | `test/integration/server-side-dev-errors/...` | source map paths wrong | 5 | HIGH |
-   | `test/e2e/app-dir/disable-logging-route/...` | "Compiling" appearing when disabled | 2 | MEDIUM |
+5. Analyze failures and create a summary **grouped by test file**:
 
-8. Recommend fixes:
+   | Test File                                           | Type.          | Issue (Expected vs Received)        | Jobs | Priority |
+   | --------------------------------------------------- | -------------- | ----------------------------------- | ---- | -------- |
+   | `test/production/required-server-files-ssr-404/...` | Turbopack prod | `"second"` vs `"[slug]"` (routing)  | 3    | HIGH     |
+   | `test/integration/server-side-dev-errors/...`       | webpack dev    | source map paths wrong              | 5    | HIGH     |
+   | `test/e2e/app-dir/disable-logging-route/...`        | prod           | "Compiling" appearing when disabled | 2    | MEDIUM   |
+   | N/A                                                 | rust check     | Formatting incorrect                | 2    | MEDIUM   |
+
+6. Recommend fixes:
    - **HIGH priority**: Show specific expected vs actual values, include test file path
    - **MEDIUM priority**: Identify root cause pattern
    - **LOW priority**: Mark as likely flaky/transient
+
+- Do not try to fix these failures.
+- If failures would require complex analysis and there are multiple problems, only do some basic analysis and point out that further investigation is needed and could be performant when requested.
 
 ## Failure Categories
 
@@ -96,66 +81,3 @@ If no PR number provided, detect from current branch.
 - **Routing/SSR**: Dynamic params not resolved, wrong status codes, JSON parse errors
 - **Source Maps**: `webpack-internal://` paths, wrong line numbers, missing code frames
 - **CLI Output**: Missing warnings, wrong log order, "Ready" printed before errors
-
-## Failure Extraction Patterns
-
-Use these grep patterns to identify specific failure types:
-
-```bash
-# Assertion failures (most common)
-grep -B3 -A10 "expect.*\(toBe\|toContain\|toEqual\|toStartWith\)" | head -100
-
-# Routing issues (dynamic params, status codes)
-grep -E "Expected.*Received|\[slug\]|x-matched-path|Expected: [0-9]+" | head -50
-
-# Source map issues
-grep -E "webpack-internal://|at .* \(webpack" | head -30
-
-# CLI output issues (missing warnings)
-grep -E "Ready in|deprecated|Both middleware|Compiling" | head -30
-
-# Timeout issues
-grep -E "TIMEOUT|TimeoutError|exceeded|Exceeded timeout" | head -20
-
-# Test file paths (to identify which test is failing)
-grep -E "FAIL test/|at Object\.<anonymous> \(" | head -20
-```
-
-## Common Gotchas
-
-### In-Progress Runs
-
-- `gh run view {run_id} --job {job_id} --log` **FAILS** when run is in-progress
-- `gh api "repos/.../actions/jobs/{job_id}/logs"` **WORKS** for any completed job
-- Always use the API endpoint for reliability
-
-### Pagination
-
-- GitHub API paginates at 100 jobs per page
-- Next.js CI has ~120+ jobs - always check page 2:
-  ```bash
-  gh api ".../jobs?per_page=100&page=1" --jq '[.jobs[] | select(.conclusion == "failure")] | length'
-  gh api ".../jobs?per_page=100&page=2" --jq '[.jobs[] | select(.conclusion == "failure")] | length'
-  ```
-
-### Multiple Attempts
-
-- CI runs can have multiple attempts (retries)
-- Check attempt count: `.run_attempt` field
-- Query specific attempt: `.../runs/{id}/attempts/{n}/jobs`
-- 404 on attempt endpoint means that attempt doesn't exist
-
-## Quick Reference
-
-```bash
-# Get failed jobs (works for in-progress runs)
-gh api "repos/vercel/next.js/actions/runs/{run_id}/jobs?per_page=100" \
-  --jq '.jobs[] | select(.conclusion == "failure") | "\(.id) \(.name)"'
-
-# Get logs for a specific job (works for in-progress runs)
-gh api "repos/vercel/next.js/actions/jobs/{job_id}/logs" 2>&1 | head -500
-
-# Search logs for errors
-gh api "repos/vercel/next.js/actions/jobs/{job_id}/logs" 2>&1 | \
-  grep -E "FAIL|Error|error:|✕|Expected|Received" | head -50
-```

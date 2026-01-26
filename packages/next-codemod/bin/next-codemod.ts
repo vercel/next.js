@@ -11,6 +11,7 @@
 
 import { Command } from 'commander'
 import { runUpgrade } from './upgrade'
+import { runAgentsMd } from './agents-md'
 import { runTransform } from './transform'
 import { BadInput } from './shared'
 
@@ -69,6 +70,29 @@ program
       await runUpgrade(revision, options)
     } catch (error) {
       if (!options.verbose && error instanceof BadInput) {
+        console.error(error.message)
+      } else {
+        console.error(error)
+      }
+      process.exit(1)
+    }
+  })
+
+program
+  .command('agents-md')
+  .description(
+    'Generate Next.js documentation index for AI coding agents (Claude, Cursor, etc.).'
+  )
+  .option(
+    '--version <version>',
+    'Next.js version (auto-detected if not provided)'
+  )
+  .option('--output <file>', 'Target file path (e.g., CLAUDE.md, AGENTS.md)')
+  .action(async (options) => {
+    try {
+      await runAgentsMd(options)
+    } catch (error) {
+      if (error instanceof BadInput) {
         console.error(error.message)
       } else {
         console.error(error)

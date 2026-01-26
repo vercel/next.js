@@ -46,6 +46,7 @@ type EsmExport = (
   id: ModuleId | undefined
 ) => void
 type ExportValue = (value: any, id: ModuleId | undefined) => void
+type ExportUrl = (url: string, id: ModuleId | undefined) => void
 type ExportNamespace = (namespace: any, id: ModuleId | undefined) => void
 type DynamicExport = (
   object: Record<string, any>,
@@ -127,6 +128,7 @@ interface TurbopackBaseContext<M> {
   s: EsmExport
   j: DynamicExport
   v: ExportValue
+  q: ExportUrl
   n: ExportNamespace
   m: Module
   c: ModuleCache<M>

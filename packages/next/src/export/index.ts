@@ -53,7 +53,6 @@ import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { loadEnvConfig } from '@next/env'
-import { evaluateDeploymentId } from '../server/evaluate-deployment-id'
 import { isAPIRoute } from '../lib/is-api-route'
 import { getPagePath } from '../server/require'
 import type { Span } from '../trace'
@@ -475,7 +474,7 @@ async function exportAppImpl(
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
     previewProps: prerenderManifest?.preview,
-    nextExport: true,
+    isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
@@ -713,7 +712,7 @@ async function exportAppImpl(
         batches.map(async (batch) =>
           worker.exportPages({
             buildId,
-            deploymentId: evaluateDeploymentId(nextConfig.deploymentId) || '',
+            deploymentId: nextConfig.deploymentId,
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,

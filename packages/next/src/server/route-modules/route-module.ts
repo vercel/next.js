@@ -57,7 +57,6 @@ import type { BaseNextRequest } from '../base-http'
 import type { I18NConfig, NextConfigRuntime } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { evaluateDeploymentId } from '../evaluate-deployment-id'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,
@@ -545,8 +544,7 @@ export abstract class RouteModule<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      // evaluateDeploymentId handles string, function, and undefined cases
-      deploymentId = evaluateDeploymentId(nextConfig.deploymentId)
+      deploymentId = nextConfig.deploymentId || ''
     }
 
     return { nextConfig, deploymentId }
@@ -632,12 +630,35 @@ export abstract class RouteModule<
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const nextConfig =
+      routerServerContext?.nextConfig || serverFilesManifest?.config
+
+    // Injected in base-server.ts
+    const protocol = req.headers['x-forwarded-proto']?.includes('https')
+      ? 'https'
+      : 'http'
+
+    // When there are hostname and port we build an absolute URL
+    if (!getRequestMeta(req, 'initURL')) {
+      const initUrl = serverFilesManifest?.config.experimental.trustHostHeader
+        ? `${protocol}://${req.headers.host || 'localhost'}${req.url}`
+        : `${protocol}://${routerServerContext?.hostname || 'localhost'}${req.url}`
+
+      addRequestMeta(req, 'initURL', initUrl)
+      addRequestMeta(req, 'initProtocol', protocol)
+    }
 
     if (basePath) {
       req.url = removePathPrefix(req.url || '/', basePath)
     }
 
     const parsedUrl = parseReqUrl(req.url || '/')
+    addRequestMeta(req, 'initQuery', { ...parsedUrl?.query })
     // if we couldn't parse the URL we can't continue
     if (!parsedUrl) {
       return
@@ -817,12 +838,14 @@ export abstract class RouteModule<
 
       if (
         // if both query and params are valid but one
-        // provided more information rely on that one
+        // provided more information and the query params
+        // were nxtP prefixed rely on that one
         query &&
         params &&
         paramsResult.hasValidParams &&
         queryResult.hasValidParams &&
-        Object.keys(paramsResult.params).length <
+        routeParamKeys.size > 0 &&
+        Object.keys(paramsResult.params).length <=
           Object.keys(queryResult.params).length
       ) {
         paramsToInterpolate = queryResult.params
@@ -882,6 +905,15 @@ export abstract class RouteModule<
     for (const key of routeParamKeys) {
       if (!(key in originalQuery)) {
         delete query[key]
+        // handle the case where there's collision and we
+        // normalized nxtPid=123 -> id=123 but user also
+        // sends id=456 as separate key
+      } else if (
+        originalQuery[key] &&
+        query[key] &&
+        originalQuery[key] !== query[key]
+      ) {
+        query[key] = originalQuery[key]
       }
     }
 
@@ -905,16 +937,19 @@ export abstract class RouteModule<
       isDraftMode = previewData !== false
     }
 
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
-    const nextConfig =
-      routerServerContext?.nextConfig || serverFilesManifest?.config
-
     if (!nextConfig) {
       throw new Error("Invariant: nextConfig couldn't be loaded")
+    }
+
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      const { installProcessErrorHandlers } =
+        require('../node-environment-extensions/process-error-handlers') as typeof import('../node-environment-extensions/process-error-handlers')
+
+      installProcessErrorHandlers(
+        Boolean(
+          nextConfig.experimental.removeUncaughtErrorAndRejectionListeners
+        )
+      )
     }
 
     let resolvedPathname = normalizedSrcPage
@@ -927,6 +962,17 @@ export abstract class RouteModule<
 
     if (resolvedPathname === '/index') {
       resolvedPathname = '/'
+    }
+
+    if (
+      res &&
+      Boolean(req.headers['x-nextjs-data']) &&
+      (!res.statusCode || res.statusCode === 200)
+    ) {
+      res.setHeader(
+        'x-nextjs-matched-path',
+        removeTrailingSlash(`${locale ? `/${locale}` : ''}${normalizedSrcPage}`)
+      )
     }
     const encodedResolvedPathname = resolvedPathname
 
@@ -948,8 +994,7 @@ export abstract class RouteModule<
       }
       deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      // evaluateDeploymentId handles string, function, and undefined cases
-      deploymentId = evaluateDeploymentId(nextConfig.deploymentId)
+      deploymentId = nextConfig.deploymentId || ''
     }
 
     return {

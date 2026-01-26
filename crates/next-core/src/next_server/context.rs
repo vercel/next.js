@@ -15,8 +15,8 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
-        UnusedReferences, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
+        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
@@ -632,20 +632,21 @@ pub async fn get_server_module_options_context(
 
             foreign_next_server_rules.extend(internal_custom_rules);
 
-            let url_rewrite_behavior = Some(
+            let (url_rewrite_behavior, static_url_tag) = {
                 //https://github.com/vercel/next.js/blob/bbb730e5ef10115ed76434f250379f6f53efe998/packages/next/src/build/webpack-config.ts#L1384
                 if let ServerContextType::PagesApi { .. } = ty {
-                    UrlRewriteBehavior::Full
+                    (Some(UrlRewriteBehavior::Full), None)
                 } else {
-                    UrlRewriteBehavior::Relative
-                },
-            );
+                    (Some(UrlRewriteBehavior::Relative), Some(rcstr!("client")))
+                }
+            };
 
             let module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
                     esm_url_rewrite_behavior: url_rewrite_behavior,
                     ..module_options_context.ecmascript
                 },
+                static_url_tag,
                 ..module_options_context
             };
 
@@ -703,6 +704,15 @@ pub async fn get_server_module_options_context(
                     .await?,
             );
             next_server_rules.extend(source_transform_rules);
+
+            let module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
+                    ..module_options_context.ecmascript
+                },
+                static_url_tag: Some(rcstr!("client")),
+                ..module_options_context
+            };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
                 module_rules: foreign_next_server_rules.clone(),
@@ -776,6 +786,15 @@ pub async fn get_server_module_options_context(
             );
 
             next_server_rules.extend(source_transform_rules);
+
+            let module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
+                    ..module_options_context.ecmascript
+                },
+                static_url_tag: Some(rcstr!("client")),
+                ..module_options_context
+            };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
                 module_rules: foreign_next_server_rules.clone(),
@@ -1044,6 +1063,12 @@ pub async fn get_server_chunking_context_with_client_assets(
         next_mode.runtime_type(),
     )
     .asset_prefix(Some(asset_prefix))
+    .url_behavior_override(
+        rcstr!("client"),
+        UrlBehavior {
+            suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+        },
+    )
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -1129,6 +1154,12 @@ pub async fn get_server_chunking_context(
     .client_roots_override(rcstr!("client"), client_root.clone())
     .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
     .asset_prefix_override(rcstr!("client"), asset_prefix)
+    .url_behavior_override(
+        rcstr!("client"),
+        UrlBehavior {
+            suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+        },
+    )
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),

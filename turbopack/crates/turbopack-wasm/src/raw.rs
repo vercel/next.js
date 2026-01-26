@@ -2,7 +2,6 @@ use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
@@ -16,7 +15,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
-    runtime_functions::TURBOPACK_EXPORT_VALUE,
+    runtime_functions::TURBOPACK_EXPORT_URL,
     utils::StringifyJs,
 };
 
@@ -69,14 +68,6 @@ impl Module for RawWebAssemblyModuleAsset {
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         // this just exports a path
         ModuleSideEffects::SideEffectFree.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for RawWebAssemblyModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
@@ -159,11 +150,7 @@ impl EcmascriptChunkItem for RawModuleChunkItem {
         };
 
         Ok(EcmascriptChunkItemContent {
-            inner_code: format!(
-                "{TURBOPACK_EXPORT_VALUE}({path});",
-                path = StringifyJs(path)
-            )
-            .into(),
+            inner_code: format!("{TURBOPACK_EXPORT_URL}({path});", path = StringifyJs(path)).into(),
             ..Default::default()
         }
         .cell())
