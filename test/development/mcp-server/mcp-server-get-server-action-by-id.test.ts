@@ -53,20 +53,21 @@ describe('mcp-server get_server_action_by_id tool', () => {
     expect(callToolDataMatch).toBeTruthy()
 
     const callToolResult = JSON.parse(callToolDataMatch![1])
-    expect(callToolResult.jsonrpc).toBe('2.0')
-    expect(callToolResult.id).toBe('call-tool-1')
+    expect(callToolResult).toMatchObject({
+      jsonrpc: '2.0',
+      id: 'call-tool-1',
+      result: {
+        content: [{ type: 'text', text: expect.any(String) }],
+      },
+    })
 
-    const content = callToolResult.result?.content
-    expect(content).toBeInstanceOf(Array)
-    expect(content?.[0]?.type).toBe('text')
-
-    const actionDetails = JSON.parse(content?.[0]?.text)
-
-    // Verify the action details
-    expect(actionDetails.actionId).toBe(actionId)
-    expect(actionDetails.runtime).toBe('node')
-    expect(actionDetails.filename).toContain('app/actions.ts')
-    expect(actionDetails.functionName).toBeTruthy()
+    const actionDetails = JSON.parse(callToolResult.result.content[0].text)
+    expect(actionDetails).toMatchObject({
+      actionId,
+      runtime: 'node',
+      filename: expect.stringContaining('app/actions.ts'),
+      functionName: expect.any(String),
+    })
   })
 
   it('should return error for non-existent action ID', async () => {
@@ -97,13 +98,18 @@ describe('mcp-server get_server_action_by_id tool', () => {
     expect(callToolDataMatch).toBeTruthy()
 
     const callToolResult = JSON.parse(callToolDataMatch![1])
-    expect(callToolResult.jsonrpc).toBe('2.0')
-    expect(callToolResult.id).toBe('call-tool-2')
+    expect(callToolResult).toMatchObject({
+      jsonrpc: '2.0',
+      id: 'call-tool-2',
+      result: {
+        content: [{ type: 'text', text: expect.any(String) }],
+      },
+    })
 
-    const content = callToolResult.result?.content
-    expect(content).toBeInstanceOf(Array)
-    expect(content?.[0]?.type).toBe('text')
-    expect(content?.[0]?.text).toContain('not found')
+    const errorResponse = JSON.parse(callToolResult.result.content[0].text)
+    expect(errorResponse).toMatchObject({
+      error: expect.stringContaining('not found'),
+    })
   })
 
   it('should return inline server action details', async () => {
@@ -157,19 +163,20 @@ describe('mcp-server get_server_action_by_id tool', () => {
     expect(callToolDataMatch).toBeTruthy()
 
     const callToolResult = JSON.parse(callToolDataMatch![1])
-    expect(callToolResult.jsonrpc).toBe('2.0')
-    expect(callToolResult.id).toBe('call-tool-3')
+    expect(callToolResult).toMatchObject({
+      jsonrpc: '2.0',
+      id: 'call-tool-3',
+      result: {
+        content: [{ type: 'text', text: expect.any(String) }],
+      },
+    })
 
-    const content = callToolResult.result?.content
-    expect(content).toBeInstanceOf(Array)
-    expect(content?.[0]?.type).toBe('text')
-
-    const actionDetails = JSON.parse(content?.[0]?.text)
-
-    // Verify the inline action details
-    expect(actionDetails.actionId).toBe(inlineActionId)
-    expect(actionDetails.runtime).toBe('node')
-    expect(actionDetails.filename).toBeTruthy()
-    expect(actionDetails.functionName).toBe('inline server action')
+    const actionDetails = JSON.parse(callToolResult.result.content[0].text)
+    expect(actionDetails).toMatchObject({
+      actionId: inlineActionId,
+      runtime: 'node',
+      filename: expect.any(String),
+      functionName: 'inline server action',
+    })
   })
 })

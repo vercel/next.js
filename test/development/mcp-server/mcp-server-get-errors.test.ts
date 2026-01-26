@@ -32,202 +32,83 @@ describe('mcp-server get_errors tool', () => {
   }
 
   it('should handle no browser sessions gracefully', async () => {
-    const errors = await callGetErrors('test-no-session')
-    expect(stripAnsi(errors)).toMatchInlineSnapshot(
-      `"No browser sessions connected. Please open your application in a browser to retrieve error state."`
-    )
+    const errorsText = await callGetErrors('test-no-session')
+    const errors = JSON.parse(errorsText)
+    expect(errors).toMatchInlineSnapshot(`
+      {
+        "error": "No browser sessions connected. Please open your application in a browser to retrieve error state.",
+      }
+    `)
   })
 
   it('should return no errors for clean page', async () => {
     await next.browser('/')
-    const errors = await callGetErrors('test-1')
-    expect(stripAnsi(errors)).toMatchInlineSnapshot(
-      `"No errors detected in 1 browser session(s)."`
-    )
+    const errorsText = await callGetErrors('test-1')
+    const errors = JSON.parse(errorsText)
+    expect(errors).toMatchInlineSnapshot(`
+      {
+        "configErrors": [],
+        "sessionErrors": [],
+      }
+    `)
   })
 
   it('should capture runtime errors with source-mapped stack frames', async () => {
     const browser = await next.browser('/')
     await browser.elementByCss('a[href="/runtime-error"]').click()
 
-    let errors: string = ''
+    let errors: any = null
     await retry(async () => {
       const sessionId = 'test-2-' + Date.now()
-      errors = await callGetErrors(sessionId)
-      expect(errors).toContain('Runtime Errors')
-      expect(errors).toContain('Found errors in 1 browser session')
+      const errorsText = await callGetErrors(sessionId)
+      errors = JSON.parse(errorsText)
+      expect(errors.sessionErrors).toHaveLength(1)
+      expect(errors.sessionErrors[0].runtimeErrors).toHaveLength(1)
     })
 
-    const strippedErrors = stripAnsi(errors)
-      // Replace dynamic port with placeholder
-      .replace(/localhost:\d+/g, 'localhost:PORT')
-
-    // Verify proper URL display in session header (now shows pathname only)
-    expect(strippedErrors).toContain('Session: /runtime-error')
-
-    expect(strippedErrors).toMatchInlineSnapshot(`
-      "# Found errors in 1 browser session(s)
-
-      ## Session: /runtime-error
-
-      **1 error(s) found**
-
-      ### Runtime Errors
-
-      #### Error 1 (Type: runtime)
-
-      **Error**: Test runtime error
-
-      \`\`\`
-        at RuntimeErrorPage (app/runtime-error/page.tsx:2:9)
-      \`\`\`
-
-      ---"
-    `)
+    expect(errors.sessionErrors[0]).toMatchObject({
+      url: '/runtime-error',
+      buildError: null,
+      runtimeErrors: [
+        {
+          type: 'runtime',
+          errorName: 'Error',
+          message: 'Test runtime error',
+          stack: expect.arrayContaining([
+            expect.objectContaining({
+              file: expect.stringContaining('app/runtime-error/page.tsx'),
+              methodName: 'RuntimeErrorPage',
+            }),
+          ]),
+        },
+      ],
+    })
   })
 
   it('should capture build errors when directly visiting error page', async () => {
     await next.browser('/build-error')
 
-    let errors: string = ''
+    let errors: any = null
     await retry(async () => {
       const sessionId = 'test-4-' + Date.now()
-      errors = await callGetErrors(sessionId)
-      expect(errors).toContain('Build Error')
-      expect(errors).toContain('Found errors in 1 browser session')
+      const errorsText = await callGetErrors(sessionId)
+      errors = JSON.parse(errorsText)
+      expect(errors.sessionErrors).toHaveLength(1)
+      expect(errors.sessionErrors[0].buildError).toBeTruthy()
     })
 
-    let strippedErrors = stripAnsi(errors)
-      // Replace dynamic port with placeholder
-      .replace(/localhost:\d+/g, 'localhost:PORT')
+    expect(errors.sessionErrors[0]).toMatchObject({
+      url: '/build-error',
+      buildError: expect.any(String),
+    })
 
-    // Verify proper URL display in session header (now shows pathname only)
-    expect(strippedErrors).toContain('Session: /build-error')
-
-    const isTurbopack = process.env.IS_TURBOPACK_TEST === '1'
-
-    const isRspack = !!process.env.NEXT_RSPACK
-
-    // Normalize paths in turbopack output to remove temp directory prefix
-    if (isTurbopack) {
-      strippedErrors = strippedErrors.replace(/\.\/test\/tmp\/[^/]+\//g, './')
-    }
-
-    if (isTurbopack) {
-      // Turbopack output
-      expect(strippedErrors).toMatchInlineSnapshot(`
-       "# Found errors in 1 browser session(s)
-
-       ## Session: /build-error
-
-       **2 error(s) found**
-
-       ### Build Error
-
-       \`\`\`
-       ./app/build-error/page.tsx:4:1
-       Parsing ecmascript source code failed
-         2 |   // Syntax error - missing closing brace
-         3 |   return <div>Page
-       > 4 | }
-           | ^
-
-       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-       \`\`\`
-
-       ### Runtime Errors
-
-       #### Error 1 (Type: runtime)
-
-       **Error**: ./app/build-error/page.tsx:4:1
-       Parsing ecmascript source code failed
-         2 |   // Syntax error - missing closing brace
-         3 |   return <div>Page
-       > 4 | }
-           | ^
-
-       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-
-
-
-       \`\`\`
-         at <unknown> (Error: ./app/build-error/page.tsx:4:1)
-         at <unknown> (Error: (./app/build-error/page.tsx:4:1)
-       \`\`\`
-
-       ---"
-      `)
-    } else if (isRspack) {
-      // Webpack output
-      expect(strippedErrors).toMatchInlineSnapshot(`
-       "# Found errors in 1 browser session(s)
-
-       ## Session: /build-error
-
-       **1 error(s) found**
-
-       ### Build Error
-
-       \`\`\`
-       ./app/build-error/page.tsx
-         ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-               │    ,-[4:1]
-               │  1 | export default function BuildErrorPage() {
-               │  2 |   // Syntax error - missing closing brace
-               │  3 |   return <div>Page
-               │  4 | }
-               │    : ^
-               │    \`----
-               │   x Expected '</', got '<eof>'
-               │    ,-[4:1]
-               │  1 | export default function BuildErrorPage() {
-               │  2 |   // Syntax error - missing closing brace
-               │  3 |   return <div>Page
-               │  4 | }
-               │    \`----
-               │
-               │
-               │ Caused by:
-               │     Syntax Error
-       \`\`\`
-
-       ---"
-      `)
-    } else {
-      expect(strippedErrors).toMatchInlineSnapshot(`
-       "# Found errors in 1 browser session(s)
-
-       ## Session: /build-error
-
-       **1 error(s) found**
-
-       ### Build Error
-
-       \`\`\`
-       ./app/build-error/page.tsx
-       Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-          ,-[4:1]
-        1 | export default function BuildErrorPage() {
-        2 |   // Syntax error - missing closing brace
-        3 |   return <div>Page
-        4 | }
-          : ^
-          \`----
-         x Expected '</', got '<eof>'
-          ,-[4:1]
-        1 | export default function BuildErrorPage() {
-        2 |   // Syntax error - missing closing brace
-        3 |   return <div>Page
-        4 | }
-          \`----
-
-       Caused by:
-           Syntax Error
-       \`\`\`
-
-       ---"
-      `)
-    }
+    // Check the build error contains the expected syntax error message
+    expect(stripAnsi(errors.sessionErrors[0].buildError)).toContain(
+      'Unexpected token. Did you mean'
+    )
+    expect(stripAnsi(errors.sessionErrors[0].buildError)).toContain(
+      'build-error/page.tsx'
+    )
   })
 
   it('should capture errors from multiple browser sessions', async () => {
@@ -244,68 +125,58 @@ describe('mcp-server get_errors tool', () => {
     try {
       // Wait for server to be ready
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      let errors: string = ''
+      let errors: any = null
       await retry(async () => {
         const sessionId = 'test-multi-' + Date.now()
-        errors = await callGetErrors(sessionId)
+        const errorsText = await callGetErrors(sessionId)
+        errors = JSON.parse(errorsText)
         // Check that we have at least the 2 sessions we created
-        expect(errors).toMatch(/Found errors in \d+ browser session/)
+        expect(errors.sessionErrors.length).toBeGreaterThanOrEqual(2)
         // Ensure both our sessions are present
-        expect(errors).toContain('/runtime-error')
-        expect(errors).toContain('/runtime-error-2')
+        const urls = errors.sessionErrors.map((s: any) => s.url)
+        expect(urls).toContain('/runtime-error')
+        expect(urls).toContain('/runtime-error-2')
       })
 
-      const strippedErrors = stripAnsi(errors).replace(
-        /localhost:\d+/g,
-        'localhost:PORT'
+      // Find each session's errors
+      const session1 = errors.sessionErrors.find(
+        (s: any) => s.url === '/runtime-error'
+      )
+      const session2 = errors.sessionErrors.find(
+        (s: any) => s.url === '/runtime-error-2'
       )
 
-      // Extract each session's content to check them independently
-      const session1Match = strippedErrors.match(
-        /## Session: \/runtime-error\n[\s\S]*?(?=---)/
-      )
-      const session2Match = strippedErrors.match(
-        /## Session: \/runtime-error-2\n[\s\S]*?(?=---)/
-      )
+      expect(session1).toMatchObject({
+        url: '/runtime-error',
+        runtimeErrors: [
+          {
+            type: 'runtime',
+            message: 'Test runtime error',
+            stack: expect.arrayContaining([
+              expect.objectContaining({
+                file: expect.stringContaining('app/runtime-error/page.tsx'),
+                methodName: 'RuntimeErrorPage',
+              }),
+            ]),
+          },
+        ],
+      })
 
-      expect(session1Match).toBeTruthy()
-      expect(session2Match).toBeTruthy()
-
-      expect(session1Match?.[0]).toMatchInlineSnapshot(`
-        "## Session: /runtime-error
-
-        **1 error(s) found**
-
-        ### Runtime Errors
-
-        #### Error 1 (Type: runtime)
-
-        **Error**: Test runtime error
-
-        \`\`\`
-          at RuntimeErrorPage (app/runtime-error/page.tsx:2:9)
-        \`\`\`
-
-        "
-      `)
-
-      expect(session2Match?.[0]).toMatchInlineSnapshot(`
-        "## Session: /runtime-error-2
-
-        **1 error(s) found**
-
-        ### Runtime Errors
-
-        #### Error 1 (Type: runtime)
-
-        **Error**: Test runtime error 2
-
-        \`\`\`
-          at RuntimeErrorPage (app/runtime-error-2/page.tsx:2:9)
-        \`\`\`
-
-        "
-      `)
+      expect(session2).toMatchObject({
+        url: '/runtime-error-2',
+        runtimeErrors: [
+          {
+            type: 'runtime',
+            message: 'Test runtime error 2',
+            stack: expect.arrayContaining([
+              expect.objectContaining({
+                file: expect.stringContaining('app/runtime-error-2/page.tsx'),
+                methodName: 'RuntimeErrorPage',
+              }),
+            ]),
+          },
+        ],
+      })
     } finally {
       await s1.close()
       await s2.close()
@@ -332,18 +203,20 @@ describe('mcp-server get_errors tool', () => {
     await next.browser('/')
 
     // Check that the config error is captured
-    let errors: string = ''
+    let errors: any = null
     await retry(async () => {
       const sessionId = 'test-config-error-' + Date.now()
-      errors = await callGetErrors(sessionId)
-      expect(errors).toContain('Next.js Configuration Errors')
-      expect(errors).toContain('error(s) found in next.config')
+      const errorsText = await callGetErrors(sessionId)
+      errors = JSON.parse(errorsText)
+      expect(errors.configErrors.length).toBeGreaterThan(0)
     })
 
-    const strippedErrors = stripAnsi(errors)
-    expect(strippedErrors).toContain('Next.js Configuration Errors')
-    expect(strippedErrors).toContain('Invalid next.config.js options detected')
-    expect(strippedErrors).toContain('invalidTestProperty')
+    expect(errors.configErrors[0]).toMatchObject({
+      message: expect.stringContaining(
+        'Invalid next.config.js options detected'
+      ),
+    })
+    expect(errors.configErrors[0].message).toContain('invalidTestProperty')
 
     // Stop server, fix the config, and restart
     await next.stop()
@@ -356,11 +229,10 @@ describe('mcp-server get_errors tool', () => {
     // Verify the config error is now gone
     await retry(async () => {
       const sessionId = 'test-config-fixed-' + Date.now()
-      const fixedErrors = await callGetErrors(sessionId)
-      const strippedFixed = stripAnsi(fixedErrors)
-      expect(strippedFixed).not.toContain('Next.js Configuration Errors')
-      expect(strippedFixed).not.toContain('invalidTestProperty')
-      expect(strippedFixed).toContain('No errors detected')
+      const fixedErrorsText = await callGetErrors(sessionId)
+      const fixedErrors = JSON.parse(fixedErrorsText)
+      expect(fixedErrors.configErrors).toHaveLength(0)
+      expect(fixedErrors.sessionErrors).toHaveLength(0)
     })
   })
 })
