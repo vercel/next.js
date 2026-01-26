@@ -530,15 +530,11 @@ async fn process_default_internal(
         ReferenceType::Internal(inner_assets) => Some(*inner_assets),
         _ => None,
     };
-
     let mut current_source = source;
     let mut current_module_type = None;
 
     let options_value = options.await?;
     for (i, rule) in options_value.rules.iter().enumerate() {
-        if has_type_attribute && current_module_type.is_some() {
-            continue;
-        }
         if processed_rules.contains(&i) {
             continue;
         }
