@@ -10,12 +10,7 @@ import type { CacheControl, Revalidate } from '../server/lib/cache-control'
 
 import '../lib/setup-exception-listeners'
 
-import {
-  loadEnvConfig,
-  type LoadedEnvFiles,
-  initialEnv,
-  updateInitialEnv,
-} from '@next/env'
+import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
@@ -133,8 +128,6 @@ import { sortByPageExts } from './sort-by-page-exts'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
-import { resolveAndSetDeploymentId } from './generate-deployment-id'
-import { evaluateDeploymentId } from '../server/evaluate-deployment-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
@@ -497,9 +490,6 @@ export type RoutesManifest = {
   caseSensitive?: boolean
   /**
    * User-configured deployment ID for skew protection.
-   * This allows users to specify a custom deployment identifier
-   * in their next.config.js that will be used for version skew protection
-   * with pre-built deployments.
    */
   deploymentId?: string
   /**
@@ -938,11 +928,6 @@ export default async function build(
   let loadedConfig: NextConfigComplete | undefined
   let staticWorker: StaticWorker
   try {
-    const preservedDeploymentIdAtStart = process.env.NEXT_DEPLOYMENT_ID
-    if (preservedDeploymentIdAtStart) {
-      NextBuildContext.preservedDeploymentId = preservedDeploymentIdAtStart
-    }
-
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
       version: process.env.__NEXT_VERSION as string,
@@ -957,34 +942,11 @@ export default async function build(
     NextBuildContext.debugBuildPaths = debugBuildPaths
 
     await nextBuildSpan.traceAsyncFn(async () => {
-      // Check process.env first to get the latest value (e.g., from next.env in tests)
-      // Then fall back to NextBuildContext which might have a stale value from previous build
-      const preservedDeploymentId =
-        process.env.NEXT_DEPLOYMENT_ID || NextBuildContext.preservedDeploymentId
-      if (preservedDeploymentId) {
-        NextBuildContext.preservedDeploymentId = preservedDeploymentId
-        // Ensure it's in process.env so loadEnvConfig can see it
-        process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
-        // Update initialEnv so loadEnvConfig includes it when resetting process.env
-        updateInitialEnv({ NEXT_DEPLOYMENT_ID: preservedDeploymentId })
-      }
-
-      const { loadedEnvFiles, combinedEnv } = nextBuildSpan
+      // attempt to load global env values so they are available in next.config.js
+      const { loadedEnvFiles } = nextBuildSpan
         .traceChild('load-dotenv')
         .traceFn(() => loadEnvConfig(dir, false, Log))
       NextBuildContext.loadedEnvFiles = loadedEnvFiles
-
-      // Restore NEXT_DEPLOYMENT_ID after loadEnvConfig resets process.env
-      // Priority: preservedDeploymentId > process.env (after loadEnvConfig) > combinedEnv
-      if (preservedDeploymentId) {
-        process.env.NEXT_DEPLOYMENT_ID = preservedDeploymentId
-        NextBuildContext.preservedDeploymentId = preservedDeploymentId
-      } else if (process.env.NEXT_DEPLOYMENT_ID) {
-        NextBuildContext.preservedDeploymentId = process.env.NEXT_DEPLOYMENT_ID
-      } else if (combinedEnv.NEXT_DEPLOYMENT_ID) {
-        process.env.NEXT_DEPLOYMENT_ID = combinedEnv.NEXT_DEPLOYMENT_ID
-        NextBuildContext.preservedDeploymentId = combinedEnv.NEXT_DEPLOYMENT_ID
-      }
 
       const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
       let experimentalFeatures: ConfiguredExperimentalFeature[] = []
@@ -1015,28 +977,7 @@ export default async function build(
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
 
-      // Collect all possible sources of deployment ID
-      let currentDeploymentId =
-        NextBuildContext.preservedDeploymentId ||
-        preservedDeploymentId ||
-        process.env.NEXT_DEPLOYMENT_ID ||
-        initialEnv?.NEXT_DEPLOYMENT_ID ||
-        combinedEnv.NEXT_DEPLOYMENT_ID ||
-        ''
-
-      // Ensure process.env has the deployment ID before resolving
-      if (currentDeploymentId) {
-        process.env['NEXT_DEPLOYMENT_ID'] = currentDeploymentId
-      }
-
-      config.deploymentId = resolveAndSetDeploymentId(
-        config.deploymentId,
-        config.deploymentId != null ? 'user-config' : 'env-var',
-        currentDeploymentId || undefined
-      )
-      if (config.deploymentId) {
-        process.env['NEXT_DEPLOYMENT_ID'] = config.deploymentId
-      }
+      process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -1056,7 +997,6 @@ export default async function build(
         config
       )
       NextBuildContext.buildId = buildId
-      NextBuildContext.deploymentId = config.deploymentId
 
       if (experimentalBuildMode === 'generate-env') {
         if (bundler === Bundler.Turbopack) {
@@ -1082,7 +1022,7 @@ export default async function build(
       // when using compile mode static env isn't inlined so we
       // need to populate in normal runtime env
       if (isCompileMode || isGenerateMode) {
-        populateStaticEnv(config, config.deploymentId || '')
+        populateStaticEnv(config, config.deploymentId)
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
@@ -1701,7 +1641,7 @@ export default async function build(
             rewrites,
             restrictedRedirectPaths,
             isAppPPREnabled,
-            deploymentId: evaluateDeploymentId(config.deploymentId),
+            deploymentId: config.deploymentId,
           })
         )
 
@@ -2779,10 +2719,7 @@ export default async function build(
               2
             )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
 
-            const evaluatedDeploymentId = evaluateDeploymentId(
-              config.deploymentId
-            )
-            let clientMiddlewareManifestPath = evaluatedDeploymentId
+            let clientMiddlewareManifestPath = config.deploymentId
               ? path.join(
                   CLIENT_STATIC_FILES_PATH,
                   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
@@ -4142,7 +4079,7 @@ export default async function build(
           distDir,
           buildId,
           locales: config.i18n?.locales,
-          deploymentId: evaluateDeploymentId(config.deploymentId),
+          deploymentId: config.deploymentId,
         })
       } else {
         await writePrerenderManifest(distDir, {
@@ -4274,7 +4211,6 @@ export default async function build(
               config,
               appType,
               buildId,
-              deploymentId: (config.deploymentId as string) || '',
               configOutDir: path.join(dir, configOutDir),
               staticPages,
               serverPropsPages,
