@@ -1742,6 +1742,13 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     .join("dist/client/components/builtin/unauthorized.js")?,
             );
         }
+        if modules.global_error.is_none() {
+            modules.global_error = Some(
+                get_next_package(app_dir.clone())
+                    .await?
+                    .join("dist/client/components/builtin/global-error.js")?,
+            );
+        }
 
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
@@ -1843,7 +1850,9 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         // the build isn't app-only. If the build is app-only (no user pages/api), we should still
         // expose the app global error so runtime errors render, but we shouldn't emit it otherwise.
         if matches!(*next_mode.await?, NextMode::Build) {
-            // Use built-in global-error.js to create a `_global-error/page` route.
+            // Create a `_global-error/page` route using user's global-error.js or built-in
+            // fallback.
+            let next_package = get_next_package(app_dir.clone()).await?;
             let global_error_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
@@ -1853,8 +1862,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         segment: rcstr!("__PAGE__"),
                         parallel_routes: FxIndexMap::default(),
                         modules: AppDirModules {
-                            page: Some(get_next_package(app_dir.clone())
-                                .await?
+                            page: Some(next_package
                                 .join("dist/client/components/builtin/app-error.js")?),
                             ..Default::default()
                         },
@@ -1862,7 +1870,12 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         static_siblings: Vec::new(),
                     }
                 },
-                modules: AppDirModules::default(),
+                // global-error is needed for getGlobalErrorStyles to work during rendering.
+                // Use user's custom global-error if defined, otherwise builtin fallback.
+                modules: AppDirModules {
+                    global_error: modules.global_error.clone(),
+                    ..Default::default()
+                },
                 global_metadata,
                 static_siblings: Vec::new(),
             }

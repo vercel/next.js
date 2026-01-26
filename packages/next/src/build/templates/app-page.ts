@@ -75,10 +75,6 @@ import {
  */
 declare const tree: LoaderTree
 
-// TODO this should ideally be read from the loader tree instead, where it's always inserted already anyway.
-import GlobalError from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-component' }
-export { GlobalError }
-
 // These are injected by the loader afterwards.
 declare const __next_app_require__: (id: string | number) => unknown
 declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
@@ -86,7 +82,6 @@ declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
 // We inject the tree and pages here so that we can use them in the route
 // module.
 // INJECT:tree
-
 // INJECT:__next_app_require__
 // INJECT:__next_app_load_chunk__
 
@@ -407,7 +402,7 @@ export async function handler(
   // when fixing this to correct logic it causes hydration issue since we set
   // serveStreamingMetadata to true during export
   const serveStreamingMetadata =
-    isHtmlBot && isRoutePPREnabled
+    botType && isRoutePPREnabled
       ? false
       : !userAgent
         ? true
@@ -417,9 +412,10 @@ export async function handler(
     (prerenderInfo ||
       isPrerendered ||
       prerenderManifest.routes[normalizedSrcPage]) &&
-      // If this is a html bot request and PPR is enabled, then we don't want
-      // to serve a static response.
-      !(isHtmlBot && isRoutePPREnabled)
+      // If this is a bot request and PPR is enabled, then we don't want
+      // to serve a static response. This applies to both DOM bots (like Googlebot)
+      // and HTML-limited bots.
+      !(botType && isRoutePPREnabled)
   )
 
   // When a page supports cacheComponents, we can support RDC for Navigations
@@ -449,8 +445,9 @@ export async function handler(
       : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
         isDynamicRSCRequest)
 
-  // When html bots request PPR page, perform the full dynamic rendering.
-  const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
+  // When bots request PPR page, perform the full dynamic rendering.
+  // This applies to both DOM bots (like Googlebot) and HTML-limited bots.
+  const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
 
   let ssgCacheKey: string | null = null
   if (
@@ -489,7 +486,6 @@ export async function handler(
   const ComponentMod = {
     ...entryBase,
     tree,
-    GlobalError,
     handler,
     routeModule,
     __next_app__,
@@ -575,7 +571,17 @@ export async function handler(
       })
     }
 
-    const incrementalCache = getRequestMeta(req, 'incrementalCache')
+    const incrementalCache =
+      getRequestMeta(req, 'incrementalCache') ||
+      (await routeModule.getIncrementalCache(
+        req,
+        nextConfig,
+        prerenderManifest,
+        isMinimalMode
+      ))
+
+    incrementalCache?.resetRequestCache()
+    ;(globalThis as any).__incrementalCache = incrementalCache
 
     const doRender = async ({
       span,
@@ -674,7 +680,7 @@ export async function handler(
           isDebugDynamicAccesses ||
           isDebugFallbackShell
             ? {
-                nextExport: true,
+                isBuildTimePrerendering: true,
                 supportsDynamicResponse: false,
                 isStaticGeneration: true,
                 isDebugDynamicAccesses: isDebugDynamicAccesses,
@@ -722,12 +728,6 @@ export async function handler(
           err: getRequestMeta(req, 'invokeError'),
           dev: routeModule.isDev,
         },
-      }
-
-      if (isDebugStaticShell || isDebugDynamicAccesses) {
-        context.renderOpts.nextExport = true
-        context.renderOpts.supportsDynamicResponse = false
-        context.renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 
       // When we're revalidating in the background, we should not allow dynamic
