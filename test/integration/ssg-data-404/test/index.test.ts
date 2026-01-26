@@ -14,20 +14,16 @@ import {
 
 const appDir = join(__dirname, '..')
 
-let app
-let appPort
-let proxyServer
 let proxyPort
-let should404Data = false
 
-const runTests = () => {
+const runTests = (switchDeployment: () => void) => {
   it('should hard navigate when a new deployment occurs', async () => {
     const browser = await webdriver(proxyPort, '/')
 
     await browser.eval('window.beforeNav = 1')
     expect(await browser.elementByCss('#index').text()).toBe('Index page')
 
-    should404Data = true
+    switchDeployment()
 
     await browser.eval(`(function() {
       window.next.router.push('/gsp')
@@ -52,15 +48,100 @@ describe('SSG data 404', () => {
     return
   }
 
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
+  describe('development mode', () => {
+    let should404Data = false
 
-        const proxy = httpProxy.createProxyServer({
-          target: `http://localhost:${appPort}`,
+    beforeAll(async () => {
+      const appPort = await findPort()
+      apps.push(await launchApp(appDir, appPort))
+
+      const proxy = httpProxy.createProxyServer({
+        target: `http://localhost:${appPort}`,
+      })
+      proxyPort = await findPort()
+
+      proxyServer = http.createServer((req, res) => {
+        req.on('error', (e) => {
+          require('console').error(e)
+        })
+        res.on('error', (e) => {
+          require('console').error(e)
+        })
+        if (should404Data && req.url.match(/\/_next\/data/)) {
+          res.statusCode = 404
+          return res.end('not found')
+        }
+        proxy.web(req, res)
+      })
+
+      await new Promise<void>((resolve) => {
+        proxyServer.listen(proxyPort, () => resolve())
+      })
+    })
+    afterAll(async () => {
+      for (const app of apps) {
+        await killApp(app)
+      }
+      proxyServer.close()
+    })
+
+    runTests(() => {
+      should404Data = true
+    })
+  })
+
+  describe.each([
+    { name: 'with build id' },
+    {
+      name: 'with deployment id',
+      NEXT_DEPLOYMENT_ID1: 'deployment-id-1',
+      NEXT_DEPLOYMENT_ID2: 'deployment-id-2',
+    },
+  ])(
+    'production mode $name',
+    ({ NEXT_DEPLOYMENT_ID1, NEXT_DEPLOYMENT_ID2 }) => {
+      let shouldSwitchDeployment = false
+      let apps = []
+      let proxyServer
+
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {
+          env: {
+            DIST_DIR: '1',
+            NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID1,
+          },
+        })
+        let appPort1 = await findPort()
+        apps.push(
+          await nextStart(appDir, appPort1, {
+            env: {
+              DIST_DIR: '1',
+              NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID1,
+            },
+          })
+        )
+
+        await nextBuild(appDir, [], {
+          env: {
+            DIST_DIR: '2',
+            NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID2,
+          },
+        })
+        let appPort2 = await findPort()
+        apps.push(
+          await nextStart(appDir, appPort2, {
+            env: {
+              DIST_DIR: '2',
+              NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID2,
+            },
+          })
+        )
+
+        const proxy1 = httpProxy.createProxyServer({
+          target: `http://localhost:${appPort1}`,
+        })
+        const proxy2 = httpProxy.createProxyServer({
+          target: `http://localhost:${appPort2}`,
         })
         proxyPort = await findPort()
 
@@ -71,51 +152,15 @@ describe('SSG data 404', () => {
           res.on('error', (e) => {
             require('console').error(e)
           })
-          if (should404Data && req.url.match(/\/_next\/data/)) {
-            res.statusCode = 404
-            return res.end('not found')
+
+          if (shouldSwitchDeployment) {
+            proxy2.web(req, res, undefined, (e) => {
+              require('console').error(e)
+            })
+            return
           }
-          proxy.web(req, res)
-        })
 
-        await new Promise<void>((resolve) => {
-          proxyServer.listen(proxyPort, () => resolve())
-        })
-      })
-      afterAll(async () => {
-        await killApp(app)
-        proxyServer.close()
-      })
-
-      runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-
-        const proxy = httpProxy.createProxyServer({
-          target: `http://localhost:${appPort}`,
-        })
-        proxyPort = await findPort()
-
-        proxyServer = http.createServer((req, res) => {
-          req.on('error', (e) => {
-            require('console').error(e)
-          })
-          res.on('error', (e) => {
-            require('console').error(e)
-          })
-          if (should404Data && req.url.match(/\/_next\/data/)) {
-            res.statusCode = 404
-            return res.end('not found')
-          }
-          proxy.web(req, res, undefined, (e) => {
+          proxy1.web(req, res, undefined, (e) => {
             require('console').error(e)
           })
         })
@@ -125,11 +170,15 @@ describe('SSG data 404', () => {
         })
       })
       afterAll(async () => {
-        await killApp(app)
+        for (const app of apps) {
+          await killApp(app)
+        }
         proxyServer.close()
       })
 
-      runTests()
+      runTests(() => {
+        shouldSwitchDeployment = true
+      })
     }
   )
 })
