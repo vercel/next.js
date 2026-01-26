@@ -1085,10 +1085,7 @@ export async function handleBuildComplete({
       const handleAppMeta = async (
         route: string,
         initialOutput: AdapterOutput['PRERENDER'],
-        meta: {
-          postponed?: string
-          segmentPaths?: string[]
-        },
+        meta: AppRouteMeta,
         ctx: {
           htmlAllowQuery?: string[]
           dataAllowQuery?: string[]
@@ -1127,15 +1124,17 @@ export async function handleBuildComplete({
               ) + prefetchSegmentSuffix
 
             // Only use the fallback value when the allowQuery is defined and
-            // is empty, which means that the segments do not vary based on
-            // the route parameters. This is safer than ensuring that we only
-            // use the fallback when this is not a fallback because we know in
-            // this new logic that it doesn't vary based on the route
-            // parameters and therefore can be used for all requests instead.
-            const fallbackPathname =
-              segmentAllowQuery && segmentAllowQuery.length === 0
-                ? path.join(segmentsDir, segmentPath + prefetchSegmentSuffix)
-                : undefined
+            // either: (1) it is empty, meaning segments do not vary by params,
+            // or (2) client param parsing is enabled, meaning the segment
+            // payloads are safe to reuse across params.
+            const shouldAttachSegmentFallback =
+              segmentAllowQuery &&
+              (segmentAllowQuery.length === 0 ||
+                routesManifest.rsc.clientParamParsing)
+
+            const fallbackPathname = shouldAttachSegmentFallback
+              ? path.join(segmentsDir, segmentPath + prefetchSegmentSuffix)
+              : undefined
 
             outputs.prerenders.push({
               id: outputSegmentPath,
@@ -1156,6 +1155,7 @@ export async function handleBuildComplete({
                 initialRevalidate: initialOutput.fallback?.initialRevalidate,
 
                 initialHeaders: {
+                  ...meta.headers,
                   ...initialOutput.fallback?.initialHeaders,
                   vary: varyHeader,
                   'content-type': rscContentTypeHeader,
