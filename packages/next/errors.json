@@ -981,5 +981,6 @@
   "980": "Failed to load client middleware manifest",
   "981": "resolvedPathname must be set in request metadata",
   "982": "`serializeResumeDataCache` should not be called in edge runtime.",
-  "983": "Invariant: global-error module is required but not found in loader tree"
+  "983": "Invariant: global-error module is required but not found in loader tree",
+  "984": "LRUCache: calculateSize returned %s, but size must be > 0. Items with size 0 would never be evicted, causing unbounded cache growth."
 }
