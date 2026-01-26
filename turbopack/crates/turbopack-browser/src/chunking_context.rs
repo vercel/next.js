@@ -372,10 +372,7 @@ impl BrowserChunkingContext {
         }
     }
 }
-
-#[turbo_tasks::value_impl]
 impl BrowserChunkingContext {
-    #[turbo_tasks::function]
     fn generate_evaluate_chunk(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
@@ -392,8 +389,6 @@ impl BrowserChunkingContext {
             module_graph,
         ))
     }
-
-    #[turbo_tasks::function]
     fn generate_chunk_list_register_chunk(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
@@ -409,26 +404,30 @@ impl BrowserChunkingContext {
             source,
         ))
     }
-
-    #[turbo_tasks::function]
     async fn generate_chunk(
         self: Vc<Self>,
         chunk: ResolvedVc<Box<dyn Chunk>>,
-    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+    ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
         Ok(
             if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
             {
-                Vc::upcast(EcmascriptBrowserChunk::new(self, *ecmascript_chunk))
+                ResolvedVc::upcast(
+                    EcmascriptBrowserChunk::new(self, *ecmascript_chunk)
+                        .to_resolved()
+                        .await?,
+                )
             } else if let Some(output_asset) =
                 ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(chunk)
             {
-                *output_asset
+                output_asset
             } else {
                 bail!("Unable to generate output asset for chunk");
             },
         )
     }
-
+}
+#[turbo_tasks::value_impl]
+impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn current_chunk_method(&self) -> Vc<CurrentChunkMethod> {
         self.current_chunk_method.cell()
@@ -724,7 +723,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let mut assets = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()
                 .await?;
 
@@ -787,7 +786,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()
                 .await?;
 

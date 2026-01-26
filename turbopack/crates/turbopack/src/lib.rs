@@ -797,7 +797,6 @@ impl AssetContext for ModuleAssetContext {
     async fn resolve_options(
         self: Vc<Self>,
         origin_path: FileSystemPath,
-        _reference_type: ReferenceType,
     ) -> Result<Vc<ResolveOptions>> {
         let this = self.await?;
         let module_asset_context = if let Some(transition) = this.transition {
