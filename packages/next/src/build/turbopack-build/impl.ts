@@ -21,7 +21,11 @@ import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
-import type { RawEntrypoints, TurbopackResult } from '../swc/types'
+import type {
+  ProjectOptions,
+  RawEntrypoints,
+  TurbopackResult,
+} from '../swc/types'
 
 /**
  * Convert deferred entry routes to debugBuildPaths format.
@@ -154,49 +158,57 @@ export async function turbopackBuild(): Promise<{
 
   const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
+
+  // Shared options for createProject calls
+  const sharedProjectOptions: Omit<ProjectOptions, 'debugBuildPaths'> = {
+    rootPath,
+    projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
+    distDir,
+    nextConfig: config,
+    watch: {
+      enable: false,
+    },
+    dev,
+    env: process.env as Record<string, string>,
+    defineEnv: createDefineEnv({
+      isTurbopack: true,
+      clientRouterFilters: NextBuildContext.clientRouterFilters!,
+      config,
+      dev,
+      distDir,
+      projectPath: dir,
+      fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+      hasRewrites,
+      // Implemented separately in Turbopack, doesn't have to be passed here.
+      middlewareMatchers: undefined,
+      rewrites,
+    }),
+    buildId,
+    encryptionKey,
+    previewProps,
+    browserslistQuery: supportedBrowsers.join(', '),
+    noMangling,
+    writeRoutesHashesManifest:
+      !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
+    currentNodeJsVersion,
+  }
+
+  const sharedTurboOptions = {
+    persistentCaching,
+    memoryLimit: config.experimental?.turbopackMemoryLimit,
+    dependencyTracking: persistentCaching,
+    isCi: isCI,
+    isShortSession: true,
+  }
+
   const project = await bindings.turbo.createProject(
     {
-      rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
-      projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
-      distDir,
-      nextConfig: config,
-      watch: {
-        enable: false,
-      },
-      dev,
-      env: process.env as Record<string, string>,
-      defineEnv: createDefineEnv({
-        isTurbopack: true,
-        clientRouterFilters: NextBuildContext.clientRouterFilters!,
-        config,
-        dev,
-        distDir,
-        projectPath: dir,
-        fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-        hasRewrites,
-        // Implemented separately in Turbopack, doesn't have to be passed here.
-        middlewareMatchers: undefined,
-        rewrites,
-      }),
-      buildId,
-      encryptionKey,
-      previewProps,
-      browserslistQuery: supportedBrowsers.join(', '),
-      noMangling,
-      writeRoutesHashesManifest:
-        !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
-      currentNodeJsVersion,
+      ...sharedProjectOptions,
       // For deferred entries, first build only non-deferred routes
       debugBuildPaths:
         nonDeferredBuildPaths ?? NextBuildContext.debugBuildPaths,
     },
-    {
-      persistentCaching,
-      memoryLimit: config.experimental?.turbopackMemoryLimit,
-      dependencyTracking: persistentCaching,
-      isCi: isCI,
-      isShortSession: true,
-    }
+    sharedTurboOptions
   )
   try {
     backgroundLogCompilationEvents(project)
@@ -245,45 +257,10 @@ export async function turbopackBuild(): Promise<{
       // A new project is needed because turbo_tasks caches entrypoints discovery
       activeProject = await bindings.turbo.createProject(
         {
-          rootPath:
-            config.turbopack?.root || config.outputFileTracingRoot || dir,
-          projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
-          distDir,
-          nextConfig: config,
-          watch: {
-            enable: false,
-          },
-          dev,
-          env: process.env as Record<string, string>,
-          defineEnv: createDefineEnv({
-            isTurbopack: true,
-            clientRouterFilters: NextBuildContext.clientRouterFilters!,
-            config,
-            dev,
-            distDir,
-            projectPath: dir,
-            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-            hasRewrites,
-            middlewareMatchers: undefined,
-            rewrites,
-          }),
-          buildId,
-          encryptionKey,
-          previewProps,
-          browserslistQuery: supportedBrowsers.join(', '),
-          noMangling,
-          writeRoutesHashesManifest:
-            !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
-          currentNodeJsVersion,
+          ...sharedProjectOptions,
           debugBuildPaths: deferredBuildPaths,
         },
-        {
-          persistentCaching,
-          memoryLimit: config.experimental?.turbopackMemoryLimit,
-          dependencyTracking: persistentCaching,
-          isCi: isCI,
-          isShortSession: true,
-        }
+        sharedTurboOptions
       )
 
       backgroundLogCompilationEvents(activeProject)
