@@ -16,7 +16,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
     ident::AssetIdent,
@@ -61,14 +61,6 @@ impl Module for JsonModuleAsset {
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::SideEffectFree.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for JsonModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
@@ -135,7 +127,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         // We parse to JSON and then stringify again to ensure that the
         // JSON is valid.
-        let content = self.module.content().file_content();
+        let content = self.module.await?.source.content().file_content();
         let data = content.parse_json().await?;
         match &*data {
             FileJsonContent::Content(data) => {

@@ -8,7 +8,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
@@ -117,14 +116,6 @@ impl Module for ModuleCssAsset {
         // modules can still effect global styles using `:root` selectors and other similar features
         // We could do better with some static analysis if we want
         ModuleSideEffects::SideEffectful.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for ModuleCssAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 

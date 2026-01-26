@@ -1,5 +1,5 @@
-use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use anyhow::{Result, bail};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -54,7 +54,14 @@ impl OutputAsset for TracedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for TracedAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.module.content()
+    async fn content(&self) -> Result<Vc<AssetContent>> {
+        if let Some(source) = *self.module.source().await? {
+            Ok(source.content())
+        } else {
+            bail!(
+                "Module {} has no source",
+                self.module.ident().to_string().await?,
+            )
+        }
     }
 }

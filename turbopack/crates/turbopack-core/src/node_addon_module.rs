@@ -7,7 +7,6 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 
 use crate::{
-    asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -105,14 +104,6 @@ impl Module for NodeAddonModule {
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         // We assume that a node addon could have arbitrary side effects when loading.
         ModuleSideEffects::SideEffectful.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for NodeAddonModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 

@@ -6,7 +6,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::AssetContent,
     chunk::{
         AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule,
         ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
@@ -246,18 +246,6 @@ impl Module for EcmascriptClientReferenceModule {
         // These just re-export some specially tagged functions, however we do assume that client
         // references are executed client side so we need to preserve these in the graph.
         ModuleSideEffects::SideEffectful.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptClientReferenceModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        AssetContent::File(
-            FileContent::Content("// This is a proxy module for Next.js client references.".into())
-                .resolved_cell(),
-        )
-        .cell()
     }
 }
 

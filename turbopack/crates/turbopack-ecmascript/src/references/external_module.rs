@@ -4,9 +4,7 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{
-    FileContent, FileSystem, FileSystemPath, LinkType, VirtualFileSystem, rope::RopeBuilder,
-};
+use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, rope::RopeBuilder};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -332,7 +330,8 @@ impl Module for CachedExternalModule {
                             // graph for chunking. `compute_async_module_info` computes
                             // `is_self_async` for every module, but at least for traced modules,
                             // that value is never used as `ChunkingType::Traced.is_inherit_async()
-                            // == false`. Optimize this case by using `ModuleWithoutSelfAsync` to
+                            // == false`. Optimize this case by using
+                            // `SideEffectfulModuleWithoutSelfAsync` to
                             // short circuit that computation and thus defer parsing traced modules
                             // to emitting to not block all of chunking on this.
                             .map(|m| Vc::upcast(SideEffectfulModuleWithoutSelfAsync::new(*m))),
@@ -359,15 +358,6 @@ impl Module for CachedExternalModule {
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::SideEffectful.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for CachedExternalModule {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<AssetContent> {
-        // should be `NotFound` as this function gets called to detect source changes
-        AssetContent::file(FileContent::NotFound.cell())
     }
 }
 
@@ -519,14 +509,6 @@ impl SideEffectfulModuleWithoutSelfAsync {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for SideEffectfulModuleWithoutSelfAsync {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.module.content()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl Module for SideEffectfulModuleWithoutSelfAsync {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
@@ -535,7 +517,7 @@ impl Module for SideEffectfulModuleWithoutSelfAsync {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
-        Vc::cell(None)
+        self.module.source()
     }
 
     #[turbo_tasks::function]

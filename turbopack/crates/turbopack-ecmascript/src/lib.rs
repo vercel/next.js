@@ -80,7 +80,6 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
         MergeableModule, MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
@@ -403,7 +402,7 @@ pub trait EcmascriptParsable {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptAnalyzable: Module + Asset {
+pub trait EcmascriptAnalyzable: Module {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
 
@@ -777,14 +776,6 @@ impl Module for EcmascriptModuleAsset {
             SideEffectsDeclaration::None => self.analyze().await?.side_effects,
         })
         .cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
