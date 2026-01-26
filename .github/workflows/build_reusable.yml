@@ -194,12 +194,15 @@ jobs:
       - run: corepack enable
       - run: pwd
 
-      # clean up any previous artifacts to avoid hitting disk space limits
-      - run: rm -rf ./* && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 25
+          # we clean manually in next step since actions/checkout cleaning
+          # can be buggy with rmdir
+          clean: false
+
+      # clean up any previous artifacts to avoid hitting disk space limits
+      - run: git clean -xdf; git reset --hard HEAD; rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
 
       # local action -> needs to run after checkout
       - name: Install Rust
