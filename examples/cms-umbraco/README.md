@@ -145,7 +145,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 8. Try Preview Mode
 
-If you edit a post in Umbraco without publishing the changes, you won't see these changes at `http://localhost:3000` by default. However, if you enable **Preview Mode**, you'll be able to see the changes ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+If you edit a post in Umbraco without publishing the changes, you won't see these changes at `http://localhost:3000` by default. However, if you enable **Preview Mode**, you'll be able to see the changes ([Documentation](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 To enable Preview Mode, go to this URL:
 

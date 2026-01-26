@@ -164,7 +164,7 @@ Then set each variable on `.env.local` using the keys `Project settings` > `API 
 
 - `KONTENT_PROJECT_ID` - Should be the Project ID in `Project settings` > `API keys`.
 - `KONTENT_PREVIEW_API_KEY` - One of the Preview API keys in `Project settings` > `API keys`.
-- `KONTENT_PREVIEW_SECRET` - Can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `KONTENT_PREVIEW_SECRET` - Can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode).
 
 ### **4. Run Next.js in development mode**
 

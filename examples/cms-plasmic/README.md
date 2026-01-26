@@ -5,7 +5,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 You'll get:
 
 - Statically generated pages from your visual designs
-- Development server on [preview mode](https://nextjs.org/docs/advanced-features/preview-mode) watches for changes from Plasmic Studio
+- Development server on [preview mode](https://nextjs.org/docs/pages/guides/preview-mode) watches for changes from Plasmic Studio
 
 ## Demo
 
@@ -91,7 +91,7 @@ Then set each variable on `.env.local`:
 
 - `NEXT_PUBLIC_PLASMIC_PROJECT_ID` should be the `projectId` value in step 2.
 - `NEXT_PUBLIC_PLASMIC_PROJECT_API_TOKEN` should be the API token gathered in previous step.
-- `PLASMIC_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `PLASMIC_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode).
 
 ### Step 4. Run Next.js in development mode
 

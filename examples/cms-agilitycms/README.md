@@ -284,8 +284,8 @@ Then set each variable on `.env.local`:
 
 - `AGILITY_CMS_GUID` should be the **Instance GUID** field
 - `AGILITY_CMS_API_FETCH_KEY` should be the **Live API Key** field
-- `AGILITY_CMS_API_PREVIEW_KEY` should be the **Preview API Key** field - this is used when the site is in [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode) and allows your site to pull the latest content, regardless of whether it is published or not.
-- `AGILITY_CMS_SECURITY_KEY` should be the **Security Key** field that can be found in **Settings** > **Global Security** - this is used to communicate between the CMS and your site to validate [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)
+- `AGILITY_CMS_API_PREVIEW_KEY` should be the **Preview API Key** field - this is used when the site is in [Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode) and allows your site to pull the latest content, regardless of whether it is published or not.
+- `AGILITY_CMS_SECURITY_KEY` should be the **Security Key** field that can be found in **Settings** > **Global Security** - this is used to communicate between the CMS and your site to validate [Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode)
 
 Your `.env.local` file should look like this:
 
@@ -328,7 +328,7 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 
 ### Step 18. Try preview mode
 
-Now that you've deployed your app to Vercel, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [Next.js Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now that you've deployed your app to Vercel, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [Next.js Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 To enable the Preview Mode, you'll need to add your site to **Domain Configuration** in Agility CMS:
 
