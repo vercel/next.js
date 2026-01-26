@@ -1,4 +1,4 @@
-/**
+/*
  * This file contains runtime types that are shared between all TurboPack
  * ECMAScript runtimes.
  *
@@ -7,15 +7,23 @@
  * specific to the runtime context.
  */
 
-type CurrentScript = { getAttribute: (name: string) => string | null }
+type CurrentScript = { src: ChunkUrl | null }
 type ChunkListPath = string & { readonly brand: unique symbol }
 type ChunkListScript = CurrentScript & { readonly brand: unique symbol }
+/**
+ * The path of a chunk (an internal identifier used by Turbopack for tracking chunk loading), i.e.
+ * excluding CHUNK_BASE_PATH and CHUNK_SUFFIX, e.g. `static/chunks/21a106126841c540.js`
+ */
 type ChunkPath = string & { readonly brand: unique symbol }
 type ChunkScript = CurrentScript & { readonly brand: unique symbol }
+/**
+ * The URL of a chunk (what will be requested from the server), i.e. including CHUNK_BASE_PATH and
+ * CHUNK_SUFFIX), e.g. `/_next/static/chunks/21a106126841c540.js?dpl=1123123`
+ */
 type ChunkUrl = string & { readonly brand: unique symbol }
-// The dependency specifier when importing externals
+/** The dependency specifier when importing externals */
 type DependencySpecifier = string
-// This is a string in development and a number in production (both arbitrary, implementation defined)
+/** This is a string in development and a number in production (both arbitrary, implementation defined) */
 type ModuleId = string | number
 
 interface Exports {
@@ -68,9 +76,11 @@ type LoadWebAssemblyModule = (
 type ModuleCache<M> = Record<ModuleId, M>
 // TODO properly type values here
 type ModuleFactories = Map<ModuleId, Function>
-// This is an alternating, non-empty module factory functions and module ids
-// [id1, id2..., factory1, id3, factory2, id4, id5, factory3]
-// There are multiple ids to support scope hoisting modules
+/**
+ * This is an alternating, non-empty arrow of module factory functions and module ids
+ * `[id1, id2..., factory1, id3, factory2, id4, id5, factory3]`
+ * There can be multiple ids to support scope hoisted merged modules
+ */
 type CompressedModuleFactories = Array<ModuleId | Function>
 
 type RelativeURL = (inputUrl: string) => void

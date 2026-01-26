@@ -7,13 +7,26 @@ import process from 'node:process'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 
-async function spawnNext(buildId, port) {
-  const child = spawn('pnpm', ['next', 'start', '-p', port, dir], {
-    env: {
+function getEnv(id, mode) {
+  if (mode === 'BUILD_ID') {
+    return {
       ...process.env,
-      BUILD_ID: buildId,
-      NEXT_PUBLIC_BUILD_ID: buildId,
-    },
+      BUILD_ID: id,
+      NEXT_PUBLIC_BUILD_ID: id,
+    }
+  } else if (mode === 'DEPLOYMENT_ID') {
+    return {
+      ...process.env,
+      NEXT_DEPLOYMENT_ID: id,
+    }
+  } else {
+    throw new Error('invalid mode ' + mode)
+  }
+}
+
+async function spawnNext(id, mode, port) {
+  const child = spawn('pnpm', ['next', 'start', '-p', port, dir], {
+    env: getEnv(id, mode),
     stdio: ['inherit', 'pipe', 'inherit'],
   })
 
@@ -36,32 +49,29 @@ async function spawnNext(buildId, port) {
   })
 }
 
-export function buildNext(buildId) {
+export function buildNext(id, mode) {
   spawnSync('pnpm', ['next', 'build', dir], {
-    env: {
-      ...process.env,
-      BUILD_ID: buildId,
-      NEXT_PUBLIC_BUILD_ID: buildId,
-    },
+    env: getEnv(id, mode),
     stdio: 'inherit',
   })
 }
 
-export function build() {
-  buildNext('1')
-  buildNext('2')
+export function build(mode) {
+  buildNext('1', mode)
+  buildNext('2', mode)
 }
 
 export async function start(
   mainPort = 3000,
   nextPort1 = mainPort + 1,
-  nextPort2 = mainPort + 2
+  nextPort2 = mainPort + 2,
+  mode = 'BUILD_ID'
 ) {
   // Start two different Next.js servers, one with BUILD_ID=1 and one
   // with BUILD_ID=2
   const [next1, next2] = await Promise.all([
-    spawnNext('1', nextPort1),
-    spawnNext('2', nextPort2),
+    spawnNext('1', mode, nextPort1),
+    spawnNext('2', mode, nextPort2),
   ])
 
   // Create a proxy server. If search params include `deployment=2`, proxy to
