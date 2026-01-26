@@ -426,6 +426,11 @@
         return "$" + (iterable ? "x" : "X") + streamId.toString(16);
       }
       function resolveToJSON(key, value) {
+        "__proto__" === key &&
+          console.error(
+            "Expected not to serialize an object with own property `__proto__`. When parsed this property will be omitted.%s",
+            describeObjectForErrorMessage(this, key)
+          );
         var originalValue = this[key];
         "object" !== typeof originalValue ||
           originalValue === value ||
@@ -670,17 +675,20 @@
         if ("undefined" === typeof value) return "$undefined";
         if ("function" === typeof value) {
           parentReference = knownServerReferences.get(value);
-          if (void 0 !== parentReference)
-            return (
-              (key = JSON.stringify(
-                { id: parentReference.id, bound: parentReference.bound },
-                resolveToJSON
-              )),
-              null === formData && (formData = new FormData()),
-              (parentReference = nextPartId++),
-              formData.set(formFieldPrefix + parentReference, key),
-              "$h" + parentReference.toString(16)
+          if (void 0 !== parentReference) {
+            key = writtenObjects.get(value);
+            if (void 0 !== key) return key;
+            key = JSON.stringify(
+              { id: parentReference.id, bound: parentReference.bound },
+              resolveToJSON
             );
+            null === formData && (formData = new FormData());
+            parentReference = nextPartId++;
+            formData.set(formFieldPrefix + parentReference, key);
+            key = "$h" + parentReference.toString(16);
+            writtenObjects.set(value, key);
+            return key;
+          }
           if (
             void 0 !== temporaryReferences &&
             -1 === key.indexOf(":") &&
@@ -2039,7 +2047,14 @@
               }
             }
           }
-          value = value[path[i]];
+          var name = path[i];
+          if (
+            "object" === typeof value &&
+            null !== value &&
+            hasOwnProperty.call(value, name)
+          )
+            value = value[name];
+          else throw Error("Invalid reference.");
         }
         for (
           ;
@@ -2067,7 +2082,7 @@
           }
         }
         var mappedValue = map(response, value, parentObject, key);
-        parentObject[key] = mappedValue;
+        "__proto__" !== key && (parentObject[key] = mappedValue);
         "" === key && null === handler.value && (handler.value = mappedValue);
         if (
           parentObject[0] === REACT_ELEMENT_TYPE &&
@@ -2231,7 +2246,7 @@
             metaData.id,
             metaData.bound
           );
-          parentObject[key] = resolvedValue;
+          "__proto__" !== key && (parentObject[key] = resolvedValue);
           "" === key &&
             null === handler.value &&
             (handler.value = resolvedValue);
@@ -2490,20 +2505,21 @@
       Object.setPrototypeOf(parentObject, model.prototype);
     }
     function defineLazyGetter(response, chunk, parentObject, key) {
-      Object.defineProperty(parentObject, key, {
-        get: function () {
-          "resolved_model" === chunk.status && initializeModelChunk(chunk);
-          switch (chunk.status) {
-            case "fulfilled":
-              return chunk.value;
-            case "rejected":
-              throw chunk.reason;
-          }
-          return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
-        },
-        enumerable: !0,
-        configurable: !1
-      });
+      "__proto__" !== key &&
+        Object.defineProperty(parentObject, key, {
+          get: function () {
+            "resolved_model" === chunk.status && initializeModelChunk(chunk);
+            switch (chunk.status) {
+              case "fulfilled":
+                return chunk.value;
+              case "rejected":
+                throw chunk.reason;
+            }
+            return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+          },
+          enumerable: !0,
+          configurable: !1
+        });
       return null;
     }
     function extractIterator(response, model) {
@@ -2707,13 +2723,14 @@
                 ? ref.value
                 : defineLazyGetter(response, ref, parentObject, key);
             }
-            Object.defineProperty(parentObject, key, {
-              get: function () {
-                return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
-              },
-              enumerable: !0,
-              configurable: !1
-            });
+            "__proto__" !== key &&
+              Object.defineProperty(parentObject, key, {
+                get: function () {
+                  return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+                },
+                enumerable: !0,
+                configurable: !1
+              });
             return null;
           default:
             return (
@@ -4541,83 +4558,85 @@
     }
     function createFromJSONCallback(response) {
       return function (key, value) {
-        if ("string" === typeof value)
-          return parseModelString(response, this, key, value);
-        if ("object" === typeof value && null !== value) {
-          if (value[0] === REACT_ELEMENT_TYPE)
-            b: {
-              var owner = value[4],
-                stack = value[5];
-              key = value[6];
-              value = {
-                $$typeof: REACT_ELEMENT_TYPE,
-                type: value[1],
-                key: value[2],
-                props: value[3],
-                _owner: void 0 === owner ? null : owner
-              };
-              Object.defineProperty(value, "ref", {
-                enumerable: !1,
-                get: nullRefGetter
-              });
-              value._store = {};
-              Object.defineProperty(value._store, "validated", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: key
-              });
-              Object.defineProperty(value, "_debugInfo", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: null
-              });
-              Object.defineProperty(value, "_debugStack", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: void 0 === stack ? null : stack
-              });
-              Object.defineProperty(value, "_debugTask", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: null
-              });
-              if (null !== initializingHandler) {
-                owner = initializingHandler;
-                initializingHandler = owner.parent;
-                if (owner.errored) {
-                  stack = new ReactPromise("rejected", null, owner.reason);
-                  initializeElement(response, value, null);
-                  owner = {
-                    name: getComponentNameFromType(value.type) || "",
-                    owner: value._owner
-                  };
-                  owner.debugStack = value._debugStack;
-                  supportsCreateTask && (owner.debugTask = value._debugTask);
-                  stack._debugInfo = [owner];
-                  key = createLazyChunkWrapper(stack, key);
-                  break b;
+        if ("__proto__" !== key) {
+          if ("string" === typeof value)
+            return parseModelString(response, this, key, value);
+          if ("object" === typeof value && null !== value) {
+            if (value[0] === REACT_ELEMENT_TYPE)
+              b: {
+                var owner = value[4],
+                  stack = value[5];
+                key = value[6];
+                value = {
+                  $$typeof: REACT_ELEMENT_TYPE,
+                  type: value[1],
+                  key: value[2],
+                  props: value[3],
+                  _owner: void 0 === owner ? null : owner
+                };
+                Object.defineProperty(value, "ref", {
+                  enumerable: !1,
+                  get: nullRefGetter
+                });
+                value._store = {};
+                Object.defineProperty(value._store, "validated", {
+                  configurable: !1,
+                  enumerable: !1,
+                  writable: !0,
+                  value: key
+                });
+                Object.defineProperty(value, "_debugInfo", {
+                  configurable: !1,
+                  enumerable: !1,
+                  writable: !0,
+                  value: null
+                });
+                Object.defineProperty(value, "_debugStack", {
+                  configurable: !1,
+                  enumerable: !1,
+                  writable: !0,
+                  value: void 0 === stack ? null : stack
+                });
+                Object.defineProperty(value, "_debugTask", {
+                  configurable: !1,
+                  enumerable: !1,
+                  writable: !0,
+                  value: null
+                });
+                if (null !== initializingHandler) {
+                  owner = initializingHandler;
+                  initializingHandler = owner.parent;
+                  if (owner.errored) {
+                    stack = new ReactPromise("rejected", null, owner.reason);
+                    initializeElement(response, value, null);
+                    owner = {
+                      name: getComponentNameFromType(value.type) || "",
+                      owner: value._owner
+                    };
+                    owner.debugStack = value._debugStack;
+                    supportsCreateTask && (owner.debugTask = value._debugTask);
+                    stack._debugInfo = [owner];
+                    key = createLazyChunkWrapper(stack, key);
+                    break b;
+                  }
+                  if (0 < owner.deps) {
+                    stack = new ReactPromise("blocked", null, null);
+                    owner.value = value;
+                    owner.chunk = stack;
+                    key = createLazyChunkWrapper(stack, key);
+                    value = initializeElement.bind(null, response, value, key);
+                    stack.then(value, value);
+                    break b;
+                  }
                 }
-                if (0 < owner.deps) {
-                  stack = new ReactPromise("blocked", null, null);
-                  owner.value = value;
-                  owner.chunk = stack;
-                  key = createLazyChunkWrapper(stack, key);
-                  value = initializeElement.bind(null, response, value, key);
-                  stack.then(value, value);
-                  break b;
-                }
+                initializeElement(response, value, null);
+                key = value;
               }
-              initializeElement(response, value, null);
-              key = value;
-            }
-          else key = value;
-          return key;
+            else key = value;
+            return key;
+          }
+          return value;
         }
-        return value;
       };
     }
     function close(weakResponse) {
@@ -5016,10 +5035,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-24d8716e-20260123",
+      version: "19.3.0-experimental-8c34556c-20260126",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-24d8716e-20260123",
+      reconcilerVersion: "19.3.0-experimental-8c34556c-20260126",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

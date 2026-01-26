@@ -2201,7 +2201,7 @@ export async function copy_ncced(task) {
 
 export async function ncc(task, opts) {
   await task
-    .clear('src/compiled')
+    // .clear('src/compiled') // TODO: Re-enabled once npm issues are resolved.
     .parallel(
       [
         'ncc_safe_stable_stringify',
@@ -2332,7 +2332,7 @@ export async function ncc(task, opts) {
       'copy_babel_runtime',
       'copy_vercel_og',
       'copy_constants_browserify',
-      'copy_vendor_react',
+      // 'copy_vendor_react', // TODO: Re-enable once npm issues are resolved.
       'ncc_sass_loader',
       'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
