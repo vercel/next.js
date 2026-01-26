@@ -368,9 +368,18 @@ impl FreeVarReferences {
     pub fn members(&self) -> Vc<FreeVarReferencesMembers> {
         let mut members = FxHashSet::default();
         for (key, _) in self.0.iter() {
-            if let Some(DefinableNameSegment::Name(name)) = key
+            if let Some(name) = key
                 .iter()
-                .rfind(|segment| matches!(segment, DefinableNameSegment::Name(_)))
+                .rfind(|segment| {
+                    matches!(
+                        segment,
+                        DefinableNameSegment::Name(_) | DefinableNameSegment::Call(_)
+                    )
+                })
+                .and_then(|segment| match segment {
+                    DefinableNameSegment::Name(n) | DefinableNameSegment::Call(n) => Some(n),
+                    _ => None,
+                })
             {
                 members.insert(name.clone());
             }
