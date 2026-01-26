@@ -16,14 +16,15 @@ const appDir = join(__dirname, '..')
 
 let proxyPort
 
-const runTests = (switchDeployment: () => void) => {
-  it('should hard navigate when a new deployment occurs', async () => {
+const runTests = (switchDeployment: (bool) => void) => {
+  it('index to gsp', async () => {
+    switchDeployment(false)
     const browser = await webdriver(proxyPort, '/')
 
     await browser.eval('window.beforeNav = 1')
-    expect(await browser.elementByCss('#index').text()).toBe('Index page')
+    await browser.waitForElementByCss('#index')
 
-    switchDeployment()
+    switchDeployment(true)
 
     await browser.eval(`(function() {
       window.next.router.push('/gsp')
@@ -31,8 +32,17 @@ const runTests = (switchDeployment: () => void) => {
     await browser.waitForElementByCss('#gsp')
 
     expect(await browser.eval('window.beforeNav')).toBeFalsy()
+  })
+
+  it('gsp to gssp', async () => {
+    switchDeployment(false)
+    const browser = await webdriver(proxyPort, '/gsp')
 
     await browser.eval('window.beforeNav = 1')
+    await browser.waitForElementByCss('#gsp')
+
+    switchDeployment(true)
+
     await browser.eval(`(function() {
       window.next.router.push('/gssp')
     })()`)
@@ -42,7 +52,7 @@ const runTests = (switchDeployment: () => void) => {
   })
 }
 
-describe('SSG data 404', () => {
+describe('SSG data 404 - hard navigate when a new deployment occurs', () => {
   if (process.platform === 'win32') {
     it('should skip this suite on Windows', () => {})
     return
@@ -50,6 +60,8 @@ describe('SSG data 404', () => {
 
   describe('development mode', () => {
     let should404Data = false
+    let apps = []
+    let proxyServer
 
     beforeAll(async () => {
       const appPort = await findPort()
@@ -85,8 +97,8 @@ describe('SSG data 404', () => {
       proxyServer.close()
     })
 
-    runTests(() => {
-      should404Data = true
+    runTests((v) => {
+      should404Data = v
     })
   })
 
@@ -176,8 +188,8 @@ describe('SSG data 404', () => {
         proxyServer.close()
       })
 
-      runTests(() => {
-        shouldSwitchDeployment = true
+      runTests((v) => {
+        shouldSwitchDeployment = v
       })
     }
   )
