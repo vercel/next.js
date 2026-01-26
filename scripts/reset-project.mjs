@@ -4,6 +4,54 @@ export const TEST_PROJECT_NAME = 'vtest314-e2e-tests'
 export const TEST_TEAM_NAME = process.env.VERCEL_TEST_TEAM
 export const TEST_TOKEN = process.env.VERCEL_TEST_TOKEN
 
+/**
+ * Retry a fetch request with exponential backoff
+ * @param {string} url - The URL to fetch
+ * @param {object} options - Fetch options
+ * @param {object} config - Retry configuration
+ * @param {number} config.maxRetries - Maximum number of retry attempts (default: 5)
+ * @param {number[]} config.acceptableStatuses - Status codes that are acceptable and should not retry (default: [])
+ * @param {string} config.operationName - Name of the operation for logging (default: 'Request')
+ * @returns {Promise<Response>} The fetch response
+ */
+async function fetchWithRetry(
+  url,
+  options = {},
+  { maxRetries = 5, acceptableStatuses = [], operationName = 'Request' } = {}
+) {
+  let lastError
+  let response
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    response = await fetch(url, options)
+
+    // Check if response is acceptable
+    if (response.ok || acceptableStatuses.includes(response.status)) {
+      return response
+    }
+
+    // If we have attempts remaining, retry
+    if (attempt < maxRetries - 1) {
+      const delay = Math.pow(2, attempt) * 1000 // exponential backoff: 1s, 2s, 4s, 8s, 16s
+      const errorText = await response.text()
+      console.log(
+        `${operationName} failed with status ${response.status} (attempt ${attempt + 1}/${maxRetries}), waiting ${delay}ms before retrying...`
+      )
+      lastError = `${operationName} failed. Got status: ${response.status}, ${errorText}`
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      continue
+    }
+
+    // Last attempt failed, capture error
+    lastError = `${operationName} failed. Got status: ${
+      response.status
+    }, ${await response.text()}`
+  }
+
+  // All retries exhausted
+  throw new Error(lastError)
+}
+
 export async function resetProject({
   teamId = TEST_TEAM_NAME,
   projectName = TEST_PROJECT_NAME,
@@ -11,7 +59,7 @@ export async function resetProject({
 }) {
   console.log(`Resetting project ${teamId}/${projectName}`)
   // TODO: error/bail if existing deployments are pending
-  const deleteRes = await fetch(
+  await fetchWithRetry(
     `https://vercel.com/api/v8/projects/${encodeURIComponent(
       projectName
     )}?teamId=${teamId}`,
@@ -20,18 +68,15 @@ export async function resetProject({
       headers: {
         Authorization: `Bearer ${TEST_TOKEN}`,
       },
+    },
+    {
+      acceptableStatuses: [404], // 404 is acceptable (project doesn't exist)
+      operationName: 'Delete project',
     }
   )
 
-  if (!deleteRes.ok && deleteRes.status !== 404) {
-    throw new Error(
-      `Failed to delete project got status ${
-        deleteRes.status
-      }, ${await deleteRes.text()}`
-    )
-  }
-
-  const createRes = await fetch(
+  // Retry logic for project creation since deletion may be async
+  const createRes = await fetchWithRetry(
     `https://vercel.com/api/v8/projects?teamId=${teamId}`,
     {
       method: 'POST',
@@ -43,16 +88,11 @@ export async function resetProject({
         framework: 'nextjs',
         name: projectName,
       }),
+    },
+    {
+      operationName: 'Create project',
     }
   )
-
-  if (!createRes.ok) {
-    throw new Error(
-      `Failed to create project. Got status: ${
-        createRes.status
-      }, ${await createRes.text()}`
-    )
-  }
 
   const { id: projectId } = await createRes.json()
 
@@ -63,7 +103,7 @@ export async function resetProject({
   if (disableDeploymentProtection) {
     console.log('Disabling deployment protection...')
 
-    const patchRes = await fetch(
+    await fetchWithRetry(
       `https://vercel.com/api/v8/projects/${encodeURIComponent(
         projectId
       )}?teamId=${teamId}`,
@@ -75,17 +115,13 @@ export async function resetProject({
         },
         body: JSON.stringify({
           ssoProtection: null,
+          passwordProtection: null,
         }),
+      },
+      {
+        operationName: 'Disable deployment protection',
       }
     )
-
-    if (!patchRes.ok) {
-      throw new Error(
-        `Failed to disable deployment protection. Got status: ${
-          patchRes.status
-        }, ${await patchRes.text()}`
-      )
-    }
   }
 
   console.log(

@@ -8,4 +8,7 @@ resetProject({
   projectName: TEST_PROJECT_NAME,
   teamId: TEST_TEAM_NAME,
   disableDeploymentProtection: true,
-}).catch(console.error)
+}).catch((err) => {
+  console.error(err)
+  process.exit(1)
+})
