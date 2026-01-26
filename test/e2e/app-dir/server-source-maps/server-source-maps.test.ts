@@ -774,4 +774,22 @@ describe('app-dir - server source maps', () => {
       // TODO(veil): assert on 2nd error once that's bug free
     }
   })
+
+  it('getSourcemappedStack returns sourcemapped stack programmatically', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/get-sourcemapped-stack-api')
+
+    await retry(() => {
+      expect(next.cliOutput.slice(outputIndex)).toContain(
+        'SOURCEMAPPED_STACK_OUTPUT:'
+      )
+    })
+
+    const output = stripAnsi(next.cliOutput.slice(outputIndex))
+
+    // Should contain sourcemapped location, not minified
+    expect(output).toContain('get-sourcemapped-stack-api-test')
+    expect(output).toContain('at createError')
+    expect(output).toContain('app/get-sourcemapped-stack-api/page.js')
+  })
 })

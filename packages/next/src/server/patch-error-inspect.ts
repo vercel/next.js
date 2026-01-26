@@ -327,7 +327,7 @@ function getSourcemappedFrameIfPossible(
   )
 }
 
-function parseAndSourceMap(
+export function parseAndSourceMap(
   error: Error,
   inspectOptions: util.InspectOptions
 ): string {
