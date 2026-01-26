@@ -8,7 +8,6 @@ import {
   TEST_TEAM_NAME,
   TEST_TOKEN,
 } from '../../../scripts/reset-project.mjs'
-import fetch from 'node-fetch'
 import { Span } from 'next/dist/trace'
 
 export class NextDeployInstance extends NextInstance {
@@ -141,6 +140,9 @@ export class NextDeployInstance extends NextInstance {
       if (process.env.IS_WEBPACK_TEST) {
         additionalEnv.push(`IS_WEBPACK_TEST=1`)
       }
+      if (process.env.NEXT_ENABLE_ADAPTER) {
+        additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
+      }
 
       const deployRes = await execa(
         'vercel',
@@ -214,20 +216,6 @@ export class NextDeployInstance extends NextInstance {
     }
 
     require('console').log(`Deployment URL: ${this._url}`)
-    const buildIdUrl = `${this._url}${
-      this.basePath || ''
-    }/_next/static/__BUILD_ID`
-
-    const buildIdRes = await fetch(buildIdUrl)
-
-    if (!buildIdRes.ok) {
-      require('console').error(
-        `Failed to load buildId ${buildIdUrl} (${buildIdRes.status})`
-      )
-    }
-    this._buildId = (await buildIdRes.text()).trim()
-
-    require('console').log(`Got buildId: ${this._buildId}`)
 
     // Use the vercel inspect command to get the CLI output from the build.
     const buildLogs = await execa(
@@ -241,13 +229,20 @@ export class NextDeployInstance extends NextInstance {
     if (buildLogs.exitCode !== 0) {
       throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
     }
-
-    // Use the stdout from the logs command as the CLI output. The CLI will
-    // output other unrelated logs to stderr.
-
     // TODO: Combine with runtime logs (via `vercel logs`)
     // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
     this._cliOutput = buildLogs.stdout + buildLogs.stderr
+
+    const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
+
+    if (!buildId) {
+      throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
+    }
+    this._buildId = buildId
+
+    require('console').log(`Got buildId: ${this._buildId}`)
+    // Use the stdout from the logs command as the CLI output. The CLI will
+    // output other unrelated logs to stderr.
   }
 
   public async destroy() {

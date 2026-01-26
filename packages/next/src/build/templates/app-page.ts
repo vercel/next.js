@@ -407,7 +407,7 @@ export async function handler(
   // when fixing this to correct logic it causes hydration issue since we set
   // serveStreamingMetadata to true during export
   const serveStreamingMetadata =
-    isHtmlBot && isRoutePPREnabled
+    botType && isRoutePPREnabled
       ? false
       : !userAgent
         ? true
@@ -417,9 +417,10 @@ export async function handler(
     (prerenderInfo ||
       isPrerendered ||
       prerenderManifest.routes[normalizedSrcPage]) &&
-      // If this is a html bot request and PPR is enabled, then we don't want
-      // to serve a static response.
-      !(isHtmlBot && isRoutePPREnabled)
+      // If this is a bot request and PPR is enabled, then we don't want
+      // to serve a static response. This applies to both DOM bots (like Googlebot)
+      // and HTML-limited bots.
+      !(botType && isRoutePPREnabled)
   )
 
   // When a page supports cacheComponents, we can support RDC for Navigations
@@ -449,8 +450,9 @@ export async function handler(
       : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
         isDynamicRSCRequest)
 
-  // When html bots request PPR page, perform the full dynamic rendering.
-  const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
+  // When bots request PPR page, perform the full dynamic rendering.
+  // This applies to both DOM bots (like Googlebot) and HTML-limited bots.
+  const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
 
   let ssgCacheKey: string | null = null
   if (
@@ -575,7 +577,17 @@ export async function handler(
       })
     }
 
-    const incrementalCache = getRequestMeta(req, 'incrementalCache')
+    const incrementalCache =
+      getRequestMeta(req, 'incrementalCache') ||
+      (await routeModule.getIncrementalCache(
+        req,
+        nextConfig,
+        prerenderManifest,
+        isMinimalMode
+      ))
+
+    incrementalCache?.resetRequestCache()
+    ;(globalThis as any).__incrementalCache = incrementalCache
 
     const doRender = async ({
       span,
