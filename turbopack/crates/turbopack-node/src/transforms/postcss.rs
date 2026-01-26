@@ -84,6 +84,7 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".postcssrc.js",
             ".postcssrc.mjs",
             ".postcssrc.cjs",
+            ".postcssrc.ts",
             ".config/postcssrc",
             ".config/postcssrc.json",
             ".config/postcssrc.yaml",
@@ -91,9 +92,11 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".config/postcssrc.js",
             ".config/postcssrc.mjs",
             ".config/postcssrc.cjs",
+            ".config/postcssrc.ts",
             "postcss.config.js",
             "postcss.config.mjs",
             "postcss.config.cjs",
+            "postcss.config.ts",
             "postcss.config.json",
         ]
         .into_iter()
