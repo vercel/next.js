@@ -20,6 +20,8 @@ import { hrtimeDurationToString } from './duration-to-string'
 function verifyTypeScriptSetup(
   dir: string,
   distDir: string,
+  distDirRoot: string,
+  strictRouteTypes: boolean,
   typeCheckPreflight: boolean,
   tsconfigPath: string | undefined,
   disableStaticImages: boolean,
@@ -30,7 +32,7 @@ function verifyTypeScriptSetup(
   isolatedDevBuild: boolean | undefined,
   appDir: string | undefined,
   pagesDir: string | undefined,
-  debugBuildPaths: { app?: string[]; pages?: string[] } | undefined
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 ) {
   const typeCheckWorker = new Worker(
     require.resolve('../lib/verify-typescript-setup'),
@@ -50,6 +52,8 @@ function verifyTypeScriptSetup(
     .verifyTypeScriptSetup({
       dir,
       distDir,
+      distDirRoot,
+      strictRouteTypes,
       typeCheckPreflight,
       tsconfigPath,
       disableStaticImages,
@@ -89,7 +93,7 @@ export async function startTypeChecking({
   pagesDir?: string
   telemetry: Telemetry
   appDir?: string
-  debugBuildPaths?: { app?: string[]; pages?: string[] }
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 }) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
 
@@ -117,6 +121,8 @@ export async function startTypeChecking({
         verifyTypeScriptSetup(
           dir,
           config.distDir,
+          config.distDirRoot,
+          Boolean(config.experimental.strictRouteTypes),
           !ignoreTypeScriptErrors,
           config.typescript.tsconfigPath,
           config.images.disableStaticImages,
@@ -136,11 +142,11 @@ export async function startTypeChecking({
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stop()
-
-      createSpinner(
-        `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
-      )?.stopAndPersist()
     }
+
+    createSpinner(
+      `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+    )?.stopAndPersist()
 
     if (!ignoreTypeScriptErrors && verifyResult) {
       telemetry.record(

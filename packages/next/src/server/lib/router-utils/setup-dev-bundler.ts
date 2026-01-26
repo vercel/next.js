@@ -10,7 +10,6 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
-import url from 'url'
 import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
@@ -66,7 +65,10 @@ import {
   isMetadataRouteFile,
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
-import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
+import {
+  fillMetadataSegment,
+  normalizeMetadataPageToRoute,
+} from '../../../lib/metadata/get-metadata-route'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
@@ -81,10 +83,12 @@ import {
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
 } from '../../../lib/constants'
+import { parseUrl } from '../../../lib/url'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
+  writeRouteTypesEntryFile,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
@@ -143,6 +147,8 @@ async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
+    distDirRoot: opts.nextConfig.distDirRoot,
+    strictRouteTypes: Boolean(opts.nextConfig.experimental.strictRouteTypes),
     typeCheckPreflight: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
@@ -215,10 +221,14 @@ async function startWatcher(
         )
       })()
     : await (async () => {
-        const HotReloaderWebpack = (
-          require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
-        ).default
-        return new HotReloaderWebpack(opts.dir, {
+        const HotReloader = process.env.NEXT_RSPACK
+          ? (
+              require('../../dev/hot-reloader-rspack') as typeof import('../../dev/hot-reloader-rspack')
+            ).default
+          : (
+              require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
+            ).default
+        return new HotReloader(opts.dir, {
           isSrcDir: opts.isSrcDir,
           appDir,
           pagesDir,
@@ -258,9 +268,21 @@ async function startWatcher(
       pageApiRoutes: new Set(),
       filePathToRoute: new Map(),
     },
-    path.join(distTypesDir, 'routes.d.ts'),
+    path.join(distTypesDir, 'route-types.d.ts'),
     opts.nextConfig
   )
+
+  // Write the entry file at {distDirRoot}/types/routes.d.ts for initial state
+  const initialEntryFilePath = path.join(
+    opts.dir,
+    opts.nextConfig.distDirRoot,
+    'types',
+    'routes.d.ts'
+  )
+  await writeRouteTypesEntryFile(initialEntryFilePath, distTypesDir, {
+    strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
+    typedRoutes: Boolean(nextConfig.typedRoutes),
+  })
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
@@ -370,7 +392,9 @@ async function startWatcher(
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
-    const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+    // Actual type files go to route-types.d.ts (not routes.d.ts)
+    // routes.d.ts is reserved for the entry file
+    const routeTypesFilePath = path.join(distDir, 'types', 'route-types.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
@@ -674,7 +698,16 @@ async function startWatcher(
           if (useFileSystemPublicRoutes) {
             // Static metadata files will be served from filesystem.
             if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
-              staticMetadataFiles.set(pageName, fileName)
+              // Use "-" placeholder for dynamic segments since static files have consistent content
+              const segment = path.posix.dirname(pageName)
+              const lastSegment = path.posix.basename(pageName)
+              const normalizedPath = fillMetadataSegment(
+                segment,
+                {},
+                lastSegment,
+                true
+              )
+              staticMetadataFiles.set(normalizedPath, fileName)
             } else {
               appFiles.add(pageName)
             }
@@ -1175,11 +1208,28 @@ async function startWatcher(
             routeTypesFilePath,
             opts.nextConfig
           )
-          await writeValidatorFile(routeTypesManifest, validatorFilePath)
+          await writeValidatorFile(
+            routeTypesManifest,
+            validatorFilePath,
+            Boolean(nextConfig.experimental.strictRouteTypes)
+          )
 
           // Generate cache-life types if cacheLife config exists
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
           writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
+
+          // Write the entry file at {distDirRoot}/types/routes.d.ts
+          // This ensures next-env.d.ts has a consistent import path
+          const entryFilePath = path.join(
+            opts.dir,
+            opts.nextConfig.distDirRoot,
+            'types',
+            'routes.d.ts'
+          )
+          await writeRouteTypesEntryFile(entryFilePath, distTypesDir, {
+            strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
+            typedRoutes: Boolean(nextConfig.typedRoutes),
+          })
         }
 
         if (!resolved) {
@@ -1209,9 +1259,10 @@ async function startWatcher(
   opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
 
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
-    const parsedUrl = url.parse(req.url || '/')
+    const parsedUrl = parseUrl(req.url || '/')
+    const pathname = parsedUrl !== undefined ? parsedUrl.pathname : null
 
-    if (parsedUrl.pathname?.includes(clientPagesManifestPath)) {
+    if (pathname !== null && pathname.includes(clientPagesManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
       res.end(
@@ -1225,8 +1276,9 @@ async function startWatcher(
     }
 
     if (
-      parsedUrl.pathname?.includes(devMiddlewareManifestPath) ||
-      parsedUrl.pathname?.includes(devTurbopackMiddlewareManifestPath)
+      pathname !== null &&
+      (pathname.includes(devMiddlewareManifestPath) ||
+        pathname.includes(devTurbopackMiddlewareManifestPath))
     ) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)

@@ -674,10 +674,12 @@ async fn process_default_internal(
                                 ModuleIssue::new(
                                     *ident,
                                     rcstr!("Invalid module type"),
-                                    rcstr!(
+                                    format!(
                                         "The module type must be Ecmascript or Typescript to add \
-                                         Ecmascript transforms"
-                                    ),
+                                         Ecmascript transforms (got {})",
+                                        module_type
+                                    )
+                                    .into(),
                                     Some(IssueSource::from_source_only(current_source)),
                                 )
                                 .to_resolved()
@@ -1006,18 +1008,6 @@ pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
         .as_side_effect()
         .await?;
 
-    Ok(())
-}
-
-#[turbo_tasks::function]
-pub async fn emit_asset_into_dir(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    let dir = output_dir.clone();
-    if asset.path().await?.is_inside_ref(&dir) {
-        emit_asset(asset).as_side_effect().await?;
-    }
     Ok(())
 }
 

@@ -5,19 +5,22 @@ use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, Vc};
 
 use crate::{
+    chunk::chunking_context::UnusedReferences,
     module::Module,
-    module_graph::{GraphEdgeIndex, GraphTraversalAction, ModuleGraph},
-    reference::ModuleReference,
+    module_graph::{
+        GraphEdgeIndex, GraphTraversalAction, ModuleGraph,
+        side_effect_module_info::compute_side_effect_free_module_info,
+    },
     resolve::{ExportUsage, ImportUsage},
 };
 
 #[turbo_tasks::value]
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
-    unused_references: FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>,
+    unused_references: ResolvedVc<UnusedReferences>,
     #[turbo_tasks(trace_ignore)]
     unused_references_edges: FxHashSet<GraphEdgeIndex>,
 
@@ -51,10 +54,6 @@ impl BindingUsageInfo {
         self.unused_references_edges.contains(edge)
     }
 
-    pub fn is_reference_unused(&self, reference: &ResolvedVc<Box<dyn ModuleReference>>) -> bool {
-        self.unused_references.contains(reference)
-    }
-
     pub async fn used_exports(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
@@ -81,13 +80,21 @@ impl BindingUsageInfo {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl BindingUsageInfo {
+    #[turbo_tasks::function]
+    pub fn unused_references(&self) -> Vc<UnusedReferences> {
+        *self.unused_references
+    }
+}
+
 #[turbo_tasks::function(operation)]
 pub async fn compute_binding_usage_info(
-    graph: ResolvedVc<ModuleGraph>,
+    graph: OperationVc<ModuleGraph>,
     remove_unused_imports: bool,
 ) -> Result<Vc<BindingUsageInfo>> {
     let span_outer = tracing::info_span!(
-        "compute bindung usage info",
+        "compute binding usage info",
         visit_count = tracing::field::Empty,
         unused_reference_count = tracing::field::Empty
     );
@@ -104,7 +111,9 @@ pub async fn compute_binding_usage_info(
         let mut unused_references_edges = FxHashSet::default();
         let mut unused_references = FxHashSet::default();
 
-        if graph.await?.binding_usage.is_some() {
+        let graph = graph.connect();
+        let graph_ref = graph.await?;
+        if graph_ref.binding_usage.is_some() {
             // If the graph already has binding usage info, return it directly. This is
             // unfortunately easy to do with
             // ```
@@ -121,12 +130,17 @@ pub async fn compute_binding_usage_info(
                  without_unused_references"
             );
         }
+        let side_effect_free_modules = if remove_unused_imports {
+            let side_effect_free_modules = compute_side_effect_free_module_info(graph).await?;
+            span.record("side_effect_free_modules", side_effect_free_modules.len());
+            Some(side_effect_free_modules)
+        } else {
+            None
+        };
 
-        let graph = graph.read_graphs().await?;
+        let entries = graph_ref.graphs.iter().flat_map(|g| g.entry_modules());
 
-        let entries = graph.graphs.iter().flat_map(|g| g.entry_modules());
-
-        let visit_count = graph.traverse_edges_fixed_point_with_priority(
+        let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
             entries.map(|m| (m, 0)),
             &mut (),
             |parent, target, _| {
@@ -137,6 +151,25 @@ pub async fn compute_binding_usage_info(
                 };
 
                 if remove_unused_imports {
+                    // If this is an evaluation reference and the target has no side effects
+                    // then we can drop it. NOTE: many `imports` create parallel Evaluation
+                    // and Named/All references
+                    if matches!(&ref_data.binding_usage.export, ExportUsage::Evaluation)
+                        && side_effect_free_modules
+                            .as_ref()
+                            .expect("this must be present if `remove_unused_imports` is true")
+                            .contains(&target)
+                    {
+                        #[cfg(debug_assertions)]
+                        debug_unused_references_name.insert((
+                            parent,
+                            ref_data.binding_usage.export.clone(),
+                            target,
+                        ));
+                        unused_references_edges.insert(edge);
+                        unused_references.insert(ref_data.reference);
+                        return Ok(GraphTraversalAction::Skip);
+                    }
                     // If the current edge is an unused import, skip it
                     match &ref_data.binding_usage.import {
                         ImportUsage::Exports(exports) => {
@@ -147,6 +180,7 @@ pub async fn compute_binding_usage_info(
                                 .iter()
                                 .all(|e| !source_used_exports.is_export_used(e))
                             {
+                                // all exports are unused
                                 #[cfg(debug_assertions)]
                                 debug_unused_references_name.insert((
                                     parent,
@@ -169,7 +203,7 @@ pub async fn compute_binding_usage_info(
                                 // Continue, add export
                             }
                         }
-                        ImportUsage::SideEffects => {
+                        ImportUsage::TopLevel => {
                             #[cfg(debug_assertions)]
                             debug_unused_references_name.remove(&(
                                 parent,
@@ -197,15 +231,23 @@ pub async fn compute_binding_usage_info(
         )?;
 
         // Compute cycles and select modules to be 'circuit breakers'
+        //
+        // To break cycles we need to ensure that no importing module can observe a
+        // partially populated exports object.
+        //
         // A circuit breaker module will need to eagerly export lazy getters for its exports to
         // break an evaluation cycle all other modules can export values after defining them
+        //
+        // In particular, this is also needed with scope hoisting and self-imports, as in
+        // that case `__turbopack_esm__` is what initializes the exports object. (Without
+        // scope hoisting, the exports object is already populated before any executing the
+        // module factory.)
         let mut export_circuit_breakers = FxHashSet::default();
-        graph.traverse_cycles(
-            |e| e.chunking_type.is_parallel(),
-            |cycle| {
-                // To break cycles we need to ensure that no importing module can observe a
-                // partially populated exports object.
 
+        graph_ref.traverse_cycles(
+            // No need to traverse edges that are unused.
+            |e| e.chunking_type.is_parallel() && !unused_references.contains(&e.reference),
+            |cycle| {
                 // We could compute this based on the module graph via a DFS from each entry point
                 // to the cycle.  Whatever node is hit first is an entry point to the cycle.
                 // (scope hoisting does something similar) and then we would only need to
@@ -247,7 +289,7 @@ pub async fn compute_binding_usage_info(
         }
 
         Ok(BindingUsageInfo {
-            unused_references,
+            unused_references: ResolvedVc::cell(unused_references),
             unused_references_edges,
             used_exports,
             export_circuit_breakers,

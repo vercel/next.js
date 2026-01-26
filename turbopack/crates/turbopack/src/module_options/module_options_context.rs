@@ -47,6 +47,12 @@ pub enum ConditionPath {
     Regex(ResolvedVc<EsRegex>),
 }
 
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum ConditionQuery {
+    Constant(RcStr),
+    Regex(ResolvedVc<EsRegex>),
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ConditionItem {
@@ -57,6 +63,7 @@ pub enum ConditionItem {
     Base {
         path: Option<ConditionPath>,
         content: Option<ResolvedVc<EsRegex>>,
+        query: Option<ConditionQuery>,
     },
 }
 
@@ -194,6 +201,8 @@ pub struct ModuleOptionsContext {
     pub execution_context: Option<ResolvedVc<ExecutionContext>>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
+
+    pub static_url_tag: Option<RcStr>,
 
     /// Generate (non-emitted) output assets for static assets and externals, to facilitate
     /// generating a list of all non-bundled files that will be required at runtime.

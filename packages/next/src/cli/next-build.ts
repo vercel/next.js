@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import '../server/lib/cpu-profile'
+import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
 import { italic } from '../lib/picocolors'
 import build from '../build'
@@ -32,11 +32,18 @@ export type NextBuildOptions = {
   experimentalUploadTrace?: string
   experimentalNextConfigStripTypes?: boolean
   debugBuildPaths?: string
+  experimentalCpuProf?: boolean
 }
 
 const nextBuild = async (options: NextBuildOptions, directory?: string) => {
-  process.on('SIGTERM', () => process.exit(143))
-  process.on('SIGINT', () => process.exit(130))
+  process.on('SIGTERM', () => {
+    saveCpuProfile()
+    process.exit(143)
+  })
+  process.on('SIGINT', () => {
+    saveCpuProfile()
+    process.exit(130)
+  })
 
   const {
     experimentalAnalyze,
@@ -96,8 +103,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   }
 
   // Resolve selective build paths
-  let resolvedAppPaths: string[] | undefined
-  let resolvedPagePaths: string[] | undefined
+  let resolvedBuildPaths: { app: string[]; pages: string[] } | undefined
 
   if (debugBuildPaths) {
     try {
@@ -105,9 +111,10 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
 
       if (patterns.length > 0) {
         const resolved = await resolveBuildPaths(patterns, dir)
-        // Pass empty arrays to indicate "build nothing" vs undefined for "build everything"
-        resolvedAppPaths = resolved.appPaths
-        resolvedPagePaths = resolved.pagePaths
+        resolvedBuildPaths = {
+          app: resolved.appPaths,
+          pages: resolved.pagePaths,
+        }
       }
     } catch (err) {
       printAndExit(
@@ -127,8 +134,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     bundler,
     experimentalBuildMode,
     traceUploadUrl,
-    resolvedAppPaths,
-    resolvedPagePaths
+    resolvedBuildPaths
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {
@@ -157,4 +163,4 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     })
 }
 
-export { nextBuild }
+export { nextBuild, saveCpuProfile }

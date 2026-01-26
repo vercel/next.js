@@ -27,6 +27,7 @@ interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
   R: ResolvePathFromModule
   x: ExternalRequire
   y: ExternalImport
+  q: ExportUrl
 }
 
 const nodeContextPrototype = Context.prototype as TurbopackNodeBuildContext
@@ -62,6 +63,18 @@ function resolvePathFromModule(
   return url.pathToFileURL(resolved).href
 }
 nodeContextPrototype.R = resolvePathFromModule
+
+/**
+ * Exports a URL value. No suffix is added in Node.js runtime.
+ */
+function exportUrl(
+  this: TurbopackBaseContext<Module>,
+  urlValue: string,
+  id: ModuleId | undefined
+) {
+  exportValue.call(this, urlValue, id)
+}
+nodeContextPrototype.q = exportUrl
 
 function loadRuntimeChunk(sourcePath: ChunkPath, chunkData: ChunkData): void {
   if (typeof chunkData === 'string') {
@@ -178,11 +191,15 @@ function loadWebAssemblyModule(
 }
 contextPrototype.u = loadWebAssemblyModule
 
-function getWorkerBlobURL(_chunks: ChunkPath[]): string {
-  throw new Error('Worker blobs are not implemented yet for Node.js')
+function getWorkerURL(
+  _entrypoint: ChunkPath,
+  _moduleChunks: ChunkPath[],
+  _shared: boolean
+): URL {
+  throw new Error('Worker urls are not implemented yet for Node.js')
 }
 
-nodeContextPrototype.b = getWorkerBlobURL
+nodeContextPrototype.b = getWorkerURL
 
 function instantiateModule(
   id: ModuleId,

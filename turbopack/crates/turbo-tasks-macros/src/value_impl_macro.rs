@@ -5,7 +5,7 @@ use syn::{
     Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
     MetaNameValue, Path, Token, Type,
     parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote,
+    parse_macro_input,
     spanned::Spanned,
 };
 
@@ -120,7 +120,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             let native_fn = NativeFn {
                 function_global_name: global_name(&function_path_string),
                 function_path_string,
-                function_path: parse_quote! { <#ty>::#inline_function_ident },
+                function_path: quote! { <#ty>::#inline_function_ident },
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: None, // not a trait method
@@ -244,7 +244,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         ty = ty.to_token_stream(),
                         trait_path = trait_path.to_token_stream()
                     ),
-                    function_path: parse_quote! {
+                    function_path: quote! {
                         <#ty as #inline_extension_trait_ident>::#inline_function_ident
                     },
                     is_method: turbo_fn.is_method(),
@@ -332,7 +332,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because
             // rustc complains: error[E0210]: type parameter `T` must be covered by another type when it appears before
             // the first local type (`dyn Trait`).
+            #[automatically_derived]
             unsafe impl #impl_generics turbo_tasks::Upcast<::std::boxed::Box<dyn #trait_path>> for #ty #where_clause {}
+            #[automatically_derived]
             unsafe impl #impl_generics turbo_tasks::UpcastStrict<::std::boxed::Box<dyn #trait_path>> for #ty #where_clause {}
 
             impl #impl_generics #trait_path for #ty #where_clause {

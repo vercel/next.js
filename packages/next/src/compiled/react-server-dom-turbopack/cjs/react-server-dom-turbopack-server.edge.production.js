@@ -646,9 +646,9 @@ var HooksDispatcher = {
   },
   useCacheRefresh: function () {
     return unsupportedRefresh;
-  }
+  },
+  useEffectEvent: unsupportedHook
 };
-HooksDispatcher.useEffectEvent = unsupportedHook;
 function unsupportedHook() {
   throw Error("This Hook is not supported in Server Components.");
 }
@@ -1564,10 +1564,16 @@ function renderModelDestructive(
       case REACT_LAZY_TYPE:
         if (3200 < serializedSize) return deferTask(request, task);
         task.thenableState = null;
-        parentPropertyName = value._init;
-        value = parentPropertyName(value._payload);
+        elementReference = value._init;
+        value = elementReference(value._payload);
         if (12 === request.status) throw null;
-        return renderModelDestructive(request, task, emptyRoot, "", value);
+        return renderModelDestructive(
+          request,
+          task,
+          parent,
+          parentPropertyName,
+          value
+        );
       case REACT_LEGACY_ELEMENT_TYPE:
         throw Error(
           'A React Element from an older version of React was rendered. This is not supported. It can happen if:\n- Multiple copies of the "react" package is used.\n- A library pre-bundled an old copy of "react" or "react/jsx-runtime".\n- A compiler tries to "inline" JSX instead of using the runtime.'
@@ -2280,16 +2286,23 @@ ReactPromise.prototype.then = function (resolve, reject) {
     case "fulfilled":
       if ("function" === typeof resolve) {
         for (
-          var inspectedValue = this.value, cycleProtection = 0;
+          var inspectedValue = this.value,
+            cycleProtection = 0,
+            visited = new Set();
           inspectedValue instanceof ReactPromise;
 
         ) {
           cycleProtection++;
-          if (inspectedValue === this || 1e3 < cycleProtection) {
+          if (
+            inspectedValue === this ||
+            visited.has(inspectedValue) ||
+            1e3 < cycleProtection
+          ) {
             "function" === typeof reject &&
               reject(Error("Cannot have cyclic thenables."));
             return;
           }
+          visited.add(inspectedValue);
           if ("fulfilled" === inspectedValue.status)
             inspectedValue = inspectedValue.value;
           else break;

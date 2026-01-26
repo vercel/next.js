@@ -8,13 +8,14 @@ use syn::{
     Error, Expr, ExprLit, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr,
     Meta, MetaNameValue, Token,
     parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote,
+    parse_macro_input,
     spanned::Spanned,
 };
 
 use crate::{global_name::global_name, ident::get_value_type_ident};
 
 enum CellMode {
+    KeyedCompare,
     Compare,
     New,
 }
@@ -31,9 +32,13 @@ impl TryFrom<LitStr> for CellMode {
 
     fn try_from(lit: LitStr) -> Result<Self, Self::Error> {
         match lit.value().as_str() {
+            "keyed" => Ok(CellMode::KeyedCompare),
             "compare" => Ok(CellMode::Compare),
             "new" => Ok(CellMode::New),
-            _ => Err(Error::new_spanned(&lit, "expected \"new\" or \"compare\"")),
+            _ => Err(Error::new_spanned(
+                &lit,
+                "expected \"new\", \"keyed\", or \"compare\"",
+            )),
         }
     }
 }
@@ -216,7 +221,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                  [`{inner_type_string}`].",
             );
 
-            struct_attributes.push(parse_quote! {
+            struct_attributes.push(quote! {
                 #[doc = #doc_str]
             });
         }
@@ -251,7 +256,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 content.0
             },
             quote! {
-                turbo_tasks::VcTransparentRead::<#ident, #inner_type, #ident>
+                turbo_tasks::VcTransparentRead::<#ident, #inner_type>
             },
         )
     } else {
@@ -274,6 +279,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
         CellMode::Compare => quote! {
             turbo_tasks::VcCellCompareMode<#ident>
+        },
+        CellMode::KeyedCompare => quote! {
+            turbo_tasks::VcCellKeyedCompareMode<#ident>
         },
     };
 
@@ -427,6 +435,7 @@ pub fn value_type_and_register(
 
         turbo_tasks::macro_helpers::inventory_submit!{turbo_tasks::macro_helpers::CollectableValueType(&#value_type_ident)}
 
+        #[automatically_derived]
         unsafe impl #impl_generics turbo_tasks::VcValueType for #ty #where_clause {
             type Read = #read;
             type CellMode = #cell_mode;

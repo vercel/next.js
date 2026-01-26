@@ -16,6 +16,7 @@ use bincode::{
     impl_borrow_decode,
 };
 use rustc_hash::FxHasher;
+use smallvec::SmallVec;
 use tracing::Span;
 use turbo_bincode::{
     TurboBincodeDecode, TurboBincodeDecoder, TurboBincodeEncode, TurboBincodeEncoder,
@@ -25,11 +26,10 @@ use turbo_rcstr::RcStr;
 
 use crate::{
     RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
-    TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    TaskPriority, TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcValueTrait, VcValueType,
     event::EventListener, macro_helpers::NativeFunction, magic_any::MagicAny,
     manager::TurboTasksBackendApi, raw_vc::CellId, registry,
     task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi,
-    triomphe_utils::unchecked_sidecast_triomphe_arc,
 };
 
 pub type TransientTaskRoot =
@@ -161,11 +161,8 @@ impl TypedCellContent {
     pub fn cast<T: VcValueType>(self) -> Result<ReadRef<T>> {
         let data = self.1.0.ok_or_else(|| anyhow!("Cell is empty"))?;
         let data = data
-            .downcast::<<T::Read as VcRead<T>>::Repr>()
+            .downcast::<T>()
             .map_err(|_err| anyhow!("Unexpected type in cell"))?;
-        // SAFETY: `T` and `T::Read::Repr` must have equivalent memory representations,
-        // guaranteed by the unsafe implementation of `VcValueType`.
-        let data = unsafe { unchecked_sidecast_triomphe_arc(data) };
         Ok(ReadRef::new_arc(data))
     }
 
@@ -412,11 +409,10 @@ pub trait Backend: Sync + Send {
     ) {
     }
 
-    fn get_task_description(&self, task: TaskId) -> String;
-
     fn try_start_task_execution<'a>(
         &'a self,
         task: TaskId,
+        priority: TaskPriority,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Option<TaskExecutionSpec<'a>>;
 
@@ -427,7 +423,6 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
-        stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
@@ -509,6 +504,7 @@ pub trait Backend: Sync + Send {
         index: CellId,
         is_serializable_cell_content: bool,
         content: CellContent,
+        updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );

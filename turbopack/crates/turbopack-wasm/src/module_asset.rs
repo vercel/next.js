@@ -61,20 +61,19 @@ impl WebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn loader_as_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        let this = self.await?;
-        let query = &this.source.ident().await?.query;
+    async fn loader_as_module(&self) -> Result<Vc<Box<dyn Module>>> {
+        let query = &self.source.ident().await?.query;
 
         let loader_source = if query == "?module" {
-            compiling_loader_source(*this.source)
+            compiling_loader_source(*self.source)
         } else {
-            instantiating_loader_source(*this.source)
+            instantiating_loader_source(*self.source)
         };
 
-        let module = this.asset_context.process(
+        let module = self.asset_context.process(
             loader_source,
             ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*this.source, *this.asset_context).to_resolved().await?),
+                rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*self.source, *self.asset_context).to_resolved().await?),
             })),
         ).module();
 
