@@ -159,8 +159,7 @@ pub struct WebpackRuntimeAssetReference {
 impl ModuleReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
-        let options = self.origin.resolve_options(ty.clone());
+        let options = self.origin.resolve_options();
 
         let options = apply_cjs_specific_options(options);
 

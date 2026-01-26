@@ -197,14 +197,15 @@ pub enum AnalyzeMode {
     /// For bundling only, no tracing of referenced files.
     #[default]
     CodeGeneration,
-    /// For bundling and tracing of referenced files.
+    /// For bundling and finding references to external referenced files
     CodeGenerationAndTracing,
-    /// For tracing of referenced files only, no bundling (i.e. no codegen).
+    /// For tracing transitive external references (i.e. no codegen).
     Tracing,
 }
 
 impl AnalyzeMode {
-    pub fn is_tracing(self) -> bool {
+    /// Are we currently collecting references to external assets. e.g. filesystem dependencies
+    pub fn is_tracing_assets(self) -> bool {
         match self {
             AnalyzeMode::Tracing | AnalyzeMode::CodeGenerationAndTracing => true,
             AnalyzeMode::CodeGeneration => false,

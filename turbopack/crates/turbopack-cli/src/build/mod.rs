@@ -286,7 +286,7 @@ async fn build_internal(
                 let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                 let request = request_vc.await?;
                 origin
-                    .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
+                    .resolve_asset(request_vc, origin.resolve_options(), ty)
                     .await?
                     .first_module()
                     .await?

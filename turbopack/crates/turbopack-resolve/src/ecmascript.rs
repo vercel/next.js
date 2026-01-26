@@ -94,7 +94,7 @@ pub async fn esm_resolve(
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::EcmaScriptModules(ty);
-    let options = apply_esm_specific_options(origin.resolve_options(ty.clone()), &ty)
+    let options = apply_esm_specific_options(origin.resolve_options(), &ty)
         .resolve()
         .await?;
     specific_resolve(origin, request, options, ty, is_optional, issue_source).await
@@ -109,7 +109,7 @@ pub async fn cjs_resolve(
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
+    let options = apply_cjs_specific_options(origin.resolve_options())
         .resolve()
         .await?;
     specific_resolve(origin, request, options, ty, is_optional, issue_source).await
@@ -124,7 +124,7 @@ pub async fn cjs_resolve_source(
     is_optional: bool,
 ) -> Result<Vc<ResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
+    let options = apply_cjs_specific_options(origin.resolve_options())
         .resolve()
         .await?;
     let result = resolve(

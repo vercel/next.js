@@ -1,7 +1,10 @@
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
+use super::{
+    Issue, IssueSeverity, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+    StyledString,
+};
 
 #[turbo_tasks::value(shared)]
 pub struct CodeGenerationIssue {
@@ -9,6 +12,8 @@ pub struct CodeGenerationIssue {
     pub path: FileSystemPath,
     pub title: ResolvedVc<StyledString>,
     pub message: ResolvedVc<StyledString>,
+    /// Optional source location that points to where the issue originates
+    pub source: Option<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -35,5 +40,10 @@ impl Issue for CodeGenerationIssue {
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(self.message))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(self.source)
     }
 }
