@@ -95,7 +95,7 @@ Because this data **can** change over time, the rendered output is no longer gua
 
 This makes it a **dynamic** component.
 
-Without guidance, the framework has to assume you want to fetch **fresh** data on every user request.
+Without guidance, the framework assumes you want to fetch **fresh** data on every user request. This design choice reflects standard web behavior where a new server request renders the page.
 
 However, if this component is rendered at request time, fetching its data will delay the **entire** route from responding.
 
@@ -145,7 +145,15 @@ The first time it runs, whatever we return will be cached and reused.
 
 If a cache component's inputs are available **before** the request arrives, it can be prerendered just like a static component.
 
-If we refresh again, we can see the page loads instantly because the cache component doesn't block the response.
+If we refresh again, we can see the page loads instantly because the cache component doesn't block the response. And, if we run `next build` again, we can confirm the page is still static:
+
+```bash filename=terminal
+Route (app)      Revalidate  Expire
+┌ ○ /products           15m      1y
+└ ○ /_not-found
+
+○  (Static)  prerendered as static content
+```
 
 But, pages rarely stay static forever.
 
@@ -189,9 +197,9 @@ This time, the promotion depends on request specific inputs like the user's loca
 
 ### Partial prerendering
 
-When prerendering isn't an option, the way to unblock the response is streaming.
+Adding dynamic content doesn't mean we have to go back to a fully blocking render. We can unblock the response with streaming.
 
-We can enable streaming by wrapping a component in a [Suspense boundary](/docs/app/glossary#suspense-boundary) and providing a fallback.
+Next.js supports streaming by default. We can use a [Suspense boundary](/docs/app/glossary#suspense-boundary) to tell the framework where to slice the streamed response into _chunks_, and what fallback UI to show while content loads.
 
 ```tsx filename=app/products/page.tsx
 import { Suspense } from 'react'
@@ -222,7 +230,7 @@ export default async function Page() {
 }
 ```
 
-The fallback component renders immediately, unblocking the rest of the page. The inner component renders later, once its async work completes.
+The fallback is prerendered alongside the rest of our static and cached content. The inner component streams in later, once its async work completes.
 
 With this change, Next.js can separate prerenderable work from request-time work and the route becomes [partially prerendered](/docs/app/glossary#partial-prerendering-ppr).
 
