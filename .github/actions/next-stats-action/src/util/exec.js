@@ -1,17 +1,42 @@
 const logger = require('./logger')
 const { promisify } = require('util')
-const { exec: execOrig, spawn: spawnOrig } = require('child_process')
+const { execFile, spawn: spawnOrig } = require('child_process')
 
-const execP = promisify(execOrig)
+const execP = promisify(execFile)
 const env = {
   ...process.env,
   GITHUB_TOKEN: '',
   PR_STATS_COMMENT_TOKEN: '',
 }
 
-function exec(command, noLog = false, opts = {}) {
-  if (!noLog) logger(`exec: ${command}`)
-  return execP(command, {
+function exec(command, arg2, arg3, arg4) {
+  // Support both exec(command, noLog?, opts?) and exec(command, args, noLog?, opts?)
+  let args = []
+  let noLog = false
+  let opts = {}
+
+  if (Array.isArray(arg2)) {
+    args = arg2
+    if (typeof arg3 === 'boolean') {
+      noLog = arg3
+      if (arg4 && typeof arg4 === 'object') {
+        opts = arg4
+      }
+    } else if (arg3 && typeof arg3 === 'object') {
+      opts = arg3
+    }
+  } else {
+    // Backwards-compatible path: arg2 is noLog, arg3 is opts
+    if (typeof arg2 === 'boolean') {
+      noLog = arg2
+    }
+    if (arg3 && typeof arg3 === 'object') {
+      opts = arg3
+    }
+  }
+
+  if (!noLog) logger(`exec: ${command} ${args.join(' ')}`.trim())
+  return execP(command, args, {
     ...opts,
     env: { ...env, ...opts.env },
   })
