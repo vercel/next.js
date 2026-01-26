@@ -20,6 +20,7 @@ pub async fn get_browser_runtime_code(
     environment: ResolvedVc<Environment>,
     chunk_base_path: Vc<Option<RcStr>>,
     asset_suffix: Vc<AssetSuffix>,
+    worker_forwarded_globals: Vc<Vec<RcStr>>,
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
@@ -139,6 +140,16 @@ pub async fn get_browser_runtime_code(
             )?;
         }
     }
+
+    // Output the list of global variable names to forward to workers
+    let worker_forwarded_globals = worker_forwarded_globals.await?;
+    writedoc!(
+        code,
+        r#"
+            const WORKER_FORWARDED_GLOBALS = {};
+        "#,
+        StringifyJs(&*worker_forwarded_globals)
+    )?;
 
     code.push_code(&*shared_runtime_utils_code.await?);
     for runtime_code in runtime_base_code {

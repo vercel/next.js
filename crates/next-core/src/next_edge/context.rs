@@ -263,7 +263,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(vec![rcstr!("NEXT_DEPLOYMENT_ID")]);
 
     if !next_mode.is_development() {
         builder = builder
@@ -346,7 +347,8 @@ pub async fn get_edge_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(vec![rcstr!("NEXT_DEPLOYMENT_ID")]);
 
     if !next_mode.is_development() {
         builder = builder
