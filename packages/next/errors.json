@@ -982,7 +982,7 @@
   "981": "resolvedPathname must be set in request metadata",
   "982": "`serializeResumeDataCache` should not be called in edge runtime.",
   "983": "Invariant: global-error module is required but not found in loader tree",
-  "984": "deploymentId function must return a string. https://nextjs.org/docs/messages/deploymentid-not-a-string",
-  "985": "The deploymentId \"%s\" exceeds the maximum length of 32 characters. Please choose a shorter deploymentId. https://nextjs.org/docs/messages/deploymentid-too-long",
-  "986": "The deploymentId \"%s\" contains invalid characters. Only alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), and underscores (_) are allowed. https://nextjs.org/docs/messages/deploymentid-invalid-characters"
+  "984": "Invalid \\`deploymentId\\` configuration: exceeds maximum length of 32 characters. See https://nextjs.org/docs/messages/deploymentid-too-long",
+  "985": "Invalid \\`deploymentId\\` configuration: must be a string. See https://nextjs.org/docs/messages/deploymentid-not-a-string",
+  "986": "Invalid \\`deploymentId\\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters"
 }

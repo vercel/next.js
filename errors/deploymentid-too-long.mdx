@@ -1,10 +1,10 @@
-# Deployment ID Too Long
-
-The `deploymentId` in your `next.config.js` exceeds the maximum length of 32 characters.
+---
+title: '`deploymentId` exceeds maximum length'
+---
 
 ## Why This Error Occurred
 
-The `deploymentId` configuration option has a maximum length of 32 characters to ensure compatibility with various systems and constraints.
+The `deploymentId` in your `next.config.js` exceeds the maximum length of 32 characters.
 
 ## Possible Ways to Fix It
 
@@ -19,21 +19,7 @@ module.exports = {
 }
 ```
 
-### Option 2: Use a Function to Generate a Shorter ID
-
-If you're generating the ID dynamically, ensure it doesn't exceed 32 characters:
-
-```js
-// next.config.js
-module.exports = {
-  deploymentId: () => {
-    // Generate a shorter ID (e.g., hash or truncate)
-    return process.env.GIT_COMMIT_SHA?.substring(0, 32) || 'default-id'
-  },
-}
-```
-
-### Option 3: Truncate Environment Variables
+### Option 2: Truncate Environment Variables
 
 If using environment variables, ensure the value is truncated to 32 characters:
 

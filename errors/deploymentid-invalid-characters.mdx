@@ -29,16 +29,16 @@ module.exports = {
 
 ### Option 2: Sanitize the Deployment ID
 
-If you're generating the ID from user input or other sources, sanitize it to remove invalid characters:
+If you're generating the ID from environment variables or other sources, sanitize it to remove invalid characters:
 
 ```js
 // next.config.js
+const rawId = process.env.DEPLOYMENT_ID || 'default-id'
+// Remove all characters that are not alphanumeric, hyphens, or underscores
+const sanitizedId = rawId.replace(/[^a-zA-Z0-9_-]/g, '')
+
 module.exports = {
-  deploymentId: () => {
-    const rawId = process.env.DEPLOYMENT_ID || 'default-id'
-    // Remove all characters that are not alphanumeric, hyphens, or underscores
-    return rawId.replace(/[^a-zA-Z0-9_-]/g, '')
-  },
+  deploymentId: sanitizedId,
 }
 ```
 
