@@ -686,7 +686,7 @@ export async function handler(
           isDebugDynamicAccesses ||
           isDebugFallbackShell
             ? {
-                nextExport: true,
+                isBuildTimePrerendering: true,
                 supportsDynamicResponse: false,
                 isStaticGeneration: true,
                 isDebugDynamicAccesses: isDebugDynamicAccesses,
@@ -734,12 +734,6 @@ export async function handler(
           err: getRequestMeta(req, 'invokeError'),
           dev: routeModule.isDev,
         },
-      }
-
-      if (isDebugStaticShell || isDebugDynamicAccesses) {
-        context.renderOpts.nextExport = true
-        context.renderOpts.supportsDynamicResponse = false
-        context.renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 
       // When we're revalidating in the background, we should not allow dynamic

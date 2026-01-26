@@ -618,7 +618,7 @@ async function generateDynamicFlightRenderResult(
     dev = false,
     onInstrumentationRequestError,
     setReactDebugChannel,
-    nextExport = false,
+    isBuildTimePrerendering = false,
   } = renderOpts
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
@@ -632,7 +632,7 @@ async function generateDynamicFlightRenderResult(
 
   const onError = createReactServerErrorHandler(
     dev,
-    nextExport,
+    isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
     onFlightDataRenderError
   )
@@ -775,7 +775,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     onInstrumentationRequestError,
     setReactDebugChannel,
     setCacheStatus,
-    nextExport = false,
+    isBuildTimePrerendering = false,
   } = renderOpts
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
@@ -789,7 +789,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 
   const onError = createReactServerErrorHandler(
     dev,
-    nextExport,
+    isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
     onFlightDataRenderError
   )
@@ -921,7 +921,8 @@ async function generateRuntimePrefetchResult(
   requestStore: RequestStore
 ): Promise<RenderResult> {
   const { workStore, renderOpts } = ctx
-  const { nextExport = false, onInstrumentationRequestError } = renderOpts
+  const { isBuildTimePrerendering = false, onInstrumentationRequestError } =
+    renderOpts
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
@@ -935,7 +936,7 @@ async function generateRuntimePrefetchResult(
 
   const onError = createReactServerErrorHandler(
     false,
-    nextExport,
+    isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
     onFlightDataRenderError
   )
@@ -2513,7 +2514,7 @@ async function renderToStream(
     crossOrigin,
     dev = false,
     experimental,
-    nextExport = false,
+    isBuildTimePrerendering = false,
     onInstrumentationRequestError,
     page,
     reactMaxHeadersLength,
@@ -2612,7 +2613,7 @@ async function renderToStream(
     }
     const serverComponentsErrorHandler = createReactServerErrorHandler(
       dev,
-      nextExport,
+      isBuildTimePrerendering,
       reactServerErrorsByDigest,
       onHTMLRenderRSCError,
       renderSpan
@@ -2633,7 +2634,7 @@ async function renderToStream(
     const allCapturedErrors: Array<unknown> = []
     const htmlRendererErrorHandler = createHTMLErrorHandler(
       dev,
-      nextExport,
+      isBuildTimePrerendering,
       reactServerErrorsByDigest,
       allCapturedErrors,
       onHTMLRenderSSRError,
@@ -4118,7 +4119,7 @@ async function prerenderToStream(
     dev = false,
     experimental,
     isDebugDynamicAccesses,
-    nextExport = false,
+    isBuildTimePrerendering = false,
     onInstrumentationRequestError,
     page,
     reactMaxHeadersLength,
@@ -4181,7 +4182,7 @@ async function prerenderToStream(
   }
   const serverComponentsErrorHandler = createReactServerErrorHandler(
     dev,
-    nextExport,
+    isBuildTimePrerendering,
     reactServerErrorsByDigest,
     onHTMLRenderRSCError
   )
@@ -4202,7 +4203,7 @@ async function prerenderToStream(
   const allCapturedErrors: Array<unknown> = []
   const htmlRendererErrorHandler = createHTMLErrorHandler(
     dev,
-    nextExport,
+    isBuildTimePrerendering,
     reactServerErrorsByDigest,
     allCapturedErrors,
     onHTMLRenderSSRError
