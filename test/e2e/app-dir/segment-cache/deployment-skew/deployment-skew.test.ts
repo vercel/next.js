@@ -24,18 +24,40 @@ describe('segment cache (deployment skew)', () => {
   let cleanup: () => Promise<void>
   let port: number
 
-  beforeAll(async () => {
-    build()
-    const proxyPort = (port = await findPort())
-    const nextPort1 = await findPort()
-    const nextPort2 = await findPort()
-    cleanup = await start(proxyPort, nextPort1, nextPort2)
+  describe('with BUILD_ID', () => {
+    beforeAll(async () => {
+      build('BUILD_ID')
+      const proxyPort = (port = await findPort())
+      const nextPort1 = await findPort()
+      const nextPort2 = await findPort()
+      cleanup = await start(proxyPort, nextPort1, nextPort2, 'BUILD_ID')
+    })
+
+    afterAll(async () => {
+      await cleanup()
+    })
+
+    runTests(() => port)
   })
 
-  afterAll(async () => {
-    await cleanup()
-  })
+  describe('with NEXT_DEPLOYMENT_ID', () => {
+    beforeAll(async () => {
+      build('DEPLOYMENT_ID')
+      const proxyPort = (port = await findPort())
+      const nextPort1 = await findPort()
+      const nextPort2 = await findPort()
+      cleanup = await start(proxyPort, nextPort1, nextPort2, 'DEPLOYMENT_ID')
+    })
 
+    afterAll(async () => {
+      await cleanup()
+    })
+
+    runTests(() => port)
+  })
+})
+
+function runTests(getPort: () => number) {
   it(
     'does not crash when prefetching a dynamic, non-PPR page ' +
       'on a different deployment',
@@ -44,7 +66,7 @@ describe('segment cache (deployment skew)', () => {
       // from a different deployment, when PPR is disabled. Once PPR is the
       // default, it's OK to rewrite this to use the latest APIs.
       let act
-      const browser = await webdriver(port, '/', {
+      const browser = await webdriver(getPort(), '/', {
         beforePageLoad(p: Playwright.Page) {
           act = createRouterAct(p)
         },
@@ -76,7 +98,7 @@ describe('segment cache (deployment skew)', () => {
     async () => {
       // Same as the previous test, but for a static page
       let act
-      const browser = await webdriver(port, '/', {
+      const browser = await webdriver(getPort(), '/', {
         beforePageLoad(p: Playwright.Page) {
           act = createRouterAct(p)
         },
@@ -102,4 +124,4 @@ describe('segment cache (deployment skew)', () => {
     },
     60 * 1000
   )
-})
+}

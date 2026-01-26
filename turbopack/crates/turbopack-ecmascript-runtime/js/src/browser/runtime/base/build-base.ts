@@ -85,7 +85,9 @@ function instantiateModule(
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function registerChunk(registration: ChunkRegistration) {
-  const chunkPath = getPathFromScript(registration[0])
+  const chunk = getChunkFromRegistration(registration[0]) as
+    | ChunkScript
+    | ChunkPath
   let runtimeParams: RuntimeParams | undefined
   // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
   if (registration.length === 2) {
@@ -99,5 +101,5 @@ function registerChunk(registration: ChunkRegistration) {
     )
   }
 
-  return BACKEND.registerChunk(chunkPath, runtimeParams)
+  return BACKEND.registerChunk(chunk, runtimeParams)
 }

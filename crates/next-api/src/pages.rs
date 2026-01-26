@@ -927,7 +927,7 @@ impl PageEndpoint {
             let ssr_module_graph = self.ssr_module_graph();
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
-                let client_availability_info = self.client_chunk_group().await?.availability_info;
+                let client_chunk_group = self.client_chunk_group().await?;
 
                 let client_module_graph = self.client_module_graph();
                 let per_page_module_graph = *project.per_page_module_graph().await?;
@@ -966,26 +966,21 @@ impl PageEndpoint {
                     NextDynamicGraphs::new(client_module_graph, per_page_module_graph)
                         .get_next_dynamic_imports_for_endpoint(self.client_module())
                         .await?;
-                Some((next_dynamic_imports, client_availability_info))
+                Some((next_dynamic_imports, client_chunk_group))
             } else {
                 None
             };
 
-            let dynamic_import_entries = if let Some((
-                next_dynamic_imports,
-                client_availability_info,
-            )) = next_dynamic_imports
-            {
-                collect_next_dynamic_chunks(
-                    self.client_module_graph(),
-                    project.client_chunking_context(),
-                    next_dynamic_imports,
-                    NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
-                )
-                .await?
-            } else {
-                DynamicImportedChunks::default().resolved_cell()
-            };
+            let dynamic_import_entries =
+                if let Some((next_dynamic_imports, client_chunk_group)) = next_dynamic_imports {
+                    collect_next_dynamic_chunks(
+                        next_dynamic_imports,
+                        NextDynamicChunkAvailability::PageChunkGroup(&client_chunk_group),
+                    )
+                    .await?
+                } else {
+                    DynamicImportedChunks::default().resolved_cell()
+                };
 
             let chunking_context: Vc<Box<dyn ChunkingContext>> = match runtime {
                 NextRuntime::NodeJs => Vc::upcast(node_chunking_context),

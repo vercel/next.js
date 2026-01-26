@@ -41,13 +41,18 @@ type RuntimeParams = {
   runtimeModuleIds: ModuleId[]
 }
 
+type ChunkRegistrationChunk =
+  | ChunkPath
+  | { getAttribute: (name: string) => string | null }
+  | undefined
+
 type ChunkRegistration = [
-  chunkPath: ChunkScript,
+  chunkPath: ChunkRegistrationChunk,
   ...([RuntimeParams] | CompressedModuleFactories),
 ]
 
 type ChunkList = {
-  script: ChunkListScript
+  script: ChunkRegistrationChunk
   chunks: ChunkData[]
   source: 'entry' | 'dynamic'
 }
@@ -74,7 +79,10 @@ enum SourceType {
 
 type SourceData = ChunkPath | ModuleId | ModuleId[] | undefined
 interface RuntimeBackend {
-  registerChunk: (chunkPath: ChunkPath, params?: RuntimeParams) => void
+  registerChunk: (
+    chunkPath: ChunkPath | ChunkScript,
+    params?: RuntimeParams
+  ) => void
   /**
    * Returns the same Promise for the same chunk URL.
    */
@@ -389,15 +397,43 @@ function getPathFromScript(
   if (typeof chunkScript === 'string') {
     return chunkScript as ChunkPath | ChunkListPath
   }
-  const chunkUrl =
-    typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined'
-      ? TURBOPACK_NEXT_CHUNK_URLS.pop()!
-      : chunkScript.getAttribute('src')!
+  const chunkUrl = chunkScript.src!
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
   const path = src.startsWith(CHUNK_BASE_PATH)
     ? src.slice(CHUNK_BASE_PATH.length)
     : src
   return path as ChunkPath | ChunkListPath
+}
+
+/**
+ * Return the ChunkUrl from a ChunkScript.
+ */
+function getUrlFromScript(chunk: ChunkPath | ChunkScript): ChunkUrl {
+  if (typeof chunk === 'string') {
+    return getChunkRelativeUrl(chunk)
+  } else {
+    // This is already exactly what we want
+    return chunk.src! as ChunkUrl
+  }
+}
+
+/**
+ * Determine the chunk to register. Note that this function has side-effects!
+ */
+function getChunkFromRegistration(
+  chunk: ChunkRegistrationChunk
+): ChunkPath | CurrentScript {
+  if (typeof chunk === 'string') {
+    return chunk
+  } else if (!chunk) {
+    if (typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined') {
+      return { src: TURBOPACK_NEXT_CHUNK_URLS.pop()! } as CurrentScript
+    } else {
+      throw new Error('chunk path empty but not in a worker')
+    }
+  } else {
+    return { src: chunk.getAttribute('src')! } as CurrentScript
+  }
 }
 
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/

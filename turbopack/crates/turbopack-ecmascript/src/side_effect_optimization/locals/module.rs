@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkableModule, ChunkingContext, MergeableModule, MergeableModules,
         MergeableModulesExposed,
@@ -74,14 +73,6 @@ impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn side_effects(&self) -> Vc<ModuleSideEffects> {
         self.module.side_effects()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptModuleLocalsModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.module.content()
     }
 }
 
