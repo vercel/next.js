@@ -694,4 +694,35 @@ mod test {
             "IndexMap lookup should return None for nonexistent keys"
         );
     }
+
+    #[test]
+    fn fxhashset_rcstr_lookup_with_str() {
+        // Test that &str can be used to look up RcStr in a FxHashSet
+        // This is used by FreeVarReferencesMembers::contains_key
+        use rustc_hash::FxHashSet;
+
+        let mut set: FxHashSet<turbo_rcstr::RcStr> = FxHashSet::default();
+        set.insert(rcstr!("process"));
+        set.insert(rcstr!("env"));
+        set.insert(rcstr!("NODE_ENV"));
+
+        // This tests whether &str can look up RcStr in the set
+        // It requires RcStr: Borrow<str> AND hash(&str) == hash(&RcStr)
+        assert!(
+            set.contains("process"),
+            "FxHashSet<RcStr> lookup with &str should work for 'process'"
+        );
+        assert!(
+            set.contains("env"),
+            "FxHashSet<RcStr> lookup with &str should work for 'env'"
+        );
+        assert!(
+            set.contains("NODE_ENV"),
+            "FxHashSet<RcStr> lookup with &str should work for 'NODE_ENV'"
+        );
+        assert!(
+            !set.contains("nonexistent"),
+            "FxHashSet<RcStr> lookup with &str should return false for nonexistent keys"
+        );
+    }
 }
