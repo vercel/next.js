@@ -7113,6 +7113,7 @@
       "runtime prefetching in a page includes headers, but not dynamic content",
       "runtime prefetching in a page includes root params, but not dynamic content",
       "runtime prefetching in a page includes search params, but not dynamic content",
+      "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a private cache includes cookies, but not dynamic content",
       "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
       "runtime prefetching in a private cache includes headers, but not dynamic content",
@@ -7128,9 +7129,7 @@
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
     ],
-    "failed": [
-      "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
