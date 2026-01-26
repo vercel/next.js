@@ -199,6 +199,25 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('logged errors include `[errors]` for AggregateError', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/rsc-error-log-aggregate')
+
+    await retry(() => {
+      expect(next.cliOutput.slice(outputIndex)).toContain(
+        'AggregateError: rsc-error-log-aggregate'
+      )
+    })
+    const output = normalizeCliOutput(next.cliOutput.slice(outputIndex))
+    // Verify that [errors] property is included
+    expect(output).toContain('[errors]:')
+    expect(output).toContain('Error: Error 1')
+    expect(output).toContain('TypeError: Error 2')
+    // Verify that [cause] property is included
+    expect(output).toContain('[cause]:')
+    expect(output).toContain('Error: Root error')
+  })
+
   it('stack frames are ignore-listed in ssr', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
