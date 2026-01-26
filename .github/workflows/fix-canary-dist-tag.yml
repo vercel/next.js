@@ -3,7 +3,7 @@ name: Fix Canary Dist-Tag
 on:
   push:
     branches:
-      - 12-03-add_deprecation_workflow
+      - ztanner/fix-canary-dist
   workflow_dispatch:
     inputs:
       dry_run:
