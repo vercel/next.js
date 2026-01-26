@@ -283,10 +283,16 @@ export async function setupFsCheck(opts: {
             // upstream builder that relies on this
             re: opts.config.i18n
               ? new RegExp(
-                  route.dataRouteRegex.replace(
-                    `/${escapedBuildId}/`,
-                    `/${escapedBuildId}/(?<nextLocale>[^/]+?)/`
-                  )
+                  opts.config.deploymentId ||
+                  opts.config.experimental.runtimeServerDeploymentId
+                    ? route.dataRouteRegex.replace(
+                        `/_next/data/`,
+                        `/_next/data/(?<nextLocale>[^/]+?)/`
+                      )
+                    : route.dataRouteRegex.replace(
+                        `/_next/data/${escapedBuildId}/`,
+                        `/_next/data/${escapedBuildId}/(?<nextLocale>[^/]+?)/`
+                      )
                 )
               : new RegExp(route.dataRouteRegex),
             groups: routeRegex.groups,

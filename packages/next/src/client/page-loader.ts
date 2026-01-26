@@ -171,15 +171,14 @@ export default class PageLoader {
         removeTrailingSlash(addLocale(path, locale)),
         '.json'
       )
-      if (getDeploymentId()) {
-        // We check the response header instead
-        return addBasePath(`/_next/data${dataRoute}${search}`, true)
-      } else {
-        return addBasePath(
-          `/_next/data/${this.buildId}${dataRoute}${search}`,
-          true
-        )
-      }
+
+      // We check the response header instead
+      return addBasePath(
+        getDeploymentId()
+          ? `/_next/data${dataRoute}${search}`
+          : `/_next/data/${this.buildId}${dataRoute}${search}`,
+        true
+      )
     }
 
     return getHrefForSlug(
