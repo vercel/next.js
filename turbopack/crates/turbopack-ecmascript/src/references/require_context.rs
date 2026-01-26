@@ -21,7 +21,6 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext,
         MinifyType, ModuleChunkItemIdExt,
@@ -436,14 +435,6 @@ impl Module for RequireContextAsset {
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::SideEffectFree.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for RequireContextAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
     }
 }
 

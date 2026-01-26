@@ -726,10 +726,39 @@ function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
     }
-    const chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined' ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute('src');
+    const chunkUrl = chunkScript.src;
     const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
     const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
+}
+/**
+ * Return the ChunkUrl from a ChunkScript.
+ */ function getUrlFromScript(chunk) {
+    if (typeof chunk === 'string') {
+        return getChunkRelativeUrl(chunk);
+    } else {
+        // This is already exactly what we want
+        return chunk.src;
+    }
+}
+/**
+ * Determine the chunk to register. Note that this function has side-effects!
+ */ function getChunkFromRegistration(chunk) {
+    if (typeof chunk === 'string') {
+        return chunk;
+    } else if (!chunk) {
+        if (typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined') {
+            return {
+                src: TURBOPACK_NEXT_CHUNK_URLS.pop()
+            };
+        } else {
+            throw new Error('chunk path empty but not in a worker');
+        }
+    } else {
+        return {
+            src: chunk.getAttribute('src')
+        };
+    }
 }
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
@@ -1564,21 +1593,22 @@ function createModuleHot(moduleId, hotData) {
     runtimeChunkLists.add(chunkListPath);
 }
 function registerChunk(registration) {
-    const chunkPath = getPathFromScript(registration[0]);
+    const chunk = getChunkFromRegistration(registration[0]);
     let runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {
         runtimeParams = registration[1];
     } else {
+        let chunkPath = getPathFromScript(chunk);
         runtimeParams = undefined;
         installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories, (id)=>addModuleToChunk(id, chunkPath));
     }
-    return BACKEND.registerChunk(chunkPath, runtimeParams);
+    return BACKEND.registerChunk(chunk, runtimeParams);
 }
 /**
  * Subscribes to chunk list updates from the update server and applies them.
  */ function registerChunkList(chunkList) {
-    const chunkListScript = chunkList.script;
+    const chunkListScript = getChunkFromRegistration(chunkList.script);
     const chunkListPath = getPathFromScript(chunkListScript);
     // The "chunk" is also registered to finish the loading in the backend
     BACKEND.registerChunk(chunkListPath);
@@ -1621,8 +1651,9 @@ let BACKEND;
  */ const chunkResolvers = new Map();
 (()=>{
     BACKEND = {
-        async registerChunk (chunkPath, params) {
-            const chunkUrl = getChunkRelativeUrl(chunkPath);
+        async registerChunk (chunk, params) {
+            let chunkPath = getPathFromScript(chunk);
+            let chunkUrl = getUrlFromScript(chunk);
             const resolver = getOrCreateResolver(chunkUrl);
             resolver.resolve();
             if (params == null) {

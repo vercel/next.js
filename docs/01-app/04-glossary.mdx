@@ -44,18 +44,9 @@ The process of dividing your application into smaller JavaScript chunks based on
 
 # D
 
-## Dynamic APIs
-
-Functions that access request-specific data, causing a component to opt into [dynamic rendering](#dynamic-rendering). These include:
-
-- [`cookies()`](/docs/app/api-reference/functions/cookies) - Access request cookies
-- [`headers()`](/docs/app/api-reference/functions/headers) - Access request headers
-- [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - Access URL query parameters
-- [`draftMode()`](/docs/app/api-reference/functions/draft-mode) - Enable or check draft mode
-
 ## Dynamic rendering
 
-When a component is rendered at [request time](#request-time) rather than [build time](#build-time). A component becomes dynamic when it uses [Dynamic APIs](#dynamic-apis).
+See [Request-time rendering](#request-time-rendering).
 
 ## Dynamic route segments
 
@@ -131,6 +122,10 @@ Information about a page used by browsers and search engines, such as title, des
 
 Caching the return value of a function so that calling the same function multiple times during a render pass (request) only executes it once. In Next.js, fetch requests with the same URL and options are automatically memoized. Learn more about [React Cache](https://react.dev/reference/react/cache).
 
+## Middleware
+
+See [Proxy](#proxy).
+
 # N
 
 ## Not Found
@@ -161,7 +156,7 @@ Loading a route in the background before the user navigates to it. Next.js autom
 
 ## Prerendering
 
-Generating HTML for a page ahead of time, either at build time (static rendering) or in the background (revalidation). The pre-rendered HTML is served immediately, then hydrated on the client.
+When a component is rendered at [build time](#build-time) or in the background during [revalidation](#revalidation). The result is HTML and [RSC Payload](#rsc-payload), which can be cached and served from a CDN. Prerendering is the default for components that don't use [Request-time APIs](#request-time-apis).
 
 ## Proxy
 
@@ -176,6 +171,19 @@ Sending users from one URL to another. In Next.js, redirects can be configured i
 ## Request time
 
 The time when a user makes a request to your application. At request time, dynamic routes are rendered, cookies and headers are accessible, and request-specific data can be used.
+
+## Request-time APIs
+
+Functions that access request-specific data, causing a component to opt into [request-time rendering](#request-time-rendering). These include:
+
+- [`cookies()`](/docs/app/api-reference/functions/cookies) - Access request cookies
+- [`headers()`](/docs/app/api-reference/functions/headers) - Access request headers
+- [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - Access URL query parameters
+- [`draftMode()`](/docs/app/api-reference/functions/draft-mode) - Enable or check draft mode
+
+## Request-time rendering
+
+When a component is rendered at [request time](#request-time) rather than [build time](#build-time). A component becomes dynamic when it uses [Request-time APIs](#request-time-apis).
 
 ## Revalidation
 
@@ -221,7 +229,7 @@ A deployment mode that generates a fully static site with HTML, CSS, and JavaScr
 
 ## Static rendering
 
-When a component is rendered at [build time](#build-time) or in the background during [revalidation](#revalidation). The result is cached and can be served from a CDN. Static rendering is the default for components that don't use [Dynamic APIs](#dynamic-apis).
+See [Prerendering](#prerendering).
 
 ## Static Assets
 
@@ -229,7 +237,7 @@ Files such as images, fonts, videos, and other media that are served directly wi
 
 ## Static Shell
 
-The pre-rendered HTML structure of a page that's served immediately to the browser. With [Partial Prerendering](#partial-prerendering-ppr), the static shell includes all statically renderable content plus [Suspense boundary](#suspense-boundary) fallbacks for dynamic content that streams in later.
+The prerendered HTML structure of a page that's served immediately to the browser. With [Partial Prerendering](#partial-prerendering-ppr), the static shell includes all statically renderable content plus [Suspense boundary](#suspense-boundary) fallbacks for dynamic content that streams in later.
 
 ## Streaming
 

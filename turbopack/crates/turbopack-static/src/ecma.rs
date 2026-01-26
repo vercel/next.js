@@ -2,7 +2,6 @@ use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{AssetSuffix, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -66,14 +65,6 @@ impl Module for StaticUrlJsModule {
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::SideEffectFree.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for StaticUrlJsModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
