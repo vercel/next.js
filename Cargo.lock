@@ -9257,6 +9257,7 @@ dependencies = [
  "ringmap",
  "serde",
  "smallvec",
+ "turbo-tasks-hash",
  "unty",
 ]
 
@@ -9445,6 +9446,7 @@ dependencies = [
  "turbo-persistence",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-hash",
  "turbo-tasks-malloc",
  "turbo-tasks-testing",
 ]
