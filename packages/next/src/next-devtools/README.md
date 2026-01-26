@@ -31,7 +31,7 @@ This will start the Storybook server at `http://localhost:6006`.
 
 ### Styling
 
-Next.js direcly injects CSS into the DOM via `<style>` tag. The styles will not affect the user's application as the [styles are encapsulated](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM#encapsulation_from_css) from the rest of the application.
+Next.js directly injects CSS into the DOM via `<style>` tag. The styles will not affect the user's application as the [styles are encapsulated](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM#encapsulation_from_css) from the rest of the application.
 
 > [!TIP]
 > While Shadow DOM provides style encapsulation, the root element (i.e., `<nextjs-portal>`) can still inherit styles from parent elements like `<body>` or `<html>`. Direct styling on these parent elements (e.g., `body { contain: layout; }`) will affect the dev overlay.
