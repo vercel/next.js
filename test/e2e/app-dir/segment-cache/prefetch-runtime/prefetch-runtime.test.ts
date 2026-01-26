@@ -172,6 +172,13 @@ describe('runtime prefetching', () => {
         },
       ])
 
+      // Wait for the "en" link to be visible (confirms the checkbox click revealed it
+      // and the prefetch was triggered). This also ensures we don't proceed until the
+      // UI is ready for the next interaction.
+      await browser.elementByCss(
+        `a[href="/with-root-param/en/${prefix}/root-params"]`
+      )
+
       // TODO(runtime-ppr) - visiting root params that weren't in generateStaticParams errors when deployed
       if (!isNextDeploy) {
         // Reveal the link to trigger a runtime prefetch for a different value of the root param
@@ -191,6 +198,11 @@ describe('runtime prefetching', () => {
             block: 'reject',
           },
         ])
+
+        // Wait for the "de" link to be visible before navigating
+        await browser.elementByCss(
+          `a[href="/with-root-param/de/${prefix}/root-params"]`
+        )
       }
 
       // Navigate to the first page
@@ -225,6 +237,11 @@ describe('runtime prefetching', () => {
       // TODO(runtime-ppr) - visiting root params that weren't in generateStaticParams errors when deployed
       if (!isNextDeploy) {
         await browser.back()
+
+        // Wait for the link to the "de" page to be visible before clicking it
+        await browser.elementByCss(
+          `a[href="/with-root-param/de/${prefix}/root-params"]`
+        )
 
         // Navigate to the other page
         await act(async () => {
