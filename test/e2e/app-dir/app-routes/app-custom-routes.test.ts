@@ -690,7 +690,7 @@ describe('app-custom-routes', () => {
         await next.fetch(basePath + '/no-response', { method: 'POST' })
         await retry(() => {
           expect(next.cliOutput).toMatch(
-            /No response is returned from route handler '.+\/route\.ts'\. Ensure you return a `Response` or a `NextResponse` in all branches of your handler\./
+            /No response is returned from route handler '.+\/route\.ts'\. Expected a Response object but received '\w+' \(method: POST, url: .+\)\. Ensure you return a `Response` or a `NextResponse` in all branches of your handler\./
           )
         })
       })
