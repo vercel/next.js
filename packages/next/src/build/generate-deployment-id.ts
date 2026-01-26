@@ -1,40 +1,16 @@
-/**
- * Generates a deployment ID from a user-provided function or string.
- * Similar to generateBuildId, but for deploymentId.
- */
-export function generateDeploymentId(
-  deploymentId: string | (() => string) | undefined
-): string | undefined {
-  if (typeof deploymentId === 'function') {
-    const result = deploymentId()
-    if (typeof result !== 'string') {
-      throw new Error(
-        'deploymentId function must return a string. https://nextjs.org/docs/messages/deploymentid-not-a-string'
-      )
-    }
-    return result
-  }
-
-  if (typeof deploymentId === 'string') {
-    return deploymentId
-  }
-
-  return undefined
-}
-
 type DeploymentIdSource = 'user-config' | 'env-var'
 
 /**
- * Resolves and sets the deployment ID from config, handling precedence and ensuring function is only evaluated once.
+ * Resolves and sets the deployment ID from config, handling precedence.
  * User-configured deploymentId always takes precedence over NEXT_DEPLOYMENT_ID.
  *
- * @param configDeploymentId - The deploymentId from config (can be string, function, or undefined)
+ * @param configDeploymentId - The deploymentId from config (string or undefined)
  * @param source - Source indicator: 'user-config' treats as user-configured (validates), 'env-var' uses NEXT_DEPLOYMENT_ID
  * @param fallbackDeploymentId - Optional fallback deployment ID to use if process.env.NEXT_DEPLOYMENT_ID is empty
  * @returns The resolved deploymentId string to use
  */
 export function resolveAndSetDeploymentId(
-  configDeploymentId: string | (() => string) | undefined,
+  configDeploymentId: string | undefined,
   source: DeploymentIdSource,
   fallbackDeploymentId?: string
 ): string {
@@ -58,12 +34,7 @@ export function resolveAndSetDeploymentId(
     return ''
   }
 
-  let userConfiguredDeploymentId: string | undefined
-  if (typeof configDeploymentId === 'string') {
-    userConfiguredDeploymentId = configDeploymentId
-  } else if (typeof configDeploymentId === 'function') {
-    userConfiguredDeploymentId = generateDeploymentId(configDeploymentId)
-  }
+  const userConfiguredDeploymentId = configDeploymentId
 
   if (userConfiguredDeploymentId !== undefined) {
     if (userConfiguredDeploymentId.length === 0) {

@@ -27,18 +27,6 @@ async function readFiles(next: NextInstance) {
   )
 }
 
-// TODO static/* browser chunks are content hashed and have the deployment id inlined
-const IGNORE_NAME = new RegExp(
-  [
-    'static/chunks/',
-    '.*_buildManifest\\.js',
-    '.*_ssgManifest\\.js',
-    '.*_clientMiddlewareManifest\\.js',
-  ]
-    .map((v) => '(?:\\/|^)' + v + '$')
-    .join('|')
-)
-
 const IGNORE_CONTENT = new RegExp(
   [
     // TODO this contains "env": { "__NEXT_BUILD_ID": "taBOOu8Znzobe4G7wEG_i",
@@ -53,10 +41,6 @@ const IGNORE_CONTENT = new RegExp(
     // These are not critical, as they aren't deployed to the serverless function itself
     'client-build-manifest\\.json',
     'fallback-build-manifest\\.json',
-    // TODO These contain manifest file paths that include build IDs
-    'build-manifest\\.json',
-    'middleware-build-manifest\\.js',
-    // Contains the deploymentId which is expected to change between deployments
     'routes-manifest\\.json',
   ]
     .map((v) => '(?:\\/|^)' + v + '$')
@@ -101,9 +85,6 @@ const IGNORE_CONTENT = new RegExp(
       next.env['NEXT_DEPLOYMENT_ID'] = 'bar-dpl-id'
       await next.build()
       let run2 = await readFiles(next)
-
-      run1 = run1.filter(([f, _]) => !IGNORE_NAME.test(f))
-      run2 = run2.filter(([f, _]) => !IGNORE_NAME.test(f))
 
       // First, compare file names
       let run1FileNames = run1.map(([f, _]) => f)

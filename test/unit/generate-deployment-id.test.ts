@@ -1,43 +1,4 @@
-import { generateDeploymentId } from 'next/dist/build/generate-deployment-id'
 import { resolveAndSetDeploymentId } from 'next/dist/build/generate-deployment-id'
-
-describe('generateDeploymentId', () => {
-  it('should return undefined when deploymentId is undefined', () => {
-    expect(generateDeploymentId(undefined)).toBeUndefined()
-  })
-
-  it('should return string when deploymentId is a string', () => {
-    expect(generateDeploymentId('my-deployment-123')).toBe('my-deployment-123')
-    expect(generateDeploymentId('  my-deployment-123  ')).toBe(
-      '  my-deployment-123  '
-    )
-  })
-
-  it('should call function and return string when deploymentId is a function', () => {
-    const fn = () => 'my-deployment-123'
-    expect(generateDeploymentId(fn)).toBe('my-deployment-123')
-
-    const fnWithWhitespace = () => '  my-deployment-123  '
-    expect(generateDeploymentId(fnWithWhitespace)).toBe('  my-deployment-123  ')
-  })
-
-  it('should throw error when function returns non-string', () => {
-    const fn = () => 123 as any
-    expect(() => generateDeploymentId(fn)).toThrow(
-      'deploymentId function must return a string'
-    )
-  })
-
-  it('should handle function that returns empty string', () => {
-    const fn = () => ''
-    expect(generateDeploymentId(fn)).toBe('')
-  })
-
-  it('should handle empty string deploymentId', () => {
-    expect(generateDeploymentId('')).toBe('')
-    expect(generateDeploymentId('   ')).toBe('   ')
-  })
-})
 
 describe('resolveAndSetDeploymentId', () => {
   const originalEnv = process.env.NEXT_DEPLOYMENT_ID
@@ -73,18 +34,6 @@ describe('resolveAndSetDeploymentId', () => {
       const result = resolveAndSetDeploymentId(undefined, 'env-var')
       expect(result).toBe(vercelDeploymentId)
       expect(process.env.NEXT_DEPLOYMENT_ID).toBe(vercelDeploymentId)
-    })
-
-    it('should use user-configured function deployment ID over NEXT_DEPLOYMENT_ID', () => {
-      const userDeploymentId = 'my-function-id'
-      const vercelDeploymentId = 'dpl_abc123xyz'
-
-      process.env.NEXT_DEPLOYMENT_ID = vercelDeploymentId
-
-      const fn = () => userDeploymentId
-      const result = resolveAndSetDeploymentId(fn, 'user-config')
-      expect(result).toBe(userDeploymentId)
-      expect(process.env.NEXT_DEPLOYMENT_ID).toBe(userDeploymentId)
     })
 
     it('should not error when called twice with Vercel deployment ID from env var', () => {
@@ -131,14 +80,6 @@ describe('resolveAndSetDeploymentId', () => {
       const result = resolveAndSetDeploymentId('', 'user-config')
       expect(result).toBe('')
       expect(process.env.NEXT_DEPLOYMENT_ID).toBeUndefined()
-    })
-
-    it('should handle function returning empty string for user-configured deployment ID (treated as not configured)', () => {
-      process.env.NEXT_DEPLOYMENT_ID = 'env-var-id'
-      const fn = () => ''
-      const result = resolveAndSetDeploymentId(fn, 'user-config')
-      expect(result).toBe('env-var-id')
-      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('env-var-id')
     })
 
     it('should fall back to env var when user-config source but configDeploymentId is undefined', () => {
@@ -239,20 +180,6 @@ describe('resolveAndSetDeploymentId', () => {
       const result = resolveAndSetDeploymentId('___', 'user-config')
       expect(result).toBe('___')
       expect(process.env.NEXT_DEPLOYMENT_ID).toBe('___')
-    })
-
-    it('should reject deploymentId from function that returns invalid characters', () => {
-      const fn = () => 'my deployment id'
-      expect(() => resolveAndSetDeploymentId(fn, 'user-config')).toThrow(
-        'contains invalid characters'
-      )
-    })
-
-    it('should allow deploymentId from function that returns valid characters', () => {
-      const fn = () => 'my-deployment_v2-abc123XYZ'
-      const result = resolveAndSetDeploymentId(fn, 'user-config')
-      expect(result).toBe('my-deployment_v2-abc123XYZ')
-      expect(process.env.NEXT_DEPLOYMENT_ID).toBe('my-deployment_v2-abc123XYZ')
     })
 
     it('should allow empty string (treated as not configured)', () => {
