@@ -36,12 +36,10 @@ app.prepare().then(() => {
       dev ? 'development' : process.env.NODE_ENV
     }`
   )
-})
 ```
 
 ```js filename="server.js" switcher
 import { createServer } from 'http'
-import { parse } from 'url'
 import next from 'next'
 
 const port = parseInt(process.env.PORT || '3000', 10)
@@ -60,7 +58,6 @@ app.prepare().then(() => {
       dev ? 'development' : process.env.NODE_ENV
     }`
   )
-})
 ```
 
 > `server.js` does not run through the Next.js Compiler or bundling process. Make sure the syntax and source code this file requires are compatible with the current Node.js version you are using. [View an example](https://github.com/vercel/next.js/tree/canary/examples/custom-server).
