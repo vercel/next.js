@@ -49,7 +49,7 @@ Since its output never changes and can be determined ahead of time, this kind of
 
 With no reason to wait for a request, Next.js can safely **prerender** the page at [build time](/docs/app/glossary#build-time).
 
-We can confirm this by running [`next build`](/docs/app/api-reference/cli/next-build).
+We can confirm this by running [`next build`](/docs/app/api-reference/cli/next#next-build-options).
 
 ```bash filename=terminal
 Route (app)      Revalidate  Expire
@@ -114,7 +114,7 @@ In our case, the product catalog is shared across all users, so caching is the r
 
 ### Cache components
 
-We can mark a function as cacheable using the [`'use cache'`](/docs/app/api-reference/functions/use-cache) directive.
+We can mark a function as cacheable using the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
 
 ```tsx filename=page.tsx
 import db from '@/db'
@@ -139,7 +139,7 @@ export default async function Page() {
 }
 ```
 
-This turns it into a [cache component](/docs/app/glossary#cache-component).
+This turns it into a [cache component](/docs/app/glossary#cache-components).
 
 The first time it runs, whatever we return will be cached and reused.
 
