@@ -194,12 +194,22 @@ jobs:
       - run: corepack enable
       - run: pwd
 
+      # Pre-checkout cleanup: remove any lingering files that might cause ENOTEMPTY errors
+      # This prevents the checkout action from failing when trying to clean up locked files
+      - name: Pre-checkout cleanup
+        run: |
+          if [ -d node_modules ]; then
+            rm -rf node_modules || true
+          fi
+          if [ -d .git ]; then
+            rm -rf .git || true
+          fi
+        shell: bash
+        continue-on-error: true
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 25
-          # we clean manually in next step since actions/checkout cleaning
-          # can be buggy with rmdir
-          clean: false
 
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf; git reset --hard HEAD; rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
