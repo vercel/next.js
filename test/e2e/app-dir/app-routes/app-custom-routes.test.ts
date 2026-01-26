@@ -10,6 +10,8 @@ import {
 
 const basePath = process.env.BASE_PATH ?? ''
 
+console.log('noop')
+
 describe('app-custom-routes', () => {
   const { next, isNextDeploy, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
