@@ -7113,7 +7113,6 @@
       "runtime prefetching in a page includes headers, but not dynamic content",
       "runtime prefetching in a page includes root params, but not dynamic content",
       "runtime prefetching in a page includes search params, but not dynamic content",
-      "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a private cache includes cookies, but not dynamic content",
       "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
       "runtime prefetching in a private cache includes headers, but not dynamic content",
@@ -7129,7 +7128,9 @@
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
     ],
-    "failed": [],
+    "failed": [
+      "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8378,21 +8379,6 @@
       "compiler.define compiler.defineServer should not render the inlined variable on client side",
       "compiler.define compiler.defineServer should render the inlined expression on server side",
       "compiler.define compiler.defineServer should render the inlined variable on server side"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/deployment-id-function/deployment-id-function.test.ts": {
-    "passed": [
-      "deploymentId function support should throw error when deploymentId exceeds 32 characters",
-      "deploymentId function support should throw error when deploymentId function returns non-string",
-      "deploymentId function support should throw error when deploymentId function returns string exceeding 32 characters",
-      "deploymentId function support should work with deploymentId as a function returning string",
-      "deploymentId function support should work with deploymentId as a string",
-      "deploymentId function support should work with deploymentId function using environment variable",
-      "deploymentId function support should work with useSkewCookie and deploymentId function"
     ],
     "failed": [],
     "pending": [],
@@ -11049,6 +11035,27 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/url-deployment-id/url-deployment-id.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "URL asset references with deploymentId API route should return import src with dpl query",
+      "URL asset references with deploymentId API route should return new URL with dpl query",
+      "URL asset references with deploymentId dynamic RSC page (headers) should include dpl query in dynamic RSC page",
+      "URL asset references with deploymentId dynamic RSC page (headers) should include dpl query in new URL pattern",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query after hydration",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query in dynamic client page",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query in new URL pattern",
+      "URL asset references with deploymentId import src attribute should include dpl query in RSC page",
+      "URL asset references with deploymentId import src attribute should include dpl query in client page",
+      "URL asset references with deploymentId import src attribute should include dpl query in client page (after hydration)",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in RSC page",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in client page",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in client page (after hydration)"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -20115,7 +20122,6 @@
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
-      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for isolatedDevBuild disabled",
       "config telemetry production mode emits telemetry for isolatedDevBuild enabled by default",
       "config telemetry production mode emits telemetry for middleware related options",
@@ -20130,7 +20136,9 @@
       "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
-    "failed": [],
+    "failed": [
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
