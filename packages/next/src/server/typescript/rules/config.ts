@@ -156,6 +156,19 @@ const API_DOCS: Record<
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
     insertText: 'unstable_prefetch = { mode: "static" };',
   },
+  unstable_staleTime: {
+    description:
+      'The `unstable_staleTime` option sets the client-side stale time for the router cache in seconds. Can be set in layouts (inherited by pages) or pages (overrides layout).',
+    type: 'number',
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#unstable_staletime',
+    isValid: (value: string) => {
+      const num = Number(value.replace(/_/g, ''))
+      return !isNaN(num) && num >= 0 && Number.isInteger(num)
+    },
+    getHint: (value: any) => {
+      return `Set the client-side stale time to \`${value}\` seconds.`
+    },
+  },
 }
 
 type FullAppSegmentConfig = Required<AppSegmentConfig>

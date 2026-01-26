@@ -510,6 +510,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
+  unstable_staleTime?: number
 }
 
 `
@@ -550,6 +551,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
+  unstable_staleTime?: number
 }
 
 `
@@ -745,6 +747,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
+  unstable_staleTime?: number
 }
 
 `
@@ -785,6 +788,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
+  unstable_staleTime?: number
 }
 
 `
