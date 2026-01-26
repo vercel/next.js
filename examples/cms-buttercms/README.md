@@ -4,7 +4,7 @@ This Next.js starter project fully integrates with dynamic sample content from y
 
 A copy of this starter project can be easily and quickly deployed to Vercel with the click of a button.
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [ButterCMS](https://buttercms.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [ButterCMS](https://buttercms.com/) as the data source.
 
 ## Demo
 

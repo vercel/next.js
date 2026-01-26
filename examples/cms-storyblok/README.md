@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Storyblok
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Storyblok](https://www.storyblok.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [Storyblok](https://www.storyblok.com/) as the data source.
 
 ## Demo
 

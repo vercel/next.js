@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and TinaCMS
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [TinaCMS](https://tina.io/) as the CMS and editor.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [TinaCMS](https://tina.io/) as the CMS and editor.
 
 > This boilerplate demonstrates a basic usage and best practices. If you are looking for a more feature rich Tina experience with contextual editing.
 > check out [tina-cloud-starter](https://github.com/tinacms/tina-cloud-start/git).

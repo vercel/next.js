@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and GraphCMS
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [GraphCMS](https://www.graphcms.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [GraphCMS](https://www.graphcms.com/) as the data source.
 
 ## Demo
 

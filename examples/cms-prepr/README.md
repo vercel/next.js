@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Prepr
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Prepr](https://prepr.io/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [Prepr](https://prepr.io/) as the data source.
 
 ## Demo
 

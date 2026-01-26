@@ -1,6 +1,6 @@
 # A statically generated landing page using Next.js and Plasmic
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Plasmic](https://www.plasmic.app/) as the visual page builder.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [Plasmic](https://www.plasmic.app/) as the visual page builder.
 
 You'll get:
 

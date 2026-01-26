@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and dotCMS
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [dotCMS](https://dotcms.com/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts) feature using [dotCMS](https://dotcms.com/) as the data source.
 
 ## Demo
 

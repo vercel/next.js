@@ -2,7 +2,7 @@
 
 This example shows a Next.js application using the built-in ESLint setup with the `next` shareable configuration enabled in `.eslintrc`.
 
-Learn more about the integrated ESLint configuration [in the docs](https://nextjs.org/docs/basic-features/eslint).
+Learn more about the integrated ESLint configuration [in the docs](https://nextjs.org/docs/pages/api-reference/config/eslint).
 
 ## Deploy your own
 
