@@ -202,12 +202,12 @@ jobs:
 
       # Cache pnpm store on GitHub-hosted runners (self-hosted runners have their own persistent storage)
       - name: Get pnpm store directory
-        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
+        if: ${{ runner.environment == 'github-hosted' }}
         id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
       - name: Cache pnpm store
-        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
+        if: ${{ runner.environment == 'github-hosted' }}
         uses: actions/cache@v4
         timeout-minutes: 5
         id: cache-pnpm-store
