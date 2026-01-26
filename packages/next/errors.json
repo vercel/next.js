@@ -980,5 +980,6 @@
   "979": "invariant: expected %s bytes of postponed state but only received %s bytes",
   "980": "Failed to load client middleware manifest",
   "981": "resolvedPathname must be set in request metadata",
-  "982": "`serializeResumeDataCache` should not be called in edge runtime."
+  "982": "`serializeResumeDataCache` should not be called in edge runtime.",
+  "983": "Invariant: global-error module is required but not found in loader tree"
 }
