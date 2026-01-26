@@ -3,7 +3,6 @@ import path from 'path'
 const { version: nextVersion } = require('next/package.json')
 
 const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
-
 const pprEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 describe('build-output-prerender', () => {
@@ -26,7 +25,8 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
@@ -48,7 +48,8 @@ describe('build-output-prerender', () => {
         } else {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack, Cache Components)
+             "▲ Next.js x.y.z (Turbopack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
@@ -58,7 +59,8 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
@@ -122,7 +124,8 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
@@ -156,7 +159,8 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (Turbopack, Cache Components)
+             ▲ Next.js x.y.z (Turbopack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
@@ -175,7 +179,8 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
@@ -266,7 +271,8 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack, Cache Components)
+             "▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
@@ -331,7 +337,8 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-             ▲ Next.js x.y.z (webpack, Cache Components)
+             ▲ Next.js x.y.z (webpack)
+             - Cache Components enabled
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)

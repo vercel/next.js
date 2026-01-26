@@ -78,7 +78,7 @@ use turbopack_core::{
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
-    reference_type::{CommonJsReferenceSubType, ReferenceType},
+    reference_type::{CommonJsReferenceSubType, ReferenceType, WorkerReferenceSubType},
     resolve::{
         FindContextFileResult, ImportUsage, ModulePart, find_context_file,
         origin::{PlainResolveOrigin, ResolveOrigin},
@@ -626,7 +626,7 @@ async fn analyze_ecmascript_module_internal(
         eval_context,
         comments,
         source_map,
-        ..
+        source_mapping_url,
     } = &*parsed
     else {
         return analysis.build(Default::default(), false).await;
@@ -727,7 +727,7 @@ async fn analyze_ecmascript_module_internal(
         async {
             if let Some((source_map, reference)) = parse_source_map_comment(
                 source,
-                Either::Left(comments),
+                source_mapping_url.as_deref(),
                 &*origin.origin_path().await?,
             )
             .await?
@@ -783,7 +783,7 @@ async fn analyze_ecmascript_module_internal(
             import_usage.insert(
                 *reference,
                 if has_global_usage {
-                    ImportUsage::SideEffects
+                    ImportUsage::TopLevel
                 } else {
                     ImportUsage::Exports(
                         var_graph
@@ -1915,15 +1915,25 @@ where
                 }
                 return Ok(());
             }
-            WellKnownFunctionKind::WorkerConstructor => {
+            WellKnownFunctionKind::WorkerConstructor
+            | WellKnownFunctionKind::SharedWorkerConstructor => {
                 let args = linked_args().await?;
                 if let Some(url @ JsValue::Url(_, JsValueUrlKind::Relative)) = args.first() {
+                    let (name, worker_type) = match func {
+                        WellKnownFunctionKind::WorkerConstructor => {
+                            ("Worker", WorkerReferenceSubType::WebWorker)
+                        }
+                        WellKnownFunctionKind::SharedWorkerConstructor => {
+                            ("SharedWorker", WorkerReferenceSubType::SharedWorker)
+                        }
+                        _ => unreachable!(),
+                    };
                     let pat = js_value_to_pattern(url);
                     if !pat.has_constant_parts() {
                         let (args, hints) = explain_args(args);
                         handler.span_warn_with_code(
                             span,
-                            &format!("new Worker({args}) is very dynamic{hints}",),
+                            &format!("new {name}({args}) is very dynamic{hints}",),
                             DiagnosticId::Lint(
                                 errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
                             ),
@@ -1940,6 +1950,7 @@ where
                                 Request::parse(pat).to_resolved().await?,
                                 issue_source(source, span),
                                 in_try,
+                                worker_type,
                             ),
                             ast_path.to_vec().into(),
                         );
@@ -2942,7 +2953,7 @@ async fn handle_free_var_reference(
                             ) => export.clone().map(ModulePart::export),
                             None => None,
                         },
-                        ImportUsage::SideEffects,
+                        ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,
                     )
@@ -3338,6 +3349,12 @@ async fn value_visitor_inner(
                 JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
                 true,
                 "ignored Worker constructor",
+            ),
+            "SharedWorker" => JsValue::unknown_if(
+                ignore,
+                JsValue::WellKnownFunction(WellKnownFunctionKind::SharedWorkerConstructor),
+                true,
+                "ignored SharedWorker constructor",
             ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
@@ -4121,8 +4138,8 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
     if let JsValue::Member(_, obj, constant) = &args[0] {
         // Is the first argument to spawn `process.argv[]`?
         if let (
-            box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv),
-            box JsValue::Constant(JsConstantValue::Num(ConstantNumber(num))),
+            &box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv),
+            &box JsValue::Constant(JsConstantValue::Num(ConstantNumber(num))),
         ) = (obj, constant)
         {
             // Is it specifically `process.argv[0]`?

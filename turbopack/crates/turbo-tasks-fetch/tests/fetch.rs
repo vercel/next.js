@@ -141,13 +141,7 @@ async fn errors_on_failed_connection() {
         let err_vc = &*response_vc.await?.unwrap_err();
         let err = err_vc.await?;
 
-        assert!(matches!(
-            *err.kind.await?,
-            FetchErrorKind::Connect {
-                has_rustls_cause: false,
-                ..
-            }
-        ));
+        assert_eq!(*err.kind.await?, FetchErrorKind::Connect);
         assert_eq!(*err.url.await?, url);
 
         let issue = err_vc.to_issue(IssueSeverity::Error, get_issue_context().owned().await?);
@@ -205,63 +199,10 @@ async fn errors_on_404() {
     .unwrap()
 }
 
-#[cfg(not(any(
-    all(target_os = "windows", target_arch = "aarch64"),
-    target_arch = "wasm32"
-)))]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn errors_on_tls_connection() {
-    let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run_once(&REGISTRATION, || async {
-        let mut server = mockito::Server::new_async().await;
-        let _resource_mock = server
-            .mock("GET", "/")
-            .with_body("responsebody")
-            .create_async()
-            .await;
-
-        // construct an HTTPS url, but mockito runs an HTTP server, so this should fail to connect
-        let url = RcStr::from(format!("https://{}", server.socket_address()));
-
-        let client_vc = FetchClientConfig {
-            tls_built_in_webpki_certs: true,
-            tls_built_in_native_certs: false,
-        }
-        .cell();
-
-        let response_vc = client_vc.fetch(url.clone(), None);
-        let err_vc = &*response_vc.await?.unwrap_err();
-        let err = err_vc.await?;
-
-        assert_eq!(
-            *err.kind.await?,
-            FetchErrorKind::Connect {
-                has_rustls_cause: true,
-                has_system_certs: false,
-            }
-        );
-
-        let issue = err_vc.to_issue(IssueSeverity::Error, get_issue_context().owned().await?);
-        let description = issue
-            .description()
-            .await?
-            .unwrap()
-            .await?
-            .to_unstyled_string();
-
-        assert!(description.contains("NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1"));
-        assert!(description.contains("experimental.turbopackUseSystemTlsCerts"));
-
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap()
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn client_cache() {
     // a simple fetch that should always succeed
-    async fn simple_fetch(path: &str, client: FetchClientConfig) -> anyhow::Result<()> {
+    async fn simple_fetch(path: &str) -> anyhow::Result<()> {
         let mut server = mockito::Server::new_async().await;
         let _resource_mock = server
             .mock("GET", &*format!("/{path}"))
@@ -270,7 +211,7 @@ async fn client_cache() {
             .await;
 
         let url = RcStr::from(format!("{}/{}", server.url(), path));
-        let response = match &*client
+        let response = match &*FetchClientConfig::default()
             .cell()
             .fetch(url.clone(), /* user_agent */ None)
             .await?
@@ -293,40 +234,12 @@ async fn client_cache() {
         __test_only_reqwest_client_cache_clear();
         assert_eq!(__test_only_reqwest_client_cache_len(), 0);
 
-        simple_fetch(
-            "/foo",
-            FetchClientConfig {
-                tls_built_in_native_certs: false,
-                ..Default::default()
-            },
-        )
-        .await
-        .unwrap();
+        simple_fetch("/foo").await.unwrap();
         assert_eq!(__test_only_reqwest_client_cache_len(), 1);
 
         // the client is reused if the config is the same (by equality)
-        simple_fetch(
-            "/bar",
-            FetchClientConfig {
-                tls_built_in_native_certs: false,
-                ..Default::default()
-            },
-        )
-        .await
-        .unwrap();
+        simple_fetch("/bar").await.unwrap();
         assert_eq!(__test_only_reqwest_client_cache_len(), 1);
-
-        // the client is recreated if the config is different
-        simple_fetch(
-            "/bar",
-            FetchClientConfig {
-                tls_built_in_native_certs: true,
-                ..Default::default()
-            },
-        )
-        .await
-        .unwrap();
-        assert_eq!(__test_only_reqwest_client_cache_len(), 2);
 
         Ok(())
     })

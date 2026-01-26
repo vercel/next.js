@@ -4,9 +4,7 @@ use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::FileContent;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -75,18 +73,6 @@ impl Module for NextDynamicEntryModule {
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         // This just exports another import
         ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for NextDynamicEntryModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        AssetContent::File(
-            FileContent::Content("// This is a marker module for Next.js dynamic.".into())
-                .resolved_cell(),
-        )
-        .cell()
     }
 }
 

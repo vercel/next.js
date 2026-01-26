@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     module::{Module, ModuleSideEffects},
-    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraphWithBindingUsage},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
 
 /// This lists all the modules that are side effect free
@@ -29,21 +29,19 @@ pub async fn compute_side_effect_free_module_info(
     // Layout segment optimization, we can individually compute the side effect free modules for
     // each graph.
     let mut result: Vc<SideEffectFreeModules> = Vc::cell(Default::default());
-    let graphs = graphs.await?;
-    for graph in graphs.iter_graphs() {
-        result = compute_side_effect_free_module_info_single(graph, result);
+    for graph in graphs.iter_graphs().await? {
+        result = compute_side_effect_free_module_info_single(graph.connect(), result);
     }
     Ok(result)
 }
 
 #[turbo_tasks::function]
 async fn compute_side_effect_free_module_info_single(
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
     parent_side_effect_free_modules: Vc<SideEffectFreeModules>,
 ) -> Result<Vc<SideEffectFreeModules>> {
     let parent_side_effect_free_modules = parent_side_effect_free_modules.await?;
-    let graph = graph.read().await?;
-
+    let graph = graph.await?;
     let module_side_effects = graph
         .enumerate_nodes()
         .map(async |(_, node)| {
@@ -77,19 +75,18 @@ async fn compute_side_effect_free_module_info_single(
     let mut locally_side_effect_free_modules_that_have_side_effects = FxHashSet::default();
     graph.traverse_edges_reverse_dfs(
         // Start from all the side effectful nodes
-        module_side_effects.iter().filter_map(|(m, e)| {
-            if *e == ModuleSideEffects::SideEffectful {
-                Some(*m)
-            } else {
-                None
-            }
-        }),
+        module_side_effects
+            .iter()
+            .filter_map(|(m, e)| (*e == ModuleSideEffects::SideEffectful).then_some(*m)),
         &mut (),
         // child is a previously visited module that we know is side effectful
         // parent is a module that depends on it.
         |child, parent, _s| {
             Ok(if child.is_some() {
-                match module_side_effects.get(&parent).unwrap() {
+                match module_side_effects
+                    .get(&parent)
+                    .expect("the map is populated for all modules in this graph")
+                {
                     ModuleSideEffects::SideEffectful | ModuleSideEffects::SideEffectFree => {
                         // We have either already seen this or don't want to follow it
                         GraphTraversalAction::Exclude

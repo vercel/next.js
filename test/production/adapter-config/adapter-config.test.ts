@@ -217,6 +217,7 @@ describe('adapter-config', () => {
       onMatch: expect.toBeArray(),
       fallback: expect.toBeArray(),
       shouldNormalizeNextData: expect.toBeBoolean(),
+      rsc: expect.toBeObject(),
     })
   })
 })

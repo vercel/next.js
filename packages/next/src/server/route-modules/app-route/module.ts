@@ -331,16 +331,20 @@ export class AppRouteRouteModule extends RouteModule<
     }
 
     const resolvePendingRevalidations = () => {
-      context.renderOpts.pendingWaitUntil = executeRevalidates(
-        workStore
-      ).finally(() => {
-        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log(
-            'pending revalidates promise finished for:',
-            requestStore.url
-          )
-        }
-      })
+      const maybeRevalidatesPromise = executeRevalidates(workStore)
+
+      if (maybeRevalidatesPromise !== false) {
+        context.renderOpts.pendingWaitUntil = maybeRevalidatesPromise.finally(
+          () => {
+            if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+              console.log(
+                'pending revalidates promise finished for:',
+                requestStore.url.pathname + requestStore.url.search
+              )
+            }
+          }
+        )
+      }
     }
 
     let prerenderStore: null | PrerenderStore = null
@@ -699,7 +703,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const implicitTags = await getImplicitTags(
       this.definition.page,
-      req.nextUrl,
+      req.nextUrl.pathname,
       // App Routes don't support unknown route params.
       null
     )

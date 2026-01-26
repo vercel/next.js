@@ -49,8 +49,7 @@ if (
   process.exit(1)
 }
 
-// Start performance profiling after Node.js version is checked
-performance.mark('next-start')
+process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
 for (const dependency of ['react', 'react-dom']) {
   try {
@@ -89,7 +88,11 @@ class NextRootCommand extends Command {
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-      if (commandName !== 'dev' && event.getOptionValue('inspect') === true) {
+      if (
+        commandName !== 'dev' &&
+        commandName !== 'start' &&
+        event.getOptionValue('inspect') === true
+      ) {
         console.error(
           `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${commandName}`
         )
@@ -184,7 +187,7 @@ program
   )
   .option(
     '--debug-build-paths <patterns>',
-    'Comma-separated glob patterns or explicit paths for selective builds. Examples: "app/*", "app/page.tsx", "app/**/page.tsx"'
+    'Comma-separated glob patterns or explicit paths for selective builds. Use "!" prefix to exclude. Examples: "app/*", "app/page.tsx", "app/**/page.tsx", "app/**,!app/[slug]/**"'
   )
   .option(
     '--experimental-cpu-prof',
@@ -380,6 +383,12 @@ program
   .option(
     '-H, --hostname <hostname>',
     'Specify a hostname on which to start the application (default: 0.0.0.0).'
+  )
+  .addOption(
+    new Option(
+      '--inspect [[host:]port]',
+      'Allows inspecting server-side code. See https://nextjs.org/docs/app/guides/debugging#server-side-code'
+    ).argParser(parseValidInspectAddress)
   )
   .addOption(
     new Option(

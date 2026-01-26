@@ -9,10 +9,10 @@
 /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime-types.d.ts" />
 
-function getChunkSuffixFromScriptSrc() {
-  // TURBOPACK_CHUNK_SUFFIX is set in web workers
+function getAssetSuffixFromScriptSrc() {
+  // TURBOPACK_ASSET_SUFFIX is set in web workers
   return (
-    (self.TURBOPACK_CHUNK_SUFFIX ??
+    (self.TURBOPACK_ASSET_SUFFIX ??
       document?.currentScript
         ?.getAttribute?.('src')
         ?.replace(/^(.*(?=\?)|^.*$)/, '')) ||
@@ -164,7 +164,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         // ignore
       } else if (isJs(chunkUrl)) {
         self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
-        importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl)
+        importScripts(chunkUrl)
       } else {
         throw new Error(
           `can't infer type of chunk from URL ${chunkUrl} in worker`

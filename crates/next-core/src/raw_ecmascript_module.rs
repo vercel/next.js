@@ -1,7 +1,6 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use either::Either;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Instrument;
@@ -10,7 +9,7 @@ use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToStr
 use turbo_tasks_fs::{FileContent, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
     compile_time_info::{
@@ -31,7 +30,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
-    source_map::parse_source_map_comment,
+    source_map::{extract_source_mapping_url_from_content, parse_source_map_comment},
     utils::StringifyJs,
 };
 
@@ -101,14 +100,6 @@ impl Module for RawEcmascriptModule {
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::SideEffectful.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for RawEcmascriptModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
@@ -263,9 +254,10 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
             }
 
             code += "(function(){\n";
+            let source_mapping_url = extract_source_mapping_url_from_content(&content_str);
             let source_map = if let Some((source_map, _)) = parse_source_map_comment(
                 source,
-                Either::Right(&content_str),
+                source_mapping_url,
                 &*self.module.ident().path().await?,
             )
             .await?

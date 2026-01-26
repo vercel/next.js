@@ -4,9 +4,8 @@ use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -30,15 +29,35 @@ use super::server_component_reference::NextServerComponentModuleReference;
 #[turbo_tasks::value(shared)]
 pub struct NextServerComponentModule {
     pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    /// The original source path before any transformations (e.g., page.mdx before it becomes
+    /// page.mdx.tsx). This is used to generate consistent manifest keys that match what the
+    /// LoaderTree stores.
+    source_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl NextServerComponentModule {
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
-        NextServerComponentModule { module }.cell()
+    pub fn new(
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        source_path: FileSystemPath,
+    ) -> Vc<Self> {
+        NextServerComponentModule {
+            module,
+            source_path,
+        }
+        .cell()
     }
 
+    /// Returns the original source path (before transformations like MDX -> MDX.tsx).
+    /// Use this for manifest key generation to match the LoaderTree paths.
+    #[turbo_tasks::function]
+    pub fn source_path(&self) -> Vc<FileSystemPath> {
+        self.source_path.clone().cell()
+    }
+
+    /// Returns the transformed module path (e.g., page.mdx.tsx for MDX files).
+    /// This is the path of the actual compiled module.
     #[turbo_tasks::function]
     pub fn server_path(&self) -> Vc<FileSystemPath> {
         self.module.ident().path()
@@ -71,20 +90,6 @@ impl Module for NextServerComponentModule {
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         // This just exports another import
         ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for NextServerComponentModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        AssetContent::File(
-            FileContent::Content(
-                "// This is a marker module for Next.js server components.".into(),
-            )
-            .resolved_cell(),
-        )
-        .cell()
     }
 }
 

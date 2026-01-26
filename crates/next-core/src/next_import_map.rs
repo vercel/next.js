@@ -130,7 +130,8 @@ pub async fn get_next_client_import_map(
             // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
             let taint = *next_config.enable_taint().await?;
             let transition_indicator = *next_config.enable_transition_indicator().await?;
-            let react_channel = if taint || transition_indicator {
+            let gesture_transition = *next_config.enable_gesture_transition().await?;
+            let react_channel = if taint || transition_indicator || gesture_transition {
                 "-experimental"
             } else {
                 ""
@@ -834,7 +835,8 @@ async fn apply_vendored_react_aliases_server(
 ) -> Result<()> {
     let taint = *next_config.enable_taint().await?;
     let transition_indicator = *next_config.enable_transition_indicator().await?;
-    let react_channel = if taint || transition_indicator {
+    let gesture_transition = *next_config.enable_gesture_transition().await?;
+    let react_channel = if taint || transition_indicator || gesture_transition {
         "-experimental"
     } else {
         ""
@@ -1109,7 +1111,7 @@ async fn insert_next_shared_aliases(
         next_font_google_replacer_mapping,
     );
 
-    let fetch_client = next_config.fetch_client(execution_context.env());
+    let fetch_client = next_config.fetch_client();
     import_map.insert_alias(
         AliasPattern::exact(rcstr!(
             "@vercel/turbopack-next/internal/font/google/cssmodule.module.css"

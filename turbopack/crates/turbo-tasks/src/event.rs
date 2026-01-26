@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Display, Formatter},
     future::Future,
     mem::replace,
     pin::Pin,
@@ -13,6 +13,58 @@ use std::{
 
 #[cfg(feature = "hanging_detection")]
 use tokio::time::{Timeout, timeout};
+
+pub trait EventDescriptor {
+    #[cfg(feature = "hanging_detection")]
+    fn get_description(self) -> Arc<dyn Fn() -> String + Sync + Send>;
+}
+
+impl<T, InnerFn> EventDescriptor for T
+where
+    T: FnOnce() -> InnerFn,
+    InnerFn: Fn() -> String + Sync + Send + 'static,
+{
+    #[cfg(feature = "hanging_detection")]
+    fn get_description(self) -> Arc<dyn Fn() -> String + Sync + Send> {
+        Arc::new((self)())
+    }
+}
+
+#[derive(Clone)]
+pub struct EventDescription {
+    #[cfg(feature = "hanging_detection")]
+    description: Arc<dyn Fn() -> String + Sync + Send>,
+}
+
+impl EventDescription {
+    #[inline(always)]
+    pub fn new<InnerFn>(#[allow(unused_variables)] description: impl FnOnce() -> InnerFn) -> Self
+    where
+        InnerFn: Fn() -> String + Sync + Send + 'static,
+    {
+        Self {
+            #[cfg(feature = "hanging_detection")]
+            description: Arc::new((description)()),
+        }
+    }
+}
+
+impl Display for EventDescription {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        #[cfg(not(feature = "hanging_detection"))]
+        return write!(f, "");
+
+        #[cfg(feature = "hanging_detection")]
+        return write!(f, "{}", (self.description)());
+    }
+}
+
+impl EventDescriptor for EventDescription {
+    #[cfg(feature = "hanging_detection")]
+    fn get_description(self) -> Arc<dyn Fn() -> String + Sync + Send> {
+        self.description
+    }
+}
 
 pub struct Event {
     #[cfg(feature = "hanging_detection")]
@@ -35,17 +87,14 @@ impl Event {
     /// The outer closure allows avoiding extra lookups (e.g. task type info) that may be needed to
     /// capture information needed for constructing (moving into) the inner closure.
     #[inline(always)]
-    pub fn new<InnerFn>(_description: impl FnOnce() -> InnerFn) -> Self
-    where
-        InnerFn: Fn() -> String + Sync + Send + 'static,
-    {
+    pub fn new(#[allow(unused_variables)] description: impl EventDescriptor) -> Self {
         #[cfg(not(feature = "hanging_detection"))]
         return Self {
             event: event_listener::Event::new(),
         };
         #[cfg(feature = "hanging_detection")]
         return Self {
-            description: Arc::new((_description)()),
+            description: description.get_description(),
             event: event_listener::Event::new(),
         };
     }
@@ -80,10 +129,7 @@ impl Event {
     ///
     /// The outer closure allow avoiding extra lookups (e.g. task type info) that may be needed to
     /// capture information needed for constructing (moving into) the inner closure.
-    pub fn listen_with_note<InnerFn>(&self, _note: impl FnOnce() -> InnerFn) -> EventListener
-    where
-        InnerFn: Fn() -> String + Sync + Send + 'static,
-    {
+    pub fn listen_with_note(&self, _note: impl EventDescriptor) -> EventListener {
         #[cfg(not(feature = "hanging_detection"))]
         return EventListener {
             listener: self.event.listen(),
@@ -91,7 +137,7 @@ impl Event {
         #[cfg(feature = "hanging_detection")]
         return EventListener {
             description: self.description.clone(),
-            note: Arc::new((_note)()),
+            note: _note.get_description(),
             future: Some(Box::pin(timeout(
                 Duration::from_secs(30),
                 self.event.listen(),

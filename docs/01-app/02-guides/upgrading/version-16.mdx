@@ -14,9 +14,11 @@ If you're using an AI coding assistant that supports the [Model Context Protocol
 
 #### Setup
 
-Add the following configuration to your MCP client, example:
+Add the following configuration to your MCP client, for each coding agent you can read [this section](https://github.com/vercel/next-devtools-mcp#mcp-client-configuration) for configuration details.
 
-```json
+**example:**
+
+```json filename=".mcp.json"
 {
   "mcpServers": {
     "next-devtools": {
@@ -27,7 +29,7 @@ Add the following configuration to your MCP client, example:
 }
 ```
 
-For more information, visit the [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) package on npm to configure with your MCP client.
+For more information, visit the [`next-devtools-mcp`](https://github.com/vercel/next-devtools-mcp) documentation to configure with your MCP client.
 
 > **Note:** Using `next-devtools-mcp@latest` ensures that your MCP client will always use the latest version of the Next.js DevTools MCP server.
 

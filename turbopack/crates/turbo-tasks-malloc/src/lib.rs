@@ -77,15 +77,6 @@ impl AllocationCounters {
             _not_send: PhantomData {},
         }
     }
-    pub fn until_now(&self) -> AllocationInfo {
-        let new = TurboMalloc::allocation_counters();
-        AllocationInfo {
-            allocations: new.allocations - self.allocations,
-            deallocations: new.deallocations - self.deallocations,
-            allocation_count: new.allocation_count - self.allocation_count,
-            deallocation_count: new.deallocation_count - self.deallocation_count,
-        }
-    }
 }
 
 /// Turbo's preferred global allocator. This is a new type instead of a type
@@ -114,29 +105,17 @@ impl TurboMalloc {
 /// Get the allocator for this platform that we should wrap with TurboMalloc.
 #[inline]
 fn base_alloc() -> &'static impl GlobalAlloc {
-    #[cfg(all(
-        feature = "custom_allocator",
-        not(any(target_family = "wasm", target_env = "musl"))
-    ))]
+    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
     return &mimalloc::MiMalloc;
-    #[cfg(any(
-        not(feature = "custom_allocator"),
-        any(target_family = "wasm", target_env = "musl")
-    ))]
+    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
     return &std::alloc::System;
 }
 
 #[allow(unused_variables)]
 unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
-    #[cfg(all(
-        feature = "custom_allocator",
-        not(any(target_family = "wasm", target_env = "musl"))
-    ))]
+    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
     return unsafe { mimalloc::MiMalloc.usable_size(ptr) };
-    #[cfg(any(
-        not(feature = "custom_allocator"),
-        any(target_family = "wasm", target_env = "musl")
-    ))]
+    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
     return layout.size();
 }
 

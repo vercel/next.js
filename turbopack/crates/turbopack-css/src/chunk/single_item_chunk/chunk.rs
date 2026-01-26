@@ -187,13 +187,12 @@ impl Introspectable for SingleItemCssChunk {
     }
 
     #[turbo_tasks::function]
-    async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
+    async fn details(&self) -> Result<Vc<RcStr>> {
         let mut details = String::new();
         write!(
             details,
             "Chunk item: {}",
-            this.item.asset_ident().to_string().await?
+            self.item.asset_ident().to_string().await?
         )?;
         Ok(Vc::cell(details.into()))
     }
