@@ -1,0 +1,61 @@
+name: Fix Canary Dist-Tag
+
+on:
+  push:
+    branches:
+      - 12-03-add_deprecation_workflow
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (log commands without executing)'
+        required: true
+        type: boolean
+        default: true
+      version:
+        description: 'Version to point canary tag to'
+        required: true
+        type: string
+        default: '16.2.0-canary.8'
+
+jobs:
+  fix-dist-tag:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Fix canary dist-tag
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
+          DRY_RUN: false
+          TARGET_VERSION: ${{ inputs.version || '16.2.0-canary.8' }}
+        run: |
+          echo "=== Dist-Tag Fix Summary ==="
+          echo "Target version: $TARGET_VERSION"
+          echo "Dry run: $DRY_RUN"
+          echo ""
+
+          # Show current canary tag
+          echo "Current canary tag points to:"
+          npm dist-tag ls next | grep canary || echo "Could not fetch current tag"
+          echo ""
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "[DRY RUN] Would run: npm dist-tag add next@$TARGET_VERSION canary"
+          else
+            echo "Updating canary dist-tag to next@$TARGET_VERSION..."
+            if npm dist-tag add "next@$TARGET_VERSION" canary 2>&1; then
+              echo "✓ Successfully updated canary tag to next@$TARGET_VERSION"
+              echo ""
+              echo "New canary tag points to:"
+              npm dist-tag ls next | grep canary
+            else
+              echo "✗ Failed to update canary tag"
+              exit 1
+            fi
+          fi
