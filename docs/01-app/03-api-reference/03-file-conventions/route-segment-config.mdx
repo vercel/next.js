@@ -11,16 +11,16 @@ description: Learn about how to configure options for Next.js route segments.
 
 The Route Segment options allows you to configure the behavior of a [Page](/docs/app/api-reference/file-conventions/layout), [Layout](/docs/app/api-reference/file-conventions/layout), or [Route Handler](/docs/app/api-reference/file-conventions/route) by directly exporting the following variables:
 
-| Option                                | Type                                                                                                                      | Default                    |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| [`dynamic`](#dynamic)                 | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'`                                                                  | `'auto'`                   |
-| [`dynamicParams`](#dynamicparams)     | `boolean`                                                                                                                 | `true`                     |
-| [`revalidate`](#revalidate)           | `false \| 0 \| number`                                                                                                    | `false`                    |
-| [`fetchCache`](#fetchcache)           | `'auto' \| 'default-cache' \| 'only-cache' \| 'force-cache' \| 'force-no-store' \| 'default-no-store' \| 'only-no-store'` | `'auto'`                   |
-| [`runtime`](#runtime)                 | `'nodejs' \| 'edge'`                                                                                                      | `'nodejs'`                 |
-| [`preferredRegion`](#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`                   |
-| [`maxDuration`](#maxduration)         | `number`                                                                                                                  | Set by deployment platform |
-| [`staleTime`](#staletime)             | `number`                                                                                                                  | (from global config)       |
+| Option                                      | Type                                                                                                                      | Default                    |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| [`dynamic`](#dynamic)                       | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'`                                                                  | `'auto'`                   |
+| [`dynamicParams`](#dynamicparams)           | `boolean`                                                                                                                 | `true`                     |
+| [`revalidate`](#revalidate)                 | `false \| 0 \| number`                                                                                                    | `false`                    |
+| [`fetchCache`](#fetchcache)                 | `'auto' \| 'default-cache' \| 'only-cache' \| 'force-cache' \| 'force-no-store' \| 'default-no-store' \| 'only-no-store'` | `'auto'`                   |
+| [`runtime`](#runtime)                       | `'nodejs' \| 'edge'`                                                                                                      | `'nodejs'`                 |
+| [`preferredRegion`](#preferredregion)       | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`                   |
+| [`maxDuration`](#maxduration)               | `number`                                                                                                                  | Set by deployment platform |
+| [`unstable_staleTime`](#unstable_staletime) | `number`                                                                                                                  | (from global config)       |
 
 ## Options
 
