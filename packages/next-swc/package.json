@@ -1,6 +1,6 @@
 {
   "name": "@next/swc",
-  "version": "16.1.4",
+  "version": "16.1.5",
   "private": true,
   "files": [
     "native/"
