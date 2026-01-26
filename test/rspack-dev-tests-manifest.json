@@ -1251,14 +1251,13 @@
   },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
+      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
     ],
-    "failed": [
-      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5765,10 +5764,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/interception-routes-output-export/interception-routes-output-export.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "interception-routes-output-export should error when using interception routes with static export"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10471,21 +10470,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/deployment-id-function/deployment-id-function.test.ts": {
-    "passed": [
-      "deploymentId function support should throw error when deploymentId exceeds 32 characters",
-      "deploymentId function support should throw error when deploymentId function returns non-string",
-      "deploymentId function support should throw error when deploymentId function returns string exceeding 32 characters",
-      "deploymentId function support should work with deploymentId as a function returning string",
-      "deploymentId function support should work with deploymentId as a string",
-      "deploymentId function support should work with deploymentId function using environment variable",
-      "deploymentId function support should work with useSkewCookie and deploymentId function"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/deprecation-warnings/deprecation-warnings.test.ts": {
     "passed": [
       "deprecation-warnings with deprecated config options should emit deprecation warnings for explicitly configured deprecated options",
@@ -13100,6 +13084,27 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/url-deployment-id/url-deployment-id.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "URL asset references with deploymentId API route should return import src with dpl query",
+      "URL asset references with deploymentId API route should return new URL with dpl query",
+      "URL asset references with deploymentId dynamic RSC page (headers) should include dpl query in dynamic RSC page",
+      "URL asset references with deploymentId dynamic RSC page (headers) should include dpl query in new URL pattern",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query after hydration",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query in dynamic client page",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query in new URL pattern",
+      "URL asset references with deploymentId import src attribute should include dpl query in RSC page",
+      "URL asset references with deploymentId import src attribute should include dpl query in client page",
+      "URL asset references with deploymentId import src attribute should include dpl query in client page (after hydration)",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in RSC page",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in client page",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in client page (after hydration)"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/url-imports/url-imports.test.ts": {
     "passed": [
       "Handle url imports should allow url import in css",
@@ -13533,6 +13538,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/app-config-asset-prefix/test/index.test.ts": {
+    "passed": [
+      "App assetPrefix config should render correctly with assetPrefix: \"/\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/app-document-add-hmr/test/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -13696,6 +13710,15 @@
       "bigint API route support production mode should return 200",
       "bigint API route support production mode should return the BigInt result text"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/broken-webpack-plugin/test/index.test.ts": {
+    "passed": [
+      "Handles a broken webpack plugin (precompile) should render error correctly"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13952,6 +13975,31 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/config-output-export/test/index.test.ts": {
+    "passed": [
+      "config-output-export should error with \"i18n\" config",
+      "config-output-export should error with api routes function",
+      "config-output-export should error with getServerSideProps without fallback",
+      "config-output-export should error with getStaticPaths and fallback blocking",
+      "config-output-export should error with getStaticPaths and fallback true",
+      "config-output-export should error with getStaticProps and revalidate 10 seconds (ISR)",
+      "config-output-export should error with middleware function",
+      "config-output-export should work with getStaticPaths and fallback false",
+      "config-output-export should work with getStaticProps and revalidate false",
+      "config-output-export should work with getStaticProps and without revalidate",
+      "config-output-export should work with static homepage",
+      "config-output-export when hasNextSupport = false should error with \"headers\" config",
+      "config-output-export when hasNextSupport = false should error with \"redirects\" config",
+      "config-output-export when hasNextSupport = false should error with \"rewrites\" config",
+      "config-output-export when hasNextSupport = true should error with \"headers\" config",
+      "config-output-export when hasNextSupport = true should error with \"redirects\" config",
+      "config-output-export when hasNextSupport = true should error with \"rewrites\" config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/config-promise-error/test/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -14118,6 +14166,18 @@
       "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag with example",
       "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm",
       "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm with example"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/package-manager/yarn.test.ts": {
+    "passed": [
+      "create-next-app with package manager yarn should use yarn for --use-yarn flag",
+      "create-next-app with package manager yarn should use yarn for --use-yarn flag with example",
+      "create-next-app with package manager yarn should use yarn when user-agent is yarn",
+      "create-next-app with package manager yarn should use yarn when user-agent is yarn with example"
     ],
     "failed": [],
     "pending": [],
@@ -14412,6 +14472,28 @@
     "pending": [
       "Ordering with styled-jsx (prod) production mode should have compiled successfully",
       "Ordering with styled-jsx (prod) production mode should have the correct color (css ordering)"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/css/test/css-compilation.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "CSS Property Ordering production mode useLightnincsss(false) should have the border width (property ordering)",
+      "CSS Property Ordering production mode useLightnincsss(true) should have the border width (property ordering)",
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've compiled and prefixed",
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed",
+      "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
+      "CSS Support production mode Good CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
+      "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
+      "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
+      "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
+      "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
+      "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have CSS for page",
+      "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>",
+      "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have the correct color on mount after navigation",
+      "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
     ],
     "flakey": [],
     "runtimeError": false
@@ -14907,6 +14989,13 @@
     "pending": [
       "De-dedupes scripts in _document production mode Does not have duplicate script references"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/development-hmr-refresh/test/index.test.ts": {
+    "passed": ["page should not reload when the file is not changed"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -15502,6 +15591,31 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/edge-runtime-module-errors/test/module-imports.test.ts": {
+    "passed": [
+      "Edge runtime code with imports Edge API dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
+      "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
+      "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
+    ],
+    "failed": [],
+    "pending": [
+      "Edge runtime code with imports Edge API dynamically importing 3rd party module production mode does not build and reports module not found error",
+      "Edge runtime code with imports Edge API importing unused 3rd party module production mode does not build and reports module not found error",
+      "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
+      "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
+      "Edge runtime code with imports Middleware dynamically importing 3rd party module production mode does not build and reports module not found error",
+      "Edge runtime code with imports Middleware importing unused 3rd party module production mode does not build and reports module not found error",
+      "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime",
+      "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/edge-runtime-response-error/test/index.test.ts": {
     "passed": [
       "Edge runtime code with imports test error if response is not Response type Edge API dev test Response",
@@ -15755,6 +15869,15 @@
     "failed": [],
     "pending": [
       "Export with getInitialProps production mode should show warning with next export"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/export-image-default/test/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Export with default loader next/image component production mode should error during next build"
     ],
     "flakey": [],
     "runtimeError": false
@@ -17270,6 +17393,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/firebase-grpc/test/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Building Firebase production mode Throws an error when building with firebase dependency with worker_threads",
+      "Building Firebase production mode Throws no error when building with firebase dependency without worker_threads"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/future/test/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -17547,6 +17680,191 @@
       "Hydration production mode hydrates correctly for //",
       "Hydration production mode hydrates correctly for normal page",
       "Hydration production mode should be able to navigate after loading //"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/i18n-support-base-path/test/index.test.ts": {
+    "passed": [
+      "i18n Support basePath development mode should 404 for GSP pages that returned notFound",
+      "i18n Support basePath development mode should 404 for GSP that returned notFound on client-transition",
+      "i18n Support basePath development mode should 404 for locale prefixed public folder files",
+      "i18n Support basePath development mode should 404 for locale prefixed static assets correctly",
+      "i18n Support basePath development mode should apply headers correctly",
+      "i18n Support basePath development mode should apply redirects correctly",
+      "i18n Support basePath development mode should apply rewrites correctly",
+      "i18n Support basePath development mode should apply trailingSlash redirect correctly",
+      "i18n Support basePath development mode should generate auto-export page with all locales",
+      "i18n Support basePath development mode should generate fallbacks with all locales",
+      "i18n Support basePath development mode should generate non-dynamic GSP page with all locales",
+      "i18n Support basePath development mode should handle basePath like pathname",
+      "i18n Support basePath development mode should handle locales with domain for domain example.com should handle locale do-BE",
+      "i18n Support basePath development mode should handle locales with domain for domain example.com should handle locale go-BE",
+      "i18n Support basePath development mode should handle locales with domain for domain example.do should handle locale do-BE",
+      "i18n Support basePath development mode should handle locales with domain for domain example.do should handle locale go-BE",
+      "i18n Support basePath development mode should handle navigating back to different casing of locale",
+      "i18n Support basePath development mode should have correct initial query values for fallback",
+      "i18n Support basePath development mode should have correct values for non-prefixed path",
+      "i18n Support basePath development mode should have domainLocales available on useRouter",
+      "i18n Support basePath development mode should load dynamic getServerSideProps page correctly SSR",
+      "i18n Support basePath development mode should load getServerSideProps page correctly SSR",
+      "i18n Support basePath development mode should load getServerSideProps page correctly SSR (default locale no prefix)",
+      "i18n Support basePath development mode should load getStaticProps fallback non-prerender page another locale correctly",
+      "i18n Support basePath development mode should load getStaticProps fallback non-prerender page correctly",
+      "i18n Support basePath development mode should load getStaticProps fallback non-prerender page correctly (default locale no prefix",
+      "i18n Support basePath development mode should load getStaticProps fallback prerender page correctly SSR",
+      "i18n Support basePath development mode should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
+      "i18n Support basePath development mode should load getStaticProps non-fallback correctly",
+      "i18n Support basePath development mode should load getStaticProps non-fallback correctly another locale",
+      "i18n Support basePath development mode should load getStaticProps non-fallback correctly another locale via cookie",
+      "i18n Support basePath development mode should load getStaticProps page correctly SSR",
+      "i18n Support basePath development mode should load getStaticProps page correctly SSR (default locale no prefix)",
+      "i18n Support basePath development mode should navigate client side for default locale with no prefix",
+      "i18n Support basePath development mode should navigate through history with query correctly",
+      "i18n Support basePath development mode should navigate to another page and back correctly with locale",
+      "i18n Support basePath development mode should navigate to auto-export dynamic page",
+      "i18n Support basePath development mode should navigate to getStaticProps page and back correctly with locale",
+      "i18n Support basePath development mode should navigate to page with same name as development buildId",
+      "i18n Support basePath development mode should navigate with locale false correctly",
+      "i18n Support basePath development mode should navigate with locale false correctly GSP",
+      "i18n Support basePath development mode should navigate with locale prop correctly",
+      "i18n Support basePath development mode should navigate with locale prop correctly GSP",
+      "i18n Support basePath development mode should not add duplicate locale key when navigating back to root path with hash",
+      "i18n Support basePath development mode should not add duplicate locale key when navigating back to root path with query params",
+      "i18n Support basePath development mode should not error with similar named cookie to locale cookie",
+      "i18n Support basePath development mode should not have hydration mis-match from hash",
+      "i18n Support basePath development mode should not redirect to accept-lang preferred locale with locale cookie",
+      "i18n Support basePath development mode should not remove locale prefix for default locale",
+      "i18n Support basePath development mode should not strip locale prefix for default locale with locale domains",
+      "i18n Support basePath development mode should prerender with the correct href for locale domain",
+      "i18n Support basePath development mode should provide defaultLocale correctly for locale domain",
+      "i18n Support basePath development mode should redirect external domain correctly",
+      "i18n Support basePath development mode should redirect to correct locale domain",
+      "i18n Support basePath development mode should redirect to locale prefixed route for /",
+      "i18n Support basePath development mode should render 404 for blocking fallback page that returned 404",
+      "i18n Support basePath development mode should render 404 for blocking fallback page that returned 404 on client transition",
+      "i18n Support basePath development mode should render 404 for fallback page that returned 404",
+      "i18n Support basePath development mode should render 404 for fallback page that returned 404 on client transition",
+      "i18n Support basePath development mode should render the correct href with locale domains but not on a locale domain",
+      "i18n Support basePath development mode should resolve auto-export dynamic route correctly",
+      "i18n Support basePath development mode should resolve href correctly when dynamic route matches locale prefixed",
+      "i18n Support basePath development mode should rewrite to API route correctly for do locale",
+      "i18n Support basePath development mode should rewrite to API route correctly for do-BE locale",
+      "i18n Support basePath development mode should rewrite to API route correctly for en locale",
+      "i18n Support basePath development mode should rewrite to API route correctly for en-US locale",
+      "i18n Support basePath development mode should rewrite to API route correctly for fr locale",
+      "i18n Support basePath development mode should rewrite to API route correctly for fr-BE locale",
+      "i18n Support basePath development mode should rewrite to API route correctly for go locale",
+      "i18n Support basePath development mode should rewrite to API route correctly for go-BE locale",
+      "i18n Support basePath development mode should rewrite to API route correctly for nl locale",
+      "i18n Support basePath development mode should rewrite to API route correctly for nl-BE locale",
+      "i18n Support basePath development mode should rewrite to API route correctly for nl-NL locale",
+      "i18n Support basePath development mode should serve public file on locale domain",
+      "i18n Support basePath development mode should show error for redirect and notFound returned at same time",
+      "i18n Support basePath development mode should transition on client properly for page that starts with locale",
+      "i18n Support basePath development mode should update asPath on the client correctly",
+      "i18n Support basePath development mode should use correct default locale for locale domains",
+      "i18n Support basePath development mode should use default locale for / without accept-language",
+      "i18n Support basePath development mode should use default locale when no locale is in href with locale false",
+      "i18n Support basePath development mode should visit API route directly correctly",
+      "i18n Support basePath development mode should visit dynamic API route directly correctly"
+    ],
+    "failed": [],
+    "pending": [
+      "i18n Support basePath development mode should redirect to locale domain correctly client-side",
+      "i18n Support basePath development mode should render the correct href for locale domain",
+      "i18n Support basePath production mode should 404 for GSP pages that returned notFound",
+      "i18n Support basePath production mode should 404 for GSP that returned notFound on client-transition",
+      "i18n Support basePath production mode should 404 for locale prefixed public folder files",
+      "i18n Support basePath production mode should 404 for locale prefixed static assets correctly",
+      "i18n Support basePath production mode should add i18n config to routes-manifest",
+      "i18n Support basePath production mode should apply headers correctly",
+      "i18n Support basePath production mode should apply redirects correctly",
+      "i18n Support basePath production mode should apply rewrites correctly",
+      "i18n Support basePath production mode should apply trailingSlash redirect correctly",
+      "i18n Support basePath production mode should generate auto-export page with all locales",
+      "i18n Support basePath production mode should generate fallbacks with all locales",
+      "i18n Support basePath production mode should generate non-dynamic GSP page with all locales",
+      "i18n Support basePath production mode should handle basePath like pathname",
+      "i18n Support basePath production mode should handle fallback correctly after generating",
+      "i18n Support basePath production mode should handle locales with domain for domain example.com should handle locale do-BE",
+      "i18n Support basePath production mode should handle locales with domain for domain example.com should handle locale go-BE",
+      "i18n Support basePath production mode should handle locales with domain for domain example.do should handle locale do-BE",
+      "i18n Support basePath production mode should handle locales with domain for domain example.do should handle locale go-BE",
+      "i18n Support basePath production mode should handle navigating back to different casing of locale",
+      "i18n Support basePath production mode should have correct initial query values for fallback",
+      "i18n Support basePath production mode should have correct values for non-prefixed path",
+      "i18n Support basePath production mode should have domainLocales available on useRouter",
+      "i18n Support basePath production mode should load dynamic getServerSideProps page correctly SSR",
+      "i18n Support basePath production mode should load getServerSideProps page correctly SSR",
+      "i18n Support basePath production mode should load getServerSideProps page correctly SSR (default locale no prefix)",
+      "i18n Support basePath production mode should load getStaticProps fallback non-prerender page another locale correctly",
+      "i18n Support basePath production mode should load getStaticProps fallback non-prerender page correctly",
+      "i18n Support basePath production mode should load getStaticProps fallback non-prerender page correctly (default locale no prefix",
+      "i18n Support basePath production mode should load getStaticProps fallback prerender page correctly SSR",
+      "i18n Support basePath production mode should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
+      "i18n Support basePath production mode should load getStaticProps non-fallback correctly",
+      "i18n Support basePath production mode should load getStaticProps non-fallback correctly another locale",
+      "i18n Support basePath production mode should load getStaticProps non-fallback correctly another locale via cookie",
+      "i18n Support basePath production mode should load getStaticProps page correctly SSR",
+      "i18n Support basePath production mode should load getStaticProps page correctly SSR (default locale no prefix)",
+      "i18n Support basePath production mode should navigate client side for default locale with no prefix",
+      "i18n Support basePath production mode should navigate through history with query correctly",
+      "i18n Support basePath production mode should navigate to another page and back correctly with locale",
+      "i18n Support basePath production mode should navigate to auto-export dynamic page",
+      "i18n Support basePath production mode should navigate to getStaticProps page and back correctly with locale",
+      "i18n Support basePath production mode should navigate to page with same name as development buildId",
+      "i18n Support basePath production mode should navigate with locale false correctly",
+      "i18n Support basePath production mode should navigate with locale false correctly GSP",
+      "i18n Support basePath production mode should navigate with locale prop correctly",
+      "i18n Support basePath production mode should navigate with locale prop correctly GSP",
+      "i18n Support basePath production mode should not add duplicate locale key when navigating back to root path with hash",
+      "i18n Support basePath production mode should not add duplicate locale key when navigating back to root path with query params",
+      "i18n Support basePath production mode should not contain backslashes in pages-manifest",
+      "i18n Support basePath production mode should not error with similar named cookie to locale cookie",
+      "i18n Support basePath production mode should not have hydration mis-match from hash",
+      "i18n Support basePath production mode should not output GSP pages that returned notFound",
+      "i18n Support basePath production mode should not redirect to accept-lang preferred locale with locale cookie",
+      "i18n Support basePath production mode should not remove locale prefix for default locale",
+      "i18n Support basePath production mode should not strip locale prefix for default locale with locale domains",
+      "i18n Support basePath production mode should output correct prerender-manifest",
+      "i18n Support basePath production mode should preload all locales data correctly",
+      "i18n Support basePath production mode should prerender with the correct href for locale domain",
+      "i18n Support basePath production mode should provide defaultLocale correctly for locale domain",
+      "i18n Support basePath production mode should redirect external domain correctly",
+      "i18n Support basePath production mode should redirect to correct locale domain",
+      "i18n Support basePath production mode should redirect to locale domain correctly client-side",
+      "i18n Support basePath production mode should redirect to locale prefixed route for /",
+      "i18n Support basePath production mode should render 404 for blocking fallback page that returned 404",
+      "i18n Support basePath production mode should render 404 for blocking fallback page that returned 404 on client transition",
+      "i18n Support basePath production mode should render 404 for fallback page that returned 404",
+      "i18n Support basePath production mode should render 404 for fallback page that returned 404 on client transition",
+      "i18n Support basePath production mode should render the correct href for locale domain",
+      "i18n Support basePath production mode should render the correct href with locale domains but not on a locale domain",
+      "i18n Support basePath production mode should resolve auto-export dynamic route correctly",
+      "i18n Support basePath production mode should resolve href correctly when dynamic route matches locale prefixed",
+      "i18n Support basePath production mode should rewrite to API route correctly for do locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for do-BE locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for en locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for en-US locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for fr locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for fr-BE locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for go locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for go-BE locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for nl locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for nl-BE locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for nl-NL locale",
+      "i18n Support basePath production mode should serve public file on locale domain",
+      "i18n Support basePath production mode should transition on client properly for page that starts with locale",
+      "i18n Support basePath production mode should update asPath on the client correctly",
+      "i18n Support basePath production mode should use correct default locale for locale domains",
+      "i18n Support basePath production mode should use default locale for / without accept-language",
+      "i18n Support basePath production mode should use default locale when no locale is in href with locale false",
+      "i18n Support basePath production mode should visit API route directly correctly",
+      "i18n Support basePath production mode should visit dynamic API route directly correctly",
+      "i18n Support basePath with localeDetection disabled production mode should have localeDetection in routes-manifest",
+      "i18n Support basePath with localeDetection disabled production mode should not detect locale from accept-language",
+      "i18n Support basePath with localeDetection disabled production mode should set locale from detected path"
     ],
     "flakey": [],
     "runtimeError": false
@@ -19014,6 +19332,299 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/image-optimizer/test/sharp.test.ts": {
+    "passed": [
+      "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with relative next image url",
+      "with latest sharp dev support w/o next.config.js should downlevel avif format to jpeg for old Safari",
+      "with latest sharp dev support w/o next.config.js should downlevel webp format to jpeg for old Safari",
+      "with latest sharp dev support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with latest sharp dev support w/o next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with latest sharp dev support w/o next.config.js should error if the image file does not exist",
+      "with latest sharp dev support w/o next.config.js should error if the resource isn't a valid image",
+      "with latest sharp dev support w/o next.config.js should fail when domain is not defined in next.config.js",
+      "with latest sharp dev support w/o next.config.js should fail when internal url is not an image",
+      "with latest sharp dev support w/o next.config.js should fail when q is greater than 100",
+      "with latest sharp dev support w/o next.config.js should fail when q is less than 1",
+      "with latest sharp dev support w/o next.config.js should fail when q is missing",
+      "with latest sharp dev support w/o next.config.js should fail when q is not a number",
+      "with latest sharp dev support w/o next.config.js should fail when q is not an integer",
+      "with latest sharp dev support w/o next.config.js should fail when url has file protocol",
+      "with latest sharp dev support w/o next.config.js should fail when url has ftp protocol",
+      "with latest sharp dev support w/o next.config.js should fail when url is missing",
+      "with latest sharp dev support w/o next.config.js should fail when url is protocol relative",
+      "with latest sharp dev support w/o next.config.js should fail when url is too long",
+      "with latest sharp dev support w/o next.config.js should fail when w is 0",
+      "with latest sharp dev support w/o next.config.js should fail when w is less than 0",
+      "with latest sharp dev support w/o next.config.js should fail when w is missing",
+      "with latest sharp dev support w/o next.config.js should fail when w is not a number",
+      "with latest sharp dev support w/o next.config.js should fail when w is not an integer",
+      "with latest sharp dev support w/o next.config.js should fail when width is not in next.config.js",
+      "with latest sharp dev support w/o next.config.js should handle non-ascii characters in image url",
+      "with latest sharp dev support w/o next.config.js should maintain animated gif",
+      "with latest sharp dev support w/o next.config.js should maintain animated png",
+      "with latest sharp dev support w/o next.config.js should maintain animated png 2",
+      "with latest sharp dev support w/o next.config.js should maintain animated webp",
+      "with latest sharp dev support w/o next.config.js should maintain bmp",
+      "with latest sharp dev support w/o next.config.js should maintain heic",
+      "with latest sharp dev support w/o next.config.js should maintain icns",
+      "with latest sharp dev support w/o next.config.js should maintain ico format",
+      "with latest sharp dev support w/o next.config.js should maintain jp2",
+      "with latest sharp dev support w/o next.config.js should maintain jpg format for old Safari",
+      "with latest sharp dev support w/o next.config.js should maintain jxl",
+      "with latest sharp dev support w/o next.config.js should maintain png format for old Safari",
+      "with latest sharp dev support w/o next.config.js should not allow pdf format",
+      "with latest sharp dev support w/o next.config.js should not allow svg with application header",
+      "with latest sharp dev support w/o next.config.js should not allow svg with comma header",
+      "with latest sharp dev support w/o next.config.js should not allow svg with uppercase header",
+      "with latest sharp dev support w/o next.config.js should not allow svg with wrong header",
+      "with latest sharp dev support w/o next.config.js should not allow vector svg",
+      "with latest sharp dev support w/o next.config.js should not forward cookie header",
+      "with latest sharp dev support w/o next.config.js should not resize if requested width is larger than original source image",
+      "with latest sharp dev support w/o next.config.js should resize avif",
+      "with latest sharp dev support w/o next.config.js should resize gif (not animated)",
+      "with latest sharp dev support w/o next.config.js should resize relative url and old Chrome accept header as webp",
+      "with latest sharp dev support w/o next.config.js should resize relative url and png accept header",
+      "with latest sharp dev support w/o next.config.js should resize relative url and webp Firefox accept header",
+      "with latest sharp dev support w/o next.config.js should resize relative url with invalid accept header as gif",
+      "with latest sharp dev support w/o next.config.js should resize relative url with invalid accept header as png",
+      "with latest sharp dev support w/o next.config.js should resize relative url with invalid accept header as tiff",
+      "with latest sharp dev support w/o next.config.js should resize tiff",
+      "with latest sharp dev support w/o next.config.js should return home page",
+      "with latest sharp dev support w/o next.config.js should set 304 status without body when etag matches if-none-match",
+      "with latest sharp dev support w/o next.config.js should set cache-control to immutable for static images",
+      "with latest sharp dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with latest sharp dev support w/o next.config.js should use cached image file when parameters are the same for animated gif",
+      "with latest sharp dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with latest sharp dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with latest sharp dev support with next.config.js recursive url is not allowed should fail with relative next image url",
+      "with latest sharp dev support with next.config.js recursive url is not allowed should pass with absolute next image url",
+      "with latest sharp dev support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=100",
+      "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=50",
+      "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=75",
+      "with latest sharp dev support with next.config.js should downlevel avif format to jpeg for old Safari",
+      "with latest sharp dev support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with latest sharp dev support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with latest sharp dev support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with latest sharp dev support with next.config.js should error if the image file does not exist",
+      "with latest sharp dev support with next.config.js should error if the resource isn't a valid image",
+      "with latest sharp dev support with next.config.js should fail when domain is not defined in next.config.js",
+      "with latest sharp dev support with next.config.js should fail when internal url is not an image",
+      "with latest sharp dev support with next.config.js should fail when q is greater than 100",
+      "with latest sharp dev support with next.config.js should fail when q is less than 1",
+      "with latest sharp dev support with next.config.js should fail when q is missing",
+      "with latest sharp dev support with next.config.js should fail when q is not a number",
+      "with latest sharp dev support with next.config.js should fail when q is not an integer",
+      "with latest sharp dev support with next.config.js should fail when q is not in config",
+      "with latest sharp dev support with next.config.js should fail when url fails to load an image",
+      "with latest sharp dev support with next.config.js should fail when url has file protocol",
+      "with latest sharp dev support with next.config.js should fail when url has ftp protocol",
+      "with latest sharp dev support with next.config.js should fail when url is missing",
+      "with latest sharp dev support with next.config.js should fail when url is protocol relative",
+      "with latest sharp dev support with next.config.js should fail when url is too long",
+      "with latest sharp dev support with next.config.js should fail when w is 0",
+      "with latest sharp dev support with next.config.js should fail when w is less than 0",
+      "with latest sharp dev support with next.config.js should fail when w is missing",
+      "with latest sharp dev support with next.config.js should fail when w is not a number",
+      "with latest sharp dev support with next.config.js should fail when w is not an integer",
+      "with latest sharp dev support with next.config.js should fail when width is not in next.config.js",
+      "with latest sharp dev support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with latest sharp dev support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
+      "with latest sharp dev support with next.config.js should handle concurrent requests",
+      "with latest sharp dev support with next.config.js should handle non-ascii characters in image url",
+      "with latest sharp dev support with next.config.js should maintain animated gif",
+      "with latest sharp dev support with next.config.js should maintain animated png",
+      "with latest sharp dev support with next.config.js should maintain animated png 2",
+      "with latest sharp dev support with next.config.js should maintain animated webp",
+      "with latest sharp dev support with next.config.js should maintain bmp",
+      "with latest sharp dev support with next.config.js should maintain heic",
+      "with latest sharp dev support with next.config.js should maintain icns",
+      "with latest sharp dev support with next.config.js should maintain ico format",
+      "with latest sharp dev support with next.config.js should maintain jp2",
+      "with latest sharp dev support with next.config.js should maintain jpg format for old Safari",
+      "with latest sharp dev support with next.config.js should maintain jxl",
+      "with latest sharp dev support with next.config.js should maintain png format for old Safari",
+      "with latest sharp dev support with next.config.js should normalize invalid status codes",
+      "with latest sharp dev support with next.config.js should not allow pdf format",
+      "with latest sharp dev support with next.config.js should not allow svg with application header",
+      "with latest sharp dev support with next.config.js should not allow svg with comma header",
+      "with latest sharp dev support with next.config.js should not allow svg with uppercase header",
+      "with latest sharp dev support with next.config.js should not allow svg with wrong header",
+      "with latest sharp dev support with next.config.js should not allow vector svg",
+      "with latest sharp dev support with next.config.js should not forward cookie header",
+      "with latest sharp dev support with next.config.js should not resize if requested width is larger than original source image",
+      "with latest sharp dev support with next.config.js should resize absolute url from localhost",
+      "with latest sharp dev support with next.config.js should resize avif",
+      "with latest sharp dev support with next.config.js should resize avif and maintain format",
+      "with latest sharp dev support with next.config.js should resize gif (not animated)",
+      "with latest sharp dev support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with latest sharp dev support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with latest sharp dev support with next.config.js should resize relative url and png accept header",
+      "with latest sharp dev support with next.config.js should resize relative url and webp Firefox accept header",
+      "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as gif",
+      "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as png",
+      "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with latest sharp dev support with next.config.js should resize tiff",
+      "with latest sharp dev support with next.config.js should return 508 after redirecting too many times",
+      "with latest sharp dev support with next.config.js should return home page",
+      "with latest sharp dev support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with latest sharp dev support with next.config.js should set cache-control to immutable for static images",
+      "with latest sharp dev support with next.config.js should timeout for upstream image exceeding 7 seconds",
+      "with latest sharp dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with latest sharp dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with latest sharp dev support with next.config.js should use cached image file when parameters are the same for animated gif"
+    ],
+    "failed": [],
+    "pending": [
+      "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with relative next image url",
+      "with latest sharp Production Mode Server support w/o next.config.js should downlevel avif format to jpeg for old Safari",
+      "with latest sharp Production Mode Server support w/o next.config.js should downlevel webp format to jpeg for old Safari",
+      "with latest sharp Production Mode Server support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with latest sharp Production Mode Server support w/o next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with latest sharp Production Mode Server support w/o next.config.js should error if the image file does not exist",
+      "with latest sharp Production Mode Server support w/o next.config.js should error if the resource isn't a valid image",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when domain is not defined in next.config.js",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when internal url is not an image",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when q is greater than 100",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when q is less than 1",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when q is missing",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when q is not a number",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when q is not an integer",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when url has file protocol",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when url has ftp protocol",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when url is missing",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when url is protocol relative",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when url is too long",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when w is 0",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when w is less than 0",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when w is missing",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when w is not a number",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when w is not an integer",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when width is not in next.config.js",
+      "with latest sharp Production Mode Server support w/o next.config.js should handle non-ascii characters in image url",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain animated gif",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain animated png",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain animated png 2",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain animated webp",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain bmp",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain heic",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain icns",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain ico format",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain jp2",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain jpg format for old Safari",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain jxl",
+      "with latest sharp Production Mode Server support w/o next.config.js should maintain png format for old Safari",
+      "with latest sharp Production Mode Server support w/o next.config.js should not allow pdf format",
+      "with latest sharp Production Mode Server support w/o next.config.js should not allow svg with application header",
+      "with latest sharp Production Mode Server support w/o next.config.js should not allow svg with comma header",
+      "with latest sharp Production Mode Server support w/o next.config.js should not allow svg with uppercase header",
+      "with latest sharp Production Mode Server support w/o next.config.js should not allow svg with wrong header",
+      "with latest sharp Production Mode Server support w/o next.config.js should not allow vector svg",
+      "with latest sharp Production Mode Server support w/o next.config.js should not forward cookie header",
+      "with latest sharp Production Mode Server support w/o next.config.js should not resize if requested width is larger than original source image",
+      "with latest sharp Production Mode Server support w/o next.config.js should resize avif",
+      "with latest sharp Production Mode Server support w/o next.config.js should resize gif (not animated)",
+      "with latest sharp Production Mode Server support w/o next.config.js should resize relative url and old Chrome accept header as webp",
+      "with latest sharp Production Mode Server support w/o next.config.js should resize relative url and png accept header",
+      "with latest sharp Production Mode Server support w/o next.config.js should resize relative url and webp Firefox accept header",
+      "with latest sharp Production Mode Server support w/o next.config.js should resize relative url with invalid accept header as gif",
+      "with latest sharp Production Mode Server support w/o next.config.js should resize relative url with invalid accept header as png",
+      "with latest sharp Production Mode Server support w/o next.config.js should resize relative url with invalid accept header as tiff",
+      "with latest sharp Production Mode Server support w/o next.config.js should resize tiff",
+      "with latest sharp Production Mode Server support w/o next.config.js should return home page",
+      "with latest sharp Production Mode Server support w/o next.config.js should set 304 status without body when etag matches if-none-match",
+      "with latest sharp Production Mode Server support w/o next.config.js should set cache-control to immutable for static images",
+      "with latest sharp Production Mode Server support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with latest sharp Production Mode Server support w/o next.config.js should use cached image file when parameters are the same for animated gif",
+      "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
+      "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should pass with absolute next image url",
+      "with latest sharp Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
+      "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
+      "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=75",
+      "with latest sharp Production Mode Server support with next.config.js should downlevel avif format to jpeg for old Safari",
+      "with latest sharp Production Mode Server support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with latest sharp Production Mode Server support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with latest sharp Production Mode Server support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with latest sharp Production Mode Server support with next.config.js should error if the image file does not exist",
+      "with latest sharp Production Mode Server support with next.config.js should error if the resource isn't a valid image",
+      "with latest sharp Production Mode Server support with next.config.js should fail when domain is not defined in next.config.js",
+      "with latest sharp Production Mode Server support with next.config.js should fail when internal url is not an image",
+      "with latest sharp Production Mode Server support with next.config.js should fail when q is greater than 100",
+      "with latest sharp Production Mode Server support with next.config.js should fail when q is less than 1",
+      "with latest sharp Production Mode Server support with next.config.js should fail when q is missing",
+      "with latest sharp Production Mode Server support with next.config.js should fail when q is not a number",
+      "with latest sharp Production Mode Server support with next.config.js should fail when q is not an integer",
+      "with latest sharp Production Mode Server support with next.config.js should fail when q is not in config",
+      "with latest sharp Production Mode Server support with next.config.js should fail when url fails to load an image",
+      "with latest sharp Production Mode Server support with next.config.js should fail when url has file protocol",
+      "with latest sharp Production Mode Server support with next.config.js should fail when url has ftp protocol",
+      "with latest sharp Production Mode Server support with next.config.js should fail when url is missing",
+      "with latest sharp Production Mode Server support with next.config.js should fail when url is protocol relative",
+      "with latest sharp Production Mode Server support with next.config.js should fail when url is too long",
+      "with latest sharp Production Mode Server support with next.config.js should fail when w is 0",
+      "with latest sharp Production Mode Server support with next.config.js should fail when w is less than 0",
+      "with latest sharp Production Mode Server support with next.config.js should fail when w is missing",
+      "with latest sharp Production Mode Server support with next.config.js should fail when w is not a number",
+      "with latest sharp Production Mode Server support with next.config.js should fail when w is not an integer",
+      "with latest sharp Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with latest sharp Production Mode Server support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with latest sharp Production Mode Server support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
+      "with latest sharp Production Mode Server support with next.config.js should handle concurrent requests",
+      "with latest sharp Production Mode Server support with next.config.js should handle non-ascii characters in image url",
+      "with latest sharp Production Mode Server support with next.config.js should maintain animated gif",
+      "with latest sharp Production Mode Server support with next.config.js should maintain animated png",
+      "with latest sharp Production Mode Server support with next.config.js should maintain animated png 2",
+      "with latest sharp Production Mode Server support with next.config.js should maintain animated webp",
+      "with latest sharp Production Mode Server support with next.config.js should maintain bmp",
+      "with latest sharp Production Mode Server support with next.config.js should maintain heic",
+      "with latest sharp Production Mode Server support with next.config.js should maintain icns",
+      "with latest sharp Production Mode Server support with next.config.js should maintain ico format",
+      "with latest sharp Production Mode Server support with next.config.js should maintain jp2",
+      "with latest sharp Production Mode Server support with next.config.js should maintain jpg format for old Safari",
+      "with latest sharp Production Mode Server support with next.config.js should maintain jxl",
+      "with latest sharp Production Mode Server support with next.config.js should maintain png format for old Safari",
+      "with latest sharp Production Mode Server support with next.config.js should normalize invalid status codes",
+      "with latest sharp Production Mode Server support with next.config.js should not allow pdf format",
+      "with latest sharp Production Mode Server support with next.config.js should not allow svg with application header",
+      "with latest sharp Production Mode Server support with next.config.js should not allow svg with comma header",
+      "with latest sharp Production Mode Server support with next.config.js should not allow svg with uppercase header",
+      "with latest sharp Production Mode Server support with next.config.js should not allow svg with wrong header",
+      "with latest sharp Production Mode Server support with next.config.js should not allow vector svg",
+      "with latest sharp Production Mode Server support with next.config.js should not forward cookie header",
+      "with latest sharp Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
+      "with latest sharp Production Mode Server support with next.config.js should resize absolute url from localhost",
+      "with latest sharp Production Mode Server support with next.config.js should resize avif",
+      "with latest sharp Production Mode Server support with next.config.js should resize avif and maintain format",
+      "with latest sharp Production Mode Server support with next.config.js should resize gif (not animated)",
+      "with latest sharp Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with latest sharp Production Mode Server support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with latest sharp Production Mode Server support with next.config.js should resize relative url and png accept header",
+      "with latest sharp Production Mode Server support with next.config.js should resize relative url and webp Firefox accept header",
+      "with latest sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as gif",
+      "with latest sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
+      "with latest sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with latest sharp Production Mode Server support with next.config.js should resize tiff",
+      "with latest sharp Production Mode Server support with next.config.js should return 508 after redirecting too many times",
+      "with latest sharp Production Mode Server support with next.config.js should return home page",
+      "with latest sharp Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with latest sharp Production Mode Server support with next.config.js should set cache-control to immutable for static images",
+      "with latest sharp Production Mode Server support with next.config.js should timeout for upstream image exceeding 7 seconds",
+      "with latest sharp Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with latest sharp Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with latest sharp Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/import-assertion/test/index.test.ts": {
     "passed": ["import-assertion dev should handle json assertions"],
     "failed": [],
@@ -19241,6 +19852,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/jsconfig-paths-wildcard/test/index.test.ts": {
+    "passed": [
+      "jsconfig paths wildcard default behavior should resolve a wildcard alias",
+      "jsconfig paths without baseurl wildcard default behavior should resolve a wildcard alias"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/jsconfig-paths/test/index.test.ts": {
     "passed": [
       "jsconfig paths default behavior should alias components",
@@ -19446,6 +20067,18 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/mixed-ssg-serverprops-error/test/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Mixed getStaticProps and getServerSideProps error production mode should error when exporting both getStaticPaths and getServerSideProps",
+      "Mixed getStaticProps and getServerSideProps error production mode should error when exporting both getStaticProps and getServerSideProps",
+      "Mixed getStaticProps and getServerSideProps error production mode should error when exporting getStaticPaths on a non-dynamic page",
+      "Mixed getStaticProps and getServerSideProps error production mode should error with getStaticProps but no default export"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -19784,6 +20417,15 @@
     "pending": [
       "Noscript Tests production mode Noscript page source tests should use loader url for noscript img#image-with-loader src attribute",
       "Noscript Tests production mode Noscript page source tests should use local API for noscript img#basic-image src attribute"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/next-image-legacy/react-virtualized/test/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "react-virtualized wrapping next/legacy/image production mode should not cancel requests for images"
     ],
     "flakey": [],
     "runtimeError": false
@@ -20271,6 +20913,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/next-image-new/export-config/test/index.test.ts": {
+    "passed": [
+      "next/image with output export config development mode should error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/next-image-new/image-from-node-modules/test/index.test.ts": {
     "passed": [
       "Image Component from node_modules development mode should apply image config for node_modules",
@@ -20468,6 +21119,23 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/node-fetch-keep-alive/test/index.test.ts": {
+    "passed": [
+      "node-fetch-keep-alive dev should send keep-alive for getServerSideProps",
+      "node-fetch-keep-alive dev should send keep-alive for getStaticPaths",
+      "node-fetch-keep-alive dev should send keep-alive for getStaticProps",
+      "node-fetch-keep-alive dev should send keep-alive for json API"
+    ],
+    "failed": [],
+    "pending": [
+      "node-fetch-keep-alive production mode should send keep-alive for getServerSideProps",
+      "node-fetch-keep-alive production mode should send keep-alive for getStaticPaths",
+      "node-fetch-keep-alive production mode should send keep-alive for getStaticProps",
+      "node-fetch-keep-alive production mode should send keep-alive for json API"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/non-next-dist-exclude/test/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -20657,6 +21325,27 @@
     "pending": [
       "SSG Prerender export production mode export mode should copy prerender files and honor exportTrailingSlash",
       "SSG Prerender export production mode export mode should navigate between pages successfully"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/prerender-fallback-encoding/test/index.test.ts": {
+    "passed": [
+      "Fallback path encoding development mode should navigate client-side correctly with interpolating",
+      "Fallback path encoding development mode should navigate client-side correctly with string href",
+      "Fallback path encoding development mode should render correctly in the browser for prerender paths",
+      "Fallback path encoding development mode should respond with the prerendered data correctly",
+      "Fallback path encoding development mode should respond with the prerendered pages correctly"
+    ],
+    "failed": [],
+    "pending": [
+      "Fallback path encoding production mode should handle non-prerendered paths correctly",
+      "Fallback path encoding production mode should navigate client-side correctly with interpolating",
+      "Fallback path encoding production mode should navigate client-side correctly with string href",
+      "Fallback path encoding production mode should output paths correctly",
+      "Fallback path encoding production mode should render correctly in the browser for prerender paths",
+      "Fallback path encoding production mode should respond with the prerendered data correctly",
+      "Fallback path encoding production mode should respond with the prerendered pages correctly"
     ],
     "flakey": [],
     "runtimeError": false
@@ -20896,6 +21585,17 @@
       "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for server component",
       "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/read-only-source-hmr/test/index.test.ts": {
+    "passed": [
+      "Read-only source HMR should detect a new page",
+      "Read-only source HMR should detect changes to a page",
+      "Read-only source HMR should handle page deletion and subsequent recreation"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -21143,6 +21843,47 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/route-indexes/test/index.test.ts": {
+    "passed": [
+      "Route indexes handling development mode should handle / correctly",
+      "Route indexes handling development mode should handle /api/sub correctly",
+      "Route indexes handling development mode should handle /api/sub/another correctly",
+      "Route indexes handling development mode should handle /api/sub/another/index correctly",
+      "Route indexes handling development mode should handle /api/sub/index correctly",
+      "Route indexes handling development mode should handle /api/sub/index/index correctly",
+      "Route indexes handling development mode should handle /index correctly",
+      "Route indexes handling development mode should handle /index/index correctly",
+      "Route indexes handling development mode should handle /nested-index correctly",
+      "Route indexes handling development mode should handle /nested-index/index correctly",
+      "Route indexes handling development mode should handle /nested-index/index/index correctly",
+      "Route indexes handling development mode should handle /sub correctly",
+      "Route indexes handling development mode should handle /sub/another correctly",
+      "Route indexes handling development mode should handle /sub/another/index correctly",
+      "Route indexes handling development mode should handle /sub/index correctly",
+      "Route indexes handling development mode should handle /sub/index/index correctly"
+    ],
+    "failed": [],
+    "pending": [
+      "Route indexes handling production mode should handle / correctly",
+      "Route indexes handling production mode should handle /api/sub correctly",
+      "Route indexes handling production mode should handle /api/sub/another correctly",
+      "Route indexes handling production mode should handle /api/sub/another/index correctly",
+      "Route indexes handling production mode should handle /api/sub/index correctly",
+      "Route indexes handling production mode should handle /api/sub/index/index correctly",
+      "Route indexes handling production mode should handle /index correctly",
+      "Route indexes handling production mode should handle /index/index correctly",
+      "Route indexes handling production mode should handle /nested-index correctly",
+      "Route indexes handling production mode should handle /nested-index/index correctly",
+      "Route indexes handling production mode should handle /nested-index/index/index correctly",
+      "Route indexes handling production mode should handle /sub correctly",
+      "Route indexes handling production mode should handle /sub/another correctly",
+      "Route indexes handling production mode should handle /sub/another/index correctly",
+      "Route indexes handling production mode should handle /sub/index correctly",
+      "Route indexes handling production mode should handle /sub/index/index correctly"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/route-load-cancel-css/test/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -21374,6 +22115,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/ssg-data-404/test/index.test.ts": {
+    "passed": [
+      "SSG data 404 development mode should hard navigate when a new deployment occurs"
+    ],
+    "failed": [],
+    "pending": [
+      "SSG data 404 production mode should hard navigate when a new deployment occurs"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/ssg-dynamic-routes-404-page/test/index.test.ts": {
     "passed": [
       "Custom 404 Page for static site generation with dynamic routes development mode should respond to a not existing page with 404"
@@ -21599,6 +22351,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/typescript-app-type-declarations/test/index.test.ts": {
+    "passed": [
+      "TypeScript App Type Declarations should not touch an existing correct next-env.d.ts"
+    ],
+    "failed": [
+      "TypeScript App Type Declarations should overwrite next-env.d.ts if an incorrect one exists",
+      "TypeScript App Type Declarations should write a new next-env.d.ts if none exist"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/typescript-baseurl/test/index.test.ts": {
     "passed": ["TypeScript Features default behavior should render the page"],
     "failed": [],
@@ -21767,6 +22531,15 @@
     "passed": [
       "Handles Webpack Require Hook build Does not error during build",
       "Handles Webpack Require Hook development mode Applies and does not error during development"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/with-electron/test/index.test.ts": {
+    "passed": [
+      "Should skip testing electron without process.env.TEST_ELECTRON set"
     ],
     "failed": [],
     "pending": [],
