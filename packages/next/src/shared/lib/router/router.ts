@@ -42,7 +42,10 @@ import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
 import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
 import type { Params } from '../../../server/request/params'
-import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+import {
+  MATCHED_PATH_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
+} from '../../../lib/constants'
 import { getDeploymentId } from '../deployment-id'
 import { isJavaScriptURLString } from '../../../client/lib/javascript-url'
 
@@ -556,7 +559,9 @@ function fetchNextData({
             throw error
           }
 
-          let dplResponseHeader = response.headers.get('x-nextjs-dpl-id')
+          let dplResponseHeader = response.headers.get(
+            NEXT_NAV_DEPLOYMENT_ID_HEADER
+          )
           if (dplResponseHeader != null && dplResponseHeader !== deploymentId) {
             // When not found, or we want to force a MPA navigation because of Skew Protection
             const error = new Error(

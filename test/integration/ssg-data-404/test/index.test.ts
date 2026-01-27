@@ -52,7 +52,7 @@ const runTests = (switchDeployment: (bool) => void) => {
   })
 }
 
-describe('SSG data 404 - hard navigate when a new deployment occurs', () => {
+describe('SSG data 404 deployment skew - hard navigate when a new deployment occurs', () => {
   if (process.platform === 'win32') {
     it('should skip this suite on Windows', () => {})
     return
@@ -109,9 +109,10 @@ describe('SSG data 404 - hard navigate when a new deployment occurs', () => {
       NEXT_DEPLOYMENT_ID1: 'deployment-id-1',
       NEXT_DEPLOYMENT_ID2: 'deployment-id-2',
     },
+    { name: 'with build id (output export)', OUTPUT_MODE: 'export' },
   ])(
     'production mode $name',
-    ({ NEXT_DEPLOYMENT_ID1, NEXT_DEPLOYMENT_ID2 }) => {
+    ({ NEXT_DEPLOYMENT_ID1, NEXT_DEPLOYMENT_ID2, OUTPUT_MODE }) => {
       let shouldSwitchDeployment = false
       let apps = []
       let proxyServer
@@ -121,6 +122,7 @@ describe('SSG data 404 - hard navigate when a new deployment occurs', () => {
           env: {
             DIST_DIR: '1',
             NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID1,
+            OUTPUT_MODE,
           },
         })
         let appPort1 = await findPort()
@@ -129,6 +131,7 @@ describe('SSG data 404 - hard navigate when a new deployment occurs', () => {
             env: {
               DIST_DIR: '1',
               NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID1,
+              OUTPUT_MODE,
             },
           })
         )

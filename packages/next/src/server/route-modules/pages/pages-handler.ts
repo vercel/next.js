@@ -31,6 +31,7 @@ import {
   CACHE_ONE_YEAR,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
 } from '../../../lib/constants'
 import path from 'path'
 import { sendRenderResult } from '../../send-payload'
@@ -636,7 +637,7 @@ export const getHandler = ({
           if (isNextDataRequest) {
             const deploymentId = getDeploymentId()
             if (deploymentId) {
-              res.setHeader('x-nextjs-dpl-id', deploymentId)
+              res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
             }
             res.end('{"notFound":true}')
             return
@@ -648,7 +649,7 @@ export const getHandler = ({
           if (isNextDataRequest) {
             const deploymentId = getDeploymentId()
             if (deploymentId) {
-              res.setHeader('x-nextjs-dpl-id', deploymentId)
+              res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
             }
             res.setHeader('content-type', JSON_CONTENT_TYPE_HEADER)
             res.end(JSON.stringify(result.value.props))
@@ -726,7 +727,7 @@ export const getHandler = ({
         if (isNextDataRequest && !isErrorPage && !is500Page) {
           const deploymentId = getDeploymentId()
           if (deploymentId) {
-            res.setHeader('x-nextjs-dpl-id', deploymentId)
+            res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
           }
         }
 
