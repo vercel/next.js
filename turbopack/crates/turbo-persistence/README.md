@@ -85,7 +85,7 @@ The hashes are sorted.
 
 #### Key Block
 
-- 1 byte block type (1: key block)
+- 1 byte block type (1: key block with hash, 2: key block without hash)
 - 3 bytes entry count
 - foreach entry
   - 1 byte type
@@ -94,23 +94,30 @@ The hashes are sorted.
 
 A Key block contains n keys, which specify n key value pairs.
 
+The block type determines whether the key hash is stored per entry:
+
+- Block type 1 (with hash): Full 8-byte hash stored per entry
+- Block type 2 (no hash): No hash stored (for keys ≤ 32 bytes)
+
+During lookup, if block type is 2, the full hash is recomputed from the key data.
+
 Depending on the `type` field entry has a different format:
 
 - 0: normal key (small value)
-  - 8 bytes key hash
+  - 8 bytes key hash (if block type 1)
   - key data
   - 2 byte block index
   - 2 bytes size
   - 4 bytes position in block
 - 1: blob reference
-  - 8 bytes key hash
+  - 8 bytes key hash (if block type 1)
   - key data
   - 4 bytes sequence number
 - 2: deleted key / tombstone (no data)
-  - 8 bytes key hash
+  - 8 bytes key hash (if block type 1)
   - key data
 - 3: normal key (medium sized value)
-  - 8 bytes key hash
+  - 8 bytes key hash (if block type 1)
   - key data
   - 2 byte block index
 - 7: merge key (future)
@@ -119,13 +126,11 @@ Depending on the `type` field entry has a different format:
   - 3 bytes size
   - 4 bytes position in block
 - 8..255: inlined key (future)
-  - 8 bytes key hash
+  - 8 bytes key hash (if block type 1)
   - key data
   - type - 8 bytes value data
 
 The entries are sorted by key hash and key.
-
-TODO: 8 bytes key hash is a bit inefficient for small keys.
 
 #### Value Block
 
