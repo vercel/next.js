@@ -68,7 +68,22 @@ function stripTimestamps(logContent) {
 // Data Fetching Functions
 // ============================================================================
 
-function getBranchInfo() {
+function getBranchInfo(prNumberArg) {
+  // If PR number provided as argument, fetch branch from that PR
+  if (prNumberArg) {
+    try {
+      const output = exec(`gh pr view ${prNumberArg} --json number,headRefName`)
+      const data = JSON.parse(output)
+      if (data.number && data.headRefName) {
+        return { prNumber: String(data.number), branchName: data.headRefName }
+      }
+    } catch {
+      console.error(`Failed to fetch PR #${prNumberArg}`)
+      process.exit(1)
+    }
+  }
+
+  // Auto-detect from current branch/PR context
   try {
     const output = exec(`gh pr view --json number,headRefName`)
     const data = JSON.parse(output)
@@ -146,6 +161,63 @@ function getJobLogs(jobId) {
     return exec(`gh api "repos/vercel/next.js/actions/jobs/${jobId}/logs"`)
   } catch {
     return 'Logs not available'
+  }
+}
+
+function getPRReviews(prNumber) {
+  try {
+    return execJson(
+      `gh api "repos/vercel/next.js/pulls/${prNumber}/reviews" --jq '[.[] | {id, user: .user.login, state: .state, body: .body, submitted_at: .submitted_at, html_url: .html_url}]'`
+    )
+  } catch {
+    return []
+  }
+}
+
+function getPRReviewThreads(prNumber) {
+  const query = `
+    query {
+      repository(owner:"vercel", name:"next.js") {
+        pullRequest(number:${prNumber}) {
+          reviewThreads(first:100) {
+            nodes {
+              isResolved
+              path
+              line
+              startLine
+              diffSide
+              comments(first:50) {
+                nodes {
+                  id
+                  author { login }
+                  body
+                  createdAt
+                  url
+                  diffHunk
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `
+  try {
+    const output = exec(`gh api graphql -f query='${query}'`)
+    const data = JSON.parse(output)
+    return data.data.repository.pullRequest.reviewThreads.nodes
+  } catch {
+    return []
+  }
+}
+
+function getPRComments(prNumber) {
+  try {
+    return execJson(
+      `gh api "repos/vercel/next.js/issues/${prNumber}/comments" --jq '[.[] | {id, user: .user.login, body: .body, created_at: .created_at, html_url: .html_url}]'`
+    )
+  } catch {
+    return []
   }
 }
 
@@ -272,7 +344,13 @@ function extractSections(logContent) {
 // Markdown Generation Functions
 // ============================================================================
 
-function generateIndexMd(branchInfo, runMetadata, failedJobs, jobTestCounts) {
+function generateIndexMd(
+  branchInfo,
+  runMetadata,
+  failedJobs,
+  jobTestCounts,
+  reviewData
+) {
   const lines = ['# CI Failures Report', '', `Branch: ${branchInfo.branchName}`]
 
   if (branchInfo.prNumber) {
@@ -300,6 +378,70 @@ function generateIndexMd(branchInfo, runMetadata, failedJobs, jobTestCounts) {
     lines.push(
       `| ${job.id} | ${escapeMarkdownTableCell(job.name)} | ${duration} | ${testsStr} | [Details](job-${job.id}.md) |`
     )
+  }
+
+  // Add PR reviews section if we have review data
+  if (reviewData) {
+    const { reviews, reviewThreads, prComments } = reviewData
+
+    // Filter reviews to only include meaningful ones
+    const meaningfulReviews = reviews.filter(
+      (r) =>
+        r.state === 'APPROVED' ||
+        r.state === 'CHANGES_REQUESTED' ||
+        r.body?.trim()
+    )
+
+    if (meaningfulReviews.length > 0 || prComments.length > 0) {
+      lines.push('', `## PR Reviews (${meaningfulReviews.length})`, '')
+
+      if (meaningfulReviews.length > 0) {
+        lines.push(
+          '| Reviewer | State | Date/Time | Comment |',
+          '|----------|-------|-----------|---------|'
+        )
+
+        // Sort reviews by date, most recent first
+        const sortedReviews = [...meaningfulReviews].sort(
+          (a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)
+        )
+
+        for (const review of sortedReviews) {
+          const time = review.submitted_at
+            ? new Date(review.submitted_at)
+                .toISOString()
+                .replace('T', ' ')
+                .substring(0, 19)
+            : 'N/A'
+          const hasComment = review.body?.trim()
+          const commentLink = hasComment ? `[View](review-${review.id}.md)` : ''
+          lines.push(
+            `| ${escapeMarkdownTableCell(review.user)} | ${review.state} | ${time} | ${commentLink} |`
+          )
+        }
+      }
+    }
+
+    if (reviewThreads.length > 0) {
+      lines.push(
+        '',
+        `## Inline Review Comments (${reviewThreads.length} threads)`,
+        '',
+        '| File | Line | Author | Replies | Status | Details |',
+        '|------|------|--------|---------|--------|---------|'
+      )
+
+      for (let i = 0; i < reviewThreads.length; i++) {
+        const thread = reviewThreads[i]
+        const line = thread.line || thread.startLine || 'N/A'
+        const author = thread.comments.nodes[0]?.author?.login || 'Unknown'
+        const replyCount = Math.max(0, thread.comments.nodes.length - 1)
+        const status = thread.isResolved ? 'Resolved' : 'Open'
+        lines.push(
+          `| ${escapeMarkdownTableCell(thread.path)} | ${line} | ${author} | ${replyCount} | ${status} | [View](thread-${i + 1}.md) |`
+        )
+      }
+    }
   }
 
   return lines.join('\n')
@@ -450,11 +592,131 @@ function generateTestMd(jobMetadata, testPath, content, testResultJson) {
   return lines.join('\n')
 }
 
+function generateReviewsMd(reviews, prComments) {
+  const lines = ['# PR Reviews', '']
+
+  if (reviews.length === 0 && prComments.length === 0) {
+    lines.push('No reviews or comments found.')
+    return lines.join('\n')
+  }
+
+  // Sort reviews by submitted_at date
+  const sortedReviews = [...reviews].sort(
+    (a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)
+  )
+
+  if (sortedReviews.length > 0) {
+    lines.push('## Reviews', '')
+
+    for (const review of sortedReviews) {
+      const date = review.submitted_at
+        ? new Date(review.submitted_at).toISOString().split('T')[0]
+        : 'N/A'
+      const stateEmoji =
+        review.state === 'APPROVED'
+          ? '[APPROVED]'
+          : review.state === 'CHANGES_REQUESTED'
+            ? '[CHANGES_REQUESTED]'
+            : review.state === 'COMMENTED'
+              ? '[COMMENTED]'
+              : `[${review.state}]`
+
+      lines.push(`### ${stateEmoji} ${review.user} - ${date}`, '')
+
+      if (review.body && review.body.trim()) {
+        lines.push(review.body.trim(), '')
+      } else {
+        lines.push('_No comment body_', '')
+      }
+
+      lines.push(`[View on GitHub](${review.html_url})`, '', '---', '')
+    }
+  }
+
+  // Add general PR comments (issue-style comments)
+  if (prComments.length > 0) {
+    lines.push('## General Comments', '')
+
+    const sortedComments = [...prComments].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    )
+
+    for (const comment of sortedComments) {
+      const date = comment.created_at
+        ? new Date(comment.created_at).toISOString().split('T')[0]
+        : 'N/A'
+
+      lines.push(`### ${comment.user} - ${date}`, '')
+
+      if (comment.body?.trim()) {
+        lines.push(comment.body.trim(), '')
+      }
+
+      lines.push(`[View on GitHub](${comment.html_url})`, '', '---', '')
+    }
+  }
+
+  return lines.join('\n')
+}
+
+function generateReviewMd(review) {
+  const time = review.submitted_at
+    ? new Date(review.submitted_at)
+        .toISOString()
+        .replace('T', ' ')
+        .substring(0, 19)
+    : 'N/A'
+
+  const lines = [
+    `# Review by ${review.user}`,
+    '',
+    `State: ${review.state}`,
+    `Time: ${time}`,
+    '',
+    '## Comment',
+    '',
+    review.body.trim(),
+  ]
+
+  return lines.join('\n')
+}
+
+function generateThreadMd(thread, index) {
+  const lines = [
+    `# Thread ${index + 1}: ${thread.path}`,
+    '',
+    `Line: ${thread.line || thread.startLine || 'N/A'}`,
+    `Status: ${thread.isResolved ? 'Resolved' : 'Open'}`,
+    '',
+  ]
+
+  // Add diff hunk from first comment
+  if (thread.comments.nodes[0]?.diffHunk) {
+    lines.push('```diff', thread.comments.nodes[0].diffHunk, '```', '')
+  }
+
+  // Add all comments
+  lines.push('## Comments', '')
+  for (const comment of thread.comments.nodes) {
+    const date = comment.createdAt
+      ? new Date(comment.createdAt).toISOString().split('T')[0]
+      : 'N/A'
+    lines.push(`### ${comment.author?.login || 'Unknown'} - ${date}`, '')
+    lines.push(comment.body || '', '')
+    lines.push(`[View on GitHub](${comment.url})`, '', '---', '')
+  }
+
+  return lines.join('\n')
+}
+
 // ============================================================================
 // Main Function
 // ============================================================================
 
 async function main() {
+  // Parse CLI argument for PR number
+  const prNumberArg = process.argv[2]
+
   // Step 1: Delete and recreate output directory
   console.log('Cleaning output directory...')
   await fs.rm(OUTPUT_DIR, { recursive: true, force: true })
@@ -462,7 +724,7 @@ async function main() {
 
   // Step 2: Get branch info
   console.log('Getting branch info...')
-  const branchInfo = getBranchInfo()
+  const branchInfo = getBranchInfo(prNumberArg)
   console.log(
     `Branch: ${branchInfo.branchName}, PR: ${branchInfo.prNumber || 'N/A'}`
   )
@@ -491,11 +753,50 @@ async function main() {
   const failedJobIds = getFailedJobs(latestRun.id)
   console.log(`Found ${failedJobIds.length} failed jobs`)
 
+  // Fetch PR reviews if we have a PR number
+  let reviewData = null
+  if (branchInfo.prNumber) {
+    console.log('Fetching PR reviews and comments...')
+    const reviews = getPRReviews(branchInfo.prNumber)
+    const reviewThreads = getPRReviewThreads(branchInfo.prNumber)
+    const prComments = getPRComments(branchInfo.prNumber)
+    reviewData = { reviews, reviewThreads, prComments }
+    console.log(
+      `Found ${reviews.length} reviews, ${reviewThreads.length} review threads, ${prComments.length} general comments`
+    )
+  }
+
   if (failedJobIds.length === 0) {
     console.log('No failed jobs found.')
+
+    // Write review files if we have PR data
+    if (reviewData) {
+      await fs.writeFile(
+        path.join(OUTPUT_DIR, 'reviews.md'),
+        generateReviewsMd(reviewData.reviews, reviewData.prComments)
+      )
+      // Write individual thread files
+      for (let i = 0; i < reviewData.reviewThreads.length; i++) {
+        const thread = reviewData.reviewThreads[i]
+        await fs.writeFile(
+          path.join(OUTPUT_DIR, `thread-${i + 1}.md`),
+          generateThreadMd(thread, i)
+        )
+      }
+      // Write individual review files for reviews with comments
+      for (const review of reviewData.reviews) {
+        if (review.body && review.body.trim()) {
+          await fs.writeFile(
+            path.join(OUTPUT_DIR, `review-${review.id}.md`),
+            generateReviewMd(review)
+          )
+        }
+      }
+    }
+
     await fs.writeFile(
       path.join(OUTPUT_DIR, 'index.md'),
-      generateIndexMd(branchInfo, runMetadata, [], {})
+      generateIndexMd(branchInfo, runMetadata, [], {}, reviewData)
     )
     process.exit(0)
   }
@@ -571,13 +872,40 @@ async function main() {
     await fs.writeFile(path.join(OUTPUT_DIR, `job-${id}.md`), jobMd)
   }
 
-  // Step 7: Generate index.md
+  // Step 7: Write PR review files if we have PR data
+  if (reviewData) {
+    console.log('Generating review files...')
+    await fs.writeFile(
+      path.join(OUTPUT_DIR, 'reviews.md'),
+      generateReviewsMd(reviewData.reviews, reviewData.prComments)
+    )
+    // Write individual thread files
+    for (let i = 0; i < reviewData.reviewThreads.length; i++) {
+      const thread = reviewData.reviewThreads[i]
+      await fs.writeFile(
+        path.join(OUTPUT_DIR, `thread-${i + 1}.md`),
+        generateThreadMd(thread, i)
+      )
+    }
+    // Write individual review files for reviews with comments
+    for (const review of reviewData.reviews) {
+      if (review.body?.trim()) {
+        await fs.writeFile(
+          path.join(OUTPUT_DIR, `review-${review.id}.md`),
+          generateReviewMd(review)
+        )
+      }
+    }
+  }
+
+  // Step 8: Generate index.md
   console.log('Generating index.md...')
   const indexMd = generateIndexMd(
     branchInfo,
     runMetadata,
     failedJobs,
-    jobTestCounts
+    jobTestCounts,
+    reviewData
   )
   await fs.writeFile(path.join(OUTPUT_DIR, 'index.md'), indexMd)
 
