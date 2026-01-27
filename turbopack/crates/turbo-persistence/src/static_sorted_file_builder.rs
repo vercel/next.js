@@ -45,18 +45,9 @@ const COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 100;
 /// The minimum bytes that are used per key entry for a sample.
 const MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 16;
 
-/// Computes the number of hash bytes to store per entry based on max key length and entry count.
-fn compute_hash_len(max_key_len: usize, entry_count: usize) -> u8 {
-    if max_key_len <= 8 {
-        0 // No hash needed, key data fits in 8 bytes
-    } else if max_key_len > 128 {
-        8 // Full hash for long keys
-    } else {
-        // Enough bytes to have good collision avoidance
-        // log2(entry_count) bits + 8 bits margin, rounded up to bytes
-        let bits_needed = (entry_count as f64).log2().ceil() as u32 + 8;
-        bits_needed.div_ceil(8).min(8) as u8
-    }
+/// Determines whether to store the hash per entry based on max key length.
+fn use_hash(max_key_len: usize) -> bool {
+    max_key_len > 32
 }
 
 /// Trait for entries from that SST files can be created
@@ -466,8 +457,8 @@ fn write_key_blocks_and_compute_amqf(
                     last_hash != key_hash
         {
             let entry_count = i - current_block_start;
-            let hash_len = compute_hash_len(current_block_max_key_len, entry_count);
-            let mut block = KeyBlockBuilder::new(buffer, entry_count as u32, hash_len);
+            let has_hash = use_hash(current_block_max_key_len);
+            let mut block = KeyBlockBuilder::new(buffer, entry_count as u32, has_hash);
             for j in current_block_start..i {
                 let entry = &entries[j];
                 let value_location = &value_locations[j];
@@ -492,8 +483,8 @@ fn write_key_blocks_and_compute_amqf(
     // Finish the last block
     if current_block_size > 0 {
         let entry_count = entries.len() - current_block_start;
-        let hash_len = compute_hash_len(current_block_max_key_len, entry_count);
-        let mut block = KeyBlockBuilder::new(buffer, entry_count as u32, hash_len);
+        let has_hash = use_hash(current_block_max_key_len);
+        let mut block = KeyBlockBuilder::new(buffer, entry_count as u32, has_hash);
         for j in current_block_start..entries.len() {
             let entry = &entries[j];
             let value_location = &value_locations[j];
@@ -532,7 +523,7 @@ fn write_key_blocks_and_compute_amqf(
 pub struct KeyBlockBuilder<'l> {
     current_entry: usize,
     header_size: usize,
-    hash_len: u8,
+    has_hash: bool,
     buffer: &'l mut Vec<u8>,
 }
 
@@ -541,14 +532,13 @@ const KEY_BLOCK_HEADER_SIZE: usize = 5;
 
 impl<'l> KeyBlockBuilder<'l> {
     /// Creates a new key block builder for the number of entries.
-    pub fn new(buffer: &'l mut Vec<u8>, entry_count: u32, hash_len: u8) -> Self {
+    pub fn new(buffer: &'l mut Vec<u8>, entry_count: u32, has_hash: bool) -> Self {
         debug_assert!(entry_count < (1 << 24));
-        debug_assert!(hash_len <= 8);
 
         const ESTIMATED_KEY_SIZE: usize = 16;
         buffer.reserve(entry_count as usize * ESTIMATED_KEY_SIZE);
         buffer.write_u8(BLOCK_TYPE_KEY).unwrap();
-        buffer.write_u8(hash_len).unwrap();
+        buffer.write_u8(has_hash as u8).unwrap();
         buffer.write_u24::<BE>(entry_count).unwrap();
         for _ in 0..entry_count {
             buffer.write_u32::<BE>(0).unwrap();
@@ -556,16 +546,17 @@ impl<'l> KeyBlockBuilder<'l> {
         Self {
             current_entry: 0,
             header_size: buffer.len(),
-            hash_len,
+            has_hash,
             buffer,
         }
     }
 
-    /// Writes the first `hash_len` bytes of the hash (big-endian order).
+    /// Writes the 8-byte hash if `has_hash` is true.
     fn write_hash<E: Entry>(&mut self, entry: &E) {
-        let hash_bytes = entry.key_hash().to_be_bytes();
-        self.buffer
-            .extend_from_slice(&hash_bytes[..self.hash_len as usize]);
+        if self.has_hash {
+            let hash_bytes = entry.key_hash().to_be_bytes();
+            self.buffer.extend_from_slice(&hash_bytes);
+        }
     }
 
     /// Writes a small-sized value to the buffer.

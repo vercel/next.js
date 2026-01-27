@@ -216,7 +216,8 @@ impl StaticSortedFile {
         key: &K,
         value_block_cache: &BlockCache,
     ) -> Result<SstLookupResult> {
-        let hash_len = block.read_u8()?;
+        let has_hash = block.read_u8()?;
+        let hash_len = if has_hash != 0 { 8 } else { 0 };
         let entry_count = block.read_u24::<BE>()? as usize;
         let offsets = &block[..entry_count * 4];
         let entries = &block[entry_count * 4..];
@@ -467,7 +468,8 @@ impl<'l> StaticSortedFileIter<'l> {
                 });
             }
             BLOCK_TYPE_KEY => {
-                let hash_len = block.read_u8()?;
+                let has_hash = block.read_u8()?;
+                let hash_len = if has_hash != 0 { 8 } else { 0 };
                 let entry_count = block.read_u24::<BE>()? as usize;
                 let offsets_range = 5..5 + entry_count * 4;
                 let entries_range = 5 + entry_count * 4..block_arc.len();
@@ -501,8 +503,8 @@ impl<'l> StaticSortedFileIter<'l> {
             {
                 let GetKeyEntryResult { hash, key, ty, val } =
                     get_key_entry(&offsets, &entries, entry_count, index, hash_len)?;
-                // Convert hash slice to u64, computing from key if partial hash stored
-                let full_hash = if hash.len() < 8 {
+                // Convert hash slice to u64, computing from key if no hash stored
+                let full_hash = if hash.is_empty() {
                     crate::key::hash_key(&key)
                 } else {
                     u64::from_be_bytes(hash.try_into().unwrap())
@@ -567,35 +569,29 @@ struct GetKeyEntryResult<'l> {
     val: &'l [u8],
 }
 
-/// Compares a query (full_hash + query_key) against an entry (partial_hash + entry_key).
+/// Compares a query (full_hash + query_key) against an entry (entry_hash + entry_key).
 /// Returns the ordering of query relative to entry.
-/// When partial_hash.len() < 8, computes full hash from entry_key only if partial bytes match.
+/// When entry_hash is empty, computes full hash from entry_key.
 fn compare_hash_key<K: QueryKey>(
-    partial_hash: &[u8],
+    entry_hash: &[u8],
     entry_key: &[u8],
     full_hash: u64,
     query_key: &K,
 ) -> Ordering {
-    let full_hash_bytes = full_hash.to_be_bytes();
-
-    // Compare query's hash bytes against entry's partial hash bytes
-    let partial_cmp = full_hash_bytes[..partial_hash.len()].cmp(partial_hash);
-
-    if partial_cmp != Ordering::Equal {
-        return partial_cmp;
-    }
-
-    // Partial bytes match - need full comparison
-    if partial_hash.len() < 8 {
-        // Compute full hash from entry key
+    if entry_hash.is_empty() {
+        // No hash stored - compute full hash from entry key
         let entry_full_hash = crate::key::hash_key(&entry_key);
         match full_hash.cmp(&entry_full_hash) {
             Ordering::Equal => query_key.cmp(entry_key),
             ord => ord,
         }
     } else {
-        // Full hash stored - just compare keys
-        query_key.cmp(entry_key)
+        // Full 8-byte hash stored - compare hashes first
+        let full_hash_bytes = full_hash.to_be_bytes();
+        match full_hash_bytes[..].cmp(entry_hash) {
+            Ordering::Equal => query_key.cmp(entry_key),
+            ord => ord,
+        }
     }
 }
 

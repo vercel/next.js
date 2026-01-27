@@ -86,7 +86,7 @@ The hashes are sorted.
 #### Key Block
 
 - 1 byte block type (1: key block)
-- 1 byte hash_len (0-8, number of hash bytes stored per entry)
+- 1 byte has_hash (0 or 1, whether 8-byte hash is stored per entry)
 - 3 bytes entry count
 - foreach entry
   - 1 byte type
@@ -95,31 +95,30 @@ The hashes are sorted.
 
 A Key block contains n keys, which specify n key value pairs.
 
-The `hash_len` field determines how many bytes of the key hash are stored per entry:
+The `has_hash` field determines whether the key hash is stored per entry:
 
-- `hash_len = 0`: No hash stored (for small keys ≤ 8 bytes where key data fits directly)
-- `hash_len = 1-7`: Partial hash (first n bytes, big-endian order)
-- `hash_len = 8`: Full 8-byte hash
+- `has_hash = 0`: No hash stored (for keys ≤ 32 bytes)
+- `has_hash = 1`: Full 8-byte hash stored
 
-During lookup, if `hash_len < 8` and the partial hash matches, the full hash is recomputed from the key data to verify.
+During lookup, if `has_hash = 0`, the full hash is recomputed from the key data.
 
 Depending on the `type` field entry has a different format:
 
 - 0: normal key (small value)
-  - hash_len bytes key hash
+  - 8 bytes key hash (if has_hash)
   - key data
   - 2 byte block index
   - 2 bytes size
   - 4 bytes position in block
 - 1: blob reference
-  - hash_len bytes key hash
+  - 8 bytes key hash (if has_hash)
   - key data
   - 4 bytes sequence number
 - 2: deleted key / tombstone (no data)
-  - hash_len bytes key hash
+  - 8 bytes key hash (if has_hash)
   - key data
 - 3: normal key (medium sized value)
-  - hash_len bytes key hash
+  - 8 bytes key hash (if has_hash)
   - key data
   - 2 byte block index
 - 7: merge key (future)
@@ -128,7 +127,7 @@ Depending on the `type` field entry has a different format:
   - 3 bytes size
   - 4 bytes position in block
 - 8..255: inlined key (future)
-  - hash_len bytes key hash
+  - 8 bytes key hash (if has_hash)
   - key data
   - type - 8 bytes value data
 
