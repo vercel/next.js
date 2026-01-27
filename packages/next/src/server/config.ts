@@ -961,19 +961,12 @@ function assignDefaultsAndValidate(
     ciEnvironment.hasNextSupport &&
     process.env.NEXT_DEPLOYMENT_ID
   ) {
-    if (
-      result.deploymentId != null &&
-      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
-    ) {
-      throw new Error(
-        `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
-      )
-    }
     result.experimental.runtimeServerDeploymentId = true
   }
 
-  // only leverage deploymentId
-  if (process.env.NEXT_DEPLOYMENT_ID) {
+  // User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID env var
+  // This allows users to set a custom deployment ID for skew protection
+  if (!result.deploymentId && process.env.NEXT_DEPLOYMENT_ID) {
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
