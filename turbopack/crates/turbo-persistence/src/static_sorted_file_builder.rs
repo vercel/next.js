@@ -12,6 +12,7 @@ use turbo_bincode::{TurboBincodeBuffer, turbo_bincode_encode};
 
 use crate::{
     compression::compress_into_buffer,
+    family_format::{key_to_range_value, rotate_key},
     meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
@@ -633,4 +634,323 @@ impl<'l> IndexBlockBuilder<'l> {
     fn finish(self) -> &'l mut Vec<u8> {
         self.buffer
     }
+}
+
+// =============================================================================
+// Direct Key Format Writers
+// =============================================================================
+
+/// Trait for entries that can be written to a direct-key fixed-value SST file.
+///
+/// For u32 keys (like TaskId), the key is stored as a rotated value to handle
+/// sharding bits properly. Use `rotate_key()` before storing.
+pub trait DirectFixedEntry {
+    /// The u32 key (will be rotated for storage).
+    fn key(&self) -> u32;
+    /// The fixed-size value bytes.
+    fn value_bytes(&self) -> &[u8];
+}
+
+/// Trait for entries that can be written to a direct-key variable-value SST file.
+///
+/// For u32 keys (like TaskId), the key is stored as a rotated value to handle
+/// sharding bits properly. Use `rotate_key()` before storing.
+pub trait DirectVariableEntry {
+    /// The u32 key (will be rotated for storage).
+    fn key(&self) -> u32;
+    /// Returns the value.
+    fn value(&self) -> EntryValue<'_>;
+}
+
+/// Writes a direct-key fixed-value SST file for u32 keys.
+///
+/// This format is optimized for families with:
+/// - u32 keys (like TaskId) stored directly with rotation for sharding
+/// - Fixed-size values (stored inline with keys)
+/// - High-entropy data (no compression)
+/// - No AMQF filter (uses simple key range checks instead)
+///
+/// File layout:
+/// ```text
+/// [entries: 4 + VALUE_SIZE bytes each, sorted by rotated key]
+/// [block_offset: u32] (single entry pointing to end of data)
+/// ```
+///
+/// The entries are stored contiguously without any block headers or offset tables.
+/// Position of entry `i` = `i * (4 + VALUE_SIZE)`.
+///
+/// Keys are stored rotated (rotate_right(2)) to handle TaskId sharding bits.
+/// Writes a direct-key fixed-value SST file for u32 keys.
+///
+/// This format is optimized for families with:
+/// - u32 keys (like TaskId) stored directly with rotation for sharding
+/// - Fixed-size values (stored separately from keys for cache-efficient lookups)
+/// - High-entropy data (no compression)
+/// - No AMQF filter (uses simple key range checks instead)
+///
+/// File layout (separated keys and values for better binary search cache behavior):
+/// ```text
+/// [key table: u32 × entry_count, sorted by rotated key]
+/// [value table: VALUE_SIZE × entry_count, same order as keys]
+/// [footer: u32 entry_count]
+/// ```
+///
+/// Lookup: binary search key table → use index to read value from value table
+///
+/// Keys are stored rotated (rotate_right(2)) to handle TaskId sharding bits.
+pub fn write_direct_fixed_sst<const VALUE_SIZE: usize>(
+    entries: &[impl DirectFixedEntry],
+    file: &Path,
+    flags: MetaEntryFlags,
+) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
+    debug_assert!(
+        entries
+            .iter()
+            .map(|e| rotate_key(e.key()))
+            .is_sorted_by(|a, b| a.cmp(b) != std::cmp::Ordering::Greater)
+    );
+    debug_assert!(flags.uses_direct_keys());
+    debug_assert!(flags.uses_fixed_values());
+    debug_assert!(flags.is_uncompressed());
+    debug_assert_eq!(flags.key_size(), 4); // u32 = 4 bytes
+    debug_assert_eq!(flags.value_size(), VALUE_SIZE as u8);
+
+    let mut file = BufWriter::new(File::create(file)?);
+
+    // Compute min/max for key range (using rotated key as range value)
+    // No AMQF filter for direct-fixed format - we use key range checks only
+    let min_hash = entries
+        .first()
+        .map(|e| key_to_range_value(e.key()))
+        .unwrap_or(u64::MAX);
+    let max_hash = entries
+        .last()
+        .map(|e| key_to_range_value(e.key()))
+        .unwrap_or(0);
+
+    // 1. Write key table (4 bytes × N)
+    for entry in entries {
+        let rotated_key = rotate_key(entry.key());
+        file.write_u32::<BE>(rotated_key)?;
+    }
+
+    // 2. Write value table (VALUE_SIZE × N)
+    for entry in entries {
+        let value = entry.value_bytes();
+        debug_assert_eq!(value.len(), VALUE_SIZE);
+        file.write_all(value)?;
+    }
+
+    // 3. Write footer (entry count)
+    let entry_count: u32 = entries.len().try_into().expect("Entry count overflow");
+    file.write_u32::<BE>(entry_count)?;
+
+    let meta = StaticSortedFileBuilderMeta {
+        min_hash,
+        max_hash,
+        amqf: Cow::Owned(Vec::new()), // No AMQF for direct-fixed format
+        key_compression_dictionary_length: 0, // No compression dictionary
+        block_count: 1,               // Indicates direct format (no actual blocks)
+        size: file.stream_position()?,
+        flags,
+        entries: entries.len() as u64,
+    };
+
+    Ok((meta, file.into_inner()?))
+}
+
+/// Writes a direct-key variable-value SST file for u32 keys.
+///
+/// This format is optimized for families with:
+/// - u32 keys (like TaskId) stored directly with rotation for sharding
+/// - Variable-size values (stored in separate compressed blocks)
+///
+/// File layout (separated keys and value locations for efficient binary search):
+/// ```text
+/// [value blocks (compressed)]
+/// [value block offsets: u32 × block_count]
+/// [key table: u32 × entry_count, sorted by rotated key]
+/// [value location index: 8 bytes × entry_count]
+/// [footer: u32 entry_count, u16 block_count]
+/// ```
+///
+/// Value location index entry format (8 bytes):
+/// - u16 block_index (0xFFFF = blob, 0xFFFE = deleted)
+/// - u16 value_size (0xFFFF = medium/whole block)
+/// - u32 offset_or_payload (offset for small, blob_seq for blob)
+///
+/// Lookup: binary search key table → use index to read value location → fetch value
+///
+/// Keys are stored rotated (rotate_right(2)) to handle TaskId sharding bits.
+pub fn write_direct_variable_sst(
+    entries: &[impl DirectVariableEntry],
+    file: &Path,
+    flags: MetaEntryFlags,
+) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
+    debug_assert!(
+        entries
+            .iter()
+            .map(|e| rotate_key(e.key()))
+            .is_sorted_by(|a, b| a.cmp(b) != std::cmp::Ordering::Greater)
+    );
+    debug_assert!(flags.uses_direct_keys());
+    debug_assert!(!flags.uses_fixed_values());
+    debug_assert_eq!(flags.key_size(), 4); // u32 = 4 bytes
+
+    let mut file = BufWriter::new(File::create(file)?);
+
+    let mut buffer = Vec::new();
+    let mut block_writer = BlockWriter::new(&mut file, &mut buffer);
+
+    let mut buffer = Vec::new();
+
+    // Compute min/max from rotated keys
+    let min_hash = entries
+        .first()
+        .map(|e| key_to_range_value(e.key()))
+        .unwrap_or(u64::MAX);
+    let max_hash = entries
+        .last()
+        .map(|e| key_to_range_value(e.key()))
+        .unwrap_or(0);
+
+    // 1. Write value blocks (compressed)
+    let value_locations = write_value_blocks_direct(entries, &mut block_writer, &mut buffer)
+        .context("Failed to write value blocks")?;
+
+    // 2. Write block offsets (u32 × block_count)
+    let block_count = block_writer.block_count();
+    for offset in &block_writer.block_offsets {
+        file.write_u32::<BE>(*offset)
+            .context("Failed to write block offset")?;
+    }
+
+    // 3. Write key table (4 bytes × N)
+    for entry in entries {
+        let rotated_key = rotate_key(entry.key());
+        file.write_u32::<BE>(rotated_key)?;
+    }
+
+    // 4. Write value location index (8 bytes × N)
+    for (i, entry) in entries.iter().enumerate() {
+        let (block_index, offset) = value_locations[i];
+        match entry.value() {
+            EntryValue::Small { value } => {
+                let value_size: u16 = value.len().try_into().expect("Value size overflow");
+                file.write_u16::<BE>(block_index)?; // block_index
+                file.write_u16::<BE>(value_size)?; // value_size
+                file.write_u32::<BE>(offset)?; // offset
+            }
+            EntryValue::Medium { .. } | EntryValue::MediumCompressed { .. } => {
+                file.write_u16::<BE>(block_index)?; // block_index
+                file.write_u16::<BE>(VALUE_LOC_MEDIUM_SENTINEL)?; // sentinel for medium
+                file.write_u32::<BE>(0)?; // unused
+            }
+            EntryValue::Large { blob } => {
+                file.write_u16::<BE>(VALUE_LOC_BLOB_SENTINEL)?; // sentinel for blob
+                file.write_u16::<BE>(0)?; // unused
+                file.write_u32::<BE>(blob)?; // blob sequence number
+            }
+            EntryValue::Deleted => {
+                file.write_u16::<BE>(VALUE_LOC_DELETED_SENTINEL)?; // sentinel for deleted
+                file.write_u16::<BE>(0)?; // unused
+                file.write_u32::<BE>(0)?; // unused
+            }
+        }
+    }
+
+    // 5. Write footer (entry_count u32, block_count u16)
+    let entry_count: u32 = entries.len().try_into().expect("Entry count overflow");
+    file.write_u32::<BE>(entry_count)?;
+    file.write_u16::<BE>(block_count)?;
+
+    let meta = StaticSortedFileBuilderMeta {
+        min_hash,
+        max_hash,
+        amqf: Cow::Owned(Vec::new()), // No AMQF for direct-variable (use range checks)
+        key_compression_dictionary_length: 0, // No compression dictionary
+        block_count,
+        size: file.stream_position()?,
+        flags,
+        entries: entries.len() as u64,
+    };
+
+    Ok((meta, file.into_inner()?))
+}
+
+/// Sentinel value for blob entries in value location index
+const VALUE_LOC_BLOB_SENTINEL: u16 = 0xFFFF;
+/// Sentinel value for deleted entries in value location index
+const VALUE_LOC_DELETED_SENTINEL: u16 = 0xFFFE;
+/// Sentinel value for medium entries in value location index (whole block is value)
+const VALUE_LOC_MEDIUM_SENTINEL: u16 = 0xFFFF;
+
+/// Writes value blocks for direct-key entries.
+#[tracing::instrument(level = "trace", skip_all)]
+fn write_value_blocks_direct(
+    entries: &[impl DirectVariableEntry],
+    writer: &mut BlockWriter<'_>,
+    buffer: &mut Vec<u8>,
+) -> Result<Vec<(u16, u32)>> {
+    let mut value_locations: Vec<(u16, u32)> = Vec::with_capacity(entries.len());
+
+    let mut current_block_start = 0;
+    let mut current_block_count = 0;
+    let mut current_block_size = 0;
+    for (i, entry) in entries.iter().enumerate() {
+        match entry.value() {
+            EntryValue::Small { value } => {
+                if current_block_size + value.len() > MAX_SMALL_VALUE_BLOCK_SIZE
+                    || current_block_count + 1 >= MAX_SMALL_VALUE_BLOCK_ENTRIES
+                {
+                    let block_index = writer.next_block_index();
+                    buffer.reserve(current_block_size);
+                    for j in current_block_start..i {
+                        if let EntryValue::Small { value } = &entries[j].value() {
+                            buffer.extend_from_slice(value);
+                            value_locations[j].0 = block_index;
+                        }
+                    }
+                    writer.write_small_value_block(buffer)?;
+                    buffer.clear();
+                    current_block_start = i;
+                    current_block_size = 0;
+                    current_block_count = 0;
+                }
+                value_locations.push((0, current_block_size.try_into().unwrap()));
+                current_block_size += value.len();
+                current_block_count += 1;
+            }
+            EntryValue::Medium { value } => {
+                let block_index = writer.next_block_index();
+                value_locations.push((block_index, 0));
+                writer.write_value_block(value)?;
+            }
+            EntryValue::MediumCompressed {
+                uncompressed_size,
+                block,
+            } => {
+                let block_index = writer.next_block_index();
+                value_locations.push((block_index, 0));
+                writer.write_compressed_block(uncompressed_size, block)?;
+            }
+            EntryValue::Deleted | EntryValue::Large { .. } => {
+                value_locations.push((0, 0));
+            }
+        }
+    }
+    if current_block_count > 0 {
+        let block_index = writer.next_block_index();
+        buffer.reserve(current_block_size);
+        for j in current_block_start..entries.len() {
+            if let EntryValue::Small { value } = &entries[j].value() {
+                buffer.extend_from_slice(value);
+                value_locations[j].0 = block_index;
+            }
+        }
+        writer.write_small_value_block(buffer)?;
+        buffer.clear();
+    }
+
+    Ok(value_locations)
 }

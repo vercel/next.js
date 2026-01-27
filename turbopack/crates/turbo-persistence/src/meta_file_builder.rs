@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
 use qfilter::Filter;
 
-use crate::static_sorted_file_builder::StaticSortedFileBuilderMeta;
+use crate::{meta_file::MetaFileFormat, static_sorted_file_builder::StaticSortedFileBuilderMeta};
 
 pub struct MetaFileBuilder<'a> {
     family: u32,
@@ -54,6 +54,24 @@ impl<'a> MetaFileBuilder<'a> {
         file.write_u32::<BE>(0xFE4ADA4A)?; // Magic number
         file.write_u32::<BE>(self.family)?;
 
+        // Determine format type from first entry's flags
+        let format = if let Some((_, first_entry)) = self.entries.first() {
+            if first_entry.flags.uses_direct_keys() {
+                if first_entry.flags.uses_fixed_values() {
+                    MetaFileFormat::DirectFixed
+                } else {
+                    MetaFileFormat::DirectVariable
+                }
+            } else {
+                MetaFileFormat::Hashed
+            }
+        } else {
+            MetaFileFormat::Hashed // Default for empty meta files
+        };
+
+        // Write format byte
+        file.write_u8(format as u8)?;
+
         self.obsolete_sst_files.sort();
         file.write_u32::<BE>(self.obsolete_sst_files.len() as u32)?;
         for obsolete_sst in &self.obsolete_sst_files {
@@ -62,6 +80,22 @@ impl<'a> MetaFileBuilder<'a> {
 
         file.write_u32::<BE>(self.entries.len() as u32)?;
 
+        match format {
+            MetaFileFormat::Hashed => {
+                self.write_hashed_entries(&mut file)?;
+            }
+            MetaFileFormat::DirectFixed => {
+                self.write_direct_fixed_entries(&mut file)?;
+            }
+            MetaFileFormat::DirectVariable => {
+                self.write_direct_variable_entries(&mut file)?;
+            }
+        }
+
+        Ok(file.into_inner()?)
+    }
+
+    fn write_hashed_entries(self, file: &mut BufWriter<File>) -> io::Result<()> {
         let mut amqf_offset = 0;
         for (sequence_number, sst) in &self.entries {
             file.write_u32::<BE>(*sequence_number)?;
@@ -90,6 +124,40 @@ impl<'a> MetaFileBuilder<'a> {
         if let Some(bytes) = &serialized_used_key_hashes {
             file.write_all(bytes)?;
         }
-        Ok(file.into_inner()?)
+        Ok(())
+    }
+
+    fn write_direct_fixed_entries(&self, file: &mut BufWriter<File>) -> io::Result<()> {
+        // Direct-fixed format: no AMQF, no compression dictionary
+        // Entry: seq_num(4) + min_key(4) + max_key(4) + size(8) + flags(4) = 24 bytes
+        for (sequence_number, sst) in &self.entries {
+            file.write_u32::<BE>(*sequence_number)?;
+            // Extract u32 key from the range value (stored in high 32 bits of u64)
+            let min_key = (sst.min_hash >> 32) as u32;
+            let max_key = (sst.max_hash >> 32) as u32;
+            file.write_u32::<BE>(min_key)?;
+            file.write_u32::<BE>(max_key)?;
+            file.write_u64::<BE>(sst.size)?;
+            file.write_u32::<BE>(sst.flags.0)?;
+        }
+        Ok(())
+    }
+
+    fn write_direct_variable_entries(&self, file: &mut BufWriter<File>) -> io::Result<()> {
+        // Direct-variable format: no AMQF, no compression dictionary, but has block_count
+        // Entry: seq_num(4) + min_key(4) + max_key(4) + size(8) + block_count(2) + flags(4) = 26
+        // bytes
+        for (sequence_number, sst) in &self.entries {
+            file.write_u32::<BE>(*sequence_number)?;
+            // Extract u32 key from the range value (stored in high 32 bits of u64)
+            let min_key = (sst.min_hash >> 32) as u32;
+            let max_key = (sst.max_hash >> 32) as u32;
+            file.write_u32::<BE>(min_key)?;
+            file.write_u32::<BE>(max_key)?;
+            file.write_u64::<BE>(sst.size)?;
+            file.write_u16::<BE>(sst.block_count)?;
+            file.write_u32::<BE>(sst.flags.0)?;
+        }
+        Ok(())
     }
 }
