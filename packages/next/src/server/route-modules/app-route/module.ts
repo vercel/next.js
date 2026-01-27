@@ -703,7 +703,10 @@ export class AppRouteRouteModule extends RouteModule<
     const staticGenerationContext: WorkStoreContext = {
       page: this.definition.page,
       renderOpts: context.renderOpts,
-      buildId: context.sharedContext.deploymentId,
+      buildId:
+        context.sharedContext.deploymentId ||
+        context.sharedContext.buildId ||
+        '',
       previouslyRevalidatedTags: [],
     }
 
