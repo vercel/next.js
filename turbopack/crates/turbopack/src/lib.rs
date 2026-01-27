@@ -24,7 +24,7 @@ use turbopack_core::{
     chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
-    ident::Layer,
+    ident::{AssetIdent, Layer},
     issue::{IssueExt, IssueSource, module::ModuleIssue},
     module::{Module, ModuleSideEffects},
     node_addon_module::NodeAddonModule,
@@ -43,7 +43,8 @@ use turbopack_core::{
 };
 use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_ecmascript::{
-    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
+    AnalyzeMode, EcmascriptInputTransform, EcmascriptModuleAsset, EcmascriptModuleAssetType,
+    TreeShakingMode,
     chunk::EcmascriptChunkPlaceable,
     inlined_bytes_module::InlinedBytesJsModule,
     references::{
@@ -506,6 +507,157 @@ async fn process_default(
     .await
 }
 
+/// Apply collected transforms to a module type.
+/// For Ecmascript/Typescript variants: merge collected transforms into the module type.
+/// For Custom: call extend_ecmascript_transforms() if any transforms exist.
+/// For non-ecmascript types: warn if transforms exist, return unchanged.
+async fn apply_module_rule_transforms(
+    module_type: &mut ModuleType,
+    collected_preprocess: &mut Vec<EcmascriptInputTransform>,
+    collected_main: &mut Vec<EcmascriptInputTransform>,
+    collected_postprocess: &mut Vec<EcmascriptInputTransform>,
+    ident: ResolvedVc<AssetIdent>,
+    current_source: ResolvedVc<Box<dyn Source>>,
+) -> Result<()> {
+    let has_transforms = !collected_preprocess.is_empty()
+        || !collected_main.is_empty()
+        || !collected_postprocess.is_empty();
+
+    // If no transforms were collected, return early
+    if !has_transforms {
+        return Ok(());
+    }
+
+    match module_type {
+        ModuleType::Ecmascript {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        } => {
+            // Prepend collected preprocess/main, append collected postprocess
+            let mut final_preprocess = std::mem::take(collected_preprocess);
+            final_preprocess.extend(preprocess.owned().await?);
+            *preprocess = ResolvedVc::cell(final_preprocess);
+
+            let mut final_main = std::mem::take(collected_main);
+            final_main.extend(main.owned().await?);
+            *main = ResolvedVc::cell(final_main);
+
+            let mut final_postprocess = postprocess.owned().await?;
+            final_postprocess.extend(std::mem::take(collected_postprocess));
+            *postprocess = ResolvedVc::cell(final_postprocess);
+        }
+        ModuleType::Typescript {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        } => {
+            let mut final_preprocess = std::mem::take(collected_preprocess);
+            final_preprocess.extend(preprocess.owned().await?);
+            *preprocess = ResolvedVc::cell(final_preprocess);
+
+            let mut final_main = std::mem::take(collected_main);
+            final_main.extend(main.owned().await?);
+            *main = ResolvedVc::cell(final_main);
+
+            let mut final_postprocess = postprocess.owned().await?;
+            final_postprocess.extend(std::mem::take(collected_postprocess));
+            *postprocess = ResolvedVc::cell(final_postprocess);
+        }
+        ModuleType::TypescriptDeclaration {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        } => {
+            let mut final_preprocess = std::mem::take(collected_preprocess);
+            final_preprocess.extend(preprocess.owned().await?);
+            *preprocess = ResolvedVc::cell(final_preprocess);
+
+            let mut final_main = std::mem::take(collected_main);
+            final_main.extend(main.owned().await?);
+            *main = ResolvedVc::cell(final_main);
+
+            let mut final_postprocess = postprocess.owned().await?;
+            final_postprocess.extend(std::mem::take(collected_postprocess));
+            *postprocess = ResolvedVc::cell(final_postprocess);
+        }
+        ModuleType::EcmascriptExtensionless {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        } => {
+            let mut final_preprocess = std::mem::take(collected_preprocess);
+            final_preprocess.extend(preprocess.owned().await?);
+            *preprocess = ResolvedVc::cell(final_preprocess);
+
+            let mut final_main = std::mem::take(collected_main);
+            final_main.extend(main.owned().await?);
+            *main = ResolvedVc::cell(final_main);
+
+            let mut final_postprocess = postprocess.owned().await?;
+            final_postprocess.extend(std::mem::take(collected_postprocess));
+            *postprocess = ResolvedVc::cell(final_postprocess);
+        }
+        ModuleType::Custom(custom_module_type) => {
+            if has_transforms {
+                match custom_module_type
+                    .extend_ecmascript_transforms(
+                        Vc::cell(std::mem::take(collected_preprocess)),
+                        Vc::cell(std::mem::take(collected_main)),
+                        Vc::cell(std::mem::take(collected_postprocess)),
+                    )
+                    .to_resolved()
+                    .await
+                {
+                    Ok(new_custom_module_type) => {
+                        *custom_module_type = new_custom_module_type;
+                    }
+                    Err(_) => {
+                        ModuleIssue::new(
+                            *ident,
+                            rcstr!("Invalid module type"),
+                            rcstr!(
+                                "The custom module type didn't accept the additional Ecmascript \
+                                 transforms"
+                            ),
+                            Some(IssueSource::from_source_only(current_source)),
+                        )
+                        .to_resolved()
+                        .await?
+                        .emit();
+                    }
+                }
+            }
+        }
+        other => {
+            if has_transforms {
+                ModuleIssue::new(
+                    *ident,
+                    rcstr!("Invalid module type"),
+                    format!(
+                        "The module type must be Ecmascript or Typescript to add Ecmascript \
+                         transforms (got {})",
+                        other
+                    )
+                    .into(),
+                    Some(IssueSource::from_source_only(current_source)),
+                )
+                .to_resolved()
+                .await?
+                .emit();
+                collected_preprocess.clear();
+                collected_main.clear();
+                collected_postprocess.clear();
+            }
+        }
+    }
+    Ok(())
+}
+
 async fn process_default_internal(
     module_asset_context: Vc<ModuleAssetContext>,
     source: ResolvedVc<Box<dyn Source>>,
@@ -533,8 +685,14 @@ async fn process_default_internal(
     let mut current_source = source;
     let mut current_module_type = None;
 
+    // Collect transforms from ExtendEcmascriptTransforms effects.
+    // They will be applied when ModuleType is set.
+    let mut collected_preprocess: Vec<EcmascriptInputTransform> = Vec::new();
+    let mut collected_main: Vec<EcmascriptInputTransform> = Vec::new();
+    let mut collected_postprocess: Vec<EcmascriptInputTransform> = Vec::new();
+
     let options_value = options.await?;
-    for (i, rule) in options_value.rules.iter().enumerate() {
+    'outer: for (i, rule) in options_value.rules.iter().enumerate() {
         if processed_rules.contains(&i) {
             continue;
         }
@@ -575,117 +733,41 @@ async fn process_default_internal(
                         }
                     }
                     ModuleRuleEffect::ModuleType(module) => {
-                        current_module_type = Some(module.clone());
+                        // Apply any collected transforms to this module type.
+                        // This clears the collected transform lists.
+                        // If another ModuleType is encountered later, it will override
+                        // with any transforms collected since this point.
+                        let mut module = module.clone();
+                        apply_module_rule_transforms(
+                            &mut module,
+                            &mut collected_preprocess,
+                            &mut collected_main,
+                            &mut collected_postprocess,
+                            ident,
+                            current_source,
+                        )
+                        .await?;
+                        current_module_type = Some(module);
+                        break 'outer;
                     }
                     ModuleRuleEffect::ExtendEcmascriptTransforms {
                         preprocess: extend_preprocess,
                         main: extend_main,
                         postprocess: extend_postprocess,
                     } => {
-                        current_module_type = match current_module_type {
-                            Some(ModuleType::Ecmascript {
-                                preprocess,
-                                main,
-                                postprocess,
-                                options,
-                            }) => Some(ModuleType::Ecmascript {
-                                preprocess: extend_preprocess
-                                    .extend(*preprocess)
-                                    .to_resolved()
-                                    .await?,
-                                main: extend_main.extend(*main).to_resolved().await?,
-                                postprocess: postprocess
-                                    .extend(**extend_postprocess)
-                                    .to_resolved()
-                                    .await?,
-                                options,
-                            }),
-                            Some(ModuleType::Typescript {
-                                preprocess,
-                                main,
-                                postprocess,
-                                tsx,
-                                analyze_types,
-                                options,
-                            }) => Some(ModuleType::Typescript {
-                                preprocess: extend_preprocess
-                                    .extend(*preprocess)
-                                    .to_resolved()
-                                    .await?,
-                                main: extend_main.extend(*main).to_resolved().await?,
-                                postprocess: postprocess
-                                    .extend(**extend_postprocess)
-                                    .to_resolved()
-                                    .await?,
-                                tsx,
-                                analyze_types,
-                                options,
-                            }),
-                            Some(ModuleType::Custom(custom_module_type)) => {
-                                match custom_module_type
-                                    .extend_ecmascript_transforms(
-                                        **extend_preprocess,
-                                        **extend_main,
-                                        **extend_postprocess,
-                                    )
-                                    .to_resolved()
-                                    .await
-                                {
-                                    Ok(custom_module_type) => {
-                                        Some(ModuleType::Custom(custom_module_type))
-                                    }
-                                    // TODO ideally this would print the actual error message
-                                    // returned by the CustomModuleType
-                                    Err(_) => {
-                                        ModuleIssue::new(
-                                            *ident,
-                                            rcstr!("Invalid module type"),
-                                            rcstr!(
-                                                "The custom module type didn't accept the \
-                                                 additional Ecmascript transforms"
-                                            ),
-                                            Some(IssueSource::from_source_only(current_source)),
-                                        )
-                                        .to_resolved()
-                                        .await?
-                                        .emit();
-                                        Some(ModuleType::Custom(custom_module_type))
-                                    }
-                                }
-                            }
-                            Some(module_type) => {
-                                ModuleIssue::new(
-                                    *ident,
-                                    rcstr!("Invalid module type"),
-                                    format!(
-                                        "The module type must be Ecmascript or Typescript to add \
-                                         Ecmascript transforms (got {})",
-                                        module_type
-                                    )
-                                    .into(),
-                                    Some(IssueSource::from_source_only(current_source)),
-                                )
-                                .to_resolved()
-                                .await?
-                                .emit();
-                                Some(module_type)
-                            }
-                            None => {
-                                ModuleIssue::new(
-                                    *ident,
-                                    rcstr!("Missing module type"),
-                                    rcstr!(
-                                        "The module type effect must be applied before adding \
-                                         Ecmascript transforms"
-                                    ),
-                                    Some(IssueSource::from_source_only(current_source)),
-                                )
-                                .to_resolved()
-                                .await?
-                                .emit();
-                                None
-                            }
-                        };
+                        // Collect transforms. They will be applied when ModuleType is set.
+                        // Prepend preprocess (new transforms run first)
+                        let mut new_preprocess = extend_preprocess.owned().await?;
+                        new_preprocess.append(&mut collected_preprocess);
+                        collected_preprocess = new_preprocess;
+
+                        // Prepend main (new transforms run first)
+                        let mut new_main = extend_main.owned().await?;
+                        new_main.append(&mut collected_main);
+                        collected_main = new_main;
+
+                        // Append postprocess (new transforms run last)
+                        collected_postprocess.extend(extend_postprocess.owned().await?);
                     }
                 }
             }
