@@ -2,7 +2,7 @@ const { execSync } = require('child_process')
 const fs = require('fs/promises')
 const path = require('path')
 
-const OUTPUT_DIR = path.join(__dirname, 'ci-failures')
+const OUTPUT_DIR = path.join(__dirname, 'pr-status')
 
 // ============================================================================
 // Helper Functions
