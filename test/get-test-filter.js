@@ -80,7 +80,13 @@ function getTestFilter() {
       tests
         .filter((test) => {
           // Check to see if this was included as-is in the manifest.
-          if (test.file in manifest.suites) return true
+          if (test.file in manifest.suites) {
+            // When merging multiple manifests, a test file may be included in
+            // the suites by one manifest, but excluded in the rules by another.
+            // If it's excluded by filename (and not by pattern), the exclusion
+            // takes precedence over the inclusion.
+            return !manifest.rules.exclude?.includes(test.file)
+          }
 
           // If this file doesn't match any of the include patterns, then it
           // should be excluded.
