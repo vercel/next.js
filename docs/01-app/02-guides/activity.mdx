@@ -1,0 +1,754 @@
+---
+title: How to work with the Activity component
+nav_title: Activity
+description: Learn how Activity preserves React and DOM state across hide/show cycles, and how to handle patterns that behave differently when components stay mounted.
+related:
+  title: Related
+  description: Activity works with Cache Components to enable instant navigation with preserved state.
+  links:
+    - app/getting-started/cache-components
+    - app/api-reference/config/next-config-js/cacheComponents
+---
+
+## Background
+
+React 19.2 introduced the [`Activity`](https://react.dev/reference/react/Activity) component - a powerful primitive that allows developers to persist DOM elements and React state while visually hiding parts of the UI.
+
+> **Good to know:** Activity in the App Router is available in **Next.js 16** and later, which includes React 19.2. See [Installation](/docs/app/getting-started/installation) for details on how Next.js manages React versions.
+
+## How Activity works
+
+Activity acts as a boundary, with two modes, `hidden` or `visible` (default). When set to `mode="hidden"`, it:
+
+- Applies `display: none` to all children (DOM remains in the document)
+- **Cleans up Effects** (runs cleanup functions)
+- **Runs ref cleanup functions** (callback refs that return a cleanup function)
+- Preserves React state and memoized values
+- Re-renders in response to new props or context at **lower priority**
+- **Skipped during SSR** - hidden content is not in the initial HTML payload, but React renders it client-side and adds it to the DOM
+
+When the boundary becomes `mode="visible"` again, React reveals the children with their previous state restored and re-creates their Effects.
+
+```tsx
+'use client'
+
+import { Activity, useState } from 'react'
+
+function Dashboard() {
+  const [isVisible, setIsVisible] = useState(true)
+  const toggleSidebar = () => setIsVisible((state) => !state)
+
+  return (
+    <>
+      <Activity mode={isVisible ? 'visible' : 'hidden'}>
+        <Sidebar />
+      </Activity>
+      <Charts toggleSidebar={toggleSidebar} />
+    </>
+  )
+}
+```
+
+When `isVisible` is `false`, the `Sidebar` is hidden but its DOM and React state remain intact. It still re-renders in response to new props or context changes, but at a lower priority than visible content. Toggling it back to `true` instantly reveals the sidebar in its previous state - scroll position, expanded sections, and any other internal state are all preserved.
+
+### Why use Activity over a custom wrapper
+
+You might wonder why not just wrap content in a `<div style={{ display: 'none' }}>`. Activity provides several advantages:
+
+- **No extra DOM element**: A wrapper div can break valid HTML (e.g., inside `<ul>`), CSS layouts, and accessibility tooling
+- **Effect lifecycle management**: React knows to clean up and restore Effects appropriately
+- **Portals are also hidden**: Content rendered via portals (modals, tooltips) is correctly hidden along with the Activity
+- **Selective Hydration**: Activity boundaries participate in React's hydration optimization
+- **Future modes**: The API is designed to support additional modes beyond visible/hidden
+
+## Persisting state
+
+### DOM-managed state
+
+Many HTML elements manage their own internal state: `<input>` and `<textarea>` values, `<details>` open/closed state, scroll position, video playback timecode, etc.
+
+Consider a filters panel with expandable sections:
+
+```tsx
+'use client'
+
+function FiltersPanel() {
+  return (
+    <aside>
+      <details>
+        <summary>Price Range</summary>
+        <input type="range" min="0" max="1000" />
+      </details>
+
+      <details open>
+        <summary>Categories</summary>
+        <input type="text" placeholder="Search categories..." />
+        {/* ... checkbox list */}
+      </details>
+    </aside>
+  )
+}
+```
+
+The `<details>` elements track their open/closed state, and the inputs hold user values. Now imagine a parent component that toggles the panel visibility:
+
+```tsx
+'use client'
+
+import { useReducer } from 'react'
+
+function ProductPage() {
+  const [showFilters, toggle] = useReducer((x: boolean) => !x, true)
+
+  return (
+    <>
+      <button onClick={toggle}>Toggle Filters</button>
+      {showFilters && <FiltersPanel />}
+    </>
+  )
+}
+```
+
+When `showFilters` becomes `false`, the panel unmounts and all DOM state is lost - which `<details>` were expanded, what the user typed, slider positions. With Activity, the DOM persists:
+
+```tsx
+'use client'
+
+import { Activity, useReducer } from 'react'
+
+function ProductPage() {
+  const [showFilters, toggle] = useReducer((x: boolean) => !x, true)
+
+  return (
+    <>
+      <button onClick={toggle}>Toggle Filters</button>
+      <Activity mode={showFilters ? 'visible' : 'hidden'}>
+        <FiltersPanel />
+      </Activity>
+    </>
+  )
+}
+```
+
+Now toggling the filters preserves everything - expanded sections, input values, scroll position.
+
+### React-managed state
+
+Without Activity, preserving state across hide/show cycles requires:
+
+- **Lifting state up**: Moving state to a parent component that doesn't unmount
+- **External stores**: Using context, Zustand, Redux, etc.
+
+For DOM-managed state, you'd also need to explicitly control and sync it:
+
+- Convert `<details>` to controlled with the `open` prop
+- Track scroll position and restore it on remount
+- Use controlled inputs for all form fields
+
+This quickly adds up to significant boilerplate. Activity lets you keep state local to the component - both React state and DOM state - without any of this synchronization work.
+
+## Patterns with Activity
+
+### Avoiding state lift
+
+Without Activity, to persist state across hide/show cycles, you must lift it to a parent that won't unmount:
+
+```tsx
+'use client'
+
+import { useState } from 'react'
+
+// Before: State lifted to parent
+function Parent() {
+  const [showEditor, setShowEditor] = useState(true)
+  // State hoisted here to survive Editor unmounting
+  const [draft, setDraft] = useState('')
+  const [cursorPosition, setCursorPosition] = useState(0)
+
+  return (
+    <>
+      <button onClick={() => setShowEditor((s) => !s)}>Toggle Editor</button>
+      {showEditor && (
+        <Editor
+          draft={draft}
+          onDraftChange={setDraft}
+          cursorPosition={cursorPosition}
+          onCursorChange={setCursorPosition}
+        />
+      )}
+    </>
+  )
+}
+```
+
+The `Editor` can't own its own state - it would be destroyed on hide. With Activity, state stays local:
+
+```tsx
+'use client'
+
+import { Activity, useState } from 'react'
+
+// After: State stays in Editor
+function Parent() {
+  const [showEditor, setShowEditor] = useState(true)
+
+  return (
+    <>
+      <button onClick={() => setShowEditor((s) => !s)}>Toggle Editor</button>
+      <Activity mode={showEditor ? 'visible' : 'hidden'}>
+        <Editor />
+      </Activity>
+    </>
+  )
+}
+
+function Editor() {
+  // State lives here - survives hide/show cycles
+  const [draft, setDraft] = useState('')
+  const [cursorPosition, setCursorPosition] = useState(0)
+
+  return <textarea value={draft} onChange={(e) => setDraft(e.target.value)} />
+}
+```
+
+The parent no longer needs to know about the editor's internal state. This keeps components encapsulated and reduces prop drilling.
+
+### Tabs and navigation
+
+A common pattern is offering multiple views of the same data - for example, a list view and a table view. Each view may have its own scroll position, sort order, or selected items.
+
+```tsx
+'use client'
+
+import { Activity, useState } from 'react'
+
+function DataViewer({ data }: { data: DataItem[] }) {
+  const [view, setView] = useState<'list' | 'table'>('list')
+
+  return (
+    <>
+      <div>
+        <button onClick={() => setView('list')}>List View</button>
+        <button onClick={() => setView('table')}>Table View</button>
+      </div>
+
+      <Activity mode={view === 'list' ? 'visible' : 'hidden'}>
+        <ListView data={data} />
+      </Activity>
+      <Activity mode={view === 'table' ? 'visible' : 'hidden'}>
+        <TableView data={data} />
+      </Activity>
+    </>
+  )
+}
+```
+
+Both views render and stay up to date with `data`. When you switch views:
+
+- Scroll position in each view is preserved
+- Sort order or column widths in `TableView` persist
+- Selected items in `ListView` remain selected
+
+Without Activity, switching views would unmount one and mount the other, losing all that state. For expensive component trees, this also means re-running all that rendering work on every switch - rebuilding memoized values, re-triggering data fetches, etc. With Activity, the component stays mounted and only re-renders when props or context actually change, not on every toggle.
+
+This pattern extends naturally to route-level navigation. With Cache Components, Next.js uses Activity to preserve route states - when you navigate away and back, the previous route's ephemeral state (scroll position, form inputs, expanded sections) can be restored rather than reset. See [Working with Cache Components](#working-with-cache-components) for more details.
+
+### Prerendering hidden content
+
+Activity can prerender content the user hasn't seen yet. Hidden boundaries render at lower priority. Combined with Suspense, this lets you prefetch data for content the user is likely to view next.
+
+```tsx filename="app/page.tsx"
+import { Suspense } from 'react'
+import { ExpandableComments } from './expandable-comments'
+
+async function getCommentsData() {
+  return db.comments.findMany()
+}
+
+export default function Page() {
+  const commentsPromise = getCommentsData()
+
+  return (
+    <article>
+      <h1>Post Title</h1>
+      <p>Main content visible immediately...</p>
+
+      <ExpandableComments commentsPromise={commentsPromise} />
+    </article>
+  )
+}
+```
+
+```tsx filename="app/expandable-comments.tsx"
+'use client'
+
+import { Activity, Suspense, useState, use } from 'react'
+
+type Comment = { id: string; text: string; author: string }
+
+export function ExpandableComments({
+  commentsPromise,
+}: {
+  commentsPromise: Promise<Comment[]>
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <>
+      <button onClick={() => setExpanded(true)}>Show Comments</button>
+
+      <Activity mode={expanded ? 'visible' : 'hidden'}>
+        <Suspense fallback={<CommentsSkeleton />}>
+          <Comments commentsPromise={commentsPromise} />
+        </Suspense>
+      </Activity>
+    </>
+  )
+}
+
+function Comments({
+  commentsPromise,
+}: {
+  commentsPromise: Promise<Comment[]>
+}) {
+  const comments = use(commentsPromise)
+  return <CommentsList comments={comments} />
+}
+```
+
+The Server Component starts fetching comments immediately and passes the promise down. While hidden, the data streams at lower priority. When the user clicks "Show Comments", the `Comments` component resolves the promise with `use()` and the content appears instantly.
+
+### Resetting state
+
+Since Activity preserves state, you need to explicitly reset it when appropriate. Previously, conditional rendering (`{show && <Form />}`) or unmounting would reset state automatically. With Activity, you choose when to reset.
+
+**Option 1: Reset immediately**
+
+The simplest approach - reset state directly in an event handler:
+
+```tsx
+'use client'
+
+import { useState } from 'react'
+
+function ContactForm() {
+  const [message, setMessage] = useState('')
+
+  async function handleSubmit(formData: FormData) {
+    await sendMessage(formData)
+    setMessage('') // Reset immediately after submission
+  }
+
+  return (
+    <form action={handleSubmit}>
+      <textarea
+        name="message"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+      />
+      <button type="submit">Send</button>
+    </form>
+  )
+}
+```
+
+**Option 2: Reset when hidden**
+
+Use Effect cleanup to reset state when Activity hides the component. This lets you show a success message until the component is hidden:
+
+```tsx
+'use client'
+
+import { useState, useRef, useEffect, useTransition } from 'react'
+
+function NewsletterForm() {
+  const [didSubmit, setDidSubmit] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const shouldResetRef = useRef(false)
+
+  useEffect(() => {
+    return () => {
+      if (shouldResetRef.current) {
+        setDidSubmit(false)
+      }
+    }
+  }, [])
+
+  return (
+    <div>
+      {!didSubmit ? (
+        <>
+          <p>Sign up for my newsletter:</p>
+          <form
+            action={(formData) => {
+              startTransition(async () => {
+                shouldResetRef.current = true
+                setDidSubmit(true)
+                await signUp(formData)
+              })
+            }}
+          >
+            <input type="email" name="email" placeholder="Email" />
+            <button type="submit" disabled={isPending}>
+              {isPending ? 'Signing up...' : 'Sign up'}
+            </button>
+          </form>
+        </>
+      ) : (
+        <p>Thanks for signing up!</p>
+      )}
+    </div>
+  )
+}
+```
+
+On submission, set `shouldResetRef.current = true` and show the success message. When Activity hides the component, the Effect cleanup runs and resets `didSubmit`. Next time the component becomes visible, the form is ready for a new submission.
+
+> **Good to know:** If your components add global styles (like `overflow-hidden` on `<body>` for modals), ensure your Effects have proper cleanup functions. With Activity, these cleanups run when hidden - just as they would on unmount.
+
+**Option 3: Reset with a key**
+
+You can't always control whether an Activity boundary exists above your component - a parent, layout, or framework might wrap your content in Activity. If your component relied on unmounting to reset state, you can force a reset by changing its `key`. React treats a new key as an entirely new element, discarding the old subtree and mounting a fresh instance:
+
+```tsx
+'use client'
+
+import { useState } from 'react'
+
+function ResettableForm() {
+  const [formKey, setFormKey] = useState(0)
+
+  return (
+    <>
+      <button onClick={() => setFormKey((k) => k + 1)}>Reset Form</button>
+      <ContactForm key={formKey} />
+    </>
+  )
+}
+```
+
+When `formKey` changes, React discards the entire `ContactForm` subtree - all React state, DOM state, and child components are reset.
+
+Use this sparingly while adopting proper cleanup patterns (Options 1 and 2). Key-based resets defeat Activity's preservation benefits and should be a temporary measure, not a general-purpose solution.
+
+### Patterns that behave differently with Activity
+
+Some UI patterns rely on component unmounting to reset state. With Activity, components stay mounted when hidden - whether that's tabs switching, panels collapsing, or routes changing. These patterns need adjustment. Here are common cases and how to handle them.
+
+#### Dropdown stays open when panel is hidden
+
+Consider a dashboard with collapsible panels, each wrapped in Activity:
+
+```tsx
+'use client'
+
+import { Activity, useState } from 'react'
+
+export default function Dashboard() {
+  const [showSettings, setShowSettings] = useState(true)
+
+  return (
+    <>
+      <button onClick={() => setShowSettings((s) => !s)}>
+        Toggle Settings
+      </button>
+      <Activity mode={showSettings ? 'visible' : 'hidden'}>
+        <SettingsPanel />
+      </Activity>
+    </>
+  )
+}
+```
+
+Inside `SettingsPanel`, there is a dropdown menu component. If a user opens the dropdown, collapses the panel, then expands it again, the dropdown remains open. Activity preserved the component state, including `isOpen: true`.
+
+**Solution: Reset state when hidden**
+
+Use Effect cleanup to close the dropdown when Activity hides the component:
+
+```tsx highlight={8-13}
+'use client'
+
+import { useState, useLayoutEffect } from 'react'
+
+function SettingsDropdown() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  // Close dropdown when this component becomes hidden
+  useLayoutEffect(() => {
+    return () => {
+      setIsOpen(false)
+    }
+  }, [])
+
+  return (
+    <div>
+      <button onClick={() => setIsOpen((o) => !o)}>Options</button>
+      {isOpen && (
+        <ul>
+          <li>
+            <button>Edit Profile</button>
+          </li>
+          <li>
+            <button>Change Password</button>
+          </li>
+        </ul>
+      )}
+    </div>
+  )
+}
+```
+
+When Activity hides this component, the cleanup function runs and resets `isOpen`. When the panel becomes visible again, the dropdown is closed. Using `useLayoutEffect` ensures the cleanup runs synchronously before the component is hidden, avoiding any flash of stale state.
+
+This same pattern applies to navigation with [Cache Components](#working-with-cache-components) - routes are wrapped in Activity, so dropdowns on a page persist when you navigate away and back. You can also use `Link`'s `onNavigate` callback to close dropdowns immediately when a navigation link is clicked.
+
+#### Dialog doesn't re-run initialization logic
+
+Consider a tabbed interface where each tab's content is wrapped in Activity. One tab contains a dialog that focuses its first input when opened:
+
+```tsx
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+
+function ProductTab() {
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isDialogOpen) {
+      inputRef.current?.focus()
+    }
+  }, [isDialogOpen])
+
+  // ...
+}
+```
+
+A user opens the dialog (input gets focused), closes it, switches to another tab, switches back, and opens the dialog again. This time the input doesn't get focused.
+
+The issue is subtle: if the dialog was closed before switching tabs, the state is `false`. Returning and opening it sets `isDialogOpen` to `true`, triggering the Effect as expected. However, if the user switched tabs _while the dialog was open_, Activity preserved `isDialogOpen: true`. Opening the dialog again sets it to `true` when it's already `true`. No state change means the Effect doesn't re-run.
+
+**Solution: Derive dialog state from something that resets**
+
+Make the open/closed state derive from something outside the preserved component state - like a search param:
+
+```tsx highlight={3,7-9,20,25}
+'use client'
+
+import { useSearchParams, useRouter } from 'next/navigation'
+import { useEffect, useRef } from 'react'
+
+function ProductTab() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const isDialogOpen = searchParams.get('edit') === 'true'
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isDialogOpen) {
+      inputRef.current?.focus()
+    }
+  }, [isDialogOpen])
+
+  return (
+    <div>
+      <button onClick={() => router.push('?edit=true')}>Edit Product</button>
+
+      {isDialogOpen && (
+        <dialog open>
+          <input ref={inputRef} placeholder="Product name" />
+          <button onClick={() => router.replace('?', { scroll: false })}>
+            Close
+          </button>
+        </dialog>
+      )}
+    </div>
+  )
+}
+```
+
+With this approach, `isDialogOpen` derives from the URL rather than component state. When switching tabs and returning, the search param is cleared (the URL changed), so `isDialogOpen` becomes `false`. Opening the dialog sets the param, which changes `isDialogOpen` and triggers the Effect.
+
+### Working with Cache Components
+
+When [Cache Components](/docs/app/getting-started/cache-components) is enabled, Next.js wraps route content in Activity boundaries. When you navigate away from a route, Next.js sets its Activity to `"hidden"` rather than unmounting it - preserving React state and DOM state.
+
+> **Good to know:** Cache Components is an opt-in feature. Enable it by setting `cacheComponents: true` in your `next.config.ts`. See the [Cache Components guide](/docs/app/getting-started/cache-components#enabling-cache-components) for details.
+
+With Cache Components, there are two mechanisms for managing state lifetime:
+
+| Mechanism            | Lifetime                           | Example                |
+| -------------------- | ---------------------------------- | ---------------------- |
+| **Cache Components** | Explicit stale time (configurable) | Server-fetched data    |
+| **Activity**         | Until evicted or hard refresh      | React state, DOM state |
+
+Cache Components give you explicit control over server data freshness. Activity preserves what would otherwise be ephemeral state (React state, DOM state) - instead of being lost on navigation, it persists across route changes.
+
+Next.js uses a **3 entries heuristic** - it preserves up to 3 routes. When you navigate beyond that, the oldest route's DOM and React state are dropped.
+
+This means if a user navigates through many pages and then goes back, very old states may have been evicted and will re-render fresh.
+
+#### Why Activity ships with Cache Components
+
+Cache Components and Activity work together to enable SPA-like navigation—instant route transitions without sacrificing server rendering.
+
+- **Server Components**: `"use cache"` extends their lifetime so routes can be prefetched and served instantly from cache
+- **Client Components**: Activity preserves their state and DOM across navigations. Without it, form inputs, scroll positions, and component state would reset on every navigation—even with cached server data.
+
+This foundation enables full route prefetching, instant back/forward navigation, and upcoming features like View Transitions and Gesture APIs.
+
+> **Good to know:** Opt-out strategies are being considered for gradual migration.
+
+## Caveats
+
+### Effects and ref cleanups are run
+
+Effects **are cleaned up** when an Activity becomes `hidden`. Callback refs that return cleanup functions also have their cleanups invoked. This is intentional - subscriptions and timers shouldn't run for hidden content.
+
+> **Good to know**: "Effects" refers to React's [`useEffect`](https://react.dev/reference/react/useEffect) and [`useLayoutEffect`](https://react.dev/reference/react/useLayoutEffect) hooks. When Activity hides content, React runs the cleanup functions you return from these hooks, just as if the component were unmounting.
+
+```tsx
+'use client'
+
+import { useEffect } from 'react'
+
+function Timer() {
+  // Cleanup runs when Activity becomes hidden
+  useEffect(() => {
+    const id = setInterval(() => console.log('tick'), 1000)
+    return () => clearInterval(id) // Called on hide
+  }, [])
+
+  return (
+    <div
+      ref={(node) => {
+        // Ref setup: runs when visible
+        return () => {
+          // Ref cleanup: runs on hide
+        }
+      }}
+    />
+  )
+}
+```
+
+React state and `useRef` values persist across hide/show cycles - only the cleanup functions run. You can use these cleanups to reset state or clear DOM state (like input values or scroll position) when hiding.
+
+For example, a form can use a callback ref to reset its fields when Activity hides it:
+
+```tsx
+<form
+  ref={(form) => {
+    // Cleanup function - runs when Activity hides this component
+    return () => form?.reset()
+  }}
+>
+  {/* fields */}
+</form>
+```
+
+This means tracking "mount count" via Effects is misleading with Activity - Effects run on every hide-to-visible transition, not just the initial mount. If you need to distinguish the first mount from subsequent visibility changes, use a ref to track it:
+
+```tsx
+'use client'
+
+import { useEffect, useRef } from 'react'
+
+function TrackedComponent() {
+  const hasMountedRef = useRef(false)
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true
+      console.log('First mount')
+    } else {
+      console.log('Became visible again')
+    }
+  }, [])
+
+  return <div>...</div>
+}
+```
+
+The ref persists across hide/show cycles (refs aren't cleaned up), so `hasMountedRef.current` stays `true` after the first mount. Each time Activity becomes visible, the Effect runs again - but now it takes the `else` branch, letting you handle visibility changes differently from the initial mount.
+
+### Media elements need explicit cleanup
+
+Elements like `<video>`, `<audio>`, and `<iframe>` have side effects that persist even with `display: none`. Add explicit cleanup:
+
+```tsx
+'use client'
+
+import { useLayoutEffect, useRef } from 'react'
+
+function VideoPlayer({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useLayoutEffect(() => {
+    const video = videoRef.current
+    return () => {
+      video?.pause()
+    }
+  }, [])
+
+  return <video ref={videoRef} src={src} controls />
+}
+```
+
+### Text-only children render nothing
+
+If an Activity's children return only text (no DOM elements), nothing renders since there is no element to apply `display: none` to.
+
+### Hidden content exists in the DOM
+
+Hidden Activity content has `display: none` but remains in the document. This affects end-to-end testing with tools like Playwright, Cypress, or Puppeteer:
+
+- **DOM queries find hidden elements** - Selectors match elements regardless of visibility
+- **Interactions with hidden elements fail or timeout** - Most tools wait for elements to become visible before interacting
+- **Assertions may match hidden content** - Be explicit about visibility when asserting element presence
+
+Filter by visibility in your tests. A best practice in Playwright is to use `getByRole` queries, which automatically filter by visibility:
+
+```ts
+// Good - getByRole filters by visibility automatically
+await page.getByRole('textbox', { name: 'Email' }).fill(email)
+await page.getByRole('button', { name: 'Submit' }).click()
+
+// Fallback - use .filter({ visible: true }) when getByRole isn't suitable
+await page.locator('input[name="email"]').filter({ visible: true }).fill(email)
+
+// Avoid - may match hidden elements in Activity boundaries
+await page.locator('input[name="email"]').fill(email)
+```
+
+`getByRole` is robust to Activity, tabbed navigation, accordions, and any other pattern that keeps hidden content in the DOM. It queries the accessibility tree, which excludes hidden elements. For other testing tools, check their documentation for visibility-aware selectors - Cypress uses `.should('be.visible')` or `{ visible: true }` options.
+
+### State lifetime and authentication
+
+Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior - props changing (such as receiving a new user) triggers a re-render but does not reset existing state. If your application needs fresh state when users change, you can handle this explicitly.
+
+For logout flows, using `window.location.href` instead of `router.push` triggers a full page reload, clearing all client-side state. For finer control, reset state when the user identity changes:
+
+```tsx
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+
+function UserScopedForm({ userId }: { userId: string | null }) {
+  const [draft, setDraft] = useState('')
+  const lastUserIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (lastUserIdRef.current !== null && lastUserIdRef.current !== userId) {
+      setDraft('') // Reset on user change
+    }
+    lastUserIdRef.current = userId
+  }, [userId])
+
+  return <textarea value={draft} onChange={(e) => setDraft(e.target.value)} />
+}
+```
+
+Alternatively, key components by user ID to let React handle the reset: `<Form key={userId} />`. See [Resetting state](#resetting-state) for more patterns.
