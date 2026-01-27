@@ -78,7 +78,9 @@ pub use crate::{
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},
-    effect::{ApplyEffectsContext, Effect, Effects, apply_effects, emit_effect, get_effects},
+    effect::{
+        ApplyEffectsContext, Effect, EffectError, Effects, apply_effects, emit_effect, get_effects,
+    },
     error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
     invalidation::{
