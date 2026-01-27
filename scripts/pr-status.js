@@ -637,7 +637,6 @@ function generateJobMd(jobMetadata, testResults, testGroups, sections) {
     `Completed: ${jobMetadata.completed_at}`,
     `Duration: ${duration}`,
     `URL: ${jobMetadata.html_url}`,
-    `Full Log: [job-${jobMetadata.id}-full-log.txt](job-${jobMetadata.id}-full-log.txt)`,
     '',
   ]
 
@@ -999,9 +998,6 @@ async function main() {
 
     // Get job logs
     const logs = getJobLogs(id)
-
-    // Write full log
-    await fs.writeFile(path.join(OUTPUT_DIR, `job-${id}-full-log.txt`), logs)
 
     // Extract test output JSON
     const testResults = extractTestOutputJson(logs)
