@@ -59,11 +59,11 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
 
 /// <!--
 /// Documentation for this macro is available on the re-export:
-/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/derive.KeyValuePair.html>
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.task_storage.html>
 /// -->
-#[proc_macro_derive(KeyValuePair)]
-pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
-    derive::derive_key_value_pair(input)
+#[proc_macro_attribute]
+pub fn task_storage(_args: TokenStream, input: TokenStream) -> TokenStream {
+    derive::task_storage(input)
 }
 
 /// <!--

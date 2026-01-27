@@ -610,7 +610,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.10.5",
+ "itertools 0.12.1",
  "lazy_static",
  "lazycell",
  "log",
@@ -4641,7 +4641,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5641,7 +5641,7 @@ dependencies = [
  "once_cell",
  "socket2 0.5.10",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6247,7 +6247,7 @@ dependencies = [
  "security-framework 3.5.1",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9431,6 +9431,7 @@ dependencies = [
  "hashbrown 0.14.5",
  "indexmap 2.9.0",
  "lmdb-rkv",
+ "lzzzz",
  "once_cell",
  "parking_lot",
  "rand 0.9.0",
@@ -9512,6 +9513,7 @@ dependencies = [
  "turbo-tasks-fs",
  "turbo-tasks-testing",
  "turbopack-core",
+ "webpki-root-certs",
 ]
 
 [[package]]
@@ -9534,6 +9536,7 @@ dependencies = [
  "mime",
  "notify",
  "parking_lot",
+ "rand 0.9.0",
  "regex",
  "rstest",
  "rustc-hash 2.1.1",
@@ -9542,6 +9545,7 @@ dependencies = [
  "serde_path_to_error",
  "sha2",
  "tempfile",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
  "triomphe 0.1.12",
@@ -10165,6 +10169,7 @@ name = "turbopack-resolve"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "next-taskless",
  "regex",
  "serde",

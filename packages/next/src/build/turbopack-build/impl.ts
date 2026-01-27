@@ -84,6 +84,7 @@ export async function turbopackBuild(): Promise<{
       writeRoutesHashesManifest:
         !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
       currentNodeJsVersion,
+      debugBuildPaths: NextBuildContext.debugBuildPaths,
     },
     {
       persistentCaching,
@@ -100,9 +101,11 @@ export async function turbopackBuild(): Promise<{
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
     await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-    await fs.mkdir(path.join(distDir, 'static', buildId), {
-      recursive: true,
-    })
+    if (!config.deploymentId) {
+      await fs.mkdir(path.join(distDir, 'static', buildId), {
+        recursive: true,
+      })
+    }
     await fs.writeFile(
       path.join(distDir, 'package.json'),
       '{"type": "commonjs"}'
@@ -134,6 +137,8 @@ export async function turbopackBuild(): Promise<{
       buildId,
       distDir,
       encryptionKey,
+      dev: false,
+      deploymentId: config.deploymentId,
     })
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(

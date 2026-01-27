@@ -2,9 +2,6 @@
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
 
-if (performance.getEntriesByName('next-start').length === 0) {
-  performance.mark('next-start')
-}
 import '../next'
 import '../require-hook'
 
@@ -370,10 +367,11 @@ export async function startServer(
       })
 
       // Calculate and log "Ready in X" before loading config
-      // so it reflects actual framework startup time
+      // so it reflects actual framework startup time.
+      // NEXT_PRIVATE_START_TIME is set by bin/next.ts or cli/next-start.ts.
       const startTime = parseInt(process.env.NEXT_PRIVATE_START_TIME || '0', 10)
       const endTime = Date.now()
-      const startServerProcessDurationMs = endTime - startTime
+      const startServerProcessDurationMs = startTime ? endTime - startTime : 0
 
       const formattedStartDuration = durationToString(
         startServerProcessDurationMs / 1000

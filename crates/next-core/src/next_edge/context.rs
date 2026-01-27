@@ -6,8 +6,8 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType, UnusedReferences,
-        module_id_strategies::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
+        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
@@ -17,7 +17,7 @@ use turbopack_core::{
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::execution_context::ExecutionContext;
-use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
+use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfigHandling};
 
 use crate::{
     app_structure::CollectedRootParams,
@@ -172,21 +172,22 @@ pub async fn get_edge_resolve_options_context(
         ..Default::default()
     };
 
+    let tsconfig_path = next_config.typescript_tsconfig_path().await?;
+    let tsconfig_path = project_path.join(
+        tsconfig_path
+            .as_ref()
+            // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+            // resolve tsconfig.json relative to the file being compiled.
+            .unwrap_or(&rcstr!("tsconfig.json")),
+    )?;
+
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
-        tsconfig_path: next_config
-            .typescript_tsconfig_path()
-            .await?
-            .as_ref()
-            // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
-            // resolve tsconfig.json relative to the file being compiled.
-            .or(Some(&RcStr::from("tsconfig.json")))
-            .map(|p| project_path.join(p))
-            .transpose()?,
+        tsconfig_path: TsConfigHandling::Fixed(tsconfig_path),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().resolved_cell(),
@@ -203,7 +204,7 @@ pub struct EdgeChunkingContextOptions {
     pub node_root: FileSystemPath,
     pub output_root_to_root_path: Vc<RcStr>,
     pub environment: Vc<Environment>,
-    pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub turbo_minify: Vc<bool>,
@@ -323,6 +324,12 @@ pub async fn get_edge_chunking_context(
     .client_roots_override(rcstr!("client"), client_root.clone())
     .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
     .asset_base_path_override(rcstr!("client"), asset_prefix)
+    .url_behavior_override(
+        rcstr!("client"),
+        UrlBehavior {
+            suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+        },
+    )
     // Since one can't read files in edge directly, any asset need to be fetched
     // instead. This special blob url is handled by the custom fetch
     // implementation in the edge sandbox. It will respond with the

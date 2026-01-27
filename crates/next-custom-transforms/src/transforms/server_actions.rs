@@ -78,6 +78,12 @@ struct ServerReferenceExport {
     needs_cache_runtime_wrapper: bool,
 }
 
+/// Export info for serialization
+#[derive(Clone, Debug, serde::Serialize)]
+struct ServerReferenceExportInfo {
+    name: Atom,
+}
+
 #[derive(Clone, Debug)]
 enum ServerActionsErrorKind {
     ExportedSyncFunction {
@@ -199,21 +205,19 @@ pub fn server_actions<C: Comments>(
 /// Serializes the Server References into a magic comment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
 fn generate_server_references_comment(
-    export_names_ordered_by_reference_id: &BTreeMap<&Atom, &ModuleExportName>,
+    export_infos_ordered_by_reference_id: &BTreeMap<&Atom, ServerReferenceExportInfo>,
     entry_path_query: Option<(&str, &str)>,
 ) -> String {
-    // Convert ModuleExportName to string for serialization
-    let export_map: BTreeMap<_, _> = export_names_ordered_by_reference_id
-        .iter()
-        .map(|(ref_id, export_name)| (*ref_id, export_name.atom()))
-        .collect();
-
     format!(
         " __next_internal_action_entry_do_not_use__ {} ",
         if let Some(entry_path_query) = entry_path_query {
-            serde_json::to_string(&(&export_map, entry_path_query.0, entry_path_query.1))
+            serde_json::to_string(&(
+                &export_infos_ordered_by_reference_id,
+                entry_path_query.0,
+                entry_path_query.1,
+            ))
         } else {
-            serde_json::to_string(&export_map)
+            serde_json::to_string(&export_infos_ordered_by_reference_id)
         }
         .unwrap()
     )
@@ -2252,6 +2256,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 export_name,
                 reference_id: ref_id,
                 needs_cache_runtime_wrapper,
+                ..
             } in &server_reference_exports
             {
                 if !self.config.is_react_server_layer {
@@ -2684,12 +2689,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if self.has_action || self.has_cache {
-            // Flip the map and convert it to a BTreeMap for deterministic
-            // ordering in the server references comment.
-            let export_names_ordered_by_reference_id = self
+            // Build a map of reference_id -> export info
+            let export_infos_ordered_by_reference_id = self
                 .reference_ids_by_export_name
                 .iter()
-                .map(|(export_name, reference_id)| (reference_id, export_name))
+                .map(|(export_name, reference_id)| {
+                    let name_atom = export_name.atom().into_owned();
+                    (reference_id, ServerReferenceExportInfo { name: name_atom })
+                })
                 .collect::<BTreeMap<_, _>>();
 
             if self.config.is_react_server_layer {
@@ -2700,10 +2707,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         span: DUMMY_SP,
                         kind: CommentKind::Block,
                         text: generate_server_references_comment(
-                            &export_names_ordered_by_reference_id,
+                            &export_infos_ordered_by_reference_id,
                             match self.mode {
                                 ServerActionsMode::Webpack => None,
-                                ServerActionsMode::Turbopack => Some(("", "")),
+                                ServerActionsMode::Turbopack => Some((
+                                    &self.file_name,
+                                    self.file_query.as_ref().map_or("", |v| v),
+                                )),
                             },
                         )
                         .into(),
@@ -2718,7 +2728,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 span: DUMMY_SP,
                                 kind: CommentKind::Block,
                                 text: generate_server_references_comment(
-                                    &export_names_ordered_by_reference_id,
+                                    &export_infos_ordered_by_reference_id,
                                     None,
                                 )
                                 .into(),
@@ -2756,6 +2766,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             // re-exports since the actual source maps are in the data URLs.
                             let stripped_export_name = strip_export_name_span(&export_name);
 
+                            let name_atom = export_name.atom().into_owned();
+                            let export_info = ServerReferenceExportInfo { name: name_atom };
+
                             new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
                                 NamedExport {
                                     specifiers: vec![ExportSpecifier::Named(
@@ -2775,7 +2788,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 span: DUMMY_SP,
                                                 kind: CommentKind::Block,
                                                 text: generate_server_references_comment(
-                                                    &std::iter::once((&ref_id, &export_name))
+                                                    &std::iter::once((&ref_id, export_info))
                                                         .collect(),
                                                     Some((
                                                         &self.file_name,

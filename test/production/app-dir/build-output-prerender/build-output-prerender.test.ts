@@ -3,7 +3,6 @@ import path from 'path'
 const { version: nextVersion } = require('next/package.json')
 
 const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
-
 const pprEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 describe('build-output-prerender', () => {

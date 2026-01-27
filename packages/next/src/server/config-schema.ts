@@ -129,6 +129,7 @@ const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.union([
   z.strictObject({
     path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
     content: z.instanceof(RegExp).optional(),
+    query: z.union([z.string(), z.instanceof(RegExp)]).optional(),
   }),
 ])
 
@@ -194,6 +195,7 @@ export const experimentalSchema = {
   caseSensitiveRoutes: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
   dynamicOnHover: z.boolean().optional(),
+  optimisticRouting: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
@@ -291,6 +293,7 @@ export const experimentalSchema = {
     ])
     .optional(),
   transitionIndicator: z.boolean().optional(),
+  gestureTransition: z.boolean().optional(),
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
@@ -340,7 +343,9 @@ export const experimentalSchema = {
   browserDebugInfoInTerminal: z
     .union([
       z.boolean(),
+      z.enum(['error', 'warn', 'verbose']),
       z.object({
+        level: z.enum(['error', 'warn', 'verbose']).optional(),
         depthLimit: z.number().int().positive().optional(),
         edgeLimit: z.number().int().positive().optional(),
         showSourceLocation: z.boolean().optional(),
@@ -620,6 +625,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
                 ignore: z.array(z.instanceof(RegExp)),
               }),
             ])
+            .optional(),
+          browserToTerminal: z
+            .union([z.boolean(), z.enum(['error', 'warn'])])
             .optional(),
         }),
         z.literal(false),

@@ -135,7 +135,7 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
 
         // We also need the manifest chunk item's id, which points to a CJS module that
         // exports a promise for all of the necessary chunk loads.
-        let item_id = &*this
+        let item_id = this
             .manifest
             .chunk_item_id(*manifest.chunking_context)
             .await?;
@@ -145,7 +145,7 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         let placeable =
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
-        let dynamic_id = &*placeable.chunk_item_id(*manifest.chunking_context).await?;
+        let dynamic_id = placeable.chunk_item_id(*manifest.chunking_context).await?;
 
         // This is the code that will be executed when the dynamic import is reached.
         // It will load the manifest chunk, which will load all the chunks needed by
@@ -172,8 +172,8 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
                     .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
                     .collect::<Vec<_>>()
             ),
-            item_id = StringifyModuleId(item_id),
-            dynamic_id = StringifyModuleId(dynamic_id),
+            item_id = StringifyModuleId(&item_id),
+            dynamic_id = StringifyModuleId(&dynamic_id),
         )?;
 
         Ok(EcmascriptChunkItemContent {
