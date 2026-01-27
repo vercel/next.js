@@ -1100,7 +1100,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     #[cfg(feature = "print_cache_item_size")]
                                     task_cache_stats
                                         .lock()
-                                        .entry(self.debug_get_task_description(task_id))
+                                        .entry(self.debug_get_task_name(task_id))
                                         .or_default()
                                         .add_meta(&meta);
                                     Some(meta)
@@ -1120,7 +1120,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     #[cfg(feature = "print_cache_item_size")]
                                     task_cache_stats
                                         .lock()
-                                        .entry(self.debug_get_task_description(task_id))
+                                        .entry(self.debug_get_task_name(task_id))
                                         .or_default()
                                         .add_data(&data);
                                     Some(data)
@@ -1622,6 +1622,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             format!("{task_id:?} {}", value)
         } else {
             format!("{task_id:?} unknown")
+        }
+    }
+
+    fn debug_get_task_name(&self, task_id: TaskId) -> String {
+        let task = self.storage.access_mut(task_id);
+        if let Some(value) = task.get_persistent_task_type() {
+            format!("{}", value)
+        } else if let Some(value) = task.get_transient_task_type() {
+            format!("{}", value)
+        } else {
+            format!("unknown")
         }
     }
 
