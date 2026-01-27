@@ -21,8 +21,10 @@ use crate::{
 
 /// The block header for an index block.
 pub const BLOCK_TYPE_INDEX: u8 = 0;
-/// The block header for a key block.
-pub const BLOCK_TYPE_KEY: u8 = 1;
+/// The block header for a key block with 8-byte hash per entry.
+pub const BLOCK_TYPE_KEY_WITH_HASH: u8 = 1;
+/// The block header for a key block without hash.
+pub const BLOCK_TYPE_KEY_NO_HASH: u8 = 2;
 
 /// The tag for a small-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_SMALL: u8 = 0;
@@ -152,8 +154,15 @@ impl StaticSortedFile {
                 BLOCK_TYPE_INDEX => {
                     current_block = self.lookup_index_block(block, key_hash)?;
                 }
-                BLOCK_TYPE_KEY => {
-                    return self.lookup_key_block(block, key_hash, key, value_block_cache);
+                BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
+                    let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
+                    return self.lookup_key_block(
+                        block,
+                        key_hash,
+                        key,
+                        has_hash,
+                        value_block_cache,
+                    );
                 }
                 _ => {
                     bail!("Invalid block type");
@@ -214,10 +223,10 @@ impl StaticSortedFile {
         mut block: &[u8],
         key_hash: u64,
         key: &K,
+        has_hash: bool,
         value_block_cache: &BlockCache,
     ) -> Result<SstLookupResult> {
-        let has_hash = block.read_u8()?;
-        let hash_len = if has_hash != 0 { 8 } else { 0 };
+        let hash_len: u8 = if has_hash { 8 } else { 0 };
         let entry_count = block.read_u24::<BE>()? as usize;
         let offsets = &block[..entry_count * 4];
         let entries = &block[entry_count * 4..];
@@ -467,12 +476,12 @@ impl<'l> StaticSortedFileIter<'l> {
                     index: 0,
                 });
             }
-            BLOCK_TYPE_KEY => {
-                let has_hash = block.read_u8()?;
-                let hash_len = if has_hash != 0 { 8 } else { 0 };
+            BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
+                let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
+                let hash_len = if has_hash { 8 } else { 0 };
                 let entry_count = block.read_u24::<BE>()? as usize;
-                let offsets_range = 5..5 + entry_count * 4;
-                let entries_range = 5 + entry_count * 4..block_arc.len();
+                let offsets_range = 4..4 + entry_count * 4;
+                let entries_range = 4 + entry_count * 4..block_arc.len();
                 let offsets = block_arc.clone().slice(offsets_range);
                 let entries = block_arc.slice(entries_range);
                 self.current_key_block = Some(CurrentKeyBlock {

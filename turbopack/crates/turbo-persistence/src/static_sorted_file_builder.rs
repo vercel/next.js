@@ -14,8 +14,9 @@ use crate::{
     compression::compress_into_buffer,
     meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
     static_sorted_file::{
-        BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH,
+        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
+        KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
 };
 
@@ -527,8 +528,8 @@ pub struct KeyBlockBuilder<'l> {
     buffer: &'l mut Vec<u8>,
 }
 
-/// The size of the key block header (block type + hash_len + entry count).
-const KEY_BLOCK_HEADER_SIZE: usize = 5;
+/// The size of the key block header (block type + entry count).
+const KEY_BLOCK_HEADER_SIZE: usize = 4;
 
 impl<'l> KeyBlockBuilder<'l> {
     /// Creates a new key block builder for the number of entries.
@@ -537,8 +538,12 @@ impl<'l> KeyBlockBuilder<'l> {
 
         const ESTIMATED_KEY_SIZE: usize = 16;
         buffer.reserve(entry_count as usize * ESTIMATED_KEY_SIZE);
-        buffer.write_u8(BLOCK_TYPE_KEY).unwrap();
-        buffer.write_u8(has_hash as u8).unwrap();
+        let block_type = if has_hash {
+            BLOCK_TYPE_KEY_WITH_HASH
+        } else {
+            BLOCK_TYPE_KEY_NO_HASH
+        };
+        buffer.write_u8(block_type).unwrap();
         buffer.write_u24::<BE>(entry_count).unwrap();
         for _ in 0..entry_count {
             buffer.write_u32::<BE>(0).unwrap();
