@@ -13,14 +13,17 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssetsReference, OutputAssetsSet},
 };
 
-use super::{
+use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceSideEffect,
     GetContentSourceContent,
     route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
 };
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsMap(FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>);
+struct OutputAssetsMap(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
+);
 
 type ExpandedState = State<FxHashSet<RcStr>>;
 

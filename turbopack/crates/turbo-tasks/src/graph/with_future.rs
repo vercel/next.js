@@ -11,7 +11,7 @@ pin_project! {
         #[pin]
         future: T,
         span: Span,
-        handle: Option<H>,
+        data: Option<H>,
     }
 }
 
@@ -19,11 +19,11 @@ impl<T, H> With<T, H>
 where
     T: Future,
 {
-    pub fn new(future: T, span: Span, handle: H) -> Self {
+    pub fn new(future: T, span: Span, data: H) -> Self {
         Self {
             future,
             span,
-            handle: Some(handle),
+            data: Some(data),
         }
     }
 }
@@ -44,7 +44,7 @@ where
             std::task::Poll::Ready(result) => {
                 drop(guard);
                 std::task::Poll::Ready((
-                    this.handle.take().expect("polled after completion"),
+                    this.data.take().expect("polled after completion"),
                     replace(this.span, Span::none()),
                     result,
                 ))

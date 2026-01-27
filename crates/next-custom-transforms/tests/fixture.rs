@@ -453,6 +453,7 @@ fn react_server_components_typescript(input: PathBuf) {
                     is_react_server_layer: true,
                     cache_components_enabled: false,
                     use_cache_enabled: false,
+                    taint_enabled: true,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -476,6 +477,7 @@ fn react_server_components_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
                 // The transforms are intentionally declared in the same order as in
                 // crates/next-custom-transforms/src/chain_transforms.rs
@@ -485,6 +487,7 @@ fn react_server_components_fixture(input: PathBuf) {
                         is_react_server_layer,
                         cache_components_enabled: false,
                         use_cache_enabled: false,
+                        taint_enabled: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -500,6 +503,7 @@ fn react_server_components_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     ServerActionsMode::Webpack,
@@ -559,8 +563,9 @@ fn server_actions_fixture(input: PathBuf) {
     test_fixture(
         input_syntax,
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     None,
@@ -572,6 +577,7 @@ fn server_actions_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     mode,
@@ -593,8 +599,9 @@ fn next_font_with_directive_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 next_font_loaders(FontLoaderConfig {
                     relative_file_path_from_root: "app/test.tsx".into(),
                     font_loaders: vec!["@next/font/google".into()],
@@ -610,6 +617,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     ServerActionsMode::Webpack,
@@ -910,8 +918,9 @@ fn test_source_maps(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     None,
@@ -923,6 +932,7 @@ fn test_source_maps(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter([]),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     mode,

@@ -38,6 +38,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 console-subscriber = { workspace = true, optional = true }
 dunce = { workspace = true }

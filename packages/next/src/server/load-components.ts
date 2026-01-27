@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
   AppType,
   DocumentType,
@@ -58,7 +59,19 @@ export interface LoadableManifest {
   [k: string]: { id: string | number; files: string[] }
 }
 
-export type LoadComponentsReturnType<NextModule = any> = {
+export type GenericComponentMod = {
+  handler(
+    req: IncomingMessage,
+    res: ServerResponse,
+    ctx: {
+      waitUntil?: (prom: Promise<void>) => void
+    }
+  ): Promise<void | null>
+}
+
+export type LoadComponentsReturnType<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = {
   Component: NextComponentType
   pageConfig: PageConfig
   buildManifest: DeepReadonly<BuildManifest>
@@ -133,7 +146,7 @@ async function tryLoadClientReferenceManifest(
   manifestPath: string,
   entryName: string,
   attempts?: number
-) {
+): Promise<DeepReadonly<ClientReferenceManifest> | undefined> {
   try {
     const context = await evalManifestWithRetries<{
       __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
@@ -144,7 +157,9 @@ async function tryLoadClientReferenceManifest(
   }
 }
 
-async function loadComponentsImpl<N = any>({
+async function loadComponentsImpl<
+  N extends GenericComponentMod = GenericComponentMod,
+>({
   distDir,
   page,
   isAppPath,
@@ -293,7 +308,9 @@ async function loadComponentsImpl<N = any>({
       ComponentMod
 
     return {
+      // @ts-expect-error this is indeed `{} || AppType` and not always `AppType`
       App,
+      // @ts-expect-error this is indeed `{} || DocumentType` and not always `DocumentType`
       Document,
       Component,
       buildManifest,

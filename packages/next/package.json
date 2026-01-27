@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "16.1.0-canary.11",
+  "version": "16.2.0-canary.13",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -79,8 +79,7 @@
   },
   "scripts": {
     "dev": "cross-env NEXT_SERVER_NO_MANGLE=1 taskr",
-    "release": "taskr release",
-    "build": "pnpm release",
+    "build": "taskr release",
     "prepublishOnly": "cd ../../ && turbo run build",
     "types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
     "typescript": "tsec --noEmit",
@@ -98,7 +97,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "16.1.0-canary.11",
+    "@next/env": "16.2.0-canary.13",
     "@swc/helpers": "0.5.15",
     "baseline-browser-mapping": "^2.8.3",
     "caniuse-lite": "^1.0.30001579",
@@ -128,7 +127,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.34.4"
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@babel/code-frame": "7.26.2",
@@ -163,14 +162,14 @@
     "@modelcontextprotocol/sdk": "1.18.1",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/font": "16.1.0-canary.11",
-    "@next/polyfill-module": "16.1.0-canary.11",
-    "@next/polyfill-nomodule": "16.1.0-canary.11",
-    "@next/react-refresh-utils": "16.1.0-canary.11",
-    "@next/swc": "16.1.0-canary.11",
+    "@next/font": "16.2.0-canary.13",
+    "@next/polyfill-module": "16.2.0-canary.13",
+    "@next/polyfill-nomodule": "16.2.0-canary.13",
+    "@next/react-refresh-utils": "16.2.0-canary.13",
+    "@next/swc": "16.2.0-canary.13",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.51.1",
-    "@rspack/core": "1.6.0",
+    "@rspack/core": "1.6.7",
     "@storybook/addon-a11y": "8.6.0",
     "@storybook/addon-essentials": "8.6.0",
     "@storybook/addon-interactions": "8.6.0",

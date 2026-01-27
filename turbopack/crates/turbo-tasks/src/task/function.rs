@@ -416,6 +416,10 @@ mod tests {
             fn get_value_type_id() -> crate::ValueTypeId {
                 todo!()
             }
+
+            fn has_serialization() -> bool {
+                false
+            }
         }
 
         trait AsyncTrait {

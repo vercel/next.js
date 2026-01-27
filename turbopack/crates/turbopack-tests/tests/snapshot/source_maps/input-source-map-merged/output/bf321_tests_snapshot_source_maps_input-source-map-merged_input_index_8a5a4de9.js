@@ -9,7 +9,7 @@ __turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/sn
 ;
 function runExternalSourceMapped(fn) {
     return fn();
-} //# sourceMappingURL=sourcemapped.js.map
+}
 ;
 runExternalSourceMapped();
 }),

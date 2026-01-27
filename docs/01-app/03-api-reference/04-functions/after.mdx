@@ -5,7 +5,7 @@ description: API Reference for the after function.
 
 `after` allows you to schedule work to be executed after a response (or prerender) is finished. This is useful for tasks and other side effects that should not block the response, such as logging and analytics.
 
-It can be used in [Server Components](/docs/app/getting-started/server-and-client-components) (including [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata)), [Server Actions](/docs/app/getting-started/updating-data), [Route Handlers](/docs/app/api-reference/file-conventions/route), and [Proxy](/docs/app/api-reference/file-conventions/proxy).
+It can be used in [Server Components](/docs/app/getting-started/server-and-client-components) (including [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata)), [Server Functions](/docs/app/getting-started/updating-data), [Route Handlers](/docs/app/api-reference/file-conventions/route), and [Proxy](/docs/app/api-reference/file-conventions/proxy).
 
 The function accepts a callback that will be executed after the response (or prerender) is finished:
 
@@ -59,7 +59,7 @@ export default function Layout({ children }) {
 
 ### With request APIs
 
-You can use request APIs such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers) inside `after` in [Server Actions](/docs/app/getting-started/updating-data) and [Route Handlers](/docs/app/api-reference/file-conventions/route). This is useful for logging activity after a mutation. For example:
+You can use request APIs such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers) inside `after` in [Server Functions](/docs/app/getting-started/updating-data) and [Route Handlers](/docs/app/api-reference/file-conventions/route). This is useful for logging activity after a mutation. For example:
 
 ```ts filename="app/api/route.ts" highlight={2,7-9} switcher
 import { after } from 'next/server'

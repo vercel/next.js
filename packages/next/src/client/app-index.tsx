@@ -318,7 +318,6 @@ export async function hydrate(
       initialFlightData: initialRSCPayload.f,
       initialCanonicalUrlParts: initialRSCPayload.c,
       initialRenderedSearch: initialRSCPayload.q,
-      initialParallelRoutes: new Map(),
       location: window.location,
     }),
     instrumentationHooks

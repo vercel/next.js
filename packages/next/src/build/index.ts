@@ -1,5 +1,9 @@
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
-import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
+import type {
+  ExportPathMap,
+  NextConfigComplete,
+  NextConfigRuntime,
+} from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { CacheControl, Revalidate } from '../server/lib/cache-control'
@@ -12,7 +16,7 @@ import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
-import { defaultConfig } from '../server/config-shared'
+import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
@@ -183,7 +187,12 @@ import {
   updateBuildDiagnostics,
   recordFetchMetrics,
 } from '../diagnostics/build-diagnostics'
-import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
+import {
+  getEnvInfo,
+  logExperimentalInfo,
+  logStartInfo,
+  type ConfiguredExperimentalFeature,
+} from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
 import { traceMemoryUsage } from '../lib/memory/trace'
@@ -220,6 +229,7 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
+  writeRouteTypesEntryFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
 import {
@@ -479,6 +489,10 @@ export type RoutesManifest = {
   skipProxyUrlNormalize?: boolean
   caseSensitive?: boolean
   /**
+   * User-configured deployment ID for skew protection.
+   */
+  deploymentId?: string
+  /**
    * Configuration related to Partial Prerendering.
    */
   ppr?: {
@@ -543,10 +557,12 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
+    deploymentId,
   }: {
     buildId: string
     distDir: string
     locales: readonly string[] | undefined
+    deploymentId: string
   }
 ) {
   const ssgPages = new Set<string>(
@@ -563,8 +579,14 @@ async function writeClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
+  // When skew protection is enabled, we instead just rely on the deployment id query string to
+  // load the correct manifests, to avoid the build id.
+  let ssgManifestPath = deploymentId
+    ? path.join(CLIENT_STATIC_FILES_PATH, '_ssgManifest.js')
+    : path.join(CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js')
+
   await writeFileUtf8(
-    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    path.join(distDir, ssgManifestPath),
     clientSsgManifestContent
   )
 }
@@ -605,7 +627,7 @@ async function writeFunctionsConfigManifest(
 
 export interface RequiredServerFilesManifest {
   version: number
-  config: NextConfigComplete
+  config: NextConfigRuntime
   appDir: string
   relativeAppDir: string
   files: string[]
@@ -617,8 +639,12 @@ async function writeRequiredServerFilesManifest(
   requiredServerFiles: RequiredServerFilesManifest
 ) {
   await writeManifest(
-    path.join(distDir, SERVER_FILES_MANIFEST),
+    path.join(distDir, SERVER_FILES_MANIFEST + '.json'),
     requiredServerFiles
+  )
+  await writeFileUtf8(
+    path.join(distDir, SERVER_FILES_MANIFEST + '.js'),
+    `self.__SERVER_FILES_MANIFEST=${formatManifest(requiredServerFiles)}`
   )
 }
 
@@ -689,7 +715,10 @@ async function writeStandaloneDirectory(
 
       for (const file of [
         ...requiredServerFiles.files,
-        path.join(requiredServerFiles.config.distDir, SERVER_FILES_MANIFEST),
+        path.join(
+          requiredServerFiles.config.distDir,
+          SERVER_FILES_MANIFEST + '.json'
+        ),
         ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
           if (['.env', '.env.production'].includes(envFile.path)) {
             acc.push(envFile.path)
@@ -820,6 +849,15 @@ export function createStaticWorker(
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
+    forkOptions: process.env.NEXT_CPU_PROF
+      ? {
+          env: {
+            NEXT_CPU_PROF: '1',
+            NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+            __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
+          },
+        }
+      : undefined,
   }) as StaticWorker
 }
 
@@ -878,8 +916,7 @@ export default async function build(
   bundler = Bundler.Turbopack,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
-  debugBuildAppPaths?: string[],
-  debugBuildPagePaths?: string[]
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
@@ -902,6 +939,7 @@ export default async function build(
     NextBuildContext.reactProductionProfiling = reactProductionProfiling
     NextBuildContext.noMangling = noMangling
     NextBuildContext.debugPrerender = debugPrerender
+    NextBuildContext.debugBuildPaths = debugBuildPaths
 
     await nextBuildSpan.traceAsyncFn(async () => {
       // attempt to load global env values so they are available in next.config.js
@@ -911,6 +949,7 @@ export default async function build(
       NextBuildContext.loadedEnvFiles = loadedEnvFiles
 
       const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
+      let experimentalFeatures: ConfiguredExperimentalFeature[] = []
       const config: NextConfigComplete = await nextBuildSpan
         .traceChild('load-next-config')
         .traceAsyncFn(() =>
@@ -921,11 +960,35 @@ export default async function build(
                 silent: false,
                 reactProductionProfiling,
                 debugPrerender,
+                reportExperimentalFeatures(features) {
+                  experimentalFeatures = features.toSorted(
+                    ({ key: a }, { key: b }) => a.localeCompare(b)
+                  )
+                },
               }),
             turborepoAccessTraceResult
           )
         )
       loadedConfig = config
+
+      // Validate deploymentId if provided
+      if (config.deploymentId !== undefined) {
+        if (typeof config.deploymentId !== 'string') {
+          throw new Error(
+            `Invalid \`deploymentId\` configuration: must be a string. See https://nextjs.org/docs/messages/deploymentid-not-a-string`
+          )
+        }
+        if (config.deploymentId.length > 32) {
+          throw new Error(
+            `Invalid \`deploymentId\` configuration: exceeds maximum length of 32 characters. See https://nextjs.org/docs/messages/deploymentid-too-long`
+          )
+        }
+        if (!/^[a-zA-Z0-9_-]*$/.test(config.deploymentId)) {
+          throw new Error(
+            `Invalid \`deploymentId\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters`
+          )
+        }
+      }
 
       // Reading the config can modify environment variables that influence the bundler selection.
       bundler = finalizeBundlerFromConfig(bundler)
@@ -978,7 +1041,7 @@ export default async function build(
       // when using compile mode static env isn't inlined so we
       // need to populate in normal runtime env
       if (isCompileMode || isGenerateMode) {
-        populateStaticEnv(config)
+        populateStaticEnv(config, config.deploymentId)
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
@@ -1097,20 +1160,18 @@ export default async function build(
       )
 
       // Always log next version first then start rest jobs
-      const { envInfo, experimentalFeatures, cacheComponents } =
-        await getStartServerInfo({
-          dir,
-          dev: false,
-          debugPrerender,
-        })
+      const envInfo = getEnvInfo(dir)
 
       logStartInfo({
         networkUrl: null,
         appUrl: null,
         envInfo,
-        experimentalFeatures,
         logBundler: true,
-        cacheComponents,
+      })
+
+      logExperimentalInfo({
+        experimentalFeatures,
+        cacheComponents: !!config.cacheComponents,
       })
 
       const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
@@ -1121,6 +1182,7 @@ export default async function build(
         nextBuildSpan,
         config,
         cacheDir,
+        debugBuildPaths,
       }
 
       if (appDir && 'exportPathMap' in config) {
@@ -1149,10 +1211,9 @@ export default async function build(
           : []
 
       // Apply debug build paths filter if specified
-      // If debugBuildPagePaths is defined (even if empty), only build specified pages
-      if (debugBuildPagePaths !== undefined) {
-        if (debugBuildPagePaths.length > 0) {
-          const debugPathsSet = new Set(debugBuildPagePaths)
+      if (debugBuildPaths) {
+        if (debugBuildPaths.pages.length > 0) {
+          const debugPathsSet = new Set(debugBuildPaths.pages)
           pagesPaths = pagesPaths.filter((pagePath) =>
             debugPathsSet.has(pagePath)
           )
@@ -1286,10 +1347,9 @@ export default async function build(
           layoutPaths = result.layoutPaths
 
           // Apply debug build paths filter if specified
-          // If debugBuildAppPaths is defined (even if empty), only build specified app paths
-          if (debugBuildAppPaths !== undefined) {
-            if (debugBuildAppPaths.length > 0) {
-              const debugPathsSet = new Set(debugBuildAppPaths)
+          if (debugBuildPaths) {
+            if (debugBuildPaths.app.length > 0) {
+              const debugPathsSet = new Set(debugBuildPaths.app)
               appPaths = appPaths.filter((appPath) =>
                 debugPathsSet.has(appPath)
               )
@@ -1388,7 +1448,13 @@ export default async function build(
       await nextBuildSpan
         .traceChild('generate-route-types')
         .traceAsyncFn(async () => {
-          const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+          // Actual type files go to route-types.d.ts (not routes.d.ts)
+          // routes.d.ts is reserved for the entry file
+          const routeTypesFilePath = path.join(
+            distDir,
+            'types',
+            'route-types.d.ts'
+          )
           const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
           await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
@@ -1468,7 +1534,25 @@ export default async function build(
             routeTypesFilePath,
             config
           )
-          await writeValidatorFile(routeTypesManifest, validatorFilePath)
+          await writeValidatorFile(
+            routeTypesManifest,
+            validatorFilePath,
+            Boolean(config.experimental.strictRouteTypes)
+          )
+
+          // Write the entry file at {distDirRoot}/types/routes.d.ts
+          // This ensures next-env.d.ts has a consistent import path
+          const entryFilePath = path.join(
+            dir,
+            config.distDirRoot,
+            'types',
+            'routes.d.ts'
+          )
+          const actualTypesDir = path.join(distDir, 'types')
+          await writeRouteTypesEntryFile(entryFilePath, actualTypesDir, {
+            strictRouteTypes: Boolean(config.experimental.strictRouteTypes),
+            typedRoutes: Boolean(config.typedRoutes),
+          })
         })
 
       // Turbopack already handles conflicting app and page routes.
@@ -1576,6 +1660,7 @@ export default async function build(
             rewrites,
             restrictedRedirectPaths,
             isAppPPREnabled,
+            deploymentId: config.deploymentId,
           })
         )
 
@@ -1654,6 +1739,8 @@ export default async function build(
         )
       }
 
+      // #region Compile
+
       Log.info('Creating an optimized production build ...')
       traceMemoryUsage('Starting build', nextBuildSpan)
 
@@ -1716,6 +1803,15 @@ export default async function build(
                     isolatedMemory: false,
                     numWorkers: 1,
                     exposedMethods: ['collectBuildTraces'],
+                    forkOptions: process.env.NEXT_CPU_PROF
+                      ? {
+                          env: {
+                            NEXT_CPU_PROF: '1',
+                            NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+                            __NEXT_PRIVATE_CPU_PROFILE: 'build-trace-worker',
+                          },
+                        }
+                      : undefined,
                   }
                 ) as Worker & typeof import('./collect-build-traces')
 
@@ -1814,6 +1910,8 @@ export default async function build(
         })
       }
 
+      // #endregion
+
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
         await updateBuildDiagnostics({
@@ -1822,6 +1920,190 @@ export default async function build(
         await startTypeChecking(typeCheckingOptions)
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
+
+      // #region required-server-files
+      const requiredServerFilesManifest = await nextBuildSpan
+        .traceChild('generate-required-server-files')
+        .traceAsyncFn(async () => {
+          let runtimeConfig = getNextConfigRuntime(config)
+
+          const normalizedCacheHandlers: Record<string, string> = {}
+          for (const [key, value] of Object.entries(
+            runtimeConfig.cacheHandlers || {}
+          )) {
+            if (key && value) {
+              normalizedCacheHandlers[key] = path.relative(distDir, value)
+            }
+          }
+
+          // getNextConfigRuntime only filters if experimental.runtimeServerDeploymentId is true,
+          // but we unconditionally want to remove configFile for this manifest
+          let runtimeConfigWithoutFilePath = { ...runtimeConfig }
+          delete (runtimeConfigWithoutFilePath as NextConfigComplete).configFile
+
+          const serverFilesManifest: RequiredServerFilesManifest = {
+            version: 1,
+            config: {
+              ...runtimeConfigWithoutFilePath,
+              ...(ciEnvironment.hasNextSupport
+                ? {
+                    compress: false,
+                  }
+                : {}),
+              cacheHandler: runtimeConfig.cacheHandler
+                ? path.relative(distDir, runtimeConfig.cacheHandler)
+                : runtimeConfig.cacheHandler,
+              cacheHandlers: normalizedCacheHandlers,
+              experimental: {
+                ...runtimeConfig.experimental,
+                trustHostHeader: ciEnvironment.hasNextSupport,
+                isExperimentalCompile: isCompileMode,
+              },
+            },
+            appDir: dir,
+            relativeAppDir: path.relative(outputFileTracingRoot, dir),
+            files: [
+              ROUTES_MANIFEST,
+              path.relative(distDir, pagesManifestPath),
+              BUILD_MANIFEST,
+              PRERENDER_MANIFEST,
+              path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
+              path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+              path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+              ...(bundler !== Bundler.Turbopack
+                ? [
+                    path.join(
+                      SERVER_DIRECTORY,
+                      MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+                    ),
+                    REACT_LOADABLE_MANIFEST,
+                  ]
+                : []),
+              ...(appDir
+                ? [
+                    ...(config.experimental.sri
+                      ? [
+                          path.join(
+                            SERVER_DIRECTORY,
+                            SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
+                          ),
+                          path.join(
+                            SERVER_DIRECTORY,
+                            SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+                          ),
+                        ]
+                      : []),
+                    path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                    path.join(APP_PATH_ROUTES_MANIFEST),
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SERVER_REFERENCE_MANIFEST + '.js'
+                    ),
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SERVER_REFERENCE_MANIFEST + '.json'
+                    ),
+                  ]
+                : []),
+              ...(pagesDir && bundler !== Bundler.Turbopack
+                ? [
+                    DYNAMIC_CSS_MANIFEST + '.json',
+                    path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
+                  ]
+                : []),
+              BUILD_ID_FILE,
+              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
+              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
+              SERVER_FILES_MANIFEST + '.json',
+            ]
+              .filter(nonNullable)
+              .map((file) => path.join(config.distDir, file)),
+            ignore: [] as string[],
+          }
+
+          if (hasInstrumentationHook) {
+            serverFilesManifest.files.push(
+              path.join(
+                config.distDir,
+                SERVER_DIRECTORY,
+                `${INSTRUMENTATION_HOOK_FILENAME}.js`
+              )
+            )
+            // If there are edge routes, append the edge instrumentation hook
+            // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
+            let edgeInstrumentationHook = path.join(
+              config.distDir,
+              SERVER_DIRECTORY,
+              `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
+            )
+            if (
+              bundler !== Bundler.Turbopack &&
+              existsSync(path.join(dir, edgeInstrumentationHook))
+            ) {
+              serverFilesManifest.files.push(edgeInstrumentationHook)
+            }
+          }
+
+          if (config.experimental.optimizeCss) {
+            const globOrig =
+              require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+
+            const cssFilePaths = await new Promise<string[]>(
+              (resolve, reject) => {
+                globOrig(
+                  '**/*.css',
+                  { cwd: path.join(distDir, 'static') },
+                  (err, files) => {
+                    if (err) {
+                      return reject(err)
+                    }
+                    resolve(files)
+                  }
+                )
+              }
+            )
+
+            serverFilesManifest.files.push(
+              ...cssFilePaths.map((filePath) =>
+                path.join(config.distDir, 'static', filePath)
+              )
+            )
+          }
+
+          // Under standalone mode, we need to ensure that the cache entry debug
+          // handler is copied so that it can be used in the test. This is required
+          // for the turbopack test to run as it's more strict about the build
+          // directories. This is only used for testing and is not used in
+          // production.
+          if (
+            process.env.__NEXT_TEST_MODE &&
+            process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+          ) {
+            serverFilesManifest.files.push(
+              path.relative(
+                dir,
+                path.isAbsolute(
+                  process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                )
+                  ? process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                  : path.join(
+                      dir,
+                      process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                    )
+              )
+            )
+          }
+
+          return serverFilesManifest
+        })
+
+      await writeRequiredServerFilesManifest(
+        distDir,
+        requiredServerFilesManifest
+      )
+
+      // #endregion
+      // #region Collect data
 
       const numberOfWorkers = getNumberOfWorkers(config)
       const collectingPageDataStart = process.hrtime()
@@ -2412,126 +2694,6 @@ export default async function build(
         )
       }
 
-      const { cacheHandler } = config
-
-      const instrumentationHookEntryFiles: string[] = []
-      if (hasInstrumentationHook) {
-        instrumentationHookEntryFiles.push(
-          path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
-        )
-        // If there's edge routes, append the edge instrumentation hook
-        // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
-        if (
-          bundler !== Bundler.Turbopack &&
-          (edgeRuntimeAppCount || edgeRuntimePagesCount)
-        ) {
-          instrumentationHookEntryFiles.push(
-            path.join(
-              SERVER_DIRECTORY,
-              `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
-            )
-          )
-        }
-      }
-
-      const requiredServerFilesManifest = nextBuildSpan
-        .traceChild('generate-required-server-files')
-        .traceFn(() => {
-          const normalizedCacheHandlers: Record<string, string> = {}
-
-          for (const [key, value] of Object.entries(
-            config.cacheHandlers || {}
-          )) {
-            if (key && value) {
-              normalizedCacheHandlers[key] = path.relative(distDir, value)
-            }
-          }
-
-          const serverFilesManifest: RequiredServerFilesManifest = {
-            version: 1,
-            config: {
-              ...config,
-              configFile: undefined,
-              ...(ciEnvironment.hasNextSupport
-                ? {
-                    compress: false,
-                  }
-                : {}),
-              cacheHandler: cacheHandler
-                ? path.relative(distDir, cacheHandler)
-                : config.cacheHandler,
-              cacheHandlers: normalizedCacheHandlers,
-              experimental: {
-                ...config.experimental,
-                trustHostHeader: ciEnvironment.hasNextSupport,
-                isExperimentalCompile: isCompileMode,
-              },
-            },
-            appDir: dir,
-            relativeAppDir: path.relative(outputFileTracingRoot, dir),
-            files: [
-              ROUTES_MANIFEST,
-              path.relative(distDir, pagesManifestPath),
-              BUILD_MANIFEST,
-              PRERENDER_MANIFEST,
-              path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
-              path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-              path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              ...(bundler !== Bundler.Turbopack
-                ? [
-                    path.join(
-                      SERVER_DIRECTORY,
-                      MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
-                    ),
-                    REACT_LOADABLE_MANIFEST,
-                  ]
-                : []),
-              ...(appDir
-                ? [
-                    ...(config.experimental.sri
-                      ? [
-                          path.join(
-                            SERVER_DIRECTORY,
-                            SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
-                          ),
-                          path.join(
-                            SERVER_DIRECTORY,
-                            SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
-                          ),
-                        ]
-                      : []),
-                    path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
-                    path.join(APP_PATH_ROUTES_MANIFEST),
-                    path.join(
-                      SERVER_DIRECTORY,
-                      SERVER_REFERENCE_MANIFEST + '.js'
-                    ),
-                    path.join(
-                      SERVER_DIRECTORY,
-                      SERVER_REFERENCE_MANIFEST + '.json'
-                    ),
-                  ]
-                : []),
-              ...(pagesDir && bundler !== Bundler.Turbopack
-                ? [
-                    DYNAMIC_CSS_MANIFEST + '.json',
-                    path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
-                  ]
-                : []),
-              BUILD_ID_FILE,
-              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
-              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
-              SERVER_FILES_MANIFEST,
-              ...instrumentationHookEntryFiles,
-            ]
-              .filter(nonNullable)
-              .map((file) => path.join(config.distDir, file)),
-            ignore: [] as string[],
-          }
-
-          return serverFilesManifest
-        })
-
       const middlewareFile = normalizePathSep(
         proxyFilePath || middlewareFilePath || ''
       )
@@ -2570,20 +2732,35 @@ export default async function build(
           }
 
           if (bundler === Bundler.Turbopack) {
-            await writeManifest(
-              path.join(
-                distDir,
-                'static',
-                buildId,
-                TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-              ),
-              functionsConfigManifest.functions['/_middleware'].matchers || []
+            const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(
+              functionsConfigManifest.functions['/_middleware'].matchers || [],
+              null,
+              2
+            )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
+
+            let clientMiddlewareManifestPath = config.deploymentId
+              ? path.join(
+                  CLIENT_STATIC_FILES_PATH,
+                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+                )
+              : path.join(
+                  CLIENT_STATIC_FILES_PATH,
+                  buildId,
+                  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+                )
+
+            await writeFileUtf8(
+              path.join(distDir, clientMiddlewareManifestPath),
+              clientMiddlewareManifestJs
             )
           }
         }
       }
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
+
+      // #endregion
+      // #region NFT
 
       if (
         bundler !== Bundler.Turbopack &&
@@ -2646,52 +2823,6 @@ export default async function build(
 
       await writeBuildId(distDir, buildId)
 
-      if (config.experimental.optimizeCss) {
-        const globOrig =
-          require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
-
-        const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
-          globOrig(
-            '**/*.css',
-            { cwd: path.join(distDir, 'static') },
-            (err, files) => {
-              if (err) {
-                return reject(err)
-              }
-              resolve(files)
-            }
-          )
-        })
-
-        requiredServerFilesManifest.files.push(
-          ...cssFilePaths.map((filePath) =>
-            path.join(config.distDir, 'static', filePath)
-          )
-        )
-      }
-
-      // Under standalone mode, we need to ensure that the cache entry debug
-      // handler is copied so that it can be used in the test. This is required
-      // for the turbopack test to run as it's more strict about the build
-      // directories. This is only used for testing and is not used in
-      // production.
-      if (
-        process.env.__NEXT_TEST_MODE &&
-        process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-      ) {
-        requiredServerFilesManifest.files.push(
-          path.relative(
-            dir,
-            path.isAbsolute(process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS)
-              ? process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-              : path.join(
-                  dir,
-                  process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-                )
-          )
-        )
-      }
-
       const features: EventBuildFeatureUsage[] = [
         {
           featureName: 'experimental/cacheComponents',
@@ -2725,11 +2856,6 @@ export default async function build(
             payload: feature,
           }
         })
-      )
-
-      await writeRequiredServerFilesManifest(
-        distDir,
-        requiredServerFilesManifest
       )
 
       // we don't need to inline for turbopack build as
@@ -2792,6 +2918,9 @@ export default async function build(
       })
 
       const hasGSPAndRevalidateZero = new Set<string>()
+
+      // #endregion
+      // #region SSG
 
       // we need to trigger automatic exporting when we have
       // - static 404/500
@@ -3969,6 +4098,7 @@ export default async function build(
           distDir,
           buildId,
           locales: config.i18n?.locales,
+          deploymentId: config.deploymentId,
         })
       } else {
         await writePrerenderManifest(distDir, {
@@ -3979,6 +4109,8 @@ export default async function build(
           notFoundRoutes: [],
         })
       }
+
+      // #endregion
 
       await writeImagesManifest(distDir, config)
       await writeManifest(path.join(distDir, EXPORT_MARKER), {
@@ -4096,6 +4228,7 @@ export default async function build(
               dir,
               distDir,
               config,
+              appType,
               buildId,
               configOutDir: path.join(dir, configOutDir),
               staticPages,

@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
@@ -62,9 +62,7 @@ async fn read_incorrect_task_input_operation(value: IncorrectTaskInput) -> Resul
 
 /// Has an intentionally incorrect `TaskInput` implementation, representing some code that the debug
 /// tracing might be particularly useful with.
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode, NonLocalValue)]
 struct IncorrectTaskInput(ResolvedVc<u64>);
 
 impl TaskInput for IncorrectTaskInput {

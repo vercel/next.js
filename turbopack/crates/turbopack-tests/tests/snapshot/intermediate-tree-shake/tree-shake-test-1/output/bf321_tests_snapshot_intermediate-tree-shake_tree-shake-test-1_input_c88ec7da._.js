@@ -23,7 +23,8 @@ function getDog() {
 }
 __turbopack_context__.s([
     "getCat",
-    ()=>getCat
+    0,
+    getCat
 ]);
 }),
 ]);

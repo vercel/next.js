@@ -62,9 +62,9 @@ pub async fn endpoint_hashes(
 
     let mut all_modules = FxIndexSet::default();
 
-    let module_graph = module_graph.read_graphs().await?;
+    let module_graph = module_graph.await?;
 
-    module_graph.traverse_nodes_from_entries_dfs(
+    module_graph.traverse_nodes_dfs(
         modules,
         &mut all_modules,
         |module, all_modules| {

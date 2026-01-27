@@ -40,7 +40,7 @@ import {
   type GlobalErrorState,
 } from './app-router-instance'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
-import { isRedirectError, RedirectType } from './redirect-error'
+import { isRedirectError } from './redirect-error'
 import { pingVisibleLinks } from './links'
 import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
@@ -103,19 +103,6 @@ function HistoryUpdater({
   }, [appRouterState.nextUrl, appRouterState.tree])
 
   return null
-}
-
-export function createEmptyCacheNode(): CacheNode {
-  return {
-    lazyData: null,
-    rsc: null,
-    prefetchRsc: null,
-    head: null,
-    prefetchHead: null,
-    parallelRoutes: new Map(),
-    loading: null,
-    navigatedAt: -1,
-  }
 }
 
 function copyNextJsInternalHistoryState(data: any) {
@@ -249,7 +236,7 @@ function Router({
         const redirectType = getRedirectTypeFromError(error)
         // TODO: This should access the router methods directly, rather than
         // go through the public interface.
-        if (redirectType === RedirectType.push) {
+        if (redirectType === 'push') {
           publicAppRouterInstance.push(url, {})
         } else {
           publicAppRouterInstance.replace(url, {})
@@ -437,6 +424,7 @@ function Router({
       parentCacheNode: cache,
       parentSegmentPath: null,
       parentParams: {},
+      parentLoadingData: null,
       // This is the <Activity> "name" that shows up in the Suspense DevTools.
       // It represents the root of the app.
       debugNameContext: '/',

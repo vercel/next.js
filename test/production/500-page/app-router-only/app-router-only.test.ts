@@ -11,8 +11,8 @@ describe('500-page app-router-only', () => {
     it('should render app router 500 page when route error', async () => {
       const $ = await next.render$('/route-error')
       expect($('html').attr('id')).toBe('__next_error__')
-      expect($('body').text()).toContain('Internal Server Error.')
-      expect($('body').text()).toContain('500')
+      // Server errors show "This page failed to load"
+      expect($('body').text()).toContain('This page failed to load')
     })
   }
 
@@ -24,7 +24,8 @@ describe('500-page app-router-only', () => {
       )
       // Not use pages router to generate 500.html
       expect(html).toContain('__next_error__')
-      expect(html).toContain('Internal Server Error.')
+      // Server errors show "This page failed to load"
+      expect(html).toContain('This page failed to load')
       // global-error is not used in app router 500.html
       expect(html).not.toContain('app-router-global-error')
     })

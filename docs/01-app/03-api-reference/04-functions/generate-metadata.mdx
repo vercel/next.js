@@ -7,6 +7,8 @@ related:
   links:
     - app/api-reference/file-conventions/metadata
     - app/api-reference/functions/generate-viewport
+    - app/getting-started/cache-components
+    - app/api-reference/config/next-config-js/cacheComponents
 ---
 
 You can use the `metadata` object or the `generateMetadata` function to define metadata.
@@ -110,6 +112,53 @@ For type completion of `params` and `searchParams`, you can type the first argum
 > - `fetch` requests inside `generateMetadata` are automatically [memoized](/docs/app/guides/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components.
 > - React [`cache` can be used](/docs/app/guides/caching#react-cache-function) if `fetch` is unavailable.
 > - [File-based metadata](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
+
+## Why `generateMetadata` is Server Component only
+
+`generateMetadata` and the `metadata` export are only supported in Server Components because metadata must be resolved on the server before the page component is rendered. This allows Next.js to include the metadata in the initial HTML response.
+
+If you need to use Client Component features, keep your `page.tsx` as a Server Component and move the Client Component logic to a separate file:
+
+```tsx filename="app/page.tsx" switcher
+import type { Metadata } from 'next'
+import { InteractiveComponent } from './interactive-component'
+
+export const metadata: Metadata = {
+  title: 'My Page',
+}
+
+export default function Page() {
+  return <InteractiveComponent />
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { InteractiveComponent } from './interactive-component'
+
+export const metadata = {
+  title: 'My Page',
+}
+
+export default function Page() {
+  return <InteractiveComponent />
+}
+```
+
+```tsx filename="app/interactive-component.tsx" switcher
+'use client'
+
+export function InteractiveComponent() {
+  // Client-side interactivity (hooks, event handlers, etc.)
+}
+```
+
+```jsx filename="app/interactive-component.js" switcher
+'use client'
+
+export function InteractiveComponent() {
+  // Client-side interactivity (hooks, event handlers, etc.)
+}
+```
 
 ## Reference
 
@@ -1201,6 +1250,68 @@ module.exports = {
 Streaming metadata improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and can help lowering [LCP](https://developer.mozilla.org/docs/Glossary/Largest_contentful_paint) time.
 
 Overriding `htmlLimitedBots` could lead to longer response times. Streaming metadata is an advanced feature, and the default should be sufficient for most cases.
+
+### With Cache Components
+
+When [Cache Components](/docs/app/getting-started/cache-components) is enabled, `generateMetadata` follows the same rules as other components. If metadata accesses runtime data (`cookies()`, `headers()`, `params`, `searchParams`) or performs uncached data fetching, it defers to request time.
+
+How Next.js handles this depends on the rest of your page:
+
+- **If other parts also defer to request time**: Prerendering generates a static shell, and metadata streams in with other deferred content.
+- **If the page or layout is otherwise fully prerenderable**: Next.js requires an explicit choice: cache the data if possible, or signal that deferred rendering is intentional.
+
+Streaming metadata at runtime while the rest of the page is fully prerenderable is not common. To ensure this behavior is intentional, an error is raised indicating which page or layout needs to be handled.
+
+To resolve this, you have two options. If metadata depends on external data but not runtime data, use `use cache`:
+
+```tsx filename="app/page.tsx" highlight={2}
+export async function generateMetadata() {
+  'use cache'
+  const { title, description } = await db.query('site-metadata')
+  return { title, description }
+}
+```
+
+If metadata genuinely requires runtime data, add a dynamic marker component to your page:
+
+```tsx filename="app/page.tsx" highlight={11-14,19,28}
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { connection } from 'next/server'
+
+export async function generateMetadata() {
+  const token = (await cookies()).get('token')?.value
+  // ... use token to fetch personalized metadata
+  return { title: 'Personalized Title' }
+}
+
+const Connection = async () => {
+  await connection()
+  return null
+}
+
+async function DynamicMarker() {
+  return (
+    <Suspense>
+      <Connection />
+    </Suspense>
+  )
+}
+
+export default function Page() {
+  // DO NOT place await connection() here
+  // doing so prevents the article tag content from
+  // being included in the static shell
+  return (
+    <>
+      <article>Static content</article>
+      <DynamicMarker />
+    </>
+  )
+}
+```
+
+The `DynamicMarker` component renders nothing but tells Next.js the page has intentional dynamic content. By wrapping it in Suspense, the static content still prerenders normally.
 
 ### Ordering
 

@@ -53,7 +53,6 @@ describe('use-cache-without-experimental-flag', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          ./app/page.tsx
-           × Module build failed:
            ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
                  │   |
                  │   | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
@@ -114,7 +113,7 @@ describe('use-cache-without-experimental-flag', () => {
         )
       } else if (isRspack) {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"  × Module build failed:"`
+          `"  ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config."`
         )
       } else {
         expect(errorDescription).toMatchInlineSnapshot(
@@ -139,7 +138,6 @@ describe('use-cache-without-experimental-flag', () => {
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx
-           × Module build failed:
            ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
                  │   |
                  │   | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage

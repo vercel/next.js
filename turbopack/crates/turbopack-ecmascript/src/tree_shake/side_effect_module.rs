@@ -1,12 +1,10 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{FileContent, glob::Glob};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReferences, SingleChunkableModuleReference},
     resolve::{ExportUsage, ModulePart},
@@ -114,23 +112,11 @@ impl Module for SideEffectsModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(true)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for SideEffectsModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        AssetContent::File(
-            FileContent::Content(
-                "// This is a proxy module for reexportings a module with additional side effects."
-                    .into(),
-            )
-            .resolved_cell(),
-        )
-        .cell()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // This module exists to collect side effects from references.  So it isn't side effectful
+        // but it may depend on side effectful modules.  use this mode to allow inner graph tree
+        // shaking to still potentially trim this module and its dependencies.
+        ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
     }
 }
 

@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -20,7 +21,7 @@ use crate::{
     chunk::{ChunkableModule, ChunkingType},
     module::Module,
     module_graph::{
-        GraphTraversalAction, ModuleGraph, ModuleGraphRef,
+        GraphTraversalAction, ModuleGraph,
         chunk_group_info::{ChunkGroupInfo, ChunkGroupKey, RoaringBitmapWrapper},
         module_batch::{ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
         traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
@@ -48,7 +49,10 @@ pub struct ModuleBatchesGraphEdge {
     pub module: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
-type EntriesList = FxIndexSet<ResolvedVc<Box<dyn Module>>>;
+#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+struct EntriesList(
+    #[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+);
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct ModuleBatchesGraph {
@@ -61,6 +65,7 @@ pub struct ModuleBatchesGraph {
     //
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     entries: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
     batch_groups: FxHashMap<ModuleOrBatch, ResolvedVc<ModuleBatchGroup>>,
 
@@ -92,7 +97,7 @@ impl ModuleBatchesGraph {
         chunk_group_info: &'l ChunkGroupInfo,
         idx: usize,
     ) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + 'l {
-        if let Some(ordered_entries) = self
+        if let Some(EntriesList(ordered_entries)) = self
             .ordered_entries
             .get(idx)
             .as_ref()
@@ -252,18 +257,17 @@ impl PreBatches {
     fn ensure_pre_batch_for_module(
         &mut self,
         module: ResolvedVc<Box<dyn Module>>,
-        chunk_group_info: &ChunkGroupInfo,
+        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<PreBatchIndex> {
         Ok(match self.entries.entry(module) {
             Entry::Vacant(e) => {
                 let index = self.batches.len();
                 queue.push_back((module, index));
-                let chunk_groups = chunk_group_info
-                    .module_chunk_groups
+                let chunk_groups = module_chunk_groups
                     .get(&module)
                     .context("all modules need to have chunk group info")?;
-                let batch = PreBatch::new(chunk_groups.clone());
+                let batch = PreBatch::new((*chunk_groups).clone());
                 self.batches.push(batch);
                 e.insert(index);
                 index
@@ -275,8 +279,8 @@ impl PreBatches {
     async fn get_pre_batch_items(
         &mut self,
         entry: ResolvedVc<Box<dyn Module>>,
-        chunk_group_info: &ChunkGroupInfo,
-        module_graph: &ModuleGraphRef,
+        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+        module_graph: &ModuleGraph,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<Vec<PreBatchItem>> {
         let mut state = TraversalState {
@@ -284,7 +288,7 @@ impl PreBatches {
             this: self,
         };
         let mut visited = FxHashSet::default();
-        module_graph.traverse_edges_from_entries_dfs(
+        module_graph.traverse_edges_dfs(
             std::iter::once(entry),
             &mut state,
             |parent_info, node, state| {
@@ -307,7 +311,7 @@ impl PreBatches {
                     if parent_info.is_some() && state.this.boundary_modules.contains(&module) {
                         let idx = state.this.ensure_pre_batch_for_module(
                             module,
-                            chunk_group_info,
+                            module_chunk_groups,
                             queue,
                         )?;
                         state.items.push(PreBatchItem::ParallelReference(idx));
@@ -344,13 +348,14 @@ pub async fn compute_module_batches(
     let span = outer_span.clone();
     async move {
         let chunk_group_info = module_graph.chunk_group_info().await?;
-        let module_graph = module_graph.read_graphs().await?;
+        let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
+        let module_graph = module_graph.await?;
 
         let mut pre_batches = PreBatches::new();
 
         // Walk the module graph and mark all modules that are boundary modules (referenced from a
         // different chunk group bitmap)
-        module_graph.traverse_all_edges_unordered(|parent, node| {
+        module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent, ty)) = parent {
                 let std::collections::hash_set::Entry::Vacant(entry) =
                     pre_batches.boundary_modules.entry(node)
@@ -359,12 +364,10 @@ pub async fn compute_module_batches(
                     return Ok(());
                 };
                 if ty.chunking_type.is_parallel() {
-                    let parent_chunk_groups = chunk_group_info
-                        .module_chunk_groups
+                    let parent_chunk_groups = module_chunk_groups
                         .get(&parent)
                         .context("all modules need to have chunk group info")?;
-                    let chunk_groups = chunk_group_info
-                        .module_chunk_groups
+                    let chunk_groups = module_chunk_groups
                         .get(&node)
                         .context("all modules need to have chunk group info")?;
                     if parent_chunk_groups != chunk_groups {
@@ -390,9 +393,10 @@ pub async fn compute_module_batches(
         module_graph.traverse_cycles(
             |ref_data| ref_data.chunking_type.is_parallel(),
             |cycle| {
-                if cycle
-                    .iter()
-                    .any(|node| pre_batches.boundary_modules.contains(node))
+                if cycle.len() > 1
+                    && cycle
+                        .iter()
+                        .any(|node| pre_batches.boundary_modules.contains(node))
                 {
                     pre_batches
                         .boundary_modules
@@ -409,7 +413,7 @@ pub async fn compute_module_batches(
         // Start with the entries
         for chunk_group in &chunk_group_info.chunk_groups {
             for entry in chunk_group.entries() {
-                pre_batches.ensure_pre_batch_for_module(entry, &chunk_group_info, &mut queue)?;
+                pre_batches.ensure_pre_batch_for_module(entry, &module_chunk_groups, &mut queue)?;
             }
             if let Some(parent) = chunk_group.get_merged_parent() {
                 chunk_group_indices_with_merged_children.insert(parent);
@@ -422,7 +426,7 @@ pub async fn compute_module_batches(
             let items = pre_batches
                 .get_pre_batch_items(
                     chunkable_module,
-                    &chunk_group_info,
+                    &module_chunk_groups,
                     &module_graph,
                     &mut queue,
                 )
@@ -446,7 +450,7 @@ pub async fn compute_module_batches(
                 .as_ref()
                 .map_or_else(
                     || Either::Left(chunk_group.entries()),
-                    |v| Either::Right(v.iter().copied()),
+                    |v| Either::Right(v.0.iter().copied()),
                 )
                 .map(|module| {
                     let idx = *pre_batches
@@ -505,7 +509,7 @@ pub async fn compute_module_batches(
                         .chunk_group_keys
                         .get_index_of(&chunk_group_key)
                         .context("could not find chunk group key for merged chunk group")?;
-                    ordered_entries[idx] = Some(merged_modules);
+                    ordered_entries[idx] = Some(EntriesList(merged_modules));
                 }
             }
         }
@@ -767,8 +771,7 @@ pub async fn compute_module_batches(
             batch_groups.entry(key).or_default().push(batch);
         }
         for &module in &pre_batches.single_module_entries {
-            let chunk_groups = chunk_group_info
-                .module_chunk_groups
+            let chunk_groups = module_chunk_groups
                 .get(&module)
                 .context("all modules need to have chunk group info")?;
             let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups);

@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -64,8 +65,9 @@ use crate::{
 /// [`NonLocalValue`]: crate::NonLocalValue
 /// [rewritten external signature]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html#external-signature-rewriting
 /// [`ReadRef`]: crate::ReadRef
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent, bound = "")]
+#[bincode(bounds = "T: ?Sized")]
 #[repr(transparent)]
 pub struct ResolvedVc<T>
 where
@@ -133,11 +135,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> Default for ResolvedVc<T>
+impl<T, Inner> Default for ResolvedVc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync + Default,
-    Repr: VcValueType,
 {
     fn default() -> Self {
         Self::cell(Default::default())
@@ -176,11 +177,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> ResolvedVc<T>
+impl<T, Inner> ResolvedVc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync,
-    Repr: VcValueType,
 {
     pub fn cell(inner: Inner) -> Self {
         Self {

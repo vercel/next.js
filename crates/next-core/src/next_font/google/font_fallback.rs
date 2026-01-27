@@ -1,19 +1,20 @@
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, NonLocalValue, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
-use super::options::NextFontGoogleOptions;
 use crate::{
     next_font::{
         font_fallback::{
             AutomaticFontFallback, DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT, FontAdjustment,
             FontFallback,
         },
+        google::options::NextFontGoogleOptions,
         issue::NextFontIssue,
         util::{FontFamilyType, get_scoped_font_family},
     },
@@ -21,7 +22,7 @@ use crate::{
 };
 
 /// An entry in the Google fonts metrics map
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+#[derive(Deserialize, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct FontMetricsMapEntry {
     category: RcStr,
@@ -32,11 +33,13 @@ pub(super) struct FontMetricsMapEntry {
     x_width_avg: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 #[turbo_tasks::value]
-pub(super) struct FontMetricsMap(pub FxIndexMap<RcStr, FontMetricsMapEntry>);
+pub(super) struct FontMetricsMap(
+    #[bincode(with = "turbo_bincode::indexmap")] pub FxIndexMap<RcStr, FontMetricsMapEntry>,
+);
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue)]
 struct Fallback {
     pub font_family: RcStr,
     pub adjustment: Option<FontAdjustment>,

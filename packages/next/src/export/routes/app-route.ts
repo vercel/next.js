@@ -80,7 +80,7 @@ export async function exportAppRoute(
     renderOpts: {
       cacheComponents,
       experimental,
-      nextExport: true,
+      isBuildTimePrerendering: true,
       supportsDynamicResponse: false,
       incrementalCache,
       waitUntil: afterRunner.context.waitUntil,

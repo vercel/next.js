@@ -38,9 +38,7 @@ describe('serialize-circular-error', () => {
     `)
 
     const bodyText = await browser.elementByCss('body').text()
-    expect(bodyText).toContain(
-      'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).'
-    )
+    expect(bodyText).toContain('This page crashed')
 
     const output = next.cliOutput
     expect(output).toContain(

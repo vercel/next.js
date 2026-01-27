@@ -621,7 +621,6 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
-      nextConfig: Buffer.from(JSON.stringify(opts.config)).toString('base64'),
       preferredRegion: opts.preferredRegion,
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
@@ -682,9 +681,6 @@ export function getEdgeServerEntry(opts: {
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
     page: opts.page,
-    stringifiedConfig: Buffer.from(JSON.stringify(opts.config)).toString(
-      'base64'
-    ),
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
@@ -945,6 +941,7 @@ export async function createEntrypoints(
               pagePath: absolutePagePath,
               appDir,
               appPaths: matchedAppPaths,
+              allNormalizedAppPaths: Object.keys(appPathsPerRoute),
               pageExtensions,
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
@@ -1023,6 +1020,7 @@ export async function createEntrypoints(
                 pagePath: absolutePagePath,
                 appDir: appDir!,
                 appPaths: matchedAppPaths,
+                allNormalizedAppPaths: Object.keys(appPathsPerRoute),
                 pageExtensions,
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,

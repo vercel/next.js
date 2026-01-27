@@ -11,11 +11,11 @@ export type Twitter =
 
 type TwitterMetadata = {
   // defaults to card="summary"
-  site?: string | undefined // username for account associated to the site itself
-  siteId?: string | undefined // id for account associated to the site itself
-  creator?: string | undefined // username for the account associated to the creator of the content on the site
-  creatorId?: string | undefined // id for the account associated to the creator of the content on the site
-  description?: string | undefined
+  site?: null | string | undefined // username for account associated to the site itself
+  siteId?: null | string | undefined // id for account associated to the site itself
+  creator?: null | string | undefined // username for the account associated to the creator of the content on the site
+  creatorId?: null | string | undefined // id for the account associated to the creator of the content on the site
+  description?: null | string | undefined
   title?: string | TemplateString | undefined
   images?: TwitterImage | Array<TwitterImage> | undefined
 }

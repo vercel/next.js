@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
@@ -23,11 +23,10 @@ use turbopack_core::{
     },
 };
 
-use super::base::ReferencedAsset;
 use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{AstPath, esm::base::ReferencedAsset},
     runtime_functions::{
         TURBOPACK_RELATIVE_URL, TURBOPACK_REQUIRE, TURBOPACK_RESOLVE_MODULE_ID_PATH,
     },
@@ -38,17 +37,7 @@ use crate::{
 /// This allows to construct url depends on the different building context,
 /// e.g. SSR, CSR, or Node.js.
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
+    Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub enum UrlRewriteBehavior {
     /// Omits base, resulting in a relative URL.
@@ -147,7 +136,7 @@ impl IntoCodeGenReference for UrlAssetReference {
 }
 
 #[derive(
-    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct UrlAssetReferenceCodeGen {
     reference: ResolvedVc<UrlAssetReference>,

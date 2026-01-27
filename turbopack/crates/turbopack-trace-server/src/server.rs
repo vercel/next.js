@@ -16,7 +16,7 @@ use crate::{
     viewer::{Update, ViewLineUpdate, ViewMode, Viewer},
 };
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
 pub enum ServerToClientMessage {
@@ -46,7 +46,7 @@ pub enum ServerToClientMessage {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
 pub enum ClientToServerMessage {
@@ -72,20 +72,20 @@ pub enum ClientToServerMessage {
     CheckForMoreData,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Filter {
     pub op: Op,
     pub value: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Op {
     Gt,
     Lt,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewRect {
     pub x: u64,

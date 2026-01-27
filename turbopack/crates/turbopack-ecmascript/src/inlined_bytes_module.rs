@@ -3,12 +3,12 @@ use std::io::{Read, Write};
 use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, glob::Glob, rope::RopeBuilder};
+use turbo_tasks_fs::{FileContent, rope::RopeBuilder};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     source::Source,
@@ -51,19 +51,8 @@ impl Module for InlinedBytesJsModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(true)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for InlinedBytesJsModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 
@@ -128,7 +117,7 @@ impl ChunkItem for InlinedBytesJsChunkItem {
 impl EcmascriptChunkItem for InlinedBytesJsChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let content = self.module.content().file_content().await?;
+        let content = self.module.await?.source.content().file_content().await?;
         match &*content {
             FileContent::Content(data) => {
                 let mut inner_code = RopeBuilder::default();

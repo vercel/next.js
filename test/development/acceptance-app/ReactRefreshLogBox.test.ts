@@ -294,11 +294,10 @@ describe('ReactRefreshLogBox app', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
                │    ,-[7:1]
                │  4 |       <p>lol</p>
@@ -495,11 +494,10 @@ describe('ReactRefreshLogBox app', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × SyntaxError",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-         × Module build failed:
          ╰─▶   × SyntaxError
                │
                │ (1:1) <FIXME-project-root>/index.module.css Unknown word
@@ -559,11 +557,10 @@ describe('ReactRefreshLogBox app', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × CssSyntaxError",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-         × Module build failed:
          ╰─▶   × CssSyntaxError
                │
                │ (1:1) Selector "button" is not pure (pure selectors must contain at least one local class or id)
@@ -1056,6 +1053,21 @@ describe('ReactRefreshLogBox app', () => {
          ],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "test",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (3:11) @ __rspack_default_export
+       > 3 |     throw new Error('test')
+           |           ^",
+         "stack": [
+           "__rspack_default_export index.js (3:11)",
+           "Page app/page.js (4:10)",
+         ],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -1504,13 +1516,12 @@ describe('ReactRefreshLogBox app', () => {
        }
       `)
     } else if (isRspack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
+         "description": "Failed to compile",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "× Module build failed:
-         ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
+         "source": "╰─▶ × Error: RspackResolver(NotFound("./boom.css"))",
          "stack": [],
        }
       `)

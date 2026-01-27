@@ -49,9 +49,14 @@ A meta file can contain metadata about multiple SST files. The metadata is store
     - 8 bytes min hash
     - 8 bytes max hash
     - 8 bytes SST file size
+    - 4 bytes flags
+      - bit 0: cold (compacted and not recently accessed)
+      - bit 1: fresh (not yet compacted)
     - 4 bytes end of AMQF offset relative to start of all AMQF data
+  - 4 bytes end of AMQF offset relative to start of all AMQF data of the "used key hashes" AMQF
 - foreach described SST file
   - serialized AMQF
+- serialized "used key hashes" AMQF
 
 ### SST file
 
@@ -137,7 +142,7 @@ Reading start from the current sequence number and goes downwards.
 
 - We have all SST files memory mapped
 - for i = CURRENT sequence number .. 0
-  - Check AMQF from SST file for key existance -> if not continue
+  - Check AMQF from SST file for key existence -> if not continue
   - let block = 0
   - loop
     - Index Block: find key range that contains the key by binary search
@@ -169,7 +174,7 @@ Compaction chooses a few SST files and runs the merge step of merge sort on tham
 
 Example:
 
-```
+``` text
 key hash range: | 0    ...    u64::MAX |
 SST 1:             |----------------|
 SST 2:                |----------------|
@@ -178,7 +183,7 @@ SST 3:            |-----|
 
 can be compacted into:
 
-```
+``` text
 key hash range: | 0    ...    u64::MAX |
 SST 1':           |-------|
 SST 2':                   |------|
@@ -187,7 +192,7 @@ SST 3':                          |-----|
 
 The merge operation decreases the total coverage since the new SST files will have a coverage of < 1.
 
-But we need to be careful to insert the SST files in the correct location again, since items in these SST files might be overriden in later SST file and we don't want to change that.
+But we need to be careful to insert the SST files in the correct location again, since items in these SST files might be overridden in later SST file and we don't want to change that.
 
 Since SST files that are smaller than the current sequence number are immutable we can't change the files and we can't insert new files at this sequence numbers.
 Instead we need to insert the new SST after the current sequence number and copy all SST files after the original SST files after them. (Actually we only need to copy SST files with overlapping key hash ranges. And we can hardlink them instead). Later we will write the current sequence number and delete them original and all copied SST files.
@@ -206,7 +211,7 @@ Full example:
 
 Example:
 
-```
+``` text
 key hash range: | 0    ...    u64::MAX | Family
 SST 1:             |-|                   1
 SST 2:             |----------------|    1
@@ -234,7 +239,7 @@ Then we delete SST files 2, 3, 6 and 4, 5, 8 and 7, 9. The
 
 SST files 1 stays unchanged.
 
-```
+``` text
 key hash range: | 0    ...    u64::MAX | Family
 SST 1:             |-|                   1
 SST 10:            |-----|               1

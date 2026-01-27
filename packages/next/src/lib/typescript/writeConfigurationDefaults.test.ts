@@ -16,6 +16,7 @@ describe('writeConfigurationDefaults()', () => {
   let isFirstTimeSetup: boolean
   let hasPagesDir: boolean
   let isolatedDevBuild = true
+  let experimentalStrictRouteTypes = true
 
   beforeEach(async () => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation()
@@ -47,7 +48,8 @@ describe('writeConfigurationDefaults()', () => {
         hasAppDir,
         distDir,
         hasPagesDir,
-        isolatedDevBuild
+        isolatedDevBuild,
+        experimentalStrictRouteTypes
       )
 
       const tsConfig = JSON.parse(
@@ -85,8 +87,6 @@ describe('writeConfigurationDefaults()', () => {
          ],
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx",
@@ -107,7 +107,7 @@ describe('writeConfigurationDefaults()', () => {
          	- strict was set to false
          	- noEmit was set to true
          	- incremental was set to true
-         	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', '.next/dev/types/**/*.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+         	- include was set to ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
          	- plugins was updated to add { name: 'next' }
          	- exclude was set to ['node_modules']
 
@@ -137,7 +137,8 @@ describe('writeConfigurationDefaults()', () => {
         hasAppDir,
         distDir,
         hasPagesDir,
-        isolatedDevBuild
+        isolatedDevBuild,
+        experimentalStrictRouteTypes
       )
 
       expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))).not.toMatch(
@@ -170,7 +171,8 @@ describe('writeConfigurationDefaults()', () => {
             hasAppDir,
             distDir,
             hasPagesDir,
-            isolatedDevBuild
+            isolatedDevBuild,
+            experimentalStrictRouteTypes
           )
         ).resolves.not.toThrow()
 
