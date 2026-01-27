@@ -1,7 +1,7 @@
 ---
 title: Building public pages
 description: Learn how to build public, "static" pages that share data across users, such as landing pages, list pages (products, blogs, etc.), marketing and news sites.
-nav_title: Building public pages
+nav_title: Public pages
 ---
 
 Public pages show the same content to every user. Common examples include landing pages, marketing pages, and product pages.
@@ -26,7 +26,7 @@ You can find the resources used in this example here:
 
 Let's start with a simple header.
 
-```tsx filename=app/products/page.tsx
+```tsx filename="app/products/page.tsx"
 // Static component
 function Header() {
   return <h1>Shop</h1>
@@ -45,13 +45,11 @@ export default async function Page() {
 
 The `<Header />` component doesn't depend on any inputs that change between requests, such as: external data, request headers, route params, the current time, or random values.
 
-Since its output never changes and can be determined ahead of time, this kind of component is called a **static** component.
-
-With no reason to wait for a request, Next.js can safely **prerender** the page at [build time](/docs/app/glossary#build-time).
+Since its output never changes and can be determined ahead of time, this kind of component is called a **static** component. With no reason to wait for a request, Next.js can safely **prerender** the page at [build time](/docs/app/glossary#build-time).
 
 We can confirm this by running [`next build`](/docs/app/api-reference/cli/next#next-build-options).
 
-```bash filename=terminal
+```bash filename="Terminal"
 Route (app)      Revalidate  Expire
 ┌ ○ /products           15m      1y
 └ ○ /_not-found
@@ -65,7 +63,7 @@ Notice that the product route is marked as static, even though we didn't add any
 
 Now, let's fetch and render our product list.
 
-```tsx filename=page.tsx
+```tsx filename="app/products/page.tsx"
 import db from '@/db'
 import { List } from '@/app/products/ui'
 
@@ -91,15 +89,11 @@ Unlike the header, the product list depends on external data.
 
 #### Dynamic components
 
-Because this data **can** change over time, the rendered output is no longer guaranteed to be stable.
-
-This makes it a **dynamic** component.
+Since this data **can** change over time, the rendered output is no longer guaranteed to be stable. This makes the product list a **dynamic** component.
 
 Without guidance, the framework assumes you want to fetch **fresh** data on every user request. This design choice reflects standard web behavior where a new server request renders the page.
 
-However, if this component is rendered at request time, fetching its data will delay the **entire** route from responding.
-
-If we refresh the page, we can see this happen.
+However, if this component is rendered at request time, fetching its data will delay the **entire** route from responding. If we refresh the page, we can see this happen.
 
 Even though the header is rendered instantly, it can't be sent to the browser until the product list has finished fetching.
 
@@ -116,7 +110,7 @@ In our case, the product catalog is shared across all users, so caching is the r
 
 We can mark a function as cacheable using the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
 
-```tsx filename=page.tsx
+```tsx filename="app/products/page.tsx"
 import db from '@/db'
 import { List } from '@/app/products/ui'
 
@@ -139,15 +133,13 @@ export default async function Page() {
 }
 ```
 
-This turns it into a [cache component](/docs/app/glossary#cache-components).
-
-The first time it runs, whatever we return will be cached and reused.
+This turns it into a [cache component](/docs/app/glossary#cache-components). The first time it runs, whatever we return will be cached and reused.
 
 If a cache component's inputs are available **before** the request arrives, it can be prerendered just like a static component.
 
 If we refresh again, we can see the page loads instantly because the cache component doesn't block the response. And, if we run `next build` again, we can confirm the page is still static:
 
-```bash filename=terminal
+```bash filename="Terminal"
 Route (app)      Revalidate  Expire
 ┌ ○ /products           15m      1y
 └ ○ /_not-found
@@ -159,11 +151,9 @@ But, pages rarely stay static forever.
 
 ### Step 3: Add a dynamic promotion banner
 
-Sooner or later, even simple pages need some dynamic content.
+Sooner or later, even simple pages need some dynamic content. To demonstrate this, let's add a promotional banner:
 
-To demonstrate this, let's add a promotional banner.
-
-```tsx filename=app/products/page.tsx
+```tsx filename="app/products/page.tsx"
 import db from '@/db'
 import { List, Promotion } from '@/app/products/ui'
 import { getPromotion } from '@/app/products/data'
@@ -191,9 +181,7 @@ export default async function Page() {
 
 Once again, this starts off as dynamic. And as before, introducing blocking behavior triggers a Next.js warning.
 
-Last time, the data was shared, so it could be cached.
-
-This time, the promotion depends on request specific inputs like the user's location and A/B tests, so we can't cache our way out of the blocking behavior.
+Last time, the data was shared, so it could be cached. This time, the promotion depends on request specific inputs like the user's location and A/B tests, so we can't cache our way out of the blocking behavior.
 
 ### Partial prerendering
 
@@ -201,7 +189,7 @@ Adding dynamic content doesn't mean we have to go back to a fully blocking rende
 
 Next.js supports streaming by default. We can use a [Suspense boundary](/docs/app/glossary#suspense-boundary) to tell the framework where to slice the streamed response into _chunks_, and what fallback UI to show while content loads.
 
-```tsx filename=app/products/page.tsx
+```tsx filename="app/products/page.tsx"
 import { Suspense } from 'react'
 import db from '@/db'
 import { List, Promotion, PromotionSkeleton } from '@/app/products/ui'
@@ -234,9 +222,9 @@ The fallback is prerendered alongside the rest of our static and cached content.
 
 With this change, Next.js can separate prerenderable work from request-time work and the route becomes [partially prerendered](/docs/app/glossary#partial-prerendering-ppr).
 
-Again, we can confirm this by running `next build`
+Again, we can confirm this by running `next build`:
 
-```bash filename=terminal
+```bash filename="Terminal"
 Route (app)      Revalidate  Expire
 ┌ ◐ /products    15m      1y
 └ ◐ /_not-found
