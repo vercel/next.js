@@ -44,7 +44,7 @@ function _getInitialProps({
 
 const styles: Record<string, React.CSSProperties> = {
   error: {
-    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
+    // https://github.com/sindresorhus/modern-normalize/blob/32713e4f46899410c9cb4dacd4302b3096019c9b/modern-normalize.css#L38-L52
     fontFamily:
       'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
     height: '100vh',
