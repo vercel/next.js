@@ -235,7 +235,6 @@ jobs:
 
           echo "Pre-checkout cleanup complete"
         shell: bash
-        continue-on-error: true
 
       - uses: actions/checkout@v4
         with:
