@@ -195,6 +195,25 @@ function p() {
     //TURBOPACK unreachable
     ;
 }
+function q() {
+    while(false){
+        q1();
+        return;
+        //TURBOPACK unreachable
+        ;
+    }
+    q3();
+}
+function r() {
+    {
+        r1();
+        return;
+        //TURBOPACK unreachable
+        ;
+    }
+    //TURBOPACK unreachable
+    ;
+}
 z1();
 return;
 z2();

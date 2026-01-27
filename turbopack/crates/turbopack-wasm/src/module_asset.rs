@@ -3,20 +3,19 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
         chunk_group::references_to_output_assets,
     },
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, OptionModule},
+    module::{Module, ModuleSideEffects, OptionModule},
     module_graph::ModuleGraph,
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
     reference::{ModuleReferences, SingleChunkableModuleReference},
     reference_type::ReferenceType,
     resolve::{ExportUsage, origin::ResolveOrigin, parse::Request},
-    source::Source,
+    source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -61,20 +60,19 @@ impl WebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn loader_as_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        let this = self.await?;
-        let query = &this.source.ident().await?.query;
+    async fn loader_as_module(&self) -> Result<Vc<Box<dyn Module>>> {
+        let query = &self.source.ident().await?.query;
 
         let loader_source = if query == "?module" {
-            compiling_loader_source(*this.source)
+            compiling_loader_source(*self.source)
         } else {
-            instantiating_loader_source(*this.source)
+            instantiating_loader_source(*self.source)
         };
 
-        let module = this.asset_context.process(
+        let module = self.asset_context.process(
             loader_source,
             ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*this.source, *this.asset_context).to_resolved().await?),
+                rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*self.source, *self.asset_context).to_resolved().await?),
             })),
         ).module();
 
@@ -131,6 +129,11 @@ impl Module for WebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(ResolvedVc::upcast(self.source)))
+    }
+
+    #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         self.loader().references()
     }
@@ -139,13 +142,13 @@ impl Module for WebAssemblyModuleAsset {
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(true)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // Both versions of this module have a top level await that instantiates a wasm module
+        // wasm module instantiation can trigger arbitrary side effects from the native start
+        // function
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 

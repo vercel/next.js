@@ -22,11 +22,14 @@ import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
+import type { AppPageModule } from './route-modules/app-page/module'
+import type { AppRouteModule } from './route-modules/app-route/module.compiled'
+import type { ErrorModule } from './load-default-error-components'
+import type { PagesModule } from './route-modules/pages/module.compiled'
 
 import fs from 'fs'
 import { join, relative } from 'path'
@@ -81,7 +84,10 @@ import ResponseCache, {
   CachedRouteKind,
   type IncrementalResponseCacheEntry,
 } from './response-cache'
-import { IncrementalCache } from './lib/incremental-cache'
+import {
+  IncrementalCache,
+  type CacheHandler as ICacheHandler,
+} from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
@@ -112,7 +118,6 @@ import { AsyncCallbackSet } from './lib/async-callback-set'
 import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
-import { isPostpone } from './lib/router-utils/is-postpone'
 import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import {
@@ -124,6 +129,7 @@ import {
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
 import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
+import { installProcessErrorHandlers } from './node-environment-extensions/process-error-handlers'
 
 export * from './base-server'
 
@@ -164,88 +170,6 @@ function getMiddlewareMatcher(
   return matcher
 }
 
-function installProcessErrorHandlers(
-  shouldRemoveUncaughtErrorAndRejectionListeners: boolean
-) {
-  // The conventional wisdom of Node.js and other runtimes is to treat
-  // unhandled errors as fatal and exit the process.
-  //
-  // But Next.js is not a generic JS runtime — it's a specialized runtime for
-  // React Server Components.
-  //
-  // Many unhandled rejections are due to the late-awaiting pattern for
-  // prefetching data. In Next.js it's OK to call an async function without
-  // immediately awaiting it, to start the request as soon as possible
-  // without blocking unncessarily on the result. These can end up
-  // triggering an "unhandledRejection" if it later turns out that the
-  // data is not needed to render the page. Example:
-  //
-  //     const promise = fetchData()
-  //     const shouldShow = await checkCondition()
-  //     if (shouldShow) {
-  //       return <Component promise={promise} />
-  //     }
-  //
-  // In this example, `fetchData` is called immediately to start the request
-  // as soon as possible, but if `shouldShow` is false, then it will be
-  // discarded without unwrapping its result. If it errors, it will trigger
-  // an "unhandledRejection" event.
-  //
-  // Ideally, we would suppress these rejections completely without warning,
-  // because we don't consider them real errors. (TODO: Currently we do warn.)
-  //
-  // But regardless of whether we do or don't warn, we definitely shouldn't
-  // crash the entire process.
-  //
-  // Even a "legit" unhandled error unrelated to prefetching shouldn't
-  // prevent the rest of the page from rendering.
-  //
-  // So, we're going to intentionally override the default error handling
-  // behavior of the outer JS runtime to be more forgiving
-
-  // Remove any existing "unhandledRejection" and "uncaughtException" handlers.
-  // This is gated behind an experimental flag until we've considered the impact
-  // in various deployment environments. It's possible this may always need to
-  // be configurable.
-  if (shouldRemoveUncaughtErrorAndRejectionListeners) {
-    process.removeAllListeners('uncaughtException')
-    process.removeAllListeners('unhandledRejection')
-  }
-
-  // Install a new handler to prevent the process from crashing.
-  process.on('unhandledRejection', (reason: unknown) => {
-    if (isPostpone(reason)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
-      return
-    }
-    // Immediately log the error.
-    // TODO: Ideally, if we knew that this error was triggered by application
-    // code, we would suppress it entirely without logging. We can't reliably
-    // detect all of these, but when cacheComponents is enabled, we could suppress
-    // at least some of them by waiting to log the error until after all in-
-    // progress renders have completed. Then, only log errors for which there
-    // was not a corresponding "rejectionHandled" event.
-    console.error(reason)
-  })
-
-  process.on('rejectionHandled', () => {
-    // TODO: See note in the unhandledRejection handler above. In the future,
-    // we may use the "rejectionHandled" event to de-queue an error from
-    // being logged.
-  })
-
-  // Unhandled exceptions are errors triggered by non-async functions, so this
-  // is unrelated to the late-awaiting pattern. However, for similar reasons,
-  // we still shouldn't crash the process. Just log it.
-  process.on('uncaughtException', (reason: unknown) => {
-    if (isPostpone(reason)) {
-      return
-    }
-    console.error(reason)
-  })
-}
-
 export default class NextNodeServer extends BaseServer<
   Options,
   NodeNextRequest,
@@ -254,6 +178,7 @@ export default class NextNodeServer extends BaseServer<
   protected middlewareManifestPath: string
   private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
+  private imageCacheHandler?: ICacheHandler
   protected renderWorkersPromises?: Promise<void>
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
@@ -291,9 +216,6 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.useSkewCookie
-      ? ''
-      : this.nextConfig.deploymentId || ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -352,7 +274,7 @@ export default class NextNodeServer extends BaseServer<
     // when using compile mode static env isn't inlined so we
     // need to populate in normal runtime env
     if (this.renderOpts.isExperimentalCompile) {
-      populateStaticEnv(this.nextConfig)
+      populateStaticEnv(this.nextConfig, this.deploymentId || '')
     }
 
     const shouldRemoveUncaughtErrorAndRejectionListeners = Boolean(
@@ -387,7 +309,9 @@ export default class NextNodeServer extends BaseServer<
 
     for (const page of Object.keys(appPathsManifest || {})) {
       try {
-        const { ComponentMod } = await loadComponents({
+        const { ComponentMod } = await loadComponents<
+          AppPageModule | AppRouteModule
+        >({
           distDir: this.distDir,
           page,
           isAppPath: true,
@@ -517,10 +441,6 @@ export default class NextNodeServer extends BaseServer<
       getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
     })
-  }
-
-  protected getResponseCache() {
-    return new ResponseCache(this.minimalMode)
   }
 
   protected getPublicDir(): string {
@@ -709,37 +629,38 @@ export default class NextNodeServer extends BaseServer<
           // This code path does not service revalidations for unknown param
           // shells. As a result, we don't need to pass in the unknown params.
           null,
-          renderOpts,
+          renderOpts as LoadedRenderOpts<AppPageModule>,
           this.getServerComponentsHmrCache(),
           {
             buildId: this.buildId,
+            deploymentId: this.deploymentId,
+          }
+        )
+      } else {
+        // TODO: re-enable this once we've refactored to use implicit matches
+        // throw new Error('Invariant: render should have used routeModule')
+
+        return lazyRenderPagesPage(
+          req.originalRequest,
+          res.originalResponse,
+          pathname,
+          query,
+          renderOpts as LoadedRenderOpts<PagesModule>,
+          {
+            buildId: this.buildId,
+            deploymentId: this.deploymentId,
+            customServer: this.serverOptions.customServer || undefined,
+          },
+          {
+            isFallback: false,
+            isDraftMode: renderOpts.isDraftMode,
+            developmentNotFoundSourcePage: getRequestMeta(
+              req,
+              'developmentNotFoundSourcePage'
+            ),
           }
         )
       }
-
-      // TODO: re-enable this once we've refactored to use implicit matches
-      // throw new Error('Invariant: render should have used routeModule')
-
-      return lazyRenderPagesPage(
-        req.originalRequest,
-        res.originalResponse,
-        pathname,
-        query,
-        renderOpts,
-        {
-          buildId: this.buildId,
-          deploymentId: this.nextConfig.deploymentId,
-          customServer: this.serverOptions.customServer || undefined,
-        },
-        {
-          isFallback: false,
-          isDraftMode: renderOpts.isDraftMode,
-          developmentNotFoundSourcePage: getRequestMeta(
-            req,
-            'developmentNotFoundSourcePage'
-          ),
-        }
-      )
     }
   }
 
@@ -785,6 +706,7 @@ export default class NextNodeServer extends BaseServer<
         ? await fetchExternalImage(
             href,
             this.nextConfig.images.dangerouslyAllowLocalIP,
+            this.nextConfig.images.maximumResponseBody,
             this.nextConfig.images.maximumRedirects
           )
         : await fetchInternalImage(
@@ -986,9 +908,34 @@ export default class NextNodeServer extends BaseServer<
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')
 
+      // Load custom cache handler if configured and opt-in via images.customCacheHandler
+      // Cache the handler instance to preserve state across requests
+      if (
+        !this.imageCacheHandler &&
+        this.nextConfig.images.customCacheHandler
+      ) {
+        const { cacheHandler } = this.nextConfig
+        if (cacheHandler) {
+          const CacheHandler = interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, cacheHandler)
+            )
+          )
+          this.imageCacheHandler = new CacheHandler({
+            dev: !!this.renderOpts.dev,
+            flushToDisk: this.nextConfig.experimental.isrFlushToDisk,
+            serverDistDir: this.serverDistDir,
+            maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
+            revalidatedTags: [],
+            _requestHeaders: {},
+          })
+        }
+      }
+
       const imageOptimizerCache = new ImageOptimizerCache({
         distDir: this.distDir,
         nextConfig: this.nextConfig,
+        cacheHandler: this.imageCacheHandler,
       })
 
       const { sendResponse, ImageError } =
@@ -1160,13 +1107,19 @@ export default class NextNodeServer extends BaseServer<
           })
           if (handled) return true
         } catch (apiError) {
-          await this.instrumentationOnRequestError(apiError, req, {
-            routePath: match.definition.page,
-            routerKind: 'Pages Router',
-            routeType: 'route',
-            // Edge runtime does not support ISR
-            revalidateReason: undefined,
-          })
+          const silenceLog = false
+          await this.instrumentationOnRequestError(
+            apiError,
+            req,
+            {
+              routePath: match.definition.page,
+              routerKind: 'Pages Router',
+              routeType: 'route',
+              // Edge runtime does not support ISR
+              revalidateReason: undefined,
+            },
+            silenceLog
+          )
           throw apiError
         }
       }
@@ -1631,7 +1584,7 @@ export default class NextNodeServer extends BaseServer<
     request: NodeNextRequest
     response: NodeNextResponse
     parsedUrl: ParsedUrl
-    parsed: UrlWithParsedQuery
+    parsed: NextUrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }) {
     if (process.env.NEXT_MINIMAL) {
@@ -2110,7 +2063,7 @@ export default class NextNodeServer extends BaseServer<
 
   protected async getFallbackErrorComponents(
     _url?: string
-  ): Promise<LoadComponentsReturnType | null> {
+  ): Promise<LoadComponentsReturnType<ErrorModule> | null> {
     // Not implemented for production use cases, this is implemented on the
     // development server.
     return null
@@ -2123,7 +2076,10 @@ export default class NextNodeServer extends BaseServer<
 
     // For Node.js runtime production logs, in dev it will be overridden by next-dev-server
     if (!this.renderOpts.dev) {
-      this.logError(args[0] as Error)
+      const [err, , , silenceLog] = args
+      if (!silenceLog) {
+        this.logError(err)
+      }
     }
   }
 

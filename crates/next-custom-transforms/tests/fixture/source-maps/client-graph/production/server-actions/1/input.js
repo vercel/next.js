@@ -36,3 +36,6 @@ const original = async () => {
   console.log('action')
 }
 export { original as renamed }
+
+export { foo as '📙' }
+async function foo() {}

@@ -1,46 +1,74 @@
 'use client'
 
 import { HandleISRError } from '../handle-isr-error'
-
-const styles = {
-  error: {
-    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
-    fontFamily:
-      'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
-    height: '100vh',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontSize: '14px',
-    fontWeight: 400,
-    lineHeight: '28px',
-    margin: '0 8px',
-  },
-} as const
+import { errorStyles, errorThemeCss, ErrorIcon } from './error-styles'
 
 export type GlobalErrorComponent = React.ComponentType<{
   error: any
 }>
+
 function DefaultGlobalError({ error }: { error: any }) {
   const digest: string | undefined = error?.digest
+  const isServerError = !!digest
+
+  // Server error: "This page failed to load"
+  // Client error: "This page crashed"
+  const title = isServerError ? 'This page failed to load' : 'This page crashed'
+  const message = isServerError
+    ? 'Something went wrong while loading this page.'
+    : 'An error occurred while running this page.'
+  const hint = isServerError
+    ? 'If this keeps happening, it may be a server issue.'
+    : null
+
   return (
     <html id="__next_error__">
-      <head></head>
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: errorThemeCss }} />
+      </head>
       <body>
         <HandleISRError error={error} />
-        <div style={styles.error}>
-          <div>
-            <h2 style={styles.text}>
-              Application error: a {digest ? 'server' : 'client'}-side exception
-              has occurred while loading {window.location.hostname} (see the{' '}
-              {digest ? 'server logs' : 'browser console'} for more
-              information).
-            </h2>
-            {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
+        <div style={errorStyles.container}>
+          <div style={errorStyles.card}>
+            <ErrorIcon />
+            <h1 style={errorStyles.title}>{title}</h1>
+            <p style={errorStyles.message}>{message}</p>
+            {hint && <p style={errorStyles.messageHint}>{hint}</p>}
+            {!isServerError && (
+              <p style={errorStyles.messageHint}>
+                Reloading usually fixes this.
+              </p>
+            )}
+            <div style={errorStyles.buttonGroup}>
+              <form>
+                <button type="submit" style={errorStyles.button}>
+                  Reload page
+                </button>
+              </form>
+              {!isServerError && (
+                <button
+                  type="button"
+                  style={errorStyles.buttonSecondary}
+                  onClick={() => {
+                    if (window.history.length > 1) {
+                      window.history.back()
+                    } else {
+                      window.location.href = '/'
+                    }
+                  }}
+                >
+                  Go back
+                </button>
+              )}
+            </div>
+            {digest && (
+              <div style={errorStyles.digestContainer}>
+                <p style={errorStyles.digest}>
+                  Error reference:{' '}
+                  <code style={errorStyles.digestCode}>{digest}</code>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </body>

@@ -1,13 +1,12 @@
 use anyhow::{Context, Result};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
         MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
     },
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::ModuleReferences,
@@ -61,14 +60,6 @@ impl MergedEcmascriptModule {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for MergedEcmascriptModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        panic!("content() should not be called");
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl Module for MergedEcmascriptModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
@@ -78,13 +69,23 @@ impl Module for MergedEcmascriptModule {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
+    fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         panic!("references() should not be called");
     }
 
     #[turbo_tasks::function]
-    async fn is_self_async(&self) -> Result<Vc<bool>> {
+    fn is_self_async(&self) -> Result<Vc<bool>> {
         panic!("is_self_async() should not be called");
+    }
+    #[turbo_tasks::function]
+    fn side_effects(&self) -> Vc<ModuleSideEffects> {
+        // If needed this could be computed by merging the effects from all the merged modules
+        panic!("side_effects() should not be called");
     }
 }
 

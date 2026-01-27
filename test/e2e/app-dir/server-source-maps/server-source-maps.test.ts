@@ -415,7 +415,7 @@ describe('app-dir - server source maps', () => {
           normalizeCliOutput(next.cliOutput.slice(outputIndex)).split(
             'Invalid source map.'
           ).length - 1
-        ).toEqual(5)
+        ).toEqual(3)
       }
     } else {
       // Bundlers silently drop invalid sourcemaps.

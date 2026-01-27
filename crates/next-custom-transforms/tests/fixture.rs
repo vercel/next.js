@@ -29,7 +29,7 @@ use swc_core::{
     common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
     ecma::{
         ast::Pass,
-        parser::{EsSyntax, Syntax},
+        parser::{EsSyntax, Syntax, TsSyntax},
         transforms::{
             base::resolver,
             react::jsx,
@@ -453,6 +453,7 @@ fn react_server_components_typescript(input: PathBuf) {
                     is_react_server_layer: true,
                     cache_components_enabled: false,
                     use_cache_enabled: false,
+                    taint_enabled: true,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -476,6 +477,7 @@ fn react_server_components_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
                 // The transforms are intentionally declared in the same order as in
                 // crates/next-custom-transforms/src/chain_transforms.rs
@@ -485,6 +487,7 @@ fn react_server_components_fixture(input: PathBuf) {
                         is_react_server_layer,
                         cache_components_enabled: false,
                         use_cache_enabled: false,
+                        taint_enabled: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -500,6 +503,7 @@ fn react_server_components_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     ServerActionsMode::Webpack,
@@ -534,10 +538,16 @@ fn next_font_loaders_fixture(input: PathBuf) {
 
 #[fixture("tests/fixture/server-actions/**/input.*")]
 fn server_actions_fixture(input: PathBuf) {
-    let (input_syntax, extension) = if input.extension() == Some("ts".as_ref()) {
-        (Syntax::Typescript(Default::default()), "ts")
-    } else {
-        (syntax(), "js")
+    let (input_syntax, extension) = match input.extension().and_then(|e| e.to_str()) {
+        Some("ts") => (Syntax::Typescript(Default::default()), "ts"),
+        Some("tsx") => (
+            Syntax::Typescript(TsSyntax {
+                tsx: true,
+                ..Default::default()
+            }),
+            "tsx",
+        ),
+        _ => (syntax(), "js"),
     };
 
     let output = input.parent().unwrap().join(format!("output.{extension}"));
@@ -553,8 +563,9 @@ fn server_actions_fixture(input: PathBuf) {
     test_fixture(
         input_syntax,
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     None,
@@ -566,6 +577,7 @@ fn server_actions_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     mode,
@@ -587,8 +599,9 @@ fn next_font_with_directive_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 next_font_loaders(FontLoaderConfig {
                     relative_file_path_from_root: "app/test.tsx".into(),
                     font_loaders: vec!["@next/font/google".into()],
@@ -604,6 +617,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     ServerActionsMode::Webpack,
@@ -904,8 +918,9 @@ fn test_source_maps(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     None,
@@ -917,6 +932,7 @@ fn test_source_maps(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter([]),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     mode,

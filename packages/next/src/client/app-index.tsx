@@ -214,7 +214,6 @@ if (clientResumeFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
-      // @ts-expect-error This is not yet part of the React types
       startTime: 0,
     }
   )
@@ -319,7 +318,6 @@ export async function hydrate(
       initialFlightData: initialRSCPayload.f,
       initialCanonicalUrlParts: initialRSCPayload.c,
       initialRenderedSearch: initialRSCPayload.q,
-      initialParallelRoutes: new Map(),
       location: window.location,
     }),
     instrumentationHooks

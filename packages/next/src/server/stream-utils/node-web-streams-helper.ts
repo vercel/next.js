@@ -2,7 +2,11 @@ import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { DetachedPromise } from '../../lib/detached-promise'
-import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
+import {
+  scheduleImmediate,
+  atLeastOneTask,
+  waitAtLeastOneReactRenderTask,
+} from '../../lib/scheduler'
 import { ENCODED_TAGS } from './encoded-tags'
 import {
   indexOfUint8Array,
@@ -92,11 +96,11 @@ export function streamFromBuffer(chunk: Buffer): ReadableStream<Uint8Array> {
   })
 }
 
-export async function streamToBuffer(
+async function streamToChunks(
   stream: ReadableStream<Uint8Array>
-): Promise<Buffer> {
+): Promise<Array<Uint8Array>> {
   const reader = stream.getReader()
-  const chunks: Uint8Array[] = []
+  const chunks: Array<Uint8Array> = []
 
   while (true) {
     const { done, value } = await reader.read()
@@ -107,7 +111,30 @@ export async function streamToBuffer(
     chunks.push(value)
   }
 
-  return Buffer.concat(chunks)
+  return chunks
+}
+
+function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+  const result = new Uint8Array(totalLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    result.set(chunk, offset)
+    offset += chunk.length
+  }
+  return result
+}
+
+export async function streamToUint8Array(
+  stream: ReadableStream<Uint8Array>
+): Promise<Uint8Array> {
+  return concatUint8Arrays(await streamToChunks(stream))
+}
+
+export async function streamToBuffer(
+  stream: ReadableStream<Uint8Array>
+): Promise<Buffer> {
+  return Buffer.concat(await streamToChunks(stream))
 }
 
 export async function streamToString(
@@ -698,6 +725,48 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   })
 }
 
+function createHtmlDataDplIdTransformStream(
+  dplId: string
+): TransformStream<Uint8Array, Uint8Array> {
+  let didTransform = false
+
+  return new TransformStream({
+    transform(chunk, controller) {
+      if (didTransform) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      const htmlTagIndex = indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML)
+      if (htmlTagIndex === -1) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      // Insert the data-dpl-id attribute right after "<html "
+      const insertionPoint = htmlTagIndex + ENCODED_TAGS.OPENING.HTML.length
+      const attribute = ` data-dpl-id="${dplId}"`
+      const encodedAttribute = encoder.encode(attribute)
+      const modifiedChunk = new Uint8Array(
+        chunk.length + encodedAttribute.length
+      )
+
+      // Copy everything before the insertion point
+      modifiedChunk.set(chunk.subarray(0, insertionPoint))
+      // Insert the attribute
+      modifiedChunk.set(encodedAttribute, insertionPoint)
+      // Copy everything after
+      modifiedChunk.set(
+        chunk.subarray(insertionPoint),
+        insertionPoint + encodedAttribute.length
+      )
+
+      controller.enqueue(modifiedChunk)
+      didTransform = true
+    },
+  })
+}
+
 /*
  * Checks if the root layout is missing the html or body tags
  * and if so, it will inject a script tag to throw an error in the browser, showing the user
@@ -772,6 +841,7 @@ export type ContinueStreamOptions = {
   isStaticGeneration: boolean
   isBuildTimePrerendering: boolean
   buildId: string
+  deploymentId: string | undefined
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   validateRootLayout?: boolean
@@ -789,6 +859,7 @@ export async function continueFizzStream(
     isStaticGeneration,
     isBuildTimePrerendering,
     buildId,
+    deploymentId,
     getServerInsertedHTML,
     getServerInsertedMetadata,
     validateRootLayout,
@@ -797,9 +868,13 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  // If we're generating static HTML we need to wait for it to resolve before continuing.
   if (isStaticGeneration) {
+    // If we're generating static HTML we need to wait for it to resolve before continuing.
     await renderStream.allReady
+  } else {
+    // Otherwise, we want to make sure Fizz is done with all microtasky work
+    // before we start pulling the stream and cause a flush.
+    await waitAtLeastOneReactRenderTask()
   }
 
   return chainTransformers(renderStream, [
@@ -808,6 +883,9 @@ export async function continueFizzStream(
 
     // Add build id comment to start of the HTML document (in export mode)
     createPrefetchCommentStream(isBuildTimePrerendering, buildId),
+
+    // Insert data-dpl-id attribute on the html tag
+    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
 
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
@@ -838,6 +916,7 @@ export async function continueFizzStream(
 type ContinueDynamicPrerenderOptions = {
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
+  deploymentId: string | undefined
 }
 
 export async function continueDynamicPrerender(
@@ -845,18 +924,20 @@ export async function continueDynamicPrerender(
   {
     getServerInsertedHTML,
     getServerInsertedMetadata,
+    deploymentId,
   }: ContinueDynamicPrerenderOptions
 ) {
-  return (
-    prerenderStream
-      // Buffer everything to avoid flushing too frequently
-      .pipeThrough(createBufferedTransformStream())
-      .pipeThrough(createStripDocumentClosingTagsTransform())
-      // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Transform metadata
-      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
-  )
+  return chainTransformers(prerenderStream, [
+    // Buffer everything to avoid flushing too frequently
+    createBufferedTransformStream(),
+    createStripDocumentClosingTagsTransform(),
+    // Insert data-dpl-id attribute on the html tag
+    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+    // Insert generated tags to head
+    createHeadInsertionTransformStream(getServerInsertedHTML),
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
+  ])
 }
 
 type ContinueStaticPrerenderOptions = {
@@ -865,6 +946,7 @@ type ContinueStaticPrerenderOptions = {
   getServerInsertedMetadata: () => Promise<string>
   isBuildTimePrerendering: boolean
   buildId: string
+  deploymentId: string | undefined
 }
 
 export async function continueStaticPrerender(
@@ -875,27 +957,25 @@ export async function continueStaticPrerender(
     getServerInsertedMetadata,
     isBuildTimePrerendering,
     buildId,
+    deploymentId,
   }: ContinueStaticPrerenderOptions
 ) {
-  return (
-    prerenderStream
-      // Buffer everything to avoid flushing too frequently
-      .pipeThrough(createBufferedTransformStream())
-      // Add build id comment to start of the HTML document (in export mode)
-      .pipeThrough(
-        createPrefetchCommentStream(isBuildTimePrerendering, buildId)
-      )
-      // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Transform metadata
-      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
-      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(
-        createFlightDataInjectionTransformStream(inlinedDataStream, true)
-      )
-      // Close tags should always be deferred to the end
-      .pipeThrough(createMoveSuffixStream())
-  )
+  return chainTransformers(prerenderStream, [
+    // Buffer everything to avoid flushing too frequently
+    createBufferedTransformStream(),
+    // Add build id comment to start of the HTML document (in export mode)
+    createPrefetchCommentStream(isBuildTimePrerendering, buildId),
+    // Insert data-dpl-id attribute on the html tag
+    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+    // Insert generated tags to head
+    createHeadInsertionTransformStream(getServerInsertedHTML),
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    createFlightDataInjectionTransformStream(inlinedDataStream, true),
+    // Close tags should always be deferred to the end
+    createMoveSuffixStream(),
+  ])
 }
 
 export async function continueStaticFallbackPrerender(
@@ -906,32 +986,30 @@ export async function continueStaticFallbackPrerender(
     getServerInsertedMetadata,
     isBuildTimePrerendering,
     buildId,
+    deploymentId,
   }: ContinueStaticPrerenderOptions
 ) {
   // Same as `continueStaticPrerender`, but also inserts an additional script
   // to instruct the client to start fetching the hydration data as early
   // as possible.
-  return (
-    prerenderStream
-      // Buffer everything to avoid flushing too frequently
-      .pipeThrough(createBufferedTransformStream())
-      // Add build id comment to start of the HTML document (in export mode)
-      .pipeThrough(
-        createPrefetchCommentStream(isBuildTimePrerendering, buildId)
-      )
-      // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert the client resume script into the head
-      .pipeThrough(createClientResumeScriptInsertionTransformStream())
-      // Transform metadata
-      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
-      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(
-        createFlightDataInjectionTransformStream(inlinedDataStream, true)
-      )
-      // Close tags should always be deferred to the end
-      .pipeThrough(createMoveSuffixStream())
-  )
+  return chainTransformers(prerenderStream, [
+    // Buffer everything to avoid flushing too frequently
+    createBufferedTransformStream(),
+    // Add build id comment to start of the HTML document (in export mode)
+    createPrefetchCommentStream(isBuildTimePrerendering, buildId),
+    // Insert data-dpl-id attribute on the html tag
+    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+    // Insert generated tags to head
+    createHeadInsertionTransformStream(getServerInsertedHTML),
+    // Insert the client resume script into the head
+    createClientResumeScriptInsertionTransformStream(),
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    createFlightDataInjectionTransformStream(inlinedDataStream, true),
+    // Close tags should always be deferred to the end
+    createMoveSuffixStream(),
+  ])
 }
 
 type ContinueResumeOptions = {
@@ -939,6 +1017,7 @@ type ContinueResumeOptions = {
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   delayDataUntilFirstHtmlChunk: boolean
+  deploymentId: string | undefined
 }
 
 export async function continueDynamicHTMLResume(
@@ -948,26 +1027,26 @@ export async function continueDynamicHTMLResume(
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
+    deploymentId,
   }: ContinueResumeOptions
 ) {
-  return (
-    renderStream
-      // Buffer everything to avoid flushing too frequently
-      .pipeThrough(createBufferedTransformStream())
-      // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Transform metadata
-      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
-      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(
-        createFlightDataInjectionTransformStream(
-          inlinedDataStream,
-          delayDataUntilFirstHtmlChunk
-        )
-      )
-      // Close tags should always be deferred to the end
-      .pipeThrough(createMoveSuffixStream())
-  )
+  return chainTransformers(renderStream, [
+    // Buffer everything to avoid flushing too frequently
+    createBufferedTransformStream(),
+    // Insert data-dpl-id attribute on the html tag
+    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+    // Insert generated tags to head
+    createHeadInsertionTransformStream(getServerInsertedHTML),
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    createFlightDataInjectionTransformStream(
+      inlinedDataStream,
+      delayDataUntilFirstHtmlChunk
+    ),
+    // Close tags should always be deferred to the end
+    createMoveSuffixStream(),
+  ])
 }
 
 export function createDocumentClosingStream(): ReadableStream<Uint8Array> {

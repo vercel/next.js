@@ -6,10 +6,10 @@ use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
+    graph::{AdjacencyMap, GraphTraversal, Visit},
 };
 use turbo_tasks_fs::{
-    DirectoryEntry, File, FileSystem, FileSystemPath,
+    DirectoryEntry, File, FileContent, FileSystem, FileSystemPath,
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
@@ -76,9 +76,6 @@ impl OutputAsset for NftJsonAsset {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OutputSpecifier(Option<RcStr>);
-
 fn get_output_specifier(
     path_ref: &FileSystemPath,
     ident_folder: &FileSystemPath,
@@ -97,9 +94,8 @@ fn get_output_specifier(
             .get_relative_path_to(path_ref)
             .unwrap());
     }
-
     // This should effectively be unreachable
-    bail!("NftJsonAsset: cannot handle filepath {path_ref}");
+    bail!("NftJsonAsset: cannot handle filepath '{path_ref}'");
 }
 
 /// Apply outputFileTracingIncludes patterns to find additional files
@@ -285,13 +281,23 @@ impl Asset for NftJsonAsset {
                     }
                 }
 
-                let specifier = get_output_specifier(
+                let specifier = match get_output_specifier(
                     &referenced_chunk_path,
                     &ident_folder,
                     &ident_folder_in_project_fs,
                     &output_root_ref,
                     &project_root_ref,
-                )?;
+                ) {
+                    Ok(specifier) => specifier,
+                    Err(err) => {
+                        return Err(err.context(format!(
+                            "NftJsonAsset: cannot handle filepath '{chunk_path}' for \
+                             {referenced_chunk:?} it is not under the output_root: \
+                             '{output_root_ref}' or the project_root: '{project_root_ref}'",
+                            chunk_path = referenced_chunk_path.value_to_string().await?
+                        )));
+                    }
+                };
 
                 result.insert(specifier);
             }
@@ -349,7 +355,9 @@ impl Asset for NftJsonAsset {
               "files": result
             });
 
-            Ok(AssetContent::file(File::from(json.to_string()).into()))
+            Ok(AssetContent::file(
+                FileContent::Content(File::from(json.to_string())).cell(),
+            ))
         }
         .instrument(span)
         .await
@@ -402,7 +410,6 @@ pub async fn all_assets_from_entries_filtered(
     let emit_spans = tracing::enabled!(Level::INFO);
     Ok(Vc::cell(
         AdjacencyMap::new()
-            .skip_duplicates()
             .visit(
                 entries
                     .await?
@@ -429,7 +436,6 @@ pub async fn all_assets_from_entries_filtered(
             )
             .await
             .completed()?
-            .into_inner()
             .into_postorder_topological()
             .map(|n| n.0)
             .collect(),
@@ -444,13 +450,11 @@ struct OutputAssetFilteredVisit {
 impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>
     for OutputAssetFilteredVisit
 {
-    type Edge = (ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>);
-    type EdgesIntoIter = Vec<Self::Edge>;
+    type EdgesIntoIter = Vec<(
+        (ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
+        (),
+    )>;
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
-
-    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Self::Edge> {
-        VisitControlFlow::Continue(edge)
-    }
 
     fn edges(
         &mut self,
@@ -464,6 +468,7 @@ impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>
     fn span(
         &mut self,
         node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
+        _edge: Option<&()>,
     ) -> tracing::Span {
         if let Some(ident) = &node.1 {
             tracing::trace_span!("asset", name = display(ident))
@@ -480,7 +485,12 @@ async fn get_referenced_server_assets(
     asset: ResolvedVc<Box<dyn OutputAsset>>,
     client_root: Option<FileSystemPath>,
     exclude_glob: Option<ReadRef<Glob>>,
-) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>> {
+) -> Result<
+    Vec<(
+        (ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
+        (),
+    )>,
+> {
     let refs = asset.references().all_assets().await?;
 
     refs.iter()
@@ -501,14 +511,17 @@ async fn get_referenced_server_assets(
             }
 
             Ok(Some((
-                *asset,
-                if emit_spans {
-                    // INVALIDATION: we don't need to invalidate the list of assets when the span
-                    // name changes
-                    Some(asset.path_string().untracked().await?)
-                } else {
-                    None
-                },
+                (
+                    *asset,
+                    if emit_spans {
+                        // INVALIDATION: we don't need to invalidate the list of assets when the
+                        // span name changes
+                        Some(asset.path_string().untracked().await?)
+                    } else {
+                        None
+                    },
+                ),
+                (),
             )))
         })
         .try_flat_join()

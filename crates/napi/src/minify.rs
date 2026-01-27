@@ -29,7 +29,6 @@ DEALINGS IN THE SOFTWARE.
 use anyhow::Context;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use serde::Serialize;
 use swc_core::{
     base::{config::JsMinifyOptions, try_with_handler},
     common::{FileName, GLOBALS, errors::ColorConfig},
@@ -46,13 +45,11 @@ pub struct MinifyTask {
 // Same as the swc_core::base::TransformOutput, but using our napi-rs v2's derived #[napi], while
 // swc is already on napi-rs v3.
 #[napi_derive::napi(object)]
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct TransformOutput {
     pub code: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub map: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub output: Option<String>,
     pub diagnostics: std::vec::Vec<String>,
 }

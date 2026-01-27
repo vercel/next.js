@@ -20,9 +20,6 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::{
-        AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
-    },
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
         ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
@@ -43,16 +40,19 @@ use turbopack_core::{
     file_source::FileSource,
     free_var_references,
     ident::Layer,
-    issue::CollectibleIssuesExt,
+    issue::{CollectibleIssuesExt, IssueFilter},
     module::Module,
     module_graph::{
-        ModuleGraph,
+        ModuleGraph, SingleModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
-        export_usage::compute_export_usage_info,
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    reference_type::{EntryReferenceSubType, ReferenceType, UrlReferenceSubType},
     source::Source,
+};
+use turbopack_ecmascript::{
+    AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -83,6 +83,8 @@ struct SnapshotOptions {
     environment: SnapshotEnvironment,
     #[serde(default)]
     tree_shaking_mode: Option<TreeShakingMode>,
+    #[serde(default)]
+    remove_unused_imports: bool,
     #[serde(default)]
     remove_unused_exports: bool,
     #[serde(default)]
@@ -119,6 +121,7 @@ impl Default for SnapshotOptions {
             runtime_type: default_runtime_type(),
             environment: Default::default(),
             tree_shaking_mode: None,
+            remove_unused_imports: false,
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,
@@ -226,7 +229,10 @@ async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
     let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
 
-    let plain_issues = out_op.peek_issues().get_plain_issues().await?;
+    let plain_issues = out_op
+        .peek_issues()
+        .get_plain_issues(IssueFilter::everything())
+        .await?;
 
     snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
         .await
@@ -288,7 +294,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let mut defines = compile_time_defines!(
         process.turbopack = true,
-        process.env.TURBOPACK = true,
+        process.env.TURBOPACK = "1",
         process.env.NODE_ENV = "development",
         DEFINED_VALUE = "value",
         DEFINED_TRUE = true,
@@ -319,11 +325,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .cell()
         .await?;
 
-    let conditions = RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".js".into()),
-        RuleCondition::ResourcePathEndsWith(".jsx".into()),
-        RuleCondition::ResourcePathEndsWith(".ts".into()),
-        RuleCondition::ResourcePathEndsWith(".tsx".into()),
+    let conditions = RuleCondition::All(vec![
+        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
+            UrlReferenceSubType::Undefined,
+        ))),
+        RuleCondition::any(vec![
+            RuleCondition::ResourcePathEndsWith(".js".into()),
+            RuleCondition::ResourcePathEndsWith(".jsx".into()),
+            RuleCondition::ResourcePathEndsWith(".ts".into()),
+            RuleCondition::ResourcePathEndsWith(".tsx".into()),
+        ]),
     ]);
 
     let module_rules = ModuleRule::new(
@@ -355,12 +366,13 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     ..Default::default()
                 })),
                 ignore_dynamic_requests: true,
+                infer_module_side_effects: true,
                 enable_exports_info_inlining: true,
                 ..Default::default()
             },
             environment: Some(env),
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InNodeModules,
                 ModuleOptionsContext {
                     environment: Some(env),
                     tree_shaking_mode: options.tree_shaking_mode,
@@ -381,7 +393,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             enable_node_modules: Some(project_root.clone()),
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InNodeModules,
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root.clone()),
                     custom_conditions: vec![rcstr!("development")],
@@ -426,20 +438,28 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
     };
 
-    let module_graph = ModuleGraph::from_modules(
-        Vc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
+    let single_graph = SingleModuleGraph::new_with_entries(
+        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
         false,
+        true,
     );
+    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
 
-    let export_usage = if options.remove_unused_exports {
-        Some(
-            compute_export_usage_info(module_graph.to_resolved().await?)
-                .resolve_strongly_consistent()
-                .await?,
-        )
+    let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
+        Some(compute_binding_usage_info(
+            module_graph,
+            options.remove_unused_imports,
+        ))
     } else {
         None
     };
+    if options.remove_unused_imports
+        && let Some(binding_usage) = binding_usage
+    {
+        module_graph =
+            ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
+    }
+    let module_graph = module_graph.connect();
 
     let chunk_root_path = project_path.join("output")?;
     let static_root_path = project_path.join("static")?;
@@ -463,9 +483,24 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage)
+            .export_usage(if options.remove_unused_exports {
+                Some(binding_usage.unwrap().connect().to_resolved().await?)
+            } else {
+                None
+            })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
+
+            if options.remove_unused_imports {
+                builder = builder.unused_references(
+                    binding_usage
+                        .unwrap()
+                        .connect()
+                        .unused_references()
+                        .to_resolved()
+                        .await?,
+                );
+            }
 
             if options.production_chunking {
                 builder = builder
@@ -495,9 +530,24 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage)
+            .export_usage(if options.remove_unused_exports {
+                Some(binding_usage.unwrap().connect().to_resolved().await?)
+            } else {
+                None
+            })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
+
+            if options.remove_unused_imports {
+                builder = builder.unused_references(
+                    binding_usage
+                        .unwrap()
+                        .connect()
+                        .unused_references()
+                        .to_resolved()
+                        .await?,
+                );
+            }
 
             if options.production_chunking {
                 builder = builder

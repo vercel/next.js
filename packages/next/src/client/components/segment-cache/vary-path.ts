@@ -139,6 +139,13 @@ export function finalizeLayoutVaryPath(
   return layoutVaryPath as LayoutVaryPath
 }
 
+export function getPartialLayoutVaryPath(
+  finalizedVaryPath: LayoutVaryPath
+): PartialSegmentVaryPath | null {
+  // This is the inverse of finalizeLayoutVaryPath.
+  return finalizedVaryPath.parent
+}
+
 export function finalizePageVaryPath(
   requestKey: string,
   renderedSearch: NormalizedSearch,
@@ -154,6 +161,13 @@ export function finalizePageVaryPath(
     },
   }
   return pageVaryPath as PageVaryPath
+}
+
+export function getPartialPageVaryPath(
+  finalizedVaryPath: PageVaryPath
+): PartialSegmentVaryPath | null {
+  // This is the inverse of finalizePageVaryPath.
+  return finalizedVaryPath.parent.parent
 }
 
 export function finalizeMetadataVaryPath(
@@ -276,4 +290,13 @@ export function clonePageVaryPathWithNewSearchParams(
     },
   }
   return clonedVaryPath as PageVaryPath
+}
+
+export function getRenderedSearchFromVaryPath(
+  varyPath: PageVaryPath
+): NormalizedSearch | null {
+  const searchParams = varyPath.parent.value
+  return typeof searchParams === 'string'
+    ? (searchParams as NormalizedSearch)
+    : null
 }

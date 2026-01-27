@@ -1394,7 +1394,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/",
          },
          "/_not-found": {
@@ -1420,7 +1419,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialRevalidateSeconds": false,
            "initialStatus": 404,
-           "prefetchDataRoute": null,
            "srcRoute": "/_not-found",
          },
          "/api/large-data": {
@@ -1449,7 +1447,6 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-cache-tags": "_N_T_/layout,_N_T_/api/layout,_N_T_/api/large-data/layout,_N_T_/api/large-data/route,_N_T_/api/large-data",
            },
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/api/large-data",
          },
          "/articles/works": {
@@ -1475,7 +1472,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 1,
-           "prefetchDataRoute": null,
            "srcRoute": "/articles/[slug]",
          },
          "/blog/seb": {
@@ -1501,7 +1497,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
-           "prefetchDataRoute": null,
            "srcRoute": "/blog/[author]",
          },
          "/blog/seb/second-post": {
@@ -1526,7 +1521,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/blog/[author]/[slug]",
          },
          "/blog/styfle": {
@@ -1552,7 +1546,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
-           "prefetchDataRoute": null,
            "srcRoute": "/blog/[author]",
          },
          "/blog/styfle/first-post": {
@@ -1577,7 +1570,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/blog/[author]/[slug]",
          },
          "/blog/styfle/second-post": {
@@ -1602,7 +1594,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/blog/[author]/[slug]",
          },
          "/blog/tim": {
@@ -1628,7 +1619,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
-           "prefetchDataRoute": null,
            "srcRoute": "/blog/[author]",
          },
          "/blog/tim/first-post": {
@@ -1653,7 +1643,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/blog/[author]/[slug]",
          },
          "/default-config-fetch": {
@@ -1678,7 +1667,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/default-config-fetch",
          },
          "/force-cache": {
@@ -1704,7 +1692,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
-           "prefetchDataRoute": null,
            "srcRoute": "/force-cache",
          },
          "/force-static-fetch-no-store": {
@@ -1729,7 +1716,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/force-static-fetch-no-store",
          },
          "/force-static/first": {
@@ -1754,7 +1740,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/force-static/[slug]",
          },
          "/force-static/second": {
@@ -1779,7 +1764,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/force-static/[slug]",
          },
          "/gen-params-catch-all-unique/foo/bar": {
@@ -1804,7 +1788,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/gen-params-catch-all-unique/[...slug]",
          },
          "/gen-params-catch-all-unique/foo/foo": {
@@ -1829,7 +1812,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/gen-params-catch-all-unique/[...slug]",
          },
          "/gen-params-dynamic-revalidate/one": {
@@ -1855,7 +1837,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
-           "prefetchDataRoute": null,
            "srcRoute": "/gen-params-dynamic-revalidate/[slug]",
          },
          "/hooks/use-pathname/slug": {
@@ -1880,7 +1861,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/hooks/use-pathname/[slug]",
          },
          "/hooks/use-search-params/force-static": {
@@ -1905,7 +1885,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/hooks/use-search-params/force-static",
          },
          "/hooks/use-search-params/with-suspense": {
@@ -1930,7 +1909,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/hooks/use-search-params/with-suspense",
          },
          "/isr-error-handling": {
@@ -1956,7 +1934,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
-           "prefetchDataRoute": null,
            "srcRoute": "/isr-error-handling",
          },
          "/no-config-fetch": {
@@ -1981,7 +1958,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/no-config-fetch",
          },
          "/no-store/static": {
@@ -2006,7 +1982,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/no-store/static",
          },
          "/partial-gen-params-no-additional-lang/en/RAND": {
@@ -2031,7 +2006,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-lang/en/first": {
@@ -2056,7 +2030,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-lang/en/second": {
@@ -2081,7 +2054,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-lang/fr/RAND": {
@@ -2106,7 +2078,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-lang/fr/first": {
@@ -2131,7 +2102,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-lang/fr/second": {
@@ -2156,7 +2126,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/en/RAND": {
@@ -2181,7 +2150,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/en/first": {
@@ -2206,7 +2174,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/en/second": {
@@ -2231,7 +2198,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/fr/RAND": {
@@ -2256,7 +2222,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/fr/first": {
@@ -2281,7 +2246,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-gen-params-no-additional-slug/fr/second": {
@@ -2306,7 +2270,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
          "/partial-params-false/en/static": {
@@ -2331,7 +2294,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-params-false/[locale]/static",
          },
          "/partial-params-false/fr/static": {
@@ -2356,7 +2318,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/partial-params-false/[locale]/static",
          },
          "/prerendered-not-found/first": {
@@ -2381,7 +2342,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/prerendered-not-found/[slug]",
          },
          "/prerendered-not-found/second": {
@@ -2406,7 +2366,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/prerendered-not-found/[slug]",
          },
          "/prerendered-not-found/segment-revalidate": {
@@ -2432,7 +2391,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
-           "prefetchDataRoute": null,
            "srcRoute": "/prerendered-not-found/segment-revalidate",
          },
          "/route-handler/no-store-force-static": {
@@ -2462,7 +2420,6 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/no-store-force-static/layout,_N_T_/route-handler/no-store-force-static/route,_N_T_/route-handler/no-store-force-static",
            },
            "initialRevalidateSeconds": 3,
-           "prefetchDataRoute": null,
            "srcRoute": "/route-handler/no-store-force-static",
          },
          "/route-handler/revalidate-360-isr": {
@@ -2492,7 +2449,6 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr,thankyounext",
            },
            "initialRevalidateSeconds": 10,
-           "prefetchDataRoute": null,
            "srcRoute": "/route-handler/revalidate-360-isr",
          },
          "/route-handler/static-cookies": {
@@ -2521,7 +2477,6 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/static-cookies/layout,_N_T_/route-handler/static-cookies/route,_N_T_/route-handler/static-cookies",
            },
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/route-handler/static-cookies",
          },
          "/ssg-draft-mode": {
@@ -2546,7 +2501,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/ssg-draft-mode/[[...route]]",
          },
          "/ssg-draft-mode/test": {
@@ -2571,7 +2525,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/ssg-draft-mode/[[...route]]",
          },
          "/ssg-draft-mode/test-2": {
@@ -2596,7 +2549,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/ssg-draft-mode/[[...route]]",
          },
          "/strip-w3c-trace-context-headers": {
@@ -2622,7 +2574,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 50,
-           "prefetchDataRoute": null,
            "srcRoute": "/strip-w3c-trace-context-headers",
          },
          "/unstable-cache/fetch/no-cache": {
@@ -2647,7 +2598,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/unstable-cache/fetch/no-cache",
          },
          "/unstable-cache/fetch/no-store": {
@@ -2672,7 +2622,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/unstable-cache/fetch/no-store",
          },
          "/update-tag-test": {
@@ -2697,7 +2646,6 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
-           "prefetchDataRoute": null,
            "srcRoute": "/update-tag-test",
          },
          "/variable-config-revalidate/revalidate-3": {
@@ -2723,7 +2671,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
-           "prefetchDataRoute": null,
            "srcRoute": "/variable-config-revalidate/revalidate-3",
          },
          "/variable-revalidate-stable/revalidate-3": {
@@ -2749,7 +2696,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
-           "prefetchDataRoute": null,
            "srcRoute": "/variable-revalidate-stable/revalidate-3",
          },
          "/variable-revalidate/authorization": {
@@ -2775,7 +2721,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
-           "prefetchDataRoute": null,
            "srcRoute": "/variable-revalidate/authorization",
          },
          "/variable-revalidate/cookie": {
@@ -2801,7 +2746,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
-           "prefetchDataRoute": null,
            "srcRoute": "/variable-revalidate/cookie",
          },
          "/variable-revalidate/encoding": {
@@ -2827,7 +2771,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
-           "prefetchDataRoute": null,
            "srcRoute": "/variable-revalidate/encoding",
          },
          "/variable-revalidate/headers-instance": {
@@ -2853,7 +2796,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
-           "prefetchDataRoute": null,
            "srcRoute": "/variable-revalidate/headers-instance",
          },
          "/variable-revalidate/revalidate-3": {
@@ -2879,7 +2821,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 3,
-           "prefetchDataRoute": null,
            "srcRoute": "/variable-revalidate/revalidate-3",
          },
          "/variable-revalidate/revalidate-360-isr": {
@@ -2905,7 +2846,6 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
-           "prefetchDataRoute": null,
            "srcRoute": "/variable-revalidate/revalidate-360-isr",
          },
        }

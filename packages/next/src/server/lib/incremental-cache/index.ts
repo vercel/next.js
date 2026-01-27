@@ -441,11 +441,31 @@ export class IncrementalCache implements IncrementalCacheType {
       if (resumeDataCache) {
         const memoryCacheData = resumeDataCache.fetch.get(cacheKey)
         if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
-          if (IncrementalCache.debug) {
-            console.log('IncrementalCache: rdc:hit', cacheKey)
-          }
+          // Check if any tags were recently revalidated before returning RDC entry.
+          // When a server action calls updateTag(), the re-render should see fresh
+          // data instead of stale RDC data.
+          const workStore = workAsyncStorage.getStore()
+          const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
+          const hasRevalidatedTag = combinedTags.some(
+            (tag) =>
+              this.revalidatedTags?.includes(tag) ||
+              workStore?.pendingRevalidatedTags?.some(
+                (item) => item.tag === tag
+              )
+          )
 
-          return { isStale: false, value: memoryCacheData }
+          if (hasRevalidatedTag) {
+            if (IncrementalCache.debug) {
+              console.log('IncrementalCache: rdc:revalidated-tag', cacheKey)
+            }
+            // Fall through to cacheHandler lookup
+          } else {
+            if (IncrementalCache.debug) {
+              console.log('IncrementalCache: rdc:hit', cacheKey)
+            }
+
+            return { isStale: false, value: memoryCacheData }
+          }
         } else if (IncrementalCache.debug) {
           console.log('IncrementalCache: rdc:miss', cacheKey)
         }

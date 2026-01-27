@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
-use super::{
+use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary, ContentSources,
     GetContentSourceContent,
     route_tree::{MapGetContentSourceContent, RouteTree},

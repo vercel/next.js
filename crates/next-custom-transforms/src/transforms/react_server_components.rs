@@ -11,7 +11,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{atom, Atom, Wtf8Atom},
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -53,6 +53,8 @@ pub struct Options {
     pub is_react_server_layer: bool,
     pub cache_components_enabled: bool,
     pub use_cache_enabled: bool,
+    #[serde(default)]
+    pub taint_enabled: bool,
 }
 
 /// A visitor that transforms given module to use module proxy if it's a React
@@ -63,6 +65,7 @@ struct ReactServerComponents<C: Comments> {
     is_react_server_layer: bool,
     cache_components_enabled: bool,
     use_cache_enabled: bool,
+    taint_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
@@ -70,7 +73,7 @@ struct ReactServerComponents<C: Comments> {
 
 #[derive(Clone, Debug)]
 struct ModuleImports {
-    source: (Atom, Span),
+    source: (Wtf8Atom, Span),
     specifiers: Vec<(Atom, Span)>,
 }
 
@@ -96,6 +99,7 @@ enum RSCErrorKind {
     NextRscErrDeprecatedApi((String, String, Span)),
     NextSsrDynamicFalseNotAllowed(Span),
     NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
+    NextRscErrTaintWithoutConfig((String, Span)),
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -128,6 +132,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             self.is_react_server_layer,
             self.cache_components_enabled,
             self.use_cache_enabled,
+            self.taint_enabled,
             self.filepath.clone(),
             self.app_dir.clone(),
         );
@@ -329,7 +334,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             )
         },
         RSCErrorKind::NextRscErrClientMetadataExport((source, span)) => {
-            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n"), vec![span])
+            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. \"{source}\" must be resolved on the server before the page component is rendered. Keep your page as a Server Component and move Client Component logic to a separate file. Read more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata#why-generatemetadata-is-server-component-only\n\n"), vec![span])
         },
         RSCErrorKind::NextRscErrConflictMetadataExport((span1, span2)) => (
             "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
@@ -354,6 +359,12 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
             format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
+            vec![span],
+        ),
+        RSCErrorKind::NextRscErrTaintWithoutConfig((api_name, span)) => (
+            format!(
+                "You're importing `{api_name}` from React which requires `experimental.taint: true` in your Next.js config. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/taint"
+            ),
             vec![span],
         ),
     };
@@ -485,10 +496,7 @@ fn collect_module_info(
                     })
                     .map(|specifier| match specifier {
                         ImportSpecifier::Named(named) => match &named.imported {
-                            Some(imported) => match &imported {
-                                ModuleExportName::Ident(i) => (i.to_id().0, i.span),
-                                ModuleExportName::Str(s) => (s.value.clone(), s.span),
-                            },
+                            Some(imported) => (imported.atom().into_owned(), imported.span()),
                             None => (named.local.to_id().0, named.local.span),
                         },
                         ImportSpecifier::Default(d) => (atom!(""), d.span),
@@ -509,16 +517,12 @@ fn collect_module_info(
                     export_names.push(match specifier {
                         ExportSpecifier::Default(_) => atom!("default"),
                         ExportSpecifier::Namespace(_) => atom!("*"),
-                        ExportSpecifier::Named(named) => match &named.exported {
-                            Some(exported) => match &exported {
-                                ModuleExportName::Ident(i) => i.sym.clone(),
-                                ModuleExportName::Str(s) => s.value.clone(),
-                            },
-                            _ => match &named.orig {
-                                ModuleExportName::Ident(i) => i.sym.clone(),
-                                ModuleExportName::Str(s) => s.value.clone(),
-                            },
-                        },
+                        ExportSpecifier::Named(named) => named
+                            .exported
+                            .as_ref()
+                            .unwrap_or(&named.orig)
+                            .atom()
+                            .into_owned(),
                     })
                 }
                 finished_directives = true;
@@ -583,13 +587,16 @@ struct ReactServerComponentValidator {
     is_react_server_layer: bool,
     cache_components_enabled: bool,
     use_cache_enabled: bool,
+    taint_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
-    invalid_server_imports: Vec<Atom>,
-    invalid_server_lib_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
-    deprecated_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
-    invalid_client_imports: Vec<Atom>,
-    invalid_client_lib_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
+    invalid_server_imports: Vec<Wtf8Atom>,
+    invalid_server_lib_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
+    deprecated_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
+    invalid_client_imports: Vec<Wtf8Atom>,
+    invalid_client_lib_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
+    /// React taint APIs that require `experimental.taint` config
+    react_taint_apis: Vec<&'static str>,
     pub module_directive: Option<ModuleDirective>,
     pub export_names: Vec<Atom>,
     imports: ImportMap,
@@ -600,6 +607,7 @@ impl ReactServerComponentValidator {
         is_react_server_layer: bool,
         cache_components_enabled: bool,
         use_cache_enabled: bool,
+        taint_enabled: bool,
         filename: String,
         app_dir: Option<PathBuf>,
     ) -> Self {
@@ -607,6 +615,7 @@ impl ReactServerComponentValidator {
             is_react_server_layer,
             cache_components_enabled,
             use_cache_enabled,
+            taint_enabled,
             filepath: filename,
             app_dir,
             module_directive: None,
@@ -616,7 +625,7 @@ impl ReactServerComponentValidator {
             // next/navigation -> [apis]
             invalid_server_lib_apis_mapping: FxHashMap::from_iter([
                 (
-                    "react",
+                    atom!("react").into(),
                     vec![
                         "Component",
                         "createContext",
@@ -624,6 +633,7 @@ impl ReactServerComponentValidator {
                         "PureComponent",
                         "useDeferredValue",
                         "useEffect",
+                        "useEffectEvent",
                         "useImperativeHandle",
                         "useInsertionEffect",
                         "useLayoutEffect",
@@ -638,7 +648,7 @@ impl ReactServerComponentValidator {
                     ],
                 ),
                 (
-                    "react-dom",
+                    atom!("react-dom").into(),
                     vec![
                         "flushSync",
                         "unstable_batchedUpdates",
@@ -647,7 +657,7 @@ impl ReactServerComponentValidator {
                     ],
                 ),
                 (
-                    "next/navigation",
+                    atom!("next/navigation").into(),
                     vec![
                         "useSearchParams",
                         "usePathname",
@@ -660,27 +670,30 @@ impl ReactServerComponentValidator {
                         "unstable_isUnrecognizedActionError",
                     ],
                 ),
-                ("next/link", vec!["useLinkStatus"]),
+                (atom!("next/link").into(), vec!["useLinkStatus"]),
             ]),
-            deprecated_apis_mapping: FxHashMap::from_iter([("next/server", vec!["ImageResponse"])]),
+            deprecated_apis_mapping: FxHashMap::from_iter([(
+                atom!("next/server").into(),
+                vec!["ImageResponse"],
+            )]),
 
             invalid_server_imports: vec![
-                Atom::from("client-only"),
-                Atom::from("react-dom/client"),
-                Atom::from("react-dom/server"),
-                Atom::from("next/router"),
+                atom!("client-only").into(),
+                atom!("react-dom/client").into(),
+                atom!("react-dom/server").into(),
+                atom!("next/router").into(),
             ],
 
             invalid_client_imports: vec![
-                Atom::from("server-only"),
-                Atom::from("next/headers"),
-                Atom::from("next/root-params"),
+                atom!("server-only").into(),
+                atom!("next/headers").into(),
+                atom!("next/root-params").into(),
             ],
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
-                ("next/server", vec!["after"]),
+                (atom!("next/server").into(), vec!["after"]),
                 (
-                    "next/cache",
+                    atom!("next/cache").into(),
                     vec![
                         "revalidatePath",
                         "revalidateTag",
@@ -693,6 +706,10 @@ impl ReactServerComponentValidator {
                     ],
                 ),
             ]),
+            react_taint_apis: vec![
+                "experimental_taintObjectReference",
+                "experimental_taintUniqueValue",
+            ],
             imports: ImportMap::default(),
         }
     }
@@ -713,8 +730,8 @@ impl ReactServerComponentValidator {
     // e.g.
     // assert_invalid_server_lib_apis("react", import)
     // assert_invalid_server_lib_apis("react-dom", import)
-    fn assert_invalid_server_lib_apis(&self, import_source: String, import: &ModuleImports) {
-        let deprecated_apis = self.deprecated_apis_mapping.get(import_source.as_str());
+    fn assert_invalid_server_lib_apis(&self, import_source: &Wtf8Atom, import: &ModuleImports) {
+        let deprecated_apis = self.deprecated_apis_mapping.get(import_source);
         if let Some(deprecated_apis) = deprecated_apis {
             for specifier in &import.specifiers {
                 if deprecated_apis.contains(&specifier.0.as_str()) {
@@ -722,7 +739,7 @@ impl ReactServerComponentValidator {
                         &self.app_dir,
                         &self.filepath,
                         RSCErrorKind::NextRscErrDeprecatedApi((
-                            import_source.clone(),
+                            import_source.to_string_lossy().into_owned(),
                             specifier.0.to_string(),
                             specifier.1,
                         )),
@@ -731,9 +748,7 @@ impl ReactServerComponentValidator {
             }
         }
 
-        let invalid_apis = self
-            .invalid_server_lib_apis_mapping
-            .get(import_source.as_str());
+        let invalid_apis = self.invalid_server_lib_apis_mapping.get(import_source);
         if let Some(invalid_apis) = invalid_apis {
             for specifier in &import.specifiers {
                 if invalid_apis.contains(&specifier.0.as_str()) {
@@ -747,23 +762,54 @@ impl ReactServerComponentValidator {
         }
     }
 
+    /// Check for React taint API imports when taint is not enabled
+    fn assert_react_taint_apis(&self, imports: &[ModuleImports]) {
+        // Skip check if taint is enabled or if file is from node_modules
+        if self.taint_enabled || self.is_from_node_modules(&self.filepath) {
+            return;
+        }
+
+        for import in imports {
+            let source = &import.source.0;
+            // Only check imports from 'react'
+            if source.as_str() != Some("react") {
+                continue;
+            }
+
+            for specifier in &import.specifiers {
+                if self.react_taint_apis.contains(&specifier.0.as_str()) {
+                    report_error(
+                        &self.app_dir,
+                        &self.filepath,
+                        RSCErrorKind::NextRscErrTaintWithoutConfig((
+                            specifier.0.to_string(),
+                            specifier.1,
+                        )),
+                    );
+                }
+            }
+        }
+    }
+
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
         // If the
         if self.is_from_node_modules(&self.filepath) {
             return;
         }
         for import in imports {
-            let source = import.source.0.clone();
-            let source_str = source.to_string();
-            if self.invalid_server_imports.contains(&source) {
+            let source = &import.source.0;
+            if self.invalid_server_imports.contains(source) {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
-                    RSCErrorKind::NextRscErrServerImport((source_str.clone(), import.source.1)),
+                    RSCErrorKind::NextRscErrServerImport((
+                        source.to_string_lossy().into_owned(),
+                        import.source.1,
+                    )),
                 );
             }
 
-            self.assert_invalid_server_lib_apis(source_str, import);
+            self.assert_invalid_server_lib_apis(source, import);
         }
 
         self.assert_invalid_api(module, false);
@@ -811,11 +857,14 @@ impl ReactServerComponentValidator {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
-                    RSCErrorKind::NextRscErrClientImport((source.to_string(), import.source.1)),
+                    RSCErrorKind::NextRscErrClientImport((
+                        source.to_string_lossy().into_owned(),
+                        import.source.1,
+                    )),
                 );
             }
 
-            let invalid_apis = self.invalid_client_lib_apis_mapping.get(source.as_str());
+            let invalid_apis = self.invalid_client_lib_apis_mapping.get(source);
             if let Some(invalid_apis) = invalid_apis {
                 for specifier in &import.specifiers {
                     if invalid_apis.contains(&specifier.0.as_str()) {
@@ -900,14 +949,7 @@ impl ReactServerComponentValidator {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
                         for specifier in &export.specifiers {
                             if let ExportSpecifier::Named(named) = specifier {
-                                match &named.orig {
-                                    ModuleExportName::Ident(i) => {
-                                        collect_possibly_invalid_exports(&i.sym, &named.span);
-                                    }
-                                    ModuleExportName::Str(s) => {
-                                        collect_possibly_invalid_exports(&s.value, &named.span);
-                                    }
-                                }
+                                collect_possibly_invalid_exports(&named.orig.atom(), &named.span);
                             }
                         }
                     }
@@ -1051,6 +1093,9 @@ impl Visit for ReactServerComponentValidator {
         self.module_directive = directive;
         self.export_names = export_names;
 
+        // Check for taint API usage without config (runs for all files)
+        self.assert_react_taint_apis(&imports);
+
         if self.is_react_server_layer {
             if directive == Some(ModuleDirective::UseClient) {
                 return;
@@ -1102,6 +1147,10 @@ pub fn server_components_assert(
         Config::WithOptions(x) => x.use_cache_enabled,
         _ => false,
     };
+    let taint_enabled: bool = match &config {
+        Config::WithOptions(x) => x.taint_enabled,
+        _ => false,
+    };
     let filename = match filename {
         FileName::Custom(path) => format!("<{path}>"),
         _ => filename.to_string(),
@@ -1110,6 +1159,7 @@ pub fn server_components_assert(
         is_react_server_layer,
         cache_components_enabled,
         use_cache_enabled,
+        taint_enabled,
         filename,
         app_dir,
     )
@@ -1135,10 +1185,15 @@ pub fn server_components<C: Comments>(
         Config::WithOptions(x) => x.use_cache_enabled,
         _ => false,
     };
+    let taint_enabled: bool = match &config {
+        Config::WithOptions(x) => x.taint_enabled,
+        _ => false,
+    };
     visit_mut_pass(ReactServerComponents {
         is_react_server_layer,
         cache_components_enabled,
         use_cache_enabled,
+        taint_enabled,
         comments,
         filepath: match &*filename {
             FileName::Custom(path) => format!("<{path}>"),

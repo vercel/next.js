@@ -152,13 +152,14 @@ function fillInFallbackFlightRouterStateImpl(
   } else {
     const paramName = originalSegment[0]
     const paramType = originalSegment[2]
+    const staticSiblings = originalSegment[3]
     const paramValue = parseDynamicParamFromURLPart(
       paramType,
       pathnameParts,
       pathnamePartsIndex
     )
     const cacheKey = getCacheKeyForDynamicParam(paramValue, renderedSearch)
-    newSegment = [paramName, cacheKey, paramType]
+    newSegment = [paramName, cacheKey, paramType, staticSiblings]
     doesAppearInURL = true
   }
 
@@ -244,15 +245,14 @@ function stripClientOnlyDataFromFlightRouterState(
   const [
     segment,
     parallelRoutes,
-    _url, // Intentionally unused - URLs are client-only
+    _refreshState, // Intentionally unused - URLs are client-only
     refreshMarker,
     isRootLayout,
     hasLoadingBoundary,
   ] = flightRouterState
 
-  // __PAGE__ segments are always fetched from the server, so there's
-  // no need to send them up
-  const cleanedSegment = stripSearchParamsFromPageSegment(segment)
+  // Strip client-only data from the segment
+  const cleanedSegment = stripClientOnlyDataFromSegment(segment)
 
   // Recursively process parallel routes
   const cleanedParallelRoutes: { [key: string]: FlightRouterState } = {}
@@ -261,12 +261,11 @@ function stripClientOnlyDataFromFlightRouterState(
       stripClientOnlyDataFromFlightRouterState(childState)
   }
 
-  const result: FlightRouterState = [
-    cleanedSegment,
-    cleanedParallelRoutes,
-    null, // URLs omitted - server reconstructs paths from segments
-    shouldPreserveRefreshMarker(refreshMarker) ? refreshMarker : null,
-  ]
+  const result: FlightRouterState = [cleanedSegment, cleanedParallelRoutes]
+  if (refreshMarker) {
+    result[2] = null // null slightly more compact than undefined
+    result[3] = refreshMarker
+  }
 
   // Append optional fields if present
   if (isRootLayout !== undefined) {
@@ -276,30 +275,26 @@ function stripClientOnlyDataFromFlightRouterState(
     result[5] = hasLoadingBoundary
   }
 
+  // Everything else is used only by the client and is not needed for requests.
   return result
 }
 
 /**
- * Strips search parameters from __PAGE__ segments to prevent sensitive
- * client-side data from being sent to the server.
+ * Strips client-only data from segments:
+ * - Search parameters from __PAGE__ segments
+ * - staticSiblings from dynamic segment tuples (only needed for client-side
+ *   prefetch reuse decisions)
  */
-function stripSearchParamsFromPageSegment(segment: Segment): Segment {
-  if (
-    typeof segment === 'string' &&
-    segment.startsWith(PAGE_SEGMENT_KEY + '?')
-  ) {
-    return PAGE_SEGMENT_KEY
+function stripClientOnlyDataFromSegment(segment: Segment): Segment {
+  if (typeof segment === 'string') {
+    // Strip search params from __PAGE__ segments
+    if (segment.startsWith(PAGE_SEGMENT_KEY + '?')) {
+      return PAGE_SEGMENT_KEY
+    }
+    return segment
   }
-  return segment
-}
-
-/**
- * Determines whether the refresh marker should be sent to the server
- * Client-only markers like 'refresh' are stripped, while server-needed markers
- * like 'refetch' and 'inside-shared-layout' are preserved.
- */
-function shouldPreserveRefreshMarker(
-  refreshMarker: FlightRouterState[3]
-): boolean {
-  return Boolean(refreshMarker && refreshMarker !== 'refresh')
+  // Dynamic segment tuple: [paramName, paramCacheKey, paramType, staticSiblings]
+  // Strip staticSiblings (4th element) since server doesn't need it
+  const [paramName, paramCacheKey, paramType] = segment
+  return [paramName, paramCacheKey, paramType, null]
 }

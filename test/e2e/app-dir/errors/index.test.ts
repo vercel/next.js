@@ -110,8 +110,8 @@ describe('app-dir - errors', () => {
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
-            ? /Error: An undefined error was thrown.*digest: '\d+'/s
-            : /Error: undefined.*digest: '\d+'/s
+            ? /Error: An undefined error was thrown.*digest: '\d+@E\d+'/s
+            : /Error: undefined.*digest: '\d+@E\d+'/s
         )
       )
     })
@@ -133,8 +133,8 @@ describe('app-dir - errors', () => {
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
-            ? /Error: A null error was thrown.*digest: '\d+'/s
-            : /Error: null.*digest: '\d+'/s
+            ? /Error: A null error was thrown.*digest: '\d+@E\d+'/s
+            : /Error: null.*digest: '\d+@E\d+'/s
         )
       )
     })
@@ -189,10 +189,8 @@ describe('app-dir - errors', () => {
         `)
       } else {
         expect(
-          await browser.waitForElementByCss('body').elementByCss('h2').text()
-        ).toBe(
-          'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).'
-        )
+          await browser.waitForElementByCss('body').elementByCss('h1').text()
+        ).toBe('This page crashed')
       }
 
       expect(pageErrors).toEqual([
@@ -228,13 +226,11 @@ describe('app-dir - errors', () => {
         `)
       } else {
         expect(
-          await browser.waitForElementByCss('body').elementByCss('h2').text()
-        ).toBe(
-          'Application error: a server-side exception has occurred while loading localhost (see the server logs for more information).'
-        )
-        expect(
-          await browser.waitForElementByCss('body').elementByCss('p').text()
-        ).toMatch(/Digest: \w+/)
+          await browser.waitForElementByCss('body').elementByCss('h1').text()
+        ).toBe('This page failed to load')
+        // Check digest is displayed in error reference
+        const bodyText = await browser.waitForElementByCss('body').text()
+        expect(bodyText).toMatch(/Error reference:\s*\w+/)
       }
 
       expect(pageErrors).toEqual([

@@ -3,16 +3,13 @@ use swc_core::ecma::ast::Lit;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        ModuleResolveResult, ModuleResolveResultItem,
-        origin::{ResolveOrigin, ResolveOriginExt},
-        parse::Request,
+        ModuleResolveResult, ModuleResolveResultItem, origin::ResolveOrigin, parse::Request,
         resolve,
     },
     source::Source,
@@ -56,22 +53,25 @@ impl Module for WebpackModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
         module_references(*self.source, *self.runtime, *self.transforms)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for WebpackModuleAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct WebpackChunkAssetReference {
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     pub chunk_id: Lit,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
@@ -89,7 +89,7 @@ impl ModuleReference for WebpackChunkAssetReference {
             } => {
                 // TODO determine filename from chunk_request_expr
                 let chunk_id = match &self.chunk_id {
-                    Lit::Str(str) => str.value.to_string(),
+                    Lit::Str(str) => str.value.to_string_lossy().into_owned(),
                     Lit::Num(num) => format!("{num}"),
                     _ => todo!(),
                 };
@@ -112,7 +112,7 @@ impl ValueToString for WebpackChunkAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
         let chunk_id = match &self.chunk_id {
-            Lit::Str(str) => str.value.to_string(),
+            Lit::Str(str) => str.value.to_string_lossy().into_owned(),
             Lit::Num(num) => format!("{num}"),
             _ => todo!(),
         };
@@ -159,8 +159,7 @@ pub struct WebpackRuntimeAssetReference {
 impl ModuleReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
-        let options = self.origin.resolve_options(ty.clone()).await?;
+        let options = self.origin.resolve_options();
 
         let options = apply_cjs_specific_options(options);
 

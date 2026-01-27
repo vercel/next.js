@@ -9,6 +9,7 @@ edition = "2024"
 workspace = true
 
 [dependencies]
+bincode = { workspace = true }
 hashbrown = { workspace = true, features = ["serde"]}
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

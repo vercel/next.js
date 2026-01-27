@@ -1,9 +1,15 @@
 import { getDigestForWellKnownError } from './create-error-handler'
 import { isReactLargeShellError } from './react-large-shell-error'
 
+export enum Phase {
+  ProspectiveRender = 'the prospective render',
+  SegmentCollection = 'segment collection',
+}
+
 export function printDebugThrownValueForProspectiveRender(
   thrownValue: unknown,
-  route: string
+  route: string,
+  phase: Phase
 ) {
   // We don't need to print well-known Next.js errors.
   if (getDigestForWellKnownError(thrownValue)) {
@@ -28,7 +34,7 @@ export function printDebugThrownValueForProspectiveRender(
       const stackStart = originalErrorStack.indexOf('\n')
       if (stackStart > -1) {
         const error = new Error(
-          `Route ${route} errored during the prospective render. These errors are normally ignored and may not prevent the route from prerendering but are logged here because build debugging is enabled.
+          `Route ${route} errored during ${phase}. These errors are normally ignored and may not prevent the route from prerendering but are logged here because build debugging is enabled.
           
 Original Error: ${message}`
         )
@@ -43,14 +49,14 @@ Original Error: ${message}`
   }
 
   if (message) {
-    console.error(`Route ${route} errored during the prospective render. These errors are normally ignored and may not prevent the route from prerendering but are logged here because build debugging is enabled. No stack was provided.
+    console.error(`Route ${route} errored during ${phase}. These errors are normally ignored and may not prevent the route from prerendering but are logged here because build debugging is enabled. No stack was provided.
           
 Original Message: ${message}`)
     return
   }
 
   console.error(
-    `Route ${route} errored during the prospective render. These errors are normally ignored and may not prevent the route from prerendering but are logged here because build debugging is enabled. The thrown value is logged just following this message`
+    `Route ${route} errored during ${phase}. These errors are normally ignored and may not prevent the route from prerendering but are logged here because build debugging is enabled. The thrown value is logged just following this message`
   )
   console.error(thrownValue)
   return

@@ -4,14 +4,14 @@ use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
 use quote::{ToTokens, quote, quote_spanned};
 use rustc_hash::FxHashSet;
 use syn::{
-    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, ExprPath, FnArg,
-    GenericArgument, Local, LocalInit, Meta, Pat, PatIdent, PatType, Path, PathArguments,
-    PathSegment, Receiver, ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath,
-    TypeTuple,
+    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, FnArg, GenericArgument,
+    Local, LocalInit, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver,
+    ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
     parse::{Parse, ParseStream},
     parse_quote, parse_quote_spanned,
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
+    token,
     visit_mut::VisitMut,
 };
 
@@ -27,6 +27,7 @@ pub struct TurboFn<'a> {
 
     output: Type,
     this: Option<Input>,
+    is_self_used: bool,
     exposed_inputs: Vec<Input>,
     /// Should we return `OperationVc` and require that all arguments are `NonLocalValue`s?
     operation: bool,
@@ -43,6 +44,7 @@ impl TurboFn<'_> {
         orig_signature: &Signature,
         definition_context: DefinitionContext,
         args: FunctionArguments,
+        is_self_used: bool,
     ) -> Option<TurboFn<'_>> {
         if !orig_signature.generics.params.is_empty() {
             orig_signature
@@ -202,6 +204,7 @@ impl TurboFn<'_> {
             ident: orig_ident,
             output,
             this,
+            is_self_used,
             exposed_inputs,
             operation: args.operation.is_some(),
             inline_ident,
@@ -210,33 +213,23 @@ impl TurboFn<'_> {
 
     /// The signature of the exposed function. This is the original signature
     /// converted to a standard turbo_tasks function signature.
-    pub fn signature(&self) -> Signature {
-        let exposed_inputs: Punctuated<_, Token![,]> = self
+    pub fn signature(&self) -> TokenStream {
+        let exposed_inputs = self
             .this
             .as_ref()
             .into_iter()
             .chain(self.exposed_inputs.iter())
             .map(|input| {
-                FnArg::Typed(PatType {
-                    attrs: Vec::new(),
-                    pat: Box::new(Pat::Ident(PatIdent {
-                        attrs: Default::default(),
-                        by_ref: None,
-                        mutability: None,
-                        ident: input.ident.clone(),
-                        subpat: None,
-                    })),
-                    colon_token: Default::default(),
-                    ty: if self.operation {
-                        // operations shouldn't have their arguments rewritten, they require all
-                        // arguments are explicitly `NonLocalValue`s
-                        Box::new(input.ty.clone())
-                    } else {
-                        Box::new(expand_task_input_type(&input.ty).into_owned())
-                    },
-                })
-            })
-            .collect();
+                let ident = &input.ident;
+                let ty = if self.operation {
+                    // operations shouldn't have their arguments rewritten, they require all
+                    // arguments are explicitly `NonLocalValue`s
+                    input.ty.to_token_stream()
+                } else {
+                    expand_task_input_type(&input.ty).to_token_stream()
+                };
+                quote! { #ident: #ty }
+            });
 
         let ident = &self.ident;
         let orig_output = &self.output;
@@ -246,15 +239,15 @@ impl TurboFn<'_> {
                 .then(|| parse_quote!(turbo_tasks::OperationVc)),
         );
 
-        parse_quote! {
-            fn #ident(#exposed_inputs) -> #new_output
+        quote! {
+            fn #ident(#(#exposed_inputs),*) -> #new_output
         }
     }
 
-    pub fn trait_signature(&self) -> Signature {
+    pub fn trait_signature(&self) -> TokenStream {
         let signature = self.signature();
 
-        parse_quote! {
+        quote! {
             #signature where Self: Sized
         }
     }
@@ -271,7 +264,6 @@ impl TurboFn<'_> {
     pub fn inline_signature_and_block<'a>(
         &self,
         orig_block: &'a Block,
-        is_self_used: bool,
     ) -> (Signature, Cow<'a, Block>) {
         let mut shadow_self = None;
         let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
@@ -280,7 +272,7 @@ impl TurboFn<'_> {
             .iter()
             .filter(|arg| {
                 let FnArg::Typed(pat_type) = arg else {
-                    return is_self_used;
+                    return self.is_self_used;
                 };
                 let Pat::Ident(pat_id) = &*pat_type.pat else {
                     return true;
@@ -502,9 +494,9 @@ impl TurboFn<'_> {
         }
     }
 
-    fn converted_this(&self) -> Option<Expr> {
+    fn converted_this(&self) -> Option<TokenStream> {
         self.this.as_ref().map(|Input { ty: _, ident }| {
-            parse_quote! {
+            quote! {
                 turbo_tasks::Vc::into_raw(#ident)
             }
         })
@@ -543,11 +535,10 @@ impl TurboFn<'_> {
         }
     }
 
-    /// The block of the exposed function for a dynamic dispatch call to the
-    /// given trait.
-    pub fn dynamic_block(&self, trait_type_ident: &Ident) -> Block {
+    /// The block of the exposed function for a dynamic dispatch call to the given trait.
+    pub fn dynamic_block(&self, trait_type_ident: &Ident) -> TokenStream {
         let Some(converted_this) = self.converted_this() else {
-            return parse_quote! {
+            return quote! {
                 {
                     unimplemented!("trait methods without self are not yet supported")
                 }
@@ -559,7 +550,7 @@ impl TurboFn<'_> {
         let assertions = self.get_assertions();
         let inputs = self.exposed_input_idents();
         let persistence = self.persistence_with_this();
-        parse_quote! {
+        quote! {
             {
                 #assertions
                 let inputs = std::boxed::Box::new((#(#inputs,)*));
@@ -579,15 +570,16 @@ impl TurboFn<'_> {
         }
     }
 
-    /// The block of the exposed function for a static dispatch call to the
-    /// given native function.
-    pub fn static_block(&self, native_function_ident: &Ident) -> Block {
+    /// The block of the exposed function for a static dispatch call to the given native function.
+    pub fn static_block(&self, native_function_ident: &Ident) -> TokenStream {
         let output = &self.output;
         let inputs = self.inline_input_idents();
         let assertions = self.get_assertions();
-        let mut block = if let Some(converted_this) = self.converted_this() {
+        let mut block = if self.is_self_used
+            && let Some(converted_this) = self.converted_this()
+        {
             let persistence = self.persistence_with_this();
-            parse_quote! {
+            quote! {
                 {
                     #assertions
                     let inputs = std::boxed::Box::new((#(#inputs,)*));
@@ -605,7 +597,7 @@ impl TurboFn<'_> {
             }
         } else {
             let persistence = self.persistence();
-            parse_quote! {
+            quote! {
                 {
                     #assertions
                     let inputs = std::boxed::Box::new((#(#inputs,)*));
@@ -622,7 +614,7 @@ impl TurboFn<'_> {
             }
         };
         if self.operation {
-            block = parse_quote! {
+            block = quote! {
                 {
                     let vc_output = #block;
                     // Assumption: The turbo-tasks manager will not create a local task for a
@@ -772,7 +764,10 @@ impl Parse for FunctionArguments {
 
 fn return_type_to_type(return_type: &ReturnType) -> Type {
     match return_type {
-        ReturnType::Default => parse_quote! { () },
+        ReturnType::Default => Type::Tuple(TypeTuple {
+            paren_token: token::Paren::default(),
+            elems: Punctuated::new(),
+        }),
         ReturnType::Type(_, return_type) => (**return_type).clone(),
     }
 }
@@ -1078,7 +1073,7 @@ pub struct FilterTraitCallArgsTokens {
 pub struct NativeFn {
     pub function_global_name: TokenStream,
     pub function_path_string: String,
-    pub function_path: ExprPath,
+    pub function_path: TokenStream,
     pub is_method: bool,
     /// Used only if `is_method` is true.
     pub is_self_used: bool,
@@ -1086,8 +1081,8 @@ pub struct NativeFn {
 }
 
 impl NativeFn {
-    pub fn ty(&self) -> Type {
-        parse_quote! { turbo_tasks::macro_helpers::NativeFunction }
+    pub fn ty(&self) -> TokenStream {
+        quote! { turbo_tasks::macro_helpers::NativeFunction }
     }
 
     pub fn definition(&self) -> TokenStream {

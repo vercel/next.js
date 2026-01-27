@@ -1,11 +1,12 @@
 import { readFileSync, writeFileSync } from 'fs'
-import * as path from 'path'
 import { bold, cyan, white } from '../picocolors'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import type { CompilerOptions } from 'typescript'
+import { getTypeDefinitionGlobPatterns } from './type-paths'
 import * as Log from '../../build/output/log'
+import { defaultConfig } from '../../server/config-shared'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
@@ -189,15 +190,14 @@ export async function writeConfigurationDefaults(
   hasAppDir: boolean,
   distDir: string,
   hasPagesDir: boolean,
-  isolatedDevBuild: boolean | undefined
+  isolatedDevBuild: boolean | undefined,
+  strictRouteTypes: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     writeFileSync(tsConfigPath, '{}' + os.EOL)
   }
 
-  const userTsConfigContent = readFileSync(tsConfigPath, {
-    encoding: 'utf8',
-  })
+  const userTsConfigContent = readFileSync(tsConfigPath, 'utf8')
   const userTsConfig = CommentJson.parse(userTsConfigContent)
 
   // Bail automatic setup when the user has extended or referenced another config
@@ -268,47 +268,34 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  const distDirPosix =
-    path.win32.sep === path.sep
-      ? distDir.replaceAll(path.win32.sep, path.posix.sep)
-      : distDir
-  const nextAppTypes: string[] = [`${distDirPosix}/types/**/*.ts`]
+  const resolvedIsolatedDevBuild =
+    isolatedDevBuild === undefined
+      ? defaultConfig.experimental.isolatedDevBuild
+      : isolatedDevBuild
 
-  // When isolatedDevBuild is enabled, Next.js uses different distDir paths:
-  // - Development: "{distDir}/dev"
-  // - Production: "{distDir}"
-  // To prevent tsconfig updates when switching between dev/build modes,
-  // we proactively include both type paths regardless of current environment.
-  if (isolatedDevBuild !== false) {
-    nextAppTypes.push(
-      process.env.NODE_ENV === 'development'
-        ? // In dev, distDir is "{distDir}/dev", which is already in the array above, but we also need "{distDir}/types".
-          // Here we remove "/dev" at the end of distDir for consistency.
-          `${distDirPosix.replace(/\/dev$/, '')}/types/**/*.ts`
-        : // In build, distDir is "{distDir}", which is already in the array above, but we also need "{distDir}/dev/types".
-          // Here we add "/dev" at the end of distDir for consistency.
-          `${distDirPosix}/dev/types/**/*.ts`
-    )
-    // Sort the array to ensure consistent order.
-    nextAppTypes.sort((a, b) => a.length - b.length)
-  }
+  // Get type definition glob patterns using shared utility to ensure consistency
+  // with other TypeScript infrastructure (e.g., runTypeCheck.ts)
+  const nextTypes = getTypeDefinitionGlobPatterns(
+    distDir,
+    resolvedIsolatedDevBuild
+  )
 
   if (!('include' in userTsConfig)) {
-    userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', ...nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
-      : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+    const defaultInclude =
+      hasAppDir && !strictRouteTypes
+        ? ['next-env.d.ts', ...nextTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
+        : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+
+    userTsConfig.include = defaultInclude
     suggestedActions.push(
       cyan('include') +
-        ' was set to ' +
-        bold(
-          hasAppDir
-            ? `['next-env.d.ts', ${nextAppTypes.map((type) => `'${type}'`).join(', ')}, '**/*.mts', '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']`
-        )
+        ' was set to [' +
+        bold(defaultInclude.map((type) => `'${type}'`).join(', ')) +
+        ']'
     )
-  } else if (hasAppDir) {
+  } else if (hasAppDir && !strictRouteTypes) {
     const missingFromResolved = []
-    for (const type of nextAppTypes) {
+    for (const type of nextTypes) {
       if (!userTsConfig.include.includes(type)) {
         missingFromResolved.push(type)
       }

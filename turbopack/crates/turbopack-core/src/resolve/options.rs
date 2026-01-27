@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
@@ -9,13 +9,13 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
-use super::{
-    AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
+use crate::resolve::{
+    AliasPattern, ExternalTraced, ExternalType, ResolveResult, ResolveResultItem,
     alias_map::{AliasMap, AliasTemplate},
+    parse::Request,
     pattern::Pattern,
-    plugin::BeforeResolvePlugin,
+    plugin::{AfterResolvePlugin, BeforeResolvePlugin},
 };
-use crate::resolve::{ExternalTraced, parse::Request, plugin::AfterResolvePlugin};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
@@ -23,20 +23,11 @@ pub struct LockedVersions {}
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug)]
-pub struct ExcludedExtensions(pub FxIndexSet<RcStr>);
+pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<RcStr>);
 
 /// A location where to resolve modules.
 #[derive(
-    TraceRawVcs,
-    Hash,
-    PartialEq,
-    Eq,
-    Clone,
-    Debug,
-    Serialize,
-    Deserialize,
-    ValueDebugFormat,
-    NonLocalValue,
+    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
@@ -49,9 +40,7 @@ pub enum ResolveModules {
     },
 }
 
-#[derive(
-    TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize, NonLocalValue,
-)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode)]
 pub enum ConditionValue {
     Set,
     Unset,
@@ -71,7 +60,7 @@ impl From<bool> for ConditionValue {
 pub type ResolutionConditions = BTreeMap<RcStr, ConditionValue>;
 
 /// The different ways to resolve a package, as described in package.json.
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, NonLocalValue)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum ResolveIntoPackage {
     /// Using the [exports] field.
     ///
@@ -89,7 +78,7 @@ pub enum ResolveIntoPackage {
 }
 
 // The different ways to resolve a request within a package
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, NonLocalValue)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum ResolveInPackage {
     /// Using a alias field which allows to map requests
     AliasField(RcStr),
@@ -134,7 +123,12 @@ pub enum ImportMapping {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ReplacedImportMapping {
-    External(Option<RcStr>, ExternalType, ExternalTraced),
+    External {
+        name_override: Option<RcStr>,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        target: Option<FileSystemPath>,
+    },
     PrimaryAlternativeExternal {
         name: Option<RcStr>,
         ty: ExternalType,
@@ -190,9 +184,13 @@ impl AliasTemplate for Vc<ImportMapping> {
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
-                ImportMapping::External(name, ty, traced) => {
-                    ReplacedImportMapping::External(name.clone(), *ty, *traced)
-                }
+                ImportMapping::External(name, ty, traced) => ReplacedImportMapping::External {
+                    name_override: name.clone(),
+                    ty: *ty,
+                    traced: *traced,
+                    // TODO
+                    target: None,
+                },
                 ImportMapping::PrimaryAlternativeExternal {
                     name,
                     ty,
@@ -233,13 +231,22 @@ impl AliasTemplate for Vc<ImportMapping> {
             Ok(match this {
                 ImportMapping::External(name, ty, traced) => {
                     if let Some(name) = name {
-                        ReplacedImportMapping::External(
-                            capture.spread_into_star(name).as_constant_string().cloned(),
-                            *ty,
-                            *traced,
-                        )
+                        ReplacedImportMapping::External {
+                            name_override: capture
+                                .spread_into_star(name)
+                                .as_constant_string()
+                                .cloned(),
+                            ty: *ty,
+                            traced: *traced,
+                            target: None,
+                        }
                     } else {
-                        ReplacedImportMapping::External(None, *ty, *traced)
+                        ReplacedImportMapping::External {
+                            name_override: None,
+                            ty: *ty,
+                            traced: *traced,
+                            target: None,
+                        }
                     }
                 }
                 ImportMapping::PrimaryAlternativeExternal {
@@ -393,7 +400,12 @@ pub struct ResolvedMap {
 #[derive(Clone)]
 pub enum ImportMapResult {
     Result(ResolvedVc<ResolveResult>),
-    External(RcStr, ExternalType, ExternalTraced),
+    External {
+        name: RcStr,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        target: Option<FileSystemPath>,
+    },
     AliasExternal {
         name: RcStr,
         ty: ExternalType,
@@ -412,8 +424,13 @@ async fn import_mapping_to_result(
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
         ReplacedImportMapping::Direct(result) => ImportMapResult::Result(*result),
-        ReplacedImportMapping::External(name, ty, traced) => ImportMapResult::External(
-            if let Some(name) = name {
+        ReplacedImportMapping::External {
+            name_override,
+            ty,
+            traced,
+            target,
+        } => ImportMapResult::External {
+            name: if let Some(name) = name_override {
                 name.clone()
             } else if let Some(request) = request.await?.request() {
                 request
@@ -423,9 +440,10 @@ async fn import_mapping_to_result(
                     request.request_pattern().await?.describe_as_string()
                 )
             },
-            *ty,
-            *traced,
-        ),
+            ty: *ty,
+            traced: *traced,
+            target: target.clone(),
+        },
         ReplacedImportMapping::PrimaryAlternativeExternal {
             name,
             ty,
@@ -480,7 +498,7 @@ impl ValueToString for ImportMapResult {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
             ImportMapResult::Result(_) => Ok(Vc::cell(rcstr!("Resolved by import map"))),
-            ImportMapResult::External(_, _, _) => Ok(Vc::cell(rcstr!("TODO external"))),
+            ImportMapResult::External { .. } => Ok(Vc::cell(rcstr!("TODO external"))),
             ImportMapResult::AliasExternal { .. } => Ok(Vc::cell(rcstr!("TODO external"))),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {

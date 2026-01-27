@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{ItemFn, parse_macro_input, parse_quote};
+use syn::{ItemFn, parse_macro_input};
 
 use crate::{
     func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes},
@@ -43,7 +43,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         .unwrap_or_default();
     let is_self_used = args.operation.is_some() || is_self_used(&block);
 
-    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
+    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args, is_self_used) else {
         return quote! {
             // An error occurred while parsing the function signature.
         }
@@ -53,15 +53,14 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let ident = &sig.ident;
 
     let inline_function_ident = turbo_fn.inline_ident();
-    let (inline_signature, inline_block) =
-        turbo_fn.inline_signature_and_block(&block, is_self_used);
+    let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(&block);
     let inline_attrs = filter_inline_attributes(&attrs[..]);
     let function_path_string = ident.to_string();
 
     let native_fn = NativeFn {
         function_global_name: global_name(&function_path_string),
         function_path_string,
-        function_path: parse_quote! { #inline_function_ident },
+        function_path: quote! { #inline_function_ident },
         is_method: turbo_fn.is_method(),
         is_self_used,
         filter_trait_call_args: None, // not a trait method

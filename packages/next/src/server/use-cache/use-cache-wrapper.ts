@@ -42,17 +42,17 @@ import {
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
 
-import type { ClientReferenceManifestForRsc } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 import {
-  getClientReferenceManifestForRsc,
+  getClientReferenceManifest,
   getServerModuleMap,
-} from '../app-render/encryption-utils'
+} from '../app-render/manifests-singleton'
 import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { getDigestForWellKnownError } from '../app-render/create-error-handler'
+import { createReactServerErrorHandler } from '../app-render/create-error-handler'
 import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { getCacheHandler } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
@@ -68,9 +68,9 @@ import {
 import type { Params } from '../request/params'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
-import { isReactLargeShellError } from '../app-render/react-large-shell-error'
 import type { CacheLife } from './cache-life'
 import { RenderStage } from '../app-render/staged-rendering'
+import * as Log from '../../build/output/log'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -134,7 +134,7 @@ const findSourceMapURL =
 function generateCacheEntry(
   workStore: WorkStore,
   cacheContext: CacheContext,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
@@ -158,7 +158,7 @@ function generateCacheEntry(
 function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
   cacheContext: CacheContext,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
@@ -281,7 +281,7 @@ function assertDefaultCacheLife(
 function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   cacheContext: CacheContext,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
@@ -521,7 +521,7 @@ async function generateCacheEntryImpl(
   workStore: WorkStore,
   cacheContext: CacheContext,
   innerCacheStore: UseCacheStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
@@ -596,28 +596,23 @@ async function generateCacheEntryImpl(
   // digests are handled correctly. Error formatting and reporting is not
   // necessary here; the errors are encoded in the stream, and will be reported
   // in the "Server" environment.
-  const handleError = (error: unknown): string | undefined => {
-    const digest = getDigestForWellKnownError(error)
+  const handleError = createReactServerErrorHandler(
+    workStore.dev,
+    workStore.isBuildTimePrerendering ?? false,
+    workStore.reactServerErrorsByDigest,
+    (error) => {
+      // In production, we log the original error here. It gets a digest that
+      // can be used to associate the error with the obfuscated error that might
+      // be logged if the error is caught. In development, we prefer logging the
+      // transported error in the server environment. It's not obfuscated and
+      // also includes the (dev-only) environment name.
+      if (process.env.NODE_ENV === 'production') {
+        Log.error(error)
+      }
 
-    if (digest) {
-      return digest
+      errors.push(error)
     }
-
-    if (isReactLargeShellError(error)) {
-      // TODO: Aggregate
-      console.error(error)
-      return undefined
-    }
-
-    if (process.env.NODE_ENV !== 'development') {
-      // TODO: For now we're also reporting the error here, because in
-      // production, the "Server" environment will only get the obfuscated
-      // error (created by the Flight Client in the cache wrapper).
-      console.error(error)
-    }
-
-    errors.push(error)
-  }
+  )
 
   let stream: ReadableStream<Uint8Array>
 
@@ -625,7 +620,6 @@ async function generateCacheEntryImpl(
     case 'prerender-runtime':
     case 'prerender':
       const timeoutAbortController = new AbortController()
-
       // If we're prerendering, we give you 50 seconds to fill a cache entry.
       // Otherwise we assume you stalled on hanging input and de-opt. This needs
       // to be lower than just the general timeout of 60 seconds.
@@ -696,9 +690,23 @@ async function generateCacheEntryImpl(
         stream = prelude
       }
       break
+    case 'request':
+      // If we're filling caches for a staged render, make sure that
+      // it takes at least a task, so we'll always notice a cache miss between stages.
+      //
+      // TODO(restart-on-cache-miss): This is suboptimal.
+      // Ideally we wouldn't need to restart for microtasky caches,
+      // but the current logic for omitting short-lived caches only works correctly
+      // if we do a second render, so that's the best we can do until we refactor that.
+      if (
+        process.env.NODE_ENV === 'development' &&
+        outerWorkUnitStore.cacheSignal
+      ) {
+        await new Promise((resolve) => setTimeout(resolve))
+      }
+    // fallthrough
     case 'prerender-ppr':
     case 'prerender-legacy':
-    case 'request':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
@@ -830,10 +838,8 @@ export async function cache(
   id: string,
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>,
-  argsObj: IArguments
+  args: unknown[]
 ) {
-  let args = Array.prototype.slice.call(argsObj)
-
   const isPrivate = kind === 'private'
 
   // Private caches are currently only stored in the Resume Data Cache (RDC),
@@ -969,7 +975,7 @@ export async function cache(
 
   // Get the clientReferenceManifest while we're still in the outer Context.
   // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
-  const clientReferenceManifest = getClientReferenceManifestForRsc()
+  const clientReferenceManifest = getClientReferenceManifest()
 
   // Because the Action ID is not yet unique per implementation of that Action we can't
   // safely reuse the results across builds yet. In the meantime we add the buildId to the
@@ -1115,7 +1121,7 @@ export async function cache(
       )
     }
 
-    const encryptedBoundArgs = args.shift()
+    const encryptedBoundArgs = args.shift() as Promise<string>
     const boundArgs = await decryptActionBoundArgs(id, encryptedBoundArgs)
 
     if (!Array.isArray(boundArgs)) {
@@ -1233,7 +1239,27 @@ export async function cache(
     }
     const cachedEntry = renderResumeDataCache.cache.get(serializedCacheKey)
     if (cachedEntry !== undefined) {
-      const existingEntry = await cachedEntry
+      let existingEntry: CacheEntry | undefined = await cachedEntry
+
+      // Check if the RDC entry should be discarded due to recently revalidated tags.
+      // When a server action calls updateTag(), the re-render should see fresh data
+      // instead of stale RDC data.
+      if (existingEntry !== undefined) {
+        const implicitTags = workUnitStore?.implicitTags?.tags ?? []
+        if (
+          existingEntry.tags.some((tag) =>
+            isRecentlyRevalidatedTag(tag, workStore)
+          ) ||
+          implicitTags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))
+        ) {
+          debug?.(
+            'discarding RDC entry due to recently revalidated tags',
+            serializedCacheKey
+          )
+          existingEntry = undefined
+        }
+      }
+
       if (workUnitStore !== undefined && existingEntry !== undefined) {
         if (
           existingEntry.revalidate === 0 ||
@@ -1247,6 +1273,20 @@ export async function cache(
               // generating static pages for such data. It's better to leave
               // a dynamic hole that can be filled in during the resume with
               // a potentially cached entry.
+              if (existingEntry.revalidate === 0) {
+                debug?.(
+                  'omitting entry',
+                  serializedCacheKey,
+                  'from static shell due to revalidate: 0'
+                )
+              } else {
+                debug?.(
+                  'omitting entry',
+                  serializedCacheKey,
+                  'from static shell due to short expire value:',
+                  existingEntry.expire
+                )
+              }
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
@@ -1298,6 +1338,12 @@ export async function cache(
               // stale in less then 30 seconds, we consider this cache entry
               // dynamic as it's not worth prefetching. It's better to leave
               // a dynamic hole that can be filled during the navigation.
+              debug?.(
+                'omitting entry',
+                serializedCacheKey,
+                'from runtime shell due to short stale value:',
+                existingEntry.stale
+              )
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
@@ -1335,22 +1381,39 @@ export async function cache(
         }
       }
 
-      // We want to make sure we only propagate cache life & tags if the
-      // entry was *not* omitted from the prerender. So we only do this
-      // after the above early returns.
-      propagateCacheLifeAndTags(cacheContext, existingEntry)
+      if (existingEntry !== undefined) {
+        debug?.('Resume Data Cache entry found', serializedCacheKey)
 
-      const [streamA, streamB] = existingEntry.value.tee()
-      existingEntry.value = streamB
+        if (prerenderResumeDataCache) {
+          prerenderResumeDataCache.cache.set(serializedCacheKey, cachedEntry)
+        }
 
-      if (cacheSignal) {
-        // When we have a cacheSignal we need to block on reading the cache
-        // entry before ending the read.
-        stream = createTrackedReadableStream(streamA, cacheSignal)
+        // We want to make sure we only propagate cache life & tags if the
+        // entry was *not* omitted from the prerender. So we only do this
+        // after the above early returns.
+        propagateCacheLifeAndTags(cacheContext, existingEntry)
+
+        const [streamA, streamB] = existingEntry.value.tee()
+        existingEntry.value = streamB
+
+        if (cacheSignal) {
+          // When we have a cacheSignal we need to block on reading the cache
+          // entry before ending the read.
+          stream = createTrackedReadableStream(streamA, cacheSignal)
+        } else {
+          stream = streamA
+        }
       } else {
-        stream = streamA
+        // Entry was discarded (e.g. due to recently revalidated tags)
+        debug?.('Resume Data Cache entry discarded', serializedCacheKey)
+
+        if (cacheSignal) {
+          cacheSignal.endRead()
+        }
       }
     } else {
+      debug?.('Resume Data Cache entry not found', serializedCacheKey)
+
       if (cacheSignal) {
         cacheSignal.endRead()
       }
@@ -1472,6 +1535,20 @@ export async function cache(
           // pages for such data. It's better to leave a dynamic hole that
           // can be filled in during the resume with a potentially cached
           // entry.
+          if (entry.revalidate === 0) {
+            debug?.(
+              'omitting entry',
+              serializedCacheKey,
+              'from static shell due to revalidate: 0'
+            )
+          } else {
+            debug?.(
+              'omitting entry',
+              serializedCacheKey,
+              'from static shell due to short expire value:',
+              entry.expire
+            )
+          }
           if (cacheSignal) {
             cacheSignal.endRead()
           }

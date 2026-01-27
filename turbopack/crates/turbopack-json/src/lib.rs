@@ -14,13 +14,13 @@ use std::fmt::Write;
 use anyhow::{Error, Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileJsonContent, glob::Glob};
+use turbo_tasks_fs::{FileContent, FileJsonContent};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     source::Source,
@@ -54,19 +54,13 @@ impl Module for JsonModuleAsset {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(true)
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for JsonModuleAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 
@@ -133,7 +127,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         // We parse to JSON and then stringify again to ensure that the
         // JSON is valid.
-        let content = self.module.content().file_content();
+        let content = self.module.await?.source.content().file_content();
         let data = content.parse_json().await?;
         match &*data {
             FileJsonContent::Content(data) => {

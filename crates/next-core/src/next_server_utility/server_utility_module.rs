@@ -1,18 +1,18 @@
 use std::collections::BTreeMap;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::ModuleReferences,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -54,6 +54,11 @@ impl Module for NextServerUtilityModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             NextServerUtilityModuleReference::new(Vc::upcast(*self.module))
@@ -61,13 +66,11 @@ impl Module for NextServerUtilityModule {
                 .await?,
         )]))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for NextServerUtilityModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js server utility module has no content")
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // This just exports another import
+        ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
     }
 }
 

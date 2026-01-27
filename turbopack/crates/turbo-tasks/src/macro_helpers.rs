@@ -1,20 +1,20 @@
 //! Runtime helpers for [turbo-tasks-macro].
 
 pub use async_trait::async_trait;
+pub use bincode;
 pub use once_cell::sync::{Lazy, OnceCell};
 use rustc_hash::FxHashMap;
-pub use serde;
 pub use shrink_to_fit;
 pub use tracing;
 
 use crate::{
     FxDashMap, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitTypeId, ValueType,
-    ValueTypeId, Vc, debug::ValueDebugFormatString, task::TaskOutput,
+    ValueTypeId, debug::ValueDebugFormatString,
 };
 pub use crate::{
     global_name, inventory_submit,
     magic_any::MagicAny,
-    manager::{find_cell_by_type, spawn_detached_for_testing},
+    manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
     native_function::{
         CollectableFunction, NativeFunction, downcast_args_owned, downcast_args_ref,
     },
@@ -49,13 +49,6 @@ pub fn get_persistence_from_inputs_and_this(
     } else {
         TaskPersistence::Persistent
     }
-}
-
-pub fn assert_returns_non_local_value<ReturnType, Rv>()
-where
-    ReturnType: TaskOutput<Return = Vc<Rv>>,
-    Rv: NonLocalValue + Send,
-{
 }
 
 pub fn assert_argument_is_non_local_value<Argument: NonLocalValue>() {}

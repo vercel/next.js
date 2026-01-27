@@ -81,8 +81,8 @@ export function createMetadataComponents({
     workStore
   )
 
-  function Viewport() {
-    const pendingViewportTags = getResolvedViewport(
+  async function Viewport() {
+    const tags = await getResolvedViewport(
       tree,
       searchParams,
       getDynamicParamFromSegment,
@@ -107,17 +107,20 @@ export function createMetadataComponents({
       return null
     })
 
-    return (
-      <ViewportBoundary>
-        {/* @ts-expect-error -- Promise<ReactNode> not considered a valid child even though it is */}
-        {pendingViewportTags}
-      </ViewportBoundary>
-    )
+    return tags
   }
   Viewport.displayName = 'Next.Viewport'
 
-  function Metadata() {
-    const pendingMetadataTags = getResolvedMetadata(
+  function ViewportWrapper() {
+    return (
+      <ViewportBoundary>
+        <Viewport />
+      </ViewportBoundary>
+    )
+  }
+
+  async function Metadata() {
+    const tags = await getResolvedMetadata(
       tree,
       pathnameForMetadata,
       searchParams,
@@ -146,14 +149,18 @@ export function createMetadataComponents({
       return null
     })
 
+    return tags
+  }
+  Metadata.displayName = 'Next.Metadata'
+
+  function MetadataWrapper() {
     // TODO: We shouldn't change what we render based on whether we are streaming or not.
     // If we aren't streaming we should just block the response until we have resolved the
     // metadata.
     if (!serveStreamingMetadata) {
       return (
         <MetadataBoundary>
-          {/* @ts-expect-error -- Promise<ReactNode> not considered a valid child even though it is */}
-          {pendingMetadataTags}
+          <Metadata />
         </MetadataBoundary>
       )
     }
@@ -161,14 +168,12 @@ export function createMetadataComponents({
       <div hidden>
         <MetadataBoundary>
           <Suspense name="Next.Metadata">
-            {/* @ts-expect-error -- Promise<ReactNode> not considered a valid child even though it is */}
-            {pendingMetadataTags}
+            <Metadata />
           </Suspense>
         </MetadataBoundary>
       </div>
     )
   }
-  Metadata.displayName = 'Next.Metadata'
 
   function MetadataOutlet() {
     const pendingOutlet = Promise.all([
@@ -205,8 +210,8 @@ export function createMetadataComponents({
   MetadataOutlet.displayName = 'Next.MetadataOutlet'
 
   return {
-    Viewport,
-    Metadata,
+    Viewport: ViewportWrapper,
+    Metadata: MetadataWrapper,
     MetadataOutlet,
   }
 }

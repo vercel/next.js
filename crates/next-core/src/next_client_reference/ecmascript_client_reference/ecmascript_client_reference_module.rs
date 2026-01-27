@@ -4,9 +4,9 @@ use anyhow::{Context, Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{IntoTraitRef, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::AssetContent,
     chunk::{
         AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule,
         ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
@@ -14,12 +14,13 @@ use turbopack_core::{
     code_builder::CodeBuilder,
     context::AssetContext,
     ident::AssetIdent,
-    module::Module,
-    module_graph::{ModuleGraph, export_usage::ModuleExportUsageInfo},
+    module::{Module, ModuleSideEffects},
+    module_graph::{ModuleGraph, binding_usage_info::ModuleExportUsageInfo},
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::ReferenceType,
     resolve::ModuleResolveResult,
+    source::OptionSource,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
@@ -148,7 +149,7 @@ impl EcmascriptClientReferenceModule {
 
         let code = code.build();
         let proxy_module_content =
-            AssetContent::file(File::from(code.source_code().clone()).into());
+            AssetContent::file(FileContent::Content(File::from(code.source_code().clone())).cell());
 
         let proxy_source = VirtualSource::new(
             self.server_ident.path().await?.join(
@@ -198,6 +199,11 @@ impl Module for EcmascriptClientReferenceModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let EcmascriptClientReferenceModule {
             client_module,
@@ -235,13 +241,11 @@ impl Module for EcmascriptClientReferenceModule {
 
         Ok(Vc::cell(references))
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("client reference module asset has no content")
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // These just re-export some specially tagged functions, however we do assume that client
+        // references are executed client side so we need to preserve these in the graph.
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 

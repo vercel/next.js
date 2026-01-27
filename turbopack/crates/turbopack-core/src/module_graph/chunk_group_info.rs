@@ -4,11 +4,11 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use indexmap::map::Entry;
 use roaring::RoaringBitmap;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -19,14 +19,16 @@ use turbo_tasks::{
 use crate::{
     chunk::ChunkingType,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraphRef, RefData},
+    module_graph::{GraphTraversalAction, ModuleGraph, RefData},
 };
 
-#[derive(
-    Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat,
-)]
+#[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat, Encode, Decode)]
 #[repr(transparent)]
-pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
+pub struct RoaringBitmapWrapper(
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    pub RoaringBitmap,
+);
 
 impl TaskInput for RoaringBitmapWrapper {
     fn is_transient(&self) -> bool {
@@ -80,17 +82,27 @@ impl Hash for RoaringBitmapWrapper {
     }
 }
 
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
+
 #[turbo_tasks::value]
 pub struct ChunkGroupInfo {
-    pub module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+    pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_groups: FxIndexSet<ChunkGroup>,
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkGroupInfo {
+    #[turbo_tasks::function]
+    pub fn module_chunk_groups(&self) -> Vc<ModuleToChunkGroups> {
+        *self.module_chunk_groups
+    }
+
     #[turbo_tasks::function]
     pub async fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<usize>> {
         if let Some(idx) = self.chunk_groups.get_index_of(&chunk_group) {
@@ -111,7 +123,7 @@ impl ChunkGroupInfo {
 }
 
 #[derive(
-    Debug, Clone, Hash, TaskInput, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum ChunkGroupEntry {
     /// e.g. a page
@@ -148,7 +160,7 @@ impl ChunkGroupEntry {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum ChunkGroup {
     /// e.g. a page
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
@@ -266,7 +278,7 @@ impl ChunkGroup {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum ChunkGroupKey {
     /// e.g. a page
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
@@ -329,7 +341,7 @@ impl ChunkGroupKey {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct ChunkGroupId(u32);
 
 impl From<usize> for ChunkGroupId {
@@ -368,7 +380,7 @@ impl Ord for TraversalPriority {
     }
 }
 
-pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<ChunkGroupInfo>> {
+pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGroupInfo>> {
     let span_outer = tracing::info_span!(
         "compute chunk group info",
         module_count = tracing::field::Empty,
@@ -407,7 +419,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
         let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
             let mut module_depth =
                 FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-            graph.traverse_edges_from_entries_bfs(
+            graph.traverse_edges_bfs(
                 entries.iter().flat_map(|e| e.entries()),
                 |parent, node| {
                     if let Some((parent, _)) = parent {
@@ -507,7 +519,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                 })
                 .collect::<Result<Vec<_>>>()?,
             &mut module_chunk_groups,
-            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
+            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
              node: ResolvedVc<Box<dyn Module>>,
              module_chunk_groups: &mut FxHashMap<
                 ResolvedVc<Box<dyn Module>>,
@@ -518,7 +530,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                     Inherit(ResolvedVc<Box<dyn Module>>),
                     ChunkGroup(It),
                 }
-                let chunk_groups = if let Some((parent, ref_data)) = parent_info {
+                let chunk_groups = if let Some((parent, ref_data, _)) = parent_info {
                     match &ref_data.chunking_type {
                         ChunkingType::Parallel { .. } => ChunkGroupInheritance::Inherit(parent),
                         ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
@@ -732,7 +744,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
         }
 
         Ok(ChunkGroupInfo {
-            module_chunk_groups,
+            module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
             chunk_groups: chunk_groups_map
                 .into_iter()

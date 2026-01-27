@@ -495,10 +495,12 @@ describe('use-cache', () => {
           '/react-cache',
           '/referential-equality',
           '/revalidate-and-redirect/redirect',
+          '/revalidate-tag-no-refresh',
           '/rsc-payload',
           '/static-class-method',
           withCacheComponents && '/unhandled-promise-regression',
           '/use-action-state',
+          '/use-action-state-separate-export',
           '/with-server-action',
         ].filter(Boolean)
       )
@@ -678,6 +680,41 @@ describe('use-cache', () => {
         'cache-handler set fetch cache https://next-data-api-endpoint.vercel.app/api/random?no-store'
       )
     })
+
+    // Test for revalidateTag with profile (stale-while-revalidate)
+    // This should NOT cause immediate client refresh - only updateTag should do that
+    it('should NOT update immediately after revalidateTag with profile (stale-while-revalidate)', async () => {
+      const browser = await next.browser('/revalidate-tag-no-refresh')
+      const initial = await browser.elementByCss('#random').text()
+
+      console.log('[Test] Initial value:', initial)
+
+      // Click 1: revalidateTag with profile - should NOT cause immediate refresh
+      await browser.elementByCss('#revalidate-tag-with-profile').click()
+      // Wait for the action to complete
+      await new Promise((r) => setTimeout(r, 1000))
+      const afterClick1 = await browser.elementByCss('#random').text()
+      console.log('[Test] After click 1:', afterClick1)
+      expect(afterClick1).toBe(initial) // No change - stale-while-revalidate
+
+      // Click 2: Same as click 1 - should still show stale data
+      await browser.elementByCss('#revalidate-tag-with-profile').click()
+      await new Promise((r) => setTimeout(r, 1000))
+      const afterClick2 = await browser.elementByCss('#random').text()
+      console.log('[Test] After click 2:', afterClick2)
+      expect(afterClick2).toBe(initial) // Still no change
+
+      // Click 3: Same as before - should still show stale data (not data from click 1)
+      await browser.elementByCss('#revalidate-tag-with-profile').click()
+      await new Promise((r) => setTimeout(r, 1000))
+      const afterClick3 = await browser.elementByCss('#random').text()
+      console.log('[Test] After click 3:', afterClick3)
+      expect(afterClick3).toBe(initial) // Still no change - no read-your-own-writes
+
+      // The key assertion: after 3 clicks, the value should still be the same
+      // This proves revalidateTag with profile does NOT cause read-your-own-writes
+      // (Unlike the bug where click 3 would show a different stale value)
+    })
   }
 
   it('should override fetch with cookies/auth in use cache properly', async () => {
@@ -691,6 +728,26 @@ describe('use-cache', () => {
 
   it('works with useActionState if previousState parameter is not used in "use cache" function', async () => {
     const browser = await next.browser('/use-action-state')
+
+    let value = await browser.elementByCss('p').text()
+    expect(value).toBe('-1')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      value = await browser.elementByCss('p').text()
+      expect(value).toMatch(/\d\.\d+/)
+    })
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(value)
+    })
+  })
+
+  it('works with useActionState if previousState parameter is not used in "use cache" function (separate export)', async () => {
+    const browser = await next.browser('/use-action-state-separate-export')
 
     let value = await browser.elementByCss('p').text()
     expect(value).toBe('-1')
@@ -1340,7 +1397,26 @@ describe('use-cache', () => {
       expect(initialScale2).toBe(initialScale)
       expect(maximumScale2).toBe(maximumScale)
     })
+    // end withCacheComponents
   }
+
+  it('caches a higher-order component in a "use cache" module', async () => {
+    const browser = await next.browser('/hoc/foo')
+    const slug = await browser.elementById('slug').text()
+    expect(slug).toBe('foo')
+    const date = await browser.elementById('date').text()
+    expect(date).toBeDateString()
+    await browser.refresh()
+    expect(await browser.elementById('date').text()).toBe(date)
+  })
+
+  it('ignores unused arguments in a "use cache" function', async () => {
+    const browser = await next.browser('/unused-args')
+    const initialNumbers = await browser.elementById('numbers').text()
+    await browser.refresh()
+    const numbers = await browser.elementById('numbers').text()
+    expect(numbers).toBe(initialNumbers)
+  })
 })
 
 async function getSanitizedLogs(browser: Playwright): Promise<string[]> {
@@ -1360,6 +1436,7 @@ function extractResumeDataCacheFromPostponedState(
   const postponedStringLength = parseInt(postponedStringLengthMatch)
 
   return createRenderResumeDataCache(
-    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1)
+    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1),
+    undefined
   )
 }

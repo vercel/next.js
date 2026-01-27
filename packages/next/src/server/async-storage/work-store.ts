@@ -55,7 +55,7 @@ export type WorkStoreContext = {
     | 'assetPrefix'
     | 'supportsDynamicResponse'
     | 'shouldWaitOnAllReady'
-    | 'nextExport'
+    | 'isBuildTimePrerendering'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
     | 'dev'
@@ -125,7 +125,7 @@ export function createWorkStore({
       // so that it can access the fs cache without mocks
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
-    isBuildTimePrerendering: renderOpts.nextExport,
+    isBuildTimePrerendering: renderOpts.isBuildTimePrerendering,
     hasReadableErrorStacks: renderOpts.hasReadableErrorStacks,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
@@ -145,6 +145,7 @@ export function createWorkStore({
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics,
+    reactServerErrorsByDigest: new Map(),
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

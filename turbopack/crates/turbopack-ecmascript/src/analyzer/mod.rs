@@ -2,7 +2,6 @@
 
 use std::{
     borrow::Cow,
-    cmp::Ordering,
     fmt::{Display, Formatter, Write},
     hash::{BuildHasherDefault, Hash, Hasher},
     mem::take,
@@ -16,6 +15,7 @@ use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHasher;
 use swc_core::{
+    atoms::Wtf8Atom,
     common::Mark,
     ecma::{
         ast::{Id, Ident, Lit},
@@ -24,9 +24,9 @@ use swc_core::{
 };
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 use turbopack_core::compile_time_info::{
-    CompileTimeDefineValue, DefinableNameSegment, FreeVarReference,
+    CompileTimeDefineValue, DefinableNameSegment, FreeVarReference, FreeVarReferenceVcs,
 };
 
 use self::imports::ImportAnnotations;
@@ -40,6 +40,7 @@ pub mod builtin;
 pub mod graph;
 pub mod imports;
 pub mod linker;
+pub mod side_effects;
 pub mod top_level_await;
 pub mod well_known;
 
@@ -251,7 +252,9 @@ impl From<&'_ str> for ConstantValue {
 impl From<Lit> for ConstantValue {
     fn from(v: Lit) -> Self {
         match v {
-            Lit::Str(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
+            Lit::Str(v) => {
+                ConstantValue::Str(ConstantString::Atom(v.value.to_atom_lossy().into_owned()))
+            }
             Lit::Bool(v) => {
                 if v.value {
                     ConstantValue::True
@@ -285,7 +288,7 @@ impl Display for ConstantValue {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
-    pub module: Atom,
+    pub module: Wtf8Atom,
     pub annotations: ImportAnnotations,
 }
 
@@ -567,7 +570,7 @@ impl From<String> for JsValue {
 
 impl From<swc_core::ecma::ast::Str> for JsValue {
     fn from(v: swc_core::ecma::ast::Str) -> Self {
-        ConstantValue::Str(v.value.into()).into()
+        ConstantValue::Str(ConstantString::Atom(v.value.to_atom_lossy().into_owned())).into()
     }
 }
 
@@ -787,7 +790,7 @@ impl Display for JsValue {
                 module: name,
                 annotations,
             }) => {
-                write!(f, "Module({name}, {annotations})")
+                write!(f, "Module({}, {annotations})", name.to_string_lossy())
             }
             JsValue::Unknown { .. } => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({obj:?})"),
@@ -1267,113 +1270,6 @@ impl JsValue {
 
     #[cfg(not(debug_assertions))]
     pub fn debug_assert_total_nodes_up_to_date(&mut self) {}
-
-    pub fn ensure_node_limit(&mut self, limit: u32) {
-        fn cmp_nodes(a: &JsValue, b: &JsValue) -> Ordering {
-            a.total_nodes().cmp(&b.total_nodes())
-        }
-        fn make_max_unknown<'a>(mut iter: impl Iterator<Item = &'a mut JsValue>) {
-            let mut max = iter.next().unwrap();
-            let mut side_effects = max.has_side_effects();
-            for item in iter {
-                side_effects |= item.has_side_effects();
-                if cmp_nodes(item, max) == Ordering::Greater {
-                    max = item;
-                }
-            }
-            max.make_unknown_without_content(side_effects, "node limit reached");
-        }
-        if self.total_nodes() > limit {
-            match self {
-                JsValue::Constant(_)
-                | JsValue::Url(_, _)
-                | JsValue::FreeVar(_)
-                | JsValue::Variable(_)
-                | JsValue::Module(..)
-                | JsValue::WellKnownObject(_)
-                | JsValue::WellKnownFunction(_)
-                | JsValue::Argument(..) => {
-                    self.make_unknown_without_content(false, "node limit reached")
-                }
-                &mut JsValue::Unknown {
-                    original_value: _,
-                    reason: _,
-                    has_side_effects,
-                } => self.make_unknown_without_content(has_side_effects, "node limit reached"),
-
-                JsValue::Array { items: list, .. }
-                | JsValue::Alternatives {
-                    total_nodes: _,
-                    values: list,
-                    logical_property: _,
-                }
-                | JsValue::Concat(_, list)
-                | JsValue::Logical(_, _, list)
-                | JsValue::Add(_, list) => {
-                    make_max_unknown(list.iter_mut());
-                    self.update_total_nodes();
-                }
-                JsValue::Not(_, r) => {
-                    r.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::Binary(_, a, _, b) => {
-                    if a.total_nodes() > b.total_nodes() {
-                        a.make_unknown_without_content(b.has_side_effects(), "node limit reached");
-                    } else {
-                        b.make_unknown_without_content(a.has_side_effects(), "node limit reached");
-                    }
-                    self.update_total_nodes();
-                }
-                JsValue::Object { parts, .. } => {
-                    make_max_unknown(parts.iter_mut().flat_map(|v| match v {
-                        // TODO this probably can avoid heap allocation somehow
-                        ObjectPart::KeyValue(k, v) => vec![k, v].into_iter(),
-                        ObjectPart::Spread(s) => vec![s].into_iter(),
-                    }));
-                    self.update_total_nodes();
-                }
-                JsValue::New(_, f, args) => {
-                    make_max_unknown([&mut **f].into_iter().chain(args.iter_mut()));
-                    self.update_total_nodes();
-                }
-                JsValue::Call(_, f, args) => {
-                    make_max_unknown([&mut **f].into_iter().chain(args.iter_mut()));
-                    self.update_total_nodes();
-                }
-                JsValue::SuperCall(_, args) => {
-                    make_max_unknown(args.iter_mut());
-                    self.update_total_nodes();
-                }
-                JsValue::MemberCall(_, o, p, args) => {
-                    make_max_unknown([&mut **o, &mut **p].into_iter().chain(args.iter_mut()));
-                    self.update_total_nodes();
-                }
-                JsValue::Tenary(_, test, cons, alt) => {
-                    make_max_unknown([&mut **test, &mut **cons, &mut **alt].into_iter());
-                    self.update_total_nodes();
-                }
-                JsValue::Iterated(_, iterable) => {
-                    iterable.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::TypeOf(_, operand) => {
-                    operand.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::Awaited(_, operand) => {
-                    operand.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::Promise(_, operand) => {
-                    operand.make_unknown_without_content(false, "node limit reached");
-                }
-                JsValue::Member(_, o, p) => {
-                    make_max_unknown([&mut **o, &mut **p].into_iter());
-                    self.update_total_nodes();
-                }
-                JsValue::Function(_, _, r) => {
-                    r.make_unknown_without_content(false, "node limit reached");
-                }
-            }
-        }
-    }
 }
 
 // Methods for explaining a value
@@ -1713,7 +1609,7 @@ impl JsValue {
                 module: name,
                 annotations,
             }) => {
-                format!("module<{name}, {annotations}>")
+                format!("module<{}, {annotations}>", name.to_string_lossy())
             }
             JsValue::Unknown {
                 original_value: inner,
@@ -1966,6 +1862,10 @@ impl JsValue {
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
                     ),
+                    WellKnownFunctionKind::SharedWorkerConstructor => (
+                      "SharedWorker".to_string(),
+                      "The standard SharedWorker constructor: https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker/SharedWorker"
+                    ),
                     WellKnownFunctionKind::URLConstructor => (
                       "URL".to_string(),
                       "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL"
@@ -2094,19 +1994,16 @@ impl JsValue {
     ///
     /// Uses the `VarGraph` to verify that the first segment is not a local
     /// variable/was not reassigned.
-    pub fn match_free_var_reference<'a, T>(
+    pub fn match_free_var_reference(
         &self,
         var_graph: &VarGraph,
-        free_var_references: &'a FxIndexMap<
-            DefinableNameSegment,
-            FxIndexMap<Vec<DefinableNameSegment>, T>,
-        >,
+        free_var_references: &FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs>,
         prop: &DefinableNameSegment,
-    ) -> Option<&'a T> {
+    ) -> Option<ResolvedVc<FreeVarReference>> {
         if let Some(def_name_len) = self.get_definable_name_len()
             && let Some(references) = free_var_references.get(prop)
         {
-            for (name, value) in references {
+            for (name, value) in &references.0 {
                 if name.len() != def_name_len {
                     continue;
                 }
@@ -2117,7 +2014,7 @@ impl JsValue {
                         let first_str: &str = first_str;
                         if var_graph
                             .free_var_ids
-                            .get(&first_str.into())
+                            .get(&Atom::from(first_str))
                             .is_some_and(|id| var_graph.values.contains_key(id))
                         {
                             // `typeof foo...` but `foo` was reassigned
@@ -2125,7 +2022,7 @@ impl JsValue {
                         }
                     }
 
-                    return Some(value);
+                    return Some(*value);
                 }
             }
         }
@@ -3634,6 +3531,7 @@ pub enum WellKnownFunctionKind {
     NodeResolveFrom,
     NodeProtobufLoad,
     WorkerConstructor,
+    SharedWorkerConstructor,
     // The worker_threads Worker class
     NodeWorkerConstructor,
     URLConstructor,
@@ -3702,7 +3600,7 @@ pub mod test_utils {
             ) => match &args[0] {
                 JsValue::Constant(ConstantValue::Str(v)) => {
                     JsValue::promise(JsValue::Module(ModuleValue {
-                        module: v.as_atom().into_owned(),
+                        module: v.as_atom().into_owned().into(),
                         annotations: ImportAnnotations::default(),
                     }))
                 }
@@ -4107,14 +4005,15 @@ mod tests {
                                 .await;
                                 resolved.push((format!("{parent} -> {i} conditional"), condition));
                                 match *kind {
-                                    ConditionalKind::If { then: block }
-                                    | ConditionalKind::Else { r#else: block }
-                                    | ConditionalKind::Labeled { body: block } => {
+                                    ConditionalKind::If { then } => {
+                                        queue
+                                            .extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                    }
+                                    ConditionalKind::Else { r#else } => {
                                         queue.extend(
-                                            block.effects.into_iter().rev().map(|e| (i, e)),
+                                            r#else.effects.into_iter().rev().map(|e| (i, e)),
                                         );
                                     }
-
                                     ConditionalKind::IfElse { then, r#else }
                                     | ConditionalKind::Ternary { then, r#else } => {
                                         queue.extend(
@@ -4135,10 +4034,12 @@ mod tests {
                                             );
                                         }
                                     }
-                                    ConditionalKind::And { rhs_effects }
-                                    | ConditionalKind::Or { rhs_effects }
-                                    | ConditionalKind::NullishCoalescing { rhs_effects } => {
-                                        queue.extend(rhs_effects.into_iter().rev().map(|e| (i, e)));
+                                    ConditionalKind::And { expr }
+                                    | ConditionalKind::Or { expr }
+                                    | ConditionalKind::NullishCoalescing { expr }
+                                    | ConditionalKind::Labeled { body: expr } => {
+                                        queue
+                                            .extend(expr.effects.into_iter().rev().map(|e| (i, e)));
                                     }
                                 };
                                 steps

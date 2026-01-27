@@ -5,7 +5,6 @@ import type {
   InitialRSCPayload,
   DynamicParamTypesShort,
   HeadData,
-  LoadingModuleData,
 } from '../../shared/lib/app-router-types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -27,6 +26,11 @@ import {
   HEAD_REQUEST_KEY,
 } from '../../shared/lib/segment-cache/segment-value-encoding'
 import { getDigestForWellKnownError } from './create-error-handler'
+import {
+  Phase,
+  printDebugThrownValueForProspectiveRender,
+} from './prospective-render-utils'
+import { workAsyncStorage } from './work-async-storage.external'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
@@ -36,13 +40,25 @@ export type RootTreePrefetch = {
   staleTime: number
 }
 
-export type TreePrefetch = {
-  name: string
-  paramType: DynamicParamTypesShort | null
+export type TreePrefetchParam = {
+  type: DynamicParamTypesShort
   // When cacheComponents is enabled, this field is always null.
   // Instead we parse the param on the client, allowing us to omit it from
   // the prefetch response and increase its cacheability.
-  paramKey: string | null
+  key: string | null
+  // Static sibling segments at the same URL level. Used by the client
+  // router to determine if a prefetch can be reused when navigating to
+  // a static sibling of a dynamic route. For example, if the route is
+  // /products/[id] and there's also /products/sale, then siblings
+  // would be ['sale']. null means the siblings are unknown (e.g. in
+  // webpack dev mode).
+  siblings: readonly string[] | null
+}
+
+export type TreePrefetch = {
+  name: string
+  // Only present for parameterized (dynamic) segments.
+  param: TreePrefetchParam | null
 
   // Child segments.
   slots: null | {
@@ -63,7 +79,6 @@ export type TreePrefetch = {
 export type SegmentPrefetch = {
   buildId: string
   rsc: React.ReactNode | null
-  loading: LoadingModuleData | Promise<LoadingModuleData>
   isPartial: boolean
 }
 
@@ -85,6 +100,14 @@ function onSegmentPrerenderError(error: unknown) {
   }
   // We don't need to log the errors because we would have already done that
   // when generating the original Flight stream for the whole page.
+  if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
+    const workStore = workAsyncStorage.getStore()
+    printDebugThrownValueForProspectiveRender(
+      error,
+      workStore?.route ?? 'unknown route',
+      Phase.SegmentCollection
+    )
+  }
 }
 
 export async function collectSegmentData(
@@ -230,13 +253,7 @@ async function PrefetchTreeData({
   // the client cache.
   segmentTasks.push(
     waitAtLeastOneReactRenderTask().then(() =>
-      renderSegmentPrefetch(
-        buildId,
-        head,
-        null,
-        HEAD_REQUEST_KEY,
-        clientModules
-      )
+      renderSegmentPrefetch(buildId, head, HEAD_REQUEST_KEY, clientModules)
     )
   )
 
@@ -303,13 +320,7 @@ function collectSegmentDataImpl(
       // Since we're already in the middle of a render, wait until after the
       // current task to escape the current rendering context.
       waitAtLeastOneReactRenderTask().then(() =>
-        renderSegmentPrefetch(
-          buildId,
-          seedData[0],
-          seedData[2],
-          requestKey,
-          clientModules
-        )
+        renderSegmentPrefetch(buildId, seedData[0], requestKey, clientModules)
       )
     )
   } else {
@@ -321,27 +332,27 @@ function collectSegmentDataImpl(
   }
 
   const segment = route[0]
-  let name
-  let paramType: DynamicParamTypesShort | null = null
-  let paramKey: string | null = null
+  let name: string
+  let param: TreePrefetchParam | null
   if (typeof segment === 'string') {
     name = segment
-    paramKey = segment
-    paramType = null
+    param = null
   } else {
     name = segment[0]
-    paramKey = segment[1]
-    paramType = segment[2] as DynamicParamTypesShort
+    param = {
+      type: segment[2],
+      // This value is omitted from the prefetch response when cacheComponents
+      // is enabled.
+      key: isClientParamParsingEnabled ? null : segment[1],
+      siblings: segment[3],
+    }
   }
 
   // Metadata about the segment. Sent to the client as part of the
   // tree prefetch.
   return {
     name,
-    paramType,
-    // This value is ommitted from the prefetch response when cacheComponents
-    // is enabled.
-    paramKey: isClientParamParsingEnabled ? null : paramKey,
+    param,
     hasRuntimePrefetch,
     slots: slotMetadata,
     isRootLayout: route[4] === true,
@@ -351,7 +362,6 @@ function collectSegmentDataImpl(
 async function renderSegmentPrefetch(
   buildId: string,
   rsc: React.ReactNode,
-  loading: LoadingModuleData | Promise<LoadingModuleData>,
   requestKey: SegmentRequestKey,
   clientModules: ManifestNode
 ): Promise<[SegmentRequestKey, Buffer]> {
@@ -361,7 +371,6 @@ async function renderSegmentPrefetch(
   const segmentPrefetch: SegmentPrefetch = {
     buildId,
     rsc,
-    loading,
     isPartial: await isPartialRSCData(rsc, clientModules),
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if

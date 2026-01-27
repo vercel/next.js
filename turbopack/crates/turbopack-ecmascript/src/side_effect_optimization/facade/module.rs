@@ -2,15 +2,13 @@ use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, FileContent, glob::Glob};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset, MergeableModule,
         MergeableModules, MergeableModulesExposed,
     },
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::{ExportUsage, ModulePart},
@@ -153,8 +151,13 @@ impl Module for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let (part_references, esm_references) = self.await?.specific_references().await?;
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        let (part_references, esm_references) = self.specific_references().await?;
         let references = part_references
             .iter()
             .map(|r| ResolvedVc::upcast(*r))
@@ -177,29 +180,14 @@ impl Module for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        &self,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
+    fn side_effects(&self) -> Result<Vc<ModuleSideEffects>> {
         Ok(match self.part {
-            ModulePart::Facade => self
-                .module
-                .is_marked_as_side_effect_free(side_effect_free_packages),
+            ModulePart::Facade => self.module.side_effects(),
             ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. } => {
-                Vc::cell(true)
+                ModuleSideEffects::SideEffectFree.cell()
             }
             _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),
         })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptModuleFacadeModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        let f = File::from("");
-
-        AssetContent::file(FileContent::Content(f).cell())
     }
 }
 

@@ -89,7 +89,7 @@ export class FileLogger {
 
     // Only flush to disk if mcpServer is enabled
     if (!this.mcpServerEnabled) {
-      this.logQueue = [] // Clear the queue without writing
+      this.logQueue.length = 0 // Clear the queue without GC overhead
       this.flushTimer = null
       return
     }
@@ -104,7 +104,7 @@ export class FileLogger {
       const logsToWrite = this.logQueue.join('')
       // Writing logs to files synchronously to ensure they're written before returning
       fs.appendFileSync(this.logFilePath, logsToWrite)
-      this.logQueue = []
+      this.logQueue.length = 0 // Clear the queue without GC overhead
     } catch (error) {
       console.error('Failed to flush logs to file:', error)
     } finally {

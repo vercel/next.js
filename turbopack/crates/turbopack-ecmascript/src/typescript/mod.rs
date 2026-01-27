@@ -4,17 +4,13 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences},
-    reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{
-        ModuleResolveResult,
-        origin::{ResolveOrigin, ResolveOriginExt},
-        parse::Request,
-    },
+    reference_type::CommonJsReferenceSubType,
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 // TODO remove this
@@ -49,16 +45,17 @@ impl Module for TsConfigModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = Vec::new();
         let configs = read_tsconfigs(
             self.source.content().file_content(),
             self.source,
-            apply_cjs_specific_options(
-                self.origin
-                    .resolve_options(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined))
-                    .await?,
-            ),
+            apply_cjs_specific_options(self.origin.resolve_options()),
         )
         .await?;
         references.extend(
@@ -173,13 +170,10 @@ impl Module for TsConfigModuleAsset {
         }
         Ok(Vc::cell(references))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for TsConfigModuleAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 

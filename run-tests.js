@@ -13,10 +13,11 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
+const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.0";
+const nextjsReactPeerVersion = "19.2.4";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -28,12 +29,10 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('g')
   .alias('g', 'group')
   .number('c')
-  .boolean('related')
   .boolean('dry')
   .boolean('print-tests')
   .describe('print-tests', 'Prints the test files that will be run')
   .boolean('local')
-  .alias('r', 'related')
   .alias('c', 'concurrency').argv
 
 function escapeRegexp(str) {
@@ -54,16 +53,6 @@ const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
-// Check env to see if test should continue even if some of test fails
-const shouldContinueTestsOnError =
-  process.env.NEXT_TEST_CONTINUE_ON_ERROR === 'true'
-
-// Check env to load a list of test paths to skip retry. This is to be used in conjunction with NEXT_TEST_CONTINUE_ON_ERROR,
-// When try to run all of the tests regardless of pass / fail and want to skip retrying `known` failed tests.
-// manifest should be a json file with an array of test paths.
-const skipRetryTestManifest = process.env.NEXT_TEST_SKIP_RETRY_MANIFEST
-  ? require(process.env.NEXT_TEST_SKIP_RETRY_MANIFEST)
-  : []
 const KV_TIMINGS_KEY = 'test-timings'
 
 const kvClient =
@@ -219,6 +208,9 @@ async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
 
+  // Check for stale or missing build
+  await checkBuildFreshness()
+
   // `.github/workflows/build_reusable.yml` sets this, we should use it unless
   // it's overridden by an explicit `--concurrency` argument.
   const envConcurrency =
@@ -232,7 +224,6 @@ async function main() {
     group: argv.group ?? false,
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
-    related: argv.related ?? false,
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
@@ -282,20 +273,6 @@ async function main() {
 
     if (options.testPattern && typeof options.testPattern === 'string') {
       testPatternRegex = new RegExp(options.testPattern)
-    }
-
-    if (options.related) {
-      const { getRelatedTests } = await import('./scripts/run-related-test.mjs')
-      const tests = await getRelatedTests()
-      if (tests.length)
-        testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
-
-      if (testPatternRegex) {
-        console.log('Running related tests:', testPatternRegex.toString())
-      } else {
-        console.log('No matching related tests, exiting.')
-        process.exit(0)
-      }
     }
 
     tests = (
@@ -501,10 +478,9 @@ ${ENDGROUP}`)
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
   let firstError = true
-  let killed = false
   let hadFailures = false
 
-  const runTest = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
+  const runTestOnce = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
@@ -541,8 +517,7 @@ ${ENDGROUP}`)
           ? {}
           : {
               IS_RETRY: isRetry ? 'true' : undefined,
-              TRACE_PLAYWRIGHT:
-                process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
+              TRACE_PLAYWRIGHT: 'true',
               CIRCLECI: '',
               GITHUB_ACTIONS: '',
               CONTINUOUS_INTEGRATION: '',
@@ -551,7 +526,6 @@ ${ENDGROUP}`)
               // Format the output of junit report to include the test name
               // For the debugging purpose to compare actual run list to the generated reports
               // [NOTE]: This won't affect if junit reporter is not enabled
-              // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
               JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
               // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
               // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
@@ -617,13 +591,10 @@ ${ENDGROUP}`)
         if (isChildExitWithNonZero) {
           if (hideOutput) {
             await outputSema.acquire()
-            const isExpanded =
-              firstError && !killed && !shouldContinueTestsOnError
+            const isExpanded = firstError
             if (isExpanded) {
               firstError = false
               process.stdout.write(`❌ ${test.file} output:\n`)
-            } else if (killed) {
-              process.stdout.write(`${GROUP}${test.file} output (killed)\n`)
             } else {
               process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
             }
@@ -636,7 +607,7 @@ ${ENDGROUP}`)
               output += chunk.toString()
             }
 
-            if (process.env.CI && !killed) {
+            if (process.env.CI) {
               errorsPerTests.set(test.file, output)
             }
 
@@ -682,10 +653,79 @@ ${ENDGROUP}`)
       })
     })
 
+  const runTest = async (/** @type {TestFile} */ test) => {
+    let passed = false
+
+    for (let i = 0; i < numRetries + 1; i++) {
+      try {
+        console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
+        const time = await runTestOnce(test, i === numRetries, i > 0)
+        timings.push({
+          file: test.file,
+          time,
+        })
+        passed = true
+        console.log(
+          `${test.file} finished on retry ${i}/${numRetries} in ${time / 1000}s`
+        )
+        break
+      } catch (err) {
+        if (i < numRetries) {
+          try {
+            let testDir = path.dirname(path.join(__dirname, test.file))
+
+            // if test is nested in a test folder traverse up a dir to ensure
+            // we clean up relevant test files
+            if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
+              testDir = path.join(testDir, '..')
+            }
+            console.log('Cleaning test files at', testDir)
+            await exec(`git clean -fdx "${testDir}"`)
+            await exec(`git checkout "${testDir}"`)
+          } catch (err) {}
+        } else {
+          console.error(`${test.file} failed due to ${err}`)
+        }
+      }
+    }
+
+    if (!passed) {
+      hadFailures = true
+      // "failed to pass within" is a keyword parsed by next-pr-webhook
+      console.error(`${test.file} failed to pass within ${numRetries} retries`)
+    }
+
+    // Emit test output, parsed by the commenter webhook to notify about failing tests.
+    // Also emit for all tests when NEXT_TEST_EMIT_ALL_OUTPUT is set (for manifest generation).
+    if ((!passed || process.env.NEXT_TEST_EMIT_ALL_OUTPUT) && isTestJob) {
+      try {
+        const testsOutput = await fsp.readFile(
+          `${test.file}${RESULTS_EXT}`,
+          'utf8'
+        )
+        const obj = JSON.parse(testsOutput)
+        obj.processEnv = {
+          NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
+          HEADLESS: process.env.HEADLESS,
+        }
+        await outputSema.acquire()
+        if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
+        console.log(
+          `--test output start--`,
+          JSON.stringify(obj),
+          `--test output end--`
+        )
+        if (ENDGROUP) console.log(ENDGROUP)
+        outputSema.release()
+      } catch (err) {
+        console.log(`Failed to load test output`, err)
+      }
+    }
+  }
+
   const directorySemas = new Map()
 
-  const originalRetries = numRetries
-  await Promise.all(
+  const results = await Promise.allSettled(
     tests.map(async (test) => {
       const dirName = path.dirname(test.file)
       let dirSema = directorySemas.get(dirName)
@@ -695,108 +735,26 @@ ${ENDGROUP}`)
       if (/^test[/\\]integration/.test(test.file) && dirSema === undefined) {
         directorySemas.set(dirName, (dirSema = new Sema(1)))
       }
+      // TODO: Use explicit resource managment instead of this acquire/release pattern
+      // once CI runs with Node.js 24+.
       if (dirSema) await dirSema.acquire()
-
       await sema.acquire()
-      let passed = false
 
-      const shouldSkipRetries = skipRetryTestManifest.find((t) =>
-        t.includes(test.file)
-      )
-      const numRetries = shouldSkipRetries ? 0 : originalRetries
-      if (shouldSkipRetries) {
-        console.log(
-          `Skipping retry for ${test.file} due to skipRetryTestManifest`
-        )
+      try {
+        await runTest(test)
+      } finally {
+        sema.release()
+        if (dirSema) dirSema.release()
       }
-
-      for (let i = 0; i < numRetries + 1; i++) {
-        try {
-          console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
-          const time = await runTest(
-            test,
-            shouldSkipRetries || i === numRetries,
-            shouldSkipRetries || i > 0
-          )
-          timings.push({
-            file: test.file,
-            time,
-          })
-          passed = true
-          console.log(
-            `Finished ${test.file} on retry ${i}/${numRetries} in ${
-              time / 1000
-            }s`
-          )
-          break
-        } catch (err) {
-          if (i < numRetries) {
-            try {
-              let testDir = path.dirname(path.join(__dirname, test.file))
-
-              // if test is nested in a test folder traverse up a dir to ensure
-              // we clean up relevant test files
-              if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
-                testDir = path.join(testDir, '..')
-              }
-              console.log('Cleaning test files at', testDir)
-              await exec(`git clean -fdx "${testDir}"`)
-              await exec(`git checkout "${testDir}"`)
-            } catch (err) {}
-          } else {
-            console.error(`${test.file} failed due to ${err}`)
-          }
-        }
-      }
-
-      if (!passed) {
-        console.error(
-          `${test.file} failed to pass within ${numRetries} retries`
-        )
-
-        if (!shouldContinueTestsOnError) {
-          killed = true
-          children.forEach((child) => child.kill())
-          cleanUpAndExit(1)
-        } else {
-          hadFailures = true
-          console.log(
-            `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
-          )
-        }
-      }
-
-      // Emit test output if test failed or if we're continuing tests on error
-      // This is parsed by the commenter webhook to notify about failing tests
-      if ((!passed || shouldContinueTestsOnError) && isTestJob) {
-        try {
-          const testsOutput = await fsp.readFile(
-            `${test.file}${RESULTS_EXT}`,
-            'utf8'
-          )
-          const obj = JSON.parse(testsOutput)
-          obj.processEnv = {
-            NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
-            HEADLESS: process.env.HEADLESS,
-          }
-          await outputSema.acquire()
-          if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
-          console.log(
-            `--test output start--`,
-            JSON.stringify(obj),
-            `--test output end--`
-          )
-          if (ENDGROUP) console.log(ENDGROUP)
-          outputSema.release()
-        } catch (err) {
-          console.log(`Failed to load test output`, err)
-        }
-      }
-
-      sema.release()
-      if (dirSema) dirSema.release()
     })
   )
+
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      hadFailures = true
+      console.error(result.reason)
+    }
+  }
 
   if (options.timings) {
     const curTimings = {}
@@ -857,20 +815,20 @@ ${ENDGROUP}`)
     }
   }
 
-  // Return whether there were any failures
   return hadFailures
 }
 
-main()
-  .then((hadFailures) => {
+main().then(
+  (hadFailures) => {
     if (hadFailures) {
       console.error('Some tests failed')
-      cleanUpAndExit(1)
+      return cleanUpAndExit(1)
     } else {
-      cleanUpAndExit(0)
+      return cleanUpAndExit(0)
     }
-  })
-  .catch((err) => {
-    console.error(err)
-    cleanUpAndExit(1)
-  })
+  },
+  (reason) => {
+    console.error(reason)
+    return cleanUpAndExit(1)
+  }
+)

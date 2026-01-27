@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
+use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -11,11 +11,12 @@ use turbopack_core::{
         EvaluatableAsset,
     },
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -63,6 +64,11 @@ impl Module for HmrEntryModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             HmrEntryModuleReference::new(Vc::upcast(*self.module))
@@ -70,10 +76,9 @@ impl Module for HmrEntryModule {
                 .await?,
         )]))
     }
-
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(false)
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
@@ -188,7 +193,12 @@ impl EcmascriptChunkItem for HmrEntryChunkItem {
         let this = self.module.await?;
         let module = this.module;
         let chunk_item = module.as_chunk_item(*self.module_graph, *self.chunking_context);
-        let id = self.chunking_context.chunk_item_id(chunk_item).await?;
+        let id = self
+            .chunking_context
+            .chunk_item_id_strategy()
+            .await?
+            .get_id(chunk_item)
+            .await?;
 
         let mut code = RopeBuilder::default();
         writeln!(code, "{TURBOPACK_REQUIRE}({});", StringifyJs(&id))?;

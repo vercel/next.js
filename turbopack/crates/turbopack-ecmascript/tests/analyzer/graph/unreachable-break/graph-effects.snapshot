@@ -166,47 +166,6 @@
             ),
         ],
     },
-    Unreachable {
-        start_ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    1,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    1,
-                ),
-            ),
-            Stmt(
-                While,
-            ),
-            WhileStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-        ],
-    },
     ImportedBinding {
         esm_reference_index: 7,
         export: Some(
@@ -520,47 +479,6 @@
             ),
         ],
     },
-    Unreachable {
-        start_ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    2,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                While,
-            ),
-            WhileStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-        ],
-    },
     ImportedBinding {
         esm_reference_index: 2,
         export: Some(
@@ -871,47 +789,6 @@
             ),
             Stmt(
                 Return,
-            ),
-        ],
-    },
-    Unreachable {
-        start_ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    3,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                While,
-            ),
-            WhileStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
             ),
         ],
     },

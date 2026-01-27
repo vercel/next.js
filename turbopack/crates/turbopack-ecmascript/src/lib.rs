@@ -45,18 +45,12 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow, bail};
-use chunk::EcmascriptChunkItem;
-use code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
+use bincode::{Decode, Encode};
 use either::Either;
 use itertools::Itertools;
-use parse::{ParseResult, parse};
-use path_visitor::ApplyVisitors;
-use references::esm::UrlRewriteBehavior;
-pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use smallvec::SmallVec;
-pub use static_code::StaticEcmascriptCode;
 use swc_core::{
     atoms::Atom,
     base::SwcComments,
@@ -74,23 +68,18 @@ use swc_core::{
         },
         codegen::{Emitter, text_writer::JsWriter},
         utils::StmtLikeInjector,
-        visit::{VisitMut, VisitMutWith, VisitMutWithAstPath},
+        visit::{VisitMut, VisitMutWith, VisitMutWithAstPath, VisitWith},
     },
     quote,
 };
 use tracing::{Instrument, Level, instrument};
-pub use transform::{
-    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
-    TransformPlugin,
-};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
         MergeableModule, MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
@@ -99,7 +88,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, OptionModule},
+    module::{Module, ModuleSideEffects, OptionModule},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::ModuleReferences,
@@ -111,24 +100,34 @@ use turbopack_core::{
     source::Source,
     source_map::GenerateSourceMap,
 };
-// TODO remove this
-pub use turbopack_resolve::ecmascript as resolve;
 
-use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
     analyzer::graph::EvalContext,
-    chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
-    code_gen::{CodeGens, ModifiableAst},
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
+        placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
+    },
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     merged_module::MergedEcmascriptModule,
-    parse::generate_js_source_map,
+    parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
+    path_visitor::ApplyVisitors,
     references::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
-        esm::{base::EsmAssetReferences, export},
+        esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
+};
+pub use crate::{
+    references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
+    static_code::StaticEcmascriptCode,
+    transform::{
+        CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
+        TransformPlugin,
+    },
 };
 
 #[derive(
@@ -142,8 +141,9 @@ use crate::{
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
     Deserialize,
+    Encode,
+    Decode,
 )]
 pub enum SpecifiedModuleType {
     #[default]
@@ -162,11 +162,12 @@ pub enum SpecifiedModuleType {
     Clone,
     Copy,
     Default,
-    Serialize,
     Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeShakingMode {
@@ -185,24 +186,26 @@ pub enum TreeShakingMode {
     Clone,
     Copy,
     Default,
-    Serialize,
     Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum AnalyzeMode {
     /// For bundling only, no tracing of referenced files.
     #[default]
     CodeGeneration,
-    /// For bundling and tracing of referenced files.
+    /// For bundling and finding references to external referenced files
     CodeGenerationAndTracing,
-    /// For tracing of referenced files only, no bundling (i.e. no codegen).
+    /// For tracing transitive external references (i.e. no codegen).
     Tracing,
 }
 
 impl AnalyzeMode {
-    pub fn is_tracing(self) -> bool {
+    /// Are we currently collecting references to external assets. e.g. filesystem dependencies
+    pub fn is_tracing_assets(self) -> bool {
         match self {
             AnalyzeMode::Tracing | AnalyzeMode::CodeGenerationAndTracing => true,
             AnalyzeMode::CodeGeneration => false,
@@ -222,17 +225,7 @@ pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
 /// The constant to replace `typeof window` with.
 #[derive(
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
+    Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
 )]
 pub enum TypeofWindow {
     Object,
@@ -276,6 +269,8 @@ pub struct EcmascriptOptions {
     pub enable_exports_info_inlining: bool,
 
     pub inline_helpers: bool,
+    /// Whether to infer side effect free modules via local analysis. Defaults to true.
+    pub infer_module_side_effects: bool,
 }
 
 #[turbo_tasks::value]
@@ -326,6 +321,7 @@ pub struct EcmascriptModuleAssetBuilder {
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     options: ResolvedVc<EcmascriptOptions>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
+    side_effect_free_packages: Option<ResolvedVc<Glob>>,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
 }
 
@@ -349,6 +345,7 @@ impl EcmascriptModuleAssetBuilder {
                 *self.transforms,
                 *self.options,
                 *self.compile_time_info,
+                self.side_effect_free_packages.map(|g| *g),
                 *inner_assets,
             )
         } else {
@@ -359,6 +356,7 @@ impl EcmascriptModuleAssetBuilder {
                 *self.transforms,
                 *self.options,
                 *self.compile_time_info,
+                self.side_effect_free_packages.map(|g| *g),
             )
         }
     }
@@ -372,6 +370,7 @@ pub struct EcmascriptModuleAsset {
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
     pub options: ResolvedVc<EcmascriptOptions>,
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
+    pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
     last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
@@ -385,6 +384,7 @@ impl core::fmt::Debug for EcmascriptModuleAsset {
             .field("transforms", &self.transforms)
             .field("options", &self.options)
             .field("compile_time_info", &self.compile_time_info)
+            .field("side_effect_free_packages", &self.side_effect_free_packages)
             .field("inner_assets", &self.inner_assets)
             .finish()
     }
@@ -403,7 +403,7 @@ pub trait EcmascriptParsable {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptAnalyzable: Module + Asset {
+pub trait EcmascriptAnalyzable: Module {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
 
@@ -453,6 +453,7 @@ impl EcmascriptModuleAsset {
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
+        side_effect_free_packages: Option<ResolvedVc<Glob>>,
     ) -> EcmascriptModuleAssetBuilder {
         EcmascriptModuleAssetBuilder {
             source,
@@ -461,6 +462,7 @@ impl EcmascriptModuleAsset {
             transforms,
             options,
             compile_time_info,
+            side_effect_free_packages,
             inner_assets: None,
         }
     }
@@ -498,17 +500,16 @@ impl ModuleTypeResult {
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let this = self.await?;
-        let real_result = this.parse().await?;
-        if this.options.await?.keep_last_successful_parse {
+    async fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
+        let real_result = self.parse().await?;
+        if self.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
             let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                this.last_successful_parse
+                self.last_successful_parse
                     .set_unconditionally(real_result_value.clone());
                 real_result_value
             } else {
-                let state_ref = this.last_successful_parse.get();
+                let state_ref = self.last_successful_parse.get();
                 state_ref.as_ref().unwrap_or(&real_result_value).clone()
             };
             Ok(ReadRef::cell(result_value))
@@ -622,13 +623,14 @@ async fn determine_module_type_for_directory(
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    pub fn new(
+    fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: EcmascriptModuleAssetType,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
+        side_effect_free_packages: Option<ResolvedVc<Glob>>,
     ) -> Vc<Self> {
         Self::cell(EcmascriptModuleAsset {
             source,
@@ -636,21 +638,22 @@ impl EcmascriptModuleAsset {
             ty,
             transforms,
             options,
-
             compile_time_info,
+            side_effect_free_packages,
             inner_assets: None,
             last_successful_parse: Default::default(),
         })
     }
 
     #[turbo_tasks::function]
-    pub async fn new_with_inner_assets(
+    async fn new_with_inner_assets(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: EcmascriptModuleAssetType,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
+        side_effect_free_packages: Option<ResolvedVc<Glob>>,
         inner_assets: ResolvedVc<InnerAssets>,
     ) -> Result<Vc<Self>> {
         if inner_assets.await?.is_empty() {
@@ -661,6 +664,7 @@ impl EcmascriptModuleAsset {
                 *transforms,
                 *options,
                 *compile_time_info,
+                side_effect_free_packages.map(|g| *g),
             ))
         } else {
             Ok(Self::cell(EcmascriptModuleAsset {
@@ -670,6 +674,7 @@ impl EcmascriptModuleAsset {
                 transforms,
                 options,
                 compile_time_info,
+                side_effect_free_packages,
                 inner_assets: Some(inner_assets),
                 last_successful_parse: Default::default(),
             }))
@@ -738,6 +743,11 @@ impl Module for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(self.analyze().references())
     }
@@ -752,28 +762,21 @@ impl Module for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
+    async fn side_effects(self: Vc<Self>) -> Result<Vc<ModuleSideEffects>> {
+        let this = self.await?;
         // Check package.json first, so that we can skip parsing the module if it's marked that way.
-        let pkg_side_effect_free = is_marked_as_side_effect_free(
+        // We need to respect package.json configuration over any static analysis we might do.
+        Ok((match *get_side_effect_free_declaration(
             self.ident().path().owned().await?,
-            side_effect_free_packages,
-        );
-        Ok(if *pkg_side_effect_free.await? {
-            pkg_side_effect_free
-        } else {
-            Vc::cell(self.analyze().await?.has_side_effect_free_directive)
+            this.side_effect_free_packages.map(|g| *g),
+        )
+        .await?
+        {
+            SideEffectsDeclaration::SideEffectful => ModuleSideEffects::SideEffectful,
+            SideEffectsDeclaration::SideEffectFree => ModuleSideEffects::SideEffectFree,
+            SideEffectsDeclaration::None => self.analyze().await?.side_effects,
         })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+        .cell())
     }
 }
 
@@ -944,7 +947,7 @@ pub struct EcmascriptModuleContent {
     pub source_map: Option<Rope>,
     pub is_esm: bool,
     pub strict: bool,
-    pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    pub additional_ids: SmallVec<[ModuleId; 1]>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -1224,7 +1227,7 @@ impl EcmascriptModuleContent {
                     **m != first_entry
                         && *modules.get(*m).unwrap() == MergeableModuleExposure::External
                 })
-                .map(|m| m.chunk_item_id(*options.chunking_context).to_resolved())
+                .map(|m| m.chunk_item_id(*options.chunking_context))
                 .try_join()
                 .await?
                 .into();
@@ -1311,7 +1314,8 @@ async fn merge_modules(
             // corresponding export in the module that exports it.
             if let Some(&module) = self.reverse_module_contexts.get(ctxt) {
                 let eval_context_exports = self.export_contexts.get(&module).unwrap();
-                // TODO looking up an Atom in a Map<RcStr, _>
+                // TODO looking up an Atom in a Map<RcStr, _>, would ideally work without creating a
+                // RcStr every time.
                 let sym_rc_str: RcStr = sym.as_str().into();
                 let (local, local_ctxt) = if let Some((local, local_ctxt)) =
                     eval_context_exports.get(&sym_rc_str)
@@ -1324,10 +1328,11 @@ async fn merge_modules(
                     // generating this variable.
                     (None, SyntaxContext::empty())
                 } else {
-                    panic!(
+                    self.error = Err(anyhow::anyhow!(
                         "Expected to find a local export for {sym} with ctxt {ctxt:#?} in \
                          {eval_context_exports:?}",
-                    );
+                    ));
+                    return;
                 };
 
                 let global_ctxt = self.get_context_for(module, local_ctxt);
@@ -2030,6 +2035,7 @@ async fn with_consumed_parse_result<T>(
                     globals,
                     eval_context,
                     comments,
+                    ..
                 }) => (
                     program.take(),
                     &*source_map,
@@ -2055,6 +2061,7 @@ async fn with_consumed_parse_result<T>(
                         globals,
                         eval_context,
                         comments,
+                        ..
                     } = &**parsed
                     else {
                         unreachable!();
@@ -2078,7 +2085,7 @@ async fn with_consumed_parse_result<T>(
 
 async fn emit_content(
     content: CodeGenResult,
-    additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    additional_ids: SmallVec<[ModuleId; 1]>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let CodeGenResult {
         program,
@@ -2092,6 +2099,15 @@ async fn emit_content(
     } = content;
 
     let generate_source_map = source_map.is_some();
+
+    // Collect identifier names for source maps before emitting
+    let source_map_names = if generate_source_map {
+        let mut collector = IdentCollector::default();
+        program.visit_with(&mut collector);
+        collector.into_map()
+    } else {
+        Default::default()
+    };
 
     let mut bytes: Vec<u8> = vec![];
     // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
@@ -2128,19 +2144,27 @@ async fn emit_content(
     }
 
     let source_map = if generate_source_map {
+        let original_source_maps = original_source_map
+            .iter()
+            .map(|map| map.generate_source_map())
+            .try_join()
+            .await?;
+        let original_source_maps = original_source_maps
+            .iter()
+            .filter_map(|map| map.as_content())
+            .map(|map| map.content())
+            .collect::<Vec<_>>();
+
         Some(generate_js_source_map(
             &*source_map,
             mappings,
-            original_source_map
-                .iter()
-                .map(|map| map.generate_source_map())
-                .try_flat_join()
-                .await?,
+            original_source_maps,
             matches!(
                 original_source_map,
                 CodeGenResultOriginalSourceMap::Single(_)
             ),
             true,
+            source_map_names,
         )?)
     } else {
         None

@@ -45,7 +45,9 @@ impl PartialOrd for PlainDiagnostic {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct DiagnosticPayload(pub FxIndexMap<RcStr, RcStr>);
+pub struct DiagnosticPayload(
+    #[bincode(with = "turbo_bincode::indexmap")] pub FxIndexMap<RcStr, RcStr>,
+);
 
 /// An arbitrary payload can be used to analyze, diagnose
 /// Turbopack's behavior.

@@ -9,7 +9,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
@@ -167,12 +167,15 @@ async fn build_manifest(
     async move {
         let mut entry_manifest: SerializedClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
-        let chunk_suffix_path = next_config.chunk_suffix_path().owned().await?;
         let prefix_path = next_config.computed_asset_prefix().owned().await?;
-        let suffix_path = chunk_suffix_path.unwrap_or_default();
-
-        // TODO: Add `suffix` to the manifest for React to use.
-        // entry_manifest.module_loading.prefix = prefix_path;
+        let runtime_server_deployment_id_available =
+            *next_config.runtime_server_deployment_id_available().await?;
+        let suffix_path = if !runtime_server_deployment_id_available {
+            let asset_suffix_path = next_config.asset_suffix_path().owned().await?;
+            asset_suffix_path.unwrap_or_default()
+        } else {
+            rcstr!("")
+        };
 
         entry_manifest.module_loading.cross_origin = next_config.cross_origin().owned().await?;
         let ClientReferencesChunks {
@@ -346,7 +349,7 @@ async fn build_manifest(
                     get_client_reference_module_key(&server_path, "*"),
                     ManifestNodeEntry {
                         name: rcstr!("*"),
-                        id: (&*client_chunk_item_id).into(),
+                        id: (&client_chunk_item_id).into(),
                         chunks: client_chunks_paths,
                         // This should of course be client_is_async, but SSR can become
                         // async due to ESM externals, and
@@ -361,7 +364,7 @@ async fn build_manifest(
                     rcstr!("*"),
                     ManifestNodeEntry {
                         name: rcstr!("*"),
-                        id: (&*ssr_chunk_item_id).into(),
+                        id: (&ssr_chunk_item_id).into(),
                         chunks: ssr_chunks_paths,
                         // See above
                         r#async: client_is_async || ssr_is_async,
@@ -373,7 +376,7 @@ async fn build_manifest(
                     rcstr!("*"),
                     ManifestNodeEntry {
                         name: rcstr!("*"),
-                        id: (&*rsc_chunk_item_id).into(),
+                        id: (&rsc_chunk_item_id).into(),
                         chunks: vec![],
                         r#async: rsc_is_async,
                     },
@@ -383,18 +386,18 @@ async fn build_manifest(
                     NextRuntime::NodeJs => {
                         entry_manifest
                             .ssr_module_mapping
-                            .insert((&*client_chunk_item_id).into(), ssr_manifest_node);
+                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
                         entry_manifest
                             .rsc_module_mapping
-                            .insert((&*client_chunk_item_id).into(), rsc_manifest_node);
+                            .insert((&client_chunk_item_id).into(), rsc_manifest_node);
                     }
                     NextRuntime::Edge => {
                         entry_manifest
                             .edge_ssr_module_mapping
-                            .insert((&*client_chunk_item_id).into(), ssr_manifest_node);
+                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
                         entry_manifest
                             .edge_rsc_module_mapping
-                            .insert((&*client_chunk_item_id).into(), rsc_manifest_node);
+                            .insert((&client_chunk_item_id).into(), rsc_manifest_node);
                     }
                 }
             }
@@ -402,8 +405,12 @@ async fn build_manifest(
 
         // per layout segment chunks need to be emitted into the manifest too
         for (server_component, client_assets) in layout_segment_client_chunks.iter() {
+            // Use source_path() to get the original source path (e.g., page.mdx) instead of
+            // server_path() which returns the transformed path (e.g., page.mdx.tsx).
+            // This ensures the manifest key matches what the LoaderTree stores and what
+            // the runtime looks up after stripping one extension.
             let server_component_name = server_component
-                .server_path()
+                .source_path()
                 .await?
                 .with_extension("")
                 .value_to_string()
@@ -466,18 +473,31 @@ async fn build_manifest(
         let normalized_manifest_entry = entry_name.replace("%5F", "_");
         Ok(ClientReferenceManifestResult {
             content: AssetContent::file(
-                File::from(formatdoc! {
+                FileContent::Content(File::from(formatdoc! {
                     r#"
                         globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
-                        globalThis.__RSC_MANIFEST[{entry_name}] = {manifest}
+                        globalThis.__RSC_MANIFEST[{entry_name}] = {manifest};
+                        {suffix}
                     "#,
                     entry_name = StringifyJs(&normalized_manifest_entry),
-                    manifest = &client_reference_manifest_json
-                })
-                .into(),
-            )
-            .to_resolved()
-            .await?,
+                    manifest = &client_reference_manifest_json,
+                    suffix = if runtime_server_deployment_id_available {
+                        formatdoc!{
+                            r#"
+                            for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
+                                const val = {{ ...globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] }}
+                                globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] = val
+                                val.chunks = val.chunks.map((c) => `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`)
+                            }}
+                            "#,
+                            entry_name = StringifyJs(&normalized_manifest_entry),
+                        }
+                    } else {
+                        "".to_string()
+                    }
+                }))
+                .cell(),
+            ).to_resolved().await?,
             references: ResolvedVc::cell(references.into_iter().collect()),
         }
         .cell())

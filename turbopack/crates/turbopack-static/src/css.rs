@@ -1,11 +1,9 @@
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     output::OutputAsset,
     source::Source,
 };
@@ -48,19 +46,13 @@ impl Module for StaticUrlCssModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(true)
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for StaticUrlCssModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 
