@@ -987,5 +987,6 @@
   "986": "Server Action arguments list is too long (%s). Maximum allowed is %s.",
   "987": "Invalid \\`deploymentId\\` configuration: exceeds maximum length of 32 characters. See https://nextjs.org/docs/messages/deploymentid-too-long",
   "988": "Invalid \\`deploymentId\\` configuration: must be a string. See https://nextjs.org/docs/messages/deploymentid-not-a-string",
-  "989": "Invalid \\`deploymentId\\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters"
+  "989": "Invalid \\`deploymentId\\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters",
+  "990": "Invalid \\`deploymentId\\` configuration: cannot use Vercel system deployment ID format (dpl_*). See https://nextjs.org/docs/messages/deploymentid-reserved-prefix"
 }

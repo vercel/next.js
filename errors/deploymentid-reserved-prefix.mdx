@@ -1,0 +1,31 @@
+---
+title: '`deploymentId` uses reserved prefix'
+---
+
+## Why This Error Occurred
+
+The `deploymentId` in your `next.config.js` starts with `dpl_`, which is reserved for Vercel's system-assigned deployment IDs.
+
+## Possible Ways to Fix It
+
+Use a different prefix for your custom deployment ID:
+
+```js
+// ✅ Correct
+module.exports = {
+  deploymentId: 'my-deployment-123',
+  deploymentId: 'v1-abc123',
+  deploymentId: process.env.GIT_SHA?.substring(0, 32),
+}
+
+// ❌ Incorrect
+module.exports = {
+  deploymentId: 'dpl_abc123', // Reserved prefix
+}
+```
+
+## Additional Information
+
+- The `dpl_` prefix is reserved for Vercel's internal deployment identifiers
+- Custom deployment IDs should use a different naming convention
+- This restriction prevents conflicts between user-configured IDs and system-assigned IDs

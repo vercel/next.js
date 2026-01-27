@@ -988,6 +988,11 @@ export default async function build(
             `Invalid \`deploymentId\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters`
           )
         }
+        if (config.deploymentId.startsWith('dpl_')) {
+          throw new Error(
+            `Invalid \`deploymentId\` configuration: cannot use Vercel system deployment ID format (dpl_*). See https://nextjs.org/docs/messages/deploymentid-reserved-prefix`
+          )
+        }
       }
 
       // Reading the config can modify environment variables that influence the bundler selection.
