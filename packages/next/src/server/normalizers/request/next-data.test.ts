@@ -2,10 +2,12 @@ import { NextDataPathnameNormalizer } from './next-data'
 
 describe('NextDataPathnameNormalizer', () => {
   describe('constructor', () => {
-    it('should error when no buildID is provided', () => {
+    it('should error when no buildID and no deploymentId is provided', () => {
       expect(() => {
         new NextDataPathnameNormalizer('', '')
-      }).toThrowErrorMatchingInlineSnapshot(`"Invariant: buildID is required"`)
+      }).toThrowErrorMatchingInlineSnapshot(
+        `"Invariant: buildID or deploymentId is required"`
+      )
     })
   })
 

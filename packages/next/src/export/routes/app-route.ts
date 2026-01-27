@@ -49,7 +49,8 @@ export async function exportAppRoute(
   fileWriter: MultiFileWriter,
   cacheComponents: boolean,
   experimental: Required<Pick<ExperimentalConfig, 'authInterrupts'>>,
-  buildId: string
+  buildId: string,
+  deploymentId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -90,6 +91,7 @@ export async function exportAppRoute(
     },
     sharedContext: {
       buildId,
+      deploymentId,
     },
   }
 

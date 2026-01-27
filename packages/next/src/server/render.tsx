@@ -301,7 +301,7 @@ export type PagesSharedContext = {
    * Used to facilitate caching of page bundles, we send it to the client so
    * that pageloader knows where to load bundles.
    */
-  buildId: string
+  buildId: string | undefined
 
   /**
    * The deployment ID if the user is deploying to a platform that provides one.

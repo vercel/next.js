@@ -65,7 +65,7 @@ export type WorkStoreContext = {
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
 
   /**
-   * The build ID of the current build.
+   * The build or deployment ID of the current build, for cache busting of server actions.
    */
   buildId: string
 

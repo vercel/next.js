@@ -95,7 +95,8 @@ export interface WorkStore {
   isPrefetchRequest?: boolean
 
   /**
-   * Prefer `sharedContext.buildId` instead. This only exists because it's needed in use-cache-wrapper
+   * Prefer `sharedContext.buildId` instead. This can also be the deploymentId when available. This
+   * only exists because it's needed in use-cache-wrapper for cache busting between builds.
    */
   buildId: string
 

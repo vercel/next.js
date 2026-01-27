@@ -81,7 +81,7 @@ export class EdgeRouteModuleWrapper {
       caseSensitive: false,
     })
 
-    const { nextConfig } = this.routeModule.getNextConfigEdge(
+    const { nextConfig, deploymentId } = this.routeModule.getNextConfigEdge(
       new WebNextRequest(request)
     )
 
@@ -119,6 +119,7 @@ export class EdgeRouteModuleWrapper {
       },
       sharedContext: {
         buildId: '', // TODO: Populate this properly.
+        deploymentId,
       },
     }
 

@@ -89,7 +89,7 @@ export type NEXT_DATA = {
   props: Record<string, any>
   page: string
   query: ParsedUrlQuery
-  buildId: string
+  buildId: string | undefined
   assetPrefix?: string
   nextExport?: boolean
   autoExport?: boolean

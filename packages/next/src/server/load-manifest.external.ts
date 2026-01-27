@@ -148,6 +148,38 @@ export function loadManifestFromRelativePath<T extends object>({
   }
 }
 
+export function loadManifestFileFromRelativePath({
+  projectDir,
+  distDir,
+  manifest,
+  shouldCache,
+  cache,
+  handleMissing,
+}: {
+  projectDir: string
+  distDir: string
+  manifest: string
+  shouldCache?: boolean
+  cache?: Map<string, unknown>
+  handleMissing?: boolean
+}): string | undefined {
+  try {
+    const manifestPath = join(
+      /* turbopackIgnore: true */ projectDir,
+      distDir,
+      manifest
+    )
+
+    // @ts-expect-error loadManifest skipParse isn't really reflected in the type signature
+    return loadManifest(manifestPath, shouldCache, cache, true)
+  } catch (err) {
+    if (handleMissing) {
+      return undefined
+    }
+    throw err
+  }
+}
+
 export function clearManifestCache(path: string, cache = sharedCache): boolean {
   return cache.delete(path)
 }

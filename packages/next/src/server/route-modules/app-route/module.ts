@@ -103,7 +103,8 @@ export class WrappedNextRouterError {
 export type AppRouteModule = typeof import('../../../build/templates/app-route')
 
 export type AppRouteSharedContext = {
-  buildId: string
+  deploymentId: string
+  buildId: string | undefined
 }
 
 /**
@@ -702,7 +703,7 @@ export class AppRouteRouteModule extends RouteModule<
     const staticGenerationContext: WorkStoreContext = {
       page: this.definition.page,
       renderOpts: context.renderOpts,
-      buildId: context.sharedContext.buildId,
+      buildId: context.sharedContext.deploymentId,
       previouslyRevalidatedTags: [],
     }
 

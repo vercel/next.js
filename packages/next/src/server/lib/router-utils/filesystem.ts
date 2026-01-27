@@ -161,7 +161,7 @@ export async function setupFsCheck(opts: {
     },
     headers: [],
   }
-  let buildId = 'development'
+  let buildId: string | undefined
   let prerenderManifest: PrerenderManifest
 
   if (!opts.dev) {
@@ -170,9 +170,6 @@ export async function setupFsCheck(opts: {
       buildId = await fs.readFile(buildIdPath, 'utf8')
     } catch (err: any) {
       if (err.code !== 'ENOENT') throw err
-      throw new Error(
-        `Could not find a production build in the '${opts.config.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
-      )
     }
 
     try {
@@ -230,7 +227,12 @@ export async function setupFsCheck(opts: {
     const appRoutesManifestPath = path.join(distDir, APP_PATH_ROUTES_MANIFEST)
 
     const routesManifest = JSON.parse(
-      await fs.readFile(routesManifestPath, 'utf8')
+      await fs.readFile(routesManifestPath, 'utf8').catch((err) => {
+        if (err.code !== 'ENOENT') throw err
+        throw new Error(
+          `Could not find a production build in the '${opts.config.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
+        )
+      })
     ) as RoutesManifest
 
     prerenderManifest = JSON.parse(
@@ -266,7 +268,7 @@ export async function setupFsCheck(opts: {
       appFiles.add(appRoutesManifest[key])
     }
 
-    const escapedBuildId = escapeStringRegexp(buildId)
+    const escapedBuildId = buildId ? escapeStringRegexp(buildId) : buildId
 
     for (const route of routesManifest.dataRoutes) {
       if (isDynamicRoute(route.page)) {
@@ -345,6 +347,8 @@ export async function setupFsCheck(opts: {
       headers: routesManifest.headers,
     }
   } else {
+    buildId = 'development'
+
     // dev handling
     customRoutes = await loadCustomRoutes(opts.config)
 

@@ -142,7 +142,8 @@ export async function adapter(
   }
 
   // Ensure users only see page requests, never data requests.
-  let buildId = process.env.__NEXT_BUILD_ID || ''
+  // TODO
+  let buildId = process.env.__NEXT_BUILD_ID
   if ('buildId' in requestURL) {
     buildId = (requestURL as NextURL).buildId || ''
     requestURL.buildId = ''

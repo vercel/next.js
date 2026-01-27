@@ -238,7 +238,7 @@ export type DynamicParam = {
 export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
 export type AppSharedContext = {
-  buildId: string
+  buildId: string | undefined
   deploymentId: string
 }
 
@@ -2432,7 +2432,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     renderOpts,
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
-    buildId: sharedContext.buildId,
+    buildId: sharedContext.deploymentId,
     previouslyRevalidatedTags,
     nonce,
   })

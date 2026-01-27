@@ -37,7 +37,7 @@ export type GoodPageCache = {
 }
 
 export default class PageLoader {
-  private buildId: string
+  private buildId: string | undefined
   private assetPrefix: string
   private promisedSsgManifest: Promise<Set<string>>
   private promisedDevPagesManifest?: Promise<string[]>
@@ -45,7 +45,7 @@ export default class PageLoader {
 
   public routeLoader: RouteLoader
 
-  constructor(buildId: string, assetPrefix: string) {
+  constructor(buildId: string | undefined, assetPrefix: string) {
     this.routeLoader = createRouteLoader(assetPrefix)
 
     this.buildId = buildId
