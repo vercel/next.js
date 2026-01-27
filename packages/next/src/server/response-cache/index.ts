@@ -63,10 +63,9 @@ const KEY_SEPARATOR = '\0'
 
 /**
  * Sentinel value used for TTL-based cache entries (when invocationID is undefined).
- * Uses KEY_SEPARATOR prefix to guarantee uniqueness since null bytes cannot appear
- * in HTTP headers (RFC 7230), making collision with real invocation IDs impossible.
+ * Chosen to be a clearly reserved marker for internal cache keys.
  */
-const TTL_SENTINEL = `${KEY_SEPARATOR}ttl`
+const TTL_SENTINEL = '__ttl_sentinel__'
 
 /**
  * Entry stored in the LRU cache.
