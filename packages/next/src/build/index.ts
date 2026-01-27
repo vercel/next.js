@@ -489,6 +489,10 @@ export type RoutesManifest = {
   skipProxyUrlNormalize?: boolean
   caseSensitive?: boolean
   /**
+   * User-configured deployment ID for skew protection.
+   */
+  deploymentId?: string
+  /**
    * Configuration related to Partial Prerendering.
    */
   ppr?: {
@@ -966,6 +970,25 @@ export default async function build(
           )
         )
       loadedConfig = config
+
+      // Validate deploymentId if provided
+      if (config.deploymentId !== undefined) {
+        if (typeof config.deploymentId !== 'string') {
+          throw new Error(
+            `Invalid \`deploymentId\` configuration: must be a string. See https://nextjs.org/docs/messages/deploymentid-not-a-string`
+          )
+        }
+        if (config.deploymentId.length > 32) {
+          throw new Error(
+            `Invalid \`deploymentId\` configuration: exceeds maximum length of 32 characters. See https://nextjs.org/docs/messages/deploymentid-too-long`
+          )
+        }
+        if (!/^[a-zA-Z0-9_-]*$/.test(config.deploymentId)) {
+          throw new Error(
+            `Invalid \`deploymentId\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters`
+          )
+        }
+      }
 
       // Reading the config can modify environment variables that influence the bundler selection.
       bundler = finalizeBundlerFromConfig(bundler)
@@ -1637,6 +1660,7 @@ export default async function build(
             rewrites,
             restrictedRedirectPaths,
             isAppPPREnabled,
+            deploymentId: config.deploymentId,
           })
         )
 
