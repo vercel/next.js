@@ -1350,15 +1350,19 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn edge_env(&self) -> Vc<EnvMap> {
-        let edge_env = fxindexmap! {
-            rcstr!("__NEXT_BUILD_ID") => self.build_id.clone(),
+    pub(super) async fn edge_env(&self) -> Result<Vc<EnvMap>> {
+        let mut edge_env = fxindexmap! {
             rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_ID") => self.preview_props.preview_mode_id.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => self.preview_props.preview_mode_encryption_key.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => self.preview_props.preview_mode_signing_key.clone(),
         };
-        Vc::cell(edge_env)
+        if !*self.next_config.has_deployment_id().await? {
+            // The build id is only needed at runtime when there is no deployment id.
+            edge_env.insert(rcstr!("__NEXT_BUILD_ID"), self.build_id.clone());
+        }
+
+        Ok(Vc::cell(edge_env))
     }
 
     #[turbo_tasks::function]
