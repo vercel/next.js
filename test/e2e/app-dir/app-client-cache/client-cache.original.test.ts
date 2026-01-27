@@ -344,16 +344,16 @@ describe('app dir client cache semantics (30s/5min)', () => {
       })
 
       it('should refetch below the fold after 30 seconds', async () => {
-        await browser.elementByCss('[href="/1?timeout=1000"]').click()
+        await browser.elementByCss('[href="/1?timeout=2000"]').click()
         await browser.waitForElementByCss('#random-number')
         const randomNumber = await browser.elementById('random-number').text()
 
         await browser.elementByCss('[href="/"]').click()
-        await browser.waitForElementByCss('[href="/1?timeout=1000"]')
+        await browser.waitForElementByCss('[href="/1?timeout=2000"]')
 
         await browser.eval(fastForwardTo, 30 * 1000)
 
-        await browser.elementByCss('[href="/1?timeout=1000"]').click()
+        await browser.elementByCss('[href="/1?timeout=2000"]').click()
         await browser.waitForElementByCss('#random-number')
         const newNumber = await browser.elementById('random-number').text()
 
@@ -364,7 +364,7 @@ describe('app dir client cache semantics (30s/5min)', () => {
         await browser.waitForIdleNetwork()
 
         const randomLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#loading')
           .text()
@@ -378,14 +378,14 @@ describe('app dir client cache semantics (30s/5min)', () => {
         await browser
           .elementByCss('[href="/"]')
           .click()
-          .waitForElementByCss('[href="/1?timeout=1000"]')
+          .waitForElementByCss('[href="/1?timeout=2000"]')
 
         // Wait for prefetch requests to complete before clicking, otherwise
         // clicking during an in-flight prefetch aborts it and skips loading state
         await browser.waitForIdleNetwork()
 
         const newLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#loading')
           .text()

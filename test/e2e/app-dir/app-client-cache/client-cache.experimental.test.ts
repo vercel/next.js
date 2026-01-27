@@ -25,7 +25,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
         // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
         await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#loading')
 
@@ -38,7 +38,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
         await browser.eval(fastForwardTo, 5 * 1000) // fast forward 5 seconds
 
         const newRandomNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#random-number')
           .text()
@@ -187,7 +187,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
         // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
         await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#loading')
 
@@ -200,7 +200,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
         await browser.eval(fastForwardTo, 5 * 1000) // fast forward 5 seconds
 
         const newRandomNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#random-number')
           .text()
@@ -330,7 +330,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
         await browser.waitForIdleNetwork()
 
         const loadingRandomNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#loading')
           .text()
@@ -339,11 +339,11 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
         await browser.elementByCss('[href="/"]').click()
 
-        await browser.waitForElementByCss('[href="/1?timeout=1000"]')
+        await browser.waitForElementByCss('[href="/1?timeout=2000"]')
         await browser.waitForIdleNetwork()
 
         let newLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#loading')
           .text()
@@ -355,11 +355,11 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
         await browser.elementByCss('[href="/"]').click()
 
         // Wait for link to be visible (triggers prefetch), then wait for prefetch to complete
-        await browser.waitForElementByCss('[href="/1?timeout=1000"]')
+        await browser.waitForElementByCss('[href="/1?timeout=2000"]')
         await browser.waitForIdleNetwork()
 
         newLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#loading')
           .text()
@@ -408,7 +408,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
       // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
       await browser
-        .elementByCss('[href="/1?timeout=1000"]')
+        .elementByCss('[href="/1?timeout=2000"]')
         .click()
         .waitForElementByCss('#loading')
 
@@ -421,7 +421,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       await browser.eval(fastForwardTo, 5 * 1000) // fast forward 5 seconds
 
       const newRandomNumber = await browser
-        .elementByCss('[href="/1?timeout=1000"]')
+        .elementByCss('[href="/1?timeout=2000"]')
         .click()
         .waitForElementByCss('#random-number')
         .text()
