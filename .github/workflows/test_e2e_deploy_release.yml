@@ -21,10 +21,12 @@ on:
         type: string
 
 env:
+  DD_ENV: 'ci'
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
-  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  DD_ENV: 'ci'
+  VERCEL_ADAPTER_TEST_TEAM: vtest314-next-adapter-e2e-tests
+  VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
 
 run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || 'canary' }}
 
@@ -98,7 +100,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/1]
+        group:
+          [
+            1/12,
+            2/12,
+            3/12,
+            4/12,
+            5/12,
+            6/12,
+            7/12,
+            8/12,
+            9/12,
+            10/12,
+            11/12,
+            12/12,
+          ]
     with:
       afterBuild: |
         npm i -g vercel@latest && \
@@ -109,10 +125,10 @@ jobs:
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
-        node run-tests.js --timings -g ${{ matrix.group }} -c 2 test/e2e/app-dir/segment-cache/client-params/client-params.test.ts test/e2e/app-dir/app-static/app-static.test.ts test/e2e/app-dir/cache-components/cache-components.test.ts test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts test/e2e/edge-pages-support/index.test.ts test/e2e/prerender.test.ts test/e2e/middleware-general/test/index.test.ts test/e2e/middleware-rewrites/test/index.test.ts test/e2e/app-dir/actions/app-action-node-middleware.test.ts
+        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
-      stepName: 'test-deploy-adapter-${{ matrix.group }}'
+      stepName: 'test-deploy-deploy-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
       overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
