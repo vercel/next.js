@@ -192,6 +192,27 @@ describe('app-dir action handling', () => {
     )
   })
 
+  it('should error if server action arguments list is too long', async () => {
+    const browser = await next.browser('/too-many-args')
+    const cliOutputIndex = next.cliOutput.length
+    await browser.elementById('submit').click()
+    const expectedError =
+      'Error: Server Action arguments list is too long (1001). Maximum allowed is 1000.'
+
+    const error = await browser.waitForElementByCss('#error-text')
+    if (isNextDev) {
+      expect(await error.text()).toBe(expectedError)
+    } else {
+      expect(await error.text()).toBe(GENERIC_RSC_ERROR)
+    }
+
+    if (!isNextDeploy) {
+      const cliOutput = next.cliOutput.slice(cliOutputIndex)
+      expect(cliOutput).toInclude(expectedError)
+      expect(cliOutput).not.toInclude('Action was called')
+    }
+  })
+
   it('should support headers and cookies', async () => {
     const browser = await next.browser('/header')
 
