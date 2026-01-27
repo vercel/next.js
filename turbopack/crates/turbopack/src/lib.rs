@@ -43,7 +43,7 @@ use turbopack_core::{
 };
 use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_ecmascript::{
-    AnalyzeMode, EcmascriptInputTransform, EcmascriptModuleAsset, EcmascriptModuleAssetType,
+    AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
     TreeShakingMode,
     chunk::EcmascriptChunkPlaceable,
     inlined_bytes_module::InlinedBytesJsModule,
@@ -513,9 +513,9 @@ async fn process_default(
 /// For non-ecmascript types: warn if transforms exist, return unchanged.
 async fn apply_module_rule_transforms(
     module_type: &mut ModuleType,
-    collected_preprocess: &mut Vec<EcmascriptInputTransform>,
-    collected_main: &mut Vec<EcmascriptInputTransform>,
-    collected_postprocess: &mut Vec<EcmascriptInputTransform>,
+    collected_preprocess: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
+    collected_main: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
+    collected_postprocess: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
     ident: ResolvedVc<AssetIdent>,
     current_source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<()> {
@@ -534,81 +534,68 @@ async fn apply_module_rule_transforms(
             main,
             postprocess,
             ..
-        } => {
-            // Prepend collected preprocess/main, append collected postprocess
-            let mut final_preprocess = std::mem::take(collected_preprocess);
-            final_preprocess.extend(preprocess.owned().await?);
-            *preprocess = ResolvedVc::cell(final_preprocess);
-
-            let mut final_main = std::mem::take(collected_main);
-            final_main.extend(main.owned().await?);
-            *main = ResolvedVc::cell(final_main);
-
-            let mut final_postprocess = postprocess.owned().await?;
-            final_postprocess.extend(std::mem::take(collected_postprocess));
-            *postprocess = ResolvedVc::cell(final_postprocess);
         }
-        ModuleType::Typescript {
+        | ModuleType::Typescript {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        }
+        | ModuleType::TypescriptDeclaration {
+            preprocess,
+            main,
+            postprocess,
+            ..
+        }
+        | ModuleType::EcmascriptExtensionless {
             preprocess,
             main,
             postprocess,
             ..
         } => {
-            let mut final_preprocess = std::mem::take(collected_preprocess);
-            final_preprocess.extend(preprocess.owned().await?);
-            *preprocess = ResolvedVc::cell(final_preprocess);
+            // Apply collected preprocess/main in order, then module type's transforms
+            let mut final_preprocess = EcmascriptInputTransforms::empty();
+            for vc in collected_preprocess.drain(..) {
+                final_preprocess = final_preprocess.extend(*vc);
+            }
+            final_preprocess = final_preprocess.extend(**preprocess);
+            *preprocess = final_preprocess.to_resolved().await?;
 
-            let mut final_main = std::mem::take(collected_main);
-            final_main.extend(main.owned().await?);
-            *main = ResolvedVc::cell(final_main);
+            let mut final_main = EcmascriptInputTransforms::empty();
+            for vc in collected_main.drain(..) {
+                final_main = final_main.extend(*vc);
+            }
+            final_main = final_main.extend(**main);
+            *main = final_main.to_resolved().await?;
 
-            let mut final_postprocess = postprocess.owned().await?;
-            final_postprocess.extend(std::mem::take(collected_postprocess));
-            *postprocess = ResolvedVc::cell(final_postprocess);
-        }
-        ModuleType::TypescriptDeclaration {
-            preprocess,
-            main,
-            postprocess,
-            ..
-        } => {
-            let mut final_preprocess = std::mem::take(collected_preprocess);
-            final_preprocess.extend(preprocess.owned().await?);
-            *preprocess = ResolvedVc::cell(final_preprocess);
-
-            let mut final_main = std::mem::take(collected_main);
-            final_main.extend(main.owned().await?);
-            *main = ResolvedVc::cell(final_main);
-
-            let mut final_postprocess = postprocess.owned().await?;
-            final_postprocess.extend(std::mem::take(collected_postprocess));
-            *postprocess = ResolvedVc::cell(final_postprocess);
-        }
-        ModuleType::EcmascriptExtensionless {
-            preprocess,
-            main,
-            postprocess,
-            ..
-        } => {
-            let mut final_preprocess = std::mem::take(collected_preprocess);
-            final_preprocess.extend(preprocess.owned().await?);
-            *preprocess = ResolvedVc::cell(final_preprocess);
-
-            let mut final_main = std::mem::take(collected_main);
-            final_main.extend(main.owned().await?);
-            *main = ResolvedVc::cell(final_main);
-
-            let mut final_postprocess = postprocess.owned().await?;
-            final_postprocess.extend(std::mem::take(collected_postprocess));
-            *postprocess = ResolvedVc::cell(final_postprocess);
+            // Apply module type's postprocess first, then collected postprocess
+            let mut final_postprocess = **postprocess;
+            for vc in collected_postprocess.drain(..) {
+                final_postprocess = final_postprocess.extend(*vc);
+            }
+            *postprocess = final_postprocess.to_resolved().await?;
         }
         ModuleType::Custom(custom_module_type) => {
             if has_transforms {
+                // Combine collected transforms into single Vcs
+                let mut combined_preprocess = EcmascriptInputTransforms::empty();
+                for vc in collected_preprocess.drain(..) {
+                    combined_preprocess = combined_preprocess.extend(*vc);
+                }
+                let mut combined_main = EcmascriptInputTransforms::empty();
+                for vc in collected_main.drain(..) {
+                    combined_main = combined_main.extend(*vc);
+                }
+                let mut combined_postprocess = EcmascriptInputTransforms::empty();
+                for vc in collected_postprocess.drain(..) {
+                    combined_postprocess = combined_postprocess.extend(*vc);
+                }
+
                 match custom_module_type
                     .extend_ecmascript_transforms(
-                        Vc::cell(std::mem::take(collected_preprocess)),
-                        Vc::cell(std::mem::take(collected_main)),
-                        Vc::cell(std::mem::take(collected_postprocess)),
+                        combined_preprocess,
+                        combined_main,
+                        combined_postprocess,
                     )
                     .to_resolved()
                     .await
@@ -687,9 +674,9 @@ async fn process_default_internal(
 
     // Collect transforms from ExtendEcmascriptTransforms effects.
     // They will be applied when ModuleType is set.
-    let mut collected_preprocess: Vec<EcmascriptInputTransform> = Vec::new();
-    let mut collected_main: Vec<EcmascriptInputTransform> = Vec::new();
-    let mut collected_postprocess: Vec<EcmascriptInputTransform> = Vec::new();
+    let mut collected_preprocess: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
+    let mut collected_main: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
+    let mut collected_postprocess: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
 
     let options_value = options.await?;
     'outer: for (i, rule) in options_value.rules.iter().enumerate() {
@@ -756,18 +743,9 @@ async fn process_default_internal(
                         postprocess: extend_postprocess,
                     } => {
                         // Collect transforms. They will be applied when ModuleType is set.
-                        // Prepend preprocess (new transforms run first)
-                        let mut new_preprocess = extend_preprocess.owned().await?;
-                        new_preprocess.append(&mut collected_preprocess);
-                        collected_preprocess = new_preprocess;
-
-                        // Prepend main (new transforms run first)
-                        let mut new_main = extend_main.owned().await?;
-                        new_main.append(&mut collected_main);
-                        collected_main = new_main;
-
-                        // Append postprocess (new transforms run last)
-                        collected_postprocess.extend(extend_postprocess.owned().await?);
+                        collected_preprocess.push(*extend_preprocess);
+                        collected_main.push(*extend_main);
+                        collected_postprocess.push(*extend_postprocess);
                     }
                 }
             }
