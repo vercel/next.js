@@ -198,12 +198,42 @@ jobs:
       # This prevents the checkout action from failing when trying to clean up locked files
       - name: Pre-checkout cleanup
         run: |
+          # Kill any processes that might be holding locks on files in the workspace
+          # This includes node, pnpm, turbo, or any other processes running from this directory
+          WORKSPACE_DIR="${GITHUB_WORKSPACE:-$PWD}"
+          echo "Killing processes using files in: $WORKSPACE_DIR"
+
+          # Find and kill processes using files in the workspace
+          # Use lsof to find processes, then kill them
+          if command -v lsof &> /dev/null; then
+            lsof +D "$WORKSPACE_DIR" 2>/dev/null | awk 'NR>1 {print $2}' | sort -u | while read pid; do
+              if [ -n "$pid" ] && [ "$pid" != "$$" ]; then
+                echo "Killing process: $pid"
+                kill -9 "$pid" 2>/dev/null || true
+              fi
+            done
+          fi
+
+          # Also kill any node/pnpm/turbo processes that might be lingering
+          pkill -9 -f "node.*next" 2>/dev/null || true
+          pkill -9 node 2>/dev/null || true
+          pkill -9 pnpm 2>/dev/null || true
+          pkill -9 turbo 2>/dev/null || true
+
+          # Give the system a moment to release file handles
+          sleep 2
+
+          # Now remove the directories
           if [ -d node_modules ]; then
+            echo "Removing node_modules..."
             rm -rf node_modules || true
           fi
           if [ -d .git ]; then
+            echo "Removing .git..."
             rm -rf .git || true
           fi
+
+          echo "Pre-checkout cleanup complete"
         shell: bash
         continue-on-error: true
 
