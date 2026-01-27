@@ -230,6 +230,7 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -336,6 +337,7 @@ pub async fn get_client_module_options_context(
             enable_import_as_text: *next_config.turbopack_import_type_text().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
+            mangle_export_names: *next_config.turbo_minify(mode).await? && !*no_mangling.await?,
             ..Default::default()
         },
         css: CssOptionsContext {

@@ -46,16 +46,27 @@ impl ExportsInfoBinding {
         let export_usage_info = export_usage_info.export_usage.await?;
 
         let props = if let EcmascriptExports::EsmExports(exports) = &*exports.await? {
-            exports
-                .await?
+            let esm_exports = exports.await?;
+            esm_exports
                 .exports
                 .keys()
                 .map(|e| {
                     let used: Expr = export_usage_info.is_export_used(e).into();
+                    // Include mangled name if available
+                    let mangled_name: Expr = esm_exports
+                        .mangled_names
+                        .as_ref()
+                        .and_then(|m| m.get(e))
+                        .map(|s| Expr::from(s.as_str()))
+                        .unwrap_or_else(|| quote!("null" as Expr));
                     PropOrSpread::Prop(Box::new(swc_core::ecma::ast::Prop::KeyValue(
                         KeyValueProp {
                             key: PropName::Str(e.as_str().into()),
-                            value: quote!("{ used: $v }" as Box<Expr>, v: Expr = used),
+                            value: quote!(
+                                "{ used: $used, mangledName: $mangled }" as Box<Expr>,
+                                used: Expr = used,
+                                mangled: Expr = mangled_name
+                            ),
                         },
                     )))
                 })

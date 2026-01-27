@@ -275,6 +275,8 @@ pub struct EcmascriptOptions {
     pub inline_helpers: bool,
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
+    /// Whether to mangle (shorten) exported names for smaller bundle sizes.
+    pub mangle_export_names: bool,
 }
 
 #[turbo_tasks::value]
@@ -836,8 +838,12 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
         self: Vc<Self>,
         part: ModulePart,
     ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        // Only split if the module has re-exports that need to be separated
-        let should_split = *self.get_exports().split_locals_and_reexports().await?;
+        // Split if the module has re-exports or mangling that need facade/locals separation
+        let mangle = self.options().await?.mangle_export_names;
+        let should_split = *self
+            .get_exports()
+            .split_locals_and_reexports(mangle)
+            .await?;
 
         // Create the facade/locals if needed. turbo_tasks caching ensures
         // we get the same module instances.

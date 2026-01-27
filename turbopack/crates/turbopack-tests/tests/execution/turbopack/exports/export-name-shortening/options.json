@@ -1,0 +1,4 @@
+{
+  "treeShakingMode": "module-fragments",
+  "minify": true
+}

@@ -309,23 +309,29 @@ pub enum EcmascriptExports {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptExports {
-    /// Returns whether this module should be split into separate locals and facade modules.
-    ///
-    /// Splitting is enabled when the module has re-exports (star exports or imported bindings),
-    /// which allows the tree-shaking optimization to separate local definitions from re-exports.
+    /// Determines whether to split the module into locals + facade.
+    /// Returns true for ESM modules when:
+    /// - `mangle_export_names` is true (facade preserves original names), or
+    /// - The module has re-exports (star exports, imported bindings, or namespaces)
     #[turbo_tasks::function]
-    pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
+    pub async fn split_locals_and_reexports(&self, mangle_export_names: bool) -> Result<Vc<bool>> {
         Ok(match self {
             EcmascriptExports::EsmExports(exports) => {
-                let exports = exports.await?;
-                let has_reexports = !exports.star_exports.is_empty()
-                    || exports.exports.iter().any(|(_, export)| {
-                        matches!(
-                            export,
-                            EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
-                        )
-                    });
-                Vc::cell(has_reexports)
+                if mangle_export_names {
+                    // Always split when mangling - facade preserves original names
+                    Vc::cell(true)
+                } else {
+                    // Split only when there are re-exports
+                    let exports = exports.await?;
+                    let has_reexports = !exports.star_exports.is_empty()
+                        || exports.exports.iter().any(|(_, export)| {
+                            matches!(
+                                export,
+                                EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
+                            )
+                        });
+                    Vc::cell(has_reexports)
+                }
             }
             _ => Vc::cell(false),
         })

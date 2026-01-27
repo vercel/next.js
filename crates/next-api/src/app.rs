@@ -189,6 +189,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            self.project().no_mangling(),
         ))
     }
 
@@ -221,6 +222,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            self.project().no_mangling(),
         ))
     }
 
@@ -236,6 +238,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            self.project().no_mangling(),
         ))
     }
 
@@ -251,6 +254,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            self.project().no_mangling(),
         ))
     }
 
@@ -266,6 +270,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            self.project().no_mangling(),
         ))
     }
 
@@ -593,6 +598,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            self.project().no_mangling(),
         ))
     }
 
@@ -608,6 +614,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            self.project().no_mangling(),
         ))
     }
 

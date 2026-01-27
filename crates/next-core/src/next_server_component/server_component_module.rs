@@ -10,6 +10,7 @@ use turbopack_core::{
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
+    resolve::ModulePart,
     source::OptionSource,
 };
 use turbopack_ecmascript::{
@@ -37,15 +38,18 @@ pub struct NextServerComponentModule {
 #[turbo_tasks::value_impl]
 impl NextServerComponentModule {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         source_path: FileSystemPath,
-    ) -> Vc<Self> {
-        NextServerComponentModule {
+    ) -> Result<Vc<Self>> {
+        // Get the facade module if splitting is needed (e.g., due to export name mangling).
+        // This ensures we re-export with original names, not mangled names.
+        let module = module.get_split(ModulePart::Facade).to_resolved().await?;
+        Ok(NextServerComponentModule {
             module,
             source_path,
         }
-        .cell()
+        .cell())
     }
 
     /// Returns the original source path (before transformations like MDX -> MDX.tsx).

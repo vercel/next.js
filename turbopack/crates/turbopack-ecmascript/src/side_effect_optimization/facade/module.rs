@@ -339,6 +339,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         let exports = EsmExports {
             exports,
             star_exports,
+            mangled_names: None, // Facade uses original names; mangling happens in locals
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())
@@ -379,7 +380,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 if let Some(esm_module) =
                     ResolvedVc::try_downcast_type::<crate::EcmascriptModuleAsset>(this.module)
                 {
-                    Ok(Vc::upcast(EcmascriptModuleLocalsModule::new(esm_module)))
+                    Ok(Vc::upcast(EcmascriptModuleLocalsModule::new(*esm_module)))
                 } else {
                     bail!("Unexpected module type in get_split: {:?}", this.module)
                 }

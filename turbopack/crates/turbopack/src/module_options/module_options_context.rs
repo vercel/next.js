@@ -273,6 +273,9 @@ pub struct EcmascriptOptionsContext {
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
 
+    /// Whether to mangle (shorten) exported names for smaller bundle sizes.
+    pub mangle_export_names: bool,
+
     pub placeholder_for_future_extensions: (),
 }
 

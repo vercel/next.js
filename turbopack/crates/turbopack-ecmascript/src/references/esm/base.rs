@@ -251,11 +251,28 @@ impl ReferencedAsset {
                     }
                 }
 
+                // Get mangled export name from target module's exports
+                let export_key = if let Some(ref export_name) = export {
+                    let target_exports = asset.get_exports().await?;
+                    if let EcmascriptExports::EsmExports(esm_exports) = &*target_exports {
+                        esm_exports
+                            .await?
+                            .mangled_names
+                            .as_ref()
+                            .and_then(|m| m.get(export_name).cloned())
+                            .or_else(|| Some(export_name.clone()))
+                    } else {
+                        Some(export_name.clone())
+                    }
+                } else {
+                    None
+                };
+
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: Self::get_ident_from_placeable(asset, chunking_context)
                         .await?,
                     ctxt: None,
-                    export,
+                    export: export_key,
                 })
             }
             ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {

@@ -924,6 +924,7 @@ async fn analyze_ecmascript_module_internal(
             let esm_exports = EsmExports {
                 exports: esm_exports,
                 star_exports: esm_star_exports,
+                mangled_names: None,
             }
             .cell();
 
@@ -944,6 +945,7 @@ async fn analyze_ecmascript_module_internal(
                         EsmExports {
                             exports: Default::default(),
                             star_exports: Default::default(),
+                            mangled_names: None,
                         }
                         .resolved_cell(),
                     )
@@ -955,6 +957,7 @@ async fn analyze_ecmascript_module_internal(
                     EsmExports {
                         exports: Default::default(),
                         star_exports: Default::default(),
+                        mangled_names: None,
                     }
                     .resolved_cell(),
                 ),
@@ -969,6 +972,7 @@ async fn analyze_ecmascript_module_internal(
                         EsmExports {
                             exports: Default::default(),
                             star_exports: Default::default(),
+                            mangled_names: None,
                         }
                         .resolved_cell(),
                     )

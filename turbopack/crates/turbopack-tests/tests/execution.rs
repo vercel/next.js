@@ -420,6 +420,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 import_externals: true,
                 enable_exports_info_inlining: true,
                 infer_module_side_effects: true,
+                mangle_export_names: options.minify,
                 ..Default::default()
             },
             environment: Some(env),

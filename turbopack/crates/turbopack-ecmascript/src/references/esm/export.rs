@@ -494,6 +494,10 @@ pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
     /// Unexpanded `export * from ...` statements (expanded in `expand_star_exports`)
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    /// Mangled export names for this module. If Some, exports are mangled.
+    /// Maps original export name → mangled (shortened) export name.
+    /// Only set for locals modules; facades and other modules have None.
+    pub mangled_names: Option<BTreeMap<RcStr, RcStr>>,
 }
 
 /// The expanded version of [`EsmExports`], the `exports` field here includes all exports that could
@@ -532,6 +536,7 @@ impl EsmExports {
             EsmExports {
                 exports,
                 star_exports: vec![module_reference],
+                mangled_names: None,
             }
             .resolved_cell(),
         )
@@ -599,10 +604,14 @@ impl EsmExports {
         eval_context: &EvalContext,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Result<CodeGeneration> {
+        let this = self.await?;
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
         let expanded = self.expand_exports(*export_usage_info.export_usage).await?;
+
+        // Use mangled names from EsmExports if available (set by locals module)
+        let mangled_names = this.mangled_names.as_ref();
 
         if scope_hoisting_context.skip_module_exports() && expanded.dynamic_exports.is_empty() {
             // If the current module is not exposed, no need to generate exports.
@@ -791,10 +800,14 @@ impl EsmExports {
                 }
             };
             if exprs != ExportBinding::None {
+                let export_key = mangled_names
+                    .and_then(|m| m.get(exported))
+                    .map(|s| s.as_str().into())
+                    .unwrap_or_else(|| exported.as_str().into());
                 getters.push(Some(
                     Expr::Lit(Lit::Str(Str {
                         span: DUMMY_SP,
-                        value: exported.as_str().into(),
+                        value: export_key,
                         raw: None,
                     }))
                     .into(),

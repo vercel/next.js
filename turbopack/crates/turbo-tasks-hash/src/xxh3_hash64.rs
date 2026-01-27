@@ -11,6 +11,14 @@ pub fn hash_xxh3_hash64<T: DeterministicHash>(input: T) -> u64 {
     hasher.finish()
 }
 
+/// Hash some content with a salt using the Xxh3Hash64 non-cryptographic hash function.
+pub fn hash_xxh3_hash64_salt<T: DeterministicHash>(input: T, salt: u64) -> u64 {
+    let mut hasher = Xxh3Hash64Hasher::new();
+    hasher.write_value(salt);
+    input.deterministic_hash(&mut hasher);
+    hasher.finish()
+}
+
 /// Xxh3Hash64 hasher.
 pub struct Xxh3Hash64Hasher(XxHash3_64);
 
