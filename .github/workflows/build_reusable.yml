@@ -235,7 +235,7 @@ jobs:
 
           # Kill any lingering node/pnpm/turbo processes, but exclude current bash session
           # Only kill processes that are children of the workspace, not the workflow itself
-          for proc in "node" "pnpm" "turbo"; do
+          for proc in "pnpm" "turbo"; do
             (
               set +e
               pgrep "$proc" 2>/dev/null | while read pid; do
@@ -286,7 +286,7 @@ jobs:
           fetch-depth: 25
 
       # clean up any previous artifacts to avoid hitting disk space limits
-      - run: git clean -xdf; git reset --hard HEAD; rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
+      - run: /tmp/old-node_modules-*; rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
 
       # local action -> needs to run after checkout
       - name: Install Rust
