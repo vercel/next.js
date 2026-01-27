@@ -1975,9 +1975,12 @@ impl JsValue {
                 }
                 JsValue::WellKnownObject(obj) => {
                     if let Some(name) = obj.as_define_name() {
-                        for segment in name.iter().rev() {
-                            segments.push(DefinableNameSegmentRef::Name(segment));
-                        }
+                        segments.extend(
+                            name.iter()
+                                .rev()
+                                .copied()
+                                .map(DefinableNameSegmentRef::Name),
+                        );
                         break;
                     } else {
                         return None;
@@ -1985,9 +1988,12 @@ impl JsValue {
                 }
                 JsValue::WellKnownFunction(func) => {
                     if let Some(name) = func.as_define_name() {
-                        for segment in name.iter().rev() {
-                            segments.push(DefinableNameSegmentRef::Name(segment));
-                        }
+                        segments.extend(
+                            name.iter()
+                                .rev()
+                                .copied()
+                                .map(DefinableNameSegmentRef::Name),
+                        );
                         break;
                     } else {
                         return None;
