@@ -272,7 +272,8 @@ describe('app dir client cache semantics (default semantics)', () => {
         await browser.waitForIdleNetwork()
 
         const randomLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          // Timeout 2s to ensure the loading state is caught by waitForElementByCss.
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#loading')
           .text()
@@ -293,7 +294,8 @@ describe('app dir client cache semantics (default semantics)', () => {
         await browser.waitForIdleNetwork()
 
         const newLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
+          // Timeout 2s to ensure the loading state is caught by waitForElementByCss.
+          .elementByCss('[href="/1?timeout=2000"]')
           .click()
           .waitForElementByCss('#loading')
           .text()
