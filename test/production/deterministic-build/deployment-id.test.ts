@@ -8,22 +8,14 @@ import globOrig from 'glob'
 import { diff } from 'jest-diff'
 const glob = promisify(globOrig)
 
-const TODO_MANIFESTS = [
-  // TODO this contains "env": { "__NEXT_BUILD_ID": "taBOOu8Znzobe4G7wEG_i",
-  'middleware-manifest\\.json',
-  // TODO this contains the build id
-  'BUILD_ID',
-  // TODO this contains the build id: "/pages-static-gsp": { "dataRoute": "/_next/data/V7oVUAlS1LiV5CqrtpkAL/pages-static-gsp.json",
-  'prerender-manifest\\.json',
-]
-
 const IGNORE_CONTENT_NEXT_REGEX = new RegExp(
   [
-    ...TODO_MANIFESTS,
-    // TODO These contain the build id (but are not deployed to the serverless function itself)
+    // This contains the build id, but is not deployed to the serverless function
+    'BUILD_ID',
+    // These contain the build id and deployment id (but are not deployed to the serverless function)
     '.*\\.html',
     '.*\\.rsc',
-    // These are not critical, as they aren't deployed to the serverless function itself
+    // These are not critical, as they aren't deployed to the serverless function
     'client-build-manifest\\.json',
     'fallback-build-manifest\\.json',
     'routes-manifest\\.json',
@@ -62,10 +54,6 @@ async function readFilesNext(
   ])
 }
 
-const IGNORE_CONTENT_BUILDER_REGEX = new RegExp(
-  [...TODO_MANIFESTS].map((v) => '(?:\\/|^)' + v + '$').join('|')
-)
-
 async function readFilesBuilder(
   next: NextInstance
 ): Promise<Map<string, Map<string, string>>> {
@@ -87,9 +75,6 @@ async function readFilesBuilder(
           new Map(
             await Promise.all(
               files.map(async (f: string) => {
-                if (IGNORE_CONTENT_BUILDER_REGEX.test(f)) {
-                  return [f, null] as const
-                }
                 let symlinkTarget: string | undefined = await fs
                   .readlink(path.join(next.testDir, f))
                   .catch(() => null)
@@ -241,6 +226,19 @@ const FILES = {
       it('should produce identical build outputs even when changing deployment id', async () => {
         let { run1, run2 } = await runTest(next, readFilesBuilder)
         expect([...run1.keys()]).toMatchInlineSnapshot(`
+         [
+           ".vercel/output/functions/_global-error.func/.vc-config.json",
+           ".vercel/output/functions/_global-error.rsc.func/.vc-config.json",
+           ".vercel/output/functions/_not-found.func/.vc-config.json",
+           ".vercel/output/functions/_not-found.rsc.func/.vc-config.json",
+           ".vercel/output/functions/app-page.func/.vc-config.json",
+           ".vercel/output/functions/app-page.rsc.func/.vc-config.json",
+           ".vercel/output/functions/app-route.func/.vc-config.json",
+           ".vercel/output/functions/app-route.rsc.func/.vc-config.json",
+           ".vercel/output/functions/middleware.func/.vc-config.json",
+           ".vercel/output/functions/pages-dynamic.func/.vc-config.json",
+           ".vercel/output/functions/pages-static-gsp.func/.vc-config.json",
+         ]
         `)
         expect([...run1.keys()]).toEqual([...run2.keys()])
       })
