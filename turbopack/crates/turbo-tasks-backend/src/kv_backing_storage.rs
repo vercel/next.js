@@ -374,7 +374,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
                     )
                     .entered();
-
                     for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
                         let hash = compute_task_type_hash(&task_type);
                         let task_id = *task_id;
@@ -423,15 +422,15 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             task_type: &CachedTaskType,
         ) -> Result<SmallVec<[TaskId; 1]>> {
             let hash = compute_task_type_hash(task_type);
-            let results = database.get_multiple(tx, KeySpace::TaskCache, &hash.to_le_bytes())?;
+            let buffers = database.get_multiple(tx, KeySpace::TaskCache, &hash.to_le_bytes())?;
 
-            Ok(results
-                .iter()
-                .map(|bytes| {
-                    let as_array = bytes.borrow().try_into().unwrap();
-                    TaskId::try_from(u32::from_le_bytes(as_array)).unwrap()
-                })
-                .collect())
+            let mut task_ids = SmallVec::with_capacity(buffers.len());
+            for bytes in buffers {
+                let bytes = bytes.borrow().try_into()?;
+                let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
+                task_ids.push(id);
+            }
+            Ok(task_ids)
         }
         if inner.database.is_empty() {
             // Checking if the database is empty is a performance optimization

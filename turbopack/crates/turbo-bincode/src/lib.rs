@@ -14,6 +14,13 @@ use bincode::{
 use turbo_tasks_hash::DeterministicHasher;
 
 pub const TURBO_BINCODE_CONFIG: bincode::config::Configuration = bincode::config::standard();
+/// Same as standard config, but since we aren't encoding we don't benefit from varint
+/// optimizations.
+pub const TURBO_BINCODE_HASH_CONFIG: bincode::config::Configuration<
+    bincode::config::LittleEndian,
+    bincode::config::Fixint,
+    bincode::config::NoLimit,
+> = TURBO_BINCODE_CONFIG.with_fixed_int_encoding();
 pub type TurboBincodeBuffer = SmallVec<[u8; 16]>;
 pub type TurboBincodeEncoder<'a> =
     EncoderImpl<TurboBincodeWriter<'a>, bincode::config::Configuration>;
@@ -144,13 +151,20 @@ impl<H: DeterministicHasher + ?Sized> Writer for HashWriter<'_, H> {
 }
 
 /// An encoder that writes directly to a [`DeterministicHasher`].
-pub type HashEncoder<'a, H> = EncoderImpl<HashWriter<'a, H>, bincode::config::Configuration>;
+pub type HashEncoder<'a, H> = EncoderImpl<
+    HashWriter<'a, H>,
+    bincode::config::Configuration<
+        bincode::config::LittleEndian,
+        bincode::config::Fixint,
+        bincode::config::NoLimit,
+    >,
+>;
 
 /// Creates a new [`HashEncoder`] that encodes directly to the given hasher.
 ///
 /// This is useful for computing hashes of encoded values without allocating a buffer.
 pub fn new_hash_encoder<H: DeterministicHasher + ?Sized>(hasher: &mut H) -> HashEncoder<'_, H> {
-    EncoderImpl::new(HashWriter::new(hasher), TURBO_BINCODE_CONFIG)
+    EncoderImpl::new(HashWriter::new(hasher), TURBO_BINCODE_HASH_CONFIG)
 }
 
 /// Represents a type that can only be encoded with a [`TurboBincodeEncoder`].
