@@ -39,6 +39,32 @@ impl LazyLookupValue<'_> {
             } => *uncompressed_size as usize,
         }
     }
+
+    /// Returns true if two values are equal for deduplication purposes.
+    ///
+    /// For `Medium` values, compares the compressed block bytes directly
+    /// (assumes deterministic compression).
+    pub fn eq_for_dedup(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                LazyLookupValue::Eager(LookupValue::Deleted),
+                LazyLookupValue::Eager(LookupValue::Deleted),
+            ) => true,
+            (
+                LazyLookupValue::Eager(LookupValue::Slice { value: a }),
+                LazyLookupValue::Eager(LookupValue::Slice { value: b }),
+            ) => a.as_ref() == b.as_ref(),
+            (
+                LazyLookupValue::Eager(LookupValue::Blob { sequence_number: a }),
+                LazyLookupValue::Eager(LookupValue::Blob { sequence_number: b }),
+            ) => a == b,
+            (
+                LazyLookupValue::Medium { block: a, .. },
+                LazyLookupValue::Medium { block: b, .. },
+            ) => *a == *b,
+            _ => false, // Different types are not equal
+        }
+    }
 }
 
 /// An entry from a SST file lookup.

@@ -29,6 +29,17 @@ pub use arc_slice::ArcSlice;
 use constants::{DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE};
 pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
 
+/// How to deduplicate entries during compaction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeduplicationMode {
+    /// Keep only the newest entry for each key (default LSM behavior).
+    /// When multiple entries have the same key, only the last one is retained.
+    ByKeyOnly,
+    /// Keep entries that differ by key OR value (for hash-collision-tolerant keyspaces).
+    /// Only drops entries that are true duplicates (same key AND same value).
+    /// Use this when a keyspace may contain different values that hash to the same key.
+    ByKeyAndValue,
+}
 /// Configuration for a single family's file limits during writes.
 ///
 /// Controls when SST files are split during writes.
@@ -45,6 +56,9 @@ pub struct FamilyConfig {
     /// Data size threshold for initial SST files (bytes).
     /// Controls memory usage during writes.
     pub data_threshold_per_initial_file: usize,
+
+    /// How to handle duplicate keys during compaction
+    pub deduplication_mode: DeduplicationMode,
 }
 
 impl Default for FamilyConfig {
@@ -52,6 +66,7 @@ impl Default for FamilyConfig {
         Self {
             max_entries_per_initial_file: MAX_ENTRIES_PER_INITIAL_FILE,
             data_threshold_per_initial_file: DATA_THRESHOLD_PER_INITIAL_FILE,
+            deduplication_mode: DeduplicationMode::ByKeyOnly,
         }
     }
 }

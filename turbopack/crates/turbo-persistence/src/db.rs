@@ -20,7 +20,7 @@ use smallvec::SmallVec;
 
 pub use crate::compaction::selector::CompactConfig;
 use crate::{
-    DbConfig, QueryKey,
+    DbConfig, DeduplicationMode, QueryKey,
     arc_slice::ArcSlice,
     compaction::selector::{Compactable, get_merge_segments},
     compression::decompress_into_arc,
@@ -1081,12 +1081,23 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 }
                                 let mut used_collector = Collector::default();
                                 let mut unused_collector = Collector::default();
+                                let family_config = &self.config.family_configs[family as usize];
+
                                 for entry in iter {
                                     let entry = entry?;
 
-                                    // Remove duplicates
+                                    // Remove duplicates based on family's deduplication mode
                                     if let Some(current) = current.take() {
-                                        if current.key != entry.key {
+                                        let is_duplicate = match family_config.deduplication_mode {
+                                            DeduplicationMode::ByKeyOnly => {
+                                                current.key == entry.key
+                                            }
+                                            DeduplicationMode::ByKeyAndValue => {
+                                                current.key == entry.key
+                                                    && current.value.eq_for_dedup(&entry.value)
+                                            }
+                                        };
+                                        if !is_duplicate {
                                             let is_used =
                                                 used_key_hashes[family as usize].iter().any(
                                                     |amqf| amqf.contains_fingerprint(current.hash),

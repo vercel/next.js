@@ -4,7 +4,7 @@ use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
-    constants::MAX_MEDIUM_VALUE_SIZE,
+    constants::{DbConfig, DeduplicationMode, FamilyConfig, MAX_MEDIUM_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence},
     parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
@@ -1505,6 +1505,225 @@ fn get_multiple_empty_result() -> Result<()> {
             results.is_empty(),
             "Should return empty vec for different family"
         );
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn compaction_by_key_only_drops_same_key_entries() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Default behavior: ByKeyOnly deduplication drops entries with same key
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+
+        // Write same key with different values in separate batches
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![1u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![2u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![3u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Before compaction: all 3 values exist
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 3, "Should have 3 values before compaction");
+
+        // Compact with default ByKeyOnly mode
+        db.full_compact()?;
+
+        // After compaction: only newest value remains
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            1,
+            "ByKeyOnly should keep only 1 value after compaction"
+        );
+        assert_eq!(results[0].as_ref(), &[3u8], "Should be the newest value");
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn compaction_by_key_and_value_preserves_different_values() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Configure family 0 to use ByKeyAndValue deduplication
+    let mut config = DbConfig::<1>::default();
+    config.family_configs[0] = FamilyConfig {
+        deduplication_mode: DeduplicationMode::ByKeyAndValue,
+        ..Default::default()
+    };
+
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        // Write same key with different values in separate batches
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![1u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![2u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![3u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Before compaction: all 3 values exist
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 3, "Should have 3 values before compaction");
+
+        // Compact with ByKeyAndValue mode
+        db.full_compact()?;
+
+        // After compaction: all different values should be preserved
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            3,
+            "ByKeyAndValue should preserve all different values after compaction"
+        );
+
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(values, vec![1, 2, 3], "All values should be preserved");
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn compaction_by_key_and_value_drops_true_duplicates() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Configure family 0 to use ByKeyAndValue deduplication
+    let mut config = DbConfig::<1>::default();
+    config.family_configs[0] = FamilyConfig {
+        deduplication_mode: DeduplicationMode::ByKeyAndValue,
+        ..Default::default()
+    };
+
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        // Write same key with SAME value multiple times (true duplicates)
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![100u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![100u8].into())?; // Same value
+        db.commit_write_batch(batch)?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![100u8].into())?; // Same value
+        db.commit_write_batch(batch)?;
+
+        // Before compaction: all 3 entries exist
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 3, "Should have 3 entries before compaction");
+
+        // Compact with ByKeyAndValue mode
+        db.full_compact()?;
+
+        // After compaction: true duplicates should be deduplicated
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            1,
+            "ByKeyAndValue should deduplicate true duplicates (same key AND value)"
+        );
+        assert_eq!(results[0].as_ref(), &[100u8]);
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn compaction_by_key_and_value_preserves_all_unique_values() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Configure family 0 to use ByKeyAndValue deduplication
+    let mut config = DbConfig::<1>::default();
+    config.family_configs[0] = FamilyConfig {
+        deduplication_mode: DeduplicationMode::ByKeyAndValue,
+        ..Default::default()
+    };
+
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        // Write a mix of different values (simulating hash collisions)
+        // Each unique value should be preserved after compaction
+        for value in [1u8, 2, 3, 4, 5] {
+            let batch = db.write_batch()?;
+            batch.put(0, key.clone(), vec![value].into())?;
+            db.commit_write_batch(batch)?;
+        }
+
+        // Before compaction: 5 entries exist
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 5, "Should have 5 entries before compaction");
+
+        // Compact
+        db.full_compact()?;
+
+        // After compaction: all 5 unique values should be preserved
+        // (this is the key difference from ByKeyOnly which would keep only 1)
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            5,
+            "ByKeyAndValue should preserve all unique values after compaction"
+        );
+
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(values, vec![1, 2, 3, 4, 5], "Should have all values 1-5");
 
         db.shutdown()?;
     }

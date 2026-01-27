@@ -10,8 +10,8 @@ use anyhow::{Ok, Result};
 use parking_lot::Mutex;
 use smallvec::SmallVec;
 use turbo_persistence::{
-    ArcSlice, CompactConfig, DbConfig, FamilyConfig, KeyBase, StoreKey, TurboPersistence,
-    ValueBuffer,
+    ArcSlice, CompactConfig, DbConfig, DeduplicationMode, FamilyConfig, KeyBase, StoreKey,
+    TurboPersistence, ValueBuffer,
 };
 use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
 
@@ -69,6 +69,9 @@ impl KeySpace {
                 // file size as compaction
                 max_entries_per_initial_file: 1024 * 1024,
                 data_threshold_per_initial_file: 256 * 1024 * 1024,
+                // We need to gracefully handle hash collisions, so only deduplicate if both key and
+                // value are identical
+                deduplication_mode: DeduplicationMode::ByKeyAndValue,
                 ..Default::default()
             },
         }
