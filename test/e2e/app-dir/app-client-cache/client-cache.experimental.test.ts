@@ -132,7 +132,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
         // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
         await browser
-          .elementByCss('[href="/2?timeout=1000"]')
+          .elementByCss('[href="/2?timeout=2000"]')
           .click()
           .waitForElementByCss('#loading')
 
@@ -145,7 +145,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
         await browser.eval(fastForwardTo, 5 * 1000) // fast forward 5 seconds
 
         const newRandomNumber = await browser
-          .elementByCss('[href="/2?timeout=1000"]')
+          .elementByCss('[href="/2?timeout=2000"]')
           .click()
           .waitForElementByCss('#random-number')
           .text()
@@ -158,7 +158,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
           const browser = await next.browser('/', browserConfigWithFixedTime)
 
           const initialRandomNumber = await browser
-            .elementByCss('[href="/2?timeout=1000"]')
+            .elementByCss('[href="/2?timeout=2000"]')
             .click()
             .waitForElementByCss('#random-number')
             .text()
@@ -168,7 +168,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
           await browser.eval(fastForwardTo, 5 * 1000) // fast forward 5 seconds
 
           const newRandomNumber = await browser
-            .elementByCss('[href="/2?timeout=1000"]')
+            .elementByCss('[href="/2?timeout=2000"]')
             .click()
             .waitForElementByCss('#random-number')
             .text()
