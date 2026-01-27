@@ -262,6 +262,17 @@ export async function initialize(opts: {
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
+
+      // Clean up compression streams when request is aborted to prevent zlib memory leaks
+      // This is especially important in Node.js 24 where zlib streams need explicit cleanup
+      const cleanupCompression = () => {
+        if (res.destroyed || res.writableFinished) return
+        res.destroy()
+      }
+
+      req.once('aborted', cleanupCompression)
+      req.once('close', cleanupCompression)
+      res.once('close', cleanupCompression)
     }
     req.on('error', (_err) => {
       // TODO: log socket errors?
