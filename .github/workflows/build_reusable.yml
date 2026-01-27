@@ -197,6 +197,7 @@ jobs:
       # Pre-checkout cleanup: remove any lingering files that might cause ENOTEMPTY errors
       # This prevents the checkout action from failing when trying to clean up locked files
       - name: Pre-checkout cleanup
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'linux') }}
         run: |
           # Kill any processes that might be holding locks on files in subdirectories
           # Only target node_modules and .git to avoid killing the current workflow
