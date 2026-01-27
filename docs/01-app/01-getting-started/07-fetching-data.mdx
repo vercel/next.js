@@ -499,7 +499,7 @@ export default async function Page({ params }) {
 
 Start multiple requests by calling `fetch`, then await them with [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all). Requests begin as soon as `fetch` is called.
 
-```tsx filename="app/artist/[username]/page.tsx" highlight={3,8,23} switcher
+```tsx filename="app/artist/[username]/page.tsx" highlight={3,8,24} switcher
 import Albums from './albums'
 
 async function getArtist(username: string) {
@@ -534,7 +534,7 @@ export default async function Page({
 }
 ```
 
-```jsx filename="app/artist/[username]/page.js" highlight={3,8,19} switcher
+```jsx filename="app/artist/[username]/page.js" highlight={3,8,20} switcher
 import Albums from './albums'
 
 async function getArtist(username) {
