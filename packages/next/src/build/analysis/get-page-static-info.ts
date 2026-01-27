@@ -690,6 +690,12 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  if ('unstable_staleTime' in config && nextConfig.cacheComponents) {
+    throw new Error(
+      `Page "${page}" cannot use \`export const unstable_staleTime = ...\` when \`cacheComponents\` is enabled.`
+    )
+  }
+
   return {
     type: PAGE_TYPES.APP,
     rsc,

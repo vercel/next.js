@@ -12,6 +12,12 @@ describe('segment cache - export const unstable_staleTime', () => {
     return
   }
 
+  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+    return it.skip('for cache components', () => {
+      // unstable_staleTime is not compatible with cacheComponents
+    })
+  }
+
   it('overrides global staleTimes config', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
