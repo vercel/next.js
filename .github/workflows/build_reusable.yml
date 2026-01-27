@@ -214,17 +214,21 @@ jobs:
             for dir in "node_modules" ".git"; do
               if [ -d "$WORKSPACE_DIR/$dir" ]; then
                 echo "Checking for processes using $dir..."
-                lsof +D "$WORKSPACE_DIR/$dir" 2>/dev/null | awk 'NR>1 {print $2}' | sort -u | while read pid; do
-                  if [ -n "$pid" ] && [ "$pid" != "$CURRENT_PID" ] && [ "$pid" != "$PARENT_PIDS" ]; then
-                    # Double-check this isn't a bash/shell process from the workflow
-                    if ! ps -p "$pid" -o comm= 2>/dev/null | grep -qE '^(bash|sh|runner)$'; then
-                      echo "Killing process $pid using $dir"
-                      kill -9 "$pid" 2>/dev/null || true
-                    else
-                      echo "Skipping workflow-related process: $pid"
+                # Wrap in subshell with set +e to prevent exit on lsof errors
+                (
+                  set +e
+                  lsof +D "$WORKSPACE_DIR/$dir" 2>/dev/null | awk 'NR>1 {print $2}' | sort -u | while read pid; do
+                    if [ -n "$pid" ] && [ "$pid" != "$CURRENT_PID" ] && [ "$pid" != "$PARENT_PIDS" ]; then
+                      # Double-check this isn't a bash/shell process from the workflow
+                      if ! ps -p "$pid" -o comm= 2>/dev/null | grep -qE '^(bash|sh|runner)$'; then
+                        echo "Killing process $pid using $dir"
+                        kill -9 "$pid" 2>/dev/null || true
+                      else
+                        echo "Skipping workflow-related process: $pid"
+                      fi
                     fi
-                  fi
-                done
+                  done
+                ) || true
               fi
             done
           fi
@@ -232,16 +236,19 @@ jobs:
           # Kill any lingering node/pnpm/turbo processes, but exclude current bash session
           # Only kill processes that are children of the workspace, not the workflow itself
           for proc in "node" "pnpm" "turbo"; do
-            pgrep "$proc" 2>/dev/null | while read pid; do
-              # Skip if it's us or our parent
-              if [ "$pid" != "$CURRENT_PID" ] && [ "$pid" != "$PARENT_PIDS" ]; then
-                # Check if process is actually using workspace files
-                if lsof -p "$pid" 2>/dev/null | grep -q "$WORKSPACE_DIR"; then
-                  echo "Killing $proc process: $pid"
-                  kill -9 "$pid" 2>/dev/null || true
+            (
+              set +e
+              pgrep "$proc" 2>/dev/null | while read pid; do
+                # Skip if it's us or our parent
+                if [ "$pid" != "$CURRENT_PID" ] && [ "$pid" != "$PARENT_PIDS" ]; then
+                  # Check if process is actually using workspace files
+                  if lsof -p "$pid" 2>/dev/null | grep -q "$WORKSPACE_DIR"; then
+                    echo "Killing $proc process: $pid"
+                    kill -9 "$pid" 2>/dev/null || true
+                  fi
                 fi
-              fi
-            done
+              done
+            ) || true
           done
 
           # Give the system a moment to release file handles
