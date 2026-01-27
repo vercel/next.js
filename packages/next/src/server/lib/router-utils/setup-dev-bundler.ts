@@ -93,7 +93,11 @@ import {
 import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
-import { Lockfile } from '../../../build/lockfile'
+import {
+  Lockfile,
+  writeDevServerInfo,
+  removeDevServerInfo,
+} from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 
 export type SetupOpts = {
@@ -190,7 +194,10 @@ async function startWatcher(
     fs.mkdirSync(distDir, { recursive: true })
     lockfile = await Lockfile.acquireWithRetriesOrExit(
       path.join(distDir, 'lock'),
-      'next dev'
+      'next dev',
+      true,
+      opts.dir,
+      opts.nextConfig.distDir
     )
   }
 
@@ -251,6 +258,24 @@ async function startWatcher(
 
   // have to write this after starting hot-reloader since that
   // cleans the dist dir
+  if (opts.nextConfig.experimental.lockDistDir) {
+    // Write server info for other processes to discover
+    const appUrl =
+      process.env.__NEXT_PRIVATE_ORIGIN || `http://localhost:${opts.port}`
+    writeDevServerInfo(distDir, {
+      pid: process.pid,
+      port: opts.port,
+      hostname: new URL(appUrl).hostname,
+      appUrl,
+      startedAt: Date.now(),
+    })
+
+    // Clean up server info on exit
+    opts.onDevServerCleanup?.(async () => {
+      removeDevServerInfo(distDir)
+    })
+  }
+
   const distTypesDir = path.join(distDir, 'types')
   await writeRouteTypesManifest(
     {

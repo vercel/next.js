@@ -1,3 +1,5 @@
+import fs from 'fs'
+import nodePath from 'path'
 import { bold, cyan } from '../lib/picocolors'
 import * as Log from './output/log'
 import { getBindingsSync } from './swc'
@@ -6,6 +8,62 @@ import type { Binding, Lockfile as NativeLockfile } from './swc/types'
 
 const RETRY_DELAY_MS = 10
 const MAX_RETRY_MS = 1000
+
+// File name for storing dev server info alongside the lock
+const DEV_SERVER_INFO_FILE = 'dev-server-info.json'
+
+/**
+ * Information about a running dev server, stored alongside the lock file.
+ */
+export interface DevServerInfo {
+  pid: number
+  port: number
+  hostname: string
+  appUrl: string
+  startedAt: number
+}
+
+/**
+ * Writes dev server info to a file in the dist directory.
+ * This allows other processes to discover the running server when lock acquisition fails.
+ */
+export function writeDevServerInfo(distDir: string, info: DevServerInfo): void {
+  try {
+    fs.writeFileSync(
+      nodePath.join(distDir, DEV_SERVER_INFO_FILE),
+      JSON.stringify(info, null, 2)
+    )
+  } catch {
+    // Ignore errors - this is best effort
+  }
+}
+
+/**
+ * Reads dev server info from a file in the dist directory.
+ * Returns undefined if the file doesn't exist or can't be parsed.
+ */
+export function readDevServerInfo(distDir: string): DevServerInfo | undefined {
+  try {
+    const content = fs.readFileSync(
+      nodePath.join(distDir, DEV_SERVER_INFO_FILE),
+      'utf-8'
+    )
+    return JSON.parse(content) as DevServerInfo
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Removes the dev server info file from the dist directory.
+ */
+export function removeDevServerInfo(distDir: string): void {
+  try {
+    fs.unlinkSync(nodePath.join(distDir, DEV_SERVER_INFO_FILE))
+  } catch {
+    // Ignore errors - file may not exist
+  }
+}
 
 /**
  * A cross-platform on-disk best-effort advisory exclusive lockfile
@@ -110,11 +168,19 @@ export class Lockfile {
    * This will retry a small number of times. This can be useful when running
    * processes in a loop, e.g. if cleanup isn't fully synchronous due to child
    * parent/processes.
+   *
+   * @param path - Path to the lock file
+   * @param processName - Name of the process for error messages (e.g., 'next dev')
+   * @param unlockOnExit - Whether to unlock the file on process exit
+   * @param projectDir - Optional project directory for enhanced error messages
+   * @param relativeDistDir - Optional relative dist directory path (e.g., '.next/dev')
    */
   static async acquireWithRetriesOrExit(
     path: string,
     processName: string,
-    unlockOnExit: boolean = true
+    unlockOnExit: boolean = true,
+    projectDir?: string,
+    relativeDistDir?: string
   ): Promise<Lockfile> {
     const startMs = Date.now()
     let lockfile
@@ -124,12 +190,51 @@ export class Lockfile {
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
     }
     if (lockfile === undefined) {
-      Log.error(
-        `Unable to acquire lock at ${cyan(path)}, is another instance of ${cyan(processName)} running?`
-      )
-      Log.info(
-        `${bold('Suggestion:')} If you intended to restart ${cyan(processName)}, terminate the other process, and then try again.`
-      )
+      const isDev = processName === 'next dev'
+
+      if (isDev) {
+        // For dev server, try to read server info for helpful error message
+        const distDir =
+          projectDir && relativeDistDir
+            ? nodePath.join(projectDir, relativeDistDir)
+            : undefined
+        const serverInfo = distDir ? readDevServerInfo(distDir) : undefined
+
+        if (serverInfo) {
+          Log.error(`Another ${cyan(processName)} server is already running.`)
+          console.error()
+          console.error(`- Local:        ${cyan(serverInfo.appUrl)}`)
+          console.error(`- PID:          ${serverInfo.pid}`)
+          if (projectDir) {
+            console.error(`- Dir:          ${projectDir}`)
+          }
+          if (relativeDistDir) {
+            console.error(
+              `- Log:          ${nodePath.join(relativeDistDir, 'logs', 'next-development.log')}`
+            )
+          }
+          console.error()
+          console.error(`Run ${cyan(`kill ${serverInfo.pid}`)} to stop it.`)
+        } else {
+          Log.error(
+            `Another ${cyan(processName)} process is already running in this directory.`
+          )
+          console.error(
+            `Stop the other process or delete ${cyan(path)} if no process is running.`
+          )
+        }
+      } else {
+        // For build, show that a build is in progress
+        Log.error(`Another ${cyan(processName)} process is already running.`)
+        console.error()
+        console.error(`  This could be:`)
+        console.error(`  - A ${cyan('next build')} still in progress`)
+        console.error(`  - A previous build that didn't exit cleanly`)
+        console.error()
+        Log.info(
+          `${bold('Suggestion:')} Wait for the build to complete, or delete ${cyan(path)} if no build is running.`
+        )
+      }
       process.exit(1)
     }
     return lockfile

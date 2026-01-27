@@ -355,29 +355,8 @@ export async function startServer(
         process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
       }
 
-      // Get env info first (fast, doesn't require config)
-      const envInfo = isDev ? getEnvInfo(dir) : undefined
-
-      // Log basic startup info immediately (before loading config)
-      logStartInfo({
-        networkUrl,
-        appUrl,
-        envInfo,
-        logBundler: isDev,
-      })
-
-      // Calculate and log "Ready in X" before loading config
-      // so it reflects actual framework startup time.
       // NEXT_PRIVATE_START_TIME is set by bin/next.ts or cli/next-start.ts.
       const startTime = parseInt(process.env.NEXT_PRIVATE_START_TIME || '0', 10)
-      const endTime = Date.now()
-      const startServerProcessDurationMs = startTime ? endTime - startTime : 0
-
-      const formattedStartDuration = durationToString(
-        startServerProcessDurationMs / 1000
-      )
-
-      Log.event(`Ready in ${formattedStartDuration}`)
 
       try {
         let cleanupStarted = false
@@ -446,7 +425,8 @@ export async function startServer(
           process.on('SIGTERM', cleanup)
         }
 
-        // Now load config via getRequestHandlers (single loadConfig call)
+        // Load config and acquire lock BEFORE printing URLs
+        // This ensures we fail early if another dev server is running
         const initResult = await getRequestHandlers({
           dir,
           port,
@@ -465,6 +445,15 @@ export async function startServer(
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
 
+        // Only print URLs after lock acquisition succeeds
+        const envInfo = isDev ? getEnvInfo(dir) : undefined
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          envInfo,
+          logBundler: isDev,
+        })
+
         // Log experimental features after config is loaded
         if (isDev) {
           logExperimentalInfo({
@@ -472,6 +461,14 @@ export async function startServer(
             cacheComponents: initResult.cacheComponents,
           })
         }
+
+        // Log "Ready" after all initialization succeeds
+        const endTime = Date.now()
+        const startServerProcessDurationMs = startTime ? endTime - startTime : 0
+        const formattedStartDuration = durationToString(
+          startServerProcessDurationMs / 1000
+        )
+        Log.event(`Ready in ${formattedStartDuration}`)
 
         handlersReady()
 
