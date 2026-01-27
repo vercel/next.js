@@ -125,25 +125,6 @@ pub(crate) fn module_rule_match_pages_page_file(
     ])
 }
 
-pub(crate) fn get_import_type_bytes_rule() -> ModuleRule {
-    // Move this into turbopack once the feature is standardized
-    ModuleRule::new(
-        RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
-        )),
-        vec![ModuleRuleEffect::ModuleType(ModuleType::InlinedBytesJs)],
-    )
-}
-
-pub(crate) fn get_import_type_json_rule() -> ModuleRule {
-    ModuleRule::new(
-        RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::ImportWithType("json".into()),
-        )),
-        vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
-    )
-}
-
 pub(crate) enum EcmascriptTransformStage {
     Preprocess,
     Main,

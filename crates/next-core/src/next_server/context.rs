@@ -578,6 +578,7 @@ pub async fn get_server_module_options_context(
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
+            enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
             source_maps,
