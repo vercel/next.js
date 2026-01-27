@@ -971,8 +971,14 @@ export default async function build(
         )
       loadedConfig = config
 
-      // Validate deploymentId if provided
-      if (config.deploymentId !== undefined) {
+      // Validate deploymentId if explicitly configured by user (not from NEXT_DEPLOYMENT_ID env var)
+      // config.deploymentId may come from either user config or NEXT_DEPLOYMENT_ID env var
+      // We only validate user-configured IDs since Vercel sets NEXT_DEPLOYMENT_ID with dpl_* format
+      const isUserConfiguredDeploymentId =
+        config.deploymentId !== undefined &&
+        config.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
+
+      if (isUserConfiguredDeploymentId) {
         if (typeof config.deploymentId !== 'string') {
           throw new Error(
             `Invalid \`deploymentId\` configuration: must be a string. See https://nextjs.org/docs/messages/deploymentid-not-a-string`
