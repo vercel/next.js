@@ -1004,51 +1004,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
-        let preprocess = |task_id: TaskId, inner: &TaskStorage| {
-            if task_id.is_transient() {
-                return (None, None);
-            }
-
-            let meta_restored = inner.flags.meta_restored();
-            let data_restored = inner.flags.data_restored();
-
-            // Encode meta/data directly from TaskStorage
-            let meta = meta_restored.then(|| inner.clone_meta_snapshot());
-            let data = data_restored.then(|| inner.clone_data_snapshot());
-
-            (meta, data)
-        };
-        let process = |task_id: TaskId,
-                       (meta, data): (Option<TaskStorage>, Option<TaskStorage>),
-                       buffer: &mut TurboBincodeBuffer| {
-            (
-                task_id,
-                meta.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Meta, buffer)),
-                data.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Data, buffer)),
-            )
-        };
-        let process_snapshot =
-            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
-                if task_id.is_transient() {
-                    return (task_id, None, None);
-                }
-
-                // Encode meta/data directly from TaskStorage snapshot
-                (
-                    task_id,
-                    inner.flags.meta_modified().then(|| {
-                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Meta, buffer)
-                    }),
-                    inner.flags.data_modified().then(|| {
-                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Data, buffer)
-                    }),
-                )
-            };
-
-        let snapshot = self
-            .storage
-            .take_snapshot(&preprocess, &process, &process_snapshot);
-
         #[cfg(feature = "print_cache_item_size")]
         #[derive(Default)]
         struct TaskCacheStats {
@@ -1058,6 +1013,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             meta: usize,
             meta_compressed: usize,
             meta_count: usize,
+            upper_count: usize,
+            collectibles_count: usize,
+            aggregated_collectibles_count: usize,
+            children_count: usize,
+            followers_count: usize,
+            collectibles_dependents_count: usize,
+            aggregated_dirty_containers_count: usize,
         }
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
@@ -1080,10 +1042,83 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
                 self.meta_count += 1;
             }
+
+            fn add_counts(&mut self, storage: &TaskStorage) {
+                let counts = storage.meta_counts();
+                self.upper_count += counts.upper;
+                self.collectibles_count += counts.collectibles;
+                self.aggregated_collectibles_count += counts.aggregated_collectibles;
+                self.children_count += counts.children;
+                self.followers_count += counts.followers;
+                self.collectibles_dependents_count += counts.collectibles_dependents;
+                self.aggregated_dirty_containers_count += counts.aggregated_dirty_containers;
+            }
         }
         #[cfg(feature = "print_cache_item_size")]
         let task_cache_stats: Mutex<FxHashMap<_, TaskCacheStats>> =
             Mutex::new(FxHashMap::default());
+
+        let preprocess = |task_id: TaskId, inner: &TaskStorage| {
+            if task_id.is_transient() {
+                return (None, None);
+            }
+
+            let meta_restored = inner.flags.meta_restored();
+            let data_restored = inner.flags.data_restored();
+
+            // Encode meta/data directly from TaskStorage
+            let meta = meta_restored.then(|| inner.clone_meta_snapshot());
+            let data = data_restored.then(|| inner.clone_data_snapshot());
+
+            (meta, data)
+        };
+        let process = |task_id: TaskId,
+                       (meta, data): (Option<TaskStorage>, Option<TaskStorage>),
+                       buffer: &mut TurboBincodeBuffer| {
+            #[cfg(feature = "print_cache_item_size")]
+            if let Some(ref m) = meta {
+                task_cache_stats
+                    .lock()
+                    .entry(self.debug_get_task_name(task_id))
+                    .or_default()
+                    .add_counts(m);
+            }
+            (
+                task_id,
+                meta.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Meta, buffer)),
+                data.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Data, buffer)),
+            )
+        };
+        let process_snapshot =
+            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
+                if task_id.is_transient() {
+                    return (task_id, None, None);
+                }
+
+                #[cfg(feature = "print_cache_item_size")]
+                if inner.flags.meta_modified() {
+                    task_cache_stats
+                        .lock()
+                        .entry(self.debug_get_task_name(task_id))
+                        .or_default()
+                        .add_counts(&inner);
+                }
+
+                // Encode meta/data directly from TaskStorage snapshot
+                (
+                    task_id,
+                    inner.flags.meta_modified().then(|| {
+                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Meta, buffer)
+                    }),
+                    inner.flags.data_modified().then(|| {
+                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Data, buffer)
+                    }),
+                )
+            };
+
+        let snapshot = self
+            .storage
+            .take_snapshot(&preprocess, &process, &process_snapshot);
 
         let task_snapshots = snapshot
             .into_iter()
@@ -1192,7 +1227,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     for (task_desc, stats) in task_cache_stats {
                         println!(
                             "  {} ({}) {task_desc} = {} ({}) meta {} x {} ({}), {} ({}) data {} x \
-                             {} ({})",
+                             {} ({}), upper: {}, coll: {}, agg_coll: {}, children: {}, followers: \
+                             {}, coll_deps: {}, agg_dirty: {}",
                             FormatBytes(stats.data_compressed + stats.meta_compressed),
                             FormatBytes(stats.data + stats.meta),
                             FormatBytes(stats.meta_compressed),
@@ -1215,6 +1251,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     .unwrap_or(0)
                             ),
                             FormatBytes(stats.data.checked_div(stats.data_count).unwrap_or(0)),
+                            stats.upper_count,
+                            stats.collectibles_count,
+                            stats.aggregated_collectibles_count,
+                            stats.children_count,
+                            stats.followers_count,
+                            stats.collectibles_dependents_count,
+                            stats.aggregated_dirty_containers_count,
                         );
                     }
                 }
