@@ -28,10 +28,6 @@ on:
         default: false
         type: boolean
 
-    secrets:
-      RELEASE_BOT_GITHUB_TOKEN:
-        required: true
-
 name: Trigger Release
 
 env:
@@ -62,6 +58,9 @@ jobs:
 
       - name: Check token
         run: gh auth status
+        # This sometimes fails for unknown reasons.
+        # Ignoring failures for now to check if a failure truly implies a failed publish.
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
