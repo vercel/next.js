@@ -14,9 +14,7 @@ use turbopack_core::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
         ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
         EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
-        UrlBehavior,
-        availability_info::AvailabilityInfo,
-        chunk_group::{MakeChunkGroupResult, make_chunk_group},
+        UrlBehavior, availability_info::AvailabilityInfo, chunk_group::make_chunk_group,
         chunk_id_strategy::ModuleIdStrategy,
     },
     context::AssetContext,
@@ -713,12 +711,7 @@ impl ChunkingContext for BrowserChunkingContext {
             let this = self.await?;
             let entries = chunk_group.entries();
             let input_availability_info = availability_info;
-            let MakeChunkGroupResult {
-                chunks,
-                referenced_output_assets,
-                references,
-                availability_info,
-            } = make_chunk_group(
+            let result = make_chunk_group(
                 entries,
                 module_graph,
                 ResolvedVc::upcast(self),
@@ -726,7 +719,7 @@ impl ChunkingContext for BrowserChunkingContext {
             )
             .await?;
 
-            let chunks = chunks.await?;
+            let chunks = result.chunks.await?;
 
             let mut assets = chunks
                 .iter()
@@ -755,9 +748,9 @@ impl ChunkingContext for BrowserChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
-                references: ResolvedVc::cell(references),
-                availability_info,
+                referenced_assets: ResolvedVc::cell(result.referenced_output_assets),
+                availability_info: result.availability_info,
+                async_loaders_by_module: result.async_loaders_by_module,
             }
             .cell())
         }
@@ -781,12 +774,7 @@ impl ChunkingContext for BrowserChunkingContext {
         async move {
             let this = self.await?;
             let entries = chunk_group.entries();
-            let MakeChunkGroupResult {
-                chunks,
-                referenced_output_assets,
-                references,
-                availability_info,
-            } = make_chunk_group(
+            let result = make_chunk_group(
                 entries,
                 module_graph,
                 ResolvedVc::upcast(self),
@@ -794,7 +782,7 @@ impl ChunkingContext for BrowserChunkingContext {
             )
             .await?;
 
-            let chunks = chunks.await?;
+            let chunks = result.chunks.await?;
 
             let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
                 .iter()
@@ -840,9 +828,9 @@ impl ChunkingContext for BrowserChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
-                references: ResolvedVc::cell(references),
-                availability_info,
+                referenced_assets: ResolvedVc::cell(result.referenced_output_assets),
+                availability_info: result.availability_info,
+                async_loaders_by_module: result.async_loaders_by_module,
             }
             .cell())
         }
