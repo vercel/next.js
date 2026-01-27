@@ -177,7 +177,7 @@ function onFormSubmit(
   }
 
   const formElement = event.currentTarget
-  const submitter = (event.nativeEvent as globalThis.SubmitEvent).submitter
+  const submitter = event.nativeEvent.submitter
 
   let action = actionHref
 
