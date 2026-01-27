@@ -351,7 +351,7 @@ swc_emotion = "0.113.0"
 swc_relay = "0.83.0"
 react_remove_properties = "0.63.0"
 remove_console = "0.64.0"
-preset_env_base = "7.0.0"
+preset_env_base = "6.0.0"
 
 
 # General Deps

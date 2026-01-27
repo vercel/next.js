@@ -4472,7 +4472,7 @@ dependencies = [
  "modularize_imports",
  "once_cell",
  "pathdiff",
- "preset_env_base 7.0.0",
+ "preset_env_base",
  "react_remove_properties",
  "regex",
  "remove_console",
@@ -5330,24 +5330,6 @@ name = "preset_env_base"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30a2c7fa37f659cd9a5a1231752c785b07ae7994122069720b576cb50da9fe8b"
-dependencies = [
- "anyhow",
- "browserslist-rs",
- "dashmap 5.5.3",
- "from_variant",
- "once_cell",
- "rustc-hash 2.1.1",
- "semver",
- "serde",
- "st-map",
- "tracing",
-]
-
-[[package]]
-name = "preset_env_base"
-version = "7.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d4639c317ff6c06bfbca5d56a763dbd599766acf7d8f1e350eab15caf219b20"
 dependencies = [
  "anyhow",
  "browserslist-rs",
@@ -7044,7 +7026,7 @@ dependencies = [
  "lightningcss",
  "once_cell",
  "parcel_selectors",
- "preset_env_base 6.0.0",
+ "preset_env_base",
  "rustc-hash 2.1.1",
  "serde",
  "swc_atoms",
@@ -7399,7 +7381,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e2a505acbee3b52f3d511da092b793a72420544ef5d94613222c4a57fbd71fa"
 dependencies = [
  "once_cell",
- "preset_env_base 6.0.0",
+ "preset_env_base",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
@@ -7807,7 +7789,7 @@ dependencies = [
  "indexmap 2.9.0",
  "once_cell",
  "precomputed-map",
- "preset_env_base 6.0.0",
+ "preset_env_base",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
