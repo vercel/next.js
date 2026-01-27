@@ -254,14 +254,28 @@ jobs:
           # Give the system a moment to release file handles
           sleep 2
 
-          # Now remove the directories
+          # Now remove the directories with multiple strategies
           if [ -d node_modules ]; then
             echo "Removing node_modules..."
-            rm -rf node_modules || true
+            # Try multiple removal strategies in order of preference
+            # 1. Standard rm -rf
+            rm -rf node_modules 2>/dev/null || \
+            # 2. Use find to delete files first, then directories (more thorough)
+            (find node_modules -type f -delete 2>/dev/null && find node_modules -depth -type d -delete 2>/dev/null) || \
+            # 3. Force remove with chmod (in case of permission issues)
+            (chmod -R 777 node_modules 2>/dev/null && rm -rf node_modules 2>/dev/null) || \
+            # 4. Final fallback - move to temp for OS to clean up later
+            (mv node_modules "/tmp/old-node_modules-$$" 2>/dev/null) || \
+            echo "Warning: Could not fully remove node_modules"
           fi
+
           if [ -d .git ]; then
             echo "Removing .git..."
-            rm -rf .git || true
+            rm -rf .git 2>/dev/null || \
+            (find .git -type f -delete 2>/dev/null && find .git -depth -type d -delete 2>/dev/null) || \
+            (chmod -R 777 .git 2>/dev/null && rm -rf .git 2>/dev/null) || \
+            (mv .git "/tmp/old-git-$$" 2>/dev/null) || \
+            echo "Warning: Could not fully remove .git"
           fi
 
           echo "Pre-checkout cleanup complete"
