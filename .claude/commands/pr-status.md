@@ -5,17 +5,18 @@ Analyze PR status including CI failures and review comments.
 ## Usage
 
 ```
-/pr-status
+/pr-status [PR number]
 ```
 
-Automatically detects PR from current branch.
+- Without argument: Automatically detects PR from current branch
+- With PR number: Analyzes the specified PR (e.g., `/pr-status 89049`)
 
 ## Instructions
 
 1. Run the script to fetch PR status data:
 
    ```bash
-   node scripts/pr-status.js
+   node scripts/pr-status.js $ARGUMENTS
    ```
 
    This fetches workflow runs, failed jobs, logs, and PR review comments, then generates markdown files.
