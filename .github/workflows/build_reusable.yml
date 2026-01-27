@@ -287,7 +287,7 @@ jobs:
           fetch-depth: 25
 
       # clean up any previous artifacts to avoid hitting disk space limits
-      - run: rm -rf /tmp/old-node_modules-*; rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
+      - run: (rm -rf /tmp/old-node_modules-* || true); rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
 
       # local action -> needs to run after checkout
       - name: Install Rust
