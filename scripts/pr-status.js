@@ -42,6 +42,20 @@ function formatDuration(startedAt, completedAt) {
   return `${minutes}m ${remainingSeconds}s`
 }
 
+function formatElapsedTime(startedAt) {
+  if (!startedAt) return 'N/A'
+  const start = new Date(startedAt)
+  if (isNaN(start.getTime())) return 'N/A'
+
+  const now = new Date()
+  const seconds = Math.floor((now - start) / 1000)
+
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return `${minutes}m ${remainingSeconds}s`
+}
+
 function sanitizeFilename(name) {
   return name
     .replace(/[^a-zA-Z0-9._-]/g, '-')
@@ -148,6 +162,49 @@ function getFailedJobs(runId) {
   }
 
   return failedJobs
+}
+
+function getAllJobs(runId) {
+  const allJobs = []
+  let page = 1
+
+  while (true) {
+    const jqQuery =
+      '.jobs[] | {id, name, status, conclusion, started_at, completed_at}'
+    let output
+    try {
+      output = exec(
+        `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=100&page=${page}" --jq '${jqQuery}'`
+      )
+    } catch {
+      break
+    }
+
+    if (!output.trim()) break
+
+    const jobs = output
+      .split('\n')
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line))
+
+    allJobs.push(...jobs)
+
+    if (jobs.length < 100) break
+    page++
+  }
+
+  return allJobs
+}
+
+function categorizeJobs(jobs) {
+  return {
+    failed: jobs.filter((j) => j.conclusion === 'failure'),
+    inProgress: jobs.filter((j) => j.status === 'in_progress'),
+    queued: jobs.filter((j) => j.status === 'queued'),
+    succeeded: jobs.filter((j) => j.conclusion === 'success'),
+    cancelled: jobs.filter((j) => j.conclusion === 'cancelled'),
+    skipped: jobs.filter((j) => j.conclusion === 'skipped'),
+  }
 }
 
 function getJobMetadata(jobId) {
@@ -347,37 +404,121 @@ function extractSections(logContent) {
 function generateIndexMd(
   branchInfo,
   runMetadata,
-  failedJobs,
+  categorizedJobs,
   jobTestCounts,
   reviewData
 ) {
-  const lines = ['# CI Failures Report', '', `Branch: ${branchInfo.branchName}`]
+  const { failed, inProgress, queued, succeeded, cancelled, skipped } =
+    categorizedJobs
+  const totalJobs =
+    failed.length +
+    inProgress.length +
+    queued.length +
+    succeeded.length +
+    cancelled.length +
+    skipped.length
+  const completedJobs =
+    failed.length + succeeded.length + cancelled.length + skipped.length
+
+  const isRunComplete = runMetadata.status === 'completed'
+  const reportTitle = isRunComplete
+    ? '# CI Failures Report'
+    : '# CI Status Report'
+
+  const lines = [reportTitle, '', `Branch: ${branchInfo.branchName}`]
 
   if (branchInfo.prNumber) {
     lines.push(`PR: #${branchInfo.prNumber}`)
   }
 
+  const statusStr = runMetadata.conclusion
+    ? `${runMetadata.status}/${runMetadata.conclusion}`
+    : runMetadata.status
+
   lines.push(
     `Run: ${runMetadata.id} (attempt ${runMetadata.run_attempt})`,
-    `Status: ${runMetadata.conclusion}`,
-    `Time: ${runMetadata.created_at} - ${runMetadata.updated_at}`,
+    `Status: ${statusStr}`,
+    `Time: ${runMetadata.created_at} - ${runMetadata.updated_at || 'ongoing'}`,
     `URL: ${runMetadata.html_url}`,
-    '',
-    `## Failed Jobs (${failedJobs.length})`,
-    '',
-    '| Job | Name | Duration | Tests | File |',
-    '|-----|------|----------|-------|------|'
+    ''
   )
 
-  for (const job of failedJobs) {
-    const duration = formatDuration(job.started_at, job.completed_at)
-    const testCount = jobTestCounts[job.id]
-    const testsStr = testCount
-      ? `${testCount.failed}/${testCount.total}`
-      : 'N/A'
+  // Progress summary for in-progress runs
+  if (!isRunComplete) {
     lines.push(
-      `| ${job.id} | ${escapeMarkdownTableCell(job.name)} | ${duration} | ${testsStr} | [Details](job-${job.id}.md) |`
+      '## CI Progress',
+      '',
+      `**${completedJobs}/${totalJobs}** jobs completed`,
+      '',
+      '| Status | Count |',
+      '|--------|-------|',
+      `| Failed | ${failed.length} |`,
+      `| In Progress | ${inProgress.length} |`,
+      `| Queued | ${queued.length} |`,
+      `| Succeeded | ${succeeded.length} |`
     )
+    if (cancelled.length > 0) lines.push(`| Cancelled | ${cancelled.length} |`)
+    if (skipped.length > 0) lines.push(`| Skipped | ${skipped.length} |`)
+    lines.push(
+      '',
+      '> **Note:** CI is still running. Re-run this script later for updated results.',
+      ''
+    )
+  }
+
+  // Failed jobs section
+  if (failed.length > 0) {
+    lines.push(
+      `## Failed Jobs (${failed.length})`,
+      '',
+      '| Job | Name | Duration | Tests | File |',
+      '|-----|------|----------|-------|------|'
+    )
+
+    for (const job of failed) {
+      const duration = formatDuration(job.started_at, job.completed_at)
+      const testCount = jobTestCounts[job.id]
+      const testsStr = testCount
+        ? `${testCount.failed}/${testCount.total}`
+        : 'N/A'
+      lines.push(
+        `| ${job.id} | ${escapeMarkdownTableCell(job.name)} | ${duration} | ${testsStr} | [Details](job-${job.id}.md) |`
+      )
+    }
+    lines.push('')
+  }
+
+  // In-progress jobs section (only when CI is running)
+  if (inProgress.length > 0) {
+    lines.push(
+      `## In Progress Jobs (${inProgress.length})`,
+      '',
+      '| Job | Name | Running For |',
+      '|-----|------|-------------|'
+    )
+
+    for (const job of inProgress) {
+      const elapsed = formatElapsedTime(job.started_at)
+      lines.push(
+        `| ${job.id} | ${escapeMarkdownTableCell(job.name)} | ${elapsed} |`
+      )
+    }
+    lines.push('')
+  }
+
+  // Queued jobs section (only when CI is running)
+  if (queued.length > 0) {
+    lines.push(
+      `## Queued Jobs (${queued.length})`,
+      '',
+      '| Job | Name |',
+      '|-----|------|'
+    )
+
+    for (const job of queued) {
+      lines.push(`| ${job.id} | ${escapeMarkdownTableCell(job.name)} |`)
+    }
+    lines.push('')
   }
 
   // Add PR reviews section if we have review data
@@ -748,10 +889,35 @@ async function main() {
   console.log('Fetching run metadata...')
   const runMetadata = getRunMetadata(latestRun.id)
 
-  // Step 5: Get failed jobs
-  console.log('Fetching failed jobs...')
-  const failedJobIds = getFailedJobs(latestRun.id)
-  console.log(`Found ${failedJobIds.length} failed jobs`)
+  // Step 5: Determine fetch strategy based on run status
+  const isRunInProgress =
+    runMetadata.status === 'in_progress' || runMetadata.status === 'queued'
+
+  let categorizedJobs
+
+  if (isRunInProgress) {
+    // Fetch ALL jobs when CI is still running
+    console.log('CI is in progress. Fetching all jobs...')
+    const allJobs = getAllJobs(latestRun.id)
+    categorizedJobs = categorizeJobs(allJobs)
+    console.log(
+      `Found: ${categorizedJobs.failed.length} failed, ${categorizedJobs.inProgress.length} in progress, ${categorizedJobs.queued.length} queued, ${categorizedJobs.succeeded.length} succeeded`
+    )
+  } else {
+    // For completed runs, only fetch failed jobs (efficiency)
+    console.log('Fetching failed jobs...')
+    const failedJobIds = getFailedJobs(latestRun.id)
+    console.log(`Found ${failedJobIds.length} failed jobs`)
+
+    categorizedJobs = {
+      failed: failedJobIds,
+      inProgress: [],
+      queued: [],
+      succeeded: [],
+      cancelled: [],
+      skipped: [],
+    }
+  }
 
   // Fetch PR reviews if we have a PR number
   let reviewData = null
@@ -766,7 +932,13 @@ async function main() {
     )
   }
 
-  if (failedJobIds.length === 0) {
+  // Check if we should write an early report (no failed jobs yet)
+  const hasNoFailedJobs = categorizedJobs.failed.length === 0
+  const hasInProgressOrQueued =
+    categorizedJobs.inProgress.length > 0 || categorizedJobs.queued.length > 0
+
+  if (hasNoFailedJobs && !hasInProgressOrQueued) {
+    // Completed run with no failures
     console.log('No failed jobs found.')
 
     // Write review files if we have PR data
@@ -794,23 +966,44 @@ async function main() {
       }
     }
 
+    const emptyCategorizedJobs = {
+      failed: [],
+      inProgress: [],
+      queued: [],
+      succeeded: [],
+      cancelled: [],
+      skipped: [],
+    }
     await fs.writeFile(
       path.join(OUTPUT_DIR, 'index.md'),
-      generateIndexMd(branchInfo, runMetadata, [], {}, reviewData)
+      generateIndexMd(
+        branchInfo,
+        runMetadata,
+        emptyCategorizedJobs,
+        {},
+        reviewData
+      )
     )
     process.exit(0)
   }
 
+  if (hasNoFailedJobs && hasInProgressOrQueued) {
+    // In-progress run with no failures yet - still write the progress report
+    console.log('No failed jobs yet, but CI is still running.')
+  }
+
   // Step 6: Fetch details for each failed job
-  const failedJobs = []
+  const processedFailedJobs = []
   const jobTestCounts = {}
 
-  for (const { id, name } of failedJobIds) {
-    console.log(`Processing job ${id}: ${name}...`)
+  for (const job of categorizedJobs.failed) {
+    const id = job.id
+    const name = job.name
+    console.log(`Processing failed job ${id}: ${name}...`)
 
-    // Get job metadata
-    const jobMetadata = getJobMetadata(id)
-    failedJobs.push(jobMetadata)
+    // Get full job metadata (getAllJobs already has basic metadata, but getFailedJobs doesn't)
+    const jobMetadata = job.started_at ? job : getJobMetadata(id)
+    processedFailedJobs.push(jobMetadata)
 
     // Get job logs
     const logs = getJobLogs(id)
@@ -900,10 +1093,15 @@ async function main() {
 
   // Step 8: Generate index.md
   console.log('Generating index.md...')
+  // Update categorizedJobs.failed with full processed metadata
+  const finalCategorizedJobs = {
+    ...categorizedJobs,
+    failed: processedFailedJobs,
+  }
   const indexMd = generateIndexMd(
     branchInfo,
     runMetadata,
-    failedJobs,
+    finalCategorizedJobs,
     jobTestCounts,
     reviewData
   )
