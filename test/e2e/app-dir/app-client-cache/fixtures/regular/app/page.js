@@ -26,7 +26,7 @@ export default function HomePage() {
         </Link>
       </div>
       <div>
-        <Link href="/1?timeout=1000">
+        <Link href="/1?timeout=2000">
           To Random Number - prefetch: auto, slow
         </Link>
       </div>
