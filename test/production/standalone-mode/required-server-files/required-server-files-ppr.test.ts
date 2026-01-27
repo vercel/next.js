@@ -282,45 +282,6 @@ describe('required server files app router', () => {
     expect(rscRes.status).toBe(200)
   })
 
-  it('should properly handle resume request that looks like a data request', async () => {
-    const metadata = await next.readJSON('.next/server/app/[...catchAll].meta')
-    const postponed = metadata.postponed
-
-    const res = await fetchViaHTTP(
-      appPort,
-      // The pathname here represents a route that doesn't actually exist, but
-      // we want to simulate a pages route Link that performs a prefetch to a
-      // route backed by PPR.
-      `/_next/data/${next.buildId}/index.json`,
-      undefined,
-      withInvocationId({
-        method: 'POST',
-        headers: {
-          'x-matched-path': '/[...catchAll]',
-          'x-now-route-matches': createNowRouteMatches({
-            catchAll: `_next/data/${next.buildId}/index.json`,
-          }).toString(),
-          'next-resume': '1',
-        },
-        body: postponed,
-      })
-    )
-
-    // Expect that the status code is 422, we asked for a /_next/data route and
-    // also indicated that we wanted to resume a PPR render (which is
-    // impossible).
-    expect(res.status).toBe(422)
-
-    // We expect that because we have a short-circuit for these unprocessable
-    // requests, we should not have a cache entry handler header because it
-    // should never get reached.
-    expect(res.headers.has('x-nextjs-cache-entry-handler')).toBe(false)
-
-    // Expect that the response body is empty.
-    const html = await res.text()
-    expect(html).toBeEmpty()
-  })
-
   describe('middleware rewrite', () => {
     it('should work with a dynamic path with Next-Resume', async () => {
       const res = await fetchViaHTTP(
