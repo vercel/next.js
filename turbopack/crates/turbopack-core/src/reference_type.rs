@@ -74,7 +74,7 @@ pub enum ImportWithType {
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
-    ImportWithType(ImportWithType),
+    ImportWithType(RcStr),
     DynamicImport,
     Custom(u8),
     #[default]

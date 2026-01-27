@@ -24,7 +24,7 @@ use turbopack_core::{
     module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
-    reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
+    reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
         BindingUsage, ExportUsage, ExternalType, ImportUsage, ModulePart, ModuleResolveResult,
         ModuleResolveResultItem, RequestKey,
@@ -410,10 +410,10 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = if self.annotations.module_type().is_some_and(|v| v == "json") {
-            EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
-        } else if self.annotations.module_type().is_some_and(|v| v == "bytes") {
-            EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Bytes)
+        let ty = if let Some(module_type) = self.annotations.module_type() {
+            EcmaScriptModulesReferenceSubType::ImportWithType(RcStr::from(
+                &*module_type.to_string_lossy(),
+            ))
         } else if let Some(part) = &self.export_name {
             EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
         } else {
