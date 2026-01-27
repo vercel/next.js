@@ -32,9 +32,7 @@ pub use server_actions::get_server_actions_transform_rule;
 use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
-use turbopack_core::reference_type::{
-    EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType,
-};
+use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
 
 use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
