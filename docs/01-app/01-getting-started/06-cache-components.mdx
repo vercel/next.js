@@ -245,11 +245,10 @@ Every incoming request would see different random numbers, date, etc.
 
 ### Suspense misconception
 
-A common misconception is that `<Suspense>` triggers request-time rendering. This is not the case:
+A common misconception is that `<Suspense>` automatically triggers request-time rendering. This is not the case:
 
-- **Suspense does not defer rendering to request time.** Its role is to define a boundary for fallback UI while async content is being prepared or streamed.
-- Components inside `<Suspense>` can still execute at build/prerender time if they have no runtime dependencies.
-- Only Dynamic APIs or [`connection()`](/docs/app/api-reference/functions/connection) force request-time execution.
+- **Suspense alone does not force request-time rendering.** While Suspense defines a boundary for fallback UI, the actual deferral to request time only happens when components access Dynamic APIs or [`connection()`](/docs/app/api-reference/functions/connection). Components inside `<Suspense>` can still execute at build/prerender time if they have no runtime dependencies.
+- Only Dynamic APIs or [`connection()`](/docs/app/api-reference/functions/connection) actually trigger request-time execution. Wrapping a component in `<Suspense>` without these dependencies doesn't defer its rendering.
 
 ## Using `use cache`
 
