@@ -1168,8 +1168,8 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
 /**
  * Returns an absolute url to an asset.
  */ function resolvePathFromModule(moduleId) {
-    var exported = this.r(moduleId);
     var _ref;
+    var exported = this.r(moduleId);
     return (_ref = exported === null || exported === void 0 ? void 0 : exported.default) !== null && _ref !== void 0 ? _ref : exported;
 }
 browserContextPrototype.R = resolvePathFromModule;
