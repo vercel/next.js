@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, VecDeque};
 use anyhow::{Result, bail};
 use serde_json::json;
 use tracing::{Instrument, Level, Span};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal, Visit},
@@ -14,6 +14,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
 };
 
@@ -250,7 +251,7 @@ impl Asset for NftJsonAsset {
 
                 if referenced_chunk_path == next_config_path {
                     // If next.config.js was traced, assume that the whole project was traced
-                    // (unintentionally). Throw a build error in this case to avoid deploying
+                    // (unintentionally). Print a message in this case to avoid deploying
                     // unnecessary files.
                     error_unexpected_file(
                         entries,
@@ -519,17 +520,105 @@ pub async fn error_unexpected_file(
         }
     }
 
-    bail!(
-        "Encountered unexpected file in NFT list: {}\nDependency trace:\n{:#?}",
-        referenced_chunk.path_string().await?,
-        path.iter()
-            .rev()
-            .map(|a| a.path_string())
-            .try_join()
-            .await?
-    );
+    ForbiddenTracedFileIssue {
+        file: referenced_chunk,
+        path,
+    }
+    .resolved_cell()
+    .emit();
 
     Ok(())
+}
+
+#[turbo_tasks::value(shared)]
+struct ForbiddenTracedFileIssue {
+    file: ResolvedVc<Box<dyn OutputAsset>>,
+    path: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for ForbiddenTracedFileIssue {
+    fn severity(&self) -> IssueSeverity {
+        // Ideally this would be an error, but for now we keep it a warning to avoid breaking
+        // existing apps
+        IssueSeverity::Warning
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Misc.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.file.path()
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text(rcstr!("Encountered unexpected file in NFT list")).cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        let mut stack = vec![
+            StyledString::Text(rcstr!(
+                "A file was traced that indicates that the whole project was traced \
+                 unintentionally. Somewhere in the import trace below, there are:"
+            )),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("- filesystem operations (like ")),
+                StyledString::Code(rcstr!("path.join")),
+                StyledString::Text(rcstr!(", ")),
+                StyledString::Code(rcstr!("path.resolve")),
+                StyledString::Text(rcstr!(" or ")),
+                StyledString::Code(rcstr!("fs.readFile")),
+                StyledString::Text(rcstr!("), or")),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("- very dynamic requires (like ")),
+                StyledString::Code(rcstr!("require('./' + foo)")),
+                StyledString::Text(rcstr!(").")),
+            ]),
+            StyledString::Text(rcstr!("To resolve this, you can either")),
+            StyledString::Text(rcstr!("- remove them if possible, or")),
+            StyledString::Text(rcstr!("- only use them in development, or")),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!(
+                    "- make sure they are statically scoped to some subfolder: "
+                )),
+                StyledString::Code(rcstr!("path.join(process.cwd(), 'data', bar)")),
+                StyledString::Text(rcstr!(", or")),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("- add ignore comments: ")),
+                StyledString::Code(rcstr!(
+                    "path.join(/*turbopackIgnore: true*/ process.cwd(), bar)"
+                )),
+            ]),
+        ];
+
+        if self.path.len() > 1 {
+            stack.extend([
+                StyledString::Text(rcstr!("")),
+                StyledString::Text(
+                    format!(
+                        "Output asset trace:\n{}",
+                        self.path
+                            .iter()
+                            .rev()
+                            .map(async |a| Ok(format!("  {}", a.path_string().await?)))
+                            .try_join()
+                            .await?
+                            .join("\n")
+                    )
+                    .into(),
+                ),
+            ])
+        }
+
+        Ok(Vc::cell(Some(StyledString::Stack(stack).resolved_cell())))
+    }
 }
 
 struct OutputAssetFilteredVisit {
