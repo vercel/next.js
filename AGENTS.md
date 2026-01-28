@@ -198,6 +198,11 @@ This fetches CI workflow runs, failed jobs, logs, and PR review comments, genera
 
 - Prioritize blocking jobs first: build, lint, types, then test jobs
 - Prioritize CI failures over review comments
+- **Check the job name for special test modes** - CI runs tests in different configurations:
+  - `test / turbopack-test-...` - Standard Turbopack tests
+  - `test / cache-components-...` - Runs with `__NEXT_CACHE_COMPONENTS=true` (some features are incompatible)
+  - `test / webpack-test-...` - Webpack bundler tests
+  - When a test fails only in a specific mode, check if it should be skipped for that mode
 
 **Common failure patterns:**
 
@@ -267,6 +272,24 @@ You MUST run `pnpm build` before continuing with tests. This warning means the c
 
 - Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
 - Don't rely on exact log messages - filter by content patterns, find sequences not positions
+- **Skipping tests for specific CI modes** - Some features are incompatible with certain test configurations. Use the ternary skip pattern at describe level:
+
+  ```typescript
+  // Skip entire test suite for cache components mode
+  ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+    'my test suite',
+    () => {
+      /* tests */
+    }
+  )
+
+  // Skip individual test
+  ;(process.env.__NEXT_CACHE_COMPONENTS ? it.skip : it)('my test', async () => {
+    /* test */
+  })
+  ```
+
+  **Do NOT use `if (condition) return` inside describe blocks** - Jest registers all tests during the describe phase before execution, so the return doesn't prevent test registration.
 
 ### Rust/Cargo
 
