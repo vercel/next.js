@@ -359,14 +359,14 @@ Use Effect cleanup to reset state when Activity hides the component. This lets y
 ```tsx
 'use client'
 
-import { useState, useRef, useEffect, useTransition } from 'react'
+import { useState, useRef, useLayoutEffect, useTransition } from 'react'
 
 function NewsletterForm() {
   const [didSubmit, setDidSubmit] = useState(false)
   const [isPending, startTransition] = useTransition()
   const shouldResetRef = useRef(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     return () => {
       if (shouldResetRef.current) {
         setDidSubmit(false)
