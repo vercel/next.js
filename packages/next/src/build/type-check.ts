@@ -131,7 +131,7 @@ export async function startTypeChecking({
           config.experimental.workerThreads,
           !!appDir,
           !!pagesDir,
-          config.experimental.isolatedDevBuild,
+          undefined,
           appDir,
           pagesDir,
           debugBuildPaths

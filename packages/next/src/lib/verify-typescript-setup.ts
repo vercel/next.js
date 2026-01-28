@@ -44,7 +44,6 @@ export async function verifyTypeScriptSetup({
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
-  _isolatedDevBuild,
   appDir,
   pagesDir,
   debugBuildPaths,
@@ -61,7 +60,7 @@ export async function verifyTypeScriptSetup({
   hasAppDir: boolean
   hasPagesDir: boolean
   /** @deprecated No longer used, kept for backwards compatibility */
-  isolatedDevBuild: boolean | undefined
+  isolatedDevBuild?: boolean | undefined
   appDir?: string
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
