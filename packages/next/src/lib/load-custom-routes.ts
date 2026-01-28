@@ -760,15 +760,33 @@ export default async function loadCustomRoutes(
       })
     }
 
-    headers.unshift({
-      source: '/_next/data/(.*)',
-      headers: [
-        {
-          key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
-          value: config.deploymentId,
-        },
-      ],
-    })
+    headers.unshift(
+      {
+        source: '/_next/data/(.*)',
+        headers: [
+          {
+            key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
+            value: config.deploymentId,
+          },
+        ],
+      },
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'rsc',
+            value: '1',
+          },
+        ],
+        headers: [
+          {
+            key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
+            value: config.deploymentId,
+          },
+        ],
+      }
+    )
   }
 
   if (!config.skipTrailingSlashRedirect) {
