@@ -1803,35 +1803,22 @@ export async function ncc_sass_loader(task, opts) {
       packageName: 'sass-loader',
       externals: {
         ...externals,
-        'schema-utils': externals['schema-utils3'],
         'loader-utils': externals['loader-utils2'],
       },
       target: 'es5',
     })
     .target('src/compiled/sass-loader')
 }
-externals['schema-utils'] = 'MISSING_VERSION schema-utils version not specified'
-externals['schema-utils2'] = 'next/dist/compiled/schema-utils2'
-export async function ncc_schema_utils2(task, opts) {
+externals['schema-utils'] = 'next/dist/compiled/schema-utils'
+export async function ncc_schema_utils(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('schema-utils2')))
+    .source(relative(__dirname, require.resolve('schema-utils')))
     .ncc({
       packageName: 'schema-utils',
-      bundleName: 'schema-utils2',
+      bundleName: 'schema-utils',
       externals,
     })
-    .target('src/compiled/schema-utils2')
-}
-externals['schema-utils3'] = 'next/dist/compiled/schema-utils3'
-export async function ncc_schema_utils3(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('schema-utils3')))
-    .ncc({
-      packageName: 'schema-utils',
-      bundleName: 'schema-utils3',
-      externals,
-    })
-    .target('src/compiled/schema-utils3')
+    .target('src/compiled/schema-utils')
 }
 externals['semver'] = 'next/dist/compiled/semver'
 export async function ncc_semver(task, opts) {
@@ -2026,7 +2013,6 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './index': './index.js',
-        'schema-utils': externals['schema-utils3'],
         'webpack-sources': externals['webpack-sources1'],
       },
     })
@@ -2045,7 +2031,6 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './hmr': './hmr',
-        'schema-utils': 'next/dist/compiled/schema-utils3',
       },
     })
     .target('src/compiled/mini-css-extract-plugin/hmr')
@@ -2056,7 +2041,6 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './index': './index.js',
-        'schema-utils': externals['schema-utils3'],
       },
     })
     .target('src/compiled/mini-css-extract-plugin')
@@ -2072,7 +2056,6 @@ export async function ncc_ua_parser_js(task, opts) {
 export async function ncc_webpack_bundle5(task, opts) {
   const bundleExternals = {
     ...externals,
-    'schema-utils': externals['schema-utils3'],
     'webpack-sources': externals['webpack-sources3'],
   }
   for (const pkg of Object.keys(webpackBundlePackages)) {
@@ -2289,8 +2272,7 @@ export async function ncc(task, opts) {
         'ncc_postcss_modules_values',
         'ncc_postcss_value_parser',
         'ncc_icss_utils',
-        'ncc_schema_utils2',
-        'ncc_schema_utils3',
+        'ncc_schema_utils',
         'ncc_semver',
         'ncc_send',
         'ncc_source_map',
