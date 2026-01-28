@@ -728,7 +728,6 @@ describe('config telemetry', () => {
           )
         }
       })
-
     }
   )
 })
