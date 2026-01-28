@@ -747,13 +747,32 @@ export default async function loadCustomRoutes(
     )
   }
 
-  if (config.experimental?.useSkewCookie && config.deploymentId) {
+  if (config.deploymentId) {
+    if (config.experimental?.useSkewCookie) {
+      headers.unshift({
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Set-Cookie',
+            value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+          },
+        ],
+      })
+    }
+
     headers.unshift({
       source: '/:path*',
+      has: [
+        {
+          type: 'header',
+          key: 'rsc',
+          value: '1',
+        },
+      ],
       headers: [
         {
-          key: 'Set-Cookie',
-          value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+          key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
+          value: config.deploymentId,
         },
       ],
     })
