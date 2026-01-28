@@ -8,9 +8,6 @@ const { Octokit } = require('octokit')
 const SemVer = require('semver')
 const yargs = require('yargs')
 
-/** @type {any} */
-const fetch = require('node-fetch')
-
 const repoOwner = 'vercel'
 const repoName = 'next.js'
 const pullRequestLabels = ['type: react-sync']

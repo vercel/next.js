@@ -487,7 +487,7 @@ describe('dedupe-fetch', () => {
       const request = new Request('https://example.com/api', {
         method: 'POST',
         body: stream,
-        // @ts-ignore - duplex is required for streaming bodies in Node.js
+        // @ts-expect-error - duplex is required for streaming request body
         duplex: 'half',
       })
 

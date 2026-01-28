@@ -16,7 +16,6 @@ import {
   waitFor,
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
-import type { RequestInit } from 'node-fetch'
 import type { NextConfig } from 'next'
 
 type SetupTestsCtx = {
@@ -108,9 +107,13 @@ export async function fsToJson(dir: string, output = {}) {
   return output
 }
 
-export async function expectWidth(res, w, { expectAnimated = false } = {}) {
-  const buffer = await res.buffer()
-  const d = sizeOf(buffer)
+export async function expectWidth(
+  res: Response,
+  w,
+  { expectAnimated = false } = {}
+) {
+  const buffer = await res.arrayBuffer()
+  const d = sizeOf(new Uint8Array(buffer))
   expect(d.width).toBe(w)
   const lengthStr = res.headers.get('Content-Length')
   expect(lengthStr).toBe(Buffer.byteLength(buffer).toString())
@@ -152,9 +155,9 @@ async function expectAvifSmallerThanWebp(
   expect(res3.status).toBe(200)
   expect(res3.headers.get('Content-Type')).toBe('image/jpeg')
 
-  const avif = (await res1.buffer()).byteLength
-  const webp = (await res2.buffer()).byteLength
-  const jpeg = (await res3.buffer()).byteLength
+  const avif = (await res1.arrayBuffer()).byteLength
+  const webp = (await res2.arrayBuffer()).byteLength
+  const jpeg = (await res3.arrayBuffer()).byteLength
 
   expect(webp).toBeLessThan(jpeg)
   expect(avif).toBeLessThanOrEqual(webp)
@@ -169,7 +172,7 @@ async function fetchWithDuration(
   console.warn('Fetching', pathname, query)
   const start = Date.now()
   const res = await fetchViaHTTP(appPort, pathname, query, opts)
-  const buffer = await res.buffer()
+  const buffer = await res.arrayBuffer()
   const duration = Date.now() - start
   return { duration, buffer, res }
 }
@@ -1409,7 +1412,7 @@ export function runTests(ctx: RunTestsCtx) {
     )
     expect(res2.headers.get('Vary')).toBe('Accept')
     expect(res2.headers.get('Content-Disposition')).toBeFalsy()
-    expect((await res2.buffer()).length).toBe(0)
+    expect((await res2.arrayBuffer()).byteLength).toBe(0)
 
     if (ctx?.nextConfigImages?.qualities) {
       const q = ctx.nextConfigImages.qualities[0]

@@ -1172,7 +1172,6 @@ function runTests({ dev }) {
           '/_next/static/development/_devPagesManifest.json',
           undefined,
           {
-            // @ts-expect-error -- node-fetch doesn't have this as a top-level but whatwg fetch does.
             credentials: 'same-origin',
           }
         )

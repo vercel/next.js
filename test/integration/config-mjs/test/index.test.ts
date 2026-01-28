@@ -3,7 +3,6 @@
 import cheerio from 'cheerio'
 import { findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import fetch from 'node-fetch'
 import { join } from 'path'
 
 const context = { output: '', appPort: -1, server: undefined }

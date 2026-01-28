@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
-import { Readable } from 'stream'
 
 import {
   withRequestMeta,
@@ -13,10 +12,6 @@ const basePath = process.env.BASE_PATH ?? ''
 describe('app-custom-routes', () => {
   const { next, isNextDeploy, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      // pin with repo's version of node-fetch
-      '@types/node-fetch': '2.6.1',
-    },
   })
 
   describe('works with api prefix correctly', () => {
@@ -237,11 +232,12 @@ describe('app-custom-routes', () => {
       it('can handle handle a streaming request and streaming response', async () => {
         const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
         let index = 0
-        const stream = new Readable({
-          read() {
-            if (index >= body.length) return this.push(null)
+        const stream = new ReadableStream({
+          pull(controller) {
+            if (index >= body.length) return controller.close()
 
-            this.push(body[index] + '\n')
+            controller.enqueue(new TextEncoder().encode(body[index] + '\n'))
+
             index++
           },
         })
@@ -249,6 +245,8 @@ describe('app-custom-routes', () => {
         const res = await next.fetch(basePath + '/advanced/body/streaming', {
           method: 'POST',
           body: stream,
+          // @ts-expect-error - types don't include this experimental option yet
+          duplex: 'half',
         })
 
         expect(res.status).toEqual(200)
@@ -259,11 +257,11 @@ describe('app-custom-routes', () => {
     it('can handle handle a streaming request and streaming response (edge)', async () => {
       const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
       let index = 0
-      const stream = new Readable({
-        read() {
-          if (index >= body.length) return this.push(null)
+      const stream = new ReadableStream({
+        pull(controller) {
+          if (index >= body.length) return controller.close()
 
-          this.push(body[index] + '\n')
+          controller.enqueue(new TextEncoder().encode(body[index] + '\n'))
           index++
         },
       })
@@ -329,17 +327,19 @@ describe('app-custom-routes', () => {
         const body = { ping: 'pong' }
         const encoded = JSON.stringify(body)
         let index = 0
-        const stream = new Readable({
-          async read() {
-            if (index >= encoded.length) return this.push(null)
+        const stream = new ReadableStream({
+          pull(controller) {
+            if (index >= encoded.length) return controller.close()
 
-            this.push(encoded[index])
+            controller.enqueue(new TextEncoder().encode(encoded[index]))
             index++
           },
         })
         const res = await next.fetch(basePath + '/advanced/body/json', {
           method: 'POST',
           body: stream,
+          // @ts-expect-error - types don't include this experimental option yet
+          duplex: 'half',
         })
 
         expect(res.status).toEqual(200)
@@ -352,17 +352,19 @@ describe('app-custom-routes', () => {
       const body = { ping: 'pong' }
       const encoded = JSON.stringify(body)
       let index = 0
-      const stream = new Readable({
-        async read() {
-          if (index >= encoded.length) return this.push(null)
+      const stream = new ReadableStream({
+        pull(controller) {
+          if (index >= encoded.length) return controller.close()
 
-          this.push(encoded[index])
+          controller.enqueue(new TextEncoder().encode(encoded[index]))
           index++
         },
       })
       const res = await next.fetch(basePath + '/edge/advanced/body/json', {
         method: 'POST',
         body: stream,
+        // @ts-expect-error - types don't include this experimental option yet
+        duplex: 'half',
       })
 
       expect(res.status).toEqual(200)

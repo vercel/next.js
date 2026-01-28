@@ -709,9 +709,8 @@ describe('Middleware Rewrite', () => {
   function testsWithLocale(locale = '') {
     const label = locale ? `${locale} ` : ``
 
-    function getCookieFromResponse(res, cookieName) {
-      // node-fetch bundles the cookies as string in the Response
-      const cookieArray = res.headers.raw()['set-cookie']
+    function getCookieFromResponse(res: Response, cookieName: string) {
+      const cookieArray = res.headers.getSetCookie()
       for (const cookie of cookieArray) {
         let individualCookieParams = cookie.split(';', 1)
         let individualCookie = individualCookieParams[0].split('=', 2)
@@ -726,8 +725,7 @@ describe('Middleware Rewrite', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/rewrite-to-ab-test`)
       const html = await res.text()
       const $ = cheerio.load(html)
-      // Set-Cookie header with Expires should not be split into two
-      expect(res.headers.raw()['set-cookie']).toHaveLength(1)
+      expect(res.headers.getSetCookie()).toHaveLength(1)
       const bucket = getCookieFromResponse(res, 'bucket')
       const expectedText = bucket === 'a' ? 'Welcome Page A' : 'Welcome Page B'
       const browser = await webdriver(next.url, `${locale}/rewrite-to-ab-test`)

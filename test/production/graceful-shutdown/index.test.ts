@@ -234,7 +234,7 @@ function runTests(dev = false) {
 }
 
 async function waitForAppToStartRefusingConnections(
-  sendRequest: () => Promise<import('node-fetch').Response>,
+  sendRequest: () => Promise<Response>,
   maxDuration: number
 ) {
   // shutdown is async and can take a moment, so this is retried

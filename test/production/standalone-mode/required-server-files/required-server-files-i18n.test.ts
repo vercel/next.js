@@ -15,7 +15,6 @@ import {
   waitFor,
   withInvocationId,
 } from 'next-test-utils'
-import nodeFetch from 'node-fetch'
 import { ChildProcess } from 'child_process'
 
 describe('required server files i18n', () => {
@@ -29,7 +28,7 @@ describe('required server files i18n', () => {
     let wasmPkgIsAvailable = false
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
-    const res = await nodeFetch(
+    const res = await fetch(
       `https://registry.npmjs.com/@next/swc-wasm-nodejs/-/swc-wasm-nodejs-${
         require('next/package.json').version
       }.tgz`,

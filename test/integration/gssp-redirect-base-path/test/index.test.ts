@@ -21,36 +21,34 @@ const basePath = '/docs'
 
 const runTests = (isDev: boolean) => {
   it('should apply temporary redirect when visited directly for GSSP page', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      `${basePath}/gssp-blog/redirect-1`,
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
+    const requestPathname = `${basePath}/gssp-blog/redirect-1`
+    const res = await fetchViaHTTP(appPort, requestPathname, undefined, {
+      redirect: 'manual',
+    })
     expect(res.status).toBe(307)
 
-    const { pathname } = new URL(res.headers.get('location'))
+    const { pathname } = new URL(
+      res.headers.get('location'),
+      `http://localhost:${appPort}${requestPathname}`
+    )
 
     expect(pathname).toBe(`${basePath}/404`)
   })
 
   it('should apply temporary redirect when visited directly basePath false for GSSP page', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      `${basePath}/gssp-blog/redirect-1-no-basepath-`,
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
+    const requestPathname = `${basePath}/gssp-blog/redirect-1-no-basepath-`
+    const res = await fetchViaHTTP(appPort, requestPathname, undefined, {
+      redirect: 'manual',
+    })
     expect(res.status).toBe(307)
 
     const text = await res.text()
     expect(text).toEqual(`/404`)
 
-    const parsedUrl = new URL(res.headers.get('location'))
+    const parsedUrl = new URL(
+      res.headers.get('location'),
+      `http://localhost:${appPort}${requestPathname}`
+    )
     expect(parsedUrl.pathname).toBe(`/404`)
 
     const browser = await webdriver(appPort, `${basePath}`)
@@ -78,9 +76,7 @@ const runTests = (isDev: boolean) => {
     const text = await res.text()
     expect(text).toEqual(`${basePath}/404`)
 
-    const { pathname } = new URL(res.headers.get('location'))
-
-    expect(pathname).toBe(`${basePath}/404`)
+    expect(res.headers.get('location')).toBe(`${basePath}/404`)
     expect(res.headers.get('refresh')).toContain(`url=${basePath}/404`)
   })
 
@@ -98,9 +94,7 @@ const runTests = (isDev: boolean) => {
     const text = await res.text()
     expect(text).toEqual(`${basePath}/404`)
 
-    const { pathname } = new URL(res.headers.get('location'))
-
-    expect(pathname).toBe(`${basePath}/404`)
+    expect(res.headers.get('location')).toBe(`${basePath}/404`)
     expect(res.headers.get('refresh')).toBe(null)
   })
 
@@ -118,9 +112,7 @@ const runTests = (isDev: boolean) => {
     const text = await res.text()
     expect(text).toEqual(`${basePath}/404`)
 
-    const { pathname } = new URL(res.headers.get('location'))
-
-    expect(pathname).toBe(`${basePath}/404`)
+    expect(res.headers.get('location')).toBe(`${basePath}/404`)
     expect(res.headers.get('refresh')).toBe(null)
   })
 

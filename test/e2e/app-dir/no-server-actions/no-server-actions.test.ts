@@ -33,7 +33,6 @@ describe('app-dir - no server actions', () => {
       headers: {
         'Content-Type': 'multipart/form-data; boundary=test',
       },
-      // @ts-expect-error: node-fetch types don't seem to like FormData
       body: formData,
     })
 

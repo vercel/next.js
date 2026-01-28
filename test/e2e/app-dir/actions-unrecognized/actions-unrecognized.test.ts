@@ -63,7 +63,6 @@ describe('unrecognized server actions', () => {
             'next-action': '123',
             ...(contentType ? { 'content-type': contentType } : undefined),
           },
-          // @ts-expect-error: node-fetch types don't seem to like FormData
           body,
         })
 

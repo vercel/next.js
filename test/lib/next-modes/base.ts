@@ -875,10 +875,7 @@ export class NextInstance {
    * @param opts the optional options to pass to the underlying fetch
    * @returns the fetch response
    */
-  public async fetch(
-    pathname: string,
-    opts?: import('node-fetch').RequestInit
-  ) {
+  public async fetch(pathname: string, opts?: RequestInit) {
     try {
       this.throwIfUnavailable()
     } catch (error) {

@@ -1,4 +1,5 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { Dirent } from 'fs'
 import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
@@ -86,7 +87,7 @@ async function findRootLayouts({
   )
 
   async function visit(directory: string): Promise<string[]> {
-    let dir: Awaited<ReturnType<(typeof fs)['readdir']>>
+    let dir: Dirent[]
     try {
       dir = await fs.readdir(directory, { withFileTypes: true })
     } catch (err) {

@@ -78,10 +78,9 @@ const runTests = (mode = 'dev', didReload = false) => {
     const res = await fetchViaHTTP(appPort, '/hello', undefined, {
       redirect: 'manual',
     })
-    const { pathname } = new URL(res.headers.get('location'))
 
     expect(res.status).toBe(307)
-    expect(pathname).toBe('/another')
+    expect(res.headers.get('location')).toBe('/another')
   })
 
   it('should inline global values during build', async () => {

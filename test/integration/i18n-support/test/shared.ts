@@ -1901,7 +1901,10 @@ export function runTests(ctx) {
       })
       expect(res.status).toBe(308)
 
-      const parsed = new URL(res.headers.get('location'))
+      const parsed = new URL(
+        res.headers.get('location'),
+        `http://localhost:${ctx.appPort}${testPath}`
+      )
       expect(parsed.pathname).toBe(path)
 
       if (hostname === 'localhost') {
@@ -2797,9 +2800,10 @@ export function runTests(ctx) {
       it.each(domainItems.reduce((prev, cur) => [...prev, ...cur.locales], []))(
         'should handle locale %s',
         async (locale) => {
+          const requestPathname = `${ctx.basePath || '/'}`
           const res = await fetchViaHTTP(
             ctx.appPort,
-            `${ctx.basePath || '/'}`,
+            requestPathname,
             undefined,
             {
               headers: {
@@ -2826,7 +2830,10 @@ export function runTests(ctx) {
           }
 
           if (shouldRedirect) {
-            const parsedUrl = new URL(res.headers.get('location'))
+            const parsedUrl = new URL(
+              res.headers.get('location'),
+              `http://localhost:${ctx.appPort}${requestPathname}`
+            )
 
             const expectedPathname = `/${
               expectedDomainItem.defaultLocale === locale ? '' : locale
@@ -3272,20 +3279,19 @@ export function runTests(ctx) {
   })
 
   it('should redirect to locale prefixed route for /', async () => {
-    const res = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath || '/'}`,
-      undefined,
-      {
-        redirect: 'manual',
-        headers: {
-          'Accept-Language': 'nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7',
-        },
-      }
-    )
+    const requestPathname = `${ctx.basePath || '/'}`
+    const res = await fetchViaHTTP(ctx.appPort, requestPathname, undefined, {
+      redirect: 'manual',
+      headers: {
+        'Accept-Language': 'nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
+    })
     expect(res.status).toBe(307)
 
-    const parsedUrl = new URL(res.headers.get('location'))
+    const parsedUrl = new URL(
+      res.headers.get('location'),
+      `http://localhost:${ctx.appPort}${requestPathname}`
+    )
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/nl-NL`)
     expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
 
@@ -3302,7 +3308,10 @@ export function runTests(ctx) {
     )
     expect(res2.status).toBe(307)
 
-    const parsedUrl2 = new URL(res2.headers.get('location'))
+    const parsedUrl2 = new URL(
+      res2.headers.get('location'),
+      `http://localhost:${ctx.appPort}/`
+    )
     expect(parsedUrl2.pathname).toBe(`${ctx.basePath}/en`)
     expect(Object.fromEntries(parsedUrl2.searchParams.entries())).toEqual({
       hello: 'world',

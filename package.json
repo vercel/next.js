@@ -160,8 +160,7 @@
     "@types/html-validator": "5.0.3",
     "@types/http-proxy": "1.17.3",
     "@types/jest": "29.5.5",
-    "@types/node": "20.17.6",
-    "@types/node-fetch": "2.6.1",
+    "@types/node": "20.19.29",
     "@types/react": "19.2.10",
     "@types/react-dom": "19.2.3",
     "@types/relay-runtime": "14.1.13",
@@ -239,7 +238,6 @@
     "moment": "^2.24.0",
     "nanoid": "3.1.30",
     "next": "workspace:*",
-    "node-fetch": "2.6.7",
     "node-plop": "0.31.1",
     "npm-run-all": "4.1.5",
     "nprogress": "0.2.0",
@@ -314,7 +312,7 @@
       "webpack": "5.98.0",
       "browserslist": "4.28.0",
       "caniuse-lite": "1.0.30001746",
-      "@types/node": "20.17.6",
+      "@types/node": "20.19.29",
       "@babel/core": "7.26.10",
       "@babel/parser": "7.27.0",
       "@babel/types": "7.27.0",
@@ -338,8 +336,9 @@
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch",
       "stacktrace-parser@0.1.10": "patches/stacktrace-parser@0.1.10.patch",
-      "@types/node@20.17.6": "patches/@types__node@20.17.6.patch",
-      "taskr@1.1.0": "patches/taskr@1.1.0.patch"
+      "taskr@1.1.0": "patches/taskr@1.1.0.patch",
+      "@types/node@20.19.29": "patches/@types__node@20.19.29.patch",
+      "webpack@5.98.0": "patches/webpack@5.98.0.patch"
     }
   }
 }
