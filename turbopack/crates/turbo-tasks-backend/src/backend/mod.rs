@@ -1020,6 +1020,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             followers_count: usize,
             collectibles_dependents_count: usize,
             aggregated_dirty_containers_count: usize,
+            output_size: usize,
         }
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
@@ -1052,6 +1053,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 self.followers_count += counts.followers;
                 self.collectibles_dependents_count += counts.collectibles_dependents;
                 self.aggregated_dirty_containers_count += counts.aggregated_dirty_containers;
+                if let Some(output) = storage.get_output() {
+                    use turbo_bincode::turbo_bincode_encode;
+
+                    self.output_size += turbo_bincode_encode(&output)
+                        .map(|data| data.len())
+                        .unwrap_or(0);
+                }
             }
         }
         #[cfg(feature = "print_cache_item_size")]

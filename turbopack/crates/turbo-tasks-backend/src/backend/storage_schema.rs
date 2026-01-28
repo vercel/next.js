@@ -80,7 +80,7 @@ struct TaskStorageSchema {
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
     #[field(storage = "direct", category = "meta", inline, filter_transient)]
-    output: Option<OutputValue>,
+    pub output: Option<OutputValue>,
 
     /// Upper nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", inline, filter_transient)]
