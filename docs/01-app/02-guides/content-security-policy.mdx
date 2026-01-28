@@ -44,9 +44,10 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const isDev = process.env.NODE_ENV === 'development'
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self' 'nonce-${nonce}';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -88,9 +89,10 @@ import { NextResponse } from 'next/server'
 
 export function proxy(request) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const isDev = process.env.NODE_ENV === 'development'
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self' 'nonce-${nonce}';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -483,9 +485,11 @@ When SRI is enabled, you can continue using your existing CSP policies. SRI work
 > **Good to know**: For dynamic rendering scenarios, you can still generate nonces with proxy if needed, combining both SRI integrity attributes and nonce-based CSP approaches.
 
 ```js filename="next.config.js"
+const isDev = process.env.NODE_ENV === 'development'
+
 const cspHeader = `
     default-src 'self';
-    script-src 'self';
+    script-src 'self'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self';
     img-src 'self' blob: data:;
     font-src 'self';
