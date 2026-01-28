@@ -53,6 +53,12 @@ pub enum ConditionQuery {
     Regex(ResolvedVc<EsRegex>),
 }
 
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum ConditionContentType {
+    Glob(RcStr),
+    Regex(ResolvedVc<EsRegex>),
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ConditionItem {
@@ -64,6 +70,7 @@ pub enum ConditionItem {
         path: Option<ConditionPath>,
         content: Option<ResolvedVc<EsRegex>>,
         query: Option<ConditionQuery>,
+        content_type: Option<ConditionContentType>,
     },
 }
 

@@ -119,6 +119,7 @@ export type TurbopackRuleCondition =
       path?: string | RegExp
       content?: RegExp
       query?: string | RegExp
+      contentType?: string | RegExp
     }
 
 export type TurbopackRuleConfigItem = {
