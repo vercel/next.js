@@ -53,9 +53,11 @@ describe('resume-data-cache', () => {
             RSC: '1',
           },
         })
-        const cacheHeader = rscRes.headers.get('x-vercel-cache')
         const rsc = await rscRes.text()
-        expect(cacheHeader).toBe('HIT')
+        if (isNextDeploy) {
+          const cacheHeader = rscRes.headers.get('x-vercel-cache')
+          expect(cacheHeader).toBe('HIT')
+        }
         expect(rsc).toContain(first)
       })
 
@@ -73,9 +75,11 @@ describe('resume-data-cache', () => {
           RSC: '1',
         },
       })
-      const cacheHeader = rscRes.headers.get('x-vercel-cache')
       const rsc = await rscRes.text()
-      expect(cacheHeader).toBe('STALE')
+      if (isNextDeploy) {
+        const cacheHeader = rscRes.headers.get('x-vercel-cache')
+        expect(cacheHeader).toBe('STALE')
+      }
       expect(rsc).toContain(first)
 
       // We then expect after the background revalidation has been completed,
@@ -86,9 +90,11 @@ describe('resume-data-cache', () => {
             RSC: '1',
           },
         })
-        const cacheHeader = rscRes.headers.get('x-vercel-cache')
         const rsc = await rscRes.text()
-        expect(cacheHeader).toBe('HIT')
+        if (isNextDeploy) {
+          const cacheHeader = rscRes.headers.get('x-vercel-cache')
+          expect(cacheHeader).toBe('HIT')
+        }
         expect(rsc).not.toContain(first)
       })
 
