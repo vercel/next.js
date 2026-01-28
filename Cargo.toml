@@ -158,6 +158,9 @@ opt-level = 3
 [profile.release.package.turbopack-trace-server]
 opt-level = 3
 
+[profile.release.package.swc_ecma_transforms_module]
+opt-level = "s"
+
 [profile.release.package.swc_ecma_transforms_typescript]
 opt-level = 3
 
