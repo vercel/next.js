@@ -250,6 +250,17 @@ When running Next.js integration tests, you must rebuild if source files have ch
 - **Edited Turbopack (Rust)?** → `pnpm swc-build-native`
 - **Edited both?** → `pnpm turbo build build-native`
 
+**Stale build warning:** When running tests, if you see a warning like:
+
+```
+⚠️  WARNING: Build is stale!
+   Build was compiled at commit: <old-commit>
+   Current HEAD is at commit:    <current-commit>
+   Run `pnpm build` to rebuild.
+```
+
+You MUST run `pnpm build` before continuing with tests. This warning means the compiled Next.js package is out of sync with the source code, and test results will be unreliable.
+
 ## Development Anti-Patterns
 
 ### Test Gotchas
