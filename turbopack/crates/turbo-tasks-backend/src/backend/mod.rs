@@ -1238,37 +1238,39 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     print_markdown_table(
                         [
                             "Task",
-                            "Total Size",
-                            "Data Size",
-                            "Data Count x Avg",
-                            "Meta Size",
-                            "Meta Count x Avg",
-                            "Uppers",
-                            "Coll",
-                            "Agg Coll",
-                            "Children",
-                            "Followers",
-                            "Coll Deps",
-                            "Agg Dirty",
-                            "Output Size",
+                            " Total Size",
+                            " Data Size",
+                            " Data Count x Avg",
+                            " Data Count x Avg",
+                            " Meta Size",
+                            " Meta Count x Avg",
+                            " Meta Count x Avg",
+                            " Uppers",
+                            " Coll",
+                            " Agg Coll",
+                            " Children",
+                            " Followers",
+                            " Coll Deps",
+                            " Agg Dirty",
+                            " Output Size",
                         ],
                         task_cache_stats.iter(),
                         |(task_desc, stats)| {
                             [
                                 task_desc.to_string(),
                                 format!(
-                                    "{} ({})",
+                                    " {} ({})",
                                     FormatBytes(stats.data_compressed + stats.meta_compressed),
                                     FormatBytes(stats.data + stats.meta)
                                 ),
                                 format!(
-                                    "{} ({})",
+                                    " {} ({})",
                                     FormatBytes(stats.data_compressed),
                                     FormatBytes(stats.data)
                                 ),
+                                format!(" {} x", stats.data_count,),
                                 format!(
-                                    "{} x {} ({})",
-                                    stats.data_count,
+                                    "{} ({})",
                                     FormatBytes(
                                         stats
                                             .data_compressed
@@ -1280,13 +1282,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     ),
                                 ),
                                 format!(
-                                    "{} ({})",
+                                    " {} ({})",
                                     FormatBytes(stats.meta_compressed),
                                     FormatBytes(stats.meta)
                                 ),
+                                format!(" {} x", stats.meta_count,),
                                 format!(
-                                    "{} x {} ({})",
-                                    stats.meta_count,
+                                    "{} ({})",
                                     FormatBytes(
                                         stats
                                             .meta_compressed
@@ -1297,14 +1299,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         stats.meta.checked_div(stats.meta_count).unwrap_or(0)
                                     ),
                                 ),
-                                stats.upper_count.to_string(),
-                                stats.collectibles_count.to_string(),
-                                stats.aggregated_collectibles_count.to_string(),
-                                stats.children_count.to_string(),
-                                stats.followers_count.to_string(),
-                                stats.collectibles_dependents_count.to_string(),
-                                stats.aggregated_dirty_containers_count.to_string(),
-                                FormatBytes(stats.output_size).to_string(),
+                                format!(" {}", stats.upper_count),
+                                format!(" {}", stats.collectibles_count),
+                                format!(" {}", stats.aggregated_collectibles_count),
+                                format!(" {}", stats.children_count),
+                                format!(" {}", stats.followers_count),
+                                format!(" {}", stats.collectibles_dependents_count),
+                                format!(" {}", stats.aggregated_dirty_containers_count),
+                                format!(" {}", FormatBytes(stats.output_size)),
                             ]
                         },
                     );
