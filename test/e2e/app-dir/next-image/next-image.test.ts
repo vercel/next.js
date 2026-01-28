@@ -27,7 +27,7 @@ describe('app dir - next-image', () => {
 
       const contentLength = headRes.headers.get('content-length')
       expect(Number(contentLength || '0')).toBeGreaterThan(0)
-      const headBody = await getRes.arrayBuffer()
+      const headBody = await headRes.arrayBuffer()
       expect(headBody.byteLength).toBe(0)
 
       const getRes = await next.fetch(imageUrl)
