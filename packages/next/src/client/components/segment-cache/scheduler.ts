@@ -35,7 +35,10 @@ import {
   type PrefetchTaskFetchStrategy,
   PrefetchPriority,
 } from './types'
-import { getCurrentCacheVersion } from './cache'
+import {
+  getCurrentRouteCacheVersion,
+  getCurrentSegmentCacheVersion,
+} from './cache'
 import {
   addSearchParamsIfPageSegment,
   PAGE_SEGMENT_KEY,
@@ -65,10 +68,13 @@ export type PrefetchTask = {
   treeAtTimeOfPrefetch: FlightRouterState
 
   /**
-   * The cache version at the time the task was initiated. This is used to
-   * determine if the cache was invalidated since the task was initiated.
+   * The cache versions at the time the task was initiated. Used to determine
+   * if the cache was invalidated since the task was initiated. Route and
+   * segment caches have separate versions so they can be invalidated
+   * independently.
    */
-  cacheVersion: number
+  routeCacheVersion: number
+  segmentCacheVersion: number
 
   /**
    * Whether to prefetch dynamic data, in addition to static data. This is
@@ -249,7 +255,8 @@ export function schedulePrefetchTask(
   const task: PrefetchTask = {
     key,
     treeAtTimeOfPrefetch,
-    cacheVersion: getCurrentCacheVersion(),
+    routeCacheVersion: getCurrentRouteCacheVersion(),
+    segmentCacheVersion: getCurrentSegmentCacheVersion(),
     priority,
     phase: PrefetchPhase.RouteTree,
     hasBackgroundWork: false,
@@ -336,9 +343,9 @@ export function isPrefetchTaskDirty(
   // strictly an optimization — theoretically, if it always returned true, no
   // behavior should change because a full prefetch task will effectively
   // perform the same checks.
-  const currentCacheVersion = getCurrentCacheVersion()
   return (
-    task.cacheVersion !== currentCacheVersion ||
+    task.routeCacheVersion !== getCurrentRouteCacheVersion() ||
+    task.segmentCacheVersion !== getCurrentSegmentCacheVersion() ||
     task.treeAtTimeOfPrefetch !== tree ||
     task.key.nextUrl !== nextUrl
   )
@@ -477,7 +484,8 @@ function processQueueInMicrotask() {
   // Process the task queue until we run out of network bandwidth.
   let task = heapPeek(taskHeap)
   while (task !== null && hasNetworkBandwidth(task)) {
-    task.cacheVersion = getCurrentCacheVersion()
+    task.routeCacheVersion = getCurrentRouteCacheVersion()
+    task.segmentCacheVersion = getCurrentSegmentCacheVersion()
 
     const exitStatus = pingRoute(now, task)
 

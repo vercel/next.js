@@ -29,7 +29,6 @@ import {
   isPrefetchTaskDirty,
   type PrefetchTask,
   type PrefetchSubtaskResult,
-  startRevalidationCooldown,
 } from './scheduler'
 import {
   type RouteVaryPath,
@@ -298,40 +297,69 @@ let segmentCacheMap: CacheMap<SegmentCacheEntry> = createCacheMap()
 // prefetch task if desired.
 let invalidationListeners: Set<PrefetchTask> | null = null
 
-// Incrementing counter used to track cache invalidations.
-let currentCacheVersion = 0
+// Incrementing counters used to track cache invalidations. Route and segment
+// caches have separate versions so they can be invalidated independently.
+// Invalidation does not eagerly evict anything from the cache; entries are
+// lazily evicted when read.
+let currentRouteCacheVersion = 0
+let currentSegmentCacheVersion = 0
 
-export function getCurrentCacheVersion(): number {
-  return currentCacheVersion
+export function getCurrentRouteCacheVersion(): number {
+  return currentRouteCacheVersion
+}
+
+export function getCurrentSegmentCacheVersion(): number {
+  return currentSegmentCacheVersion
 }
 
 /**
- * Used to clear the client prefetch cache when a server action calls
- * revalidatePath or revalidateTag. Eventually we will support only clearing the
- * segments that were actually affected, but there's more work to be done on the
- * server before the client is able to do this correctly.
+ * Invalidates all prefetch cache entries (both route and segment caches).
+ *
+ * After invalidation, triggers re-prefetching of visible links and notifies
+ * invalidation listeners.
  */
-export function revalidateEntireCache(
+export function invalidateEntirePrefetchCache(
   nextUrl: string | null,
   tree: FlightRouterState
-) {
-  // Increment the current cache version. This does not eagerly evict anything
-  // from the cache, but because all the entries are versioned, and we check
-  // the version when reading from the cache, this effectively causes all
-  // entries to be evicted lazily. We do it lazily because in the future,
-  // actions like revalidateTag or refresh will not evict the entire cache,
-  // but rather some subset of the entries.
-  currentCacheVersion++
+): void {
+  currentRouteCacheVersion++
+  currentSegmentCacheVersion++
 
-  // Start a cooldown before re-prefetching to allow CDN cache propagation.
-  startRevalidationCooldown()
-
-  // Prefetch all the currently visible links again, to re-fill the cache.
   pingVisibleLinks(nextUrl, tree)
+  pingInvalidationListeners(nextUrl, tree)
+}
 
-  // Similarly, notify all invalidation listeners (i.e. those passed to
-  // `router.prefetch(onInvalidate)`), so they can trigger a new prefetch
-  // if needed.
+/**
+ * Invalidates all route cache entries. Route entries contain the tree structure
+ * (which segments exist at a given URL) but not the segment data itself.
+ *
+ * After invalidation, triggers re-prefetching of visible links and notifies
+ * invalidation listeners.
+ */
+export function invalidateRouteCacheEntries(
+  nextUrl: string | null,
+  tree: FlightRouterState
+): void {
+  currentRouteCacheVersion++
+
+  pingVisibleLinks(nextUrl, tree)
+  pingInvalidationListeners(nextUrl, tree)
+}
+
+/**
+ * Invalidates all segment cache entries. Segment entries contain the actual
+ * RSC data for each segment.
+ *
+ * After invalidation, triggers re-prefetching of visible links and notifies
+ * invalidation listeners.
+ */
+export function invalidateSegmentCacheEntries(
+  nextUrl: string | null,
+  tree: FlightRouterState
+): void {
+  currentSegmentCacheVersion++
+
+  pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
 }
 
@@ -401,7 +429,7 @@ export function readRouteCacheEntry(
   const isRevalidation = false
   return getFromCacheMap(
     now,
-    getCurrentCacheVersion(),
+    getCurrentRouteCacheVersion(),
     routeCacheMap,
     varyPath,
     isRevalidation
@@ -415,7 +443,7 @@ export function readSegmentCacheEntry(
   const isRevalidation = false
   return getFromCacheMap(
     now,
-    getCurrentCacheVersion(),
+    getCurrentSegmentCacheVersion(),
     segmentCacheMap,
     varyPath,
     isRevalidation
@@ -429,7 +457,7 @@ function readRevalidatingSegmentCacheEntry(
   const isRevalidation = true
   return getFromCacheMap(
     now,
-    getCurrentCacheVersion(),
+    getCurrentSegmentCacheVersion(),
     segmentCacheMap,
     varyPath,
     isRevalidation
@@ -487,7 +515,7 @@ export function readOrCreateRouteCacheEntry(
     // Since this is an empty entry, there's no reason to ever evict it. It will
     // be updated when the data is populated.
     staleAt: Infinity,
-    version: getCurrentCacheVersion(),
+    version: getCurrentRouteCacheVersion(),
   }
   const varyPath: RouteVaryPath = getRouteVaryPath(
     key.pathname,
@@ -785,7 +813,7 @@ export function upsertSegmentEntry(
   // since the request was made. We can do that by passing the "owner" entry to
   // this function and confirming it's the same as `existingEntry`.
 
-  if (isValueExpired(now, getCurrentCacheVersion(), candidateEntry)) {
+  if (isValueExpired(now, getCurrentSegmentCacheVersion(), candidateEntry)) {
     // The entry is expired. We cannot upsert it.
     return null
   }
@@ -867,11 +895,11 @@ export function upgradeToPendingSegment(
   }
 
   // Set the version here, since this is right before the request is initiated.
-  // The next time the global cache version is incremented, the entry will
+  // The next time the segment cache version is incremented, the entry will
   // effectively be evicted. This happens before initiating the request, rather
   // than when receiving the response, because it's guaranteed to happen
   // before the data is read on the server.
-  pendingEntry.version = getCurrentCacheVersion()
+  pendingEntry.version = getCurrentSegmentCacheVersion()
   return pendingEntry
 }
 
@@ -933,10 +961,10 @@ function pingBlockedTasks(entry: {
 }
 
 function fulfillRouteCacheEntry(
+  now: number,
   entry: RouteCacheEntry,
   tree: RouteTree,
   metadataVaryPath: PageVaryPath,
-  staleAt: number,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   renderedSearch: NormalizedSearch,
@@ -964,7 +992,11 @@ function fulfillRouteCacheEntry(
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.tree = tree
   fulfilledEntry.metadata = metadata
-  fulfilledEntry.staleAt = staleAt
+  // Route structure is essentially static — it only changes on deploy.
+  // Always use the static stale time.
+  // NOTE: An exception is rewrites/redirects in middleware or proxy, which can
+  // change routes dynamically. We have other strategies for handling those.
+  fulfilledEntry.staleAt = now + STATIC_STALETIME_MS
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
@@ -1590,12 +1622,11 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
-      const staleTimeMs = getStaleTimeMs(serverData.staleTime)
       fulfillRouteCacheEntry(
+        Date.now(),
         entry,
         routeTree,
         metadataVaryPath,
-        Date.now() + staleTimeMs,
         couldBeIntercepted,
         canonicalUrl,
         renderedSearch,
@@ -1959,16 +1990,6 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const flightRouterState = flightData.tree
-  // For runtime prefetches, stale time is in the payload at rp[1].
-  // For other responses, fall back to the header.
-  const staleTimeSeconds =
-    typeof serverData.rp?.[1] === 'number'
-      ? serverData.rp[1]
-      : parseInt(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '', 10)
-  const staleTimeMs = !isNaN(staleTimeSeconds)
-    ? getStaleTimeMs(staleTimeSeconds)
-    : STATIC_STALETIME_MS
-
   // If the response contains dynamic holes, then we must conservatively assume
   // that any individual segment might contain dynamic holes, and also the
   // head. If it did not contain dynamic holes, then we can assume every segment
@@ -1994,10 +2015,10 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const fulfilledEntry = fulfillRouteCacheEntry(
+    now,
     entry,
     routeTree,
     metadataVaryPath,
-    now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
     renderedSearch,
