@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{BTreeSet, HashSet, VecDeque};
 
 use anyhow::{Result, bail};
 use serde_json::json;
@@ -503,7 +503,9 @@ pub async fn error_unexpected_file(
     let reversed = map.reversed();
 
     let mut path = vec![];
+    // Find any path from the referenced chunk back to one of the roots
     {
+        let mut visited = HashSet::new();
         let mut current = (
             referenced_chunk,
             if emit_spans {
@@ -516,6 +518,9 @@ pub async fn error_unexpected_file(
         );
         while let Some((from, _)) = reversed.get(&current).and_then(|mut edges| edges.next()) {
             current = from.clone();
+            if !visited.insert(current.0) {
+                break;
+            }
             path.push(current.0);
         }
     }
