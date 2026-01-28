@@ -1,7 +1,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
@@ -30,9 +30,7 @@ fn emit_incorrect_task_input_operation(value: IncorrectTaskInput) {
 }
 
 /// Has an intentionally incorrect `TaskInput` implementation
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode, NonLocalValue)]
 struct IncorrectTaskInput(ResolvedVc<U32Wrapper>);
 
 impl TaskInput for IncorrectTaskInput {

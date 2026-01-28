@@ -1,6 +1,6 @@
 ---
 title: 'use cache: remote'
-description: 'Learn how to use the `"use cache: remote"` directive to enable caching in dynamic contexts in your Next.js application.'
+description: 'Learn how to use the "use cache: remote" directive for persistent, shared caching using remote cache handlers.'
 related:
   title: Related
   description: View related API references.
@@ -14,12 +14,15 @@ related:
     - app/api-reference/functions/connection
 ---
 
-The `'use cache: remote'` directive enables caching of **shared data** in dynamic contexts where regular [`use cache`](/docs/app/api-reference/directives/use-cache) would not work, for example after calling [`await connection()`](/docs/app/api-reference/functions/connection), [`await cookies()`](/docs/app/api-reference/functions/cookies) or [`await headers()`](/docs/app/api-reference/functions/headers).
+While the `use cache` directive is sufficient for most application needs, you might occasionally notice that cached operations are re-running more often than expected, or that your upstream services (CMS, databases, external APIs) are getting more hits than you'd expect. This can happen because in-memory caching has inherent limitations:
 
-> **Good to know:**
->
-> - Results are stored in server-side cache handlers and shared across all users.
-> - For **user-specific data** that depends on [`await cookies()`](/docs/app/api-reference/functions/cookies) or [`await headers()`](/docs/app/api-reference/functions/headers), use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead.
+- Cache entries being evicted to make room for new ones
+- Memory constraints in your deployment environment
+- Cache not persisting across requests or server restarts
+
+Note that `use cache` still provides value beyond server-side caching: it informs Next.js what can be prefetched and defines stale times for client-side navigation.
+
+The `'use cache: remote'` directive lets you declaratively specify that a cached output should be stored in a **remote cache** instead of in-memory. While this gives you more durable caching for specific operations, it comes with tradeoffs: infrastructure cost and network latency during cache lookups.
 
 ## Usage
 
@@ -44,222 +47,144 @@ const nextConfig = {
 export default nextConfig
 ```
 
-Then add `'use cache: remote'` to your function that needs to cache data in a dynamic context.
+Then add `'use cache: remote'` to the functions or components where you've determined remote caching is justified. The handler implementation is configured via [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers), though hosting providers should typically provide this automatically. If you're self-hosting, see the `cacheHandlers` configuration reference to set up your cache storage.
 
-### Basic example
+### When to avoid remote caching
 
-Cache product pricing that needs to be fetched at request time but can be shared across all users. Use [`cacheLife`](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles) to set the cache lifetime of the price.
+- If you already have a server-side cache key-value store wrapping your data layer, `use cache` may be sufficient to include data in the static shell without adding another caching layer
+- If operations are already fast (< 50ms) due to proximity or local access, the remote cache lookup might not improve performance
+- If cache keys have mostly unique values per request (search filters, price ranges, user-specific parameters), cache utilization will be near-zero
+- If data changes frequently (seconds to minutes), cache hits will quickly go stale, leading to frequent misses and waiting for upstream revalidation
 
-```tsx filename="app/product/[id]/page.tsx" switcher
-import { Suspense } from 'react'
-import { connection } from 'next/server'
-import { cacheTag, cacheLife } from 'next/cache'
+### When remote caching makes sense
 
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params
+Remote caching provides the most value when content is deferred to request time (outside the static shell). This typically happens when a component accesses request values like [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional), placing it inside a Suspense boundary. In this context:
 
-  return (
-    <div>
-      <ProductDetails id={id} />
-      <Suspense fallback={<div>Loading price...</div>}>
-        <ProductPrice productId={id} />
-      </Suspense>
-    </div>
-  )
-}
+- Each request executes the component and looks up the cache
+- In serverless environments, each instance has its own ephemeral memory with low cache hit rates
+- Remote caching provides a shared cache across all instances, improving hit rates and reducing backend load
 
-function ProductDetails({ id }: { id: string }) {
-  return <div>Product: {id}</div>
-}
+Compelling scenarios for `'use cache: remote'`:
 
-async function ProductPrice({ productId }: { productId: string }) {
-  // Calling connection() makes this component dynamic, preventing
-  // it from being included in the static shell. This ensures the price
-  // is always fetched at request time.
-  await connection()
+- **Rate-limited APIs**: Your upstream service has rate limits or request quotas that you risk hitting
+- **Protecting slow backends**: Your database or API becomes a bottleneck under high traffic
+- **Expensive operations**: Database queries or computations that are costly to run repeatedly
+- **Flaky or unreliable services**: External services that occasionally fail or have availability issues
 
-  // Now we can cache the price in a remote cache handler.
-  // Regular 'use cache' would NOT work here because we're in a dynamic context.
-  const price = await getProductPrice(productId)
+In these cases, the cost and latency of remote caching is justified by avoiding worse outcomes (rate limit errors, backend overload, high compute bills, or degraded user experience).
 
-  return <div>Price: ${price}</div>
-}
+For static shell content, `use cache` is usually sufficient. However, if your static pages share data from an upstream that can't handle concurrent revalidation requests (like a rate-limited CMS), `use cache: remote` acts as a shared cache layer in front of that upstream. This is the same pattern as putting a key-value store in front of a database, but declared in your code rather than configured in infrastructure.
 
-async function getProductPrice(productId: string) {
-  'use cache: remote'
-  cacheTag(`product-price-${productId}`)
-  cacheLife({ expire: 3600 }) // 1 hour
-
-  // This database query is cached and shared across all users
-  return db.products.getPrice(productId)
-}
-```
-
-```jsx filename="app/product/[id]/page.js" switcher
-import { Suspense } from 'react'
-import { connection } from 'next/server'
-import { cacheTag, cacheLife } from 'next/cache'
-
-export default async function ProductPage({ params }) {
-  const { id } = await params
-
-  return (
-    <div>
-      <ProductDetails id={id} />
-      <Suspense fallback={<div>Loading price...</div>}>
-        <ProductPrice productId={id} />
-      </Suspense>
-    </div>
-  )
-}
-
-function ProductDetails({ id }) {
-  return <div>Product: {id}</div>
-}
-
-async function ProductPrice({ productId }) {
-  // Calling connection() makes this component dynamic, preventing
-  // it from being included in the static shell. This ensures the price
-  // is always fetched at request time.
-  await connection()
-
-  // Now we can cache the price in a remote cache handler.
-  // Regular 'use cache' would NOT work here because we're in a dynamic context.
-  const price = await getProductPrice(productId)
-
-  return <div>Price: ${price}</div>
-}
-
-async function getProductPrice(productId) {
-  'use cache: remote'
-  cacheTag(`product-price-${productId}`)
-  cacheLife({ expire: 3600 }) // 1 hour
-
-  // This database query is cached and shared across all users
-  return db.products.getPrice(productId)
-}
-```
-
-> **Note:** Regular [`use cache`](/docs/app/api-reference/directives/use-cache) will not cache anything when used in a dynamic context (after [`await connection()`](/docs/app/api-reference/functions/connection), [`await cookies()`](/docs/app/api-reference/functions/cookies), [`await headers()`](/docs/app/api-reference/functions/headers), etc.). Use `'use cache: remote'` to enable runtime caching in these scenarios.
-
-## How `use cache: remote` differs from `use cache` and `use cache: private`
+### How `use cache: remote` differs from `use cache` and `use cache: private`
 
 Next.js provides three caching directives, each designed for different use cases:
 
-| Feature                          | `use cache`                         | `'use cache: remote'`                                     | `'use cache: private'`              |
-| -------------------------------- | ----------------------------------- | --------------------------------------------------------- | ----------------------------------- |
-| **Works in dynamic context**     | No (requires static context)        | Yes (designed for dynamic contexts)                       | Yes                                 |
-| **Access to `await cookies()`**  | No                                  | No                                                        | Yes                                 |
-| **Access to `await headers()`**  | No                                  | No                                                        | Yes                                 |
-| **After `await connection()`**   | No (won't cache)                    | No                                                        | No                                  |
-| **Stored in cache handler**      | Yes (server-side)                   | Yes (server-side)                                         | No (client-side only)               |
-| **Cache scope**                  | Global (shared)                     | Global (shared)                                           | Per-user (isolated)                 |
-| **Supports runtime prefetching** | N/A (pre-rendered at build)         | No                                                        | Yes (when configured)               |
-| **Use case**                     | Static, shared content (build-time) | Dynamic, shared content in runtime contexts (per-request) | Personalized, user-specific content |
+| Feature                                 | `use cache`                     | `'use cache: remote'`             | `'use cache: private'` |
+| --------------------------------------- | ------------------------------- | --------------------------------- | ---------------------- |
+| **Server-side caching**                 | In-memory or cache handler      | Remote cache handler              | None                   |
+| **Cache scope**                         | Shared across all users         | Shared across all users           | Per-client (browser)   |
+| **Can access cookies/headers directly** | No (must pass as arguments)     | No (must pass as arguments)       | Yes                    |
+| **Server cache utilization**            | May be low outside static shell | High (shared across instances)    | N/A                    |
+| **Additional costs**                    | None                            | Infrastructure (storage, network) | None                   |
+| **Latency impact**                      | None                            | Cache handler lookup              | None                   |
 
-> **Note:** While you can't call `await cookies()` or `await headers()` inside `'use cache: remote'`, you can read the values before calling a function that is wrapped by `'use cache: remote'` and the arguments will be included in the cache key. Note that this is not recommended as it will dramatically increase the cache size and reduce the cache hit rate.
+### Caching with runtime data
 
-### When to use each directive
+Both `use cache` and `'use cache: remote'` directives can't access runtime data like cookies or search params directly, since this data isn't available when computing the cache. However, you can extract values from these APIs and pass them as arguments to cached functions. See [with runtime data](/docs/app/getting-started/cache-components#with-runtime-data) for this pattern.
 
-Choose the right caching directive based on your use case:
+In general, but most importantly for `'use cache: remote'`, be thoughtful about which values you include in cache keys. Each unique value creates a separate cache entry, reducing cache utilization. Consider this example with search filters:
 
-**Use [`use cache`](/docs/app/api-reference/directives/use-cache) when:**
+```tsx filename="app/products/[category]/page.tsx"
+import { Suspense } from 'react'
 
-- Content can be prerendered at build time
-- Content is shared across all users
-- Content doesn't depend on request-specific data
-
-**Use `'use cache: remote'` when:**
-
-- You need caching within dynamic context
-- Content is shared across users but must be rendered per-request (after `await connection()`)
-- You want to cache expensive operations in a server-side cache handler
-
-**Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) when:**
-
-- Content is personalized per-user (depends on cookies, headers)
-- You need [runtime prefetching](/docs/app/guides/prefetching) of user-specific content
-- Content should never be shared between users
-
-## How it works
-
-The `'use cache: remote'` directive enables runtime caching of shared data in dynamic contexts by storing results in server-side cache handlers rather than prerendering at build time.
-
-### Dynamic context detection
-
-When Next.js encounters certain APIs like [`connection()`](/docs/app/api-reference/functions/connection), [`cookies()`](/docs/app/api-reference/functions/cookies), or [`headers()`](/docs/app/api-reference/functions/headers), the context becomes "dynamic". In a dynamic context:
-
-1. **Regular `use cache` stops working** - it won't cache anything
-2. **`'use cache: remote'` continues to work** - it is cached by a remote cache handler.
-3. **Results are stored server-side** in a key-value store configured for your deployment
-4. **Cached data is shared across requests** - reducing database load and origin requests
-
-> **Good to know:** Without `'use cache: remote'`, functions in dynamic contexts would execute on every request, potentially creating performance bottlenecks. Remote caching eliminates this issue by storing results in server-side cache handlers.
-
-### Storage behavior
-
-Remote caches are **persisted using server-side cache handlers**, which may include:
-
-- **Distributed key-value stores** (in-memory or persistent storage solutions)
-- **File system or in-memory storage** (often used in development or for custom deployments)
-- **Environment-specific caches** (provided by your hosting infrastructure)
-- **Custom or configured cache handlers** (depending on your application's setup)
-
-This means:
-
-1. Cached data is shared across all users and requests
-2. Cache entries persist beyond a single session
-3. Cache invalidation works via [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)
-4. Cache expiration is controlled by [`cacheLife`](/docs/app/api-reference/functions/cacheLife) configuration
-
-### Dynamic context example
-
-```tsx
-async function UserDashboard() {
-  // Calling connection() makes the context dynamic
-  await connection()
-
-  // Without any caching directive, this runs on every request
-  const stats = await getStats()
-
-  // With 'use cache: remote', this is cached in the remote handler
-  const analytics = await getAnalytics()
-
+export default async function ProductsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ category: string }>
+  searchParams: Promise<{ minPrice?: string }>
+}) {
   return (
-    <div>
-      <Stats data={stats} />
-      <Analytics data={analytics} />
-    </div>
+    <Suspense fallback={<div>Loading...</div>}>
+      <ProductList params={params} searchParams={searchParams} />
+    </Suspense>
   )
 }
 
-async function getAnalytics() {
-  'use cache: remote'
-  cacheLife({ expire: 300 }) // 5 minutes
+async function ProductList({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ category: string }>
+  searchParams: Promise<{ minPrice?: string }>
+}) {
+  const { category } = await params
 
-  // This expensive operation is cached and shared across all requests
-  return fetchAnalyticsData()
+  const { minPrice } = await searchParams
+
+  // Cache only on category (few unique values)
+  // Don't include price filter (many unique values)
+  const products = await getProductsByCategory(category)
+
+  // Filter price in memory instead of creating cache entries
+  // for every price value
+  const filtered = minPrice
+    ? products.filter((p) => p.price >= parseFloat(minPrice))
+    : products
+
+  return <div>{/* render filtered products */}</div>
+}
+
+async function getProductsByCategory(category: string) {
+  'use cache: remote'
+  // Only category is part of the cache key
+  // Much better utilization than caching every price filter value
+  return db.products.findByCategory(category)
 }
 ```
 
-## Request APIs and remote caches
+In this example, the remote handler stores more data per cache entry (all products in a category) to achieve better cache hit rates. This is worth it when the cost of cache misses (hitting your backend) outweighs the storage cost of larger entries.
 
-While `'use cache: remote'` technically allows access to request-specific data by calling API's like [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) before calling a function that is wrapped by `'use cache: remote'`, it's generally not recommended to use them together:
+The same principle applies to user-specific data. Rather than caching per-user data directly, use user preferences to determine what shared data to cache.
 
-| API                                                                                   | Allowed in `use cache` | Allowed in `'use cache: remote'` | Recommended                                                                                |
-| ------------------------------------------------------------------------------------- | ---------------------- | -------------------------------- | ------------------------------------------------------------------------------------------ |
-| [`cookies()`](/docs/app/api-reference/functions/cookies)                              | No                     | No                               | Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead |
-| [`headers()`](/docs/app/api-reference/functions/headers)                              | No                     | No                               | Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead |
-| [`connection()`](/docs/app/api-reference/functions/connection)                        | No                     | No                               | No - these cannot ever be cached                                                           |
-| [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) | No                     | No                               | Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead |
+For example, if users have a language preference in their session, extract that preference and use it to cache shared content:
 
-> **Important:** If you need to cache based on cookies, headers, or search params, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead. Remote caches are shared across all users, so caching user-specific data in them can lead to incorrect results being served to different users.
+- Instead of remote caching `getUserProfile(sessionID)`, which creates one entry per user
+- Remote cache `getCMSContent(language)` to create one entry per language
 
-## Nesting rules
+```tsx filename="app/components/welcome-message.tsx"
+import { cookies } from 'next/headers'
+import { cacheLife } from 'next/cache'
+
+export async function WelcomeMessage() {
+  // Extract the language preference (not unique per user)
+  const language = (await cookies()).get('language')?.value || 'en'
+
+  // Cache based on language (few unique values: en, es, fr, de, etc.)
+  // All users who prefer 'en' share the same cache entry
+  const content = await getCMSContent(language)
+
+  return <div>{content.welcomeMessage}</div>
+}
+
+async function getCMSContent(language: string) {
+  'use cache: remote'
+  cacheLife({ expire: 3600 })
+  // Creates ~10-50 cache entries (one per language)
+  // instead of thousands (one per user)
+  return cms.getHomeContent(language)
+}
+```
+
+This way all users who prefer the same language share a cache entry, improving cache utilization and reducing load on your CMS.
+
+The pattern is the same in both examples: find the dimension with fewer unique values (category vs. price, language vs. user ID), cache on that dimension, and filter or select the rest in memory.
+
+If the service used by `getUserProfile` cannot scale with your frontend load, you may still be able to use the `use cache` directive with a short `cacheLife` for in-memory caching. However, for most user data, you likely want to fetch directly from the source (which might already be wrapped in a key/value store as mentioned in the guidelines above).
+
+Only use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) if you have compliance requirements or can't refactor to pass runtime data as arguments.
+
+### Nesting rules
 
 Remote caches have specific nesting rules:
 
@@ -284,7 +209,7 @@ async function innerRemote() {
 // VALID: Remote inside regular cache
 async function outerCache() {
   'use cache'
-  // If this is in a dynamic context, the inner remote cache will work
+  // The inner remote cache will work when deferred to request time
   const result = await innerRemote()
   return result
 }
@@ -323,16 +248,135 @@ async function innerPrivate() {
 
 The following examples demonstrate common patterns for using `'use cache: remote'`. For details about `cacheLife` parameters (`stale`, `revalidate`, `expire`), see the [`cacheLife` API reference](/docs/app/api-reference/functions/cacheLife).
 
-### Per-request database queries
+### With user preferences
 
-Cache expensive database queries that are accessed in dynamic contexts, reducing load on your database:
+Cache product pricing based on the user's currency preference. Since the currency is stored in a cookie, this component renders at request time. Remote caching is valuable here because all users with the same currency share the cached price, and in serverless environments, all instances share the same remote cache.
+
+```tsx filename="app/product/[id]/page.tsx" switcher
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { cacheTag, cacheLife } from 'next/cache'
+
+export async function generateStaticParams() {
+  return [{ id: '1' }, { id: '2' }, { id: '3' }]
+}
+
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+
+  return (
+    <div>
+      <ProductDetails id={id} />
+      <Suspense fallback={<div>Loading price...</div>}>
+        <ProductPrice productId={id} />
+      </Suspense>
+    </div>
+  )
+}
+
+function ProductDetails({ id }: { id: string }) {
+  return <div>Product: {id}</div>
+}
+
+async function ProductPrice({ productId }: { productId: string }) {
+  // Reading cookies defers this component to request time
+  const currency = (await cookies()).get('currency')?.value ?? 'USD'
+
+  // Cache the price per product and currency combination
+  // All users with the same currency share this cache entry
+  const price = await getProductPrice(productId, currency)
+
+  return (
+    <div>
+      Price: {price} {currency}
+    </div>
+  )
+}
+
+async function getProductPrice(productId: string, currency: string) {
+  'use cache: remote'
+  cacheTag(`product-price-${productId}`)
+  cacheLife({ expire: 3600 }) // 1 hour
+
+  // Cached per (productId, currency) - few currencies means high cache utilization
+  return db.products.getPrice(productId, currency)
+}
+```
+
+```jsx filename="app/product/[id]/page.js" switcher
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { cacheTag, cacheLife } from 'next/cache'
+
+export async function generateStaticParams() {
+  return [{ id: '1' }, { id: '2' }, { id: '3' }]
+}
+
+export default async function ProductPage({ params }) {
+  const { id } = await params
+
+  return (
+    <div>
+      <ProductDetails id={id} />
+      <Suspense fallback={<div>Loading price...</div>}>
+        <ProductPrice productId={id} />
+      </Suspense>
+    </div>
+  )
+}
+
+function ProductDetails({ id }) {
+  return <div>Product: {id}</div>
+}
+
+async function ProductPrice({ productId }) {
+  // Reading cookies defers this component to request time
+  const currency = (await cookies()).get('currency')?.value ?? 'USD'
+
+  // Cache the price per product and currency combination
+  // All users with the same currency share this cache entry
+  const price = await getProductPrice(productId, currency)
+
+  return (
+    <div>
+      Price: {price} {currency}
+    </div>
+  )
+}
+
+async function getProductPrice(productId, currency) {
+  'use cache: remote'
+  cacheTag(`product-price-${productId}`)
+  cacheLife({ expire: 3600 }) // 1 hour
+
+  // Cached per (productId, currency) - few currencies means high cache utilization
+  return db.products.getPrice(productId, currency)
+}
+```
+
+### Reducing database load
+
+Cache expensive database queries, reducing load on your database. In this example, we don't access `cookies()`, `headers()`, or `searchParams`. If we had a requirement to not include these stats in the static shell, we could use [`connection()`](/docs/app/api-reference/functions/connection) to explicitly defer to request time:
 
 ```tsx filename="app/dashboard/page.tsx"
+import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { cacheLife, cacheTag } from 'next/cache'
 
-export default async function DashboardPage() {
-  // Make context dynamic
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div>Loading stats...</div>}>
+      <DashboardStats />
+    </Suspense>
+  )
+}
+
+async function DashboardStats() {
+  // Defer to request time
   await connection()
 
   const stats = await getGlobalStats()
@@ -357,6 +401,8 @@ async function getGlobalStats() {
 }
 ```
 
+With this setup, your upstream database sees at most one request per minute, regardless of how many users visit the dashboard.
+
 ### API responses in streaming contexts
 
 Cache API responses that are fetched during streaming or after dynamic operations:
@@ -377,7 +423,7 @@ export default async function FeedPage() {
 }
 
 async function FeedItems() {
-  // Dynamic context
+  // Defer to request time
   await connection()
 
   const items = await getFeedItems()
@@ -405,7 +451,7 @@ import { connection } from 'next/server'
 import { cacheLife } from 'next/cache'
 
 export default async function ReportsPage() {
-  // Dynamic security check
+  // Defer to request time (for security check)
   await connection()
 
   const report = await generateReport()
@@ -504,7 +550,7 @@ function ProductDetails({ product }) {
 }
 
 async function ProductPriceComponent({ productId }) {
-  // Make this component dynamic
+  // Defer to request time
   await connection()
 
   const price = await getProductPrice(productId)
@@ -538,7 +584,7 @@ function RecommendationsList({ items }) {
 > **Good to know**:
 >
 > - Remote caches are stored in server-side cache handlers and shared across all users
-> - Remote caches work in dynamic contexts where regular [`use cache`](/docs/app/api-reference/directives/use-cache) would fail
+> - `'use cache: remote'` works outside the static shell where [`use cache`](/docs/app/api-reference/directives/use-cache) may not provide server-side cache hits
 > - Use [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) and [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) to invalidate remote caches on-demand
 > - Use [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) to configure cache expiration
 > - For user-specific data, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead of `'use cache: remote'`

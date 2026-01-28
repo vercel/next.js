@@ -67,7 +67,8 @@ describe('log-file', () => {
     return normalizeLogContent(newContent)
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await next.fetch('/404')
     // Reset log tracking at the start of each test to only capture new logs
     previousLogContent = readLogFile()
   })
@@ -81,6 +82,8 @@ describe('log-file', () => {
     if (isNextDev) {
       await retry(async () => {
         const newLogContent = getNewLogContent()
+        // The server logs will be replayed in the browser, but they'll not be forwarded to terminal,
+        // as terminal already has them in the first place.
         expect(newLogContent).toMatchInlineSnapshot(`
          "[xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
          [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
@@ -118,9 +121,14 @@ describe('log-file', () => {
     if (isNextDev) {
       await retry(async () => {
         const newLogContent = getNewLogContent()
+        // Only browser only logs are being forwarded to terminal
         expect(newLogContent).toMatchInlineSnapshot(`
          "[xx:xx:xx.xxx] Browser LOG     Client: Complex circular object: {"data":{"nested":{"items":[1,2,3],"value":42},"parent":"[Circular]"},"metadata":{"name":"safe stringify","version":"1.0.0"},"name":"test"}
          [xx:xx:xx.xxx] Browser ERROR   Client: This is an error message from client component
+         [xx:xx:xx.xxx] Browser WARN    Client: This is a warning message from client component
+         [xx:xx:xx.xxx] Server  ERROR   [browser] "Client: This is an error message from client component" "\\n    at ClientPage.useEffect (app/client/page.tsx:25:13)\\n  23 |     circularObj.data.parent = circularObj\\n  24 |     console.log('Client: Complex circular object:', circularObj)\\n> 25 |     console.error('Client: This is an error message from client component')\\n     |             ^\\n  26 |     console.warn('Client: This is a warning message from client component')\\n  27 |   }, [])\\n  28 |" "(app/client/page.tsx:25:13)"
+         [xx:xx:xx.xxx] Browser ERROR   Client: This is an error message from client component "\\n    at ClientPage.useEffect (app/client/page.tsx:25:13)\\n  23 |     circularObj.data.parent = circularObj\\n  24 |     console.log('Client: Complex circular object:', circularObj)\\n> 25 |     console.error('Client: This is an error message from client component')\\n     |             ^\\n  26 |     console.warn('Client: This is a warning message from client component')\\n  27 |   }, [])\\n  28 |" "(app/client/page.tsx:25:13)"
+         [xx:xx:xx.xxx] Server  WARN    [browser] "Client: This is a warning message from client component" "(app/client/page.tsx:26:13)"
          [xx:xx:xx.xxx] Browser WARN    Client: This is a warning message from client component
          "
         `)

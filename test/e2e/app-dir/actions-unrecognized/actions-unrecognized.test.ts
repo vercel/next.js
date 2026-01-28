@@ -54,15 +54,6 @@ describe('unrecognized server actions', () => {
           body: new FormData(),
         },
       },
-      {
-        // we never use urlencoded actions, but we currently have codepaths for it in `handleAction`,
-        // so might as well test them.
-        name: 'urlencoded',
-        request: {
-          contentType: 'application/x-www-form-urlencoded',
-          body: 'foo=bar',
-        },
-      },
     ])(
       'should 404 when POSTing a server action with an unrecognized id to a nonexistent page: $name',
       async ({ request: { contentType, body } }) => {
@@ -90,6 +81,20 @@ describe('unrecognized server actions', () => {
       }
     )
   }
+
+  it('should error when POSTing a urlencoded action to a nonexistent page', async () => {
+    const res = await next.fetch('/non-existent-route', {
+      method: 'POST',
+      headers: {
+        'next-action': '123',
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'foo=bar',
+    })
+
+    // On Vercel, this would hit the 404 route which is a static page, and returns a 405 instead.
+    expect(res.status).toBe(isNextDeploy ? 405 : 404)
+  })
 
   describe.each(['nodejs', 'edge'])(
     'should error and log a warning when submitting a server action with an unrecognized ID - %s',
@@ -178,10 +183,9 @@ describe('unrecognized server actions', () => {
             }
 
             if (!isNextDeploy) {
-              // FIXME: For an MPA action, the logs currently show the error thrown by React instead of our custom message with a link to a docs page.
               await retry(async () =>
                 expect(getLogs()).toInclude(
-                  `Error: Could not find the module "decafc0ffeebad01" in the React Server Manifest. This is probably a bug in the React Server Components bundler`
+                  `Error: Failed to find Server Action. This request might be from an older or newer deployment`
                 )
               )
             }

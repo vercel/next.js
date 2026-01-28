@@ -357,7 +357,7 @@ impl OutputChunk for CssChunk {
         let entries_chunk_items = &content.chunk_items;
         let included_ids = entries_chunk_items
             .iter()
-            .map(|chunk_item| chunk_item.id().to_resolved())
+            .map(|chunk_item| chunk_item.id())
             .try_join()
             .await?;
         let imports_chunk_items: Vec<_> = entries_chunk_items
@@ -441,7 +441,7 @@ impl GenerateSourceMap for CssChunk {
 
 // TODO: remove
 #[turbo_tasks::value_trait]
-pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
+pub trait CssChunkPlaceable: ChunkableModule + Module {}
 
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]

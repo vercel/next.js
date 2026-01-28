@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
@@ -16,7 +16,7 @@ use crate::{
     source_map::{GenerateSourceMap, SourceMap},
 };
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, NonLocalValue, TraceRawVcs, ValueDebugFormat)]
+#[derive(PartialEq, Eq, NonLocalValue, TraceRawVcs, ValueDebugFormat, Encode, Decode)]
 enum PathType {
     Fixed {
         path: FileSystemPath,

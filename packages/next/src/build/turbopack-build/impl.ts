@@ -1,3 +1,5 @@
+// Import cpu-profile first to start profiling early if enabled
+import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
@@ -28,7 +30,7 @@ export async function turbopackBuild(): Promise<{
 }> {
   await validateTurboNextConfig({
     dir: NextBuildContext.dir!,
-    isDev: false,
+    configPhase: PHASE_PRODUCTION_BUILD,
   })
 
   const config = NextBuildContext.config!
@@ -82,6 +84,7 @@ export async function turbopackBuild(): Promise<{
       writeRoutesHashesManifest:
         !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
       currentNodeJsVersion,
+      debugBuildPaths: NextBuildContext.debugBuildPaths,
     },
     {
       persistentCaching,
@@ -98,9 +101,11 @@ export async function turbopackBuild(): Promise<{
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
     await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-    await fs.mkdir(path.join(distDir, 'static', buildId), {
-      recursive: true,
-    })
+    if (!config.deploymentId) {
+      await fs.mkdir(path.join(distDir, 'static', buildId), {
+        recursive: true,
+      })
+    }
     await fs.writeFile(
       path.join(distDir, 'package.json'),
       '{"type": "commonjs"}'
@@ -132,6 +137,8 @@ export async function turbopackBuild(): Promise<{
       buildId,
       distDir,
       encryptionKey,
+      dev: false,
+      deploymentId: config.deploymentId,
     })
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(
@@ -261,6 +268,8 @@ export async function workerMain(workerData: {
   } finally {
     // Always flush telemetry before worker exits (waits for async operations like setTimeout in debug mode)
     await telemetry.flush()
+    // Save CPU profile before worker exits
+    await saveCpuProfile()
   }
 }
 

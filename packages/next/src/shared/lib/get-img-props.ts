@@ -1,4 +1,5 @@
 import { warnOnce } from './utils/warn-once'
+import { getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
 import { imageConfigDefault } from './image-config'
 import type {
@@ -230,6 +231,11 @@ function generateImgAttrs({
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
+    const deploymentId = getDeploymentId()
+    if (src.startsWith('/') && !src.startsWith('//') && deploymentId) {
+      const sep = src.includes('?') ? '&' : '?'
+      src = `${src}${sep}dpl=${deploymentId}`
+    }
     return { src, srcSet: undefined, sizes: undefined }
   }
 

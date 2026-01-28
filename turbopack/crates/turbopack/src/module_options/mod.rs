@@ -31,12 +31,10 @@ use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::{postcss::PostCssTransform, webpack::WebpackLoaders},
 };
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_wasm::source::WebAssemblySourceType;
 
-use crate::{
-    evaluate_context::{config_tracing_module_context, node_evaluate_asset_context},
-    resolve_options_context::ResolveOptionsContext,
-};
+use crate::evaluate_context::{config_tracing_module_context, node_evaluate_asset_context};
 
 #[turbo_tasks::function]
 fn package_import_map_from_import_mapping(
@@ -119,7 +117,11 @@ async fn rule_condition_from_webpack_condition(
                 anyhow::bail!("{name:?} is not a valid built-in condition")
             }
         },
-        ConditionItem::Base { path, content } => {
+        ConditionItem::Base {
+            path,
+            content,
+            query,
+        } => {
             let mut rule_conditions = Vec::new();
             match &path {
                 Some(ConditionPath::Glob(glob)) => rule_conditions.push(
@@ -130,6 +132,16 @@ async fn rule_condition_from_webpack_condition(
                 }
                 None => {}
             }
+            match &query {
+                Some(ConditionQuery::Constant(value)) => {
+                    rule_conditions.push(RuleCondition::ResourceQueryEquals(value.clone().into()));
+                }
+                Some(ConditionQuery::Regex(regex)) => {
+                    rule_conditions.push(RuleCondition::ResourceQueryEsRegex(regex.await?));
+                }
+                None => {}
+            }
+            // Add the content condition last since matching requires a more expensive file read.
             if let Some(content) = content {
                 rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
             }
@@ -212,6 +224,7 @@ impl ModuleOptions {
                     enable_exports_info_inlining,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
+                    infer_module_side_effects,
                     ..
                 },
             enable_mdx,
@@ -223,6 +236,7 @@ impl ModuleOptions {
                     ref module_css_condition,
                     ..
                 },
+            ref static_url_tag,
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             environment,
@@ -287,6 +301,7 @@ impl ModuleOptions {
             enable_typeof_window_inlining,
             enable_exports_info_inlining,
             inline_helpers,
+            infer_module_side_effects,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
@@ -440,13 +455,13 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
@@ -454,13 +469,13 @@ impl ModuleOptions {
                     UrlReferenceSubType::EcmaScriptNewUrl,
                 )),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
         ];

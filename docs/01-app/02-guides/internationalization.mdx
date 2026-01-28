@@ -72,11 +72,7 @@ Finally, ensure all special files inside `app/` are nested under `app/[lang]`. T
 ```tsx filename="app/[lang]/page.tsx" switcher
 // You now have access to the current locale
 // e.g. /en-US/products -> `lang` is "en-US"
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ lang: string }>
-}) {
+export default async function Page({ params }: PageProps<'/[lang]'>) {
   const { lang } = await params
   return ...
 }
@@ -90,6 +86,8 @@ export default async function Page({ params }) {
   return ...
 }
 ```
+
+> **Good to know:** `PageProps` and `LayoutProps` are globally available TypeScript helpers that provide strong typing for route parameters. See [PageProps](/docs/app/api-reference/file-conventions/page#page-props-helper) and [LayoutProps](/docs/app/api-reference/file-conventions/layout#layout-props-helper) for more details.
 
 The root layout can also be nested in the new folder (e.g. `app/[lang]/layout.js`).
 
@@ -125,8 +123,12 @@ const dictionaries = {
   nl: () => import('./dictionaries/nl.json').then((module) => module.default),
 }
 
-export const getDictionary = async (locale: 'en' | 'nl') =>
-  dictionaries[locale]()
+export type Locale = keyof typeof dictionaries
+
+export const hasLocale = (locale: string): locale is Locale =>
+  locale in dictionaries
+
+export const getDictionary = async (locale: Locale) => dictionaries[locale]()
 ```
 
 ```js filename="app/[lang]/dictionaries.js" switcher
@@ -137,31 +139,39 @@ const dictionaries = {
   nl: () => import('./dictionaries/nl.json').then((module) => module.default),
 }
 
+export const hasLocale = (locale) => locale in dictionaries
+
 export const getDictionary = async (locale) => dictionaries[locale]()
 ```
 
 Given the currently selected language, we can fetch the dictionary inside of a layout or page.
 
-```tsx filename="app/[lang]/page.tsx" switcher
-import { getDictionary } from './dictionaries'
+Since `lang` is typed as `string`, using `hasLocale` narrows the type to your supported locales. It also ensures a 404 is returned if a translation is missing, rather than a runtime error.
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ lang: 'en' | 'nl' }>
-}) {
+```tsx filename="app/[lang]/page.tsx" switcher
+import { notFound } from 'next/navigation'
+import { getDictionary, hasLocale } from './dictionaries'
+
+export default async function Page({ params }: PageProps<'/[lang]'>) {
   const { lang } = await params
-  const dict = await getDictionary(lang) // en
+
+  if (!hasLocale(lang)) notFound()
+
+  const dict = await getDictionary(lang)
   return <button>{dict.products.cart}</button> // Add to Cart
 }
 ```
 
 ```jsx filename="app/[lang]/page.js" switcher
-import { getDictionary } from './dictionaries'
+import { notFound } from 'next/navigation'
+import { getDictionary, hasLocale } from './dictionaries'
 
 export default async function Page({ params }) {
   const { lang } = await params
-  const dict = await getDictionary(lang) // en
+
+  if (!hasLocale(lang)) notFound()
+
+  const dict = await getDictionary(lang)
   return <button>{dict.products.cart}</button> // Add to Cart
 }
 ```
@@ -180,10 +190,7 @@ export async function generateStaticParams() {
 export default async function RootLayout({
   children,
   params,
-}: Readonly<{
-  children: React.ReactNode
-  params: Promise<{ lang: 'en-US' | 'de' }>
-}>) {
+}: LayoutProps<'/[lang]'>) {
   return (
     <html lang={(await params).lang}>
       <body>{children}</body>

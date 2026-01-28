@@ -281,6 +281,41 @@ describe('CLI Usage', () => {
             `Bad port: "${reservedPort}" is reserved for npp`
           )
         })
+
+        test('--inspect', async () => {
+          await nextBuild(dirBasic)
+          const port = await findPort()
+
+          let output = ''
+          let errOutput = ''
+          const app = await runNextCommandDev(
+            ['start', dirBasic, '--port', '' + port, '--inspect'],
+            undefined,
+            {
+              onStdout(msg) {
+                output += stripAnsi(msg)
+              },
+              onStderr(msg) {
+                errOutput += stripAnsi(msg)
+              },
+            }
+          )
+
+          try {
+            await retry(() => {
+              expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+            })
+            await retry(() => {
+              expect(output).toMatch(/- Debugger port:\s+9229/)
+            })
+            await retry(() => {
+              expect(errOutput).toMatch(/Debugger listening on/)
+            })
+            expect(errOutput).not.toContain('address already in use')
+          } finally {
+            await killApp(app)
+          }
+        })
       })
 
       describe('telemetry', () => {

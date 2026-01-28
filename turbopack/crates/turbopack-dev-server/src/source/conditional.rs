@@ -3,12 +3,11 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, ResolvedVc, State, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
-use super::{
-    ContentSource, ContentSourceData, ContentSourceDataVary, ContentSourceSideEffect,
-    GetContentSourceContent,
+use crate::source::{
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+    ContentSourceSideEffect, ContentSources, GetContentSourceContent,
     route_tree::{MapGetContentSourceContent, RouteTree, RouteTrees},
 };
-use crate::source::{ContentSourceContent, ContentSources};
 
 /// Combines two [ContentSource]s like the [CombinedContentSource], but only
 /// allows to serve from the second source when the first source has

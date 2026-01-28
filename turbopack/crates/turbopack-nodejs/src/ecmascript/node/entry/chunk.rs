@@ -126,7 +126,7 @@ impl EcmascriptBuildNodeEntryChunk {
                     r#"
                         R.m({})
                     "#,
-                    StringifyJs(&*runtime_module_id),
+                    StringifyJs(&runtime_module_id),
                 )?;
             }
         }
@@ -141,7 +141,7 @@ impl EcmascriptBuildNodeEntryChunk {
             r#"
                 module.exports=R.m({}).exports
             "#,
-            StringifyJs(&*runtime_module_id),
+            StringifyJs(&runtime_module_id),
         )?;
 
         Ok(Code::cell(code.build()))
@@ -166,7 +166,7 @@ impl EcmascriptBuildNodeEntryChunk {
 impl ValueToString for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Build Node Evaluate Chunk"))
+        Vc::cell(rcstr!("Ecmascript Build Node Entry Chunk"))
     }
 }
 

@@ -12,7 +12,7 @@ use turbopack_core::{
     environment::Environment,
     file_source::FileSource,
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
+    module_graph::{ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
@@ -139,7 +139,7 @@ pub async fn create_web_entry_source(
         .map(|request| async move {
             let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
             Ok(origin
-                .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
+                .resolve_asset(request, origin.resolve_options(), ty)
                 .await?
                 .resolve()
                 .await?
@@ -161,10 +161,12 @@ pub async fn create_web_entry_source(
                 .map(|&entry| ResolvedVc::upcast(entry)),
         )
         .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
-    let module_graph =
-        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules)]), false)
-            .to_resolved()
-            .await?;
+    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(all_modules)]),
+        false,
+        false,
+    ));
+    let module_graph = module_graph.connect().to_resolved().await?;
 
     let entries: Vec<_> = entries
         .into_iter()

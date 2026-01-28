@@ -36,28 +36,40 @@ const requiredPackages = [
 export async function verifyTypeScriptSetup({
   dir,
   distDir,
+  distDirRoot,
   cacheDir,
-  intentDirs,
+  strictRouteTypes,
   tsconfigPath,
   typeCheckPreflight,
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
   isolatedDevBuild,
+  appDir,
+  pagesDir,
+  debugBuildPaths,
 }: {
   dir: string
   distDir: string
+  /** The root dist directory without /dev suffix, used for fixed type paths */
+  distDirRoot?: string
   cacheDir?: string
+  strictRouteTypes: boolean
   tsconfigPath: string | undefined
-  intentDirs: string[]
   typeCheckPreflight: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
   isolatedDevBuild: boolean | undefined
+  appDir?: string
+  pagesDir?: string
+  debugBuildPaths?: { app?: string[]; pages?: string[] }
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigFileName = tsconfigPath || 'tsconfig.json'
   const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
+
+  // Construct intentDirs from appDir and pagesDir for getTypeScriptIntent
+  const intentDirs = [pagesDir, appDir].filter(Boolean) as string[]
 
   try {
     // Check if the project uses TypeScript:
@@ -129,13 +141,15 @@ export async function verifyTypeScriptSetup({
       hasAppDir,
       distDir,
       hasPagesDir,
-      isolatedDevBuild
+      isolatedDevBuild,
+      strictRouteTypes
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
     await writeAppTypeDeclarations({
       baseDir: dir,
       distDir,
+      distDirRoot,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,
@@ -159,7 +173,9 @@ export async function verifyTypeScriptSetup({
         resolvedTsConfigPath,
         cacheDir,
         hasAppDir,
-        isolatedDevBuild
+        isolatedDevBuild,
+        { app: appDir, pages: pagesDir },
+        debugBuildPaths
       )
     }
     return { result, version: typescriptVersion }

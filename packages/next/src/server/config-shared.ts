@@ -118,6 +118,7 @@ export type TurbopackRuleCondition =
   | {
       path?: string | RegExp
       content?: RegExp
+      query?: string | RegExp
     }
 
 export type TurbopackRuleConfigItem = {
@@ -267,6 +268,15 @@ export interface LoggingConfig {
    * You can specify a pattern to match incoming requests that should not be logged.
    */
   incomingRequests?: boolean | IncomingRequestLoggingConfig
+
+  /**
+   * Forward browser console logs to terminal.
+   * - `false`: Disable browser log forwarding
+   * - `true`: Forward all browser console output to terminal
+   * - `'warn'`: Forward warnings and errors to terminal
+   * - `'error'`: Forward only errors to terminal
+   */
+  browserToTerminal?: boolean | 'error' | 'warn'
 }
 
 export interface ExperimentalConfig {
@@ -286,6 +296,7 @@ export interface ExperimentalConfig {
    */
   clientParamParsingOrigins?: string[]
   dynamicOnHover?: boolean
+  optimisticRouting?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -388,10 +399,22 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   /**
+   * Type-checks props and return values of pages.
+   * Requires literal values for segment config (e.g. `export const dynamic = 'force-static' as const`).
+   */
+  strictRouteTypes?: boolean
+
+  /**
    * Displays an indicator when a React Transition has no other indicator rendered.
    * This includes displaying an indicator on client-side navigations.
    */
   transitionIndicator?: boolean
+
+  /**
+   * Enables experimental gesture transition APIs for optimistic client
+   * navigations. Requires experimental React.
+   */
+  gestureTransition?: boolean
 
   /**
    * A target memory limit for turbo, in bytes.
@@ -428,12 +451,14 @@ export interface ExperimentalConfig {
   /**
    * Enable filesystem cache for the turbopack dev server.
    *
-   * Defaults to `true` in canary releases.
+   * Defaults to `true`.
    */
   turbopackFileSystemCacheForDev?: boolean
 
   /**
    * Enable filesystem cache for the turbopack build.
+   *
+   * Defaults to `false`.
    */
   turbopackFileSystemCacheForBuild?: boolean
 
@@ -463,29 +488,13 @@ export interface ExperimentalConfig {
   turbopackRemoveUnusedExports?: boolean
 
   /**
-   * Use the system-provided CA roots instead of bundled CA roots for external HTTPS requests
-   * made by Turbopack. Currently this is only used for fetching data from Google Fonts.
+   * Enable local analysis to infer side effect free modules. When enabled, Turbopack will
+   * analyze module code to determine if it has side effects. This can improve tree shaking
+   * and bundle size at the cost of some additional analysis.
    *
-   * This may be useful in cases where you or an employer are MITMing traffic.
-   *
-   * This option is experimental because:
-   * - This may cause small performance problems, as it uses [`rustls-native-certs`](
-   *   https://github.com/rustls/rustls-native-certs).
-   * - In the future, this may become the default, and this option may be eliminated, once
-   *   <https://github.com/seanmonstar/reqwest/issues/2159> is resolved.
-   *
-   * Users who need to configure this behavior system-wide can override the project
-   * configuration using the `NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1` environment
-   * variable.
-   *
-   * This option is ignored on Windows on ARM, where the native TLS implementation is always
-   * used.
-   *
-   * If you need to set a proxy, Turbopack [respects the common `HTTP_PROXY` and `HTTPS_PROXY`
-   * environment variable convention](https://docs.rs/reqwest/latest/reqwest/#proxies). HTTP
-   * proxies are supported, SOCKS proxies are not currently supported.
+   * Defaults to `true`
    */
-  turbopackUseSystemTlsCerts?: boolean
+  turbopackInferModuleSideEffects?: boolean
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -636,6 +645,14 @@ export interface ExperimentalConfig {
   }
 
   /**
+   * Allows adjusting the maximum size of the postponed state body for PPR
+   * resume requests. This includes the Resume Data Cache (RDC) which may grow
+   * large for some applications.
+   * @default '100 MB'
+   */
+  maxPostponedStateSize?: SizeLimit
+
+  /**
    * enables the minification of server code.
    */
   serverMinification?: boolean
@@ -757,11 +774,29 @@ export interface ExperimentalConfig {
   globalNotFound?: boolean
 
   /**
-   * Enable debug information to be forwarded from browser to dev server stdout/stderr
+   * Enable debug information to be forwarded from browser to dev server stdout/stderr.
+   *
+   * - `'warn'` (default): Forward warnings and errors to terminal
+   * - `'error'`: Forward only errors to terminal
+   * - `'verbose'`: Forward all browser console output to terminal
+   * - `true`: Same as 'verbose' - forward all browser console output to terminal
+   * - `false`: Disable browser log forwarding to terminal
+   * - Object: Enable with custom configuration
+   *
+   * @deprecated Use `logging.browserToTerminal` instead.
    */
   browserDebugInfoInTerminal?:
     | boolean
+    | 'error'
+    | 'warn'
+    | 'verbose'
     | {
+        /**
+         * Minimum log level to show in terminal.
+         * @default 'verbose' (for object config, to preserve backward compatibility)
+         */
+        level?: 'error' | 'warn' | 'verbose'
+
         /**
          * Option to limit stringification at a specific nesting depth when logging circular objects.
          * @default 5
@@ -834,6 +869,26 @@ export interface ExperimentalConfig {
    * @default false
    */
   hideLogsAfterAbort?: boolean
+
+  /**
+   * Whether `process.env.NEXT_DEPLOYMENT_ID` is available at runtime in the server (and `next
+   * build` doesn't need to embed the deployment ID value into the build output).
+   *
+   * @default false
+   */
+  runtimeServerDeploymentId?: boolean
+
+  /**
+   * Use 'no-cache' instead of 'no-store' in the Cache-Control header for development.
+   * This allows conditional requests to the server, which can help with development
+   * workflows that benefit from caching validation.
+   *
+   * When enabled, the Cache-Control header changes from 'no-store, must-revalidate'
+   * to 'no-cache, must-revalidate'.
+   *
+   * @default false
+   */
+  devCacheControlNoCache?: boolean
 }
 
 export type ExportPathMap = {
@@ -1529,6 +1584,7 @@ export const defaultConfig = Object.freeze({
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
+    strictRouteTypes: false,
     viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: !!(
@@ -1545,18 +1601,21 @@ export const defaultConfig = Object.freeze({
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
+    gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    browserDebugInfoInTerminal: false,
+    browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
     isolatedDevBuild: true,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
-    turbopackFileSystemCacheForDev: !isStableBuild(),
+    turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: false,
+    turbopackInferModuleSideEffects: true,
+    devCacheControlNoCache: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -1569,3 +1628,204 @@ export async function normalizeConfig(phase: string, config: any) {
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
 }
+
+// This should be a supertype of NextConfigComplete
+//
+// The Vercel builder needs these fields (read `config` in required-server-files.json)
+// {
+//   pageExtensions: string[];
+//   experimental?: {
+//     cacheComponents?: boolean;
+//     clientParamParsingOrigins?: string[];
+//     clientSegmentCache?: boolean;
+//     ppr?: boolean | 'incremental';
+//     serverActions?: Record<string, never>;
+//   };
+// };
+export interface NextConfigRuntime {
+  // Can be undefined, particularly when experimental.runtimeServerDeploymentId is true
+  deploymentId?: NextConfigComplete['deploymentId']
+
+  configFileName?: string
+  // Should only be included when using isExperimentalCompile
+  env?: NextConfigComplete['env']
+
+  distDir: NextConfigComplete['distDir']
+  cacheComponents: NextConfigComplete['cacheComponents']
+  htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
+  assetPrefix: NextConfigComplete['assetPrefix']
+  output: NextConfigComplete['output']
+  crossOrigin: NextConfigComplete['crossOrigin']
+  trailingSlash: NextConfigComplete['trailingSlash']
+  images: NextConfigComplete['images']
+  reactMaxHeadersLength: NextConfigComplete['reactMaxHeadersLength']
+  cacheLife: NextConfigComplete['cacheLife']
+  basePath: NextConfigComplete['basePath']
+  expireTime: NextConfigComplete['expireTime']
+  generateEtags: NextConfigComplete['generateEtags']
+  poweredByHeader: NextConfigComplete['poweredByHeader']
+  cacheHandler: NextConfigComplete['cacheHandler']
+  cacheHandlers: NextConfigComplete['cacheHandlers']
+  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize']
+  compress: NextConfigComplete['compress']
+  i18n: NextConfigComplete['i18n']
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  skipProxyUrlNormalize: NextConfigComplete['skipProxyUrlNormalize']
+  pageExtensions: NextConfigComplete['pageExtensions']
+  useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
+
+  experimental: Pick<
+    NextConfigComplete['experimental'],
+    | 'ppr'
+    | 'taint'
+    | 'serverActions'
+    | 'staleTimes'
+    | 'dynamicOnHover'
+    | 'optimisticRouting'
+    | 'inlineCss'
+    | 'authInterrupts'
+    | 'clientTraceMetadata'
+    | 'clientParamParsingOrigins'
+    | 'adapterPath'
+    | 'allowedRevalidateHeaderKeys'
+    | 'fetchCacheKeyPrefix'
+    | 'isrFlushToDisk'
+    | 'optimizeCss'
+    | 'nextScriptWorkers'
+    | 'disableOptimizedLoading'
+    | 'largePageDataBytes'
+    | 'serverComponentsHmrCache'
+    | 'caseSensitiveRoutes'
+    | 'validateRSCRequestHeaders'
+    | 'sri'
+    | 'useSkewCookie'
+    | 'preloadEntriesOnStart'
+    | 'hideLogsAfterAbort'
+    | 'removeUncaughtErrorAndRejectionListeners'
+    | 'imgOptConcurrency'
+    | 'imgOptMaxInputPixels'
+    | 'imgOptSequentialRead'
+    | 'imgOptSkipMetadata'
+    | 'imgOptTimeoutInSeconds'
+    | 'proxyClientMaxBodySize'
+    | 'proxyTimeout'
+    | 'testProxy'
+    | 'runtimeServerDeploymentId'
+    | 'maxPostponedStateSize'
+    | 'devCacheControlNoCache'
+  > & {
+    // Pick on @internal fields generates invalid .d.ts files
+    /** @internal */
+    trustHostHeader?: NextConfigComplete['experimental']['trustHostHeader']
+    /** @internal */
+    isExperimentalCompile?: NextConfigComplete['experimental']['isExperimentalCompile']
+  }
+}
+
+export function getNextConfigRuntime(
+  config: NextConfigComplete | NextConfigRuntime
+): NextConfigRuntime {
+  // This config filter is a breaking change, so only do it if experimental.runtimeServerDeploymentId is enabled
+  if (!config.experimental.runtimeServerDeploymentId) {
+    return config
+  }
+
+  let ex = config.experimental
+
+  type Requiredish<T> = {
+    [K in keyof Required<T>]: T[K]
+  }
+
+  let experimental = ex
+    ? ({
+        ppr: ex.ppr,
+        taint: ex.taint,
+        serverActions: ex.serverActions,
+        staleTimes: ex.staleTimes,
+        dynamicOnHover: ex.dynamicOnHover,
+        optimisticRouting: ex.optimisticRouting,
+        inlineCss: ex.inlineCss,
+        authInterrupts: ex.authInterrupts,
+        clientTraceMetadata: ex.clientTraceMetadata,
+        clientParamParsingOrigins: ex.clientParamParsingOrigins,
+        adapterPath: ex.adapterPath,
+        allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
+        fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
+        isrFlushToDisk: ex.isrFlushToDisk,
+        optimizeCss: ex.optimizeCss,
+        nextScriptWorkers: ex.nextScriptWorkers,
+        disableOptimizedLoading: ex.disableOptimizedLoading,
+        largePageDataBytes: ex.largePageDataBytes,
+        serverComponentsHmrCache: ex.serverComponentsHmrCache,
+        caseSensitiveRoutes: ex.caseSensitiveRoutes,
+        validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
+        sri: ex.sri,
+        useSkewCookie: ex.useSkewCookie,
+        preloadEntriesOnStart: ex.preloadEntriesOnStart,
+        hideLogsAfterAbort: ex.hideLogsAfterAbort,
+        removeUncaughtErrorAndRejectionListeners:
+          ex.removeUncaughtErrorAndRejectionListeners,
+        imgOptConcurrency: ex.imgOptConcurrency,
+        imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
+        imgOptSequentialRead: ex.imgOptSequentialRead,
+        imgOptSkipMetadata: ex.imgOptSkipMetadata,
+        imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
+        proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
+        proxyTimeout: ex.proxyTimeout,
+        testProxy: ex.testProxy,
+        runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
+        maxPostponedStateSize: ex.maxPostponedStateSize,
+        devCacheControlNoCache: ex.devCacheControlNoCache,
+
+        trustHostHeader: ex.trustHostHeader,
+        isExperimentalCompile: ex.isExperimentalCompile,
+      } satisfies Requiredish<NextConfigRuntime['experimental']>)
+    : {}
+
+  let runtimeConfig: Requiredish<NextConfigRuntime> = {
+    deploymentId: config.experimental.runtimeServerDeploymentId
+      ? ''
+      : config.deploymentId,
+
+    configFileName: undefined,
+    env: undefined,
+
+    distDir: config.distDir,
+    cacheComponents: config.cacheComponents,
+    htmlLimitedBots: config.htmlLimitedBots,
+    assetPrefix: config.assetPrefix,
+    output: config.output,
+    crossOrigin: config.crossOrigin,
+    trailingSlash: config.trailingSlash,
+    images: config.images,
+    reactMaxHeadersLength: config.reactMaxHeadersLength,
+    cacheLife: config.cacheLife,
+    basePath: config.basePath,
+    expireTime: config.expireTime,
+    generateEtags: config.generateEtags,
+    poweredByHeader: config.poweredByHeader,
+    cacheHandler: config.cacheHandler,
+    cacheHandlers: config.cacheHandlers,
+    cacheMaxMemorySize: config.cacheMaxMemorySize,
+    compress: config.compress,
+    i18n: config.i18n,
+    httpAgentOptions: config.httpAgentOptions,
+    skipProxyUrlNormalize: config.skipProxyUrlNormalize,
+    pageExtensions: config.pageExtensions,
+    useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
+
+    experimental,
+  }
+
+  if (config.experimental.isExperimentalCompile) {
+    runtimeConfig.env = config.env
+  }
+
+  return runtimeConfig
+}
+
+// Re-export from shared lib for backwards compatibility
+export {
+  DEFAULT_MAX_POSTPONED_STATE_SIZE,
+  parseMaxPostponedStateSize,
+} from '../shared/lib/size-limit'

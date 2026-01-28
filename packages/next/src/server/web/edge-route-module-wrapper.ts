@@ -1,4 +1,3 @@
-import type { NextRequest } from './spec-extension/request'
 import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
@@ -6,7 +5,7 @@ import type {
 
 import './globals'
 
-import { adapter, type AdapterOptions } from './adapter'
+import { adapter, type NextRequestHint, type EdgeHandler } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
@@ -15,10 +14,10 @@ import { getServerUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import { CloseController, trackStreamConsumed } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
-import type { NextConfigComplete } from '../config-shared'
+import { WebNextRequest } from '../../server/base-http/web'
 
 export interface WrapOptions {
-  nextConfig: NextConfigComplete
+  page: string
 }
 
 /**
@@ -35,10 +34,7 @@ export class EdgeRouteModuleWrapper {
    *
    * @param routeModule the route module to wrap
    */
-  private constructor(
-    private readonly routeModule: AppRouteRouteModule,
-    private readonly nextConfig: NextConfigComplete
-  ) {
+  private constructor(private readonly routeModule: AppRouteRouteModule) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
     this.matcher = new RouteMatcher(routeModule.definition)
   }
@@ -52,23 +48,27 @@ export class EdgeRouteModuleWrapper {
    *                override the ones passed from the runtime
    * @returns a function that can be used as a handler for the edge runtime
    */
-  public static wrap(routeModule: AppRouteRouteModule, options: WrapOptions) {
+  public static wrap(
+    routeModule: AppRouteRouteModule,
+    options: WrapOptions
+  ): EdgeHandler {
     // Create the module wrapper.
-    const wrapper = new EdgeRouteModuleWrapper(routeModule, options.nextConfig)
+    const wrapper = new EdgeRouteModuleWrapper(routeModule)
 
     // Return the wrapping function.
-    return (opts: AdapterOptions) => {
+    return (opts) => {
       return adapter({
         ...opts,
         IncrementalCache,
         // Bind the handler method to the wrapper so it still has context.
         handler: wrapper.handler.bind(wrapper),
+        page: options.page,
       })
     }
   }
 
   private async handler(
-    request: NextRequest,
+    request: NextRequestHint,
     evt: NextFetchEvent
   ): Promise<Response> {
     const utils = getServerUtils({
@@ -80,6 +80,10 @@ export class EdgeRouteModuleWrapper {
       // only used for rewrites, so setting an arbitrary default value here
       caseSensitive: false,
     })
+
+    const { nextConfig } = this.routeModule.getNextConfigEdge(
+      new WebNextRequest(request)
+    )
 
     const { params } = utils.normalizeDynamicRouteParams(
       searchParamsToUrlQuery(request.nextUrl.searchParams),
@@ -111,7 +115,7 @@ export class EdgeRouteModuleWrapper {
         experimental: {
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
-        cacheLifeProfiles: this.nextConfig.cacheLife,
+        cacheLifeProfiles: nextConfig.cacheLife,
       },
       sharedContext: {
         buildId: '', // TODO: Populate this properly.

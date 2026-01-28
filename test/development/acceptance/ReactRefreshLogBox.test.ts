@@ -455,11 +455,10 @@ describe('ReactRefreshLogBox', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
                │    ,-[7:1]
                │  4 |       <p>lol</p>
@@ -634,6 +633,20 @@ describe('ReactRefreshLogBox', () => {
            ],
          }
         `)
+      } else if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+         > 4 |     throw new Error()
+             |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -709,11 +722,10 @@ describe('ReactRefreshLogBox', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × SyntaxError",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-         × Module build failed:
          ╰─▶   × SyntaxError
                │
                │ (1:1) <FIXME-project-root>/index.module.css Unknown word
@@ -771,11 +783,10 @@ describe('ReactRefreshLogBox', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × CssSyntaxError",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-         × Module build failed:
          ╰─▶   × CssSyntaxError
                │
                │ (1:1) Selector "button" is not pure (pure selectors must contain at least one local class or id)

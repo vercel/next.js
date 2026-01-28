@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
@@ -11,7 +12,9 @@ use crate::{module::Module, resolve::ModulePart};
 ///
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>);
+pub struct InnerAssets(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
+);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {
@@ -32,14 +35,14 @@ impl InnerAssets {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
     Debug,
     Default,
     Clone,
     Copy,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum CommonJsReferenceSubType {
     Custom(u8),
@@ -48,17 +51,7 @@ pub enum CommonJsReferenceSubType {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum ImportWithType {
     Json,
@@ -70,18 +63,18 @@ pub enum ImportWithType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
     Debug,
     Default,
     Clone,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
-    ImportWithType(ImportWithType),
+    ImportWithType(RcStr),
     DynamicImport,
     Custom(u8),
     #[default]
@@ -126,16 +119,14 @@ impl ImportContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn add_attributes(
-        self: Vc<Self>,
+    pub fn add_attributes(
+        &self,
         attr_layer: Option<RcStr>,
         attr_media: Option<RcStr>,
         attr_supports: Option<RcStr>,
-    ) -> Result<Vc<Self>> {
-        let this = &*self.await?;
-
+    ) -> Vc<Self> {
         let layers = {
-            let mut layers = this.layers.clone();
+            let mut layers = self.layers.clone();
             if let Some(attr_layer) = attr_layer
                 && !layers.contains(&attr_layer)
             {
@@ -145,7 +136,7 @@ impl ImportContext {
         };
 
         let media = {
-            let mut media = this.media.clone();
+            let mut media = self.media.clone();
             if let Some(attr_media) = attr_media
                 && !media.contains(&attr_media)
             {
@@ -155,7 +146,7 @@ impl ImportContext {
         };
 
         let supports = {
-            let mut supports = this.supports.clone();
+            let mut supports = self.supports.clone();
             if let Some(attr_supports) = attr_supports
                 && !supports.contains(&attr_supports)
             {
@@ -164,7 +155,7 @@ impl ImportContext {
             supports
         };
 
-        Ok(ImportContext::new(layers, media, supports))
+        ImportContext::new(layers, media, supports)
     }
 
     #[turbo_tasks::function]
@@ -210,14 +201,14 @@ impl ImportContext {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
     Debug,
     Default,
     Clone,
     Copy,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
@@ -238,14 +229,14 @@ pub enum CssReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
     Debug,
     Default,
     Clone,
     Copy,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum UrlReferenceSubType {
     EcmaScriptNewUrl,
@@ -256,17 +247,7 @@ pub enum UrlReferenceSubType {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
@@ -274,17 +255,7 @@ pub enum TypeScriptReferenceSubType {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum WorkerReferenceSubType {
     WebWorker,
@@ -298,17 +269,7 @@ pub enum WorkerReferenceSubType {
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum EntryReferenceSubType {
     Web,
@@ -332,13 +293,13 @@ pub enum EntryReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
     Debug,
     Default,
     Clone,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum ReferenceType {
     CommonJs(CommonJsReferenceSubType),

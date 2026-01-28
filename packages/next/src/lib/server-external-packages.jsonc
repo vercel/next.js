@@ -65,6 +65,14 @@
   "onnxruntime-node",
   "oslo",
   "pg",
+  // pino@10.1.0/lib/transport.js passes `join(__dirname, 'worker.js')` to thread-stream which ends
+  // up `require`ing that filepath, leading to
+  // `Cannot find module '/ROOT/node_modules/.pnpm/pino@10.1.0/node_modules/pino/lib/worker.js'`
+  "pino",
+  // A "plugin" that is passed to pino as a string (and is then required in a worker)
+  "pino-pretty",
+  // A "plugin" that is passed to pino as a string (and is then required in a worker)
+  "pino-roll",
   "playwright",
   "playwright-core",
   "postcss",
@@ -80,9 +88,12 @@
   "sharp",
   "shiki",
   "sqlite3",
-  "ts-node",
+  // dynamic `new Worker` call in thread-stream@3.1.0/index.js which pulls in various non-code files
+  // as well (trying to parse README and invalid test files)
+  "thread-stream",
   // Slow to compile because it pulls in typescript
   "ts-morph",
+  "ts-node",
   "typescript",
   "vscode-oniguruma",
   "webpack",

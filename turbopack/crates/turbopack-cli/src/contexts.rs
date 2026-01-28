@@ -6,7 +6,6 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::TreeShakingMode,
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         TypescriptTransformOptions,
@@ -24,6 +23,7 @@ use turbopack_core::{
     ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
 };
+use turbopack_ecmascript::TreeShakingMode;
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
 };
@@ -45,7 +45,7 @@ impl fmt::Display for NodeEnv {
 }
 
 fn foreign_code_context_condition() -> ContextCondition {
-    ContextCondition::InDirectory("node_modules".to_string())
+    ContextCondition::InNodeModules
 }
 
 #[turbo_tasks::function]
