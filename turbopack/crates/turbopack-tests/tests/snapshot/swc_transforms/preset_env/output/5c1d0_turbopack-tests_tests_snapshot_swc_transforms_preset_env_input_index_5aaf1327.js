@@ -1228,10 +1228,39 @@ function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
     }
-    var chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined' ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute('src');
+    var chunkUrl = chunkScript.src;
     var src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
     var path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
+}
+/**
+ * Return the ChunkUrl from a ChunkScript.
+ */ function getUrlFromScript(chunk) {
+    if (typeof chunk === 'string') {
+        return getChunkRelativeUrl(chunk);
+    } else {
+        // This is already exactly what we want
+        return chunk.src;
+    }
+}
+/**
+ * Determine the chunk to register. Note that this function has side-effects!
+ */ function getChunkFromRegistration(chunk) {
+    if (typeof chunk === 'string') {
+        return chunk;
+    } else if (!chunk) {
+        if (typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined') {
+            return {
+                src: TURBOPACK_NEXT_CHUNK_URLS.pop()
+            };
+        } else {
+            throw new Error('chunk path empty but not in a worker');
+        }
+    } else {
+        return {
+            src: chunk.getAttribute('src')
+        };
+    }
 }
 var regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
@@ -1313,7 +1342,7 @@ function instantiateModule(id, sourceType, sourceData) {
 }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function registerChunk(registration) {
-    var chunkPath = getPathFromScript(registration[0]);
+    var chunk = getChunkFromRegistration(registration[0]);
     var runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {
@@ -1322,7 +1351,7 @@ function registerChunk(registration) {
         runtimeParams = undefined;
         installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories);
     }
-    return BACKEND.registerChunk(chunkPath, runtimeParams);
+    return BACKEND.registerChunk(chunk, runtimeParams);
 }
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
@@ -1470,13 +1499,14 @@ var BACKEND;
  */ var chunkResolvers = new Map();
 (function() {
     BACKEND = {
-        registerChunk: function registerChunk(chunkPath, params) {
+        registerChunk: function registerChunk(chunk, params) {
             return _async_to_generator(function() {
-                var chunkUrl, resolver, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, otherChunkData, otherChunkPath, otherChunkUrl, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleId;
+                var chunkPath, chunkUrl, resolver, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, otherChunkData, otherChunkPath, otherChunkUrl, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleId;
                 return _ts_generator(this, function(_state) {
                     switch(_state.label){
                         case 0:
-                            chunkUrl = getChunkRelativeUrl(chunkPath);
+                            chunkPath = getPathFromScript(chunk);
+                            chunkUrl = getUrlFromScript(chunk);
                             resolver = getOrCreateResolver(chunkUrl);
                             resolver.resolve();
                             if (params == null) {

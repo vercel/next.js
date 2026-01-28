@@ -284,6 +284,7 @@ async fn module_factory_with_code_generation_issue(
                 title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                     .resolved_cell(),
                 message: StyledString::Text(error_message).resolved_cell(),
+                source: None,
             }
             .resolved_cell()
             .emit();

@@ -186,7 +186,8 @@ export default class DevServer extends Server {
       // 5MB
       5 * 1024 * 1024,
       function length(value) {
-        return JSON.stringify(value.staticPaths)?.length ?? 0
+        // Ensure minimum size of 1 for LRU eviction to work correctly
+        return JSON.stringify(value.staticPaths)?.length || 1
       }
     )
 

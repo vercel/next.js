@@ -10,8 +10,8 @@ use crate::{
     next_config::NextConfig,
     next_shared::transforms::{
         debug_fn_name::get_debug_fn_name_rule, get_import_type_bytes_rule,
-        get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
-        get_next_lint_transform_rule, get_next_modularize_imports_rule,
+        get_import_type_json_rule, get_next_dynamic_transform_rule, get_next_font_transform_rule,
+        get_next_image_rule, get_next_lint_transform_rule, get_next_modularize_imports_rule,
         get_next_pages_transforms_rule, get_server_actions_transform_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
@@ -116,6 +116,8 @@ pub async fn get_next_client_transforms_rules(
     if *next_config.turbopack_import_type_bytes().await? {
         rules.push(get_import_type_bytes_rule());
     }
+
+    rules.push(get_import_type_json_rule());
 
     Ok(rules)
 }

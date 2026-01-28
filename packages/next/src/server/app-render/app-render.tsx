@@ -388,8 +388,12 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
     {
       children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
-    // When global-not-found is present, skip layout from components
-    hasGlobalNotFound ? components : {},
+    // Always include global-error so that getGlobalErrorStyles can access it.
+    // When global-not-found is present, use full components.
+    // Otherwise, only include global-error module.
+    hasGlobalNotFound
+      ? components
+      : { 'global-error': components['global-error'] },
     null, // staticSiblings
   ]
 }
@@ -5538,26 +5542,29 @@ const getGlobalErrorStyles = async (
   GlobalError: GlobalErrorComponent
   styles: ReactNode | undefined
 }> => {
-  const {
-    modules: { 'global-error': globalErrorModule },
-  } = parseLoaderTree(tree)
+  const globalErrorModule = parseLoaderTree(tree).modules['global-error']
+
+  if (!globalErrorModule) {
+    throw new Error(
+      'Invariant: global-error module is required but not found in loader tree'
+    )
+  }
 
   const {
     componentMod: { createElement },
   } = ctx
-  const GlobalErrorComponent: GlobalErrorComponent =
-    ctx.componentMod.GlobalError
-  let globalErrorStyles
-  if (globalErrorModule) {
-    const [, styles] = await createComponentStylesAndScripts({
-      ctx,
-      filePath: globalErrorModule[1],
-      getComponent: globalErrorModule[0],
-      injectedCSS: new Set(),
-      injectedJS: new Set(),
-    })
-    globalErrorStyles = styles
-  }
+
+  // Get the GlobalError component and styles from the loader tree
+  const [GlobalErrorComponent, styles] = await createComponentStylesAndScripts({
+    ctx,
+    filePath: globalErrorModule[1],
+    getComponent: globalErrorModule[0],
+    injectedCSS: new Set(),
+    injectedJS: new Set(),
+  })
+
+  let globalErrorStyles: ReactNode = styles
+
   if (ctx.renderOpts.dev) {
     const dir =
       (process.env.NEXT_RUNTIME === 'edge'
@@ -5566,7 +5573,7 @@ const getGlobalErrorStyles = async (
 
     const globalErrorModulePath = normalizeConventionFilePath(
       dir,
-      globalErrorModule?.[1]
+      globalErrorModule[1]
     )
     if (globalErrorModulePath) {
       const SegmentViewNode = ctx.componentMod.SegmentViewNode
