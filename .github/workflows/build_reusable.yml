@@ -118,6 +118,10 @@ env:
   # defaults to 256, but we run a lot of tests in parallel, so the limit should be lower
   NEXT_TURBOPACK_IO_CONCURRENCY: 64
 
+  # Disable warnings from baseline-browser-mapping
+  # https://github.com/web-platform-dx/baseline-browser-mapping/blob/ec8136ae9e034b332fab991d63a340d2e13b8afc/README.md?plain=1#L34
+  BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA: 1
+
 jobs:
   build:
     timeout-minutes: ${{ inputs.timeout_minutes }}
