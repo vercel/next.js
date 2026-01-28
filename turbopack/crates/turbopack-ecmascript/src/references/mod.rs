@@ -1582,79 +1582,66 @@ async fn compile_time_info_for_module_options(
 ) -> Result<Vc<CompileTimeInfo>> {
     let compile_time_info = compile_time_info.await?;
     let free_var_references = compile_time_info.free_var_references;
+    let defines = compile_time_info.defines;
 
     let mut free_var_references = free_var_references.owned().await?;
-    let (typeof_exports, typeof_module, require) = if is_esm {
-        ("undefined", "undefined", TURBOPACK_REQUIRE_STUB)
+    let mut defines = defines.owned().await?;
+
+    let (typeof_exports, typeof_module, typeof_this, require) = if is_esm {
+        (
+            rcstr!("undefined"),
+            rcstr!("undefined"),
+            rcstr!("undefined"),
+            TURBOPACK_REQUIRE_STUB,
+        )
     } else {
-        ("object", "object", TURBOPACK_REQUIRE_REAL)
+        (
+            rcstr!("object"),
+            rcstr!("object"),
+            rcstr!("object"),
+            TURBOPACK_REQUIRE_REAL,
+        )
     };
-    free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(rcstr!("import")),
-            DefinableNameSegment::Name(rcstr!("meta")),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(rcstr!("object").into());
-    free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(rcstr!("exports")),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(typeof_exports.into());
-    free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(rcstr!("module")),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(typeof_module.into());
-    free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(rcstr!("require")),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(rcstr!("function").into());
+    let typeofs: [(&[RcStr], RcStr); _] = [
+        (&[rcstr!("import"), rcstr!("meta")], rcstr!("object")),
+        (&[rcstr!("exports")], typeof_exports),
+        (&[rcstr!("module")], typeof_module),
+        (&[rcstr!("this")], typeof_this),
+        (&[rcstr!("require")], rcstr!("function")),
+        (&[rcstr!("__dirname")], rcstr!("string")),
+        (&[rcstr!("__filename")], rcstr!("string")),
+        (&[rcstr!("global")], rcstr!("object")),
+    ];
+    for (typeof_path, typeof_value) in typeofs {
+        let name = typeof_path
+            .iter()
+            .map(|s| DefinableNameSegment::Name(s.clone()))
+            .chain(std::iter::once(DefinableNameSegment::TypeOf))
+            .collect::<Vec<_>>();
+        free_var_references
+            .entry(name.clone())
+            .or_insert(typeof_value.clone().into());
+        defines.entry(name).or_insert(typeof_value.into());
+    }
+
     free_var_references
         .entry(vec![DefinableNameSegment::Name(rcstr!("require"))])
         .or_insert(require.into());
-
-    let dir_name = rcstr!("__dirname");
     free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(dir_name.clone()),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(rcstr!("string").into());
-    free_var_references
-        .entry(vec![DefinableNameSegment::Name(dir_name)])
+        .entry(vec![DefinableNameSegment::Name(rcstr!("__dirname"))])
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::DirName,
         ));
-    let file_name = rcstr!("__filename");
-
     free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(file_name.clone()),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(rcstr!("string").into());
-    free_var_references
-        .entry(vec![DefinableNameSegment::Name(file_name)])
+        .entry(vec![DefinableNameSegment::Name(rcstr!("__filename"))])
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::FileName,
         ));
 
     // Compiletime rewrite the nodejs `global` to `__turbopack_context_.g` which is a shortcut for
     // `globalThis` that cannot be shadowed by a local variable.
-    let global = rcstr!("global");
     free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(global.clone()),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(rcstr!("object").into());
-    free_var_references
-        .entry(vec![DefinableNameSegment::Name(global)])
+        .entry(vec![DefinableNameSegment::Name(rcstr!("global"))])
         .or_insert(TURBOPACK_GLOBAL.into());
 
     free_var_references.extend(TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
@@ -1669,9 +1656,8 @@ async fn compile_time_info_for_module_options(
     // Compile time replace it so we can represent module-factories as arrow functions without
     // needing to be defensive about rebinding this. Do the same for CJS modules while we are
     // here.
-    let this = rcstr!("this");
     free_var_references
-        .entry(vec![DefinableNameSegment::Name(this.clone())])
+        .entry(vec![DefinableNameSegment::Name(rcstr!("this"))])
         .or_insert(if is_esm {
             FreeVarReference::Value(CompileTimeDefineValue::Undefined)
         } else {
@@ -1679,43 +1665,30 @@ async fn compile_time_info_for_module_options(
             // not be shadowed by user symbols.
             TURBOPACK_EXPORTS.into()
         });
-    free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(this),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(if is_esm {
-            rcstr!("undefined").into()
-        } else {
-            rcstr!("object").into()
-        });
 
-    let mut defines = compile_time_info.defines;
     if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
         let value = match enable_typeof_window_inlining {
             TypeofWindow::Object => rcstr!("object"),
             TypeofWindow::Undefined => rcstr!("undefined"),
         };
         let window = rcstr!("window");
-        let mut defines_value = defines.owned().await?;
-        defines_value
+        free_var_references
             .entry(vec![
                 DefinableNameSegment::Name(window.clone()),
                 DefinableNameSegment::TypeOf,
             ])
             .or_insert(value.clone().into());
-        free_var_references
+        defines
             .entry(vec![
                 DefinableNameSegment::Name(window),
                 DefinableNameSegment::TypeOf,
             ])
             .or_insert(value.into());
-        defines = CompileTimeDefines(defines_value).resolved_cell()
     }
 
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
-        defines,
+        defines: CompileTimeDefines(defines).resolved_cell(),
         free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
     }
     .cell())
@@ -3220,15 +3193,10 @@ async fn value_visitor_inner(
     allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
-    // This check is just an optimization
-    if let Some(name) = v.get_definable_name() {
-        if let Some(value) = compile_time_info_ref.free_var_references.get(&name).await? {
-            return Ok(((&*value).try_into()?, true));
-        }
-
-        if let Some(value) = compile_time_info_ref.defines.get(&name).await? {
-            return Ok(((&*value).try_into()?, true));
-        }
+    if let Some(name) = v.get_definable_name()
+        && let Some(value) = compile_time_info_ref.defines.get(&name).await?
+    {
+        return Ok(((&*value).try_into()?, true));
     }
     let value = match v {
         JsValue::Call(
