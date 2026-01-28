@@ -48,13 +48,14 @@ describe('resume-data-cache', () => {
       // Then get the dynamic RSC and validate that it also contains the same
       // random number.
       await retry(async () => {
-        const rsc = await next
-          .fetch('/', {
-            headers: {
-              RSC: '1',
-            },
-          })
-          .then((res) => res.text())
+        const rscRes = await next.fetch('/', {
+          headers: {
+            RSC: '1',
+          },
+        })
+        const cacheHeader = rscRes.headers.get('x-vercel-cache')
+        const rsc = await rscRes.text()
+        expect(cacheHeader).toBe('HIT')
         expect(rsc).toContain(first)
       })
 
@@ -67,25 +68,27 @@ describe('resume-data-cache', () => {
       // same random number. The first request will get the stale data, but the
       // second request will get the fresh data as it'll eventually have
       // revalidated.
-      const rsc = await next
-        .fetch('/', {
-          headers: {
-            RSC: '1',
-          },
-        })
-        .then((res) => res.text())
+      const rscRes = await next.fetch('/', {
+        headers: {
+          RSC: '1',
+        },
+      })
+      const cacheHeader = rscRes.headers.get('x-vercel-cache')
+      const rsc = await rscRes.text()
+      expect(cacheHeader).toBe('STALE')
       expect(rsc).toContain(first)
 
       // We then expect after the background revalidation has been completed,
       // the dynamic RSC to get the fresh data.
       await retry(async () => {
-        const rsc = await next
-          .fetch('/', {
-            headers: {
-              RSC: '1',
-            },
-          })
-          .then((res) => res.text())
+        const rscRes = await next.fetch('/', {
+          headers: {
+            RSC: '1',
+          },
+        })
+        const cacheHeader = rscRes.headers.get('x-vercel-cache')
+        const rsc = await rscRes.text()
+        expect(cacheHeader).toBe('HIT')
         expect(rsc).not.toContain(first)
       })
 
