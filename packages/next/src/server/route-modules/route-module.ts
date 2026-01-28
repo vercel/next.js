@@ -586,7 +586,6 @@ export abstract class RouteModule<
           | DeepReadonly<RequiredServerFilesManifest>
           | undefined
         reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
-        routesManifest: DeepReadonly<DevRoutesManifest>
         prerenderManifest: DeepReadonly<PrerenderManifest>
         // we can't pull in the client reference type or it causes issues with
         // our pre-compiled types
