@@ -39,14 +39,17 @@ Every time a page is viewed, a fresh nonce should be generated. This means that 
 
 For example:
 
+> **Good to know**: In development, `'unsafe-eval'` is required because React uses `eval` to provide enhanced debugging information, such as reconstructing server-side error stacks in the browser. `unsafe-eval` is not required for production. Neither React nor Next.js use `eval` in production by default.
+
 ```ts filename="proxy.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const isDev = process.env.NODE_ENV === 'development'
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self' 'nonce-${nonce}';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -88,9 +91,10 @@ import { NextResponse } from 'next/server'
 
 export function proxy(request) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const isDev = process.env.NODE_ENV === 'development'
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self' 'nonce-${nonce}';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -483,9 +487,11 @@ When SRI is enabled, you can continue using your existing CSP policies. SRI work
 > **Good to know**: For dynamic rendering scenarios, you can still generate nonces with proxy if needed, combining both SRI integrity attributes and nonce-based CSP approaches.
 
 ```js filename="next.config.js"
+const isDev = process.env.NODE_ENV === 'development'
+
 const cspHeader = `
     default-src 'self';
-    script-src 'self';
+    script-src 'self'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -540,7 +546,7 @@ CSP implementation differs between development and production environments:
 
 ### Development Environment
 
-In development, you will need to enable `'unsafe-eval'` to support APIs that provide additional debugging information:
+In development, you will need to enable `'unsafe-eval'` because React uses `eval` to provide enhanced debugging information, such as reconstructing server-side error stacks in the browser to show you where errors originated on the server:
 
 ```ts filename="proxy.ts" switcher
 export function proxy(request: NextRequest) {
