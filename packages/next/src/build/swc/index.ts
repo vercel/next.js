@@ -47,9 +47,7 @@ type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
   default?(): Promise<typeof import('./generated-wasm')>
 }
-
-// locked version as binaries are locked
-const nextVersion = '15.5.7'
+const nextVersion = process.env.__NEXT_VERSION as string
 
 const ArchName = arch()
 const PlatformName = platform()
