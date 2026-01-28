@@ -149,6 +149,9 @@ impl EffectInstance {
             match state {
                 State::Started(listener) => listener.await,
                 State::NotStarted(effect) => {
+                    // This spawn prevents the effect from running within a turbo_tasks context.
+                    // This is important because if we read a `Vc`, we want it to fail (panic). If
+                    // it didn't, we'd assign the dependency to the wrong task.
                     let join_handle = spawn(ApplyEffectsContext::in_current_scope(async move {
                         effect.dyn_apply().await
                     }));
