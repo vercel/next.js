@@ -788,12 +788,7 @@ function pingStaticHead(
     now,
     task,
     route,
-    readOrCreateSegmentCacheEntry(
-      now,
-      FetchStrategy.PPR,
-      route,
-      route.metadata
-    ),
+    readOrCreateSegmentCacheEntry(now, FetchStrategy.PPR, route.metadata),
     task.key,
     route.metadata
   )
@@ -848,7 +843,6 @@ function pingSharedPartOfCacheComponentsTree(
   const segment = readOrCreateSegmentCacheEntry(
     now,
     task.fetchStrategy,
-    route,
     newTree
   )
   pingStaticSegmentData(now, task, route, segment, task.key, newTree)
@@ -946,12 +940,7 @@ function pingNewPartOfCacheComponentsTree(
   }
 
   // This segment should not be runtime prefetched. Prefetch its static data.
-  const segment = readOrCreateSegmentCacheEntry(
-    now,
-    task.fetchStrategy,
-    route,
-    tree
-  )
+  const segment = readOrCreateSegmentCacheEntry(now, task.fetchStrategy, tree)
   pingStaticSegmentData(now, task, route, segment, task.key, tree)
   if (tree.slots !== null) {
     if (!hasNetworkBandwidth(task)) {
@@ -1146,12 +1135,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   let refetchMarker: 'refetch' | 'inside-shared-layout' | null =
     refetchMarkerContext === null ? 'inside-shared-layout' : null
 
-  const segment = readOrCreateSegmentCacheEntry(
-    now,
-    task.fetchStrategy,
-    route,
-    tree
-  )
+  const segment = readOrCreateSegmentCacheEntry(now, task.fetchStrategy, tree)
   switch (segment.status) {
     case EntryStatus.Empty: {
       // This segment is not cached. Add a refetch marker so the server knows
@@ -1262,7 +1246,6 @@ function pingRouteTreeAndIncludeDynamicData(
     // always use runtime prefetching (via `export const prefetch`), and those should check for
     // entries that include search params.
     fetchStrategy,
-    route,
     tree
   )
 
@@ -1301,12 +1284,7 @@ function pingRouteTreeAndIncludeDynamicData(
         //   - we have a static prefetch, and we're doing a runtime prefetch
         //   - we have a static or runtime prefetch, and we're doing a Full prefetch (or a navigation).
         // In either case, we need to include it in the request to get a more specific (or full) version.
-        spawnedSegment = pingFullSegmentRevalidation(
-          now,
-          route,
-          tree,
-          fetchStrategy
-        )
+        spawnedSegment = pingFullSegmentRevalidation(now, tree, fetchStrategy)
       }
       break
     }
@@ -1320,12 +1298,7 @@ function pingRouteTreeAndIncludeDynamicData(
           fetchStrategy
         )
       ) {
-        spawnedSegment = pingFullSegmentRevalidation(
-          now,
-          route,
-          tree,
-          fetchStrategy
-        )
+        spawnedSegment = pingFullSegmentRevalidation(now, tree, fetchStrategy)
       }
       break
     }
@@ -1514,7 +1487,6 @@ function pingPPRSegmentRevalidation(
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
     FetchStrategy.PPR,
-    route,
     tree
   )
   switch (revalidatingSegment.status) {
@@ -1549,14 +1521,12 @@ function pingPPRSegmentRevalidation(
 
 function pingFullSegmentRevalidation(
   now: number,
-  route: FulfilledRouteCacheEntry,
   tree: RouteTree,
   fetchStrategy: FetchStrategy.Full | FetchStrategy.PPRRuntime
 ): PendingSegmentCacheEntry | null {
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
     fetchStrategy,
-    route,
     tree
   )
   if (revalidatingSegment.status === EntryStatus.Empty) {
@@ -1586,8 +1556,8 @@ function pingFullSegmentRevalidation(
       // The existing revalidation was fetched using a less specific strategy.
       // Reset it and start a new revalidation.
       const emptySegment = overwriteRevalidatingSegmentCacheEntry(
+        now,
         fetchStrategy,
-        route,
         tree
       )
       const pendingSegment = upgradeToPendingSegment(
