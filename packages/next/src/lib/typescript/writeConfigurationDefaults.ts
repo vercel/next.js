@@ -6,7 +6,6 @@ import os from 'os'
 import type { CompilerOptions } from 'typescript'
 import { getTypeDefinitionGlobPatterns } from './type-paths'
 import * as Log from '../../build/output/log'
-import { defaultConfig } from '../../server/config-shared'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:

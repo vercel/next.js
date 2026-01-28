@@ -6,7 +6,6 @@ import { getDevTypesPath } from './type-paths'
 
 import { CompileError } from '../compile-error'
 import { warn } from '../../build/output/log'
-import { defaultConfig } from '../../server/config-shared'
 
 export interface TypeCheckResult {
   hasWarnings: boolean

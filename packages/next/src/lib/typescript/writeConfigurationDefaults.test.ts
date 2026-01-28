@@ -170,7 +170,7 @@ describe('writeConfigurationDefaults()', () => {
             hasAppDir,
             distDir,
             hasPagesDir,
-            isolatedDevBuild,
+            undefined,
             experimentalStrictRouteTypes
           )
         ).resolves.not.toThrow()
