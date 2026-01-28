@@ -26,6 +26,7 @@ export const LEGACY_CONFIG_EXPORT = 'config'
 export const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'useState',
   'useEffect',
+  'useEffectEvent',
   'useLayoutEffect',
   'useDeferredValue',
   'useImperativeHandle',

@@ -8,7 +8,7 @@ __turbopack_context__.s([
 ]);
 function runExternalSourceMapped(fn) {
     return fn();
-} //# sourceMappingURL=sourcemapped.js.map
+}
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";

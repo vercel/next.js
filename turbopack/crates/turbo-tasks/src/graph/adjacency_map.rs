@@ -155,19 +155,6 @@ where
             visited: FxHashSet::default(),
         }
     }
-
-    /// Returns an iterator over the nodes in postorder topological order,
-    /// starting from the given node.
-    pub fn postorder_topological_from_node<'graph>(
-        &'graph self,
-        node: &'graph T,
-    ) -> PostorderTopologicalIter<'graph, T, E> {
-        PostorderTopologicalIter {
-            adjacency_map: &self.adjacency_map,
-            stack: vec![(ReverseTopologicalPass::Pre, node)],
-            visited: FxHashSet::default(),
-        }
-    }
 }
 
 #[derive(Debug)]

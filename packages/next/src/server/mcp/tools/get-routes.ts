@@ -69,7 +69,9 @@ export function registerGetRoutesTool(
             content: [
               {
                 type: 'text',
-                text: 'No pages or app directory found in the project.',
+                text: JSON.stringify({
+                  error: 'No pages or app directory found in the project.',
+                }),
               },
             ],
           }
@@ -180,7 +182,10 @@ export function registerGetRoutesTool(
             content: [
               {
                 type: 'text',
-                text: 'No routes found in the project.',
+                text: JSON.stringify({
+                  appRouter: [],
+                  pagesRouter: [],
+                }),
               },
             ],
           }
@@ -215,7 +220,9 @@ export function registerGetRoutesTool(
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : String(error),
+              }),
             },
           ],
         }

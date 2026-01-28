@@ -2,7 +2,7 @@ import type { OriginalStackFrame } from '../../../shared/stack-frame'
 
 import { HotlinkedText } from '../hot-linked-text'
 import { ExternalIcon, SourceMappingErrorIcon } from '../../icons/external'
-import { getFrameSource } from '../../../shared/stack-frame'
+import { getStackFrameFile } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 
 export const CallStackFrame: React.FC<{
@@ -11,9 +11,9 @@ export const CallStackFrame: React.FC<{
   // TODO: ability to expand resolved frames
 
   const f = frame.originalStackFrame ?? frame.sourceStackFrame
-  const hasSource = Boolean(frame.originalCodeFrame)
+  const hasOriginalCodeFrame = Boolean(frame.originalCodeFrame)
   const open = useOpenInEditor(
-    hasSource
+    hasOriginalCodeFrame
       ? {
           file: f.file,
           line1: f.line1 ?? 1,
@@ -24,21 +24,21 @@ export const CallStackFrame: React.FC<{
 
   // Formatted file source could be empty. e.g. <anonymous> will be formatted to empty string,
   // we'll skip rendering the frame in this case.
-  const fileSource = getFrameSource(f)
+  const stackFrameFile = getStackFrameFile(f)
 
-  if (!fileSource) {
+  if (!stackFrameFile) {
     return null
   }
 
   return (
     <div
       data-nextjs-call-stack-frame
-      data-nextjs-call-stack-frame-no-source={!hasSource}
+      data-nextjs-call-stack-frame-no-source={!hasOriginalCodeFrame}
       data-nextjs-call-stack-frame-ignored={frame.ignored}
     >
       <div className="call-stack-frame-method-name">
         <HotlinkedText text={f.methodName} />
-        {hasSource && (
+        {hasOriginalCodeFrame && (
           <button
             onClick={open}
             className="open-in-editor-button"
@@ -58,10 +58,10 @@ export const CallStackFrame: React.FC<{
         ) : null}
       </div>
       <span
-        className="call-stack-frame-file-source"
-        data-has-source={hasSource}
+        className="call-stack-frame-file"
+        data-has-original-code-frame={hasOriginalCodeFrame}
       >
-        {fileSource}
+        {stackFrameFile}
       </span>
     </div>
   )
@@ -140,9 +140,10 @@ export const CALL_STACK_FRAME_STYLES = `
     }
   }
 
-  .call-stack-frame-file-source {
+  .call-stack-frame-file {
     color: var(--color-gray-900);
     font-size: var(--size-14);
     line-height: var(--size-20);
+    word-wrap: break-word;
   }
 `

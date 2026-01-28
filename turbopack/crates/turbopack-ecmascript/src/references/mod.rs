@@ -139,7 +139,7 @@ use crate::{
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
         member::MemberReplacement,
-        node::{FilePathModuleReference, PackageJsonReference},
+        node::PackageJsonReference,
         raw::{DirAssetReference, FileSourceReference},
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
@@ -479,6 +479,9 @@ struct AnalysisState<'a> {
     // Whether we should collect affecting sources from referenced files. Only usedful when
     // tracing.
     collect_affecting_sources: bool,
+    // Whether we are only tracing dependencies (no code generation). When true, synthetic
+    // wrapper modules like WorkerLoaderModule should not be created.
+    tracing_only: bool,
 }
 
 impl AnalysisState<'_> {
@@ -626,7 +629,7 @@ async fn analyze_ecmascript_module_internal(
         eval_context,
         comments,
         source_map,
-        ..
+        source_mapping_url,
     } = &*parsed
     else {
         return analysis.build(Default::default(), false).await;
@@ -727,7 +730,7 @@ async fn analyze_ecmascript_module_internal(
         async {
             if let Some((source_map, reference)) = parse_source_map_comment(
                 source,
-                Either::Left(comments),
+                source_mapping_url.as_deref(),
                 &*origin.origin_path().await?,
             )
             .await?
@@ -783,7 +786,7 @@ async fn analyze_ecmascript_module_internal(
             import_usage.insert(
                 *reference,
                 if has_global_usage {
-                    ImportUsage::SideEffects
+                    ImportUsage::TopLevel
                 } else {
                     ImportUsage::Exports(
                         var_graph
@@ -1086,7 +1089,8 @@ async fn analyze_ecmascript_module_internal(
                 .free_var_references
                 .individual()
                 .await?,
-            collect_affecting_sources: options.analyze_mode.is_tracing(),
+            collect_affecting_sources: options.analyze_mode.is_tracing_assets(),
+            tracing_only: !options.analyze_mode.is_code_gen(),
         };
 
         enum Action {
@@ -1735,6 +1739,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         ignore_dynamic_requests,
         url_rewrite_behavior,
         collect_affecting_sources,
+        tracing_only,
         allow_project_root_tracing: _,
         ..
     } = state;
@@ -1795,6 +1800,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         in_try,
                         state,
                         collect_affecting_sources,
+                        tracing_only,
                     )
                     .await?;
                 }
@@ -1817,6 +1823,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 in_try,
                 state,
                 collect_affecting_sources,
+                tracing_only,
             )
             .await?;
         }
@@ -1842,6 +1849,7 @@ async fn handle_well_known_function_call<'a, F, Fut>(
     in_try: bool,
     state: &'a AnalysisState<'a>,
     collect_affecting_sources: bool,
+    tracing_only: bool,
 ) -> Result<()>
 where
     F: Fn() -> Fut,
@@ -1915,15 +1923,21 @@ where
                 }
                 return Ok(());
             }
-            WellKnownFunctionKind::WorkerConstructor => {
+            WellKnownFunctionKind::WorkerConstructor
+            | WellKnownFunctionKind::SharedWorkerConstructor => {
                 let args = linked_args().await?;
                 if let Some(url @ JsValue::Url(_, JsValueUrlKind::Relative)) = args.first() {
+                    let (name, is_shared) = match func {
+                        WellKnownFunctionKind::WorkerConstructor => ("Worker", false),
+                        WellKnownFunctionKind::SharedWorkerConstructor => ("SharedWorker", true),
+                        _ => unreachable!(),
+                    };
                     let pat = js_value_to_pattern(url);
                     if !pat.has_constant_parts() {
                         let (args, hints) = explain_args(args);
                         handler.span_warn_with_code(
                             span,
-                            &format!("new Worker({args}) is very dynamic{hints}",),
+                            &format!("new {name}({args}) is very dynamic{hints}",),
                             DiagnosticId::Lint(
                                 errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
                             ),
@@ -1935,11 +1949,13 @@ where
 
                     if *compile_time_info.environment().rendering().await? == Rendering::Client {
                         analysis.add_reference_code_gen(
-                            WorkerAssetReference::new(
+                            WorkerAssetReference::new_web_worker(
                                 origin,
                                 Request::parse(pat).to_resolved().await?,
                                 issue_source(source, span),
                                 in_try,
+                                tracing_only,
+                                is_shared,
                             ),
                             ast_path.to_vec().into(),
                         );
@@ -1950,8 +1966,7 @@ where
                 // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
                 return Ok(());
             }
-            WellKnownFunctionKind::NodeWorkerConstructor if analysis.analyze_mode.is_tracing() => {
-                // Only for tracing, not for bundling (yet?)
+            WellKnownFunctionKind::NodeWorkerConstructor => {
                 let args = linked_args().await?;
                 if !args.is_empty() {
                     let pat = js_value_to_pattern(&args[0]);
@@ -1968,17 +1983,21 @@ where
                             return Ok(());
                         }
                     }
-                    analysis.add_reference(
-                        FilePathModuleReference::new(
-                            origin.asset_context(),
+
+                    analysis.add_reference_code_gen(
+                        WorkerAssetReference::new_node_worker_thread(
+                            origin,
+                            // WorkerThreads resolve filepaths relative to the process root
                             get_traced_project_dir().await?,
-                            Pattern::new(pat),
+                            Pattern::new(pat).to_resolved().await?,
                             collect_affecting_sources,
                             get_issue_source(),
-                        )
-                        .to_resolved()
-                        .await?,
+                            in_try,
+                            tracing_only,
+                        ),
+                        ast_path.to_vec().into(),
                     );
+
                     return Ok(());
                 }
                 let (args, hints) = explain_args(args);
@@ -2188,7 +2207,7 @@ where
             );
         }
 
-        WellKnownFunctionKind::FsReadMethod(name) if analysis.analyze_mode.is_tracing() => {
+        WellKnownFunctionKind::FsReadMethod(name) if analysis.analyze_mode.is_tracing_assets() => {
             let args = linked_args().await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
@@ -2225,7 +2244,7 @@ where
             )
         }
 
-        WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.is_tracing() => {
+        WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.is_tracing_assets() => {
             let parent_path = origin.origin_path().owned().await?.parent();
             let args = linked_args().await?;
 
@@ -2269,7 +2288,7 @@ where
             return Ok(());
         }
 
-        WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing() => {
+        WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing_assets() => {
             let context_path = source.ident().path().await?;
             // ignore path.join in `node-gyp`, it will includes too many files
             if context_path.path.contains("node_modules/node-gyp") {
@@ -2311,7 +2330,7 @@ where
             return Ok(());
         }
         WellKnownFunctionKind::ChildProcessSpawnMethod(name)
-            if analysis.analyze_mode.is_tracing() =>
+            if analysis.analyze_mode.is_tracing_assets() =>
         {
             let args = linked_args().await?;
 
@@ -2388,7 +2407,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::ChildProcessFork if analysis.analyze_mode.is_tracing() => {
+        WellKnownFunctionKind::ChildProcessFork if analysis.analyze_mode.is_tracing_assets() => {
             let args = linked_args().await?;
             if !args.is_empty() {
                 let first_arg = &args[0];
@@ -2427,7 +2446,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodePreGypFind if analysis.analyze_mode.is_tracing() => {
+        WellKnownFunctionKind::NodePreGypFind if analysis.analyze_mode.is_tracing_assets() => {
             use turbopack_resolve::node_native_binding::NodePreGypConfigReference;
 
             let args = linked_args().await?;
@@ -2470,7 +2489,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeGypBuild if analysis.analyze_mode.is_tracing() => {
+        WellKnownFunctionKind::NodeGypBuild if analysis.analyze_mode.is_tracing_assets() => {
             use turbopack_resolve::node_native_binding::NodeGypBuildReference;
 
             let args = linked_args().await?;
@@ -2509,7 +2528,7 @@ where
                     ),
                 )
         }
-        WellKnownFunctionKind::NodeBindings if analysis.analyze_mode.is_tracing() => {
+        WellKnownFunctionKind::NodeBindings if analysis.analyze_mode.is_tracing_assets() => {
             use turbopack_resolve::node_native_binding::NodeBindingsReference;
 
             let args = linked_args().await?;
@@ -2539,7 +2558,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeExpressSet if analysis.analyze_mode.is_tracing() => {
+        WellKnownFunctionKind::NodeExpressSet if analysis.analyze_mode.is_tracing_assets() => {
             let args = linked_args().await?;
             if args.len() == 2
                 && let Some(s) = args.first().and_then(|arg| arg.as_str())
@@ -2623,7 +2642,7 @@ where
             )
         }
         WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir
-            if analysis.analyze_mode.is_tracing() =>
+            if analysis.analyze_mode.is_tracing_assets() =>
         {
             let args = linked_args().await?;
             if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
@@ -2670,7 +2689,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeResolveFrom if analysis.analyze_mode.is_tracing() => {
+        WellKnownFunctionKind::NodeResolveFrom if analysis.analyze_mode.is_tracing_assets() => {
             let args = linked_args().await?;
             if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
                 analysis.add_reference(
@@ -2694,7 +2713,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeProtobufLoad if analysis.analyze_mode.is_tracing() => {
+        WellKnownFunctionKind::NodeProtobufLoad if analysis.analyze_mode.is_tracing_assets() => {
             let args = linked_args().await?;
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
@@ -2942,7 +2961,7 @@ async fn handle_free_var_reference(
                             ) => export.clone().map(ModulePart::export),
                             None => None,
                         },
-                        ImportUsage::SideEffects,
+                        ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,
                     )
@@ -3338,6 +3357,12 @@ async fn value_visitor_inner(
                 JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
                 true,
                 "ignored Worker constructor",
+            ),
+            "SharedWorker" => JsValue::unknown_if(
+                ignore,
+                JsValue::WellKnownFunction(WellKnownFunctionKind::SharedWorkerConstructor),
+                true,
+                "ignored SharedWorker constructor",
             ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
@@ -3940,8 +3965,7 @@ async fn resolve_as_webpack_runtime(
     request: Vc<Request>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<WebpackRuntime>> {
-    let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
-    let options = origin.resolve_options(ty.clone());
+    let options = origin.resolve_options();
 
     let options = apply_cjs_specific_options(options);
 
@@ -4121,8 +4145,8 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
     if let JsValue::Member(_, obj, constant) = &args[0] {
         // Is the first argument to spawn `process.argv[]`?
         if let (
-            box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv),
-            box JsValue::Constant(JsConstantValue::Num(ConstantNumber(num))),
+            &box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv),
+            &box JsValue::Constant(JsConstantValue::Num(ConstantNumber(num))),
         ) = (obj, constant)
         {
             // Is it specifically `process.argv[0]`?

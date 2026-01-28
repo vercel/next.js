@@ -32,11 +32,10 @@ impl DotenvProcessEnv {
     }
 
     #[turbo_tasks::function]
-    pub async fn read_all_with_prior(self: Vc<Self>, prior: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
-        let this = self.await?;
+    pub async fn read_all_with_prior(&self, prior: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
         let prior = prior.await?;
 
-        let file = this.path.read().await?;
+        let file = self.path.read().await?;
         if let FileContent::Content(f) = &*file {
             let res;
             let vars;
@@ -62,7 +61,7 @@ impl DotenvProcessEnv {
             if let Err(e) = res {
                 return Err(e).context(anyhow!(
                     "unable to read {} for env vars",
-                    this.path.value_to_string().await?
+                    self.path.value_to_string().await?
                 ));
             }
 

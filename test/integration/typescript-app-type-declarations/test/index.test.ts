@@ -42,6 +42,7 @@ describe('TypeScript App Type Declarations', () => {
       let app
       try {
         app = await launchApp(appDir, appPort, {})
+        await fetch(`http://localhost:${appPort}`)
         const content = await fs.readFile(appTypeDeclarations, 'utf8')
         expect(content).toEqual(prevContent)
       } finally {
@@ -60,6 +61,7 @@ describe('TypeScript App Type Declarations', () => {
       let app
       try {
         app = await launchApp(appDir, appPort, {})
+        await fetch(`http://localhost:${appPort}`)
         const content = await fs.readFile(appTypeDeclarations, 'utf8')
         expect(content).toEqual(prevContent)
       } finally {

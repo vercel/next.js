@@ -324,6 +324,7 @@ export default abstract class Server<
   protected readonly pagesManifest?: PagesManifest
   protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
+  protected readonly deploymentId: string
   protected readonly minimalMode: boolean
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
@@ -376,7 +377,6 @@ export default abstract class Server<
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
-      cdnCacheControlHeader?: string
     }
   ): Promise<void>
 
@@ -455,21 +455,24 @@ export default abstract class Server<
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
 
-    let deploymentId
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
         throw new Error(
           'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
         )
       }
-      deploymentId = process.env.NEXT_DEPLOYMENT_ID
+      this.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = this.deploymentId
+        ? `?dpl=${this.deploymentId}`
+        : ''
     } else {
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
         : this.nextConfig.deploymentId || ''
 
-      deploymentId = id
+      this.deploymentId = id
       process.env.NEXT_DEPLOYMENT_ID = id
+      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = id ? `?dpl=${id}` : ''
     }
 
     this.hostname = hostname
@@ -531,7 +534,6 @@ export default abstract class Server<
       dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: deploymentId,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
       previewProps: this.getPrerenderManifest().preview,
@@ -563,10 +565,10 @@ export default abstract class Server<
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
+        optimisticRouting:
+          this.nextConfig.experimental.optimisticRouting ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
-        cdnCacheControlHeader:
-          this.nextConfig.experimental.cdnCacheControlHeader,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
@@ -1210,7 +1212,11 @@ export default abstract class Server<
             pathnameBeforeRewrite !== rewrittenParsedUrl.pathname
 
           if (didRewrite && rewrittenParsedUrl.pathname) {
-            addRequestMeta(req, 'rewroteURL', rewrittenParsedUrl.pathname)
+            addRequestMeta(
+              req,
+              'rewrittenPathname',
+              rewrittenParsedUrl.pathname
+            )
           }
 
           const routeParamKeys = new Set<string>()
@@ -1505,7 +1511,7 @@ export default abstract class Server<
 
         if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
           parsedUrl.pathname = parsedMatchedPath.pathname
-          addRequestMeta(req, 'rewroteURL', invokePathnameInfo.pathname)
+          addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
         const normalizeResult = normalizeLocalePath(
           removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
@@ -1782,7 +1788,12 @@ export default abstract class Server<
 
       // In dev, we should not cache pages for any reason.
       if (dev) {
-        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        res.setHeader(
+          'Cache-Control',
+          this.nextConfig.experimental.devCacheControlNoCache
+            ? 'no-cache, must-revalidate'
+            : 'no-store, must-revalidate'
+        )
         cacheControl = undefined
       }
 
@@ -1795,8 +1806,6 @@ export default abstract class Server<
         generateEtags,
         poweredByHeader,
         cacheControl,
-        cdnCacheControlHeader:
-          this.nextConfig.experimental.cdnCacheControlHeader,
       })
       res.statusCode = originalStatus
     }
@@ -2086,12 +2095,13 @@ export default abstract class Server<
       }
     }
 
-    // Compute the iSSG cache key. We use the rewroteUrl since
+    // Compute the iSSG cache key. We use the rewritten pathname since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
     let urlPathname = parseUrl(req.url || '').pathname || '/'
 
-    let resolvedUrlPathname = getRequestMeta(req, 'rewroteURL') || urlPathname
+    let resolvedUrlPathname =
+      getRequestMeta(req, 'rewrittenPathname') || urlPathname
 
     this.setVaryHeader(req, res, isAppPath, resolvedUrlPathname)
 
@@ -2616,8 +2626,8 @@ export default abstract class Server<
               url: ctx.req.url,
               matchedPath: ctx.req.headers[MATCHED_PATH_HEADER],
               initUrl: getRequestMeta(ctx.req, 'initURL'),
-              didRewrite: !!getRequestMeta(ctx.req, 'rewroteURL'),
-              rewroteUrl: getRequestMeta(ctx.req, 'rewroteURL'),
+              didRewrite: !!getRequestMeta(ctx.req, 'rewrittenPathname'),
+              rewrittenPathname: getRequestMeta(ctx.req, 'rewrittenPathname'),
             },
             null,
             2

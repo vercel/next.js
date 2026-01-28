@@ -18,11 +18,13 @@ import { createRequestResponseMocks } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
 import {
   CachedRouteKind,
+  IncrementalCacheKind,
   type CachedImageValue,
   type IncrementalCacheEntry,
   type IncrementalCacheValue,
   type IncrementalResponseCacheEntry,
 } from './response-cache'
+import type { CacheHandler } from './lib/incremental-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
@@ -315,6 +317,7 @@ export async function detectContentType(
 export class ImageOptimizerCache {
   private cacheDir: string
   private nextConfig: NextConfigRuntime
+  private cacheHandler?: CacheHandler
 
   static validateParams(
     req: IncomingMessage,
@@ -495,15 +498,58 @@ export class ImageOptimizerCache {
   constructor({
     distDir,
     nextConfig,
+    cacheHandler,
   }: {
     distDir: string
     nextConfig: NextConfigRuntime
+    cacheHandler?: CacheHandler
   }) {
     this.cacheDir = join(/* turbopackIgnore: true */ distDir, 'cache', 'images')
     this.nextConfig = nextConfig
+    this.cacheHandler = cacheHandler
   }
 
   async get(cacheKey: string): Promise<IncrementalResponseCacheEntry | null> {
+    // If a custom cache handler is provided, use it
+    if (this.cacheHandler) {
+      try {
+        const cacheData = await this.cacheHandler.get(cacheKey, {
+          kind: IncrementalCacheKind.IMAGE,
+          isFallback: false,
+        })
+
+        if (!cacheData?.value) {
+          return null
+        }
+
+        if (cacheData.value.kind !== CachedRouteKind.IMAGE) {
+          return null
+        }
+
+        const now = Date.now()
+        const lastModified = cacheData.lastModified || now
+        const revalidate =
+          typeof cacheData.value.revalidate === 'number'
+            ? cacheData.value.revalidate
+            : this.nextConfig.images.minimumCacheTTL
+        const revalidateAfter =
+          Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
+          lastModified
+        const isStale = revalidateAfter < now
+
+        return {
+          value: cacheData.value,
+          revalidateAfter,
+          cacheControl: { revalidate, expire: undefined },
+          isStale,
+        }
+      } catch (_) {
+        // failed to get from custom cache handler, treat as cache miss
+      }
+      return null
+    }
+
+    // Fall back to filesystem cache
     try {
       const cacheDir = join(/* turbopackIgnore: true */ this.cacheDir, cacheKey)
       const files = await promises.readdir(cacheDir)
@@ -550,10 +596,6 @@ export class ImageOptimizerCache {
       cacheControl?: CacheControl
     }
   ) {
-    if (!this.nextConfig.experimental.isrFlushToDisk) {
-      return
-    }
-
     if (value?.kind !== CachedRouteKind.IMAGE) {
       throw new Error('invariant attempted to set non-image to image-cache')
     }
@@ -562,6 +604,35 @@ export class ImageOptimizerCache {
 
     if (typeof revalidate !== 'number') {
       throw new InvariantError('revalidate must be a number for image-cache')
+    }
+
+    // If a custom cache handler is provided, use it
+    if (this.cacheHandler) {
+      try {
+        // Apply minimumCacheTTL at write time, similar to the implementation in the fallback filesystem cache
+        const effectiveRevalidate = Math.max(
+          revalidate,
+          this.nextConfig.images.minimumCacheTTL
+        )
+        const valueWithRevalidate = {
+          ...value,
+          revalidate: effectiveRevalidate,
+        }
+        await this.cacheHandler.set(cacheKey, valueWithRevalidate, {
+          cacheControl: {
+            revalidate: effectiveRevalidate,
+            expire: cacheControl?.expire,
+          },
+        })
+      } catch (err) {
+        Log.error(`Failed to write image to custom cache ${cacheKey}`, err)
+      }
+      return
+    }
+
+    // Fall back to filesystem cache
+    if (!this.nextConfig.experimental.isrFlushToDisk) {
+      return
     }
 
     const expireAt =

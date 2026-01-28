@@ -95,8 +95,9 @@ env:
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
-  TURBO_TEAM: 'vercel'
+  TURBO_TEAM: 'vtest314-next-e2e-tests'
   TURBO_CACHE: 'remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
 
   NEXT_TELEMETRY_DISABLED: 1
   # allow not skipping install-native postinstall script if we don't have a binary available already
@@ -198,6 +199,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 25
+
+      # Cache pnpm store on GitHub-hosted runners (self-hosted runners have their own persistent storage)
+      - name: Get pnpm store directory
+        if: ${{ runner.environment == 'github-hosted' }}
+        id: get-store-path
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        if: ${{ runner.environment == 'github-hosted' }}
+        uses: actions/cache@v4
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       # local action -> needs to run after checkout
       - name: Install Rust

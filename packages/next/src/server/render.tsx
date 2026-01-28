@@ -101,7 +101,7 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-import { setResponseCacheControlHeaders } from './lib/cache-control'
+import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
@@ -243,7 +243,7 @@ function renderPageTree(
 export type RenderOptsPartial = {
   assetPrefix?: string
   err?: Error | null
-  nextExport?: boolean
+  isBuildTimePrerendering?: boolean
   dev?: boolean
   ErrorDebug?: PagesDevOverlayBridgeType
   isNextDataRequest?: boolean
@@ -287,7 +287,6 @@ export type RenderOptsPartial = {
   expireTime?: number
   experimental: {
     clientTraceMetadata?: string[]
-    cdnCacheControlHeader?: string
   }
 }
 
@@ -307,7 +306,7 @@ export type PagesSharedContext = {
   /**
    * The deployment ID if the user is deploying to a platform that provides one.
    */
-  deploymentId: string | undefined
+  deploymentId: string
 
   /**
    * True if the user is using a custom server.
@@ -518,7 +517,7 @@ export async function renderToHTMLImpl(
   stripInternalQueries(query)
 
   const isSSG = !!getStaticProps
-  const isBuildTimeSSG = isSSG && renderOpts.nextExport
+  const isBuildTimeSSG = isSSG && renderOpts.isBuildTimePrerendering
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
@@ -533,7 +532,7 @@ export async function renderToHTMLImpl(
       (Component as any).origGetInitialProps
 
   if (
-    renderOpts.nextExport &&
+    renderOpts.isBuildTimePrerendering &&
     hasPageGetInitialProps &&
     !defaultErrorGetInitialProps
   ) {
@@ -556,10 +555,9 @@ export async function renderToHTMLImpl(
   // ensure we set cache header so it's not rendered on-demand
   // every request
   if (isAutoExport && !dev && isExperimentalCompile) {
-    setResponseCacheControlHeaders(
-      res,
-      { revalidate: false, expire: expireTime },
-      renderOpts.experimental.cdnCacheControlHeader
+    res.setHeader(
+      'Cache-Control',
+      getCacheControlHeader({ revalidate: false, expire: expireTime })
     )
     isAutoExport = false
   }
@@ -836,7 +834,9 @@ export async function renderToHTMLImpl(
   let props: any
 
   const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+    !isSSG &&
+    (renderOpts.isBuildTimePrerendering ||
+      (dev && (isAutoExport || isFallback)))
 
   const styledJsxInsertedHTML = () => {
     const styles = jsxStyleRegistry.styles()
@@ -1501,6 +1501,7 @@ export async function renderToHTMLImpl(
     docComponentsRendered,
     dangerousAsPath: router.asPath,
     isDevelopment: !!dev,
+    deploymentId: sharedContext.deploymentId,
     dynamicImports: Array.from(dynamicImports),
     dynamicCssManifest: new Set(renderOpts.dynamicCssManifest || []),
     assetPrefix,

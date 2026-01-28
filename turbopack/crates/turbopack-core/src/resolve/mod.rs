@@ -45,7 +45,7 @@ use crate::{
         origin::ResolveOrigin,
         parse::{Request, stringify_data_uri},
         pattern::{Pattern, PatternMatch, read_matches},
-        plugin::{AfterResolvePlugin, BeforeResolvePlugin},
+        plugin::{AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin},
         remap::{ExportsField, ImportsField, ReplacedSubpathValueResult},
     },
     source::{OptionSource, Source, Sources},
@@ -66,6 +66,12 @@ pub use alias_map::{
 pub use remap::{ResolveAliasMap, SubpathValue};
 
 use crate::{error::PrettyPrintError, issue::IssueSeverity};
+
+/// Type alias for a resolved after-resolve plugin paired with its condition.
+type AfterResolvePluginWithCondition = (
+    ResolvedVc<Box<dyn AfterResolvePlugin>>,
+    Vc<AfterResolvePluginCondition>,
+);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
@@ -117,20 +123,23 @@ impl BindingUsage {
     }
 }
 
+/// Defines where an import is used in a module
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 pub enum ImportUsage {
-    /// This import is used by some side effect in the module (and can't be tree shaken).
+    /// This import is used at the top level of the module.  For example, for module level side
+    /// effects
     #[default]
-    SideEffects,
+    TopLevel,
     /// This import is used only by these specific exports, if all exports are unused, the import
     /// can also be removed.
     ///
     /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
-    /// `ModulePart::Evaluation` references, which always have `ImportUsage::SideEffects`.)
+    /// `ModulePart::Evaluation` references, which always have `ImportUsage::TopLevel`.)
     Exports(FrozenSet<RcStr>),
 }
 
+/// Defines what parts of a module are used by another module
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 pub enum ExportUsage {
@@ -471,7 +480,7 @@ pub enum ResolveResultItem {
 /// resolving.
 ///
 /// A primary factor is the actual request string, but there are
-/// other factors like exports conditions that can affect resolting and become
+/// other factors like exports conditions that can affect resolving and become
 /// part of the key (assuming the condition is unknown at compile time)
 #[derive(Clone, Debug, Default, Hash, TaskInput)]
 #[turbo_tasks::value]
@@ -1177,7 +1186,8 @@ enum ImportsFieldResult {
 #[turbo_tasks::function]
 async fn imports_field(lookup_path: FileSystemPath) -> Result<Vc<ImportsFieldResult>> {
     // We don't need to collect affecting sources here because we don't use them
-    let package_json_context = find_context_file(lookup_path, package_json(), false).await?;
+    let package_json_context =
+        find_context_file(lookup_path, package_json().resolve().await?, false).await?;
     let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context else {
         return Ok(ImportsFieldResult::None.cell());
     };
@@ -1595,13 +1605,24 @@ pub async fn resolve_inline(
     }
 
     async {
-        let before_plugins_result = handle_before_resolve_plugins(
-            lookup_path.clone(),
-            reference_type.clone(),
-            request,
-            options,
-        )
-        .await?;
+        // Pre-fetch options once to avoid repeated await calls
+        let options_value = options.await?;
+
+        // Fast path: skip plugin handling if no plugins are configured
+        let has_before_plugins = !options_value.before_resolve_plugins.is_empty();
+        let has_after_plugins = !options_value.after_resolve_plugins.is_empty();
+
+        let before_plugins_result = if has_before_plugins {
+            handle_before_resolve_plugins(
+                lookup_path.clone(),
+                reference_type.clone(),
+                request,
+                options,
+            )
+            .await?
+        } else {
+            None
+        };
 
         let raw_result = match before_plugins_result {
             Some(result) => result,
@@ -1612,9 +1633,13 @@ pub async fn resolve_inline(
             }
         };
 
-        let result =
+        let result = if has_after_plugins {
             handle_after_resolve_plugins(lookup_path, reference_type, request, options, raw_result)
-                .await?;
+                .await?
+        } else {
+            raw_result
+        };
+
         Ok(result)
     }
     .instrument(span)
@@ -1629,7 +1654,7 @@ pub async fn url_resolve(
     issue_source: Option<IssueSource>,
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let resolve_options = origin.resolve_options(reference_type.clone());
+    let resolve_options = origin.resolve_options();
     let rel_request = request.as_relative();
     let origin_path_parent = origin.origin_path().await?.parent();
     let rel_result = resolve(
@@ -1675,6 +1700,24 @@ pub async fn url_resolve(
     .await
 }
 
+#[turbo_tasks::value(transparent)]
+struct MatchingBeforeResolvePlugins(Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>);
+
+#[turbo_tasks::function]
+async fn get_matching_before_resolve_plugins(
+    options: Vc<ResolveOptions>,
+    request: Vc<Request>,
+) -> Result<Vc<MatchingBeforeResolvePlugins>> {
+    let mut matching_plugins = Vec::new();
+    for &plugin in &options.await?.before_resolve_plugins {
+        let condition = plugin.before_resolve_condition().resolve().await?;
+        if *condition.matches(request).await? {
+            matching_plugins.push(plugin);
+        }
+    }
+    Ok(Vc::cell(matching_plugins))
+}
+
 #[tracing::instrument(level = "trace", skip_all)]
 async fn handle_before_resolve_plugins(
     lookup_path: FileSystemPath,
@@ -1682,12 +1725,7 @@ async fn handle_before_resolve_plugins(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Option<Vc<ResolveResult>>> {
-    for plugin in &options.await?.before_resolve_plugins {
-        let condition = plugin.before_resolve_condition().resolve().await?;
-        if !*condition.matches(request).await? {
-            continue;
-        }
-
+    for plugin in get_matching_before_resolve_plugins(options, request).await? {
         if let Some(result) = *plugin
             .before_resolve(lookup_path.clone(), reference_type.clone(), request)
             .await?
@@ -1706,15 +1744,25 @@ async fn handle_after_resolve_plugins(
     options: Vc<ResolveOptions>,
     result: Vc<ResolveResult>,
 ) -> Result<Vc<ResolveResult>> {
+    // Pre-fetch options to avoid repeated await calls in the inner loop
+    let options_value = options.await?;
+
+    // Pre-resolve all plugin conditions once to avoid repeated resolve calls in the loop
+    let resolved_conditions = options_value
+        .after_resolve_plugins
+        .iter()
+        .map(async |p| Ok((*p, p.after_resolve_condition().resolve().await?)))
+        .try_join()
+        .await?;
+
     async fn apply_plugins_to_path(
         path: FileSystemPath,
         lookup_path: FileSystemPath,
         reference_type: ReferenceType,
         request: Vc<Request>,
-        options: Vc<ResolveOptions>,
+        plugins_with_conditions: &[AfterResolvePluginWithCondition],
     ) -> Result<Option<Vc<ResolveResult>>> {
-        for plugin in &options.await?.after_resolve_plugins {
-            let after_resolve_condition = plugin.after_resolve_condition().resolve().await?;
+        for (plugin, after_resolve_condition) in plugins_with_conditions {
             if *after_resolve_condition.matches(path.clone()).await?
                 && let Some(result) = *plugin
                     .after_resolve(
@@ -1745,7 +1793,7 @@ async fn handle_after_resolve_plugins(
                 lookup_path.clone(),
                 reference_type.clone(),
                 request,
-                options,
+                &resolved_conditions,
             )
             .await?
             {
@@ -2643,7 +2691,8 @@ enum FindSelfReferencePackageResult {
 async fn find_self_reference(
     lookup_path: FileSystemPath,
 ) -> Result<Vc<FindSelfReferencePackageResult>> {
-    let package_json_context = find_context_file(lookup_path, package_json(), false).await?;
+    let package_json_context =
+        find_context_file(lookup_path, package_json().resolve().await?, false).await?;
     if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context {
         let read =
             read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?;

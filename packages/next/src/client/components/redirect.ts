@@ -1,6 +1,6 @@
 import { RedirectStatusCode } from './redirect-status-code'
 import {
-  RedirectType,
+  type RedirectType,
   type RedirectError,
   isRedirectError,
   REDIRECT_ERROR_CODE,
@@ -40,9 +40,7 @@ export function redirect(
   url: string,
   type?: RedirectType
 ): never {
-  type ??= actionAsyncStorage?.getStore()?.isAction
-    ? RedirectType.push
-    : RedirectType.replace
+  type ??= actionAsyncStorage?.getStore()?.isAction ? 'push' : 'replace'
 
   throw getRedirectError(url, type, RedirectStatusCode.TemporaryRedirect)
 }
@@ -61,7 +59,7 @@ export function redirect(
 export function permanentRedirect(
   /** The URL to redirect to */
   url: string,
-  type: RedirectType = RedirectType.replace
+  type: RedirectType = 'replace'
 ): never {
   throw getRedirectError(url, type, RedirectStatusCode.PermanentRedirect)
 }

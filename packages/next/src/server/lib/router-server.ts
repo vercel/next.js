@@ -9,7 +9,7 @@ import '../require-hook'
 
 import url from 'url'
 import path from 'path'
-import loadConfig from '../config'
+import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
@@ -98,10 +98,18 @@ export async function initialize(opts: {
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
   }
 
+  let experimentalFeatures: ConfiguredExperimentalFeature[] = []
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir,
-    { silent: false }
+    {
+      silent: false,
+      reportExperimentalFeatures(features) {
+        experimentalFeatures = features.toSorted(({ key: a }, { key: b }) =>
+          a.localeCompare(b)
+        )
+      },
+    }
   )
 
   let compress: ReturnType<typeof setupCompression> | undefined
@@ -497,7 +505,12 @@ export async function initialize(opts: {
           matchedOutput.type === 'nextStaticFolder'
         ) {
           if (opts.dev && !isNextFont(parsedUrl.pathname)) {
-            res.setHeader('Cache-Control', 'no-store, must-revalidate')
+            res.setHeader(
+              'Cache-Control',
+              config.experimental.devCacheControlNoCache
+                ? 'no-cache, must-revalidate'
+                : 'no-store, must-revalidate'
+            )
           } else {
             res.setHeader(
               'Cache-Control',
@@ -722,6 +735,9 @@ export async function initialize(opts: {
     startServerSpan: opts.startServerSpan,
     quiet: opts.quiet,
     onDevServerCleanup: opts.onDevServerCleanup,
+    distDir: config.distDir,
+    experimentalFeatures,
+    cacheComponents: config.cacheComponents,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -893,5 +909,8 @@ export async function initialize(opts: {
     closeUpgraded() {
       development?.bundler?.hotReloader?.close()
     },
+    distDir: config.distDir,
+    experimentalFeatures,
+    cacheComponents: config.cacheComponents,
   }
 }

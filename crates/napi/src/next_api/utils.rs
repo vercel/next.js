@@ -17,13 +17,13 @@ use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
     issue::{
-        CollectibleIssuesExt, IssueSeverity, PlainIssue, PlainIssueSource, PlainSource,
-        StyledString,
+        CollectibleIssuesExt, IssueFilter, IssueSeverity, PlainIssue, PlainIssueSource,
+        PlainSource, StyledString,
     },
     source_pos::SourcePos,
 };
 
-use crate::next_api::turbopack_ctx::NextTurbopackContext;
+use crate::next_api::{project::NEXT_ISSUE_FILTER, turbopack_ctx::NextTurbopackContext};
 
 /// An [`OperationVc`] that can be passed back and forth to JS across the [`napi`][mod@napi]
 /// boundary via [`External`].
@@ -61,13 +61,6 @@ impl<T> Deref for DetachedVc<T> {
     }
 }
 
-pub fn serde_enum_to_string<T: Serialize>(value: &T) -> Result<String> {
-    Ok(serde_json::to_value(value)?
-        .as_str()
-        .context("value must serialize to a string")?
-        .to_string())
-}
-
 /// An opaque handle to the root of a turbo-tasks computation created by
 /// [`turbo_tasks::TurboTasks::spawn_root_task`] that can be passed back and forth to JS across the
 /// [`napi`][mod@napi] boundary via [`External`].
@@ -102,8 +95,13 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
-    Ok(Arc::new(source.peek_issues().get_plain_issues().await?))
+pub async fn get_issues<T: Send>(
+    source: OperationVc<T>,
+    filter: IssueFilter,
+) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
+    Ok(Arc::new(
+        source.peek_issues().get_plain_issues(filter).await?,
+    ))
 }
 
 /// Reads the [turbopack_core::diagnostics::Diagnostic] held
@@ -369,7 +367,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     Arc<Effects>,
 )> {
     let result = source_op.read_strongly_consistent().await;
-    let issues = get_issues(source_op).await?;
+    let issues = get_issues(source_op, NEXT_ISSUE_FILTER).await?;
     let diagnostics = get_diagnostics(source_op).await?;
     let effects = Arc::new(get_effects(source_op).await?);
 

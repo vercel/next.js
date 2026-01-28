@@ -1,21 +1,32 @@
 {
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "seed": "node prisma/seed.js"
+    "lint": "next lint"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "3.10.0",
+    "@prisma/adapter-planetscale": "latest",
+    "@prisma/client": "latest",
     "next": "latest",
-    "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "undici": "^7"
   },
   "devDependencies": {
-    "autoprefixer": "10.4.2",
-    "postcss": "8.4.7",
-    "prisma": "3.10.0",
-    "tailwindcss": "3.0.23"
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^16",
+    "prisma": "latest",
+    "tailwindcss": "^4",
+    "tsx": "^4",
+    "typescript": "^5"
   }
 }

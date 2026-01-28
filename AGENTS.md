@@ -1,58 +1,55 @@
 # Next.js Development Guide
 
-## Git Workflow
+## Codebase structure
 
-**Use Graphite for all git operations** instead of raw git commands:
+### Monorepo Overview
 
-- `gt create <branch-name> -m "message"` - Create a new branch with commit
-- `gt modify -a --no-edit` - Stage all and amend current branch's commit
-- `gt checkout <branch>` - Switch branches (use instead of `git checkout`)
-- `gt sync` - Sync and restack all branches
-- `gt submit --no-edit` - Push and create/update PRs (use `--no-edit` to avoid interactive prompts)
-- `gt log short` - View stack status
+This is a pnpm monorepo containing the Next.js framework and related packages.
 
-**Note**: `gt submit` runs in interactive mode by default and won't push in automated contexts. Always use `gt submit --no-edit` or `gt submit -q` when running from Claude.
-
-**Graphite Stack Safety Rules:**
-
-- Graphite force-pushes everything - old commits only recoverable via reflog
-- Never have uncommitted changes when switching branches - they get lost during restack
-- Never use `git stash` with Graphite - causes conflicts when `gt modify` restacks
-- Never use `git checkout HEAD -- <file>` after editing - silently restores unfixed version
-- Always use `gt checkout` (not `git checkout`) to switch branches
-- `gt modify --no-edit` with unstaged/untracked files stages ALL changes
-- `gt sync` pulls FROM remote, doesn't push TO remote
-- `gt modify` restacks children locally but doesn't push them
-- Always verify with `git status -sb` after stack operations
-- When resuming from summarized conversation, never trust cached IDs - re-fetch from git/GitHub API
-
-**Safe multi-branch fix workflow:**
-
-```bash
-gt checkout parent-branch
-# make edits
-gt modify -a --no-edit        # Stage all, amend, restack children
-git show HEAD -- <files>      # VERIFY fix is in commit
-gt submit --no-edit           # Push immediately
-
-gt checkout child-branch      # Already restacked from gt modify
-# make edits
-gt modify -a --no-edit
-git show HEAD -- <files>      # VERIFY
-gt submit --no-edit
 ```
+next.js/
+├── packages/           # Published npm packages
+├── turbopack/          # Turbopack bundler (Rust) - git subtree
+├── crates/             # Rust crates for Next.js SWC bindings
+├── test/               # All test suites
+├── examples/           # Example Next.js applications
+├── docs/               # Documentation
+└── scripts/            # Build and maintenance scripts
+```
+
+### Core Package: `packages/next`
+
+The main Next.js framework lives in `packages/next/`. This is what gets published as the `next` npm package.
+
+**Source code** is in `packages/next/src/`.
+
+**Key entry points:**
+
+- Dev server: `src/cli/next-dev.ts` → `src/server/dev/next-dev-server.ts`
+- Production server: `src/cli/next-start.ts` → `src/server/next-server.ts`
+- Build: `src/cli/next-build.ts` → `src/build/index.ts`
+
+**Compiled output** goes to `packages/next/dist/` (mirrors src/ structure).
+
+### Other Important Packages
+
+- `packages/create-next-app/` - The `create-next-app` CLI tool
+- `packages/next-swc/` - Native Rust bindings (SWC transforms)
+- `packages/eslint-plugin-next/` - ESLint rules for Next.js
+- `packages/font/` - `next/font` implementation
+- `packages/third-parties/` - Third-party script integrations
 
 ## Build Commands
 
 ```bash
-# Build the Next.js package (dev server only - faster)
-pnpm --filter=next build:dev-server
+# Build the Next.js package
+pnpm --filter=next build
 
 # Build everything
 pnpm build
 
 # Run specific task
-pnpm --filter=next taskfile <task>
+pnpm --filter=next exec taskr <task>
 ```
 
 ## Fast Local Development
@@ -82,7 +79,7 @@ Only use full `pnpm --filter=next build` for one-off builds (after branch switch
 **Always rebuild after switching branches:**
 
 ```bash
-gt checkout <branch>
+git checkout <branch>
 pnpm build   # Required before running tests (Turborepo dedupes if unchanged)
 ```
 
@@ -110,7 +107,70 @@ pnpm test-dev-turbo test/development/
 
 - `pnpm test-unit` - Run unit tests only (fast, no browser)
 - `pnpm testonly <path>` - Run tests without rebuilding (faster iteration)
-- `pnpm new-test` - Generate a new test file from template
+- `pnpm new-test` - Generate a new test file from template (interactive)
+
+**Generate tests non-interactively (for AI agents):**
+
+Generating tests using `pnpm new-test` is mandatory.
+
+```bash
+# Use --args for non-interactive mode
+# Format: pnpm new-test --args <appDir> <name> <type>
+# appDir: true/false (is this for app directory?)
+# name: test name (e.g. "my-feature")
+# type: e2e | production | development | unit
+
+pnpm new-test --args true my-feature e2e
+```
+
+## Writing Tests
+
+**Test writing expectations:**
+
+- **Use `pnpm new-test` to generate new test suites** - it creates proper structure with fixture files
+
+- **Use `retry()` from `next-test-utils` instead of `setTimeout` for waiting**
+
+  ```typescript
+  // Good - use retry() for polling/waiting
+  import { retry } from 'next-test-utils'
+  await retry(async () => {
+    const text = await browser.elementByCss('p').text()
+    expect(text).toBe('expected value')
+  })
+
+  // Bad - don't use setTimeout for waiting
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  ```
+
+- **Do NOT use `check()` - it is deprecated. Use `retry()` + `expect()` instead**
+
+  ```typescript
+  // Deprecated - don't use check()
+  await check(() => browser.elementByCss('p').text(), /expected/)
+
+  // Good - use retry() with expect()
+  await retry(async () => {
+    const text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/expected/)
+  })
+  ```
+
+- **Prefer real fixture directories over inline `files` objects**
+
+  ```typescript
+  // Good - use a real directory with fixture files
+  const { next } = nextTestSetup({
+    files: __dirname, // points to directory containing test fixtures
+  })
+
+  // Avoid - inline file definitions are harder to maintain
+  const { next } = nextTestSetup({
+    files: {
+      'app/page.tsx': `export default function Page() { ... }`,
+    },
+  })
+  ```
 
 ## Linting and Types
 
@@ -121,28 +181,23 @@ pnpm prettier-fix      # Fix formatting only
 pnpm types             # TypeScript type checking
 ```
 
-## Investigating CI Test Failures
+## PR Status (CI Failures and Reviews)
 
-**Use `/ci-failures` for automated analysis** - analyzes failing jobs in parallel and groups by test file.
+When the user asks about CI failures, PR reviews, or the status of a PR, run the pr-status script:
+
+```bash
+node scripts/pr-status.js           # Auto-detects PR from current branch
+node scripts/pr-status.js <number>  # Analyze specific PR by number
+```
+
+This fetches CI workflow runs, failed jobs, logs, and PR review comments, generating markdown files in `scripts/pr-status/`.
+
+**Use `/pr-status` for automated analysis** - analyzes failing jobs and review comments in parallel, groups failures by test file.
 
 **CI Analysis Tips:**
 
-- Don't spawn too many parallel agents hitting GitHub API (causes rate limits)
-- Prioritize blocking jobs first: lint, types, then test jobs
-- Use `gh api` for logs (works on in-progress runs), not `gh run view --log`
-
-**Quick triage:**
-
-```bash
-# List failed jobs for a PR
-gh pr checks <pr-number> | grep fail
-
-# Get failed job names
-gh run view <run-id> --json jobs --jq '.jobs[] | select(.conclusion == "failure") | .name'
-
-# Search job logs for errors (completed runs only - use gh api for in-progress)
-gh run view <run-id> --job <job-id> --log 2>&1 | grep -E "FAIL|Error|error:" | head -30
-```
+- Prioritize blocking jobs first: build, lint, types, then test jobs
+- Prioritize CI failures over review comments
 
 **Common failure patterns:**
 
@@ -160,19 +215,18 @@ pnpm test-dev-turbo test/path/to/test.ts
 pnpm test-start-turbo test/path/to/test.ts
 ```
 
-## Key Directories
+## Key Directories (Quick Reference)
+
+See [Codebase structure](#codebase-structure) above for detailed explanations.
 
 - `packages/next/src/` - Main Next.js source code
-  - `server/` - Server runtime (dev server, router, rendering)
-  - `client/` - Client-side code
-  - `build/` - Build tooling (webpack, turbopack configs)
-  - `cli/` - CLI entry points
-- `packages/next/dist/` - Compiled output
-- `turbopack/` - Turbopack bundler (Rust)
-- `test/` - Test suites
-  - `development/` - Dev server tests
-  - `production/` - Production build tests
-  - `e2e/` - End-to-end tests
+- `packages/next/src/server/` - Server runtime (most changes happen here)
+- `packages/next/src/client/` - Client-side runtime
+- `packages/next/src/build/` - Build tooling
+- `test/e2e/` - End-to-end tests
+- `test/development/` - Dev server tests
+- `test/production/` - Production build tests
+- `test/unit/` - Unit tests (fast, no browser)
 
 ## Development Tips
 
@@ -186,6 +240,15 @@ pnpm test-start-turbo test/path/to/test.ts
 - Do NOT add "Generated with Claude Code" or co-author footers to commits or PRs
 - Keep commit messages concise and descriptive
 - PR descriptions should focus on what changed and why
+- Do NOT mark PRs as "ready for review" (`gh pr ready`) - leave PRs in draft mode and let the user decide when to mark them ready
+
+## Rebuilding Before Running Tests
+
+When running Next.js integration tests, you must rebuild if source files have changed:
+
+- **Edited Next.js code?** → `pnpm build`
+- **Edited Turbopack (Rust)?** → `pnpm swc-build-native`
+- **Edited both?** → `pnpm turbo build build-native`
 
 ## Development Anti-Patterns
 
@@ -197,9 +260,17 @@ pnpm test-start-turbo test/path/to/test.ts
 ### Rust/Cargo
 
 - cargo fmt uses ASCII order (uppercase before lowercase) - just run `cargo fmt`
+- **Internal compiler error (ICE)?** Delete incremental compilation artifacts and retry. Remove `*/incremental` directories from your cargo target directory (default `target/`, or check `CARGO_TARGET_DIR` env var)
 
 ### Node.js Source Maps
 
 - `findSourceMap()` needs `--enable-source-maps` flag or returns undefined
 - Source map paths vary (webpack: `./src/`, tsc: `src/`) - try multiple formats
 - `process.cwd()` in stack trace formatting produces different paths in tests vs production
+
+### Documentation Code Blocks
+
+- When adding `highlight={...}` attributes to code blocks, carefully count the actual line numbers within the code block
+- Account for empty lines, import statements, and type imports that shift line numbers
+- Highlights should point to the actual relevant code, not unrelated lines like `return (` or framework boilerplate
+- Double-check highlights by counting lines from 1 within each code block

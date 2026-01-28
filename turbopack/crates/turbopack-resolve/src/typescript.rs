@@ -417,7 +417,7 @@ pub async fn type_resolve(
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
     let context_path = origin.origin_path().await?.parent();
-    let options = origin.resolve_options(ty.clone());
+    let options = origin.resolve_options();
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,

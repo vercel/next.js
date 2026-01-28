@@ -36,11 +36,11 @@ const requiredPackages = [
 export async function verifyTypeScriptSetup({
   dir,
   distDir,
+  distDirRoot,
   cacheDir,
   strictRouteTypes,
   tsconfigPath,
   typeCheckPreflight,
-  typedRoutes,
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
@@ -51,11 +51,12 @@ export async function verifyTypeScriptSetup({
 }: {
   dir: string
   distDir: string
+  /** The root dist directory without /dev suffix, used for fixed type paths */
+  distDirRoot?: string
   cacheDir?: string
   strictRouteTypes: boolean
   tsconfigPath: string | undefined
   typeCheckPreflight: boolean
-  typedRoutes: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
@@ -148,11 +149,10 @@ export async function verifyTypeScriptSetup({
     await writeAppTypeDeclarations({
       baseDir: dir,
       distDir,
+      distDirRoot,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,
-      strictRouteTypes,
-      typedRoutes,
     })
 
     let result

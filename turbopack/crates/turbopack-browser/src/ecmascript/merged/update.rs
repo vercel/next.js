@@ -26,7 +26,7 @@ use super::{
 struct EcmascriptMergedUpdate<'a> {
     /// A map from module id to latest module entry.
     #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
-    entries: FxIndexMap<ReadRef<ModuleId>, EcmascriptModuleEntry>,
+    entries: FxIndexMap<ModuleId, EcmascriptModuleEntry>,
     /// A map from chunk path to the chunk update.
     #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
     chunks: FxIndexMap<&'a str, EcmascriptMergedChunkUpdate>,
@@ -50,7 +50,7 @@ enum EcmascriptMergedChunkUpdate {
 #[serde(rename_all = "camelCase")]
 struct EcmascriptMergedChunkAdded {
     #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
-    modules: FxIndexSet<ReadRef<ModuleId>>,
+    modules: FxIndexSet<ModuleId>,
 }
 
 #[derive(Serialize, Default)]
@@ -60,16 +60,16 @@ struct EcmascriptMergedChunkDeleted {
     // modules in the chunk from the previous version. However, it's useful for
     // merging updates without access to an initial state.
     #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
-    modules: FxIndexSet<ReadRef<ModuleId>>,
+    modules: FxIndexSet<ModuleId>,
 }
 
 #[derive(Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct EcmascriptMergedChunkPartial {
     #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
-    added: FxIndexSet<ReadRef<ModuleId>>,
+    added: FxIndexSet<ModuleId>,
     #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
-    deleted: FxIndexSet<ReadRef<ModuleId>>,
+    deleted: FxIndexSet<ModuleId>,
 }
 
 #[derive(Serialize)]
@@ -117,7 +117,7 @@ impl MergedModuleMap {
 
     /// Returns the hash of the module with the given id, or `None` if the
     /// module is not present in any of the versions.
-    fn get(&self, id: &ReadRef<ModuleId>) -> Option<u64> {
+    fn get(&self, id: &ModuleId) -> Option<u64> {
         for version in &self.versions {
             if let Some(hash) = version.entries_hashes.get(id) {
                 return Some(*hash);

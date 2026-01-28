@@ -1,13 +1,15 @@
 import type {
-  Mutable,
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
-import { handleNavigationResult } from './navigate-reducer'
-import { navigateToSeededRoute } from '../../segment-cache/navigation'
+import {
+  convertServerPatchToFullTree,
+  navigateToKnownRoute,
+} from '../../segment-cache/navigation'
 import { revalidateEntireCache } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { FreshnessPolicy } from '../ppr-navigations'
+import { invalidateBfCache } from '../../segment-cache/bfcache'
 
 export function refreshReducer(state: ReadonlyReducerState): ReducerState {
   // TODO: Currently, all refreshes purge the prefetch cache. In the future,
@@ -23,6 +25,9 @@ export function refreshDynamicData(
   state: ReadonlyReducerState,
   freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh
 ): ReducerState {
+  // During a refresh, invalidate the BFCache, which may contain dynamic data.
+  invalidateBfCache()
+
   const currentNextUrl = state.nextUrl
 
   // We always send the last next-url, not the current when performing a dynamic
@@ -36,32 +41,36 @@ export function refreshDynamicData(
   // existing dynamic data (including in shared layouts) is re-fetched.
   const currentCanonicalUrl = state.canonicalUrl
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
+  const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
-  const shouldScroll = true
+  const shouldScroll = false
 
-  const navigationSeed = {
-    tree: state.tree,
-    renderedSearch: state.renderedSearch,
-    data: null,
-    head: null,
-  }
+  // Create a NavigationSeed from the current FlightRouterState.
+  // TODO: Eventually we will store this type directly on the state object
+  // instead of reconstructing it on demand. Part of a larger series of
+  // refactors to unify the various tree types that the client deals with.
+  const refreshSeed = convertServerPatchToFullTree(
+    currentFlightRouterState,
+    null,
+    currentRenderedSearch
+  )
 
   const now = Date.now()
-  const result = navigateToSeededRoute(
+  const navigateType = 'replace'
+  return navigateToKnownRoute(
     now,
+    state,
     currentUrl,
     currentCanonicalUrl,
-    navigationSeed,
+    refreshSeed,
     currentUrl,
+    currentRenderedSearch,
     state.cache,
     currentFlightRouterState,
     freshnessPolicy,
     nextUrlForRefresh,
-    shouldScroll
+    shouldScroll,
+    navigateType,
+    null
   )
-
-  const mutable: Mutable = {}
-  mutable.preserveCustomHistoryState = false
-
-  return handleNavigationResult(currentUrl, state, mutable, false, result)
 }

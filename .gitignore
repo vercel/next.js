@@ -73,3 +73,5 @@ CLAUDE.local.md
 # Conductor (worktrees created by Conductor app, but keep scripts/)
 .conductor/*/
 !.conductor/scripts/
+
+index.scip

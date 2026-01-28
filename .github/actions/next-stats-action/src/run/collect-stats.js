@@ -15,7 +15,9 @@ const { statsAppDir, diffingDir, benchTitle } = require('../constants')
 const { calcStats } = require('../util/stats')
 
 // Number of iterations for timing benchmarks to get stable median
-const BENCHMARK_ITERATIONS = 9
+const BENCHMARK_ITERATIONS = process.env.BENCHMARK_ITERATIONS
+  ? parseInt(process.env.BENCHMARK_ITERATIONS)
+  : 9
 
 // Check if a port is accepting TCP connections
 function checkPort(port, timeout = 100) {
@@ -89,9 +91,19 @@ async function benchmarkDevBoot(appDevCommand, curDir, port, cleanBuild) {
     exited = true
   })
 
+  let readyInTime = null
+  let stdoutBuffer = ''
   // Capture output for debugging
-  devChild.stdout.on('data', (data) => process.stdout.write(data))
-  devChild.stderr.on('data', (data) => process.stderr.write(data))
+  devChild.stdout.on('data', (data) => {
+    stdoutBuffer += data.toString()
+    if (readyInTime === null && stdoutBuffer.includes('Ready in')) {
+      readyInTime = Date.now() - startTime
+    }
+    process.stdout.write(data)
+  })
+  devChild.stderr.on('data', (data) => {
+    process.stderr.write(data)
+  })
 
   // Measure time to port listening (TCP level)
   const listenTime = await waitForPort(port, 60000)
@@ -115,6 +127,7 @@ async function benchmarkDevBoot(appDevCommand, curDir, port, cleanBuild) {
 
   return {
     listenTime,
+    readyInTime,
     readyTime,
   }
 }
@@ -128,6 +141,7 @@ async function benchmarkDevBootWithIterations(
   label
 ) {
   const listenTimes = []
+  const readyInTimes = []
   const readyTimes = []
 
   for (let i = 0; i < BENCHMARK_ITERATIONS; i++) {
@@ -145,6 +159,12 @@ async function benchmarkDevBootWithIterations(
       listenTimes.push(result.listenTime)
       logger(`    Boot: ${result.listenTime}ms`)
     }
+
+    if (result.readyInTime !== null) {
+      readyInTimes.push(result.readyInTime)
+      logger(`    Ready in: ${result.readyInTime}ms`)
+    }
+
     if (result.readyTime !== null) {
       readyTimes.push(result.readyTime)
       logger(`    Ready: ${result.readyTime}ms`)
@@ -155,12 +175,18 @@ async function benchmarkDevBootWithIterations(
   }
 
   const listenStats = calcStats(listenTimes)
+  const readyInStats = calcStats(readyInTimes)
   const readyStats = calcStats(readyTimes)
 
   // Log detailed stats for debugging
   if (listenStats) {
     logger(
       `  ${label} Boot: median=${listenStats.median}ms, range=${listenStats.min}-${listenStats.max}ms, CV=${listenStats.cv}%`
+    )
+  }
+  if (readyInStats) {
+    logger(
+      `  ${label} Ready in: median=${readyInStats.median}ms, range=${readyInStats.min}-${readyInStats.max}ms, CV=${readyInStats.cv}%`
     )
   }
   if (readyStats) {
@@ -171,6 +197,7 @@ async function benchmarkDevBootWithIterations(
 
   return {
     listenTime: listenStats?.median ?? null,
+    readyInTime: readyInStats?.median ?? null,
     readyTime: readyStats?.median ?? null,
   }
 }
@@ -430,6 +457,10 @@ module.exports = async function collectStats(
         orderedStats['General'][`nextDevColdListenDuration${bundler.suffix}`] =
           coldResult.listenTime
       }
+      if (coldResult.readyInTime !== null) {
+        orderedStats['General'][`nextDevColdReadyInDuration${bundler.suffix}`] =
+          coldResult.readyInTime
+      }
       if (coldResult.readyTime !== null) {
         orderedStats['General'][`nextDevColdReadyDuration${bundler.suffix}`] =
           coldResult.readyTime
@@ -485,6 +516,13 @@ module.exports = async function collectStats(
             `nextDevWarmListenDuration${bundler.suffix}`
           ] = warmResult.listenTime
         }
+
+        if (warmResult.readyInTime !== null) {
+          orderedStats['General'][
+            `nextDevWarmReadyInDuration${bundler.suffix}`
+          ] = warmResult.readyInTime
+        }
+
         if (warmResult.readyTime !== null) {
           orderedStats['General'][`nextDevWarmReadyDuration${bundler.suffix}`] =
             warmResult.readyTime

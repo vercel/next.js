@@ -30,7 +30,7 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
@@ -216,16 +216,15 @@ async fn webpack_loaders_executor(
 #[turbo_tasks::value_impl]
 impl WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    async fn process(self: Vc<Self>) -> Result<Vc<ProcessWebpackLoadersResult>> {
-        let this = self.await?;
-        let transform = this.transform.await?;
+    async fn process(&self) -> Result<Vc<ProcessWebpackLoadersResult>> {
+        let transform = self.transform.await?;
 
         let ExecutionContext {
             project_path,
             chunking_context,
             env,
         } = &*transform.execution_context.await?;
-        let source_content = this.source.content();
+        let source_content = self.source.content();
         let AssetContent::File(file) = *source_content.await? else {
             bail!("Webpack Loaders transform only support transforming files");
         };
@@ -258,11 +257,16 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false)
-            .to_resolved()
-            .await?;
+        let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        ))
+        .connect()
+        .to_resolved()
+        .await?;
 
-        let resource_fs_path = this.source.ident().path().await?;
+        let resource_fs_path = self.source.ident().path().await?;
         let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
             bail!(format!(
                 "Resource path \"{}\" need to be on project filesystem \"{}\"",
@@ -274,7 +278,7 @@ impl WebpackLoadersProcessedAsset {
             entries,
             cwd: project_path.clone(),
             env: *env,
-            context_source_for_issue: this.source,
+            context_source_for_issue: self.source,
             chunking_context: *chunking_context,
             module_graph,
             resolve_options_context: Some(transform.resolve_options_context),
@@ -282,7 +286,7 @@ impl WebpackLoadersProcessedAsset {
                 ResolvedVc::cell(content),
                 // We need to pass the query string to the loader
                 ResolvedVc::cell(resource_path.to_string().into()),
-                ResolvedVc::cell(this.source.ident().await?.query.to_string().into()),
+                ResolvedVc::cell(self.source.ident().await?.query.to_string().into()),
                 ResolvedVc::cell(json!(*loaders)),
                 ResolvedVc::cell(transform.source_maps.into()),
             ],

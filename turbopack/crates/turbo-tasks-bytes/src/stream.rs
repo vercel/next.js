@@ -12,7 +12,7 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
-use futures::{Stream as StreamTrait, StreamExt, TryStreamExt};
+use futures::{Stream as StreamTrait, StreamExt};
 
 /// Streams allow for streaming values from source to sink.
 ///
@@ -74,22 +74,6 @@ impl<T: Clone + Send> Stream<T> {
         }
 
         SingleValue::Single(first)
-    }
-}
-
-impl<T: Clone + Send, E: Clone + Send> Stream<Result<T, E>> {
-    /// Converts a TryStream into a single value when possible.
-    pub async fn try_into_single(&self) -> Result<SingleValue<T>, E> {
-        let mut stream = self.read();
-        let Some(first) = stream.try_next().await? else {
-            return Ok(SingleValue::None);
-        };
-
-        if stream.try_next().await?.is_some() {
-            return Ok(SingleValue::Multiple);
-        }
-
-        Ok(SingleValue::Single(first))
     }
 }
 

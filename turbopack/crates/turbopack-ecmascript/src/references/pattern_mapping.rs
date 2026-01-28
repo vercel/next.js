@@ -345,6 +345,7 @@ async fn to_single_pattern_mapping(
                 )
                 .resolved_cell(),
                 path: origin.origin_path().owned().await?,
+                source: None,
             }
             .resolved_cell()
             .emit();
@@ -354,12 +355,17 @@ async fn to_single_pattern_mapping(
     if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) {
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
-                let loader_id = chunking_context.async_loader_chunk_item_id(*chunkable);
-                return Ok(SinglePatternMapping::ModuleLoader(loader_id.owned().await?));
+                let ident = chunking_context.async_loader_chunk_item_ident(*chunkable);
+                let loader_id = chunking_context
+                    .chunk_item_id_strategy()
+                    .await?
+                    .get_id_from_ident(ident)
+                    .await?;
+                return Ok(SinglePatternMapping::ModuleLoader(loader_id));
             }
             ResolveType::ChunkItem => {
-                let item_id = chunkable.chunk_item_id(chunking_context);
-                return Ok(SinglePatternMapping::Module(item_id.owned().await?));
+                let item_id = chunkable.chunk_item_id(chunking_context).await?;
+                return Ok(SinglePatternMapping::Module(item_id));
             }
         }
     }
@@ -371,6 +377,7 @@ async fn to_single_pattern_mapping(
         ))
         .resolved_cell(),
         path: origin.origin_path().owned().await?,
+        source: None,
     }
     .resolved_cell()
     .emit();

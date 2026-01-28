@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     fmt::Display,
     fs::File,
     hash::BuildHasherDefault,
@@ -20,6 +21,7 @@ use turbo_bincode::turbo_bincode_decode;
 
 use crate::{
     QueryKey,
+    lookup_entry::LookupValue,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
 
@@ -209,6 +211,27 @@ pub enum MetaLookupResult {
     QuickFilterMiss,
     /// The key was looked up in the SST file. It was in the AMQF filter.
     SstLookup(SstLookupResult),
+}
+
+/// The result of a batch lookup operation.
+#[derive(Default)]
+pub struct MetaBatchLookupResult {
+    /// The key was not found because it is from a different key family.
+    #[cfg(feature = "stats")]
+    pub family_miss: bool,
+    /// The key was not found because it is out of the range of this SST file. But it was the
+    /// correct key family.
+    #[cfg(feature = "stats")]
+    pub range_misses: usize,
+    /// The key was not found because it was not in the AMQF filter. But it was in the range.
+    #[cfg(feature = "stats")]
+    pub quick_filter_misses: usize,
+    /// The key was unsuccessfully looked up in the SST file. It was in the AMQF filter.
+    #[cfg(feature = "stats")]
+    pub sst_misses: usize,
+    /// The key was found in the SST file.
+    #[cfg(feature = "stats")]
+    pub hits: usize,
 }
 
 /// The key family and hash range of an SST file.
@@ -405,5 +428,100 @@ impl MetaFile {
             }
         }
         Ok(miss_result)
+    }
+
+    pub fn batch_lookup<K: QueryKey>(
+        &self,
+        key_family: u32,
+        keys: &[K],
+        cells: &mut [(u64, usize, Option<LookupValue>)],
+        empty_cells: &mut usize,
+        amqf_cache: &AmqfCache,
+        key_block_cache: &BlockCache,
+        value_block_cache: &BlockCache,
+    ) -> Result<MetaBatchLookupResult> {
+        if key_family != self.family {
+            #[cfg(feature = "stats")]
+            return Ok(MetaBatchLookupResult {
+                family_miss: true,
+                ..Default::default()
+            });
+            #[cfg(not(feature = "stats"))]
+            return Ok(MetaBatchLookupResult {});
+        }
+        debug_assert!(
+            cells.is_sorted_by_key(|(hash, _, _)| *hash),
+            "Cells must be sorted by key hash"
+        );
+        #[allow(unused_mut, reason = "It's used when stats are enabled")]
+        let mut lookup_result = MetaBatchLookupResult::default();
+        for entry in self.entries.iter().rev() {
+            let start_index = cells
+                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.min_hash).then(Ordering::Greater))
+                .err()
+                .unwrap();
+            if start_index >= cells.len() {
+                #[cfg(feature = "stats")]
+                {
+                    lookup_result.range_misses += 1;
+                }
+                continue;
+            }
+            let end_index = cells
+                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.max_hash).then(Ordering::Less))
+                .err()
+                .unwrap()
+                .checked_sub(1);
+            let Some(end_index) = end_index else {
+                #[cfg(feature = "stats")]
+                {
+                    lookup_result.range_misses += 1;
+                }
+                continue;
+            };
+            if start_index > end_index {
+                #[cfg(feature = "stats")]
+                {
+                    lookup_result.range_misses += 1;
+                }
+                continue;
+            }
+            let amqf = entry.amqf(self, amqf_cache)?;
+            for (hash, index, result) in &mut cells[start_index..=end_index] {
+                if result.is_some() {
+                    continue;
+                }
+                if !amqf.contains_fingerprint(*hash) {
+                    #[cfg(feature = "stats")]
+                    {
+                        lookup_result.quick_filter_misses += 1;
+                    }
+                    continue;
+                }
+                let sst_result = entry.sst(self)?.lookup(
+                    *hash,
+                    &keys[*index],
+                    key_block_cache,
+                    value_block_cache,
+                )?;
+                if let SstLookupResult::Found(value) = sst_result {
+                    *result = Some(value);
+                    *empty_cells -= 1;
+                    #[cfg(feature = "stats")]
+                    {
+                        lookup_result.hits += 1;
+                    }
+                    if *empty_cells == 0 {
+                        return Ok(lookup_result);
+                    }
+                } else {
+                    #[cfg(feature = "stats")]
+                    {
+                        lookup_result.sst_misses += 1;
+                    }
+                }
+            }
+        }
+        Ok(lookup_result)
     }
 }

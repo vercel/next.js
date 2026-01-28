@@ -80,7 +80,6 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
         MergeableModule, MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
@@ -198,14 +197,15 @@ pub enum AnalyzeMode {
     /// For bundling only, no tracing of referenced files.
     #[default]
     CodeGeneration,
-    /// For bundling and tracing of referenced files.
+    /// For bundling and finding references to external referenced files
     CodeGenerationAndTracing,
-    /// For tracing of referenced files only, no bundling (i.e. no codegen).
+    /// For tracing transitive external references (i.e. no codegen).
     Tracing,
 }
 
 impl AnalyzeMode {
-    pub fn is_tracing(self) -> bool {
+    /// Are we currently collecting references to external assets. e.g. filesystem dependencies
+    pub fn is_tracing_assets(self) -> bool {
         match self {
             AnalyzeMode::Tracing | AnalyzeMode::CodeGenerationAndTracing => true,
             AnalyzeMode::CodeGeneration => false,
@@ -403,7 +403,7 @@ pub trait EcmascriptParsable {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptAnalyzable: Module + Asset {
+pub trait EcmascriptAnalyzable: Module {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
 
@@ -500,17 +500,16 @@ impl ModuleTypeResult {
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let this = self.await?;
-        let real_result = this.parse().await?;
-        if this.options.await?.keep_last_successful_parse {
+    async fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
+        let real_result = self.parse().await?;
+        if self.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
             let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                this.last_successful_parse
+                self.last_successful_parse
                     .set_unconditionally(real_result_value.clone());
                 real_result_value
             } else {
-                let state_ref = this.last_successful_parse.get();
+                let state_ref = self.last_successful_parse.get();
                 state_ref.as_ref().unwrap_or(&real_result_value).clone()
             };
             Ok(ReadRef::cell(result_value))
@@ -782,14 +781,6 @@ impl Module for EcmascriptModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
@@ -956,7 +947,7 @@ pub struct EcmascriptModuleContent {
     pub source_map: Option<Rope>,
     pub is_esm: bool,
     pub strict: bool,
-    pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    pub additional_ids: SmallVec<[ModuleId; 1]>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -1236,7 +1227,7 @@ impl EcmascriptModuleContent {
                     **m != first_entry
                         && *modules.get(*m).unwrap() == MergeableModuleExposure::External
                 })
-                .map(|m| m.chunk_item_id(*options.chunking_context).to_resolved())
+                .map(|m| m.chunk_item_id(*options.chunking_context))
                 .try_join()
                 .await?
                 .into();
@@ -2044,6 +2035,7 @@ async fn with_consumed_parse_result<T>(
                     globals,
                     eval_context,
                     comments,
+                    ..
                 }) => (
                     program.take(),
                     &*source_map,
@@ -2069,6 +2061,7 @@ async fn with_consumed_parse_result<T>(
                         globals,
                         eval_context,
                         comments,
+                        ..
                     } = &**parsed
                     else {
                         unreachable!();
@@ -2092,7 +2085,7 @@ async fn with_consumed_parse_result<T>(
 
 async fn emit_content(
     content: CodeGenResult,
-    additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    additional_ids: SmallVec<[ModuleId; 1]>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let CodeGenResult {
         program,
