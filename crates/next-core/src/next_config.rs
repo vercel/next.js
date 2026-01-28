@@ -2193,6 +2193,7 @@ mod tests {
                                         source: rcstr!("@someQuery"),
                                         flags: rcstr!(""),
                                     })),
+                                    content_type: None,
                                 },
                             ]
                             .into(),
