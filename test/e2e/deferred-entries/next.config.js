@@ -40,7 +40,7 @@ module.exports = {
     // Add the entry logger loader to track when entries are processed
     config.module.rules.push({
       test: /\.(tsx|ts|js|jsx)$/,
-      include: [path.join(__dirname, 'app')],
+      include: [path.join(__dirname, 'app'), path.join(__dirname, 'pages')],
       use: [
         {
           loader: path.join(__dirname, 'entry-logger-loader.js'),

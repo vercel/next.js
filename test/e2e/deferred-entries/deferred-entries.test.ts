@@ -71,6 +71,25 @@ describe('deferred-entries webpack', () => {
     })
   })
 
+  it('should build pages router routes when using deferred entries', async () => {
+    // Verify pages router page works alongside deferred app router entries
+    await retry(async () => {
+      const legacyRes = await next.fetch('/legacy')
+      expect(legacyRes.status).toBe(200)
+      expect(await legacyRes.text()).toContain('Legacy Pages Router Page')
+    })
+  })
+
+  it('should build pages router API routes when using deferred entries', async () => {
+    // Verify pages router API route works alongside deferred app router entries
+    await retry(async () => {
+      const apiRes = await next.fetch('/api/hello')
+      expect(apiRes.status).toBe(200)
+      const data = await apiRes.json()
+      expect(data.message).toBe('Hello from pages API route')
+    })
+  })
+
   it('should call onBeforeDeferredEntries before building deferred entry', async () => {
     // Verify the callback was executed
     const callbackLogPath = path.join(next.testDir, '.callback-log')
