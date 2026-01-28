@@ -585,7 +585,7 @@ impl Issue for ForbiddenTracedFileIssue {
                 StyledString::Code(rcstr!("require('./' + foo)")),
                 StyledString::Text(rcstr!(").")),
             ]),
-            StyledString::Text(rcstr!("To resolve this, you can either")),
+            StyledString::Text(rcstr!("To resolve this, you can")),
             StyledString::Text(rcstr!("- remove them if possible, or")),
             StyledString::Text(rcstr!("- only use them in development, or")),
             StyledString::Line(vec![

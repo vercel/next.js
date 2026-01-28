@@ -27,7 +27,7 @@ import { nextTestSetup } from 'e2e-utils'
        A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
        - filesystem operations (like path.join, path.resolve or fs.readFile), or
        - very dynamic requires (like require('./' + foo)).
-       To resolve this, you can either
+       To resolve this, you can
        - remove them if possible, or
        - only use them in development, or
        - make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
