@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
 
 const CASES = [
   [
@@ -48,10 +47,15 @@ describe('persistent-caching-migration', () => {
         })
       } else {
         it('error on old option in dev', async () => {
-          await next.start()
-          await retry(async () => {
-            expect(next.cliOutput).toContain(error)
-          })
+          // next.start() will throw because the process exits before
+          // the "Ready" pattern appears - this is expected
+          try {
+            await next.start()
+          } catch {
+            // Expected - process exits before server is ready
+          }
+
+          expect(next.cliOutput).toContain(error)
         })
       }
     })
