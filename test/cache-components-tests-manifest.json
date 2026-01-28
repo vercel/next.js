@@ -87,7 +87,6 @@
       "test/development/app-dir/segment-explorer/segment-explorer.test.ts",
       "test/development/app-dir/serialize-circular-error/serialize-circular-error.test.ts",
       "test/development/app-dir/serialize-circular-error/serialize-circular-error.test.ts",
-      "test/development/app-dir/server-components-hmr-cache/server-components-hmr-cache.test.ts",
       "test/development/app-dir/ssr-in-rsc/ssr-in-rsc.test.ts",
       "test/development/app-dir/ssr-only-error/ssr-only-error.test.ts",
       "test/development/app-hmr/hmr-env.test.ts",

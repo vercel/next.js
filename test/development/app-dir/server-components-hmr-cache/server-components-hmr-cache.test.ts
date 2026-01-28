@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+
 describe('server-components-hmr-cache', () => {
   const { next } = nextTestSetup({ files: __dirname, patchFileDelay: 1000 })
   const loggedAfterValueRegexp = /After: (\d\.\d+)/
@@ -17,7 +19,14 @@ describe('server-components-hmr-cache', () => {
     return match[1]
   }
 
-  describe.each(['edge', 'node'])('%s runtime', (runtime) => {
+  // Edge runtime is not supported with Cache Components.
+  const runtimes = isCacheComponentsEnabled ? ['node'] : ['edge', 'node']
+
+  beforeEach(() => {
+    cliOutputLength = next.cliOutput.length
+  })
+
+  describe.each(runtimes)('%s runtime', (runtime) => {
     it('should use cached fetch calls for fast refresh requests', async () => {
       const browser = await next.browser(`/${runtime}`)
       const valueBeforePatch = await browser.elementById('value').text()
@@ -51,10 +60,6 @@ describe('server-components-hmr-cache', () => {
     })
 
     describe('in after()', () => {
-      beforeEach(() => {
-        cliOutputLength = next.cliOutput.length
-      })
-
       it('should use cached fetch calls for fast refresh requests', async () => {
         const browser = await next.browser(`/${runtime}`)
         const valueBeforePatch = await retry(() => getLoggedAfterValue())
@@ -217,4 +222,16 @@ describe('server-components-hmr-cache', () => {
       })
     })
   })
+
+  it('should support reading from an infinite streaming fetch', async () => {
+    const browser = await next.browser('/infinite-stream')
+    const text = await browser.elementByCss('p').text()
+    expect(text).toBe('data: chunk-1')
+
+    // The fetch is aborted after reading the first chunk, which is intentional,
+    // so we shouldn't warn about failing to cache it.
+    expect(next.cliOutput.slice(cliOutputLength)).not.toContain(
+      'Failed to set fetch cache'
+    )
+  }, 10_000) // fail fast
 })

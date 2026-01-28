@@ -40,11 +40,10 @@ describe('react-performance-track', () => {
         {
           // React might decide to display the shorthand in round brackets differently.
           // Double check with React changes if a shorthand change is intended.
-          // TODO: Should include short name "(…/random)" and URL
-          name: '\u200bfetch',
+          name: '\u200bfetch (…/random)',
           properties: expect.arrayContaining([
             ['status', '200'],
-            ['url', '""'],
+            ['url', '"https://next-data-api-endpoint.vercel.app/api/random"'],
           ]),
         },
       ])
