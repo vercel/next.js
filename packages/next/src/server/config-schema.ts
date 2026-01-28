@@ -626,6 +626,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               }),
             ])
             .optional(),
+          browserToTerminal: z
+            .union([z.boolean(), z.enum(['error', 'warn'])])
+            .optional(),
         }),
         z.literal(false),
       ])

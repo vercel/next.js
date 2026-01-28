@@ -4,7 +4,6 @@ use serde::Serialize;
 
 use crate::{
     debug::{ValueDebugFormat, ValueDebugFormatString},
-    keyed::Keyed,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 
@@ -128,7 +127,6 @@ where
 
 impl<A, T, I, J: Iterator<Item = I>> IntoIterator for &MappedReadRef<A, T>
 where
-    T: Keyed,
     for<'b> &'b T: IntoIterator<Item = I, IntoIter = J>,
 {
     type Item = I;

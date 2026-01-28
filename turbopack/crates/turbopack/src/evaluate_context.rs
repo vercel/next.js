@@ -12,7 +12,7 @@ use turbopack_core::{
     ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
 };
-use turbopack_ecmascript::TreeShakingMode;
+use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
 use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
@@ -105,6 +105,7 @@ pub async fn node_evaluate_asset_context(
         ModuleOptionsContext {
             tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
             ecmascript: EcmascriptOptionsContext {
+                esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),

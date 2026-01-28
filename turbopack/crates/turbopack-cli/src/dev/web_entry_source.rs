@@ -139,7 +139,7 @@ pub async fn create_web_entry_source(
         .map(|request| async move {
             let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
             Ok(origin
-                .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
+                .resolve_asset(request, origin.resolve_options(), ty)
                 .await?
                 .resolve()
                 .await?

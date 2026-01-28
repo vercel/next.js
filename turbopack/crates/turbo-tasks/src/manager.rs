@@ -35,7 +35,7 @@ use crate::{
     event::{Event, EventListener},
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
     id_factory::IdFactoryWithReuse,
-    keyed::Keyed,
+    keyed::KeyedEq,
     macro_helpers::NativeFunction,
     magic_any::MagicAny,
     message_queue::{CompilationEvent, CompilationEventQueue},
@@ -2040,8 +2040,8 @@ impl CurrentCellRef {
     pub fn keyed_compare_and_update<T>(&self, new_value: T)
     where
         T: PartialEq + VcValueType,
-        VcReadTarget<T>: Keyed,
-        <VcReadTarget<T> as Keyed>::Key: std::hash::Hash,
+        VcReadTarget<T>: KeyedEq,
+        <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
         self.conditional_update(|old_value| {
             let Some(old_value) = old_value else {
@@ -2069,8 +2069,8 @@ impl CurrentCellRef {
         new_shared_reference: SharedReference,
     ) where
         T: VcValueType + PartialEq,
-        VcReadTarget<T>: Keyed,
-        <VcReadTarget<T> as Keyed>::Key: std::hash::Hash,
+        VcReadTarget<T>: KeyedEq,
+        <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
         self.conditional_update_with_shared_reference(|old_sr| {
             let Some(old_sr) = old_sr else {

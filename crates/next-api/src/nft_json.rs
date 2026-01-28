@@ -76,9 +76,6 @@ impl OutputAsset for NftJsonAsset {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OutputSpecifier(Option<RcStr>);
-
 fn get_output_specifier(
     path_ref: &FileSystemPath,
     ident_folder: &FileSystemPath,
@@ -97,9 +94,8 @@ fn get_output_specifier(
             .get_relative_path_to(path_ref)
             .unwrap());
     }
-
     // This should effectively be unreachable
-    bail!("NftJsonAsset: cannot handle filepath {path_ref}");
+    bail!("NftJsonAsset: cannot handle filepath '{path_ref}'");
 }
 
 /// Apply outputFileTracingIncludes patterns to find additional files
@@ -285,13 +281,23 @@ impl Asset for NftJsonAsset {
                     }
                 }
 
-                let specifier = get_output_specifier(
+                let specifier = match get_output_specifier(
                     &referenced_chunk_path,
                     &ident_folder,
                     &ident_folder_in_project_fs,
                     &output_root_ref,
                     &project_root_ref,
-                )?;
+                ) {
+                    Ok(specifier) => specifier,
+                    Err(err) => {
+                        return Err(err.context(format!(
+                            "NftJsonAsset: cannot handle filepath '{chunk_path}' for \
+                             {referenced_chunk:?} it is not under the output_root: \
+                             '{output_root_ref}' or the project_root: '{project_root_ref}'",
+                            chunk_path = referenced_chunk_path.value_to_string().await?
+                        )));
+                    }
+                };
 
                 result.insert(specifier);
             }

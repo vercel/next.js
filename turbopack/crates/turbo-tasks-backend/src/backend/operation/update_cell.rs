@@ -17,9 +17,9 @@ use crate::{
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
             invalidate::make_task_dirty_internal,
         },
-        storage::{iter_many, remove},
+        storage_schema::TaskStorageAccessors,
     },
-    data::{CachedDataItem, CachedDataItemKey, CellRef},
+    data::CellRef,
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -57,7 +57,7 @@ impl UpdateCellOperation {
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
-        mut ctx: impl ExecuteContext,
+        mut ctx: impl ExecuteContext<'_>,
     ) {
         let content = if let CellContent(Some(new_content)) = content {
             Some(new_content.into_typed(cell.type_id))
@@ -70,8 +70,7 @@ impl UpdateCellOperation {
         // We need to detect recomputation, because here the content has not actually changed (even
         // if it's not equal to the old content, as not all values implement Eq). We have to
         // assume that tasks are deterministic and pure.
-        let assume_unchanged =
-            !ctx.should_track_dependencies() || !task.has_key(&CachedDataItemKey::Dirty {});
+        let assume_unchanged = !ctx.should_track_dependencies() || !task.has_dirty();
 
         if assume_unchanged {
             let has_old_content = task.has_cell_data(is_serializable_cell_content, cell);
@@ -108,20 +107,17 @@ impl UpdateCellOperation {
                 Lazy::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
             });
 
-            let tasks_with_keys = iter_many!(
-                task,
-                CellDependent { cell: dependent_cell, key, task }
-                if dependent_cell == cell && key.is_none_or(|key_hash| {
-                    updated_key_hashes_set.as_ref().is_none_or(|set| {
-                        set.contains(&key_hash)
-                    })
-                })
-                => (task, key)
-            )
-            .filter(|&(dependent_task_id, _)| {
-                // once tasks are never invalidated
-                !ctx.is_once_task(dependent_task_id)
-            });
+            let tasks_with_keys =
+                task.iter_cell_dependents()
+                    .filter_map(|(dependent_cell, key, task)| {
+                        (dependent_cell == cell
+                            && key.is_none_or(|key_hash| {
+                                updated_key_hashes_set
+                                    .as_ref()
+                                    .is_none_or(|set| set.contains(&key_hash))
+                            }))
+                        .then_some((task, key))
+                    });
             let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> =
                 FxIndexMap::default();
             for (task, key) in tasks_with_keys {
@@ -142,10 +138,7 @@ impl UpdateCellOperation {
                 // tasks and after that set the new cell content. When the cell content is unset,
                 // readers will wait for it to be set via InProgressCell.
 
-                let old_content = task.remove(&CachedDataItemKey::cell_data(
-                    is_serializable_cell_content,
-                    cell,
-                ));
+                let old_content = task.remove_cell_data(is_serializable_cell_content, cell);
 
                 drop(task);
                 drop(old_content);
@@ -177,19 +170,12 @@ impl UpdateCellOperation {
         // So we can just update the cell content.
 
         let old_content = if let Some(new_content) = content {
-            task.insert(CachedDataItem::cell_data(
-                is_serializable_cell_content,
-                cell,
-                new_content,
-            ))
+            task.set_cell_data(is_serializable_cell_content, cell, new_content)
         } else {
-            task.remove(&CachedDataItemKey::cell_data(
-                is_serializable_cell_content,
-                cell,
-            ))
+            task.remove_cell_data(is_serializable_cell_content, cell)
         };
 
-        let in_progress_cell = remove!(task, InProgressCell { cell });
+        let in_progress_cell = task.remove_in_progress_cells(&cell);
 
         drop(task);
         drop(old_content);
@@ -216,7 +202,7 @@ impl UpdateCellOperation {
 }
 
 impl Operation for UpdateCellOperation {
-    fn execute(mut self, ctx: &mut impl ExecuteContext) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
         loop {
             if self.is_serializable() {
                 ctx.operation_suspend_point(&self);
@@ -235,20 +221,14 @@ impl Operation for UpdateCellOperation {
                         let mut make_stale = false;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
                         for key in keys.iter().copied() {
-                            if dependent.has_key(&CachedDataItemKey::OutdatedCellDependency {
-                                target: cell_ref,
-                                key,
-                            }) {
+                            if dependent.outdated_cell_dependencies_contains(&(cell_ref, key)) {
                                 // cell dependency is outdated, so it hasn't read the cell yet
                                 // and doesn't need to be invalidated.
                                 // We do not need to make the task stale in this case.
                                 // But importantly we still need to make the task dirty as it should
                                 // no longer be considered as
                                 // "recomputation".
-                            } else if !dependent.has_key(&CachedDataItemKey::CellDependency {
-                                target: cell_ref,
-                                key,
-                            }) {
+                            } else if !dependent.cell_dependencies_contains(&(cell_ref, key)) {
                                 // cell dependency has been removed, so the task doesn't depend on
                                 // the cell anymore and doesn't need
                                 // to be invalidated
@@ -288,14 +268,10 @@ impl Operation for UpdateCellOperation {
                     let mut task = ctx.task(task, TaskDataCategory::Data);
 
                     if let Some(content) = content {
-                        task.add_new(CachedDataItem::cell_data(
-                            is_serializable_cell_content,
-                            cell,
-                            content,
-                        ));
+                        task.add_cell_data(is_serializable_cell_content, cell, content);
                     }
 
-                    let in_progress_cell = remove!(task, InProgressCell { cell });
+                    let in_progress_cell = task.remove_in_progress_cells(&cell);
 
                     drop(task);
 

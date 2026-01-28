@@ -14,7 +14,7 @@ workspace = true
 
 [features]
 default = []
-print_cache_item_size = []
+print_cache_item_size = ["dep:lzzzz"]
 no_fast_stale = []
 verify_serialization = []
 verify_aggregation_graph = []
@@ -42,6 +42,7 @@ either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
 lmdb-rkv = { version = "0.14.0", optional = true }
+lzzzz = { version = "1.1.0", optional = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }

@@ -127,7 +127,7 @@ Refer to the [`next/script`](/docs/app/api-reference/components/script#strategy)
 
 > **Warning:** The `worker` strategy is not yet stable and does not yet work with the App Router. Use with caution.
 
-Scripts that use the `worker` strategy are offloaded and executed in a web worker with [Partytown](https://partytown.builder.io/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
+Scripts that use the `worker` strategy are offloaded and executed in a web worker with [Partytown](https://partytown.qwik.dev/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
 
 This strategy is still experimental and can only be used if the `nextScriptWorkers` flag is enabled in `next.config.js`:
 
@@ -145,7 +145,7 @@ Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide y
 npm run dev
 ```
 
-You'll see instructions like these: Please install Partytown by running `npm install @builder.io/partytown`
+You'll see instructions like these: Please install Partytown by running `npm install @qwik.dev/partytown`
 
 Once setup is complete, defining `strategy="worker"` will automatically instantiate Partytown in your application and offload the script to a web worker.
 
@@ -173,7 +173,7 @@ export default function Home() {
 }
 ```
 
-There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's [tradeoffs](https://partytown.builder.io/trade-offs) documentation for more information.
+There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's [tradeoffs](https://partytown.qwik.dev/trade-offs) documentation for more information.
 
 <PagesOnly>
 
@@ -218,7 +218,7 @@ In order to modify Partytown's configuration, the following conditions must be m
 
 > **Note**: If you are using an [asset prefix](/docs/pages/api-reference/config/next-config-js/assetPrefix) and would like to modify Partytown's default configuration, you must include it as part of the `lib` path.
 
-Take a look at Partytown's [configuration options](https://partytown.builder.io/configuration) to see the full list of other properties that can be added.
+Take a look at Partytown's [configuration options](https://partytown.qwik.dev/configuration) to see the full list of other properties that can be added.
 
 </PagesOnly>
 

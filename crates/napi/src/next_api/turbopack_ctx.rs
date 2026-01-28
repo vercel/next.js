@@ -158,7 +158,7 @@ pub struct NapiNextTurbopackCallbacks {
     throw_turbopack_internal_error: ThreadsafeFunction<TurbopackInternalErrorOpts>,
 }
 
-/// Arguments for [`NapiNextTurbopackCallbacks::throw_turbopack_internal_error`].
+/// Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`.
 #[napi(object)]
 pub struct TurbopackInternalErrorOpts {
     pub message: String,

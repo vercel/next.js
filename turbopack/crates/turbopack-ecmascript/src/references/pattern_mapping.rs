@@ -345,6 +345,7 @@ async fn to_single_pattern_mapping(
                 )
                 .resolved_cell(),
                 path: origin.origin_path().owned().await?,
+                source: None,
             }
             .resolved_cell()
             .emit();
@@ -376,6 +377,7 @@ async fn to_single_pattern_mapping(
         ))
         .resolved_cell(),
         path: origin.origin_path().owned().await?,
+        source: None,
     }
     .resolved_cell()
     .emit();

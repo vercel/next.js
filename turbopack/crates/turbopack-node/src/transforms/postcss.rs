@@ -12,7 +12,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    changed::any_content_changed_of_module,
+    changed::any_source_content_changed_of_module,
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
@@ -84,6 +84,9 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".postcssrc.js",
             ".postcssrc.mjs",
             ".postcssrc.cjs",
+            ".postcssrc.ts",
+            ".postcssrc.mts",
+            ".postcssrc.cts",
             ".config/postcssrc",
             ".config/postcssrc.json",
             ".config/postcssrc.yaml",
@@ -91,9 +94,15 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".config/postcssrc.js",
             ".config/postcssrc.mjs",
             ".config/postcssrc.cjs",
+            ".config/postcssrc.ts",
+            ".config/postcssrc.mts",
+            ".config/postcssrc.cts",
             "postcss.config.js",
             "postcss.config.mjs",
             "postcss.config.cjs",
+            "postcss.config.ts",
+            "postcss.config.mts",
+            "postcss.config.cts",
             "postcss.config.json",
         ]
         .into_iter()
@@ -195,7 +204,7 @@ async fn config_changed(
         .module();
 
     Ok(Vc::<Completions>::cell(vec![
-        any_content_changed_of_module(config_asset)
+        any_source_content_changed_of_module(config_asset)
             .to_resolved()
             .await?,
         extra_configs_changed(asset_context, postcss_config_path)
@@ -231,9 +240,11 @@ async fn extra_configs_changed(
                         .try_into_module()
                         .await?
                     {
-                        Some(module) => {
-                            Some(any_content_changed_of_module(*module).to_resolved().await?)
-                        }
+                        Some(module) => Some(
+                            any_source_content_changed_of_module(*module)
+                                .to_resolved()
+                                .await?,
+                        ),
                         None => None,
                     }
                 } else {

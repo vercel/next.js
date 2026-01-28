@@ -16,6 +16,7 @@ import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
+import { nanoid } from 'nanoid'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
 import { once } from 'events'
@@ -197,6 +198,37 @@ export function fetchViaHTTP(
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)
+}
+
+/**
+ * Creates request options with a unique x-invocation-id header for testing
+ * cache deduplication in minimal mode. Use this when you need to ensure each
+ * request is treated as independent, or when multiple requests need to share
+ * the same invocation ID.
+ *
+ * @example
+ * // Independent requests (each gets its own invocation ID)
+ * const res1 = await fetchViaHTTP(appPort, '/page', undefined, withInvocationId())
+ * const res2 = await fetchViaHTTP(appPort, '/page', undefined, withInvocationId())
+ *
+ * @example
+ * // Grouped requests (share the same invocation ID for cache testing)
+ * const sharedOpts = withInvocationId()
+ * const res1 = await fetchViaHTTP(appPort, '/page', undefined, sharedOpts)
+ * const res2 = await fetchViaHTTP(appPort, '/_next/data/.../page.json', undefined, sharedOpts)
+ *
+ * @param opts - Optional existing RequestInit to merge with
+ * @returns RequestInit with x-invocation-id header added
+ */
+export function withInvocationId(opts?: RequestInit): RequestInit {
+  const invocationId = `test:${nanoid()}`
+  return {
+    ...opts,
+    headers: {
+      ...opts?.headers,
+      'x-invocation-id': invocationId,
+    },
+  }
 }
 
 export function renderViaHTTP(
@@ -1780,16 +1812,16 @@ export async function getStackFramesContent(browser) {
     await Promise.all(
       stackFrameElements.map(async (frame) => {
         const functionNameEl = await frame.$('.call-stack-frame-method-name')
-        const sourceEl = await frame.$('[data-has-source="true"]')
+        const fileEl = await frame.$('[data-has-original-code-frame="true"]')
         const functionName = functionNameEl
           ? await functionNameEl.innerText()
           : ''
-        const source = sourceEl ? await sourceEl.innerText() : ''
+        const file = fileEl ? await fileEl.innerText() : ''
 
         if (!functionName) {
           return ''
         }
-        return `at ${functionName} (${source})`
+        return `at ${functionName} (${file})`
       })
     )
   )

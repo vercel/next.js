@@ -85,6 +85,7 @@ async function exportPageImpl(
     renderOpts: commonRenderOpts,
     outDir: commonOutDir,
     buildId,
+    deploymentId,
     renderResumeDataCache,
   } = input
 
@@ -274,7 +275,7 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const sharedContext: AppSharedContext = { buildId }
+    const sharedContext: AppSharedContext = { buildId, deploymentId }
 
     return exportAppPage(
       req,
@@ -294,7 +295,7 @@ async function exportPageImpl(
   } else {
     const sharedContext: PagesSharedContext = {
       buildId,
-      deploymentId: commonRenderOpts.deploymentId,
+      deploymentId,
       customServer: undefined,
     }
 
@@ -342,7 +343,13 @@ export async function exportPages(
     nextConfig,
     options,
     renderResumeDataCachesByPage = {},
+    deploymentId,
   } = input
+
+  // Set the global asset suffix for Turbopack compiled code to use during prerendering
+  ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = deploymentId
+    ? `?dpl=${deploymentId}`
+    : ''
 
   installGlobalBehaviors(nextConfig)
 
@@ -388,9 +395,9 @@ export async function exportPages(
       // Also tests for `inspect-brk`
       process.env.NODE_OPTIONS?.includes('--inspect')
 
-    const renderResumeDataCache = renderResumeDataCachesByPage[page]
+    const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
       ? createRenderResumeDataCache(
-          renderResumeDataCachesByPage[page],
+          renderResumeDataCachesByPage[pageKey],
           renderOpts.experimental.maxPostponedStateSizeBytes
         )
       : undefined
@@ -416,6 +423,7 @@ export async function exportPages(
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
+            deploymentId: input.deploymentId,
             renderResumeDataCache,
           }),
           hasDebuggerAttached

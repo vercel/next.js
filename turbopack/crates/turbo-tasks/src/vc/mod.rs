@@ -34,7 +34,7 @@ pub use self::{
 use crate::{
     CellId, RawVc, ResolveTypeError,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
-    keyed::Keyed,
+    keyed::{KeyedAccess, KeyedEq},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::read::{ReadContainsKeyedVcFuture, ReadKeyedVcFuture},
@@ -674,22 +674,26 @@ where
 impl<T> Vc<T>
 where
     T: VcValueType,
-    VcReadTarget<T>: Keyed,
-    <VcReadTarget<T> as Keyed>::Key: Hash,
+    VcReadTarget<T>: KeyedEq,
 {
     /// Read the value and selects a keyed value from it. Only depends on the used key instead of
     /// the full value.
-    pub fn get<'l>(self, key: &'l <VcReadTarget<T> as Keyed>::Key) -> ReadKeyedVcFuture<'l, T> {
+    pub fn get<'l, Q>(self, key: &'l Q) -> ReadKeyedVcFuture<'l, T, Q>
+    where
+        Q: Hash + ?Sized,
+        VcReadTarget<T>: KeyedAccess<Q>,
+    {
         let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
         future.get(key)
     }
 
     /// Read the value and checks if it contains the given key. Only depends on the used key instead
     /// of the full value.
-    pub fn contains_key<'l>(
-        self,
-        key: &'l <VcReadTarget<T> as Keyed>::Key,
-    ) -> ReadContainsKeyedVcFuture<'l, T> {
+    pub fn contains_key<'l, Q>(self, key: &'l Q) -> ReadContainsKeyedVcFuture<'l, T, Q>
+    where
+        Q: Hash + ?Sized,
+        VcReadTarget<T>: KeyedAccess<Q>,
+    {
         let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
         future.contains_key(key)
     }

@@ -407,7 +407,7 @@ export interface NapiNextTurbopackCallbacksJsObject {
     opts: TurbopackInternalErrorOpts
   ) => never
 }
-/** Arguments for [`NapiNextTurbopackCallbacks::throw_turbopack_internal_error`]. */
+/** Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`. */
 export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string
