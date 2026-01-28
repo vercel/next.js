@@ -3,7 +3,7 @@
         "a",
         Constant(
             Str(
-                Atom(
+                RcStr(
                     "",
                 ),
             ),
