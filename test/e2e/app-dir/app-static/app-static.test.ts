@@ -6,6 +6,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
+  getCacheHeader,
   normalizeRegEx,
   retry,
   waitFor,
@@ -69,9 +70,7 @@ describe('app-dir static/dynamic handling', () => {
     if (isNextDev) {
       expect(data).not.toBe(data2)
     } else {
-      const pageCache = (
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
-      ).toLowerCase()
+      const pageCache = getCacheHeader(res)
 
       expect(pageCache).toBeTruthy()
       expect(pageCache).not.toBe('MISS')
@@ -98,9 +97,7 @@ describe('app-dir static/dynamic handling', () => {
     } else {
       // "default" cache does not impact ISR handling on a page, similar to the above test
       // case for no fetch config
-      const pageCache = (
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
-      ).toLowerCase()
+      const pageCache = getCacheHeader(res)
 
       expect(pageCache).toBeTruthy()
       expect(pageCache).not.toBe('MISS')
