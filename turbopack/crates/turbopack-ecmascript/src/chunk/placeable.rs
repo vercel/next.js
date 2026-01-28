@@ -26,7 +26,7 @@ use crate::references::{
 };
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
+pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports>;
     #[turbo_tasks::function]

@@ -3,7 +3,6 @@ use swc_core::ecma::ast::Lit;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -66,14 +65,6 @@ impl Module for WebpackModuleAsset {
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::SideEffectful.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for WebpackModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
@@ -168,8 +159,7 @@ pub struct WebpackRuntimeAssetReference {
 impl ModuleReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
-        let options = self.origin.resolve_options(ty.clone());
+        let options = self.origin.resolve_options();
 
         let options = apply_cjs_specific_options(options);
 

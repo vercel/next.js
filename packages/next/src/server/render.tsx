@@ -243,7 +243,7 @@ function renderPageTree(
 export type RenderOptsPartial = {
   assetPrefix?: string
   err?: Error | null
-  nextExport?: boolean
+  isBuildTimePrerendering?: boolean
   dev?: boolean
   ErrorDebug?: PagesDevOverlayBridgeType
   isNextDataRequest?: boolean
@@ -517,7 +517,7 @@ export async function renderToHTMLImpl(
   stripInternalQueries(query)
 
   const isSSG = !!getStaticProps
-  const isBuildTimeSSG = isSSG && renderOpts.nextExport
+  const isBuildTimeSSG = isSSG && renderOpts.isBuildTimePrerendering
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
@@ -532,7 +532,7 @@ export async function renderToHTMLImpl(
       (Component as any).origGetInitialProps
 
   if (
-    renderOpts.nextExport &&
+    renderOpts.isBuildTimePrerendering &&
     hasPageGetInitialProps &&
     !defaultErrorGetInitialProps
   ) {
@@ -834,7 +834,9 @@ export async function renderToHTMLImpl(
   let props: any
 
   const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+    !isSSG &&
+    (renderOpts.isBuildTimePrerendering ||
+      (dev && (isAutoExport || isFallback)))
 
   const styledJsxInsertedHTML = () => {
     const styles = jsxStyleRegistry.styles()

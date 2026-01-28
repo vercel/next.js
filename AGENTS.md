@@ -181,28 +181,23 @@ pnpm prettier-fix      # Fix formatting only
 pnpm types             # TypeScript type checking
 ```
 
-## Investigating CI Test Failures
+## PR Status (CI Failures and Reviews)
 
-**Use `/ci-failures` for automated analysis** - analyzes failing jobs in parallel and groups by test file.
+When the user asks about CI failures, PR reviews, or the status of a PR, run the pr-status script:
+
+```bash
+node scripts/pr-status.js           # Auto-detects PR from current branch
+node scripts/pr-status.js <number>  # Analyze specific PR by number
+```
+
+This fetches CI workflow runs, failed jobs, logs, and PR review comments, generating markdown files in `scripts/pr-status/`.
+
+**Use `/pr-status` for automated analysis** - analyzes failing jobs and review comments in parallel, groups failures by test file.
 
 **CI Analysis Tips:**
 
-- Don't spawn too many parallel agents hitting GitHub API (causes rate limits)
-- Prioritize blocking jobs first: lint, types, then test jobs
-- Use `gh api` for logs (works on in-progress runs), not `gh run view --log`
-
-**Quick triage:**
-
-```bash
-# List failed jobs for a PR
-gh pr checks <pr-number> | grep fail
-
-# Get failed job names
-gh run view <run-id> --json jobs --jq '.jobs[] | select(.conclusion == "failure") | .name'
-
-# Search job logs for errors (completed runs only - use gh api for in-progress)
-gh run view <run-id> --job <job-id> --log 2>&1 | grep -E "FAIL|Error|error:" | head -30
-```
+- Prioritize blocking jobs first: build, lint, types, then test jobs
+- Prioritize CI failures over review comments
 
 **Common failure patterns:**
 

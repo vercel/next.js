@@ -90,6 +90,33 @@ jobs:
       runs_on_labels: '["ubuntu-latest"]'
       overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
 
+  test-deploy-adapter:
+    name: Run Deploy Adapter Tests
+    needs: setup
+    uses: ./.github/workflows/build_reusable.yml
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/1]
+    with:
+      afterBuild: |
+        npm i -g vercel@latest && \
+        NEXT_E2E_TEST_TIMEOUT=240000 \
+        NEXT_TEST_MODE=deploy \
+        IS_WEBPACK_TEST=1 \
+        NEXT_ENABLE_ADAPTER=1 \
+        NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
+        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        node run-tests.js --timings -g ${{ matrix.group }} -c 2 test/e2e/app-dir/segment-cache/client-params/client-params.test.ts test/e2e/app-dir/app-static/app-static.test.ts test/e2e/app-dir/cache-components/cache-components.test.ts test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts test/e2e/edge-pages-support/index.test.ts test/e2e/prerender.test.ts test/e2e/middleware-general/test/index.test.ts test/e2e/middleware-rewrites/test/index.test.ts test/e2e/app-dir/actions/app-action-node-middleware.test.ts
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'no'
+      stepName: 'test-deploy-adapter-${{ matrix.group }}'
+      timeout_minutes: 180
+      runs_on_labels: '["ubuntu-latest"]'
+      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
+
   report-test-results-to-datadog:
     needs: test-deploy
     if: ${{ always() }}
