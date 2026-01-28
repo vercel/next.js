@@ -978,11 +978,6 @@ export default async function build(
             `Invalid \`deploymentId\` configuration: must be a string. See https://nextjs.org/docs/messages/deploymentid-not-a-string`
           )
         }
-        if (config.deploymentId.length > 32) {
-          throw new Error(
-            `Invalid \`deploymentId\` configuration: exceeds maximum length of 32 characters. See https://nextjs.org/docs/messages/deploymentid-too-long`
-          )
-        }
         if (!/^[a-zA-Z0-9_-]*$/.test(config.deploymentId)) {
           throw new Error(
             `Invalid \`deploymentId\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters`
