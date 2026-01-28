@@ -217,6 +217,7 @@ import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
 import { anySegmentHasRuntimePrefetchEnabled } from './staged-validation'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
+import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -2545,7 +2546,7 @@ async function renderToStream(
           polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
       )
       .map((polyfill) => ({
-        src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
+        src: `${assetPrefix}/_next/${encodeURIPath(polyfill)}${getAssetQueryString(
           ctx,
           false
         )}`,
@@ -4149,7 +4150,7 @@ async function prerenderToStream(
           polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
       )
       .map((polyfill) => ({
-        src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
+        src: `${assetPrefix}/_next/${encodeURIPath(polyfill)}${getAssetQueryString(
           ctx,
           false
         )}`,

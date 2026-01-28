@@ -13,14 +13,34 @@ export async function next__polyfill_nomodule(task, opts) {
 }
 
 export async function next__polyfill_module(task, opts) {
+  // Copy the combined polyfill file (for backwards compatibility)
   await task
     .source(relative(__dirname, require.resolve('@next/polyfill-module')))
     .target('dist/build/polyfills')
 }
 
+export async function next__polyfill_module_individual(task, opts) {
+  await task
+    .source(
+      join(
+        relative(
+          __dirname,
+          dirname(require.resolve('@next/polyfill-module/package.json'))
+        ),
+        'src/polyfills/*'
+      )
+    )
+    .swc_minify()
+    .target('dist/build/polyfills/module')
+}
+
 export async function browser_polyfills(task, opts) {
   await task.parallel(
-    ['next__polyfill_nomodule', 'next__polyfill_module'],
+    [
+      'next__polyfill_nomodule',
+      'next__polyfill_module',
+      'next__polyfill_module_individual',
+    ],
     opts
   )
 }

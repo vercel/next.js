@@ -1,12 +1,8 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
+import { execSync } from 'child_process'
 
-// Currently broken: https://github.com/yowainwright/es-check/issues/321
-describe.skip('ES Check .next output', () => {
-  let next: NextInstance
-  afterEach(() => next.destroy())
-
-  it('should downlevel JS according to manual browserslist with es2020', async () => {
+describe('escheck-output', () => {
+  describe('es2020', () => {
     let browserslist = [
       'chrome 64',
       'edge 79',
@@ -14,38 +10,124 @@ describe.skip('ES Check .next output', () => {
       'opera 51',
       'safari 12',
     ]
-    next = await createNext({
+    const { next } = nextTestSetup({
       files: __dirname,
-      dependencies: { 'es-check': '9.4.3' },
+      dependencies: { 'es-check': '9.5.3' },
       packageJson: {
-        browserslist: browserslist,
-        scripts: {
-          build: 'next build && es-check es2020 ".next/static/**/*.js"',
-        },
+        browserslist,
       },
-      installCommand: 'pnpm i',
-      buildCommand: 'pnpm build',
     })
-    expect(next.cliOutput).toContain(
-      'info: ES-Check: there were no ES version matching errors!  🎉'
-    )
+
+    it('should downlevel JS', () => {
+      let esCheckOutput = execSync(
+        'node_modules/.bin/es-check es2020 ".next/static/**/*.js"',
+        { cwd: next.testDir }
+      ).toString()
+
+      expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
+
+    it('should not include outdated polyfills', async () => {
+      expect(await detectPolyfills(next)).toEqual([
+        'Symbol.prototype.description',
+        'String.prototype.trimStart',
+        'Array.prototype.at',
+        'Array.prototype.flat',
+        'Object.fromEntries',
+        'Object.hasOwn',
+        'URL.canParse',
+      ])
+    })
   })
 
-  it('should downlevel JS according to default browserslist', async () => {
+  describe('default browserslist', () => {
     let browserslist = ['chrome 111', 'edge 111', 'firefox 111', 'safari 16.4']
-    next = await createNext({
+
+    const { next } = nextTestSetup({
       files: __dirname,
-      dependencies: { 'es-check': '9.4.3' },
+      dependencies: { 'es-check': '9.5.3' },
       packageJson: {
-        scripts: {
-          build: `next build && es-check checkBrowser ".next/static/**/*.js" --browserslistQuery="${browserslist.join(', ')}"`,
-        },
+        browserslist,
       },
-      installCommand: 'pnpm i',
-      buildCommand: 'pnpm build',
     })
-    expect(next.cliOutput).toContain(
-      'info: ES-Check: there were no ES version matching errors!  🎉'
-    )
+
+    it('should downlevel JS', () => {
+      let esCheckOutput = execSync(
+        `node_modules/.bin/es-check checkBrowser ".next/static/**/*.js" --browserslistQuery="${browserslist.join(', ')}"`,
+        { cwd: next.testDir }
+      ).toString()
+
+      expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
+
+    it('should not include outdated polyfills', async () => {
+      expect(await detectPolyfills(next)).toEqual(['URL.canParse'])
+    })
+  })
+
+  describe('nomodule browsers', () => {
+    let browserslist = ['chrome 60']
+
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies: { 'es-check': '9.5.3' },
+      packageJson: {
+        browserslist,
+      },
+    })
+
+    // Fails due to https://github.com/yowainwright/es-check/issues/383
+    it.skip('should downlevel JS', () => {
+      let esCheckOutput = execSync(
+        `node_modules/.bin/es-check checkBrowser ".next/static/**/*.js" --browserslistQuery="${browserslist.join(', ')}"`,
+        { cwd: next.testDir, stdio: 'inherit' }
+      ).toString()
+
+      expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
+
+    it('should not include outdated polyfills', async () => {
+      expect(await detectPolyfills(next)).toEqual([
+        'Symbol.prototype.description',
+        'String.prototype.trimStart',
+        'Array.prototype.at',
+        'Array.prototype.flat',
+        'Object.fromEntries',
+        'Object.hasOwn',
+        'URL.canParse',
+        'Object.assign',
+        'Array.findIndex',
+      ])
+    })
   })
 })
+
+async function detectPolyfills(next) {
+  const { polyfillFiles } = await next.readJSON('.next/build-manifest.json')
+
+  const polyfills = {
+    'Symbol.prototype.description':
+      'Object.defineProperty(Symbol.prototype,"description"',
+    'String.prototype.trimStart': 'String.prototype.trimStart=',
+    'Array.prototype.at': 'Array.prototype.at=',
+    'Array.prototype.flat': 'Array.prototype.flat=',
+    'Object.fromEntries': 'Object.fromEntries=',
+    'Object.hasOwn': 'Object.hasOwn=',
+    'URL.canParse': 'URL.canParse=',
+    'Object.assign': 'Object.assign=',
+    'Array.findIndex': 'Maximum allowed index exceeded',
+  }
+
+  let foundPolyfills = new Set()
+
+  for (let file of polyfillFiles) {
+    let content = await next.readFile(`.next/${file}`)
+    for (let [name, matcher] of Object.entries(polyfills)) {
+      if (content.includes(matcher)) {
+        foundPolyfills.add(name)
+      }
+    }
+  }
+
+  return [...foundPolyfills]
+}
