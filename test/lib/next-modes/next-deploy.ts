@@ -3,11 +3,7 @@ import path from 'path'
 import execa from 'execa'
 import fs from 'fs-extra'
 import { NextInstance } from './base'
-import {
-  TEST_PROJECT_NAME,
-  TEST_TEAM_NAME,
-  TEST_TOKEN,
-} from '../../../scripts/reset-project.mjs'
+import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
 
 export class NextDeployInstance extends NextInstance {
@@ -55,6 +51,15 @@ export class NextDeployInstance extends NextInstance {
     }
 
     const vercelFlags: string[] = []
+    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER
+
+    const TEST_TEAM_NAME = NEXT_ENABLE_ADAPTER
+      ? projectEnv.ADAPTER_TEST_TEAM_NAME
+      : projectEnv.TEST_TEAM_NAME
+
+    const TEST_TOKEN = NEXT_ENABLE_ADAPTER
+      ? projectEnv.ADAPTER_TEST_TOKEN
+      : projectEnv.TEST_TOKEN
 
     // If the team name is available in the environment, use it as the scope.
     if (TEST_TEAM_NAME) {
@@ -101,7 +106,7 @@ export class NextDeployInstance extends NextInstance {
       // link the project
       const linkRes = await execa(
         'vercel',
-        ['link', '-p', TEST_PROJECT_NAME, '--yes', ...vercelFlags],
+        ['link', '-p', projectEnv.TEST_PROJECT_NAME, '--yes', ...vercelFlags],
         {
           cwd: this.testDir,
           env: vercelEnv,
