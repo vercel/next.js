@@ -57,18 +57,14 @@ impl<T> EffectError for T where T: StdError + TraceRawVcs + NonLocalValue + Send
 // Private wrapper trait to allow dynamic dispatch of an `Effect`. This is similar to the pattern
 // that the dynosaur crate uses: https://github.com/spastorino/dynosaur
 trait DynEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
-    fn dyn_apply<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Arc<dyn EffectError>>> + Send + 'a>>;
+    fn dyn_apply<'a>(&'a self) -> DynEffectApplyFuture<'a>;
 }
 
 impl<T> DynEffect for T
 where
     T: Effect,
 {
-    fn dyn_apply<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Arc<dyn EffectError>>> + Send + 'a>> {
+    fn dyn_apply<'a>(&'a self) -> DynEffectApplyFuture<'a> {
         Box::pin(async move {
             self.apply()
                 .await
@@ -76,6 +72,9 @@ where
         })
     }
 }
+
+type DynEffectApplyFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<(), Arc<dyn EffectError>>> + Send + 'a>>;
 
 /// A trait to emit a task effect as collectible. This trait only has one implementation,
 /// `EffectInstance` and no other implementation is allowed. The trait is private to this module so
