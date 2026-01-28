@@ -1212,6 +1212,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .collect::<Vec<_>>();
                 if !task_cache_stats.is_empty() {
                     use turbo_tasks::util::FormatBytes;
+
+                    use crate::utils::markdown_table::print_markdown_table;
+
                     task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
                         (stats_b.data_compressed + stats_b.meta_compressed, key_b)
                             .cmp(&(stats_a.data_compressed + stats_a.meta_compressed, key_a))
@@ -1232,42 +1235,79 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         )
                     );
 
-                    for (task_desc, stats) in task_cache_stats {
-                        println!(
-                            "  {} ({}) {task_desc} = {} ({}) meta {} x {} ({}), {} ({}) data {} x \
-                             {} ({}), upper: {}, coll: {}, agg_coll: {}, children: {}, followers: \
-                             {}, coll_deps: {}, agg_dirty: {}",
-                            FormatBytes(stats.data_compressed + stats.meta_compressed),
-                            FormatBytes(stats.data + stats.meta),
-                            FormatBytes(stats.meta_compressed),
-                            FormatBytes(stats.meta),
-                            stats.meta_count,
-                            FormatBytes(
-                                stats
-                                    .meta_compressed
-                                    .checked_div(stats.meta_count)
-                                    .unwrap_or(0)
-                            ),
-                            FormatBytes(stats.meta.checked_div(stats.meta_count).unwrap_or(0)),
-                            FormatBytes(stats.data_compressed),
-                            FormatBytes(stats.data),
-                            stats.data_count,
-                            FormatBytes(
-                                stats
-                                    .data_compressed
-                                    .checked_div(stats.data_count)
-                                    .unwrap_or(0)
-                            ),
-                            FormatBytes(stats.data.checked_div(stats.data_count).unwrap_or(0)),
-                            stats.upper_count,
-                            stats.collectibles_count,
-                            stats.aggregated_collectibles_count,
-                            stats.children_count,
-                            stats.followers_count,
-                            stats.collectibles_dependents_count,
-                            stats.aggregated_dirty_containers_count,
-                        );
-                    }
+                    print_markdown_table(
+                        [
+                            "Task",
+                            "Total Size",
+                            "Data Size",
+                            "Data Count x Avg",
+                            "Meta Size",
+                            "Meta Count x Avg",
+                            "Uppers",
+                            "Coll",
+                            "Agg Coll",
+                            "Children",
+                            "Followers",
+                            "Coll Deps",
+                            "Agg Dirty",
+                            "Output Size",
+                        ],
+                        task_cache_stats.iter(),
+                        |(task_desc, stats)| {
+                            [
+                                task_desc.to_string(),
+                                format!(
+                                    "{} ({})",
+                                    FormatBytes(stats.data_compressed + stats.meta_compressed),
+                                    FormatBytes(stats.data + stats.meta)
+                                ),
+                                format!(
+                                    "{} ({})",
+                                    FormatBytes(stats.data_compressed),
+                                    FormatBytes(stats.data)
+                                ),
+                                format!(
+                                    "{} x {} ({})",
+                                    stats.data_count,
+                                    FormatBytes(
+                                        stats
+                                            .data_compressed
+                                            .checked_div(stats.data_count)
+                                            .unwrap_or(0)
+                                    ),
+                                    FormatBytes(
+                                        stats.data.checked_div(stats.data_count).unwrap_or(0)
+                                    ),
+                                ),
+                                format!(
+                                    "{} ({})",
+                                    FormatBytes(stats.meta_compressed),
+                                    FormatBytes(stats.meta)
+                                ),
+                                format!(
+                                    "{} x {} ({})",
+                                    stats.meta_count,
+                                    FormatBytes(
+                                        stats
+                                            .meta_compressed
+                                            .checked_div(stats.meta_count)
+                                            .unwrap_or(0)
+                                    ),
+                                    FormatBytes(
+                                        stats.meta.checked_div(stats.meta_count).unwrap_or(0)
+                                    ),
+                                ),
+                                stats.upper_count.to_string(),
+                                stats.collectibles_count.to_string(),
+                                stats.aggregated_collectibles_count.to_string(),
+                                stats.children_count.to_string(),
+                                stats.followers_count.to_string(),
+                                stats.collectibles_dependents_count.to_string(),
+                                stats.aggregated_dirty_containers_count.to_string(),
+                                FormatBytes(stats.output_size).to_string(),
+                            ]
+                        },
+                    );
                 }
             }
         }
