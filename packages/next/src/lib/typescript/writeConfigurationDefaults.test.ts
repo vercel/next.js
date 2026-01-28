@@ -15,7 +15,6 @@ describe('writeConfigurationDefaults()', () => {
   let tsConfigPath: string
   let isFirstTimeSetup: boolean
   let hasPagesDir: boolean
-  let isolatedDevBuild = true
   let experimentalStrictRouteTypes = true
 
   beforeEach(async () => {
@@ -48,7 +47,7 @@ describe('writeConfigurationDefaults()', () => {
         hasAppDir,
         distDir,
         hasPagesDir,
-        isolatedDevBuild,
+        undefined,
         experimentalStrictRouteTypes
       )
 
@@ -137,7 +136,7 @@ describe('writeConfigurationDefaults()', () => {
         hasAppDir,
         distDir,
         hasPagesDir,
-        isolatedDevBuild,
+        undefined,
         experimentalStrictRouteTypes
       )
 

@@ -44,7 +44,7 @@ export async function runTypeCheck(
   tsConfigPath: string,
   cacheDir?: string,
   isAppDirEnabled?: boolean,
-  isolatedDevBuild?: boolean,
+  _isolatedDevBuild?: boolean,
   dirs?: TypeCheckDirs,
   debugBuildPaths?: DebugBuildPaths
 ): Promise<TypeCheckResult> {
@@ -53,22 +53,14 @@ export async function runTypeCheck(
     tsConfigPath
   )
 
-  // When isolatedDevBuild is enabled, tsconfig includes both .next/types and
-  // .next/dev/types to avoid config churn between dev/build modes. During build,
-  // we filter out .next/dev/types files to prevent stale dev types from causing
-  // errors when routes have been deleted since the last dev session.
+  // tsconfig includes both .next/types and .next/dev/types to avoid config churn
+  // between dev/build modes. During build, we filter out .next/dev/types files to
+  // prevent stale dev types from causing errors when routes have been deleted since
+  // the last dev session.
   let fileNames = effectiveConfiguration.fileNames
-  const resolvedIsolatedDevBuild =
-    isolatedDevBuild === undefined
-      ? defaultConfig.experimental.isolatedDevBuild
-      : isolatedDevBuild
 
   // Get the dev types path to filter (null if not applicable)
-  const devTypesDir = getDevTypesPath(
-    baseDir,
-    distDir,
-    resolvedIsolatedDevBuild
-  )
+  const devTypesDir = getDevTypesPath(baseDir, distDir)
   if (devTypesDir) {
     fileNames = fileNames.filter(
       (fileName) => !fileName.startsWith(devTypesDir)

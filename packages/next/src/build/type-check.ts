@@ -29,7 +29,8 @@ function verifyTypeScriptSetup(
   enableWorkerThreads: boolean | undefined,
   hasAppDir: boolean,
   hasPagesDir: boolean,
-  isolatedDevBuild: boolean | undefined,
+  /** @deprecated No longer used, kept for backwards compatibility */
+  _isolatedDevBuild: boolean | undefined,
   appDir: string | undefined,
   pagesDir: string | undefined,
   debugBuildPaths: { app: string[]; pages: string[] } | undefined
@@ -60,7 +61,7 @@ function verifyTypeScriptSetup(
       cacheDir,
       hasAppDir,
       hasPagesDir,
-      isolatedDevBuild,
+      isolatedDevBuild: undefined,
       appDir,
       pagesDir,
       debugBuildPaths,

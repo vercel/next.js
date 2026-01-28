@@ -147,7 +147,7 @@ async function runPlaywright(
       disableStaticImages: nextConfig.images.disableStaticImages,
       hasAppDir: !!appDir,
       hasPagesDir: !!pagesDir,
-      isolatedDevBuild: nextConfig.experimental.isolatedDevBuild,
+      isolatedDevBuild: undefined,
       appDir: appDir || undefined,
       pagesDir: pagesDir || undefined,
     })
