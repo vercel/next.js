@@ -562,8 +562,8 @@ jobs:
     needs:
       - deploy-target
       - build
-      # - build-wasm
-      # - build-native
+      - build-wasm
+      - build-native
     permissions:
       contents: write
       id-token: write
