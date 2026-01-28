@@ -1,7 +1,7 @@
 // Import cpu-profile first to start profiling early if enabled
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
+import { util } from 'next/dist/compiled/webpack-sources'
 import { red } from '../../lib/picocolors'
 import formatWebpackMessages from '../../shared/lib/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
@@ -185,8 +185,8 @@ export async function webpackBuildImpl(
   // We run client and server compilation separately to optimize for memory usage
   await runWebpackSpan.traceAsyncFn(async () => {
     if (config.experimental.webpackMemoryOptimizations) {
-      stringBufferUtils.disableDualStringBufferCaching()
-      stringBufferUtils.enterStringInterningRange()
+      util.stringBufferUtils.disableDualStringBufferCaching()
+      util.stringBufferUtils.enterStringInterningRange()
     }
 
     // Run the server compilers first and then the client
@@ -259,7 +259,7 @@ export async function webpackBuildImpl(
     }
 
     if (config.experimental.webpackMemoryOptimizations) {
-      stringBufferUtils.exitStringInterningRange()
+      util.stringBufferUtils.exitStringInterningRange()
     }
     inputFileSystem?.purge?.()
 

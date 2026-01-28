@@ -34,9 +34,6 @@ patchedDependencies:
   taskr@1.1.0:
     hash: utitb3olraq7egc3hk7waltisu
     path: patches/taskr@1.1.0.patch
-  webpack-sources@3.2.3:
-    hash: jbynf5dc46ambamq3wuyho6hkq
-    path: patches/webpack-sources@3.2.3.patch
 
 importers:
 
@@ -1371,9 +1368,6 @@ importers:
       '@types/ua-parser-js':
         specifier: 0.7.36
         version: 0.7.36
-      '@types/webpack-sources1':
-        specifier: npm:@types/webpack-sources@0.1.5
-        version: '@types/webpack-sources@0.1.5'
       '@types/ws':
         specifier: 8.2.0
         version: 8.2.0
@@ -1770,12 +1764,9 @@ importers:
       webpack:
         specifier: 5.98.0
         version: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)
-      webpack-sources1:
-        specifier: npm:webpack-sources@1.4.3
-        version: webpack-sources@1.4.3
-      webpack-sources3:
-        specifier: npm:webpack-sources@3.2.3
-        version: webpack-sources@3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
+      webpack-sources:
+        specifier: 3.3.3
+        version: 3.3.3
       ws:
         specifier: 8.2.3
         version: 8.2.3
@@ -6836,9 +6827,6 @@ packages:
   '@types/sockjs@0.3.36':
     resolution: {integrity: sha512-MK9V6NzAS1+Ud7JV9lJLFqW85VbC9dq3LmwZCuBe4wBDgKC0Kj/jd8Xl+nSviU+Qc3+m7umHHyHg//2KSa0a0Q==}
 
-  '@types/source-list-map@0.1.2':
-    resolution: {integrity: sha512-K5K+yml8LTo9bWJI/rECfIPrGgxdpeNbj+d53lwN4QjW1MCwlkhUms+gtdzigTeUyBr09+u8BwOIY3MXvHdcsA==}
-
   '@types/split2@4.2.3':
     resolution: {integrity: sha512-59OXIlfUsi2k++H6CHgUQKEb2HKRokUA39HY1i1dS8/AIcqVjtAAFdf8u+HxTWK/4FUHMJQlKSZ4I6irCBJ1Zw==}
 
@@ -6889,9 +6877,6 @@ packages:
 
   '@types/wait-on@5.3.4':
     resolution: {integrity: sha512-EBsPjFMrFlMbbUFf9D1Fp+PAB2TwmUn7a3YtHyD9RLuTIk1jDd8SxXVAoez2Ciy+8Jsceo2MYEYZzJ/DvorOKw==}
-
-  '@types/webpack-sources@0.1.5':
-    resolution: {integrity: sha512-zfvjpp7jiafSmrzJ2/i3LqOyTYTuJ7u1KOXlKgDlvsj9Rr0x7ZiYu5lZbXwobL7lmsRNtPXlBfmaUD8eU2Hu8w==}
 
   '@types/webpack@5.28.5':
     resolution: {integrity: sha512-wR87cgvxj3p6D0Crt1r5avwqffqPXUkNlnQ1mjU93G7gCuFjufZR4I6j8cz5g1F1tTYpfOOFvly+cmIQwL9wvw==}
@@ -16904,9 +16889,6 @@ packages:
     resolution: {integrity: sha512-/dPCrG1s3ePpWm6yBbxZq5Be1dXGLyLn9Z791chDC3NFrpkVbWGzkBwPN1knaciexFXgRJ7hzdnwZ4stHSDmjg==}
     engines: {node: '>=4'}
 
-  source-list-map@2.0.1:
-    resolution: {integrity: sha512-qnQ7gVMxGNxsiL4lEuJwe/To8UnK7fAnmbGEEH8RpLouuKbeEm0lhbQVFIrNSuB+G7tVrAlVsZgETT5nljf+Iw==}
-
   source-map-js@1.0.2:
     resolution: {integrity: sha512-R0XvVJ9WusLiqTCEiGCmICCMplcCkIwwR11mOSD9CR5u+IXYdiseeEuXCVAjS54zqwkLcPNnmU4OeJ6tUrWhDw==}
     engines: {node: '>=0.10.0'}
@@ -18534,11 +18516,8 @@ packages:
   webpack-hot-middleware@2.26.1:
     resolution: {integrity: sha512-khZGfAeJx6I8K9zKohEWWYN6KDlVw2DHownoe+6Vtwj1LP9WFgegXnVMSkZ/dBEBtXFwrkkydsaPFlB7f8wU2A==}
 
-  webpack-sources@1.4.3:
-    resolution: {integrity: sha512-lgTS3Xhv1lCOKo7SA5TjKXMjpSM4sBjNV5+q2bqesbSPs5FjGmU6jjtBSkX9b4qW87vDIsCIlUPOEhbZrMdjeQ==}
-
-  webpack-sources@3.2.3:
-    resolution: {integrity: sha512-/DyMEOrDgLKKIG0fmvtz+4dUX/3Ghozwgm6iPp8KRhvn+eQf9+Q7GWxVNMk3+uCPWfdXYC4ExGBckIXdFEfH1w==}
+  webpack-sources@3.3.3:
+    resolution: {integrity: sha512-yd1RBzSGanHkitROoPFd6qsrxt+oFhg/129YzheDGqeustzX0vTZJZsSsQjVQC4yzBQ56K55XU8gaNCtIzOnTg==}
     engines: {node: '>=10.13.0'}
 
   webpack-stats-plugin@1.1.0:
@@ -24299,8 +24278,6 @@ snapshots:
     dependencies:
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
 
-  '@types/source-list-map@0.1.2': {}
-
   '@types/split2@4.2.3':
     dependencies:
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
@@ -24346,12 +24323,6 @@ snapshots:
   '@types/wait-on@5.3.4':
     dependencies:
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
-
-  '@types/webpack-sources@0.1.5':
-    dependencies:
-      '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
-      '@types/source-list-map': 0.1.2
-      source-map: 0.6.1
 
   '@types/webpack@5.28.5(@swc/core@1.11.24(@swc/helpers@0.5.15))':
     dependencies:
@@ -35766,7 +35737,7 @@ snapshots:
       react: 19.3.0-canary-10680271-20260126
       react-dom: 19.3.0-canary-10680271-20260126(react@19.3.0-canary-10680271-20260126)
       webpack: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))
-      webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
+      webpack-sources: 3.3.3
 
   react-server-dom-webpack@19.3.0-canary-10680271-20260126(react-dom@19.3.0-canary-10680271-20260126(react@19.3.0-canary-10680271-20260126))(react@19.3.0-canary-10680271-20260126)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))):
     dependencies:
@@ -35775,7 +35746,7 @@ snapshots:
       react: 19.3.0-canary-10680271-20260126
       react-dom: 19.3.0-canary-10680271-20260126(react@19.3.0-canary-10680271-20260126)
       webpack: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))
-      webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
+      webpack-sources: 3.3.3
 
   react-shallow-renderer@16.15.0(react@19.3.0-canary-10680271-20260126):
     dependencies:
@@ -37138,8 +37109,6 @@ snapshots:
   sort-keys@2.0.0:
     dependencies:
       is-plain-obj: 1.1.0
-
-  source-list-map@2.0.1: {}
 
   source-map-js@1.0.2: {}
 
@@ -39055,12 +39024,7 @@ snapshots:
       html-entities: 2.6.0
       strip-ansi: 6.0.0
 
-  webpack-sources@1.4.3:
-    dependencies:
-      source-list-map: 2.0.1
-      source-map: 0.6.1
-
-  webpack-sources@3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq): {}
+  webpack-sources@3.3.3: {}
 
   webpack-stats-plugin@1.1.0: {}
 
@@ -39090,7 +39054,7 @@ snapshots:
       tapable: 2.2.1
       terser-webpack-plugin: 5.3.11(@swc/core@1.11.24(@swc/helpers@0.5.15))(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15)))
       watchpack: 2.4.2
-      webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
+      webpack-sources: 3.3.3
     transitivePeerDependencies:
       - '@swc/core'
       - esbuild
@@ -39120,7 +39084,7 @@ snapshots:
       tapable: 2.2.1
       terser-webpack-plugin: 5.3.11(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9))
       watchpack: 2.4.2
-      webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
+      webpack-sources: 3.3.3
     transitivePeerDependencies:
       - '@swc/core'
       - esbuild

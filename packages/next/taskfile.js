@@ -1987,20 +1987,12 @@ export async function ncc_web_vitals_attribution(task, opts) {
     })
     .target('src/compiled/web-vitals-attribution')
 }
-externals['webpack-sources'] = 'error webpack-sources version not specified'
-externals['webpack-sources1'] = 'next/dist/compiled/webpack-sources1'
-export async function ncc_webpack_sources1(task, opts) {
+externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
+export async function ncc_webpack_sources(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('webpack-sources1')))
-    .ncc({ packageName: 'webpack-sources1', externals, target: 'es5' })
-    .target('src/compiled/webpack-sources1')
-}
-externals['webpack-sources3'] = 'next/dist/compiled/webpack-sources3'
-export async function ncc_webpack_sources3(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('webpack-sources3')))
-    .ncc({ packageName: 'webpack-sources3', externals, target: 'es5' })
-    .target('src/compiled/webpack-sources3')
+    .source(relative(__dirname, require.resolve('webpack-sources')))
+    .ncc({ packageName: 'webpack-sources', externals, target: 'es5' })
+    .target('src/compiled/webpack-sources')
 }
 
 externals['picomatch'] = 'next/dist/compiled/picomatch'
@@ -2027,7 +2019,6 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
         ...externals,
         './index': './index.js',
         'schema-utils': externals['schema-utils3'],
-        'webpack-sources': externals['webpack-sources1'],
       },
     })
     .target('src/compiled/mini-css-extract-plugin')
@@ -2073,7 +2064,6 @@ export async function ncc_webpack_bundle5(task, opts) {
   const bundleExternals = {
     ...externals,
     'schema-utils': externals['schema-utils3'],
-    'webpack-sources': externals['webpack-sources3'],
   }
   for (const pkg of Object.keys(webpackBundlePackages)) {
     delete bundleExternals[pkg]
@@ -2310,8 +2300,7 @@ export async function ncc(task, opts) {
         'ncc_web_vitals',
         'ncc_web_vitals_attribution',
         'ncc_webpack_bundle5',
-        'ncc_webpack_sources1',
-        'ncc_webpack_sources3',
+        'ncc_webpack_sources',
         'ncc_ws',
         'ncc_ua_parser_js',
         'ncc_minimatch',
