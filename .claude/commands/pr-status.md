@@ -1,6 +1,6 @@
 # PR Status
 
-Analyze PR status including CI failures and review comments.
+Analyze the status of a Pull Request (PR), including CI failures and review comments, in a structured and actionable way.
 
 ## Usage
 
@@ -100,13 +100,13 @@ Analyze PR status including CI failures and review comments.
 
 ## Failure Categories
 
-- **Infrastructure/Transient**: Network errors, 503s, timeouts unrelated to code
+- **Infrastructure/Transient**: Network errors, 503s, timeouts unrelated timeouts
 - **Assertion Failures**: Wrong output, path mismatches, snapshot differences
 - **Build Failures**: Compilation errors, missing dependencies
-- **Timeout**: Tests hanging, usually indicates async issues or missing server responses
+- **Timeout**:  hanging tests, async/server issues
 - **Port Binding**: EADDRINUSE errors, parallel test conflicts
-- **Routing/SSR**: Dynamic params not resolved, wrong status codes, JSON parse errors
-- **Source Maps**: `webpack-internal://` paths, wrong line numbers, missing code frames
+- **Routing/SSR**: dynamic params not resolved, wrong status codes
+- **Source Maps**: incorrect paths, missing code frames
 - **CLI Output**: Missing warnings, wrong log order, "Ready" printed before errors
 
 ## Review Comment Categories
