@@ -69,6 +69,7 @@ export type ExportRouteResult =
       ssgNotFound?: boolean
       hasEmptyStaticShell?: boolean
       hasPostponed?: boolean
+      hasStaticRsc?: boolean
       fetchMetrics?: FetchMetrics
       renderResumeDataCache?: string
     }
@@ -145,6 +146,10 @@ export type ExportAppResult = {
        * If the page has postponed when using PPR.
        */
       hasPostponed?: boolean
+      /**
+       * If the page emitted a static RSC payload.
+       */
+      hasStaticRsc?: boolean
 
       fetchMetrics?: FetchMetrics
     }

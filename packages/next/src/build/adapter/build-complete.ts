@@ -1233,6 +1233,7 @@ export async function handleBuildComplete({
           initialHeaders,
           initialStatus,
           dataRoute,
+          prefetchDataRoute,
           renderingMode,
           allowHeader,
           experimentalBypassFor,
@@ -1404,13 +1405,22 @@ export async function handleBuildComplete({
           )
           let postponed = meta.postponed
 
+          const dataRouteToUse =
+            renderingMode === RenderingMode.PARTIALLY_STATIC &&
+            prefetchDataRoute
+              ? prefetchDataRoute
+              : dataRoute
+
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data
             // that should be served as a part of the prerender should
             // be from the prefetch data route. If this isn't enabled
             // for ppr, the only way to get the data is from the data
             // route.
-            dataFilePath = path.join(appDistDir, dataRoute)
+            dataFilePath = path.join(
+              appDistDir,
+              (dataRouteToUse ?? dataRoute)?.replace(/^\//, '')
+            )
           }
 
           if (

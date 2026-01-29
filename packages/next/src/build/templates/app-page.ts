@@ -381,8 +381,17 @@ export async function handler(
   // If PPR is enabled, and this is a RSC request (but not a prefetch), then
   // we can use this fact to only generate the flight data for the request
   // because we can't cache the HTML (as it's also dynamic).
+  const staticPrefetchDataRoute =
+    prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+
   let isDynamicRSCRequest =
-    isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
+    isRoutePPREnabled &&
+    isRSCRequest &&
+    !isPrefetchRSCRequest &&
+    // If generated at build time, treat the RSC request as static
+    // so we can serve the prebuilt .rsc without a dynamic render.
+    // Only do this for routes that have a concrete prefetchDataRoute.
+    !staticPrefetchDataRoute
 
   // During a PPR revalidation, the RSC request is not dynamic if we do not have the postponed data.
   // We only attach the postponed data during a resume. If there's no postponed data, then it must be a revalidation.

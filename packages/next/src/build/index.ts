@@ -3311,6 +3311,7 @@ export default async function build(
                 metadata = {},
                 hasEmptyStaticShell,
                 hasPostponed,
+                hasStaticRsc,
               } = exportResult.byPath.get(route.pathname) ?? {}
 
               const cacheControl = getCacheControl(
@@ -3342,6 +3343,10 @@ export default async function build(
                 } else {
                   dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
                 }
+                const prefetchDataRoute =
+                  isRoutePPREnabled && dataRoute && hasStaticRsc
+                    ? dataRoute
+                    : undefined
 
                 const meta = collectMeta(metadata)
                 const status =
@@ -3363,7 +3368,7 @@ export default async function build(
                   initialExpireSeconds: cacheControl.expire,
                   srcRoute: page,
                   dataRoute,
-                  prefetchDataRoute: undefined,
+                  prefetchDataRoute,
                   allowHeader: ALLOWED_HEADERS,
                 }
               } else {
