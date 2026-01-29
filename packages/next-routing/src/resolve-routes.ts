@@ -163,7 +163,11 @@ function matchesPathname(
 function matchDynamicRoute(
   pathname: string,
   route: Route
-): { matched: boolean; params?: Record<string, string> } {
+): {
+  matched: boolean
+  params?: Record<string, string>
+  destinationPathname?: string
+} {
   const regex = new RegExp(route.sourceRegex)
   const match = pathname.match(regex)
 
@@ -185,7 +189,16 @@ function matchDynamicRoute(
     Object.assign(params, match.groups)
   }
 
-  return { matched: true, params }
+  // Compute destination pathname by applying the destination template
+  let destinationPathname: string | undefined
+  if (route.destination) {
+    const replaced = replaceDestination(route.destination, match, {})
+    // Extract just the pathname part (before any query string)
+    const [pathPart] = replaced.split('?')
+    destinationPathname = pathPart
+  }
+
+  return { matched: true, params, destinationPathname }
 }
 
 /**
@@ -242,8 +255,10 @@ function checkDynamicRoutes(
       )
 
       if (hasResult.matched && missingMatched) {
-        // Check if the current pathname is in the provided pathnames list
-        const matchedPath = matchesPathname(checkUrl.pathname, pathnames)
+        // Check if the destination pathname (template path) is in the provided pathnames list
+        // For dynamic routes, the destination contains the template path like /dynamic/[slug]
+        const pathnameToCheck = match.destinationPathname || checkUrl.pathname
+        const matchedPath = matchesPathname(pathnameToCheck, pathnames)
         if (matchedPath) {
           const finalHeaders = applyOnMatchHeaders(onMatchRoutes, headers)
           return {
@@ -302,8 +317,8 @@ export async function resolveRoutes(
       ? currentUrl.pathname.slice(basePath.length) || '/'
       : currentUrl.pathname
 
-    // Skip locale handling for _next routes
-    if (!pathname.startsWith('/_next/')) {
+    // Skip locale handling for _next and api routes
+    if (!pathname.startsWith('/_next/') && !pathname.startsWith('/api/')) {
       const hostname = currentUrl.hostname
       const cookieHeader = currentHeaders.get('cookie') || undefined
       const acceptLanguageHeader =
@@ -675,8 +690,10 @@ export async function resolveRoutes(
       )
 
       if (hasResult.matched && missingMatched) {
-        // Check if the current pathname is in the provided pathnames list
-        matchedPath = matchesPathname(currentUrl.pathname, pathnames)
+        // Check if the destination pathname (template path) is in the provided pathnames list
+        // For dynamic routes, the destination contains the template path like /dynamic/[slug]
+        const pathnameToCheck = match.destinationPathname || currentUrl.pathname
+        matchedPath = matchesPathname(pathnameToCheck, pathnames)
         if (matchedPath) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,

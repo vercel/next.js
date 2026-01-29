@@ -658,3 +658,149 @@ describe('resolveRoutes - routes without destination', () => {
     expect(result.matchedPathname).toBe('/multi')
   })
 })
+
+describe('resolveRoutes - dynamic routes', () => {
+  it('should match dynamic route and return template pathname', async () => {
+    // This tests the case where a URL like /dynamic/page should match
+    // a dynamic route with template /dynamic/[slug]
+    const params = createBaseParams({
+      url: new URL('https://example.com/dynamic/page'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^[/]?/dynamic/(?<nxtPslug>[^/]+?)(?:/)?$',
+            destination: '/dynamic/[slug]?nxtPslug=$nxtPslug',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/dynamic/[slug]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/dynamic/[slug]')
+    expect(result.routeMatches).toEqual({
+      '1': 'page',
+      nxtPslug: 'page',
+    })
+  })
+
+  it('should match dynamic route with multiple segments', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/posts/2024/my-article'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^[/]?/posts/(?<year>[^/]+?)/(?<slug>[^/]+?)(?:/)?$',
+            destination: '/posts/[year]/[slug]?year=$year&slug=$slug',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/posts/[year]/[slug]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/posts/[year]/[slug]')
+    expect(result.routeMatches).toEqual({
+      '1': '2024',
+      '2': 'my-article',
+      year: '2024',
+      slug: 'my-article',
+    })
+  })
+
+  it('should match catch-all dynamic route', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/docs/getting-started/installation'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^[/]?/docs/(?<path>.+?)(?:/)?$',
+            destination: '/docs/[...path]?path=$path',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/docs/[...path]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/docs/[...path]')
+    expect(result.routeMatches).toEqual({
+      '1': 'getting-started/installation',
+      path: 'getting-started/installation',
+    })
+  })
+
+  it('should not match dynamic route when pathname template is not in pathnames list', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/dynamic/page'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^[/]?/dynamic/(?<nxtPslug>[^/]+?)(?:/)?$',
+            destination: '/dynamic/[slug]?nxtPslug=$nxtPslug',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/other-page'], // /dynamic/[slug] is not in the list
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBeUndefined()
+  })
+
+  it('should apply onMatch headers for dynamic routes', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/api/users'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^[/]?/api/(?<resource>[^/]+?)(?:/)?$',
+            destination: '/api/[resource]?resource=$resource',
+          },
+        ],
+        onMatch: [
+          {
+            sourceRegex: '.*',
+            headers: {
+              'x-matched': 'true',
+            },
+          },
+        ],
+        fallback: [],
+      },
+      pathnames: ['/api/[resource]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.matchedPathname).toBe('/api/[resource]')
+    expect(result.resolvedHeaders?.get('x-matched')).toBe('true')
+  })
+})
