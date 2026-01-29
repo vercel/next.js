@@ -217,10 +217,10 @@ module.exports = {
 
 - Supported boolean operators are `{all: [...]}`, `{any: [...]}` and `{not: ...}`.
 - Supported customizable operators are `{path: string | RegExp}`, `{content: RegExp}`, `{query: string | RegExp}`, and `{contentType: string | RegExp}`. If multiple operators are specified in the same object, it acts as an implicit `and`.
-  - `path` matches against the project-relative file path. A string is treated as a glob pattern, while a RegExp matches anywhere in the path.
+  - `path` matches against the project-relative file path. A string is treated as a glob pattern, while a RegExp can be used to match the path partially.
   - `content` matches anywhere in the file content.
-  - `query` matches the import's query string (e.g., `?foo` in `import './file?foo'`). A string must match exactly, while a RegExp can match partially.
-  - `contentType` matches the MIME content type of the resource (e.g., from data URLs like `data:text/plain,...`). A string is treated as a glob pattern (e.g., `text/*`, `image/*`), while a RegExp can match partially.
+  - `query` matches the import's query string (e.g., `?foo` in `import './file?foo'`). A string must match exactly, while a RegExp can be used to match the query string partially.
+  - `contentType` matches the MIME content type of the resource (e.g., from data URLs like `data:text/plain,...`). A string is treated as a glob pattern (e.g., `text/*`, `image/*`), while a RegExp can be used to match the content type partially.
 
 In addition, a number of built-in conditions are supported:
 
