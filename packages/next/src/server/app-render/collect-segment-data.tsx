@@ -81,6 +81,16 @@ export type SegmentPrefetch = {
   rsc: React.ReactNode | null
   isPartial: boolean
   staleTime: number
+  /**
+   * The set of params that this segment's output depends on. Used by the client
+   * cache to determine which entries can be reused across different param
+   * values.
+   * - `null` means vary params were not tracked (conservative: assume all
+   *   params matter)
+   * - Empty set means no params were accessed (segment is reusable for any
+   *   param values)
+   */
+  varyParams: Set<string> | null
 }
 
 const filterStackFrame =
@@ -260,6 +270,9 @@ async function PrefetchTreeData({
         staleTime,
         head,
         HEAD_REQUEST_KEY,
+        // TODO: Track vary params for metadata. For now, assume all
+        // params vary.
+        null,
         clientModules
       )
     )
@@ -323,6 +336,7 @@ function collectSegmentDataImpl(
   }
 
   const hasRuntimePrefetch = seedData !== null ? seedData[4] : false
+  const varyParams = seedData !== null ? seedData[5] : null
 
   if (seedData !== null) {
     // Spawn a task to write the segment data to a new Flight stream.
@@ -335,6 +349,7 @@ function collectSegmentDataImpl(
           staleTime,
           seedData[0],
           requestKey,
+          varyParams,
           clientModules
         )
       )
@@ -380,6 +395,7 @@ async function renderSegmentPrefetch(
   staleTime: number,
   rsc: React.ReactNode,
   requestKey: SegmentRequestKey,
+  varyParams: Set<string> | null,
   clientModules: ManifestNode
 ): Promise<[SegmentRequestKey, Buffer]> {
   // Render the segment data to a stream.
@@ -388,6 +404,7 @@ async function renderSegmentPrefetch(
     rsc,
     isPartial: await isPartialRSCData(rsc, clientModules),
     staleTime,
+    varyParams,
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises

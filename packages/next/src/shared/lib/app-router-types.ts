@@ -193,6 +193,17 @@ export type CacheNodeSeedData = [
   isPartial: boolean,
   /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
   hasRuntimePrefetch: boolean,
+  /**
+   * The set of params that this segment's server-rendered output depends on.
+   * Used by the client cache to determine which entries can be reused across
+   * different param values.
+   *
+   * - `null` means vary params were not tracked (conservative: assume all
+   *   params vary)
+   * - Empty set means no params were accessed (segment is reusable for any
+   *   param values)
+   */
+  varyParams: Set<string> | null,
 ]
 
 export type FlightDataSegment = [

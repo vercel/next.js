@@ -1651,6 +1651,7 @@ async function getErrorRSCPayload(
     null,
     false,
     false, // We don't currently support runtime prefetching for error pages.
+    null, // varyParams - not tracked for error pages
   ]
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(

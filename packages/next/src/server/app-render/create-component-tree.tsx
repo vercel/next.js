@@ -672,6 +672,8 @@ async function createComponentTreeInternal(
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
+    // No user-provided component at this level, so no params are accessed.
+    const emptyVaryParams = new Set<string>()
     return createSeedData(
       ctx,
       createElement(
@@ -685,7 +687,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch
+      hasRuntimePrefetch,
+      emptyVaryParams
     )
   }
 
@@ -706,6 +709,8 @@ async function createComponentTreeInternal(
     workStore.forceDynamic &&
     experimental.isRoutePPREnabled
   ) {
+    // force-dynamic segments can't have their vary params tracked
+    const unknownVaryParams = null
     return createSeedData(
       ctx,
       createElement(
@@ -722,11 +727,22 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       true,
-      hasRuntimePrefetch
+      hasRuntimePrefetch,
+      unknownVaryParams
     )
   }
 
   const isClientComponent = isClientReference(layoutOrPageMod)
+
+  const varyParams =
+    isClientComponent && cacheComponents
+      ? // Client components with Cache Components enabled don't receive params
+        // from the server, so they have an empty vary params set.
+        new Set<string>()
+      : // TODO: Server segments don't yet track which params are accessed.
+        // So for now we must assume that all params may vary (null represents
+        // unknown vary params, not an empty set).
+        null
 
   if (
     process.env.NODE_ENV === 'development' &&
@@ -835,7 +851,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch
+      hasRuntimePrefetch,
+      varyParams
     )
   } else {
     const SegmentComponent = Component
@@ -1048,7 +1065,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch
+      hasRuntimePrefetch,
+      varyParams
     )
   }
 }
@@ -1199,7 +1217,8 @@ function createSeedData(
   parallelRoutes: Record<string, CacheNodeSeedData | null>,
   loading: LoadingModuleData | null,
   isPossiblyPartialResponse: boolean,
-  hasRuntimePrefetch: boolean
+  hasRuntimePrefetch: boolean,
+  varyParams: Set<string> | null
 ): CacheNodeSeedData {
   if (loading !== null) {
     // If a loading.tsx boundary is present, wrap the component data in an
@@ -1220,5 +1239,6 @@ function createSeedData(
     null,
     isPossiblyPartialResponse,
     hasRuntimePrefetch,
+    varyParams,
   ]
 }
