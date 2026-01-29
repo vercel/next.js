@@ -424,6 +424,48 @@ impl ModuleOptions {
 
         rules.extend(module_rules.iter().cloned());
 
+        if enable_mdx || enable_mdx_rs.is_some() {
+            let (jsx_runtime, jsx_import_source, development) = if let Some(enable_jsx) = enable_jsx
+            {
+                let jsx = enable_jsx.await?;
+                (
+                    jsx.runtime.clone(),
+                    jsx.import_source.clone(),
+                    jsx.development,
+                )
+            } else {
+                (None, None, false)
+            };
+
+            let mdx_options = &*enable_mdx_rs
+                .unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
+                .await?;
+
+            let mdx_transform_options = (MdxTransformOptions {
+                development: Some(development),
+                jsx: Some(false),
+                jsx_runtime,
+                jsx_import_source,
+                ..(mdx_options.clone())
+            })
+            .cell();
+
+            rules.push(ModuleRule::new(
+                RuleCondition::any(vec![
+                    RuleCondition::ResourcePathEndsWith(".md".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
+                    RuleCondition::ContentTypeStartsWith("text/markdown".to_string()),
+                ]),
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(
+                        MdxTransform::new(mdx_transform_options)
+                            .to_resolved()
+                            .await?,
+                    ),
+                ]))],
+            ));
+        }
+
         // Rules that apply for certains references
         rules.extend([
             ModuleRule::new(
@@ -801,48 +843,6 @@ impl ModuleOptions {
                     })],
                 ),
             ]);
-        }
-
-        if enable_mdx || enable_mdx_rs.is_some() {
-            let (jsx_runtime, jsx_import_source, development) = if let Some(enable_jsx) = enable_jsx
-            {
-                let jsx = enable_jsx.await?;
-                (
-                    jsx.runtime.clone(),
-                    jsx.import_source.clone(),
-                    jsx.development,
-                )
-            } else {
-                (None, None, false)
-            };
-
-            let mdx_options = &*enable_mdx_rs
-                .unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
-                .await?;
-
-            let mdx_transform_options = (MdxTransformOptions {
-                development: Some(development),
-                jsx: Some(false),
-                jsx_runtime,
-                jsx_import_source,
-                ..(mdx_options.clone())
-            })
-            .cell();
-
-            rules.push(ModuleRule::new(
-                RuleCondition::any(vec![
-                    RuleCondition::ResourcePathEndsWith(".md".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
-                    RuleCondition::ContentTypeStartsWith("text/markdown".to_string()),
-                ]),
-                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                    ResolvedVc::upcast(
-                        MdxTransform::new(mdx_transform_options)
-                            .to_resolved()
-                            .await?,
-                    ),
-                ]))],
-            ));
         }
 
         Ok(ModuleOptions::cell(ModuleOptions { rules }))
