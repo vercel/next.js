@@ -63,6 +63,12 @@ struct FieldInfo {
     /// If true, use Default::default() semantics instead of Option for inline direct fields.
     /// The field type should be T (not Option<T>), and empty is represented by T::default().
     use_default: bool,
+    /// If true, shrink this collection after task execution completes.
+    /// Empty collections are removed entirely from the lazy vec.
+    shrink_on_completion: bool,
+    /// If true, drop this field entirely after execution completes if the task is immutable.
+    /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
+    drop_on_completion_if_immutable: bool,
 }
 
 impl FieldInfo {
@@ -305,9 +311,6 @@ impl FieldInfo {
             proc_macro2::Span::call_site(),
         )
     }
-    fn shrink_ident(&self) -> syn::Ident {
-        self.prefixed_ident("shrink")
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -357,6 +360,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut inline = false; // Default is lazy (not inline)
     let mut filter_transient = false;
     let mut use_default = false;
+    let mut shrink_on_completion = false;
+    let mut drop_on_completion_if_immutable = false;
 
     // Find and parse the field attribute
     if let Some(attr) = field.attrs.iter().find(|attr| {
@@ -450,19 +455,25 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                         continue;
                     };
 
-                    match ident.to_string().as_str() {
-                        "inline" => inline = true,
-                        "filter_transient" => filter_transient = true,
-                        "default" => use_default = true,
-                        other => {
-                            meta.span()
-                                .unwrap()
-                                .error(format!(
-                                    "unknown modifier `{other}`, expected `inline`, \
-                                     `filter_transient`, or `default`"
-                                ))
-                                .emit();
-                        }
+                    if ident == "inline" {
+                        inline = true;
+                    } else if ident == "filter_transient" {
+                        filter_transient = true;
+                    } else if ident == "default" {
+                        use_default = true;
+                    } else if ident == "shrink_on_completion" {
+                        shrink_on_completion = true;
+                    } else if ident == "drop_on_completion_if_immutable" {
+                        drop_on_completion_if_immutable = true;
+                    } else {
+                        meta.span()
+                            .unwrap()
+                            .error(format!(
+                                "unknown modifier `{ident}`, expected `inline`, \
+                                 `filter_transient`, `default`, `shrink_on_completion`, or \
+                                 `drop_on_completion_if_immutable`"
+                            ))
+                            .emit();
                     }
                 }
                 Meta::List(list) => {
@@ -535,6 +546,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         lazy: !inline, // Default is lazy; inline = true means lazy = false
         filter_transient,
         use_default,
+        shrink_on_completion,
+        drop_on_completion_if_immutable,
     }
 }
 
@@ -1189,6 +1202,9 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
         trait_methods.extend(generate_flag_trait_accessor_methods(field));
     }
 
+    // Generate cleanup_after_execution method
+    let cleanup_method = generate_cleanup_after_execution(grouped_fields);
+
     quote! {
         #[doc = "Trait for typed storage accessors."]
         #[doc = ""]
@@ -1237,6 +1253,9 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
             fn shrink_to_fit(&mut self) {
                 self.typed_mut().shrink_to_fit();
             }
+
+
+            #cleanup_method
 
             #trait_methods
 
@@ -1287,12 +1306,10 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             };
 
             let set_ops = generate_autoset_ops(field);
-            let shrink_accessor = generate_shrink_accessor(field);
 
             quote! {
                 #base_accessor
                 #set_ops
-                #shrink_accessor
             }
         }
         StorageType::CounterMap => {
@@ -1322,12 +1339,10 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             };
 
             let countermap_ops = generate_countermap_ops(field);
-            let shrink_accessor = generate_shrink_accessor(field);
 
             quote! {
                 #base_accessor
                 #countermap_ops
-                #shrink_accessor
             }
         }
         StorageType::AutoMap => {
@@ -1356,12 +1371,10 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             };
 
             let automap_ops = generate_automap_ops(field);
-            let shrink_accessor = generate_shrink_accessor(field);
 
             quote! {
                 #base_accessor
                 #automap_ops
-                #shrink_accessor
             }
         }
         StorageType::Flag => {
@@ -1512,6 +1525,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     let track_modification = field.track_modification_call();
     let mut_expr = field.collection_mut_expr();
     let ref_expr = field.collection_ref_expr();
+
     let take_expr = field.direct_take_expr();
     let is_option = field.is_option_ref();
 
@@ -2025,41 +2039,143 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     }
 }
 
-/// Generate shrink_to_fit accessor for a collection field.
+/// Generate the cleanup_after_execution method that processes lazy fields in a single pass.
 ///
-/// For collection fields (AutoSet, AutoMap, CounterMap), generates a `shrink_{field_name}()`
-/// method that calls `shrink_to_fit()` on the underlying collection.
-///
-/// This does NOT track modifications or check access since shrinking doesn't
-/// semantically change the data - it only reduces memory usage.
-///
-/// For lazy fields, avoids allocation if the collection doesn't exist.
-fn generate_shrink_accessor(field: &FieldInfo) -> TokenStream {
-    let shrink_name = field.shrink_ident();
-    let field_name = &field.field_name;
-    let is_lazy = field.lazy;
+/// This method:
+/// 1. Queries `self.typed().flags.immutable()` once
+/// 2. Shrinks any inline collection fields with `shrink_on_completion`
+/// 3. Uses swap_retain pattern to process all lazy fields in one pass
+/// 4. For fields with `shrink_on_completion`: shrink or remove if empty
+/// 5. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
+fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStream {
+    // Generate shrink calls for inline collection fields with shrink_on_completion
+    let mut inline_shrinks = Vec::new();
+    for field in grouped_fields.all_inline() {
+        if field.is_flag() {
+            continue;
+        }
+        if !field.shrink_on_completion {
+            continue;
+        }
+        // Only collection types can be shrunk
+        let is_collection = matches!(
+            field.storage_type,
+            StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+        );
+        if is_collection {
+            let field_name = &field.field_name;
+            inline_shrinks.push(quote! {
+                typed.#field_name.shrink_to_fit();
+            });
+        }
+    }
 
-    let shrink_body = if is_lazy {
-        // For lazy fields, use find_lazy_mut to avoid allocating
-        let extractor = field.lazy_extractor_closure();
-        quote! {
-            if let Some(collection) = self.typed_mut().find_lazy_mut(#extractor) {
-                collection.shrink_to_fit();
-            }
+    // Generate match arms for lazy fields that have cleanup attributes
+    let mut match_arms = Vec::new();
+
+    for field in grouped_fields.all_lazy() {
+        // Skip flags - they're in the bitfield, not the lazy vec
+        if field.is_flag() {
+            continue;
         }
-    } else {
-        // For inline fields, access the field directly
-        quote! {
-            self.typed_mut().#field_name.shrink_to_fit();
+
+        let variant_name = &field.variant_name;
+        let shrink = field.shrink_on_completion;
+        let drop_if_immutable = field.drop_on_completion_if_immutable;
+
+        // Skip fields with no cleanup attributes
+        if !shrink && !drop_if_immutable {
+            continue;
         }
-    };
+
+        // Determine whether this is a collection type that can be shrunk
+        let is_collection = matches!(
+            field.storage_type,
+            StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+        );
+
+        // Each arm returns bool: true = keep, false = remove
+        let arm_body = match (shrink, drop_if_immutable, is_collection) {
+            // shrink_on_completion + drop_on_completion_if_immutable + collection
+            (true, true, true) => quote! {
+                if is_immutable {
+                    false // drop for immutable tasks
+                } else if c.is_empty() {
+                    false // remove empty
+                } else {
+                    c.shrink_to_fit();
+                    true // keep
+                }
+            },
+            // shrink_on_completion only + collection
+            (true, false, true) => quote! {
+                if c.is_empty() {
+                    false // remove empty
+                } else {
+                    c.shrink_to_fit();
+                    true // keep
+                }
+            },
+            // drop_on_completion_if_immutable only + collection
+            (false, true, true) => quote! {
+                !is_immutable // keep if mutable, drop if immutable
+            },
+            // shrink_on_completion + drop_on_completion_if_immutable + direct value
+            (true, true, false) => quote! {
+                !is_immutable // keep if mutable, drop if immutable
+            },
+            // shrink_on_completion only + direct value (unusual but handle it)
+            (true, false, false) => quote! {
+                true // keep (direct values don't need shrinking)
+            },
+            // drop_on_completion_if_immutable only + direct value
+            (false, true, false) => quote! {
+                !is_immutable // keep if mutable, drop if immutable
+            },
+            // No attributes (shouldn't reach here due to continue above)
+            (false, false, _) => unreachable!(),
+        };
+
+        match_arms.push(quote! {
+            LazyField::#variant_name(c) => #arm_body,
+        });
+    }
 
     quote! {
-        #[doc = "Shrink the collection to fit its current contents, releasing excess memory."]
+        #[doc = "Clean up task storage after execution completes."]
         #[doc = ""]
-        #[doc = "This does NOT track modifications since it doesn't change the data semantically."]
-        fn #shrink_name(&mut self) {
-            #shrink_body
+        #[doc = "This method performs a single pass over lazy fields to:"]
+        #[doc = "- Shrink collections marked with `shrink_on_completion`"]
+        #[doc = "- Remove empty collections"]
+        #[doc = "- Drop fields marked with `drop_on_completion_if_immutable` for immutable tasks"]
+        #[doc = ""]
+        #[doc = "This is more efficient than calling individual shrink_* methods, which would"]
+        #[doc = "each scan the lazy vec separately (O(n²) vs O(n))."]
+        #[doc = ""]
+        #[doc = "Uses swap_remove pattern for O(1) removal (order not preserved)."]
+        fn cleanup_after_execution(&mut self) {
+            let typed = self.typed_mut();
+            let is_immutable = typed.flags.immutable();
+
+            // Shrink inline collection fields (always present, not in lazy vec)
+            #(#inline_shrinks)*
+
+            // swap_retain pattern: iterate with manual index, swap_remove to delete
+            let mut i = 0;
+            while i < typed.lazy.len() {
+                let keep = match &mut typed.lazy[i] {
+                    #(#match_arms)*
+                    // Fields without cleanup attributes - keep as-is
+                    _ => true,
+                };
+                if keep {
+                    i += 1;
+                } else {
+                    typed.lazy.swap_remove(i);
+                }
+            }
+
+            typed.lazy.shrink_to_fit();
         }
     }
 }
