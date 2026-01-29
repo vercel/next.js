@@ -3179,6 +3179,11 @@ export default async function build(
 
           // remove server bundles that were exported
           for (const page of staticPages) {
+            if (page === '/404') {
+              // keep the pages 404 chunk as we might need it if we do want to runtime-render the
+              // 404 in the function later
+              continue
+            }
             const serverBundle = getPagePath(page, distDir, undefined, false)
             await fs.unlink(serverBundle)
           }
