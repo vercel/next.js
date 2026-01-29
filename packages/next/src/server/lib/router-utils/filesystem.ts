@@ -161,7 +161,7 @@ export async function setupFsCheck(opts: {
     },
     headers: [],
   }
-  let buildId: string | undefined
+  let buildId = 'development'
   let prerenderManifest: PrerenderManifest
 
   if (!opts.dev) {
@@ -170,6 +170,9 @@ export async function setupFsCheck(opts: {
       buildId = await fs.readFile(buildIdPath, 'utf8')
     } catch (err: any) {
       if (err.code !== 'ENOENT') throw err
+      throw new Error(
+        `Could not find a production build in the '${opts.config.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
+      )
     }
 
     try {
@@ -227,12 +230,7 @@ export async function setupFsCheck(opts: {
     const appRoutesManifestPath = path.join(distDir, APP_PATH_ROUTES_MANIFEST)
 
     const routesManifest = JSON.parse(
-      await fs.readFile(routesManifestPath, 'utf8').catch((err) => {
-        if (err.code !== 'ENOENT') throw err
-        throw new Error(
-          `Could not find a production build in the '${opts.config.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
-        )
-      })
+      await fs.readFile(routesManifestPath, 'utf8')
     ) as RoutesManifest
 
     prerenderManifest = JSON.parse(
@@ -347,8 +345,6 @@ export async function setupFsCheck(opts: {
       headers: routesManifest.headers,
     }
   } else {
-    buildId = 'development'
-
     // dev handling
     customRoutes = await loadCustomRoutes(opts.config)
 
