@@ -179,6 +179,11 @@ import {
 } from './work-unit-async-storage.external'
 import { consoleAsyncStorage } from './console-async-storage.external'
 import { CacheSignal } from './cache-signal'
+import {
+  createResponseVaryParamsAccumulator,
+  finishAccumulatingVaryParams,
+  getMetadataVaryParamsThenable,
+} from './vary-params'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
@@ -564,6 +569,7 @@ async function generateDynamicRSCPayload(
     q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
     S: workStore.isStaticGeneration,
+    h: getMetadataVaryParamsThenable(),
   }
 
   // For runtime prefetches, we encode the stale time and isPartial flag in the response body
@@ -1052,6 +1058,8 @@ async function prospectiveRuntimeServerPrerender(
     renderResumeDataCache,
     prerenderResumeDataCache,
     hmrRefreshHash: undefined,
+    // We don't track vary params during initial prerender, only the final one
+    varyParamsAccumulator: null,
     // We only need task sequencing in the final prerender.
     runtimeStagePromise: null,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
@@ -1298,6 +1306,8 @@ async function finalRuntimeServerPrerender(
     prerenderResumeDataCache,
     renderResumeDataCache,
     hmrRefreshHash: undefined,
+    // TODO: Enable vary params tracking for runtime prefetches.
+    varyParamsAccumulator: null,
     // Used to separate the "Static" stage from the "Runtime" stage.
     runtimeStagePromise,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
@@ -1554,6 +1564,7 @@ async function getRSCPayload(
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
     S: workStore.isStaticGeneration,
+    h: getMetadataVaryParamsThenable(),
   }
 }
 
@@ -1679,6 +1690,7 @@ async function getErrorRSCPayload(
     ],
     G: [GlobalError, globalErrorStyles],
     S: workStore.isStaticGeneration,
+    h: getMetadataVaryParamsThenable(),
   } satisfies InitialRSCPayload
 }
 
@@ -3817,6 +3829,8 @@ async function warmupModuleCacheForRuntimeValidationInDev(
     prerenderResumeDataCache: null,
     renderResumeDataCache: null,
     hmrRefreshHash: undefined,
+    // Client prerenders don't track server param access
+    varyParamsAccumulator: null,
   }
 
   const runtimeServerStream = createNodeStreamFromChunks(
@@ -3960,6 +3974,8 @@ async function validateStagedShell(
     prerenderResumeDataCache: null,
     renderResumeDataCache: null,
     hmrRefreshHash,
+    // Client prerenders don't track server param access
+    varyParamsAccumulator: null,
   }
 
   let runtimeDynamicValidation = createDynamicValidationState()
@@ -4319,6 +4335,8 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        // We don't track vary params during initial prerender, only the final one
+        varyParamsAccumulator: null,
       }
 
       // We're not going to use the result of this render because the only time it could be used
@@ -4352,6 +4370,8 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        // We don't track vary params during initial prerender, only the final one
+        varyParamsAccumulator: null,
       })
 
       const pendingInitialServerResult = workUnitAsyncStorage.run(
@@ -4471,6 +4491,8 @@ async function prerenderToStream(
           prerenderResumeDataCache,
           renderResumeDataCache,
           hmrRefreshHash: undefined,
+          // Client prerenders don't track server param access
+          varyParamsAccumulator: null,
         }
 
         const prerender = (
@@ -4571,6 +4593,8 @@ async function prerenderToStream(
       const finalServerReactController = new AbortController()
       const finalServerRenderController = new AbortController()
 
+      const varyParamsAccumulator = createResponseVaryParamsAccumulator()
+
       const finalServerPayloadPrerenderStore: PrerenderStore = {
         type: 'prerender',
         phase: 'render',
@@ -4595,6 +4619,7 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        varyParamsAccumulator,
       }
 
       const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -4629,6 +4654,7 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        varyParamsAccumulator,
       })
 
       let prerenderIsPending = true
@@ -4669,7 +4695,20 @@ async function prerenderToStream(
 
               return prerenderResult
             },
-            () => {
+            async () => {
+              // Now that the prerendering is complete, we know which vary
+              // params were used to compute the response. Resolve the vary
+              // params thenable so it can be sent to the client. The timing
+              // here is important: the thenable was included in the Flight
+              // payload, but it can only be serialized at the very end, after
+              // all the components have finished.
+              //
+              // We resolve the accumulator directly here instead of reading from
+              // the work unit store because this callback runs in a separate
+              // task (via setTimeout) and may not have access to the async
+              // storage context.
+              await finishAccumulatingVaryParams(varyParamsAccumulator)
+
               if (finalServerReactController.signal.aborted) {
                 // If the server controller is already aborted we must have called something
                 // that required aborting the prerender synchronously such as with new Date()
@@ -4714,6 +4753,8 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        // Client prerenders don't track server param access
+        varyParamsAccumulator: null,
       }
 
       let dynamicValidation = createDynamicValidationState()

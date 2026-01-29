@@ -119,6 +119,7 @@ export function createInitialRSCPayloadFromFallbackPrerender(
     m: fallbackInitialRSCPayload.m,
     G: fallbackInitialRSCPayload.G,
     S: fallbackInitialRSCPayload.S,
+    h: fallbackInitialRSCPayload.h,
   }
 }
 
