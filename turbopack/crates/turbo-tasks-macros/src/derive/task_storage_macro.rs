@@ -567,32 +567,11 @@ impl GroupedFields {
     // Flag field iterators
     // =========================================================================
 
-    /// Returns an iterator over all flag fields in bitfield order:
-    /// persisted meta flags, persisted data flags, then transient flags.
-    /// This ordering is important for bitfield generation and per-category masks.
-    fn all_flags(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.persisted_meta_flags()
-            .chain(self.persisted_data_flags())
-            .chain(self.transient_flags())
-    }
-
-    /// Returns an iterator over persisted (non-transient) flag fields.
-    fn persisted_flags(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.fields
-            .iter()
-            .filter(|f| f.is_flag() && !f.is_transient())
-    }
-
     /// Returns an iterator over transient flag fields.
     fn transient_flags(&self) -> impl Iterator<Item = &FieldInfo> {
         self.fields
             .iter()
             .filter(|f| f.is_flag() && f.is_transient())
-    }
-
-    /// Returns the count of persisted flag fields.
-    fn persisted_flags_count(&self) -> usize {
-        self.persisted_flags().count()
     }
 
     /// Returns true if there are any flag fields.
@@ -774,7 +753,11 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
 ///
 /// Bit layout: [meta flags: 0..M] [data flags: M..M+D] [transient: M+D..]
 fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
-    let all_flags: Vec<_> = grouped_fields.all_flags().collect();
+    let all_flags: Vec<_> = grouped_fields
+        .persisted_meta_flags()
+        .chain(grouped_fields.persisted_data_flags())
+        .chain(grouped_fields.transient_flags())
+        .collect();
 
     // If no flags, don't generate the bitfield
     if all_flags.is_empty() {

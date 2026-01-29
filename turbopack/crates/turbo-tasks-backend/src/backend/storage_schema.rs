@@ -785,8 +785,9 @@ mod tests {
             .aggregated_dirty_containers_mut()
             .insert(TaskId::new(50).unwrap(), 2);
 
-        // Set flags (persisted)
-        original.flags.set_immutable(true);
+        // Note: invalidator and immutable are data category flags, not meta
+        // So we don't set/test them here - they're tested in test_encode_decode_data_roundtrip
+
         // Set transient flag (should NOT be serialized)
         original.flags.set_current_session_clean(true);
 
@@ -832,9 +833,10 @@ mod tests {
             original.aggregated_dirty_containers()
         );
 
-        // Verify flags (persisted bits should match)
-        assert!(!decoded.flags.invalidator());
-        assert!(decoded.flags.immutable());
+        // Note: invalidator and immutable are data category flags, not meta
+        // They should NOT have changed during meta encode/decode
+        assert!(!decoded.flags.invalidator()); // still default false
+        assert!(!decoded.flags.immutable()); // still default false
         // Transient flag should be preserved (was set to true before decode)
         assert!(decoded.flags.current_session_clean());
 
@@ -897,6 +899,10 @@ mod tests {
             .outdated_output_dependencies_mut()
             .insert(TaskId::new(999).unwrap());
 
+        // Set data category flags (persisted)
+        original.flags.set_invalidator(true);
+        original.flags.set_immutable(true);
+
         // Encode data fields
         let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
         {
@@ -943,6 +949,10 @@ mod tests {
 
         // Verify transient fields were NOT decoded
         assert!(decoded.outdated_output_dependencies().is_none());
+
+        // Verify data category flags were decoded
+        assert!(decoded.flags.invalidator());
+        assert!(decoded.flags.immutable());
     }
 
     #[test]
