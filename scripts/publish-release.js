@@ -16,7 +16,7 @@ const cwd = process.cwd()
 
   try {
     const tagResult = await execa('node', [
-      path.join(__dirname, 'check-is-release.js'),
+      '--', path.join(__dirname, 'check-is-release.js'),
     ])
     const tagOutput = tagResult.stdout
     console.log(tagOutput)
