@@ -321,6 +321,11 @@ jobs:
         if: ${{ always() }}
         run: rm -f /tmp/package-lock.json
 
+      # Jest has a global transform cache, so PRs that poison the cache can bring down CI
+      - name: Clear Jest transform cache
+        if: ${{ always() }}
+        run: pnpm jest --clearCache || true
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
