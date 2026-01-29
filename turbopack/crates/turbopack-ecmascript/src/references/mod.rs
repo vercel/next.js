@@ -497,6 +497,7 @@ impl AnalysisState<'_> {
                     value,
                     *self.compile_time_info,
                     &self.compile_time_info_ref,
+                    self.var_graph,
                     attributes,
                     self.allow_project_root_tracing,
                 )
@@ -2759,7 +2760,7 @@ async fn handle_member(
 
         if has_member {
             let obj = obj.as_ref().unwrap();
-            if let Some(mut name) = obj.get_definable_name() {
+            if let Some((mut name, false)) = obj.get_definable_name(Some(state.var_graph)) {
                 name.0.push(DefinableNameSegmentRef::Name(prop));
                 if let Some(value) = state
                     .compile_time_info_ref
@@ -2791,7 +2792,7 @@ async fn handle_typeof(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some(mut name) = arg.get_definable_name() {
+    if let Some((mut name, false)) = arg.get_definable_name(Some(state.var_graph)) {
         name.0.push(DefinableNameSegmentRef::TypeOf);
         if let Some(value) = state
             .compile_time_info_ref
@@ -2814,7 +2815,7 @@ async fn handle_free_var(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some(name) = var.get_definable_name()
+    if let Some((name, _)) = var.get_definable_name(None)
         && let Some(value) = state
             .compile_time_info_ref
             .free_var_references
@@ -3168,6 +3169,7 @@ async fn value_visitor(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     compile_time_info_ref: &CompileTimeInfo,
+    var_graph: &VarGraph,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
@@ -3176,6 +3178,7 @@ async fn value_visitor(
         v,
         compile_time_info,
         compile_time_info_ref,
+        var_graph,
         attributes,
         allow_project_root_tracing,
     )
@@ -3189,11 +3192,12 @@ async fn value_visitor_inner(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     compile_time_info_ref: &CompileTimeInfo,
+    var_graph: &VarGraph,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
-    if let Some(name) = v.get_definable_name()
+    if let Some((name, _)) = v.get_definable_name(Some(var_graph))
         && let Some(value) = compile_time_info_ref.defines.get(&name).await?
     {
         return Ok(((&*value).try_into()?, true));

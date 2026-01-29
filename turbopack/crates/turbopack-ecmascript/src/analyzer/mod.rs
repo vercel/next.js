@@ -32,7 +32,8 @@ use turbopack_core::compile_time_info::{
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
 use crate::{
-    analyzer::graph::EvalContext, references::require_context::RequireContextMap,
+    analyzer::graph::{EvalContext, VarGraph},
+    references::require_context::RequireContextMap,
     utils::StringifyJs,
 };
 
@@ -1951,17 +1952,31 @@ impl JsValue {
 impl JsValue {
     /// When the value has a user-definable name, return it in segments. Otherwise
     /// returns None.
+    /// It also returns a boolean whether the variable was potentially reassigned.
     /// - any free var has itself as user-definable name: ["foo"]
     /// - any member access adds the identifier as segment after the object: ["foo", "prop"]
     /// - some well-known objects/functions have a user-definable names: ["import"]
     /// - member calls without arguments also have a user-definable name: ["foo", Call("func")]
     /// - typeof expressions add `typeof` after the argument's segments: ["foo", "typeof"]
-    pub fn get_definable_name(&self) -> Option<DefinableNameSegmentRefs<'_>> {
+    pub fn get_definable_name(
+        &self,
+        var_graph: Option<&VarGraph>,
+    ) -> Option<(DefinableNameSegmentRefs<'_>, bool)> {
         let mut current = self;
         let mut segments = SmallVec::new();
+        let mut potentially_reassigned = false;
         loop {
             match current {
                 JsValue::FreeVar(name) => {
+                    if var_graph.is_some_and(|var_graph| {
+                        var_graph
+                            .free_var_ids
+                            .get(name)
+                            .is_some_and(|id| var_graph.values.contains_key(id))
+                    }) {
+                        // `foo` was potentially reassigned
+                        potentially_reassigned = true;
+                    }
                     segments.push(DefinableNameSegmentRef::Name(name));
                     break;
                 }
@@ -2015,7 +2030,7 @@ impl JsValue {
             }
         }
         segments.reverse();
-        Some(DefinableNameSegmentRefs(segments))
+        Some((DefinableNameSegmentRefs(segments), potentially_reassigned))
     }
 }
 
