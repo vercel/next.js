@@ -546,11 +546,13 @@ async function readManifest<T extends object>(filePath: string): Promise<T> {
 
 async function writePrerenderManifest(
   distDir: string,
-  manifest: DeepReadonly<PrerenderManifest>
+  manifest: PrerenderManifest
 ): Promise<void> {
+  // Sort for deterministic outputs
+  manifest.routes = sortObjectByKey(manifest.routes)
+  manifest.dynamicRoutes = sortObjectByKey(manifest.dynamicRoutes)
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
 }
-
 async function writeClientSsgManifest(
   prerenderManifest: DeepReadonly<PrerenderManifest>,
   {
@@ -4400,4 +4402,16 @@ function getErrorCodeForTelemetry(err: unknown) {
   }
 
   return 'Unknown'
+}
+
+function sortObjectByKey<T>(obj: Record<string, T>) {
+  return Object.keys(obj)
+    .sort()
+    .reduce(
+      (acc, key) => {
+        acc[key] = obj[key]
+        return acc
+      },
+      {} as Record<string, T>
+    )
 }
