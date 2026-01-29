@@ -255,8 +255,8 @@ struct TaskStorageSchema {
     #[field(storage = "auto_map", category = "transient")]
     in_progress_cells: AutoMap<CellId, InProgressCellState>,
 
-    #[field(storage = "direct", category = "data")]
-    pub persistent_task_type: Arc<CachedTaskType>,
+    #[field(storage = "direct", category = "data", inline)]
+    pub persistent_task_type: Option<Arc<CachedTaskType>>,
 
     #[field(storage = "direct", category = "transient")]
     pub transient_task_type: Arc<TransientTask>,
@@ -944,8 +944,13 @@ mod tests {
     fn test_schema_size() {
         assert_eq!(
             size_of::<TaskStorage>(),
-            136,
+            144,
             "TaskStorage size changed! If this is intentional, update this test."
+        );
+        assert_eq!(
+            size_of::<LazyField>(),
+            56,
+            "LazyField size changed! If this is intentional, update this test."
         );
     }
 }
