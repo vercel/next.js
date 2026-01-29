@@ -399,7 +399,7 @@ export async function writeValidatorFile(
 /**
  * Writes the entry file at {distDirRoot}/types/routes.d.ts that re-exports
  * from the actual type files. This ensures next-env.d.ts has a consistent
- * import path regardless of isolatedDevBuild setting.
+ * import path in development and production.
  *
  * @param entryFilePath - Path to the entry file (e.g., .next/types/routes.d.ts)
  * @param actualTypesDir - Path to the actual types directory (e.g., .next/types or .next/dev/types)
