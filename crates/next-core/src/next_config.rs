@@ -794,6 +794,8 @@ pub struct RuleConfigItem {
     pub loaders: Vec<LoaderItem>,
     #[serde(default, alias = "as")]
     pub rename_as: Option<RcStr>,
+    #[serde(default, alias = "type")]
+    pub module_type: Option<RcStr>,
     #[serde(default)]
     pub condition: Option<ConfigConditionItem>,
 }
@@ -1520,6 +1522,7 @@ impl NextConfig {
                             LoaderRuleItem {
                                 loaders: transform_loaders(&mut [loaders].into_iter()),
                                 rename_as: None,
+                                module_type: None,
                                 condition: None,
                             },
                         ));
@@ -1527,6 +1530,7 @@ impl NextConfig {
                     RuleConfigCollectionItem::Full(RuleConfigItem {
                         loaders,
                         rename_as,
+                        module_type,
                         condition,
                     }) => {
                         // If the extension contains a wildcard, and the rename_as does not,
@@ -1575,6 +1579,7 @@ impl NextConfig {
                             LoaderRuleItem {
                                 loaders: transform_loaders(&mut loaders.iter()),
                                 rename_as: rename_as.clone(),
+                                module_type: module_type.clone(),
                                 condition,
                             },
                         ));

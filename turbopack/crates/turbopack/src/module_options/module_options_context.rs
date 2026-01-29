@@ -29,6 +29,7 @@ use crate::module_options::RuleCondition;
 pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
+    pub module_type: Option<RcStr>,
     pub condition: Option<ConditionItem>,
 }
 

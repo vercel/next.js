@@ -121,9 +121,12 @@ export type TurbopackRuleCondition =
       query?: string | RegExp
     }
 
+export type TurbopackRuleConfigItemModuleType = 'static' | 'raw' | 'css'
+
 export type TurbopackRuleConfigItem = {
   loaders: TurbopackLoaderItem[]
   as?: string
+  type?: TurbopackRuleConfigItemModuleType
   condition?: TurbopackRuleCondition
 }
 

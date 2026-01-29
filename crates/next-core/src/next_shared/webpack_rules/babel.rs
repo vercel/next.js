@@ -227,6 +227,7 @@ pub async fn get_babel_loader_rules(
                 options: loader_options,
             }]),
             rename_as: Some(rcstr!("*")),
+            module_type: None,
             condition: Some(ConditionItem::All(loader_conditions.into())),
         },
     )])

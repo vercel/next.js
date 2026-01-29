@@ -580,6 +580,10 @@ impl ModuleOptions {
             );
         }
 
+        // Collect user module_type rules separately to add after framework rules
+        // This ensures user rules override framework defaults (e.g., Next.js image rule)
+        let mut user_module_type_rules = Vec::new();
+
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let webpack_loaders_options = webpack_loaders_options.await?;
             let execution_context =
@@ -628,29 +632,52 @@ impl ModuleOptions {
                 let mut all_rule_condition = RuleCondition::All(rule_conditions);
                 all_rule_condition.flatten();
                 if !matches!(all_rule_condition, RuleCondition::False) {
-                    rules.push(ModuleRule::new(
-                        all_rule_condition,
-                        vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                            ResolvedVc::upcast(
-                                WebpackLoaders::new(
-                                    node_evaluate_asset_context(
+                    // If module_type is specified, collect it to add after framework rules
+                    // This ensures user rules take precedence over framework defaults
+                    if let Some(module_type_str) = &rule.module_type {
+                        let module_type = match module_type_str.as_str() {
+                            "static" => ModuleType::StaticUrlJs { tag: None },
+                            "css" => ModuleType::StaticUrlCss { tag: None },
+                            "raw" => ModuleType::Raw,
+                            other => {
+                                anyhow::bail!(
+                                    "Unknown module type '{}'. Expected 'static', 'css', or 'raw'.",
+                                    other
+                                );
+                            }
+                        };
+                        user_module_type_rules.push(ModuleRule::new(
+                            all_rule_condition.clone(),
+                            vec![ModuleRuleEffect::ModuleType(module_type)],
+                        ));
+                    }
+
+                    // If loaders are specified, add a SourceTransforms effect
+                    if !rule.loaders.await?.is_empty() {
+                        rules.push(ModuleRule::new(
+                            all_rule_condition,
+                            vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                                ResolvedVc::upcast(
+                                    WebpackLoaders::new(
+                                        node_evaluate_asset_context(
+                                            *execution_context,
+                                            Some(import_map),
+                                            None,
+                                            Layer::new(rcstr!("webpack_loaders")),
+                                            false,
+                                        ),
                                         *execution_context,
-                                        Some(import_map),
-                                        None,
-                                        Layer::new(rcstr!("webpack_loaders")),
-                                        false,
-                                    ),
-                                    *execution_context,
-                                    *rule.loaders,
-                                    rule.rename_as.clone(),
-                                    resolve_options_context,
-                                    matches!(ecmascript_source_maps, SourceMapsType::Full),
-                                )
-                                .to_resolved()
-                                .await?,
-                            ),
-                        ]))],
-                    ));
+                                        *rule.loaders,
+                                        rule.rename_as.clone(),
+                                        resolve_options_context,
+                                        matches!(ecmascript_source_maps, SourceMapsType::Full),
+                                    )
+                                    .to_resolved()
+                                    .await?,
+                                ),
+                            ]))],
+                        ));
+                    }
                 }
             }
         }
@@ -831,6 +858,9 @@ impl ModuleOptions {
         }
 
         rules.extend(module_rules.iter().cloned());
+
+        // Add user module_type rules after framework rules so user config takes precedence
+        rules.extend(user_module_type_rules);
 
         Ok(ModuleOptions::cell(ModuleOptions { rules }))
     }

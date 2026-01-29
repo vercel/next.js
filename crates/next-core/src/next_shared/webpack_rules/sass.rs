@@ -118,6 +118,7 @@ pub async fn get_sass_loader_rules(
             LoaderRuleItem {
                 loaders,
                 rename_as: Some(rename),
+                module_type: None,
                 condition: None,
             },
         ));

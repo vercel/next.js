@@ -137,6 +137,7 @@ const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> =
   z.strictObject({
     loaders: z.array(zTurbopackLoaderItem),
     as: z.string().optional(),
+    type: z.enum(['static', 'raw', 'css']).optional(),
     condition: zTurbopackCondition.optional(),
   })
 
