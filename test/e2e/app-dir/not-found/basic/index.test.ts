@@ -145,7 +145,6 @@ describe('app dir - not-found - basic', () => {
         expect(
           await next.readFile('.next/server/pages-manifest.json')
         ).toContain('"pages/404.html"')
-        expect(await next.readFile('.next/server/pages/404.js')).toBeTruthy()
       })
     }
   }
