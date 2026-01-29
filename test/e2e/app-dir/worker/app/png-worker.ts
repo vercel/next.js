@@ -1,7 +1,6 @@
 // Use dynamic import to test that chunk loading works in worker
 // This exercises the ASSET_SUFFIX mechanism for loading chunks
 async function verifyPng() {
-  // @ts-expect-error - dynamic png import
   const pngModule = await import('./test-image.png')
   const pngUrl = pngModule.default
 

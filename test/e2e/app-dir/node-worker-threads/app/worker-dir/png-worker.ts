@@ -1,5 +1,4 @@
 import { parentPort } from 'node:worker_threads'
-// @ts-expect-error - png import
 import pngUrl from './test-image.png'
 
 if (parentPort) {
