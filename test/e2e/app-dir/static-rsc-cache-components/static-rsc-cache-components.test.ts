@@ -1,13 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('static-rsc-cache-components', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    // TODO: Enable deploy test once builder changes have landed
-    skipDeployment: true,
   })
 
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     it('is skipped', () => {})
     return
   }
