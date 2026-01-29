@@ -555,7 +555,7 @@ describe('app dir - metadata', () => {
         const faviconFileBuffer = await fs.readFile(
           path.join(next.testDir, 'app/favicon.ico')
         )
-        const faviconResponse = Buffer.from(
+        const faviconResponse = Buffer.from<ArrayBuffer>(
           await next.fetch('/favicon.ico').then((res) => res.arrayBuffer())
         )
         return expect(Buffer.compare(faviconResponse, faviconFileBuffer)).toBe(

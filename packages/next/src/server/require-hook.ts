@@ -56,7 +56,6 @@ mod._resolveFilename = function (
   // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
 }.bind(null, resolveFilename, hookPropertyMap)
 
-// @ts-expect-error
 // This is a hack to make sure that if a user requires a Next.js module that wasn't bundled
 // that needs to point to the rendering runtime version, it will point to the correct one.
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.

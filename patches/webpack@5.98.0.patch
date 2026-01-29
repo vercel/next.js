@@ -1,0 +1,28 @@
+diff --git a/types.d.ts b/types.d.ts
+index 4e5fdf84fc65fdbc5c0f0375ef4e18698b7a7101..c1cb9c86d381acce61b0fff4e6fde388e621a459 100644
+--- a/types.d.ts
++++ b/types.d.ts
+@@ -15474,23 +15474,6 @@ declare class WebpackError extends Error {
+ 	file?: string;
+ 	serialize(__0: ObjectSerializerContext): void;
+ 	deserialize(__0: ObjectDeserializerContext): void;
+-
+-	/**
+-	 * Create .stack property on a target object
+-	 */
+-	static captureStackTrace(
+-		targetObject: object,
+-		constructorOpt?: Function
+-	): void;
+-
+-	/**
+-	 * Optional override for formatting stack traces
+-	 */
+-	static prepareStackTrace?: (
+-		err: Error,
+-		stackTraces: NodeJS.CallSite[]
+-	) => any;
+-	static stackTraceLimit: number;
+ }
+ declare abstract class WebpackLogger {
+ 	getChildLogger: (arg0: string | (() => string)) => WebpackLogger;
