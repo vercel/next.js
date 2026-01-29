@@ -9,8 +9,9 @@ export function parsePath(path: string) {
   const hasQuery = queryIndex > -1 && (hashIndex < 0 || queryIndex < hashIndex)
 
   if (hasQuery || hashIndex > -1) {
+    const pathname = path.substring(0, hasQuery ? queryIndex : hashIndex)
     return {
-      pathname: path.substring(0, hasQuery ? queryIndex : hashIndex),
+      pathname: pathname || '/',
       query: hasQuery
         ? path.substring(queryIndex, hashIndex > -1 ? hashIndex : undefined)
         : '',
@@ -18,5 +19,5 @@ export function parsePath(path: string) {
     }
   }
 
-  return { pathname: path, query: '', hash: '' }
+  return { pathname: path || '/', query: '', hash: '' }
 }
