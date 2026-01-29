@@ -1094,7 +1094,11 @@ pub async fn get_server_chunking_context_with_client_assets(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(vec![
+        rcstr!("NEXT_DEPLOYMENT_ID"),
+        rcstr!("NEXT_CLIENT_ASSET_SUFFIX"),
+    ]);
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1184,7 +1188,11 @@ pub async fn get_server_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(vec![
+        rcstr!("NEXT_DEPLOYMENT_ID"),
+        rcstr!("NEXT_CLIENT_ASSET_SUFFIX"),
+    ]);
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
