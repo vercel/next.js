@@ -194,6 +194,10 @@ Use [`connection()`](/docs/app/api-reference/functions/connection) if you need t
 
 > **Good to know**: Runtime data cannot be cached with `use cache` because it requires request context. Components that access runtime APIs must always be wrapped in `<Suspense>`. However, you can extract values from runtime data and pass them as arguments to cached functions. See the [with runtime data](#with-runtime-data) section for an example.
 
+One approach for reading runtime data like cookies without blocking the static shell is to pass a promise to a client context provider. See [Sharing data with context and React.cache](/docs/app/getting-started/server-and-client-components#sharing-data-with-context-and-reactcache) for an example.
+
+> **Good to know:** `React.cache` operates in an isolated scope inside `use cache` boundaries. See [React.cache isolation](/docs/app/api-reference/directives/use-cache#reactcache-isolation) for more information.
+
 ### Non-deterministic operations
 
 Operations like `Math.random()`, `Date.now()`, or `crypto.randomUUID()` produce different values each time they execute. To ensure these run at request time (generating unique values per request), Cache Components requires you to explicitly signal this intent by calling these operations after dynamic or runtime data access.

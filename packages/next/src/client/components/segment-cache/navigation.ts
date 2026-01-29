@@ -102,6 +102,8 @@ export function navigate(
   }
 
   // There's no matching prefetch for this route in the cache.
+  // TODO: If this is an optimistic navigation, instead of performing a
+  // dynamic request, we should do a runtime prefetch.
   return navigateToUnknownRoute(
     now,
     state,
@@ -176,7 +178,12 @@ export function navigateToKnownRoute(
     accumulation
   )
   if (task !== null) {
-    spawnDynamicRequests(task, url, nextUrl, freshnessPolicy, accumulation)
+    // Skip spawning dynamic requests for gesture navigations. Only the
+    // cached UI will be shown. The gesture state will be discarded when
+    // the canonical navigation completes.
+    if (freshnessPolicy !== FreshnessPolicy.Gesture) {
+      spawnDynamicRequests(task, url, nextUrl, freshnessPolicy, accumulation)
+    }
     return completeSoftNavigation(
       state,
       url,
@@ -278,6 +285,7 @@ async function navigateToUnknownRoute(
   switch (freshnessPolicy) {
     case FreshnessPolicy.Default:
     case FreshnessPolicy.HistoryTraversal:
+    case FreshnessPolicy.Gesture:
       dynamicRequestTree = currentFlightRouterState
       break
     case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav

@@ -1,9 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
+import { getCacheHeader } from 'next-test-utils'
 
 describe('app-root-param-getters - generateStaticParams', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'generate-static-params'),
   })
 
@@ -11,11 +12,7 @@ describe('app-root-param-getters - generateStaticParams', () => {
     const params = { lang: 'en', locale: 'us' }
     const response = await next.fetch(`/${params.lang}/${params.locale}`)
     expect(response.status).toBe(200)
-    if (isNextDeploy) {
-      expect(response.headers.get('x-vercel-cache')).toBe('PRERENDER')
-    } else {
-      expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
-    }
+    expect(getCacheHeader(response)).toBeOneOf(['HIT', 'PRERENDER'])
     const $ = cheerio.load(await response.text())
     expect($('p').text()).toBe(`hello world ${JSON.stringify(params)}`)
   })

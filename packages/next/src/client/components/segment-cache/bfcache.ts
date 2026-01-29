@@ -39,6 +39,9 @@ export function writeToBFCache(
   const entry: BFCacheEntry = {
     rsc,
     prefetchRsc,
+
+    // TODO: These fields will be removed from both BFCacheEntry and
+    // SegmentCacheEntry. The head has its own separate cache entry.
     head,
     prefetchHead,
 
@@ -57,6 +60,16 @@ export function writeToBFCache(
   }
   const isRevalidation = false
   setInCacheMap(bfcacheMap, varyPath, entry, isRevalidation)
+}
+
+export function writeHeadToBFCache(
+  now: number,
+  varyPath: SegmentVaryPath,
+  head: React.ReactNode,
+  prefetchHead: React.ReactNode
+): void {
+  // Read the special "segment" that represents the head data.
+  writeToBFCache(now, varyPath, head, prefetchHead, null, null)
 }
 
 export function readFromBFCache(
@@ -79,13 +92,6 @@ export function readFromBFCacheDuringRegularNavigation(
   now: number,
   varyPath: SegmentVaryPath
 ): BFCacheEntry | null {
-  if (DYNAMIC_STALETIME_MS <= 0) {
-    // Only reuse the dynamic data if experimental.staleTimes.dynamic config
-    // is set, and the data is not stale. (This is not a recommended API with
-    // Cache Components, but it's supported for backwards compatibility. Use
-    // cacheLife instead.)
-    return null
-  }
   const isRevalidation = false
   return getFromCacheMap(
     now,

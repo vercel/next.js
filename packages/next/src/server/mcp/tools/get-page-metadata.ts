@@ -39,7 +39,10 @@ export function registerGetPageMetadataTool(
             content: [
               {
                 type: 'text',
-                text: 'No browser sessions connected. Please open your application in a browser to retrieve page metadata.',
+                text: JSON.stringify({
+                  error:
+                    'No browser sessions connected. Please open your application in a browser to retrieve page metadata.',
+                }),
               },
             ],
           }
@@ -57,7 +60,9 @@ export function registerGetPageMetadataTool(
             content: [
               {
                 type: 'text',
-                text: 'No browser sessions responded.',
+                text: JSON.stringify({
+                  sessions: [],
+                }),
               },
             ],
           }
@@ -78,7 +83,9 @@ export function registerGetPageMetadataTool(
             content: [
               {
                 type: 'text',
-                text: `No page metadata available from ${responses.length} browser session(s).`,
+                text: JSON.stringify({
+                  sessions: [],
+                }),
               },
             ],
           }
@@ -90,7 +97,7 @@ export function registerGetPageMetadataTool(
           content: [
             {
               type: 'text',
-              text: output,
+              text: JSON.stringify(output),
             },
           ],
         }
@@ -99,7 +106,9 @@ export function registerGetPageMetadataTool(
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : String(error),
+              }),
             },
           ],
         }
@@ -150,10 +159,27 @@ function convertSegmentTrieToPageMetadata(data: SegmentTrieData): PageMetadata {
   }
 }
 
+interface FormattedSegment {
+  path: string
+  type: string
+  isBoundary: boolean
+  isBuiltin: boolean
+}
+
+interface FormattedSession {
+  url: string
+  routerType: string
+  segments: FormattedSegment[]
+}
+
+interface FormattedPageMetadataOutput {
+  sessions: FormattedSession[]
+}
+
 function formatPageMetadata(
   sessionMetadata: Array<{ url: string; metadata: PageMetadata }>
-): string {
-  let output = `# Page metadata from ${sessionMetadata.length} browser session(s)\n\n`
+): FormattedPageMetadataOutput {
+  const sessions: FormattedSession[] = []
 
   for (const { url, metadata } of sessionMetadata) {
     let displayUrl = url
@@ -164,56 +190,50 @@ function formatPageMetadata(
       // If URL parsing fails, use the original URL
     }
 
-    output += `## Session: ${displayUrl}\n\n`
-    output += `**Router type:** ${metadata.routerType}\n\n`
-
-    if (metadata.segments.length === 0) {
-      output += '*No segments found*\n\n'
-    } else {
-      output += '### Files powering this page:\n\n'
-
-      // Ensure consistent output to avoid flaky tests
-      const sortedSegments = [...metadata.segments].sort((a, b) => {
-        const typeOrder = (segment: PageSegment): number => {
-          const type = segment.boundaryType || segment.type
-          if (type === 'layout') return 0
-          if (type.startsWith('boundary:')) return 1
-          if (type === 'page') return 2
-          return 3
-        }
-        const aOrder = typeOrder(a)
-        const bOrder = typeOrder(b)
-        if (aOrder !== bOrder) return aOrder - bOrder
-        return a.pagePath.localeCompare(b.pagePath)
-      })
-
-      for (const segment of sortedSegments) {
-        const path = segment.pagePath
-        const isBuiltin = path.startsWith('__next_builtin__')
+    // Ensure consistent output to avoid flaky tests
+    const sortedSegments = [...metadata.segments].sort((a, b) => {
+      const typeOrder = (segment: PageSegment): number => {
         const type = segment.boundaryType || segment.type
-        const isBoundary = type.startsWith('boundary:')
-
-        let displayPath = path
-          .replace(/@boundary$/, '')
-          .replace(/^__next_builtin__/, '')
-
-        if (!isBuiltin && !displayPath.startsWith('app/')) {
-          displayPath = `app/${displayPath}`
-        }
-
-        const descriptors: string[] = []
-        if (isBoundary) descriptors.push('boundary')
-        if (isBuiltin) descriptors.push('builtin')
-
-        const descriptor =
-          descriptors.length > 0 ? ` (${descriptors.join(', ')})` : ''
-        output += `- ${displayPath}${descriptor}\n`
+        if (type === 'layout') return 0
+        if (type.startsWith('boundary:')) return 1
+        if (type === 'page') return 2
+        return 3
       }
-      output += '\n'
+      const aOrder = typeOrder(a)
+      const bOrder = typeOrder(b)
+      if (aOrder !== bOrder) return aOrder - bOrder
+      return a.pagePath.localeCompare(b.pagePath)
+    })
+
+    const formattedSegments: FormattedSegment[] = []
+    for (const segment of sortedSegments) {
+      const path = segment.pagePath
+      const isBuiltin = path.startsWith('__next_builtin__')
+      const type = segment.boundaryType || segment.type
+      const isBoundary = type.startsWith('boundary:')
+
+      let displayPath = path
+        .replace(/@boundary$/, '')
+        .replace(/^__next_builtin__/, '')
+
+      if (!isBuiltin && !displayPath.startsWith('app/')) {
+        displayPath = `app/${displayPath}`
+      }
+
+      formattedSegments.push({
+        path: displayPath,
+        type,
+        isBoundary,
+        isBuiltin,
+      })
     }
 
-    output += '---\n\n'
+    sessions.push({
+      url: displayUrl,
+      routerType: metadata.routerType,
+      segments: formattedSegments,
+    })
   }
 
-  return output.trim()
+  return { sessions }
 }

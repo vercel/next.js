@@ -312,5 +312,51 @@ describe('resolveRoutes with i18n', () => {
       // Should not redirect for _next routes
       expect(result.redirect).toBeUndefined()
     })
+
+    it('should skip locale handling for api routes', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/api/ping'),
+        headers: new Headers({
+          'accept-language': 'fr',
+        }),
+        pathnames: ['/api/ping'],
+        i18n: i18nConfig,
+      })
+
+      // Should not redirect for api routes
+      expect(result.redirect).toBeUndefined()
+      expect(result.matchedPathname).toBe('/api/ping')
+    })
+
+    it('should skip locale handling for nested api routes', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/api/users/123'),
+        headers: new Headers({
+          'accept-language': 'ja',
+          cookie: 'NEXT_LOCALE=de',
+        }),
+        pathnames: ['/api/users/[id]'],
+        routes: {
+          ...baseParams.routes,
+          dynamicRoutes: [
+            {
+              sourceRegex: '^[/]?/api/users/(?<id>[^/]+?)(?:/)?$',
+              destination: '/api/users/[id]?id=$id',
+            },
+          ],
+        },
+        i18n: i18nConfigNoDomains,
+      })
+
+      // Should not redirect for api routes, even with locale cookies/headers
+      expect(result.redirect).toBeUndefined()
+      expect(result.matchedPathname).toBe('/api/users/[id]')
+      expect(result.routeMatches).toEqual({
+        '1': '123',
+        id: '123',
+      })
+    })
   })
 })

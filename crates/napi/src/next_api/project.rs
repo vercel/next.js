@@ -18,8 +18,8 @@ use next_api::{
         RouteOperation,
     },
     project::{
-        DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
-        ProjectOptions, WatchOptions,
+        DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions, Project,
+        ProjectContainer, ProjectOptions, WatchOptions,
     },
     route::Endpoint,
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
@@ -186,6 +186,10 @@ pub struct NapiProjectOptions {
 
     /// The version of Node.js that is available/currently running.
     pub current_node_js_version: RcStr,
+
+    /// Debug build paths for selective builds.
+    /// When set, only routes matching these paths will be included in the build.
+    pub debug_build_paths: Option<NapiDebugBuildPaths>,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -291,6 +295,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             no_mangling,
             write_routes_hashes_manifest,
             current_node_js_version,
+            debug_build_paths,
         } = val;
         ProjectOptions {
             root_path,
@@ -307,6 +312,10 @@ impl From<NapiProjectOptions> for ProjectOptions {
             no_mangling,
             write_routes_hashes_manifest,
             current_node_js_version,
+            debug_build_paths: debug_build_paths.map(|p| DebugBuildPaths {
+                app: p.app,
+                pages: p.pages,
+            }),
         }
     }
 }
@@ -342,6 +351,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             browserslist_query,
             no_mangling,
             write_routes_hashes_manifest,
+            debug_build_paths: None,
         }
     }
 }
@@ -966,6 +976,13 @@ struct AllWrittenEntrypointsWithIssues {
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
+}
+
+#[napi(object)]
+#[derive(Clone, Debug)]
+pub struct NapiDebugBuildPaths {
+    pub app: Vec<RcStr>,
+    pub pages: Vec<RcStr>,
 }
 
 #[tracing::instrument(level = "info", name = "write all entrypoints to disk", skip_all)]

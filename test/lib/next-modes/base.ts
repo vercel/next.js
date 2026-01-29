@@ -68,7 +68,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.3";
+const nextjsReactPeerVersion = "19.2.4";
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -275,12 +275,19 @@ export class NextInstance {
                 },
                 ...(this.resolutions ? { resolutions: this.resolutions } : {}),
                 scripts: {
-                  // since we can't get the build id as a build artifact, make it
-                  // available under the static files
-                  'post-build': `cp ${this.distDir}/BUILD_ID ${this.distDir}/static/__BUILD_ID`,
+                  ...(isNextDeploy
+                    ? // since we can't get the build id as a build artifact,
+                      // add it in build logs
+                      {
+                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + require("fs").readFileSync("${this.distDir}/BUILD_ID"))'`,
+                      }
+                    : {}),
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
+                    (this.buildArgs?.length
+                      ? ` ${this.buildArgs.join(' ')}`
+                      : '') +
                     ' && pnpm post-build',
                 },
               },

@@ -1132,12 +1132,15 @@ function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
 }
 
 function registerChunk(registration: ChunkRegistration) {
-  const chunkPath = getPathFromScript(registration[0])
+  const chunk = getChunkFromRegistration(registration[0]) as
+    | ChunkPath
+    | ChunkScript
   let runtimeParams: RuntimeParams | undefined
   // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
   if (registration.length === 2) {
     runtimeParams = registration[1] as RuntimeParams
   } else {
+    let chunkPath = getPathFromScript(chunk)
     runtimeParams = undefined
     installCompressedModuleFactories(
       registration as CompressedModuleFactories,
@@ -1146,14 +1149,16 @@ function registerChunk(registration: ChunkRegistration) {
       (id: ModuleId) => addModuleToChunk(id, chunkPath)
     )
   }
-  return BACKEND.registerChunk(chunkPath, runtimeParams)
+  return BACKEND.registerChunk(chunk, runtimeParams)
 }
 
 /**
  * Subscribes to chunk list updates from the update server and applies them.
  */
 function registerChunkList(chunkList: ChunkList) {
-  const chunkListScript = chunkList.script
+  const chunkListScript = getChunkFromRegistration(chunkList.script) as
+    | ChunkListPath
+    | ChunkListScript
   const chunkListPath = getPathFromScript(chunkListScript)
   // The "chunk" is also registered to finish the loading in the backend
   BACKEND.registerChunk(chunkListPath as string as ChunkPath)

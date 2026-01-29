@@ -265,7 +265,7 @@ export const getHandler = ({
                     buildId,
                     customServer:
                       Boolean(routerServerContext?.isCustomServer) || undefined,
-                    deploymentId: getDeploymentId(),
+                    deploymentId: getDeploymentId() || '',
                   },
                   renderOpts: {
                     params,

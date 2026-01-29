@@ -17,7 +17,7 @@ const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.3";
+const nextjsReactPeerVersion = "19.2.4";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -695,8 +695,9 @@ ${ENDGROUP}`)
       console.error(`${test.file} failed to pass within ${numRetries} retries`)
     }
 
-    // Emit test output, parsed by the commenter webhook to notify about failing tests
-    if (!passed && isTestJob) {
+    // Emit test output, parsed by the commenter webhook to notify about failing tests.
+    // Also emit for all tests when NEXT_TEST_EMIT_ALL_OUTPUT is set (for manifest generation).
+    if ((!passed || process.env.NEXT_TEST_EMIT_ALL_OUTPUT) && isTestJob) {
       try {
         const testsOutput = await fsp.readFile(
           `${test.file}${RESULTS_EXT}`,
