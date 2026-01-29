@@ -222,6 +222,7 @@ import { handleBuildComplete } from './adapter/build-complete'
 import {
   sortPageObjects,
   sortPages,
+  sortPagesObject,
   sortSortableRouteObjects,
 } from '../shared/lib/router/utils/sortable-routes'
 import { cp, mkdir, writeFile } from 'fs/promises'
@@ -549,8 +550,8 @@ async function writePrerenderManifest(
   manifest: PrerenderManifest
 ): Promise<void> {
   // Sort for deterministic outputs
-  manifest.routes = sortObjectByKey(manifest.routes)
-  manifest.dynamicRoutes = sortObjectByKey(manifest.dynamicRoutes)
+  manifest.routes = sortPagesObject(manifest.routes)
+  manifest.dynamicRoutes = sortPagesObject(manifest.dynamicRoutes)
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
 }
 async function writeClientSsgManifest(
@@ -4402,16 +4403,4 @@ function getErrorCodeForTelemetry(err: unknown) {
   }
 
   return 'Unknown'
-}
-
-function sortObjectByKey<T>(obj: Record<string, T>) {
-  return Object.keys(obj)
-    .sort()
-    .reduce(
-      (acc, key) => {
-        acc[key] = obj[key]
-        return acc
-      },
-      {} as Record<string, T>
-    )
 }
