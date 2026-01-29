@@ -1,5 +1,6 @@
 use std::{
     fs::{File, OpenOptions},
+    io::{Read, Write},
     mem::ManuallyDrop,
     sync::Mutex,
 };
@@ -24,9 +25,12 @@ pub struct LockfileInner {
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Lockfile\" } | null")]
-pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<JsLockfile>>> {
+pub fn lockfile_try_acquire_sync(
+    path: String,
+    content: Option<String>,
+) -> napi::Result<Option<External<JsLockfile>>> {
     let mut open_options = OpenOptions::new();
-    open_options.write(true).create(true);
+    open_options.write(true).create(true).truncate(true);
 
     // On Windows, we don't use `File::lock` because that grabs a mandatory lock. That can break
     // tools or code that read the contents of the `.next` directory because the mandatory lock
@@ -46,9 +50,16 @@ pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<J
             .share_mode(FileSystem::FILE_SHARE_READ | FileSystem::FILE_SHARE_DELETE)
             .custom_flags(FileSystem::FILE_FLAG_DELETE_ON_CLOSE);
         match open_options.open(&path) {
-            Ok(file) => Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
-                LockfileInner { file },
-            )))))),
+            Ok(mut file) => {
+                // Write content to the lockfile if provided
+                if let Some(ref data) = content {
+                    let _ = file.write_all(data.as_bytes());
+                    let _ = file.flush();
+                }
+                Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
+                    LockfileInner { file },
+                ))))))
+            }
             Err(err)
                 if err.raw_os_error()
                     == Some(Foundation::ERROR_SHARING_VIOLATION.try_into().unwrap()) =>
@@ -65,12 +76,21 @@ pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<J
 
         let file = open_options.open(&path)?;
         match file.try_lock() {
-            Ok(_) => Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
-                LockfileInner {
-                    file,
-                    path: path.into(),
-                },
-            )))))),
+            Ok(_) => {
+                // Write content to the lockfile if provided
+                if let Some(ref data) = content {
+                    // Need to get a mutable reference
+                    let mut file_ref = &file;
+                    let _ = file_ref.write_all(data.as_bytes());
+                    let _ = file_ref.flush();
+                }
+                Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
+                    LockfileInner {
+                        file,
+                        path: path.into(),
+                    },
+                ))))))
+            }
             Err(TryLockError::WouldBlock) => Ok(None),
             Err(TryLockError::Error(err)) => Err(err.into()),
         }
@@ -78,10 +98,33 @@ pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<J
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Lockfile\" } | null>")]
-pub async fn lockfile_try_acquire(path: String) -> napi::Result<Option<External<JsLockfile>>> {
-    tokio::task::spawn_blocking(move || lockfile_try_acquire_sync(path))
+pub async fn lockfile_try_acquire(
+    path: String,
+    content: Option<String>,
+) -> napi::Result<Option<External<JsLockfile>>> {
+    tokio::task::spawn_blocking(move || lockfile_try_acquire_sync(path, content))
         .await
         .context("panicked while attempting to acquire lockfile")?
+}
+
+/// Read the content of a lockfile without acquiring it.
+/// Returns None if the file doesn't exist or can't be read.
+#[napi]
+pub fn lockfile_read_sync(path: String) -> Option<String> {
+    let mut file = File::open(&path).ok()?;
+    let mut content = String::new();
+    file.read_to_string(&mut content).ok()?;
+    Some(content)
+}
+
+/// Async version of lockfile_read_sync.
+#[napi]
+pub async fn lockfile_read(path: String) -> napi::Result<Option<String>> {
+    Ok(
+        tokio::task::spawn_blocking(move || lockfile_read_sync(path))
+            .await
+            .context("panicked while attempting to read lockfile")?,
+    )
 }
 
 #[napi]

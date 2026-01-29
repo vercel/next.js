@@ -13,13 +13,14 @@ describe('lockfile', () => {
     const browser = await next.browser('/')
     expect(await browser.elementByCss('p').text()).toBe('Page')
 
-    // Verify dev-server-info.json was created by the first server
+    // Verify lockfile was created with server info inside it
     // With isolatedDevBuild (default), distDir is .next/dev
     const distDir = path.join(next.testDir, '.next', 'dev')
-    const serverInfoPath = path.join(distDir, 'dev-server-info.json')
-    expect(fs.existsSync(serverInfoPath)).toBe(true)
+    const lockfilePath = path.join(distDir, 'lock')
+    expect(fs.existsSync(lockfilePath)).toBe(true)
 
-    const serverInfo = JSON.parse(fs.readFileSync(serverInfoPath, 'utf-8'))
+    // Read server info from the lockfile itself
+    const serverInfo = JSON.parse(fs.readFileSync(lockfilePath, 'utf-8'))
     expect(serverInfo).toMatchObject({
       pid: expect.any(Number),
       port: expect.any(Number),

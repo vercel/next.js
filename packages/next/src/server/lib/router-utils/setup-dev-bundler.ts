@@ -93,11 +93,7 @@ import {
 import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
-import {
-  Lockfile,
-  writeDevServerInfo,
-  removeDevServerInfo,
-} from '../../../build/lockfile'
+import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 
 export type SetupOpts = {
@@ -192,10 +188,23 @@ async function startWatcher(
   let lockfile
   if (opts.nextConfig.experimental.lockDistDir) {
     fs.mkdirSync(distDir, { recursive: true })
+
+    // Create server info to store in the lockfile itself
+    // This allows other processes to discover the running server
+    const appUrl = `http://localhost:${opts.port}`
+    const serverInfo: DevServerInfo = {
+      pid: process.pid,
+      port: opts.port,
+      hostname: 'localhost',
+      appUrl,
+      startedAt: Date.now(),
+    }
+
     lockfile = await Lockfile.acquireWithRetriesOrExit(
       path.join(distDir, 'lock'),
       'next dev',
       true,
+      JSON.stringify(serverInfo),
       opts.dir,
       opts.nextConfig.distDir
     )
@@ -255,26 +264,6 @@ async function startWatcher(
       })()
 
   await hotReloader.start()
-
-  // have to write this after starting hot-reloader since that
-  // cleans the dist dir
-  if (opts.nextConfig.experimental.lockDistDir) {
-    // Write server info for other processes to discover
-    const appUrl =
-      process.env.__NEXT_PRIVATE_ORIGIN || `http://localhost:${opts.port}`
-    writeDevServerInfo(distDir, {
-      pid: process.pid,
-      port: opts.port,
-      hostname: new URL(appUrl).hostname,
-      appUrl,
-      startedAt: Date.now(),
-    })
-
-    // Clean up server info on exit
-    opts.onDevServerCleanup?.(async () => {
-      removeDevServerInfo(distDir)
-    })
-  }
 
   const distTypesDir = path.join(distDir, 'types')
   await writeRouteTypesManifest(

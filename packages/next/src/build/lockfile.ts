@@ -1,4 +1,3 @@
-import fs from 'fs'
 import nodePath from 'path'
 import { bold, cyan } from '../lib/picocolors'
 import * as Log from './output/log'
@@ -9,11 +8,9 @@ import type { Binding, Lockfile as NativeLockfile } from './swc/types'
 const RETRY_DELAY_MS = 10
 const MAX_RETRY_MS = 1000
 
-// File name for storing dev server info alongside the lock
-const DEV_SERVER_INFO_FILE = 'dev-server-info.json'
-
 /**
- * Information about a running dev server, stored alongside the lock file.
+ * Information about a running dev server, stored inside the lock file itself.
+ * This is a common pattern in Unix applications (e.g., storing PID in a lockfile).
  */
 export interface DevServerInfo {
   pid: number
@@ -24,44 +21,29 @@ export interface DevServerInfo {
 }
 
 /**
- * Writes dev server info to a file in the dist directory.
- * This allows other processes to discover the running server when lock acquisition fails.
- */
-export function writeDevServerInfo(distDir: string, info: DevServerInfo): void {
-  try {
-    fs.writeFileSync(
-      nodePath.join(distDir, DEV_SERVER_INFO_FILE),
-      JSON.stringify(info, null, 2)
-    )
-  } catch {
-    // Ignore errors - this is best effort
-  }
-}
-
-/**
- * Reads dev server info from a file in the dist directory.
+ * Reads dev server info from a lockfile.
  * Returns undefined if the file doesn't exist or can't be parsed.
  */
-export function readDevServerInfo(distDir: string): DevServerInfo | undefined {
+export function readLockfileContent(lockfilePath: string): string | undefined {
   try {
-    const content = fs.readFileSync(
-      nodePath.join(distDir, DEV_SERVER_INFO_FILE),
-      'utf-8'
-    )
-    return JSON.parse(content) as DevServerInfo
+    const bindings = getBindingsSync()
+    if (bindings.isWasm) {
+      return undefined
+    }
+    return bindings.lockfileReadSync(lockfilePath) ?? undefined
   } catch {
     return undefined
   }
 }
 
 /**
- * Removes the dev server info file from the dist directory.
+ * Parses dev server info from lockfile content.
  */
-export function removeDevServerInfo(distDir: string): void {
+export function parseDevServerInfo(content: string): DevServerInfo | undefined {
   try {
-    fs.unlinkSync(nodePath.join(distDir, DEV_SERVER_INFO_FILE))
+    return JSON.parse(content) as DevServerInfo
   } catch {
-    // Ignore errors - file may not exist
+    return undefined
   }
 }
 
@@ -114,10 +96,15 @@ export class Lockfile {
    *
    * - If we fail to acquire the lock, we return `undefined`.
    * - If we're on wasm, this always returns a dummy `Lockfile` object.
+   *
+   * @param path - Path to the lock file
+   * @param unlockOnExit - Whether to unlock the file on process exit
+   * @param content - Optional content to write to the lockfile (e.g., JSON with server info)
    */
   static tryAcquire(
     path: string,
-    unlockOnExit: boolean = true
+    unlockOnExit: boolean = true,
+    content?: string
   ): Lockfile | undefined {
     const bindings = getBindingsSync()
     if (bindings.isWasm) {
@@ -128,7 +115,7 @@ export class Lockfile {
     } else {
       let nativeLockfile
       try {
-        nativeLockfile = bindings.lockfileTryAcquireSync(path)
+        nativeLockfile = bindings.lockfileTryAcquireSync(path, content)
       } catch (e) {
         // this happens if there's an IO error (e.g. `ENOENT`), which is
         // different than if we just didn't acquire the lock
@@ -172,6 +159,7 @@ export class Lockfile {
    * @param path - Path to the lock file
    * @param processName - Name of the process for error messages (e.g., 'next dev')
    * @param unlockOnExit - Whether to unlock the file on process exit
+   * @param content - Optional content to write to the lockfile (e.g., JSON with server info)
    * @param projectDir - Optional project directory for enhanced error messages
    * @param relativeDistDir - Optional relative dist directory path (e.g., '.next/dev')
    */
@@ -179,13 +167,14 @@ export class Lockfile {
     path: string,
     processName: string,
     unlockOnExit: boolean = true,
+    content?: string,
     projectDir?: string,
     relativeDistDir?: string
   ): Promise<Lockfile> {
     const startMs = Date.now()
     let lockfile
     while (Date.now() - startMs < MAX_RETRY_MS) {
-      lockfile = Lockfile.tryAcquire(path, unlockOnExit)
+      lockfile = Lockfile.tryAcquire(path, unlockOnExit, content)
       if (lockfile !== undefined) break
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
     }
@@ -193,12 +182,11 @@ export class Lockfile {
       const isDev = processName === 'next dev'
 
       if (isDev) {
-        // For dev server, try to read server info for helpful error message
-        const distDir =
-          projectDir && relativeDistDir
-            ? nodePath.join(projectDir, relativeDistDir)
-            : undefined
-        const serverInfo = distDir ? readDevServerInfo(distDir) : undefined
+        // For dev server, try to read server info from the lockfile itself
+        const lockfileContent = readLockfileContent(path)
+        const serverInfo = lockfileContent
+          ? parseDevServerInfo(lockfileContent)
+          : undefined
 
         if (serverInfo) {
           Log.error(`Another ${cyan(processName)} server is already running.`)
