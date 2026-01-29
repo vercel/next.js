@@ -168,7 +168,6 @@ describe('writeConfigurationDefaults()', () => {
             hasAppDir,
             distDir,
             hasPagesDir,
-            undefined,
             experimentalStrictRouteTypes
           )
         ).resolves.not.toThrow()
