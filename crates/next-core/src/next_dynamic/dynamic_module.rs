@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
@@ -16,7 +18,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
-    references::esm::EsmExports,
+    references::esm::{EsmExport, EsmExports},
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
@@ -40,6 +42,20 @@ fn dynamic_ref_description() -> RcStr {
     rcstr!("next/dynamic reference")
 }
 
+impl NextDynamicEntryModule {
+    async fn module_reference(&self) -> Result<ResolvedVc<Box<dyn ModuleReference>>> {
+        Ok(ResolvedVc::upcast(
+            SingleChunkableModuleReference::new(
+                Vc::upcast(*self.module),
+                dynamic_ref_description(),
+                ExportUsage::all(),
+            )
+            .to_resolved()
+            .await?,
+        ))
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl Module for NextDynamicEntryModule {
     #[turbo_tasks::function]
@@ -56,15 +72,7 @@ impl Module for NextDynamicEntryModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleChunkableModuleReference::new(
-                Vc::upcast(*self.module),
-                dynamic_ref_description(),
-                ExportUsage::all(),
-            )
-            .to_resolved()
-            .await?,
-        )]))
+        Ok(Vc::cell(vec![self.module_reference().await?]))
     }
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
@@ -88,14 +96,24 @@ impl ChunkableModule for NextDynamicEntryModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
     #[turbo_tasks::function]
-    fn get_exports(&self) -> Vc<EcmascriptExports> {
-        let module_reference: Vc<Box<dyn ModuleReference>> =
-            Vc::upcast(SingleChunkableModuleReference::new(
-                Vc::upcast(*self.module),
-                dynamic_ref_description(),
-                ExportUsage::all(),
-            ));
-        EsmExports::reexport_including_default(module_reference)
+    async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
+        let module_reference = self.module_reference().await?;
+
+        let mut exports = BTreeMap::new();
+        let default = rcstr!("default");
+        exports.insert(
+            default.clone(),
+            EsmExport::ImportedBinding(module_reference, default, false),
+        );
+
+        Ok(EcmascriptExports::EsmExports(
+            EsmExports {
+                exports,
+                star_exports: vec![module_reference],
+            }
+            .resolved_cell(),
+        )
+        .cell())
     }
 
     #[turbo_tasks::function]
