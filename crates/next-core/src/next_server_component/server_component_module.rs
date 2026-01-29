@@ -11,7 +11,7 @@ use turbopack_core::{
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
-    reference::ModuleReferences,
+    reference::{ModuleReference, ModuleReferences},
     source::OptionSource,
 };
 use turbopack_ecmascript::{
@@ -64,6 +64,16 @@ impl NextServerComponentModule {
     }
 }
 
+impl NextServerComponentModule {
+    async fn module_reference(&self) -> Result<ResolvedVc<Box<dyn ModuleReference>>> {
+        Ok(ResolvedVc::upcast(
+            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        ))
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl Module for NextServerComponentModule {
     #[turbo_tasks::function]
@@ -80,11 +90,7 @@ impl Module for NextServerComponentModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
-                .to_resolved()
-                .await?,
-        )]))
+        Ok(Vc::cell(vec![self.module_reference().await?]))
     }
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
@@ -116,12 +122,7 @@ impl ChunkableModule for NextServerComponentModule {
 impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let module_reference = ResolvedVc::upcast(
-            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
-                .to_resolved()
-                .await?,
-        );
-
+        let module_reference = self.module_reference().await?;
         let mut exports = BTreeMap::new();
         let default = rcstr!("default");
         exports.insert(
