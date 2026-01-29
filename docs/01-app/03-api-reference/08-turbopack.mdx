@@ -104,7 +104,20 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 | Feature                  | Status        | Notes                                                                                    |
 | ------------------------ | ------------- | ---------------------------------------------------------------------------------------- |
 | **Fast Refresh**         | **Supported** | Updates JavaScript, TypeScript, and CSS without a full refresh.                          |
-| **Incremental Bundling** | **Supported** | Turbopack lazily builds only what’s requested by the dev server, speeding up large apps. |
+| **Incremental Bundling** | **Supported** | Turbopack lazily builds only what's requested by the dev server, speeding up large apps. |
+
+### Magic Comments
+
+Turbopack supports webpack-compatible magic comments for controlling import behavior. These comments work with dynamic `import()`, `require()`, `require.resolve()`, and `new Worker()` expressions (not static `import` statements).
+
+| Comment                   | Webpack | Turbopack | Description                    |
+| ------------------------- | ------- | --------- | ------------------------------ |
+| `webpackIgnore: true`     | ✓       | ✓         | Skip bundling, preserve import |
+| `turbopackIgnore: true`   | ✗       | ✓         | Skip bundling (Turbopack-only) |
+| `turbopackOptional: true` | ✗       | ✓         | Suppress resolve errors        |
+| `webpackOptional: true`   | ✗       | ✗         | Not supported                  |
+
+See [Lazy Loading](/docs/app/guides/lazy-loading#magic-comments) for usage examples.
 
 ## Known gaps with webpack
 
