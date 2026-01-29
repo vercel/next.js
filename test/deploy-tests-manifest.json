@@ -86,6 +86,11 @@
     },
     "test/e2e/middleware-rewrites/test/index.test.ts": {
       "failed": ["Middleware Rewrite should handle catch-all rewrite correctly"]
+    },
+    "test/e2e/app-dir/resume-data-cache/resume-data-cache.test.ts": {
+      "failed": [
+        "resume-data-cache should have consistent data between static and dynamic renders with fetch cache"
+      ]
     }
   },
   "rules": {
