@@ -104,8 +104,7 @@ macro_rules! free_var_references {
 
 // TODO: replace with just a `serde_json::Value`
 // https://linear.app/vercel/issue/WEB-1641/compiletimedefinevalue-should-just-use-serde-jsonvalue
-#[turbo_tasks::value]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TraceRawVcs, NonLocalValue, Encode, Decode, PartialEq, Eq)]
 pub enum CompileTimeDefineValue {
     Null,
     Bool(bool),
@@ -303,8 +302,7 @@ pub enum InputRelativeConstant {
     FileName,
 }
 
-#[turbo_tasks::value]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode, PartialEq, Eq)]
 pub enum FreeVarReference {
     EcmaScriptModule {
         request: RcStr,
