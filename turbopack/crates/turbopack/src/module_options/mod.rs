@@ -434,16 +434,15 @@ impl ModuleOptions {
                     }
 
                     // Add module type if specified
-                    if let Some(module_type) = rule.module_type.as_ref().and_then(|s| {
-                        ModuleType::from_str_with_defaults(
-                            s,
+                    if let Some(type_str) = rule.module_type.as_ref() {
+                        let module_type = ModuleType::from_str_with_defaults(
+                            type_str,
                             ecma_preprocess,
                             main,
                             postprocess,
                             ecmascript_options_vc,
                             environment,
-                        )
-                    }) {
+                        )?;
                         effects.push(ModuleRuleEffect::ModuleType(module_type));
                     }
 

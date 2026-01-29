@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
@@ -187,35 +187,38 @@ impl ModuleType {
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         environment: Option<ResolvedVc<Environment>>,
-    ) -> Option<Self> {
-        match type_str {
-            "asset" => Some(ModuleType::StaticUrlJs { tag: None }),
-            "ecmascript" => Some(ModuleType::Ecmascript {
+    ) -> Result<Self> {
+        Ok(match type_str {
+            "asset" => ModuleType::StaticUrlJs { tag: None },
+            "ecmascript" => ModuleType::Ecmascript {
                 preprocess,
                 main,
                 postprocess,
                 options,
-            }),
-            "typescript" => Some(ModuleType::Typescript {
+            },
+            "typescript" => ModuleType::Typescript {
                 preprocess,
                 main,
                 postprocess,
                 tsx: false,
                 analyze_types: false,
                 options,
-            }),
-            "css" => Some(ModuleType::Css {
+            },
+            "css" => ModuleType::Css {
                 ty: CssModuleAssetType::Default,
                 environment,
-            }),
-            "css-module" => Some(ModuleType::CssModule),
-            "wasm" => Some(ModuleType::WebAssembly {
+            },
+            "css-module" => ModuleType::CssModule,
+            "wasm" => ModuleType::WebAssembly {
                 source_ty: WebAssemblySourceType::Binary,
-            }),
-            "raw" => Some(ModuleType::Raw),
-            "node" => Some(ModuleType::NodeAddon),
-            "bytes" => Some(ModuleType::InlinedBytesJs),
-            _ => None,
-        }
+            },
+            "raw" => ModuleType::Raw,
+            "node" => ModuleType::NodeAddon,
+            "bytes" => ModuleType::InlinedBytesJs,
+            _ => bail!(
+                "Unknown module type: {type_str:?}. Valid types are: asset, ecmascript, \
+                 typescript, css, css-module, wasm, raw, node, bytes"
+            ),
+        })
     }
 }
