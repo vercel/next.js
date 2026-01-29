@@ -7,6 +7,7 @@ import type { AppRouterState } from './router-reducer-types'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import { convertRootFlightRouterStateToRouteTree } from '../segment-cache/cache'
+import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 
 export interface InitialRouterStateParameters {
@@ -14,6 +15,8 @@ export interface InitialRouterStateParameters {
   initialCanonicalUrlParts: string[]
   initialRenderedSearch: string
   initialFlightData: FlightDataPath[]
+  initialCouldBeIntercepted: boolean
+  initialPrerendered: boolean
   location: Location | null
 }
 
@@ -22,6 +25,8 @@ export function createInitialRouterState({
   initialFlightData,
   initialCanonicalUrlParts,
   initialRenderedSearch,
+  initialCouldBeIntercepted,
+  initialPrerendered,
   location,
 }: InitialRouterStateParameters): AppRouterState {
   // When initialized on the server, the canonical URL is provided as an array of parts.
@@ -56,12 +61,30 @@ export function createInitialRouterState({
     initialRenderedSearch as NormalizedSearch,
     acc
   )
+  const metadataVaryPath = acc.metadataVaryPath
   const initialTask = createInitialCacheNodeForHydration(
     navigatedAt,
     initialRouteTree,
     initialSeedData,
     initialHead
   )
+
+  // Learn the route pattern so we can predict it for future navigations.
+  // Only do this in the browser (location !== null) since route learning
+  // state doesn't persist from SSR to client.
+  if (location !== null && metadataVaryPath !== null) {
+    discoverKnownRoute(
+      Date.now(),
+      location.pathname,
+      null, // No pending entry
+      initialRouteTree,
+      metadataVaryPath,
+      initialCouldBeIntercepted,
+      canonicalUrl,
+      initialPrerendered,
+      false // hasDynamicRewrite
+    )
+  }
 
   // NOTE: We intentionally don't check if any data needs to be fetched from the
   // server. We assume the initial hydration payload is sufficient to render
@@ -96,8 +119,8 @@ export function createInitialRouterState({
     },
     canonicalUrl,
     renderedSearch: initialRenderedSearch,
+    // the || operator is intentional, the pathname can be an empty string
     nextUrl:
-      // the || operator is intentional, the pathname can be an empty string
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
     previousNextUrl: null,

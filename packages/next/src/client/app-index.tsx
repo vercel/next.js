@@ -318,6 +318,8 @@ export async function hydrate(
       initialFlightData: initialRSCPayload.f,
       initialCanonicalUrlParts: initialRSCPayload.c,
       initialRenderedSearch: initialRSCPayload.q,
+      initialCouldBeIntercepted: initialRSCPayload.i,
+      initialPrerendered: initialRSCPayload.S,
       location: window.location,
     }),
     instrumentationHooks
