@@ -27,7 +27,7 @@ import type {
   NodeJsHmrUpdate,
   NodeJsPartialHmrUpdate,
 } from '../../build/swc/types'
-import { createDefineEnv, getBindingsSync } from '../../build/swc'
+import { createDefineEnv, getBindingsSync, HmrTarget } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
@@ -156,13 +156,17 @@ function setupServerHmr(project: Project) {
     AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
   >()
 
-  function subscribeToServerHmr(identifier: string) {
-    if (serverHmrSubscriptions.has(identifier)) {
+  /**
+   * Subscribe to HMR updates for a server chunk.
+   * @param chunkPath - Server chunk output path (e.g., "server/chunks/ssr/..._.js")
+   */
+  function subscribeToServerHmr(chunkPath: string) {
+    if (serverHmrSubscriptions.has(chunkPath)) {
       return
     }
 
-    const subscription = project.serverHmrEvents(identifier)
-    serverHmrSubscriptions.set(identifier, subscription)
+    const subscription = project.hmrEvents(chunkPath, HmrTarget.Server)
+    serverHmrSubscriptions.set(chunkPath, subscription)
 
     // Start listening for changes in background
     ;(async () => {
@@ -184,7 +188,9 @@ function setupServerHmr(project: Project) {
 
         if (typeof __turbopack_server_hmr_apply__ === 'function') {
           const applied = __turbopack_server_hmr_apply__(update as any)
+
           if (applied) {
+            console.log(`[Server HMR] Applied update for ${chunkPath}`)
             // TODO: Notify clients to refresh and get updated server content
             // This will trigger the client to re-fetch the page with new server components
           }
@@ -192,42 +198,46 @@ function setupServerHmr(project: Project) {
       }
     })().catch((err) => {
       console.error('[Server HMR] Subscription error:', err)
-      serverHmrSubscriptions.delete(identifier)
+      serverHmrSubscriptions.delete(chunkPath)
     })
   }
 
-  // Listen to the Rust bindings update us on changing server HMR identifiers
+  // Listen to the Rust bindings update us on changing server HMR chunk paths
   ;(async () => {
-    const serverHmrIdentifiers = project.serverHmrIdentifiersSubscribe()
+    const serverHmrChunkPaths = project.hmrIdentifiersSubscribe(
+      HmrTarget.Server
+    )
 
-    // Process identifiers (both initial and subsequent updates)
-    for await (const data of serverHmrIdentifiers) {
-      const currentIdentifiers = new Set(
-        data.identifiers.filter((id) => id.endsWith('.js'))
+    // Process chunk paths (both initial and subsequent updates)
+    for await (const data of serverHmrChunkPaths) {
+      const currentChunkPaths = new Set(
+        data.chunk_paths.filter((path) => path.endsWith('.js'))
       )
 
-      // Clean up subscriptions for removed identifiers (like when pages are deleted)
-      const identifiersToRemove = []
-      for (const identifier of serverHmrSubscriptions.keys()) {
-        if (!currentIdentifiers.has(identifier)) {
-          identifiersToRemove.push(identifier)
+      // Clean up subscriptions for removed chunk paths (like when pages are deleted)
+      const chunkPathsToRemove = []
+      for (const chunkPath of serverHmrSubscriptions.keys()) {
+        if (!currentChunkPaths.has(chunkPath)) {
+          chunkPathsToRemove.push(chunkPath)
         }
       }
 
-      for (const identifier of identifiersToRemove) {
-        const subscription = serverHmrSubscriptions.get(identifier)
+      for (const chunkPath of chunkPathsToRemove) {
+        const subscription = serverHmrSubscriptions.get(chunkPath)
         subscription?.return?.()
-        serverHmrSubscriptions.delete(identifier)
+        serverHmrSubscriptions.delete(chunkPath)
       }
 
-      // Subscribe to HMR events for new server modules
-      for (const identifier of currentIdentifiers) {
-        if (!serverHmrSubscriptions.has(identifier)) {
-          subscribeToServerHmr(identifier)
+      // Subscribe to HMR events for new server chunks
+      for (const chunkPath of currentChunkPaths) {
+        if (!serverHmrSubscriptions.has(chunkPath)) {
+          subscribeToServerHmr(chunkPath)
         }
       }
     }
-  })()
+  })().catch((err) => {
+    console.error('[Server HMR] error:', err)
+  })
 }
 
 /**
@@ -755,7 +765,7 @@ export async function createHotReloaderTurbopack(
       return
     }
 
-    const subscription = project!.clientHmrEvents(id)
+    const subscription = project!.hmrEvents(id, HmrTarget.Client)
     state.subscriptions.set(id, subscription)
 
     // The subscription will always emit once, which is the initial
@@ -766,7 +776,7 @@ export async function createHotReloaderTurbopack(
       for await (const data of subscription) {
         processIssues(state.clientIssues, key, data, false, true)
         if (data.type !== 'issues') {
-          sendTurbopackMessage(data)
+          sendTurbopackMessage(data as TurbopackUpdate)
         }
       }
     } catch (e) {
