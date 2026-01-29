@@ -2,7 +2,7 @@ const logger = require('./logger')
 const { promisify } = require('util')
 const { execFile, spawn: spawnOrig } = require('child_process')
 
-const execP = promisify(execFile)
+const execFileP = promisify(execFile)
 const env = {
   ...process.env,
   GITHUB_TOKEN: '',
