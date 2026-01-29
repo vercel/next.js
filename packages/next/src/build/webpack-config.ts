@@ -2115,6 +2115,8 @@ export default async function getBaseWebpackConfig(
       isClient &&
         new BuildManifestPlugin({
           buildId,
+          dev,
+          deploymentId: config.deploymentId,
           rewrites,
           isDevFallback,
           appDirEnabled: hasAppDir,

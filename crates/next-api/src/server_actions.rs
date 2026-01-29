@@ -206,7 +206,9 @@ async fn build_manifest(
             &key,
             ActionManifestWorkerEntry {
                 module_id: loader_id.clone(),
-                is_async: *async_module_info.is_async(chunk_item.module()).await?,
+                is_async: async_module_info
+                    .is_async(chunk_item.module().to_resolved().await?)
+                    .await?,
                 exported_name: name.as_str(),
                 filename: filename.as_str(),
             },

@@ -29,7 +29,6 @@ import {
   isPrefetchTaskDirty,
   type PrefetchTask,
   type PrefetchSubtaskResult,
-  startRevalidationCooldown,
 } from './scheduler'
 import {
   type RouteVaryPath,
@@ -86,11 +85,15 @@ import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
 } from '../../flight-data-helpers'
-import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
+import {
+  DYNAMIC_STALETIME_MS,
+  STATIC_STALETIME_MS,
+} from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
+import { readFromBFCacheDuringRegularNavigation } from './bfcache'
 
 /**
  * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
@@ -294,40 +297,69 @@ let segmentCacheMap: CacheMap<SegmentCacheEntry> = createCacheMap()
 // prefetch task if desired.
 let invalidationListeners: Set<PrefetchTask> | null = null
 
-// Incrementing counter used to track cache invalidations.
-let currentCacheVersion = 0
+// Incrementing counters used to track cache invalidations. Route and segment
+// caches have separate versions so they can be invalidated independently.
+// Invalidation does not eagerly evict anything from the cache; entries are
+// lazily evicted when read.
+let currentRouteCacheVersion = 0
+let currentSegmentCacheVersion = 0
 
-export function getCurrentCacheVersion(): number {
-  return currentCacheVersion
+export function getCurrentRouteCacheVersion(): number {
+  return currentRouteCacheVersion
+}
+
+export function getCurrentSegmentCacheVersion(): number {
+  return currentSegmentCacheVersion
 }
 
 /**
- * Used to clear the client prefetch cache when a server action calls
- * revalidatePath or revalidateTag. Eventually we will support only clearing the
- * segments that were actually affected, but there's more work to be done on the
- * server before the client is able to do this correctly.
+ * Invalidates all prefetch cache entries (both route and segment caches).
+ *
+ * After invalidation, triggers re-prefetching of visible links and notifies
+ * invalidation listeners.
  */
-export function revalidateEntireCache(
+export function invalidateEntirePrefetchCache(
   nextUrl: string | null,
   tree: FlightRouterState
-) {
-  // Increment the current cache version. This does not eagerly evict anything
-  // from the cache, but because all the entries are versioned, and we check
-  // the version when reading from the cache, this effectively causes all
-  // entries to be evicted lazily. We do it lazily because in the future,
-  // actions like revalidateTag or refresh will not evict the entire cache,
-  // but rather some subset of the entries.
-  currentCacheVersion++
+): void {
+  currentRouteCacheVersion++
+  currentSegmentCacheVersion++
 
-  // Start a cooldown before re-prefetching to allow CDN cache propagation.
-  startRevalidationCooldown()
-
-  // Prefetch all the currently visible links again, to re-fill the cache.
   pingVisibleLinks(nextUrl, tree)
+  pingInvalidationListeners(nextUrl, tree)
+}
 
-  // Similarly, notify all invalidation listeners (i.e. those passed to
-  // `router.prefetch(onInvalidate)`), so they can trigger a new prefetch
-  // if needed.
+/**
+ * Invalidates all route cache entries. Route entries contain the tree structure
+ * (which segments exist at a given URL) but not the segment data itself.
+ *
+ * After invalidation, triggers re-prefetching of visible links and notifies
+ * invalidation listeners.
+ */
+export function invalidateRouteCacheEntries(
+  nextUrl: string | null,
+  tree: FlightRouterState
+): void {
+  currentRouteCacheVersion++
+
+  pingVisibleLinks(nextUrl, tree)
+  pingInvalidationListeners(nextUrl, tree)
+}
+
+/**
+ * Invalidates all segment cache entries. Segment entries contain the actual
+ * RSC data for each segment.
+ *
+ * After invalidation, triggers re-prefetching of visible links and notifies
+ * invalidation listeners.
+ */
+export function invalidateSegmentCacheEntries(
+  nextUrl: string | null,
+  tree: FlightRouterState
+): void {
+  currentSegmentCacheVersion++
+
+  pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
 }
 
@@ -397,7 +429,7 @@ export function readRouteCacheEntry(
   const isRevalidation = false
   return getFromCacheMap(
     now,
-    getCurrentCacheVersion(),
+    getCurrentRouteCacheVersion(),
     routeCacheMap,
     varyPath,
     isRevalidation
@@ -411,7 +443,7 @@ export function readSegmentCacheEntry(
   const isRevalidation = false
   return getFromCacheMap(
     now,
-    getCurrentCacheVersion(),
+    getCurrentSegmentCacheVersion(),
     segmentCacheMap,
     varyPath,
     isRevalidation
@@ -425,7 +457,7 @@ function readRevalidatingSegmentCacheEntry(
   const isRevalidation = true
   return getFromCacheMap(
     now,
-    getCurrentCacheVersion(),
+    getCurrentSegmentCacheVersion(),
     segmentCacheMap,
     varyPath,
     isRevalidation
@@ -483,7 +515,7 @@ export function readOrCreateRouteCacheEntry(
     // Since this is an empty entry, there's no reason to ever evict it. It will
     // be updated when the data is populated.
     staleAt: Infinity,
-    version: getCurrentCacheVersion(),
+    version: getCurrentRouteCacheVersion(),
   }
   const varyPath: RouteVaryPath = getRouteVaryPath(
     key.pathname,
@@ -675,16 +707,17 @@ function createOptimisticRouteTree(
 export function readOrCreateSegmentCacheEntry(
   now: number,
   fetchStrategy: FetchStrategy,
-  route: FulfilledRouteCacheEntry,
   tree: RouteTree
 ): SegmentCacheEntry {
   const existingEntry = readSegmentCacheEntry(now, tree.varyPath)
   if (existingEntry !== null) {
     return existingEntry
   }
-  // Create a pending entry and add it to the cache.
+  // Create a pending entry and add it to the cache. The stale time is set to a
+  // default value; the actual stale time will be set when the entry is
+  // fulfilled with data from the server response.
   const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
-  const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
+  const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = false
   setInCacheMap(
     segmentCacheMap,
@@ -698,7 +731,6 @@ export function readOrCreateSegmentCacheEntry(
 export function readOrCreateRevalidatingSegmentEntry(
   now: number,
   fetchStrategy: FetchStrategy,
-  route: FulfilledRouteCacheEntry,
   tree: RouteTree
 ): SegmentCacheEntry {
   // This function is called when we've already confirmed that a particular
@@ -732,9 +764,11 @@ export function readOrCreateRevalidatingSegmentEntry(
   if (existingEntry !== null) {
     return existingEntry
   }
-  // Create a pending entry and add it to the cache.
+  // Create a pending entry and add it to the cache. The stale time is set to a
+  // default value; the actual stale time will be set when the entry is
+  // fulfilled with data from the server response.
   const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
-  const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
+  const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(
     segmentCacheMap,
@@ -746,15 +780,17 @@ export function readOrCreateRevalidatingSegmentEntry(
 }
 
 export function overwriteRevalidatingSegmentCacheEntry(
+  now: number,
   fetchStrategy: FetchStrategy,
-  route: FulfilledRouteCacheEntry,
   tree: RouteTree
 ) {
   // This function is called when we've already decided to replace an existing
   // revalidation entry. Create a new entry and write it into the cache,
-  // overwriting the previous value.
+  // overwriting the previous value. The stale time is set to a default value;
+  // the actual stale time will be set when the entry is fulfilled with data
+  // from the server response.
   const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
-  const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
+  const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(
     segmentCacheMap,
@@ -777,7 +813,7 @@ export function upsertSegmentEntry(
   // since the request was made. We can do that by passing the "owner" entry to
   // this function and confirming it's the same as `existingEntry`.
 
-  if (isValueExpired(now, getCurrentCacheVersion(), candidateEntry)) {
+  if (isValueExpired(now, getCurrentSegmentCacheVersion(), candidateEntry)) {
     // The entry is expired. We cannot upsert it.
     return null
   }
@@ -820,8 +856,11 @@ export function upsertSegmentEntry(
 }
 
 export function createDetachedSegmentCacheEntry(
-  staleAt: number
+  now: number
 ): EmptySegmentCacheEntry {
+  // Default stale time for pending segment cache entries. The actual stale time
+  // is set when the entry is fulfilled with data from the server response.
+  const staleAt = now + 30 * 1000
   const emptyEntry: EmptySegmentCacheEntry = {
     status: EntryStatus.Empty,
     // Default to assuming the fetch strategy will be PPR. This will be updated
@@ -856,12 +895,57 @@ export function upgradeToPendingSegment(
   }
 
   // Set the version here, since this is right before the request is initiated.
-  // The next time the global cache version is incremented, the entry will
+  // The next time the segment cache version is incremented, the entry will
   // effectively be evicted. This happens before initiating the request, rather
   // than when receiving the response, because it's guaranteed to happen
   // before the data is read on the server.
-  pendingEntry.version = getCurrentCacheVersion()
+  pendingEntry.version = getCurrentSegmentCacheVersion()
   return pendingEntry
+}
+
+export function attemptToFulfillDynamicSegmentFromBFCache(
+  now: number,
+  segment: EmptySegmentCacheEntry,
+  tree: RouteTree
+): FulfilledSegmentCacheEntry | null {
+  // Attempts to fulfill an empty segment cache entry using data from the
+  // bfcache. This is only valid during a Full prefetch (i.e. one that includes
+  // dynamic data), because the bfcache stores data from navigations which
+  // always include dynamic data.
+
+  // We always use the canonical vary path when checking the bfcache. This is
+  // the same operation we'd use to access the cache during a
+  // regular navigation.
+  const varyPath = tree.varyPath
+
+  // The stale time for dynamic prefetches (default: 5 mins) is different from
+  // the stale time for regular navigations (default: 0 secs). We adjust the
+  // current timestamp to account for the difference.
+  const adjustedCurrentTime = now - STATIC_STALETIME_MS + DYNAMIC_STALETIME_MS
+  const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
+    adjustedCurrentTime,
+    varyPath
+  )
+  if (bfcacheEntry !== null) {
+    // Fulfill the prefetch using the bfcache entry.
+
+    // As explained above, the stale time of this prefetch entry is different
+    // than the one for the bfcache. Calculate when it was originally requested
+    // by subtracting the stale time used by the bfcache.
+    const requestedAt = bfcacheEntry.staleAt - DYNAMIC_STALETIME_MS
+    // Now add the stale time used by dynamic prefetches.
+    const dynamicPrefetchStaleAt = requestedAt + STATIC_STALETIME_MS
+
+    const pendingSegment = upgradeToPendingSegment(segment, FetchStrategy.Full)
+    const isPartial = false
+    return fulfillSegmentCacheEntry(
+      pendingSegment,
+      bfcacheEntry.rsc,
+      dynamicPrefetchStaleAt,
+      isPartial
+    )
+  }
+  return null
 }
 
 function pingBlockedTasks(entry: {
@@ -877,10 +961,10 @@ function pingBlockedTasks(entry: {
 }
 
 function fulfillRouteCacheEntry(
+  now: number,
   entry: RouteCacheEntry,
   tree: RouteTree,
   metadataVaryPath: PageVaryPath,
-  staleAt: number,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   renderedSearch: NormalizedSearch,
@@ -908,7 +992,11 @@ function fulfillRouteCacheEntry(
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.tree = tree
   fulfilledEntry.metadata = metadata
-  fulfilledEntry.staleAt = staleAt
+  // Route structure is essentially static — it only changes on deploy.
+  // Always use the static stale time.
+  // NOTE: An exception is rewrites/redirects in middleware or proxy, which can
+  // change routes dynamically. We have other strategies for handling those.
+  fulfilledEntry.staleAt = now + STATIC_STALETIME_MS
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
@@ -1015,17 +1103,16 @@ function convertTreePrefetchToRouteTree(
     slots = {}
     for (let parallelRouteKey in prefetchSlots) {
       const childPrefetch = prefetchSlots[parallelRouteKey]
-      const childParamName = childPrefetch.name
-      const childParamType = childPrefetch.paramType
-      const childServerSentParamKey = childPrefetch.paramKey
+      const childSegmentName = childPrefetch.name
+      const childParam = childPrefetch.param
 
       let childDoesAppearInURL: boolean
       let childSegment: FlightRouterStateSegment
       let childPartialVaryPath: PartialSegmentVaryPath | null
-      if (childParamType !== null) {
+      if (childParam !== null) {
         // This segment is parameterized. Get the param from the pathname.
         const childParamValue = parseDynamicParamFromURLPart(
-          childParamType,
+          childParam.type,
           pathnameParts,
           pathnamePartsIndex
         )
@@ -1043,8 +1130,8 @@ function convertTreePrefetchToRouteTree(
         const childParamKey =
           // The server omits this field from the prefetch response when
           // cacheComponents is enabled.
-          childServerSentParamKey !== null
-            ? childServerSentParamKey
+          childParam.key !== null
+            ? childParam.key
             : // If no param key was sent, use the value parsed on the client.
               getCacheKeyForDynamicParam(
                 childParamValue,
@@ -1055,14 +1142,19 @@ function convertTreePrefetchToRouteTree(
           partialVaryPath,
           childParamKey
         )
-        childSegment = [childParamName, childParamKey, childParamType]
+        childSegment = [
+          childSegmentName,
+          childParamKey,
+          childParam.type,
+          childParam.siblings,
+        ]
         childDoesAppearInURL = true
       } else {
         // This segment does not have a param. Inherit the partial vary path of
         // the parent.
         childPartialVaryPath = partialVaryPath
-        childSegment = childParamName
-        childDoesAppearInURL = doesStaticSegmentAppearInURL(childParamName)
+        childSegment = childSegmentName
+        childDoesAppearInURL = doesStaticSegmentAppearInURL(childSegmentName)
       }
 
       // Only increment the index if the segment appears in the URL. If it's a
@@ -1530,12 +1622,11 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
-      const staleTimeMs = getStaleTimeMs(serverData.staleTime)
       fulfillRouteCacheEntry(
+        Date.now(),
         entry,
         routeTree,
         metadataVaryPath,
-        Date.now() + staleTimeMs,
         couldBeIntercepted,
         canonicalUrl,
         renderedSearch,
@@ -1712,13 +1803,12 @@ export async function fetchSegmentOnCacheMiss(
       rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
       return null
     }
+    const staleAt = Date.now() + getStaleTimeMs(serverData.staleTime)
     return {
       value: fulfillSegmentCacheEntry(
         segmentCacheEntry,
         serverData.rsc,
-        // TODO: The server does not currently provide per-segment stale time.
-        // So we use the stale time of the route.
-        route.staleAt,
+        staleAt,
         serverData.isPartial
       ),
       // Return a promise that resolves when the network connection closes, so
@@ -1900,16 +1990,6 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const flightRouterState = flightData.tree
-  // For runtime prefetches, stale time is in the payload at rp[1].
-  // For other responses, fall back to the header.
-  const staleTimeSeconds =
-    typeof serverData.rp?.[1] === 'number'
-      ? serverData.rp[1]
-      : parseInt(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '', 10)
-  const staleTimeMs = !isNaN(staleTimeSeconds)
-    ? getStaleTimeMs(staleTimeSeconds)
-    : STATIC_STALETIME_MS
-
   // If the response contains dynamic holes, then we must conservatively assume
   // that any individual segment might contain dynamic holes, and also the
   // head. If it did not contain dynamic holes, then we can assume every segment
@@ -1935,10 +2015,10 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const fulfilledEntry = fulfillRouteCacheEntry(
+    now,
     entry,
     routeTree,
     metadataVaryPath,
-    now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
     renderedSearch,
@@ -2052,7 +2132,6 @@ function writeDynamicRenderResponseIntoCache(
         now,
         task,
         fetchStrategy,
-        route,
         tree,
         staleAt,
         seedData,
@@ -2066,7 +2145,6 @@ function writeDynamicRenderResponseIntoCache(
       fulfillEntrySpawnedByRuntimePrefetch(
         now,
         fetchStrategy,
-        route,
         head,
         flightData.isHeadPartial,
         staleAt,
@@ -2100,7 +2178,6 @@ function writeSeedDataIntoCache(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  route: FulfilledRouteCacheEntry,
   tree: RouteTree,
   staleAt: number,
   seedData: CacheNodeSeedData,
@@ -2117,7 +2194,6 @@ function writeSeedDataIntoCache(
   fulfillEntrySpawnedByRuntimePrefetch(
     now,
     fetchStrategy,
-    route,
     rsc,
     isPartial,
     staleAt,
@@ -2138,7 +2214,6 @@ function writeSeedDataIntoCache(
           now,
           task,
           fetchStrategy,
-          route,
           childTree,
           staleAt,
           childSeedData,
@@ -2156,7 +2231,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  route: FulfilledRouteCacheEntry,
   rsc: React.ReactNode,
   isPartial: boolean,
   staleAt: number,
@@ -2180,7 +2254,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     const possiblyNewEntry = readOrCreateSegmentCacheEntry(
       now,
       fetchStrategy,
-      route,
       tree
     )
     if (possiblyNewEntry.status === EntryStatus.Empty) {
@@ -2197,7 +2270,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       // replace it with the new one from the server.
       const newEntry = fulfillSegmentCacheEntry(
         upgradeToPendingSegment(
-          createDetachedSegmentCacheEntry(staleAt),
+          createDetachedSegmentCacheEntry(now),
           fetchStrategy
         ),
         rsc,

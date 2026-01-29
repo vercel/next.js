@@ -45,7 +45,8 @@ import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
-import { revalidateEntireCache } from '../../segment-cache/cache'
+import { invalidateEntirePrefetchCache } from '../../segment-cache/cache'
+import { startRevalidationCooldown } from '../../segment-cache/scheduler'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import {
   completeHardNavigation,
@@ -291,11 +292,19 @@ export function serverActionReducer(
         // (ie, due to a navigation, before the action completed)
         action.didRevalidate = true
 
-        // If there was a revalidation, evict the entire prefetch cache.
+        // If there was a revalidation, evict the prefetch cache.
         // TODO: Evict only segments with matching tags and/or paths.
+        // TODO: We should only invalidate the route cache if cookies were
+        // mutated, since route trees may vary based on cookies. For now we
+        // invalidate both caches until we have a way to detect cookie
+        // mutations on the client.
         if (revalidationKind === ActionDidRevalidateStaticAndDynamic) {
-          revalidateEntireCache(nextUrl, state.tree)
+          invalidateEntirePrefetchCache(nextUrl, state.tree)
         }
+
+        // Start a cooldown before re-prefetching to allow CDN cache
+        // propagation.
+        startRevalidationCooldown()
       }
 
       const navigateType = redirectType || 'push'

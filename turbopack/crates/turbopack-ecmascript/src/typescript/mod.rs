@@ -4,13 +4,13 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences},
-    reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
+    reference_type::CommonJsReferenceSubType,
+    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 // TODO remove this
@@ -55,10 +55,7 @@ impl Module for TsConfigModuleAsset {
         let configs = read_tsconfigs(
             self.source.content().file_content(),
             self.source,
-            apply_cjs_specific_options(
-                self.origin
-                    .resolve_options(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
-            ),
+            apply_cjs_specific_options(self.origin.resolve_options()),
         )
         .await?;
         references.extend(
@@ -180,14 +177,6 @@ impl Module for TsConfigModuleAsset {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl Asset for TsConfigModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
-    }
-}
-
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CompilerReference {
@@ -215,7 +204,7 @@ impl ModuleReference for CompilerReference {
             *self.request,
             CommonJsReferenceSubType::Undefined,
             None,
-            false,
+            ResolveErrorMode::Error,
         )
     }
 }
@@ -295,7 +284,7 @@ impl ModuleReference for TsNodeRequireReference {
             *self.request,
             CommonJsReferenceSubType::Undefined,
             None,
-            false,
+            ResolveErrorMode::Error,
         )
     }
 }

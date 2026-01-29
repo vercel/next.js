@@ -1,7 +1,6 @@
 use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
-    asset::{Asset, AssetContent},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     source::{OptionSource, Source},
@@ -28,14 +27,6 @@ impl Module for RawModule {
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::SideEffectful.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for RawModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 

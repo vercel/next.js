@@ -620,7 +620,6 @@ async function generateCacheEntryImpl(
     case 'prerender-runtime':
     case 'prerender':
       const timeoutAbortController = new AbortController()
-
       // If we're prerendering, we give you 50 seconds to fill a cache entry.
       // Otherwise we assume you stalled on hanging input and de-opt. This needs
       // to be lower than just the general timeout of 60 seconds.
@@ -1384,6 +1383,10 @@ export async function cache(
 
       if (existingEntry !== undefined) {
         debug?.('Resume Data Cache entry found', serializedCacheKey)
+
+        if (prerenderResumeDataCache) {
+          prerenderResumeDataCache.cache.set(serializedCacheKey, cachedEntry)
+        }
 
         // We want to make sure we only propagate cache life & tags if the
         // entry was *not* omitted from the prerender. So we only do this

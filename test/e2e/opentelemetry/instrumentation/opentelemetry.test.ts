@@ -170,7 +170,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 7 : 6,
+                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -578,7 +578,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 10 : 8,
+                          'next.clientComponentLoadCount': isNextDev ? 12 : 10,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -701,7 +701,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                          'next.clientComponentLoadCount': isNextDev ? 9 : 8,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -1380,7 +1380,7 @@ describe('opentelemetry with custom server', () => {
                   },
                   {
                     attributes: {
-                      'next.clientComponentLoadCount': isNextDev ? 7 : 6,
+                      'next.clientComponentLoadCount': isNextDev ? 8 : 7,
                       'next.span_type': 'NextNodeServer.clientComponentLoading',
                     },
                     kind: 0,

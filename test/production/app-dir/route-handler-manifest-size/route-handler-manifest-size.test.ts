@@ -1,5 +1,5 @@
-import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { getClientReferenceManifest } from 'next-test-utils'
 import type { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
 
 describe('route-handler-manifest-size', () => {
@@ -12,38 +12,6 @@ describe('route-handler-manifest-size', () => {
   if (skipped) return
 
   /**
-   * Loads and returns the client reference manifest for a given route
-   */
-  function getClientReferenceManifest(route: string): ClientReferenceManifest {
-    const appDir = next.testDir
-    const manifestPath = join(
-      appDir,
-      `.next/server/app${route}_client-reference-manifest.js`
-    )
-    const modulePath = require.resolve(manifestPath)
-
-    // Clear any cached version
-    delete require.cache[modulePath]
-
-    // Initialize global if needed
-    if (!(globalThis as any).__RSC_MANIFEST) {
-      ;(globalThis as any).__RSC_MANIFEST = {}
-    }
-
-    // Load the manifest (it sets globalThis.__RSC_MANIFEST)
-    require(modulePath)
-
-    const manifest = (globalThis as any).__RSC_MANIFEST[
-      route
-    ] as ClientReferenceManifest
-
-    // Clean up require cache but keep manifest for potential re-reads
-    delete require.cache[modulePath]
-
-    return manifest
-  }
-
-  /**
    * Gets the module paths from clientModules
    */
   function getClientModulePaths(manifest: ClientReferenceManifest): string[] {
@@ -52,7 +20,7 @@ describe('route-handler-manifest-size', () => {
 
   if (isNextStart) {
     it('should not include page client components in pure route handler manifest', () => {
-      const manifest = getClientReferenceManifest('/api/hello/route')
+      const manifest = getClientReferenceManifest(next, '/api/hello/route')
       const modulePaths = getClientModulePaths(manifest)
 
       // The pure route handler should NOT contain client components from the page
@@ -66,7 +34,7 @@ describe('route-handler-manifest-size', () => {
     })
 
     it('should include page client components in page manifest', () => {
-      const manifest = getClientReferenceManifest('/page')
+      const manifest = getClientReferenceManifest(next, '/page')
       const modulePaths = getClientModulePaths(manifest)
 
       // The page should contain its client components
@@ -80,8 +48,8 @@ describe('route-handler-manifest-size', () => {
     })
 
     it('should have significantly smaller manifest for pure route handler compared to page', () => {
-      const routeManifest = getClientReferenceManifest('/api/hello/route')
-      const pageManifest = getClientReferenceManifest('/page')
+      const routeManifest = getClientReferenceManifest(next, '/api/hello/route')
+      const pageManifest = getClientReferenceManifest(next, '/page')
 
       const routeModuleCount = Object.keys(routeManifest.clientModules).length
       const pageModuleCount = Object.keys(pageManifest.clientModules).length
@@ -92,7 +60,10 @@ describe('route-handler-manifest-size', () => {
     })
 
     it('should not include page components in route handler that imports client module', () => {
-      const manifest = getClientReferenceManifest('/api-with-client/route')
+      const manifest = getClientReferenceManifest(
+        next,
+        '/api-with-client/route'
+      )
       const modulePaths = getClientModulePaths(manifest)
 
       // Route handler should NOT have unrelated client components from the page

@@ -9,13 +9,10 @@ use rustc_hash::FxHashMap;
 use tracing::{span::Span, trace_span};
 use turbo_tasks::TaskId;
 
-use crate::{
-    backend::{
-        TaskDataCategory,
-        operation::{ExecuteContext, Operation, TaskGuard},
-        storage::{get, iter_many},
-    },
-    data::CachedDataItem,
+use crate::backend::{
+    TaskDataCategory,
+    operation::{ExecuteContext, Operation},
+    storage_schema::TaskStorageAccessors,
 };
 
 /// The maximum number of leaf distance updates to process before yielding back to the executor.
@@ -147,7 +144,7 @@ impl LeafDistanceUpdateQueue {
             TaskDataCategory::Data,
         );
         debug_assert!(dependencies_max_distance_in_buffer < u32::MAX / 2);
-        let mut leaf_distance = get!(task, LeafDistance).copied().unwrap_or_default();
+        let mut leaf_distance = task.get_leaf_distance().copied().unwrap_or_default();
         if leaf_distance.distance > dependencies_distance {
             // It is strictly monotonic. No need to update.
             return;
@@ -164,27 +161,22 @@ impl LeafDistanceUpdateQueue {
             // We are within the buffer zone, keep the max as is
             leaf_distance.distance = dependencies_distance + 1;
         }
-        let dependents = iter_many!(task, OutputDependent { task } => task)
-            // TODO Technically this is also needed, but there are cycles in the CellDependent graph
-            // So we need to handle that properly first
-            // When enabling this, make sure to also call the leaf update queue when adding CellDependents
-            // .chain(iter_many!(task, CellDependent { task, .. } => task))
-            ;
-        for dependent_id in dependents {
+        // TODO Technically CellDependent is also needed, but there are cycles in the CellDependent
+        // graph. So we need to handle that properly first. When enabling this, make sure to also
+        // call the leaf update queue when adding CellDependents.
+        for dependent_id in task.iter_output_dependent() {
             self.push(
                 dependent_id,
                 leaf_distance.distance,
                 leaf_distance.max_distance_in_buffer,
             );
         }
-        task.insert(CachedDataItem::LeafDistance {
-            value: leaf_distance,
-        });
+        task.set_leaf_distance(leaf_distance);
     }
 }
 
 impl Operation for LeafDistanceUpdateQueue {
-    fn execute(mut self, ctx: &mut impl ExecuteContext) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
         if self.is_empty() {
             return;
         }

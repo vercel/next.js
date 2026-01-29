@@ -117,7 +117,11 @@ async fn rule_condition_from_webpack_condition(
                 anyhow::bail!("{name:?} is not a valid built-in condition")
             }
         },
-        ConditionItem::Base { path, content } => {
+        ConditionItem::Base {
+            path,
+            content,
+            query,
+        } => {
             let mut rule_conditions = Vec::new();
             match &path {
                 Some(ConditionPath::Glob(glob)) => rule_conditions.push(
@@ -128,6 +132,16 @@ async fn rule_condition_from_webpack_condition(
                 }
                 None => {}
             }
+            match &query {
+                Some(ConditionQuery::Constant(value)) => {
+                    rule_conditions.push(RuleCondition::ResourceQueryEquals(value.clone().into()));
+                }
+                Some(ConditionQuery::Regex(regex)) => {
+                    rule_conditions.push(RuleCondition::ResourceQueryEsRegex(regex.await?));
+                }
+                None => {}
+            }
+            // Add the content condition last since matching requires a more expensive file read.
             if let Some(content) = content {
                 rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
             }
@@ -222,6 +236,7 @@ impl ModuleOptions {
                     ref module_css_condition,
                     ..
                 },
+            ref static_url_tag,
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             environment,
@@ -440,13 +455,13 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
@@ -454,13 +469,13 @@ impl ModuleOptions {
                     UrlReferenceSubType::EcmaScriptNewUrl,
                 )),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss {
-                    tag: None,
+                    tag: static_url_tag.clone(),
                 })],
             ),
         ];
