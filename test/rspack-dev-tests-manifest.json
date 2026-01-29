@@ -533,10 +533,10 @@
     "runtimeError": false
   },
   "test/development/app-dir/browser-log-forwarding/fixtures/verbose-level/verbose-level.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "browser-log-forwarding verbose level should forward all logs to terminal"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1126,7 +1126,8 @@
       "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should not warn about \"Single item size exceeds maxSize\"",
       "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should still use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
-      "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests"
+      "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache should support reading from an infinite streaming fetch"
     ],
     "failed": [],
     "pending": [],
@@ -2890,6 +2891,7 @@
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
+      "app-dir action handling should error if server action arguments list is too long",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle action correctly with middleware rewrite",
@@ -3019,6 +3021,7 @@
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
+      "app-dir action handling should error if server action arguments list is too long",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle action correctly with middleware rewrite",
@@ -5766,10 +5769,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/interception-routes-output-export/interception-routes-output-export.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "interception-routes-output-export should error when using interception routes with static export"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9859,10 +9862,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
-    "passed": ["use-cache-without-experimental-flag should show a build error"],
-    "failed": [
-      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set"
+    "passed": [
+      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set",
+      "use-cache-without-experimental-flag should show a build error"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12478,6 +12482,18 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/postcss-config-ts/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "postcss-config-ts .postcssrc.ts works with .postcssrc.ts files",
+      "postcss-config-ts postcss.config.cts works with postcss.config.cts files",
+      "postcss-config-ts postcss.config.mts works with postcss.config.mts files",
+      "postcss-config-ts postcss.config.ts works with postcss.config.ts files"
+    ],
     "flakey": [],
     "runtimeError": false
   },
