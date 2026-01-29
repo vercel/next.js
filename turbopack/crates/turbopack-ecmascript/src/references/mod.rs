@@ -1626,9 +1626,15 @@ async fn compile_time_info_for_module_options(
         .or_insert(rcstr!("string").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(dir_name)])
-        .or_insert(FreeVarReference::InputRelative(
-            InputRelativeConstant::DirName,
-        ));
+        .or_insert(if is_esm {
+            FreeVarReference::InputRelative(
+                InputRelativeConstant::DirName,
+            )
+        } else {
+            FreeVarReference::CjsPath(
+                CjsPathConstant::DirName,
+            )
+        });
     let file_name = rcstr!("__filename");
 
     free_var_references
@@ -1639,9 +1645,15 @@ async fn compile_time_info_for_module_options(
         .or_insert(rcstr!("string").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(file_name)])
-        .or_insert(FreeVarReference::InputRelative(
-            InputRelativeConstant::FileName,
-        ));
+        .or_insert(if is_esm {
+            FreeVarReference::InputRelative(
+                InputRelativeConstant::FileName,
+            )
+        } else {
+            FreeVarReference::CjsPath(
+                CjsPathConstant::FileName,
+            )
+        });
 
     // Compiletime rewrite the nodejs `global` to `__turbopack_context_.g` which is a shortcut for
     // `globalThis` that cannot be shadowed by a local variable.
@@ -2980,6 +2992,17 @@ async fn handle_free_var_reference(
             let source_path = match kind {
                 InputRelativeConstant::DirName => source_path.parent(),
                 InputRelativeConstant::FileName => source_path,
+            };
+            analysis.add_code_gen(ConstantValueCodeGen::new(
+                as_abs_path(source_path).into(),
+                ast_path.to_vec().into(),
+            ));
+        }
+        FreeVarReference::CjsPath(kind) => {
+            let source_path = state.origin.origin_path().owned().await?;
+            let source_path = match kind {
+                CjsPathConstant::DirName => source_path.parent(),
+                CjsPathConstant::FileName => source_path,
             };
             analysis.add_code_gen(ConstantValueCodeGen::new(
                 as_abs_path(source_path).into(),
