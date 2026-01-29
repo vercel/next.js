@@ -2160,8 +2160,7 @@ fn generate_flag_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
 
     // Flags use check_access_call() which handles transient vs non-transient
     let check_access = field.check_access_call();
-    // All flags modify meta category (they're stored in the flags bitfield which is meta)
-    let track_modification = quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); };
+    let track_modification = field.track_modification_call();
 
     quote! {
         #[doc = "Get the flag value"]
