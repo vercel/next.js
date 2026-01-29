@@ -202,7 +202,12 @@ export class Lockfile {
             )
           }
           console.error()
-          console.error(`Run ${cyan(`kill ${serverInfo.pid}`)} to stop it.`)
+          // Use platform-appropriate kill command
+          const killCommand =
+            process.platform === 'win32'
+              ? `taskkill /PID ${serverInfo.pid} /F`
+              : `kill ${serverInfo.pid}`
+          console.error(`Run ${cyan(killCommand)} to stop it.`)
         } else {
           Log.error(
             `Another ${cyan(processName)} process is already running in this directory.`
