@@ -20,7 +20,7 @@ use turbopack_core::{
     file_source::FileSource,
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOrigin, parse::Request},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
     traced_asset::TracedAsset,
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -245,7 +245,7 @@ impl ServerNftJsonAsset {
                                 Request::parse_string(path.into()),
                                 CommonJsReferenceSubType::Undefined,
                                 None,
-                                false,
+                                ResolveErrorMode::Error,
                             )
                             .primary_modules()
                             .await?

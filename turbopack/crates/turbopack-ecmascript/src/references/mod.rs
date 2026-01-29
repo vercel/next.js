@@ -79,7 +79,7 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        FindContextFileResult, ImportUsage, ModulePart, find_context_file,
+        FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode, find_context_file,
         origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
         pattern::Pattern,
@@ -1321,6 +1321,7 @@ async fn analyze_ecmascript_module_internal(
                         &mut analysis,
                         in_try,
                         new,
+                        eval_context.imports.get_attributes(span),
                     )
                     .await?;
                 }
@@ -1397,6 +1398,7 @@ async fn analyze_ecmascript_module_internal(
                         &mut analysis,
                         in_try,
                         new,
+                        eval_context.imports.get_attributes(span),
                     )
                     .await?;
                 }
@@ -1705,6 +1707,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     in_try: bool,
     new: bool,
+    attributes: &ImportAttributes,
 ) -> Result<()> {
     let &AnalysisState {
         handler,
@@ -1776,6 +1779,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         state,
                         collect_affecting_sources,
                         tracing_only,
+                        attributes,
                     )
                     .await?;
                 }
@@ -1799,6 +1803,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 state,
                 collect_affecting_sources,
                 tracing_only,
+                attributes,
             )
             .await?;
         }
@@ -1825,6 +1830,7 @@ async fn handle_well_known_function_call<'a, F, Fut>(
     state: &'a AnalysisState<'a>,
     collect_affecting_sources: bool,
     tracing_only: bool,
+    attributes: &ImportAttributes,
 ) -> Result<()>
 where
     F: Fn() -> Fut,
@@ -1833,6 +1839,15 @@ where
     fn explain_args(args: &[JsValue]) -> (String, String) {
         JsValue::explain_args(args, 10, 2)
     }
+
+    // Compute error mode from in_try and attributes.optional
+    let error_mode = if attributes.optional {
+        ResolveErrorMode::Ignore
+    } else if in_try {
+        ResolveErrorMode::Warn
+    } else {
+        ResolveErrorMode::Error
+    };
 
     let get_traced_project_dir = async || -> Result<FileSystemPath> {
         // readFileSync("./foo") should always be relative to the project root, but this is
@@ -1884,13 +1899,18 @@ where
                             return Ok(());
                         }
                     }
+                    let error_mode = if in_try {
+                        ResolveErrorMode::Warn
+                    } else {
+                        ResolveErrorMode::Error
+                    };
                     analysis.add_reference_code_gen(
                         UrlAssetReference::new(
                             origin,
                             Request::parse(pat).to_resolved().await?,
                             *compile_time_info.environment().rendering().await?,
                             issue_source(source, span),
-                            in_try,
+                            error_mode,
                             url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
                         ),
                         ast_path.to_vec().into(),
@@ -1923,12 +1943,17 @@ where
                     }
 
                     if *compile_time_info.environment().rendering().await? == Rendering::Client {
+                        let error_mode = if in_try {
+                            ResolveErrorMode::Warn
+                        } else {
+                            ResolveErrorMode::Error
+                        };
                         analysis.add_reference_code_gen(
                             WorkerAssetReference::new_web_worker(
                                 origin,
                                 Request::parse(pat).to_resolved().await?,
                                 issue_source(source, span),
-                                in_try,
+                                error_mode,
                                 tracing_only,
                                 is_shared,
                             ),
@@ -1959,6 +1984,11 @@ where
                         }
                     }
 
+                    let error_mode = if in_try {
+                        ResolveErrorMode::Warn
+                    } else {
+                        ResolveErrorMode::Error
+                    };
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
                             origin,
@@ -1967,7 +1997,7 @@ where
                             Pattern::new(pat).to_resolved().await?,
                             collect_affecting_sources,
                             get_issue_source(),
-                            in_try,
+                            error_mode,
                             tracing_only,
                         ),
                         ast_path.to_vec().into(),
@@ -2039,7 +2069,7 @@ where
                         Request::parse(pat).to_resolved().await?,
                         issue_source(source, span),
                         import_annotations,
-                        in_try,
+                        error_mode,
                         state.import_externals,
                     ),
                     ast_path.to_vec().into(),
@@ -2078,7 +2108,7 @@ where
                         origin,
                         Request::parse(pat).to_resolved().await?,
                         issue_source(source, span),
-                        in_try,
+                        error_mode,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2100,7 +2130,7 @@ where
                 span,
                 ast_path,
                 linked_args().await?,
-                in_try,
+                error_mode,
             )
             .await?;
         }
@@ -2131,7 +2161,7 @@ where
                         origin,
                         Request::parse(pat).to_resolved().await?,
                         issue_source(source, span),
-                        in_try,
+                        error_mode,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2175,7 +2205,7 @@ where
                     options.include_subdirs,
                     options.filter.cell(),
                     Some(issue_source(source, span)),
-                    in_try,
+                    error_mode,
                 )
                 .await?,
                 ast_path.to_vec().into(),
@@ -2329,12 +2359,17 @@ where
                         show_dynamic_warning = true;
                     }
                     if !dynamic || !ignore_dynamic_requests {
+                        let error_mode = if in_try {
+                            ResolveErrorMode::Warn
+                        } else {
+                            ResolveErrorMode::Error
+                        };
                         analysis.add_reference(
                             CjsAssetReference::new(
                                 *origin,
                                 Request::parse(pat),
                                 issue_source(source, span),
-                                in_try,
+                                error_mode,
                             )
                             .to_resolved()
                             .await?,
@@ -2400,12 +2435,17 @@ where
                         return Ok(());
                     }
                 }
+                let error_mode = if in_try {
+                    ResolveErrorMode::Warn
+                } else {
+                    ResolveErrorMode::Error
+                };
                 analysis.add_reference(
                     CjsAssetReference::new(
                         *origin,
                         Request::parse(pat),
                         issue_source(source, span),
-                        in_try,
+                        error_mode,
                     )
                     .to_resolved()
                     .await?,
@@ -2590,12 +2630,17 @@ where
                         if let Some(pkg) = pkg_or_dir.as_str() {
                             if pkg != "html" {
                                 let pat = js_value_to_pattern(pkg_or_dir);
+                                let error_mode = if in_try {
+                                    ResolveErrorMode::Warn
+                                } else {
+                                    ResolveErrorMode::Error
+                                };
                                 analysis.add_reference(
                                     CjsAssetReference::new(
                                         *origin,
                                         Request::parse(pat),
                                         issue_source(source, span),
-                                        in_try,
+                                        error_mode,
                                     )
                                     .to_resolved()
                                     .await?,
@@ -2667,12 +2712,17 @@ where
         WellKnownFunctionKind::NodeResolveFrom if analysis.analyze_mode.is_tracing_assets() => {
             let args = linked_args().await?;
             if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
+                let error_mode = if in_try {
+                    ResolveErrorMode::Warn
+                } else {
+                    ResolveErrorMode::Error
+                };
                 analysis.add_reference(
                     CjsAssetReference::new(
                         *origin,
                         Request::parse(js_value_to_pattern(&args[1])),
                         issue_source(source, span),
-                        in_try,
+                        error_mode,
                     )
                     .to_resolved()
                     .await?,
@@ -2964,7 +3014,7 @@ async fn analyze_amd_define(
     span: Span,
     ast_path: &[AstParentKind],
     args: &[JsValue],
-    in_try: bool,
+    error_mode: ResolveErrorMode,
 ) -> Result<()> {
     match args {
         [JsValue::Constant(id), JsValue::Array { items: deps, .. }, _] if id.as_str().is_some() => {
@@ -2977,13 +3027,13 @@ async fn analyze_amd_define(
                 ast_path,
                 id.as_str(),
                 deps,
-                in_try,
+                error_mode,
             )
             .await?;
         }
         [JsValue::Array { items: deps, .. }, _] => {
             analyze_amd_define_with_deps(
-                source, analysis, origin, handler, span, ast_path, None, deps, in_try,
+                source, analysis, origin, handler, span, ast_path, None, deps, error_mode,
             )
             .await?;
         }
@@ -2998,7 +3048,7 @@ async fn analyze_amd_define(
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Function,
                 issue_source(source, span),
-                in_try,
+                error_mode,
             ));
         }
         [JsValue::Constant(id), _] if id.as_str().is_some() => {
@@ -3012,7 +3062,7 @@ async fn analyze_amd_define(
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Unknown,
                 issue_source(source, span),
-                in_try,
+                error_mode,
             ));
         }
         [JsValue::Function(..)] => {
@@ -3026,7 +3076,7 @@ async fn analyze_amd_define(
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Function,
                 issue_source(source, span),
-                in_try,
+                error_mode,
             ));
         }
         [JsValue::Object { .. }] => {
@@ -3036,7 +3086,7 @@ async fn analyze_amd_define(
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Value,
                 issue_source(source, span),
-                in_try,
+                error_mode,
             ));
         }
         [_] => {
@@ -3050,7 +3100,7 @@ async fn analyze_amd_define(
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Unknown,
                 issue_source(source, span),
-                in_try,
+                error_mode,
             ));
         }
         _ => {
@@ -3074,7 +3124,7 @@ async fn analyze_amd_define_with_deps(
     ast_path: &[AstParentKind],
     id: Option<&str>,
     deps: &[JsValue],
-    in_try: bool,
+    error_mode: ResolveErrorMode,
 ) -> Result<()> {
     let mut requests = Vec::new();
     for dep in deps {
@@ -3102,7 +3152,7 @@ async fn analyze_amd_define_with_deps(
                         *origin,
                         *request,
                         issue_source(source, span),
-                        in_try,
+                        error_mode,
                     )
                     .to_resolved()
                     .await?;
@@ -3138,7 +3188,7 @@ async fn analyze_amd_define_with_deps(
         ast_path.to_vec().into(),
         AmdDefineFactoryType::Function,
         issue_source(source, span),
-        in_try,
+        error_mode,
     ));
 
     Ok(())
@@ -3355,7 +3405,7 @@ async fn require_resolve_visitor(
             request,
             CommonJsReferenceSubType::Undefined,
             None,
-            true,
+            ResolveErrorMode::Warn,
         )
         .resolve()
         .await?;
@@ -3430,7 +3480,7 @@ async fn require_context_visitor(
         options.include_subdirs,
         options.filter.cell(),
         None,
-        true,
+        ResolveErrorMode::Warn,
     );
 
     Ok(JsValue::WellKnownFunction(

@@ -74,7 +74,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         asset::Asset,
         module::Module,
         reference_type::{CommonJsReferenceSubType, ReferenceType},
-        resolve::{handle_resolve_error, parse::Request, resolve},
+        resolve::{ResolveErrorMode, handle_resolve_error, parse::Request, resolve},
     };
     use turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::{
         SwcEcmaTransformPluginsTransformer, SwcPluginModule,
@@ -120,7 +120,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
                     Vc::upcast(DummyResolveOrigin::new(project_path.clone())),
                     request,
                     resolve_options,
-                    false,
+                    ResolveErrorMode::Error,
                     // TODO proper error location
                     None,
                 )

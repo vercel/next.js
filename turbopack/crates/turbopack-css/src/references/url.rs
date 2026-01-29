@@ -16,7 +16,9 @@ use turbopack_core::{
     output::OutputAsset,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
+    resolve::{
+        ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request, url_resolve,
+    },
 };
 
 use crate::embed::CssEmbed;
@@ -79,7 +81,7 @@ impl ModuleReference for UrlAssetReference {
             *self.request,
             ReferenceType::Url(UrlReferenceSubType::CssUrl),
             Some(self.issue_source),
-            false,
+            ResolveErrorMode::Error,
         )
     }
 }

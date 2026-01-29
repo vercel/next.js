@@ -59,7 +59,7 @@ use turbopack_core::{
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
@@ -562,7 +562,7 @@ impl PagesProject {
                 },
             )),
             EcmaScriptModulesReferenceSubType::Undefined,
-            false,
+            ResolveErrorMode::Error,
             None,
         )
         .await?

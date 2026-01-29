@@ -67,6 +67,19 @@ pub use remap::{ResolveAliasMap, SubpathValue};
 
 use crate::{error::PrettyPrintError, issue::IssueSeverity};
 
+/// Controls how resolve errors are handled.
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Copy, Default, Hash, TaskInput)]
+pub enum ResolveErrorMode {
+    /// Emit an error issue (default behavior)
+    #[default]
+    Error,
+    /// Emit a warning issue (e.g., when inside a try-catch block)
+    Warn,
+    /// Completely ignore the error (e.g., when marked with `turbopackOptional`)
+    Ignore,
+}
+
 /// Type alias for a resolved after-resolve plugin paired with its condition.
 type AfterResolvePluginWithCondition = (
     ResolvedVc<Box<dyn AfterResolvePlugin>>,
@@ -1652,7 +1665,7 @@ pub async fn url_resolve(
     request: Vc<Request>,
     reference_type: ReferenceType,
     issue_source: Option<IssueSource>,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
 ) -> Result<Vc<ModuleResolveResult>> {
     let resolve_options = origin.resolve_options();
     let rel_request = request.as_relative();
@@ -1694,7 +1707,7 @@ pub async fn url_resolve(
         origin,
         request,
         resolve_options,
-        is_optional,
+        error_mode,
         issue_source,
     )
     .await
@@ -3249,14 +3262,14 @@ pub async fn handle_resolve_error(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
     source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     Ok(match result.await {
         Ok(result_ref) => {
             if result_ref.is_unresolvable_ref() {
                 emit_unresolvable_issue(
-                    is_optional,
+                    error_mode,
                     origin,
                     reference_type,
                     request,
@@ -3270,7 +3283,7 @@ pub async fn handle_resolve_error(
         }
         Err(err) => {
             emit_resolve_error_issue(
-                is_optional,
+                error_mode,
                 origin,
                 reference_type,
                 request,
@@ -3290,7 +3303,7 @@ pub async fn handle_resolve_source_error(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
     source: Option<IssueSource>,
 ) -> Result<Vc<ResolveResult>> {
     async fn is_unresolvable(result: Vc<ResolveResult>) -> Result<bool> {
@@ -3300,7 +3313,7 @@ pub async fn handle_resolve_source_error(
         Ok(unresolvable) => {
             if unresolvable {
                 emit_unresolvable_issue(
-                    is_optional,
+                    error_mode,
                     origin,
                     reference_type,
                     request,
@@ -3314,7 +3327,7 @@ pub async fn handle_resolve_source_error(
         }
         Err(err) => {
             emit_resolve_error_issue(
-                is_optional,
+                error_mode,
                 origin,
                 reference_type,
                 request,
@@ -3329,7 +3342,7 @@ pub async fn handle_resolve_source_error(
 }
 
 async fn emit_resolve_error_issue(
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
     origin: Vc<Box<dyn ResolveOrigin>>,
     reference_type: ReferenceType,
     request: Vc<Request>,
@@ -3337,7 +3350,10 @@ async fn emit_resolve_error_issue(
     err: anyhow::Error,
     source: Option<IssueSource>,
 ) -> Result<()> {
-    let severity = if is_optional || resolve_options.await?.loose_errors {
+    if error_mode == ResolveErrorMode::Ignore {
+        return Ok(());
+    }
+    let severity = if error_mode == ResolveErrorMode::Warn || resolve_options.await?.loose_errors {
         IssueSeverity::Warning
     } else {
         IssueSeverity::Error
@@ -3357,14 +3373,17 @@ async fn emit_resolve_error_issue(
 }
 
 async fn emit_unresolvable_issue(
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
     origin: Vc<Box<dyn ResolveOrigin>>,
     reference_type: ReferenceType,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     source: Option<IssueSource>,
 ) -> Result<()> {
-    let severity = if is_optional || resolve_options.await?.loose_errors {
+    if error_mode == ResolveErrorMode::Ignore {
+        return Ok(());
+    }
+    let severity = if error_mode == ResolveErrorMode::Warn || resolve_options.await?.loose_errors {
         IssueSeverity::Warning
     } else {
         IssueSeverity::Error

@@ -6,7 +6,7 @@ use turbopack_core::{
     context::AssetContext,
     module::Module,
     reference_type::CommonJsReferenceSubType,
-    resolve::{origin::PlainResolveOrigin, parse::Request},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -38,7 +38,7 @@ impl RuntimeEntry {
             *request,
             CommonJsReferenceSubType::Undefined,
             None,
-            false,
+            ResolveErrorMode::Error,
         )
         .resolve()
         .await?

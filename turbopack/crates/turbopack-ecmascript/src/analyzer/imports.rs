@@ -210,11 +210,24 @@ pub struct ImportAttributes {
     /// const b = import(/* turbopackIgnore: true */ "b");
     /// ```
     pub ignore: bool,
+    /// Should resolution errors be suppressed? If so, resolution errors will be completely
+    /// ignored (no error or warning emitted at build time).
+    ///
+    /// This is set by using a `turbopackOptional` comment.
+    ///
+    /// Example:
+    /// ```js
+    /// const a = import(/* turbopackOptional: true */ "a");
+    /// ```
+    pub optional: bool,
 }
 
 impl ImportAttributes {
     pub const fn empty() -> Self {
-        ImportAttributes { ignore: false }
+        ImportAttributes {
+            ignore: false,
+            optional: false,
+        }
     }
 
     pub fn empty_ref() -> &'static Self {
@@ -729,11 +742,13 @@ impl Visit for Analyzer<'_> {
         }
     }
 
-    /// check if import or require contains an ignore comment
+    /// check if import or require contains magic comments
     ///
     /// We are checking for the following cases:
     /// - import(/* webpackIgnore: true */ "a")
     /// - require(/* webpackIgnore: true */ "a")
+    /// - import(/* turbopackOptional: true */ "a")
+    /// - require(/* turbopackOptional: true */ "a")
     ///
     /// We can do this by checking if any of the comment spans are between the
     /// callee and the first argument.
@@ -749,15 +764,10 @@ impl Visit for Analyzer<'_> {
                 _ => None,
             };
 
-            let ignore_directive = parse_ignore_directive(comments, n.args.first());
+            let attributes = parse_directives(comments, n.args.first());
 
-            if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
-                self.data.attributes.insert(
-                    callee_span.lo,
-                    ImportAttributes {
-                        ignore: ignore_directive,
-                    },
-                );
+            if let Some((callee_span, attributes)) = callee_span.zip(attributes) {
+                self.data.attributes.insert(callee_span.lo, attributes);
             };
         }
 
@@ -772,15 +782,10 @@ impl Visit for Analyzer<'_> {
                 _ => None,
             };
 
-            let ignore_directive = parse_ignore_directive(comments, n.args.iter().flatten().next());
+            let attributes = parse_directives(comments, n.args.iter().flatten().next());
 
-            if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
-                self.data.attributes.insert(
-                    callee_span.lo,
-                    ImportAttributes {
-                        ignore: ignore_directive,
-                    },
-                );
+            if let Some((callee_span, attributes)) = callee_span.zip(attributes) {
+                self.data.attributes.insert(callee_span.lo, attributes);
             };
         }
 
@@ -788,24 +793,40 @@ impl Visit for Analyzer<'_> {
     }
 }
 
-fn parse_ignore_directive(comments: &dyn Comments, value: Option<&ExprOrSpread>) -> Option<bool> {
-    // we are interested here in the last comment with a valid directive
-    value
-        .map(|arg| arg.span_lo())
-        .and_then(|comment_pos| comments.get_leading(comment_pos))
-        .iter()
-        .flatten()
-        .rev()
-        .filter_map(|comment| {
-            let (directive, value) = comment.text.trim().split_once(':')?;
-            // support whitespace between the colon
-            match (directive.trim(), value.trim()) {
-                ("webpackIgnore" | "turbopackIgnore", "true") => Some(true),
-                ("webpackIgnore" | "turbopackIgnore", "false") => Some(false),
-                _ => None, // ignore anything else
+/// Parse magic comment directives from the leading comments of a call argument.
+/// Returns (ignore, optional) directives if any are found.
+fn parse_directives(
+    comments: &dyn Comments,
+    value: Option<&ExprOrSpread>,
+) -> Option<ImportAttributes> {
+    let comment_pos = value.map(|arg| arg.span_lo())?;
+    let leading_comments = comments.get_leading(comment_pos)?;
+
+    let mut ignore = None;
+    let mut optional = None;
+
+    // Process all comments, last one wins for each directive type
+    for comment in leading_comments.iter() {
+        if let Some((directive, val)) = comment.text.trim().split_once(':') {
+            match (directive.trim(), val.trim()) {
+                ("webpackIgnore" | "turbopackIgnore", "true") => ignore = Some(true),
+                ("webpackIgnore" | "turbopackIgnore", "false") => ignore = Some(false),
+                ("turbopackOptional", "true") => optional = Some(true),
+                ("turbopackOptional", "false") => optional = Some(false),
+                _ => {} // ignore anything else
             }
+        }
+    }
+
+    // Return Some only if at least one directive was found
+    if ignore.is_some() || optional.is_some() {
+        Some(ImportAttributes {
+            ignore: ignore.unwrap_or(false),
+            optional: optional.unwrap_or(false),
         })
-        .next()
+    } else {
+        None
+    }
 }
 
 fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {

@@ -172,6 +172,48 @@ const ClientComponent = dynamic(() =>
 )
 ```
 
+## Magic Comments
+
+Next.js supports magic comments to control how dynamic imports are handled by the bundler. These comments work with dynamic `import()`, `require()`, `require.resolve()`, and `new Worker()` expressions.
+
+> **Good to know:** Magic comments do not work with static `import` statements (`import x from 'y'`). They only work with dynamic expressions.
+
+### `webpackIgnore` / `turbopackIgnore`
+
+Use these comments to skip bundling a dynamic import. The import expression will be left as-is in the output, useful for runtime-only modules:
+
+```js
+// Skip bundling - import happens at runtime
+const runtime = await import(/* webpackIgnore: true */ 'runtime-module')
+
+// Turbopack-specific variant
+const plugin = await import(/* turbopackIgnore: true */ pluginPath)
+
+// Also works with require
+const mod = require(/* webpackIgnore: true */ 'runtime-module')
+```
+
+### `turbopackOptional` (Turbopack only)
+
+Use this comment to suppress build errors when a module might not exist. The import will still throw at runtime if the module is missing:
+
+```js
+// No build error if './optional-feature' doesn't exist
+// Runtime will throw MODULE_NOT_FOUND if executed
+const feature = await import(/* turbopackOptional: true */ './optional-feature')
+
+// Also works with require
+const mod = require(/* turbopackOptional: true */ './optional-module')
+```
+
+This is useful for:
+
+- Conditional features that may not be installed
+- Plugin systems where modules are optional
+- Gradual migrations where some files may not exist yet
+
+> **Good to know:** `webpackOptional` is not supported. Use `turbopackOptional` instead when using Turbopack.
+
 </AppOnly>
 
 <PagesOnly>

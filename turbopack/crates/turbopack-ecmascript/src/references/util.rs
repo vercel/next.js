@@ -23,6 +23,17 @@ pub fn throw_module_not_found_expr(request: &str) -> Expr {
     )
 }
 
+/// Creates a Promise that rejects with a "Cannot find module" error for the
+/// given request string. Use this for async contexts (dynamic imports).
+pub fn throw_module_not_found_expr_async(request: &str) -> Expr {
+    let message = format!("Cannot find module '{request}'");
+    quote!(
+        "Promise.resolve().then(() => { const e = new Error($message); e.code = 'MODULE_NOT_FOUND'; throw e; })"
+            as Expr,
+        message: Expr = message.into()
+    )
+}
+
 /// Creates a IIFE expression that throws a "Cannot find module" error for the
 /// given request string
 pub fn throw_module_not_found_error_expr(request: &str, message: &str) -> Expr {
