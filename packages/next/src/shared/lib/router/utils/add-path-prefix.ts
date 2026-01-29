@@ -10,5 +10,12 @@ export function addPathPrefix(path: string, prefix?: string) {
   }
 
   const { pathname, query, hash } = parsePath(path)
-  return `${prefix}${pathname}${query}${hash}`
+  
+  // Avoid duplicate prefix and normalize slashes
+  const normalizedPrefix = prefix.replace(/\/+$/, '')
+  if (pathname.startsWith(normalizedPrefix)) {
+    return path
+  }
+  
+  return `${normalizedPrefix}${pathname}${query}${hash}`
 }
