@@ -1993,3 +1993,7 @@ export function getClientReferenceManifest(
 
   return manifest
 }
+
+export const getCacheHeader = (curRes: Response) =>
+  // favor generic header
+  curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')

@@ -2,7 +2,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { links } from './components/links'
 import cheerio from 'cheerio'
-import { retry } from 'next-test-utils'
+import { getCacheHeader, retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 type Page = {
@@ -608,11 +608,7 @@ describe.skip('ppr-full', () => {
               )
             }
 
-            if (!isNextDeploy) {
-              expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
-            } else {
-              expect(res.headers.get('x-vercel-cache')).toBe('HIT')
-            }
+            expect(getCacheHeader(res)).toBe('HIT')
           })
         })
 
@@ -662,9 +658,7 @@ describe.skip('ppr-full', () => {
           ])
 
           if (isNextDeploy) {
-            expect(res.headers.get('x-vercel-cache')).toMatch(
-              /MISS|HIT|PRERENDER/
-            )
+            expect(getCacheHeader(res)).toMatch(/MISS|HIT|PRERENDER/)
           } else {
             expect(res.headers.get('x-nextjs-cache')).toEqual(null)
           }
