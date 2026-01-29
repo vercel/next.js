@@ -180,6 +180,28 @@ export function sortPages(pages: readonly string[]): readonly string[] {
 }
 
 /**
+ * Sorts an object by specificity of the keys using a deterministic depth-first traversal approach.
+ *
+ * @param obj - object of pages to sort
+ * @returns New sorted object (does not mutate input)
+ */
+export function sortPagesObject<T>(
+  obj: Readonly<Record<string, T>>
+): Record<string, T> {
+  // Because sort is always in-place, we need to create a shallow copy to avoid
+  // mutating the input.
+  return Object.keys(obj)
+    .sort(compareRouteSegments)
+    .reduce(
+      (acc, key) => {
+        acc[key] = obj[key]
+        return acc
+      },
+      {} as Record<string, T>
+    )
+}
+
+/**
  * Sorts an array of objects by sourcePage and page using a deterministic
  * depth-first traversal approach.
  *

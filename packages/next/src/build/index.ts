@@ -222,6 +222,7 @@ import { handleBuildComplete } from './adapter/build-complete'
 import {
   sortPageObjects,
   sortPages,
+  sortPagesObject,
   sortSortableRouteObjects,
 } from '../shared/lib/router/utils/sortable-routes'
 import { cp, mkdir, writeFile } from 'fs/promises'
@@ -546,11 +547,13 @@ async function readManifest<T extends object>(filePath: string): Promise<T> {
 
 async function writePrerenderManifest(
   distDir: string,
-  manifest: DeepReadonly<PrerenderManifest>
+  manifest: PrerenderManifest
 ): Promise<void> {
+  // Sort for deterministic outputs
+  manifest.routes = sortPagesObject(manifest.routes)
+  manifest.dynamicRoutes = sortPagesObject(manifest.dynamicRoutes)
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
 }
-
 async function writeClientSsgManifest(
   prerenderManifest: DeepReadonly<PrerenderManifest>,
   {
