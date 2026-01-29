@@ -313,25 +313,18 @@ export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export declare function projectClientHmrEvents(
+export declare function projectHmrEvents(
   project: { __napiType: 'Project' },
   identifier: RcStr,
-  func: (...args: any[]) => any
-): { __napiType: 'RootTask' }
-export declare function projectServerHmrEvents(
-  project: { __napiType: 'Project' },
-  identifier: RcStr,
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface HmrIdentifiers {
   identifiers: Array<RcStr>
 }
-export declare function projectClientHmrIdentifiersSubscribe(
+export declare function projectHmrIdentifiersSubscribe(
   project: { __napiType: 'Project' },
-  func: (...args: any[]) => any
-): { __napiType: 'RootTask' }
-export declare function projectServerHmrIdentifiersSubscribe(
-  project: { __napiType: 'Project' },
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface NapiUpdateMessage {

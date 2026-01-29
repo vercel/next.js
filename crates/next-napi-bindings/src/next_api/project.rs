@@ -1195,32 +1195,35 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, Encode, Decode, TraceRawVcs)]
+enum HmrTarget {
+    Client,
+    Server,
+}
+
+unsafe impl turbo_tasks::NonLocalValue for HmrTarget {}
+
+impl std::str::FromStr for HmrTarget {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "client" => Ok(HmrTarget::Client),
+            "server" => Ok(HmrTarget::Server),
+            _ => Err(format!(
+                "Invalid HMR target: '{}'. Expected 'client' or 'server'",
+                s
+            )),
+        }
+    }
+}
+
 #[turbo_tasks::value(serialization = "none")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
-}
-
-#[turbo_tasks::function(operation)]
-async fn client_hmr_update_with_issues_operation(
-    project: ResolvedVc<Project>,
-    identifier: RcStr,
-    state: ResolvedVc<VersionState>,
-) -> Result<Vc<HmrUpdateWithIssues>> {
-    let update_op = project_client_hmr_update_operation(project, identifier, state);
-    let update = update_op.read_strongly_consistent().await?;
-    let issues = get_issues(update_op, NEXT_ISSUE_FILTER).await?;
-    let diagnostics = get_diagnostics(update_op).await?;
-    let effects = Arc::new(get_effects(update_op).await?);
-    Ok(HmrUpdateWithIssues {
-        update,
-        issues,
-        diagnostics,
-        effects,
-    }
-    .cell())
 }
 
 #[turbo_tasks::function(operation)]
@@ -1242,12 +1245,16 @@ fn project_server_hmr_update_operation(
 }
 
 #[turbo_tasks::function(operation)]
-async fn server_hmr_update_with_issues_operation(
+async fn hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
     identifier: RcStr,
     state: ResolvedVc<VersionState>,
+    target: HmrTarget,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
-    let update_op = project_server_hmr_update_operation(project, identifier, state);
+    let update_op = match target {
+        HmrTarget::Client => project_client_hmr_update_operation(project, identifier, state),
+        HmrTarget::Server => project_server_hmr_update_operation(project, identifier, state),
+    };
     let update = update_op.read_strongly_consistent().await?;
     let issues = get_issues(update_op, NEXT_ISSUE_FILTER).await?;
     let diagnostics = get_diagnostics(update_op).await?;
@@ -1261,13 +1268,18 @@ async fn server_hmr_update_with_issues_operation(
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get client HMR events", skip(project, func))]
+#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_client_hmr_events(
+pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     identifier: RcStr,
+    target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    let hmr_target = target
+        .parse::<HmrTarget>()
+        .map_err(napi::Error::from_reason)?;
+
     let container = project.container;
     let session = TransientInstance::new(());
     subscribe(
@@ -1281,98 +1293,27 @@ pub fn project_client_hmr_events(
                 let session = session.clone();
                 async move {
                     let project = container.project().to_resolved().await?;
-                    let state = project
-                        .client_hmr_version_state(identifier.clone(), session)
-                        .to_resolved()
-                        .await?;
-
-                    let update_op =
-                        client_hmr_update_with_issues_operation(project, identifier.clone(), state);
-                    let update = update_op.read_strongly_consistent().await?;
-                    let HmrUpdateWithIssues {
-                        update,
-                        issues,
-                        diagnostics,
-                        effects,
-                    } = &*update;
-                    effects.apply().await?;
-                    match &**update {
-                        Update::Missing | Update::None => {}
-                        Update::Total(TotalUpdate { to }) => {
-                            state.set(to.clone()).await?;
+                    let state = match hmr_target {
+                        HmrTarget::Client => {
+                            project
+                                .client_hmr_version_state(identifier.clone(), session)
+                                .to_resolved()
+                                .await?
                         }
-                        Update::Partial(PartialUpdate { to, .. }) => {
-                            state.set(to.clone()).await?;
+                        HmrTarget::Server => {
+                            project
+                                .server_hmr_version_state(identifier.clone(), session)
+                                .to_resolved()
+                                .await?
                         }
-                    }
-                    Ok((Some(update.clone()), issues.clone(), diagnostics.clone()))
-                }
-            }
-        },
-        move |ctx| {
-            let (update, issues, diags) = ctx.value;
+                    };
 
-            let napi_issues = issues
-                .iter()
-                .map(|issue| NapiIssue::from(&**issue))
-                .collect();
-            let update_issues = issues
-                .iter()
-                .map(|issue| Issue::from(&**issue))
-                .collect::<Vec<_>>();
-
-            let identifier = ResourceIdentifier {
-                path: identifier.clone(),
-                headers: None,
-            };
-            let update = match update.as_deref() {
-                None | Some(Update::Missing) | Some(Update::Total(_)) => {
-                    ClientUpdateInstruction::restart(&identifier, &update_issues)
-                }
-                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
-                    &identifier,
-                    &update.instruction,
-                    &update_issues,
-                ),
-                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
-            };
-
-            Ok(vec![TurbopackResult {
-                result: ctx.env.to_js_value(&update)?,
-                issues: napi_issues,
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
-            }])
-        },
-    )
-}
-
-#[tracing::instrument(level = "info", name = "get server HMR events", skip(project, func))]
-#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_server_hmr_events(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    identifier: RcStr,
-    func: JsFunction,
-) -> napi::Result<External<RootTask>> {
-    let container = project.container;
-    let session = TransientInstance::new(());
-    subscribe(
-        project.turbopack_ctx.clone(),
-        func,
-        {
-            let outer_identifier = identifier.clone();
-            let session = session.clone();
-            move || {
-                let identifier: RcStr = outer_identifier.clone();
-                let session = session.clone();
-                async move {
-                    let project = container.project().to_resolved().await?;
-                    let state = project
-                        .server_hmr_version_state(identifier.clone(), session)
-                        .to_resolved()
-                        .await?;
-
-                    let update_op =
-                        server_hmr_update_with_issues_operation(project, identifier.clone(), state);
+                    let update_op = hmr_update_with_issues_operation(
+                        project,
+                        identifier.clone(),
+                        state,
+                        hmr_target,
+                    );
                     let update = update_op.read_strongly_consistent().await?;
                     let HmrUpdateWithIssues {
                         update,
@@ -1433,33 +1374,15 @@ pub fn project_server_hmr_events(
 
 #[napi(object)]
 struct HmrIdentifiers {
-    pub identifiers: Vec<RcStr>,
+    pub chunk_paths: Vec<RcStr>,
 }
 
 #[turbo_tasks::value(serialization = "none")]
 struct HmrIdentifiersWithIssues {
-    identifiers: ReadRef<Vec<RcStr>>,
+    chunk_paths: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
-}
-
-#[turbo_tasks::function(operation)]
-async fn get_client_hmr_identifiers_with_issues_operation(
-    container: ResolvedVc<ProjectContainer>,
-) -> Result<Vc<HmrIdentifiersWithIssues>> {
-    let hmr_identifiers_op = project_container_client_hmr_identifiers_operation(container);
-    let hmr_identifiers = hmr_identifiers_op.read_strongly_consistent().await?;
-    let issues = get_issues(hmr_identifiers_op, NEXT_ISSUE_FILTER).await?;
-    let diagnostics = get_diagnostics(hmr_identifiers_op).await?;
-    let effects = Arc::new(get_effects(hmr_identifiers_op).await?);
-    Ok(HmrIdentifiersWithIssues {
-        identifiers: hmr_identifiers,
-        issues,
-        diagnostics,
-        effects,
-    }
-    .cell())
 }
 
 #[turbo_tasks::function(operation)]
@@ -1477,16 +1400,20 @@ fn project_server_hmr_identifiers_operation(
 }
 
 #[turbo_tasks::function(operation)]
-async fn get_server_hmr_identifiers_with_issues_operation(
+async fn get_hmr_identifiers_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
+    target: HmrTarget,
 ) -> Result<Vc<HmrIdentifiersWithIssues>> {
-    let hmr_identifiers_op = project_server_hmr_identifiers_operation(container);
+    let hmr_identifiers_op = match target {
+        HmrTarget::Client => project_container_client_hmr_identifiers_operation(container),
+        HmrTarget::Server => project_server_hmr_identifiers_operation(container),
+    };
     let hmr_identifiers = hmr_identifiers_op.read_strongly_consistent().await?;
     let issues = get_issues(hmr_identifiers_op, NEXT_ISSUE_FILTER).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_op).await?;
     let effects = Arc::new(get_effects(hmr_identifiers_op).await?);
     Ok(HmrIdentifiersWithIssues {
-        identifiers: hmr_identifiers,
+        chunk_paths: hmr_identifiers,
         issues,
         diagnostics,
         effects,
@@ -1494,21 +1421,26 @@ async fn get_server_hmr_identifiers_with_issues_operation(
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get HMR identifiers", skip_all)]
+#[tracing::instrument(level = "info", name = "get HMR identifiers", skip(project, func), fields(target = %target))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_client_hmr_identifiers_subscribe(
+pub fn project_hmr_identifiers_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    let hmr_target = target
+        .parse::<HmrTarget>()
+        .map_err(napi::Error::from_reason)?;
+
     let container = project.container;
     subscribe(
         project.turbopack_ctx.clone(),
         func,
         move || async move {
             let hmr_identifiers_with_issues_op =
-                get_client_hmr_identifiers_with_issues_operation(container);
+                get_hmr_identifiers_with_issues_operation(container, hmr_target);
             let HmrIdentifiersWithIssues {
-                identifiers,
+                chunk_paths,
                 issues,
                 diagnostics,
                 effects,
@@ -1517,59 +1449,14 @@ pub fn project_client_hmr_identifiers_subscribe(
                 .await?;
             effects.apply().await?;
 
-            Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
+            Ok((chunk_paths.clone(), issues.clone(), diagnostics.clone()))
         },
         move |ctx| {
-            let (identifiers, issues, diagnostics) = ctx.value;
+            let (chunk_paths, issues, diagnostics) = ctx.value;
 
             Ok(vec![TurbopackResult {
                 result: HmrIdentifiers {
-                    identifiers: ReadRef::into_owned(identifiers),
-                },
-                issues: issues
-                    .iter()
-                    .map(|issue| NapiIssue::from(&**issue))
-                    .collect(),
-                diagnostics: diagnostics
-                    .iter()
-                    .map(|d| NapiDiagnostic::from(d))
-                    .collect(),
-            }])
-        },
-    )
-}
-
-#[tracing::instrument(level = "info", name = "get server HMR identifiers", skip_all)]
-#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_server_hmr_identifiers_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    func: JsFunction,
-) -> napi::Result<External<RootTask>> {
-    let container = project.container;
-    subscribe(
-        project.turbopack_ctx.clone(),
-        func,
-        move || async move {
-            let hmr_identifiers_with_issues_op =
-                get_server_hmr_identifiers_with_issues_operation(container);
-            let HmrIdentifiersWithIssues {
-                identifiers,
-                issues,
-                diagnostics,
-                effects,
-            } = &*hmr_identifiers_with_issues_op
-                .read_strongly_consistent()
-                .await?;
-            effects.apply().await?;
-
-            Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
-        },
-        move |ctx| {
-            let (identifiers, issues, diagnostics) = ctx.value;
-
-            Ok(vec![TurbopackResult {
-                result: HmrIdentifiers {
-                    identifiers: ReadRef::into_owned(identifiers),
+                    chunk_paths: ReadRef::into_owned(chunk_paths),
                 },
                 issues: issues
                     .iter()
