@@ -2031,6 +2031,24 @@ export default async function getBaseWebpackConfig(
           rewrites,
         })
       ),
+      // In production client builds, replace dev-only modules with empty modules.
+      // These modules are required inside process.env.NODE_ENV guards throughout
+      // the client code, but webpack doesn't tree-shake require() calls, so they
+      // end up in the bundle. This plugin intercepts the module requests and replaces
+      // them with empty modules.
+      // See: https://github.com/vercel/next.js/issues/68190
+      !dev &&
+        isClient &&
+        new bundler.NormalModuleReplacementPlugin(
+          // Match dev-only modules:
+          // - next-devtools/userspace/* (devtools UI components and utilities)
+          // - client/dev/* (debug channel, hot reloader, etc.)
+          // - client/app-link-gc (link garbage collection for dev)
+          /[\\/](next-devtools[\\/]userspace[\\/]|client[\\/]dev[\\/])|[\\/]client[\\/]app-link-gc(\.[jt]sx?)?$/,
+          function (resource) {
+            resource.request = 'private-next-empty-module'
+          }
+        ),
       isClient &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
