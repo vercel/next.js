@@ -112,8 +112,12 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
 
     /// Sorts the entries and returns them along with the total key size. This doesn't
     /// clear the entries.
+    ///
+    /// Entries are sorted by (key, value) to ensure entries with the same key but different
+    /// values are grouped together. This is important for collision-tolerant deduplication
+    /// during compaction.
     pub fn sorted(&mut self) -> (&[CollectorEntry<K>], usize) {
-        self.entries.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+        self.entries.sort_unstable();
         (&self.entries, self.total_key_size)
     }
 

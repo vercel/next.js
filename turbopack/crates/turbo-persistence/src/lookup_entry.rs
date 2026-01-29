@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::{
     ArcSlice,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
@@ -45,24 +47,64 @@ impl LazyLookupValue<'_> {
     /// For `Medium` values, compares the compressed block bytes directly
     /// (assumes deterministic compression).
     pub fn eq_for_dedup(&self, other: &Self) -> bool {
-        match (self, other) {
-            (
-                LazyLookupValue::Eager(LookupValue::Deleted),
-                LazyLookupValue::Eager(LookupValue::Deleted),
-            ) => true,
-            (
-                LazyLookupValue::Eager(LookupValue::Slice { value: a }),
-                LazyLookupValue::Eager(LookupValue::Slice { value: b }),
-            ) => a.as_ref() == b.as_ref(),
-            (
-                LazyLookupValue::Eager(LookupValue::Blob { sequence_number: a }),
-                LazyLookupValue::Eager(LookupValue::Blob { sequence_number: b }),
-            ) => a == b,
-            (
-                LazyLookupValue::Medium { block: a, .. },
-                LazyLookupValue::Medium { block: b, .. },
-            ) => *a == *b,
-            _ => false, // Different types are not equal
+        self.cmp_for_dedup(other) == Ordering::Equal
+    }
+
+    /// Compares two values for ordering purposes during merge sort.
+    ///
+    /// Order: Deleted < byte-content values (Slice/Medium) < Blob
+    /// This ensures entries with the same key are grouped by value for deduplication.
+    pub fn cmp_for_dedup(&self, other: &Self) -> Ordering {
+        // Assign a type order: Deleted=0, Slice/Medium=1, Blob=2
+        fn type_order(v: &LazyLookupValue) -> u8 {
+            match v {
+                LazyLookupValue::Eager(LookupValue::Deleted) => 0,
+                LazyLookupValue::Eager(LookupValue::Slice { .. })
+                | LazyLookupValue::Medium { .. } => 1,
+                LazyLookupValue::Eager(LookupValue::Blob { .. }) => 2,
+            }
+        }
+
+        match type_order(self).cmp(&type_order(other)) {
+            Ordering::Equal => {
+                // Same type category, compare within type
+                match (self, other) {
+                    (
+                        LazyLookupValue::Eager(LookupValue::Deleted),
+                        LazyLookupValue::Eager(LookupValue::Deleted),
+                    ) => Ordering::Equal,
+                    (
+                        LazyLookupValue::Eager(LookupValue::Slice { value: a }),
+                        LazyLookupValue::Eager(LookupValue::Slice { value: b }),
+                    ) => a.as_ref().cmp(b.as_ref()),
+                    (
+                        LazyLookupValue::Medium { block: a, .. },
+                        LazyLookupValue::Medium { block: b, .. },
+                    ) => a.cmp(b),
+                    (
+                        LazyLookupValue::Eager(LookupValue::Slice { value }),
+                        LazyLookupValue::Medium { block, .. },
+                    ) => {
+                        // Cross-type comparison: compare slice bytes with compressed bytes
+                        // This shouldn't happen for the same semantic value, but we need a total
+                        // order
+                        value.as_ref().cmp(*block)
+                    }
+                    (
+                        LazyLookupValue::Medium { block, .. },
+                        LazyLookupValue::Eager(LookupValue::Slice { value }),
+                    ) => {
+                        // Cross-type comparison
+                        (*block).cmp(value.as_ref())
+                    }
+                    (
+                        LazyLookupValue::Eager(LookupValue::Blob { sequence_number: a }),
+                        LazyLookupValue::Eager(LookupValue::Blob { sequence_number: b }),
+                    ) => a.cmp(b),
+                    _ => unreachable!("type_order comparison should have handled this"),
+                }
+            }
+            ord => ord,
         }
     }
 }

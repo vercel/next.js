@@ -4,7 +4,8 @@ use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
-    constants::{DbConfig, DeduplicationMode, FamilyConfig, MAX_MEDIUM_VALUE_SIZE},
+    DbConfig, DeduplicationMode, FamilyConfig,
+    constants::MAX_MEDIUM_VALUE_SIZE,
     db::{CompactConfig, TurboPersistence},
     parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
@@ -1724,6 +1725,223 @@ fn compaction_by_key_and_value_preserves_all_unique_values() -> Result<()> {
         let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
         values.sort();
         assert_eq!(values, vec![1, 2, 3, 4, 5], "Should have all values 1-5");
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn compaction_by_key_and_value_interleaved_batches() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Configure family 0 to use ByKeyAndValue deduplication
+    let mut config = DbConfig::<1>::default();
+    config.family_configs[0] = FamilyConfig {
+        deduplication_mode: DeduplicationMode::ByKeyAndValue,
+        ..Default::default()
+    };
+
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        // Write interleaved values across multiple batches:
+        // Batch 1: value=1
+        // Batch 2: value=2
+        // Batch 3: value=1 (duplicate)
+        // Batch 4: value=3
+        // Batch 5: value=2 (duplicate)
+        // This tests that the merge sort correctly groups same values together
+        // even when they come from different SST files in different orders.
+        for value in [1u8, 2, 1, 3, 2] {
+            let batch = db.write_batch()?;
+            batch.put(0, key.clone(), vec![value].into())?;
+            db.commit_write_batch(batch)?;
+        }
+
+        // Before compaction: 5 entries exist
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 5, "Should have 5 entries before compaction");
+
+        // Compact
+        db.full_compact()?;
+
+        // After compaction: should have exactly 3 unique values (1, 2, 3)
+        // The duplicates should be merged
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            3,
+            "ByKeyAndValue should deduplicate to 3 unique values after compaction"
+        );
+
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(values, vec![1, 2, 3], "Should have values 1, 2, 3");
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn compaction_by_key_and_value_same_batch_different_values() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Configure family 0 to use ByKeyAndValue deduplication
+    let mut config = DbConfig::<1>::default();
+    config.family_configs[0] = FamilyConfig {
+        deduplication_mode: DeduplicationMode::ByKeyAndValue,
+        ..Default::default()
+    };
+
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        // Write multiple different values in the SAME batch
+        // All entries go into a single SST file
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![3u8].into())?;
+        batch.put(0, key.clone(), vec![1u8].into())?;
+        batch.put(0, key.clone(), vec![2u8].into())?;
+        batch.put(0, key.clone(), vec![1u8].into())?; // duplicate
+        batch.put(0, key.clone(), vec![3u8].into())?; // duplicate
+        db.commit_write_batch(batch)?;
+
+        // All 5 entries are stored in the SST file
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 5, "Should have 5 entries in single SST");
+
+        // Compaction on a single file just moves it (no merge = no deduplication)
+        db.full_compact()?;
+
+        // Still 5 entries - single-file compaction doesn't deduplicate
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            5,
+            "Single-file compaction preserves all entries"
+        );
+
+        // Now write a second batch with a new value to create a second SST file
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![4u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // 6 entries total now
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 6, "Should have 6 entries across 2 SST files");
+
+        // Second compaction will merge the two files and deduplicate
+        db.full_compact()?;
+
+        // After multi-file compaction: should have exactly 4 unique values (1, 2, 3, 4)
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            4,
+            "Multi-file compaction should deduplicate to 4 unique values"
+        );
+
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(values, vec![1, 2, 3, 4], "Should have values 1, 2, 3, 4");
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn compaction_by_key_and_value_multiple_compactions() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Configure family 0 to use ByKeyAndValue deduplication
+    let mut config = DbConfig::<1>::default();
+    config.family_configs[0] = FamilyConfig {
+        deduplication_mode: DeduplicationMode::ByKeyAndValue,
+        ..Default::default()
+    };
+
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config.clone(),
+            RayonParallelScheduler,
+        )?;
+
+        // Write initial values
+        for value in [1u8, 2, 3] {
+            let batch = db.write_batch()?;
+            batch.put(0, key.clone(), vec![value].into())?;
+            db.commit_write_batch(batch)?;
+        }
+
+        db.full_compact()?;
+
+        // After first compaction: 3 unique values
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 3);
+
+        // Add more values (some duplicates)
+        for value in [2u8, 4, 1] {
+            let batch = db.write_batch()?;
+            batch.put(0, key.clone(), vec![value].into())?;
+            db.commit_write_batch(batch)?;
+        }
+
+        // Before second compaction: 6 entries total (3 old + 3 new)
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 6);
+
+        // Second compaction
+        db.full_compact()?;
+
+        // After second compaction: 4 unique values (1, 2, 3, 4)
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            4,
+            "Should have 4 unique values after second compaction"
+        );
+
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(values, vec![1, 2, 3, 4], "Should have values 1, 2, 3, 4");
+
+        db.shutdown()?;
+    }
+
+    // Reopen and verify persistence
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 4, "Should still have 4 values after reopen");
 
         db.shutdown()?;
     }

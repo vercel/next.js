@@ -14,7 +14,9 @@ struct ActiveIterator<'l, T: Iterator<Item = Result<LookupEntry<'l>>>> {
 
 impl<'l, T: Iterator<Item = Result<LookupEntry<'l>>>> PartialEq for ActiveIterator<'l, T> {
     fn eq(&self, other: &Self) -> bool {
-        self.entry.hash == other.entry.hash && *self.entry.key == *other.entry.key
+        self.entry.hash == other.entry.hash
+            && *self.entry.key == *other.entry.key
+            && self.entry.value.eq_for_dedup(&other.entry.value)
     }
 }
 
@@ -32,6 +34,9 @@ impl<'l, T: Iterator<Item = Result<LookupEntry<'l>>>> Ord for ActiveIterator<'l,
             .hash
             .cmp(&other.entry.hash)
             .then_with(|| (*self.entry.key).cmp(&other.entry.key))
+            // Sort by value to group entries with the same (key, value) together
+            // for collision-tolerant deduplication
+            .then_with(|| self.entry.value.cmp_for_dedup(&other.entry.value))
             .then_with(|| self.order.cmp(&other.order))
             .reverse()
     }
