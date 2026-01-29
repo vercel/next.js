@@ -36,9 +36,15 @@ function exec(command, arg2, arg3, arg4) {
   }
 
   if (!noLog) logger(`exec: ${command} ${args.join(' ')}`.trim())
+
+  // When using the backwards-compatible path (no args array provided),
+  // we need to use shell: true to interpret shell commands like &&, cd, pipes, etc.
+  const useShell = args.length === 0
+
   return execP(command, args, {
     ...opts,
     env: { ...env, ...opts.env },
+    shell: useShell,
   })
 }
 
