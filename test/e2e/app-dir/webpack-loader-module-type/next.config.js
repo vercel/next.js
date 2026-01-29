@@ -5,6 +5,9 @@ module.exports = {
       '*.svg': {
         type: 'asset',
       },
+      '*.data': {
+        type: 'bytes',
+      },
     },
   },
   webpack(config) {
@@ -12,6 +15,11 @@ module.exports = {
     config.module.rules.push({
       test: /\.svg$/,
       type: 'asset/resource',
+    })
+    // Use asset/source for .data files (returns string, not Uint8Array like Turbopack's bytes)
+    config.module.rules.push({
+      test: /\.data$/,
+      type: 'asset/source',
     })
     return config
   },
