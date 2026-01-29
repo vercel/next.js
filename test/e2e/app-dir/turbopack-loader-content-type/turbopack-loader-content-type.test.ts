@@ -14,6 +14,12 @@ describe('turbopack-loader-content-type', () => {
     expect(text).toBe('TEXT:Hello World')
   })
 
+  it('should apply loader based on contentType for text/javascript', async () => {
+    const $ = await next.render$('/')
+    const text = $('#js').text()
+    expect(text).toBe('Hello from loader')
+  })
+
   it('should apply loader based on contentType regex', async () => {
     const $ = await next.render$('/')
     const text = $('#image').text()
