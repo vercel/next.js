@@ -44,6 +44,11 @@ import type {
 } from './types'
 import { throwTurbopackInternalError } from '../../shared/lib/turbopack/internal-error'
 
+export enum HmrTarget {
+  Client = 'client',
+  Server = 'server',
+}
+
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
   default?(): Promise<typeof import('./generated-wasm')>
@@ -736,45 +741,37 @@ function bindingToApi(
       })()
     }
 
-    clientHmrEvents(identifier: string) {
-      return subscribe<TurbopackResult<Update>>(true, async (callback) =>
-        binding.projectClientHmrEvents(
+    hmrEvents(
+      identifier: string,
+      target: HmrTarget.Client
+    ): AsyncIterableIterator<TurbopackResult<Update>>
+    hmrEvents(
+      identifier: string,
+      target: HmrTarget.Server
+    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+    hmrEvents(identifier: string, target: HmrTarget.Client | HmrTarget.Server) {
+      return subscribe(true, async (callback) =>
+        binding.projectHmrEvents(
           this._nativeProject,
           identifier,
+          target,
           callback
         )
       )
     }
 
-    clientHmrIdentifiersSubscribe() {
+    /**
+     * Subscribe to the list of output chunk paths that can receive HMR updates.
+     * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
+     * or "_next/static/chunks/app/page.js" for client.
+     */
+    hmrIdentifiersSubscribe(target: HmrTarget) {
       return subscribe<TurbopackResult<HmrIdentifiers>>(
         false,
         async (callback) =>
-          binding.projectClientHmrIdentifiersSubscribe(
+          binding.projectHmrIdentifiersSubscribe(
             this._nativeProject,
-            callback
-          )
-      )
-    }
-
-    serverHmrEvents(identifier: string) {
-      return subscribe<TurbopackResult<NodeJsHmrUpdate>>(
-        true,
-        async (callback) =>
-          binding.projectServerHmrEvents(
-            this._nativeProject,
-            identifier,
-            callback
-          )
-      )
-    }
-
-    serverHmrIdentifiersSubscribe() {
-      return subscribe<TurbopackResult<HmrIdentifiers>>(
-        false,
-        async (callback) =>
-          binding.projectServerHmrIdentifiersSubscribe(
-            this._nativeProject,
+            target,
             callback
           )
       )

@@ -5,6 +5,8 @@
 /// <reference path="../shared-node/node-externals-utils.ts" />
 /// <reference path="../shared-node/node-wasm-utils.ts" />
 
+import type { NodeJsPartialHmrUpdate } from '../../../../../../packages/next/src/build/swc/types'
+
 enum SourceType {
   /**
    * The module was instantiated because it was included in an evaluated chunk's
@@ -337,7 +339,9 @@ function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
   return regexJsUrl.test(chunkUrlOrPath)
 }
 
-function __turbopack_server_hmr_apply__(_update: any): boolean {
+function __turbopack_server_hmr_apply__(
+  _update: NodeJsPartialHmrUpdate
+): boolean {
   // TODO: Implement actual HMR logic to update module factories
   // For now, just return true to indicate we "accepted" the update
   return true

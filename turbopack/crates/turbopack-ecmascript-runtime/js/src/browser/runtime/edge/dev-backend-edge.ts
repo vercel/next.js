@@ -23,7 +23,9 @@ function _eval(_: EcmascriptModuleEntry) {
 }
 
 function __turbopack_server_hmr_apply__(_update: any): boolean {
-  throw new Error('Server-side HMR is not implemented for edge runtime')
+  // Server-side HMR is not supported in edge runtime, but this is expected.
+  // Return false to indicate the update was not applied.
+  return false
 }
 
 globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__
