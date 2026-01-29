@@ -30,8 +30,9 @@ pub trait Effect: Send + Sync + 'static {
     /// A function that is called once at the top level of the program's execution after everything
     /// has "settled".
     ///
-    /// The effect can store [`ResolvedVc`]s (or any other `Vc` type), and this can return values
-    /// containing those [`ResolvedVc`]s, but it should not read or resolve the contents of a `Vc`.
+    /// This function is executed outside of the turbo-tasks context, and therefore cannot read any
+    /// `Vc`s or call any turbo-task functions. The effect can store [`ResolvedVc`]s (or any other
+    /// `Vc` type), but should not read or resolve their contents.
     fn apply(self) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
@@ -155,15 +156,15 @@ impl EffectInstance {
 #[turbo_tasks::value_impl]
 impl EffectCollectible for EffectInstance {}
 
-/// Schedules an effect to be applied. The passed future is executed once `apply_effects` is called.
+/// Emits an effect to be applied. The effect is executed once `apply_effects` is called.
 ///
-/// The effect will only executed once. The passed future is executed outside of the current task
-/// and can't read any Vcs. These need to be read before. ReadRefs can be passed into the future.
+/// The effect will only executed once. The effect is executed outside of the current task
+/// and can't read any Vcs. These need to be read before. ReadRefs can be passed into the effect.
 ///
 /// Effects are executed in parallel, so they might need to use async locking to avoid problems.
 /// Order of execution of multiple effects is not defined. You must not use multiple conflicting
 /// effects to avoid non-deterministic behavior.
-pub fn effect(effect: impl Effect) {
+pub fn emit_effect(effect: impl Effect) {
     emit::<Box<dyn EffectCollectible>>(ResolvedVc::upcast(
         EffectInstance::new(effect).resolved_cell(),
     ));

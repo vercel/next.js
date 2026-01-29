@@ -66,7 +66,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, Effect, InvalidationReason, Invalidator, NonLocalValue,
     ReadRef, ResolvedVc, TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
-    debug::ValueDebugFormat, effect, mark_session_dependent, parallel, trace::TraceRawVcs,
+    debug::ValueDebugFormat, emit_effect, mark_session_dependent, parallel, trace::TraceRawVcs,
     turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
@@ -1101,7 +1101,7 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
-        effect(WriteEffect {
+        emit_effect(WriteEffect {
             full_path,
             inner,
             invalidator,
@@ -1336,7 +1336,7 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
-        effect(WriteLinkEffect {
+        emit_effect(WriteLinkEffect {
             full_path,
             inner,
             invalidator,
