@@ -157,18 +157,16 @@ impl StaticSortedFile {
     ) -> Result<SstLookupResult> {
         let mut current_block = self.meta.block_count - 1;
         loop {
-            let key_block_arc = self.get_key_block(current_block, key_block_cache)?;
-            let mut block_data = &key_block_arc[..];
-            let block_type = block_data.read_u8()?;
+            let mut key_block_arc = self.get_key_block(current_block, key_block_cache)?;
+            let block_type = key_block_arc.read_u8()?;
             match block_type {
                 BLOCK_TYPE_INDEX => {
-                    current_block = self.lookup_index_block(block_data, key_hash)?;
+                    current_block = self.lookup_index_block(&key_block_arc, key_hash)?;
                 }
                 BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
                     let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
                     return self.lookup_key_block(
-                        key_block_arc.clone(),
-                        block_data,
+                        key_block_arc,
                         key_hash,
                         key,
                         has_hash,
@@ -231,8 +229,7 @@ impl StaticSortedFile {
     /// Looks up a key in a key block and the value in a value block.
     fn lookup_key_block<K: QueryKey>(
         &self,
-        key_block_arc: ArcSlice<u8>,
-        mut block: &[u8],
+        mut block: ArcSlice<u8>,
         key_hash: u64,
         key: &K,
         has_hash: bool,
@@ -263,7 +260,7 @@ impl StaticSortedFile {
                 }
                 Ordering::Equal => {
                     return Ok(self
-                        .handle_key_match(ty, mid_val, &key_block_arc, value_block_cache)?
+                        .handle_key_match(ty, mid_val, &block, value_block_cache)?
                         .into());
                 }
                 Ordering::Greater => {
@@ -302,17 +299,11 @@ impl StaticSortedFile {
                 LookupValue::Blob { sequence_number }
             }
             KEY_BLOCK_ENTRY_TYPE_DELETED => LookupValue::Deleted,
-            ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
-                // Inline value: size = ty - INLINE_MIN
-                // Create a zero-copy slice into the key block
-                let inline_size = (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize;
-                let inline_slice = &val[..inline_size];
-                // SAFETY: inline_slice points into key_block_arc's data
-                let value = unsafe { key_block_arc.slice_from_subslice(inline_slice) };
-                LookupValue::Slice { value }
-            }
             _ => {
-                bail!("Invalid key block entry type");
+                // Inline value — val is already the correct slice
+                // SAFETY: val points into key_block_arc's data
+                let value = unsafe { key_block_arc.slice_from_subslice(val) };
+                LookupValue::Slice { value }
             }
         })
     }
@@ -626,6 +617,20 @@ fn compare_hash_key<K: QueryKey>(
     }
 }
 
+/// Returns the byte size of the value portion for a given key block entry type.
+fn entry_val_size(ty: u8) -> Result<usize> {
+    match ty {
+        KEY_BLOCK_ENTRY_TYPE_SMALL => Ok(8), // 2 bytes block index, 2 bytes size, 4 bytes position
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM => Ok(2), // 2 bytes block index
+        KEY_BLOCK_ENTRY_TYPE_BLOB => Ok(4),  // 4 byte blob id
+        KEY_BLOCK_ENTRY_TYPE_DELETED => Ok(0), // no value
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
+            Ok((ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize)
+        }
+        _ => bail!("Invalid key block entry type"),
+    }
+}
+
 /// Reads a key entry from a key block.
 fn get_key_entry<'l>(
     offsets: &[u8],
@@ -645,43 +650,11 @@ fn get_key_entry<'l>(
     };
     // Return the raw hash bytes slice (0-8 bytes depending on hash_len)
     let hash = &entries[start..start + hash_len_usize];
-    Ok(match ty {
-        KEY_BLOCK_ENTRY_TYPE_SMALL => GetKeyEntryResult {
-            hash,
-            key: &entries[start + hash_len_usize..end - 8],
-            ty,
-            val: &entries[end - 8..end],
-        },
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM => GetKeyEntryResult {
-            hash,
-            key: &entries[start + hash_len_usize..end - 2],
-            ty,
-            val: &entries[end - 2..end],
-        },
-        KEY_BLOCK_ENTRY_TYPE_BLOB => GetKeyEntryResult {
-            hash,
-            key: &entries[start + hash_len_usize..end - 4],
-            ty,
-            val: &entries[end - 4..end],
-        },
-        KEY_BLOCK_ENTRY_TYPE_DELETED => GetKeyEntryResult {
-            hash,
-            key: &entries[start + hash_len_usize..end],
-            ty,
-            val: &[],
-        },
-        ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
-            // Inline value: size = ty - INLINE_MIN
-            let inline_size = (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize;
-            GetKeyEntryResult {
-                hash,
-                key: &entries[start + hash_len_usize..end - inline_size],
-                ty,
-                val: &entries[end - inline_size..end],
-            }
-        }
-        _ => {
-            bail!("Invalid key block entry type");
-        }
+    let val_size = entry_val_size(ty)?;
+    Ok(GetKeyEntryResult {
+        hash,
+        key: &entries[start + hash_len_usize..end - val_size],
+        ty,
+        val: &entries[end - val_size..end],
     })
 }

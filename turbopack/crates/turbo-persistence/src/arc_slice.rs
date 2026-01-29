@@ -2,6 +2,7 @@ use std::{
     borrow::Borrow,
     fmt::{self, Debug, Formatter},
     hash::{Hash, Hasher},
+    io::{self, Read},
     ops::{Deref, Range},
     sync::Arc,
 };
@@ -64,6 +65,17 @@ impl<T: Debug> Debug for ArcSlice<T> {
 }
 
 impl<T: Eq> Eq for ArcSlice<T> {}
+
+impl Read for ArcSlice<u8> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let available = &**self;
+        let len = std::cmp::min(buf.len(), available.len());
+        buf[..len].copy_from_slice(&available[..len]);
+        // Advance the slice view
+        self.data = &available[len..] as *const [u8];
+        Ok(len)
+    }
+}
 
 impl<T> ArcSlice<T> {
     /// Returns a new `ArcSlice` that points to a slice of the current slice.
