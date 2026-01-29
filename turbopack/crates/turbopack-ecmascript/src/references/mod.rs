@@ -20,7 +20,6 @@ pub mod util;
 pub mod worker;
 
 use std::{
-    borrow::Cow,
     collections::BTreeMap,
     future::Future,
     mem::take,
@@ -70,7 +69,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
-        FreeVarReference, FreeVarReferenceVcs, FreeVarReferences, FreeVarReferencesIndividual,
+        DefinableNameSegmentRef, FreeVarReference, FreeVarReferences, FreeVarReferencesMembers,
         InputRelativeConstant,
     },
     environment::Rendering,
@@ -456,6 +455,8 @@ struct AnalysisState<'a> {
     source: ResolvedVc<Box<dyn Source>>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
+    free_var_references_members: ResolvedVc<FreeVarReferencesMembers>,
+    compile_time_info_ref: ReadRef<CompileTimeInfo>,
     var_graph: &'a VarGraph,
     /// Whether to allow tracing to reference files from the project root. This is used to prevent
     /// random node_modules packages from tracing the entire project due to some dynamic
@@ -475,7 +476,6 @@ struct AnalysisState<'a> {
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
-    free_var_references: ReadRef<FreeVarReferencesIndividual>,
     // Whether we should collect affecting sources from referenced files. Only usedful when
     // tracing.
     collect_affecting_sources: bool,
@@ -496,7 +496,7 @@ impl AnalysisState<'_> {
                     *self.origin,
                     value,
                     *self.compile_time_info,
-                    &self.free_var_references,
+                    &self.compile_time_info_ref,
                     self.var_graph,
                     attributes,
                     self.allow_project_root_tracing,
@@ -1067,6 +1067,7 @@ async fn analyze_ecmascript_module_internal(
     let span = tracing::trace_span!("effects processing");
     async {
         let effects = take(&mut var_graph.effects);
+        let compile_time_info_ref = compile_time_info.await?;
 
         let mut analysis_state = AnalysisState {
             handler: &handler,
@@ -1074,6 +1075,12 @@ async fn analyze_ecmascript_module_internal(
             source,
             origin,
             compile_time_info,
+            free_var_references_members: compile_time_info_ref
+                .free_var_references
+                .members()
+                .to_resolved()
+                .await?,
+            compile_time_info_ref,
             var_graph: &var_graph,
             allow_project_root_tracing: !source.ident().path().await?.is_in_node_modules(),
             fun_args_values: Default::default(),
@@ -1084,11 +1091,6 @@ async fn analyze_ecmascript_module_internal(
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
-            free_var_references: compile_time_info
-                .await?
-                .free_var_references
-                .individual()
-                .await?,
             collect_affecting_sources: options.analyze_mode.is_tracing_assets(),
             tracing_only: !options.analyze_mode.is_code_gen(),
         };
@@ -1581,79 +1583,66 @@ async fn compile_time_info_for_module_options(
 ) -> Result<Vc<CompileTimeInfo>> {
     let compile_time_info = compile_time_info.await?;
     let free_var_references = compile_time_info.free_var_references;
+    let defines = compile_time_info.defines;
 
     let mut free_var_references = free_var_references.owned().await?;
-    let (typeof_exports, typeof_module, require) = if is_esm {
-        ("undefined", "undefined", TURBOPACK_REQUIRE_STUB)
+    let mut defines = defines.owned().await?;
+
+    let (typeof_exports, typeof_module, typeof_this, require) = if is_esm {
+        (
+            rcstr!("undefined"),
+            rcstr!("undefined"),
+            rcstr!("undefined"),
+            TURBOPACK_REQUIRE_STUB,
+        )
     } else {
-        ("object", "object", TURBOPACK_REQUIRE_REAL)
+        (
+            rcstr!("object"),
+            rcstr!("object"),
+            rcstr!("object"),
+            TURBOPACK_REQUIRE_REAL,
+        )
     };
-    free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(rcstr!("import")),
-            DefinableNameSegment::Name(rcstr!("meta")),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(rcstr!("object").into());
-    free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(rcstr!("exports")),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(typeof_exports.into());
-    free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(rcstr!("module")),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(typeof_module.into());
-    free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(rcstr!("require")),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(rcstr!("function").into());
+    let typeofs: [(&[RcStr], RcStr); _] = [
+        (&[rcstr!("import"), rcstr!("meta")], rcstr!("object")),
+        (&[rcstr!("exports")], typeof_exports),
+        (&[rcstr!("module")], typeof_module),
+        (&[rcstr!("this")], typeof_this),
+        (&[rcstr!("require")], rcstr!("function")),
+        (&[rcstr!("__dirname")], rcstr!("string")),
+        (&[rcstr!("__filename")], rcstr!("string")),
+        (&[rcstr!("global")], rcstr!("object")),
+    ];
+    for (typeof_path, typeof_value) in typeofs {
+        let name = typeof_path
+            .iter()
+            .map(|s| DefinableNameSegment::Name(s.clone()))
+            .chain(std::iter::once(DefinableNameSegment::TypeOf))
+            .collect::<Vec<_>>();
+        free_var_references
+            .entry(name.clone())
+            .or_insert(typeof_value.clone().into());
+        defines.entry(name).or_insert(typeof_value.into());
+    }
+
     free_var_references
         .entry(vec![DefinableNameSegment::Name(rcstr!("require"))])
         .or_insert(require.into());
-
-    let dir_name = rcstr!("__dirname");
     free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(dir_name.clone()),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(rcstr!("string").into());
-    free_var_references
-        .entry(vec![DefinableNameSegment::Name(dir_name)])
+        .entry(vec![DefinableNameSegment::Name(rcstr!("__dirname"))])
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::DirName,
         ));
-    let file_name = rcstr!("__filename");
-
     free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(file_name.clone()),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(rcstr!("string").into());
-    free_var_references
-        .entry(vec![DefinableNameSegment::Name(file_name)])
+        .entry(vec![DefinableNameSegment::Name(rcstr!("__filename"))])
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::FileName,
         ));
 
     // Compiletime rewrite the nodejs `global` to `__turbopack_context_.g` which is a shortcut for
     // `globalThis` that cannot be shadowed by a local variable.
-    let global = rcstr!("global");
     free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(global.clone()),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(rcstr!("object").into());
-    free_var_references
-        .entry(vec![DefinableNameSegment::Name(global)])
+        .entry(vec![DefinableNameSegment::Name(rcstr!("global"))])
         .or_insert(TURBOPACK_GLOBAL.into());
 
     free_var_references.extend(TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
@@ -1668,9 +1657,8 @@ async fn compile_time_info_for_module_options(
     // Compile time replace it so we can represent module-factories as arrow functions without
     // needing to be defensive about rebinding this. Do the same for CJS modules while we are
     // here.
-    let this = rcstr!("this");
     free_var_references
-        .entry(vec![DefinableNameSegment::Name(this.clone())])
+        .entry(vec![DefinableNameSegment::Name(rcstr!("this"))])
         .or_insert(if is_esm {
             FreeVarReference::Value(CompileTimeDefineValue::Undefined)
         } else {
@@ -1678,43 +1666,30 @@ async fn compile_time_info_for_module_options(
             // not be shadowed by user symbols.
             TURBOPACK_EXPORTS.into()
         });
-    free_var_references
-        .entry(vec![
-            DefinableNameSegment::Name(this),
-            DefinableNameSegment::TypeOf,
-        ])
-        .or_insert(if is_esm {
-            rcstr!("undefined").into()
-        } else {
-            rcstr!("object").into()
-        });
 
-    let mut defines = compile_time_info.defines;
     if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
         let value = match enable_typeof_window_inlining {
             TypeofWindow::Object => rcstr!("object"),
             TypeofWindow::Undefined => rcstr!("undefined"),
         };
         let window = rcstr!("window");
-        let mut defines_value = defines.owned().await?;
-        defines_value
+        free_var_references
             .entry(vec![
                 DefinableNameSegment::Name(window.clone()),
                 DefinableNameSegment::TypeOf,
             ])
             .or_insert(value.clone().into());
-        free_var_references
+        defines
             .entry(vec![
                 DefinableNameSegment::Name(window),
                 DefinableNameSegment::TypeOf,
             ])
             .or_insert(value.into());
-        defines = CompileTimeDefines(defines_value).resolved_cell()
     }
 
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
-        defines,
+        defines: CompileTimeDefines(defines).resolved_cell(),
         free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
     }
     .cell())
@@ -2773,39 +2748,28 @@ async fn handle_member(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some(prop) = prop.as_str() {
-        let prop_seg = DefinableNameSegment::Name(prop.into());
-
-        let references = state.free_var_references.get(&prop_seg);
+        let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
 
         // This isn't pretty, but we cannot await the future twice in the two branches below.
-        let obj = if references.is_some() || is_prop_cache {
+        let obj = if has_member || is_prop_cache {
             Some(link_obj.await?)
         } else {
             None
         };
 
-        if let Some(references) = references {
+        if has_member {
             let obj = obj.as_ref().unwrap();
-            if let Some(def_name_len) = obj.get_definable_name_len() {
-                for (name, value) in &references.0 {
-                    if name.len() != def_name_len {
-                        continue;
-                    }
-
-                    let it = name.iter().map(Cow::Borrowed).rev();
-                    if it.eq(obj.iter_definable_name_rev())
-                        && handle_free_var_reference(
-                            ast_path,
-                            &*value.await?,
-                            span,
-                            state,
-                            analysis,
-                        )
-                        .await?
-                    {
-                        return Ok(());
-                    }
+            if let Some((mut name, false)) = obj.get_definable_name(Some(state.var_graph)) {
+                name.0.push(DefinableNameSegmentRef::Name(prop));
+                if let Some(value) = state
+                    .compile_time_info_ref
+                    .free_var_references
+                    .get(&name)
+                    .await?
+                {
+                    handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
+                    return Ok(());
                 }
             }
         }
@@ -2828,12 +2792,17 @@ async fn handle_typeof(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some(value) = arg.match_free_var_reference(
-        state.var_graph,
-        &state.free_var_references,
-        &DefinableNameSegment::TypeOf,
-    ) {
-        handle_free_var_reference(ast_path, &*value.await?, span, state, analysis).await?;
+    if let Some((mut name, false)) = arg.get_definable_name(Some(state.var_graph)) {
+        name.0.push(DefinableNameSegmentRef::TypeOf);
+        if let Some(value) = state
+            .compile_time_info_ref
+            .free_var_references
+            .get(&name)
+            .await?
+        {
+            handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
+            return Ok(());
+        }
     }
 
     Ok(())
@@ -2846,22 +2815,15 @@ async fn handle_free_var(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some(def_name_len) = var.get_definable_name_len() {
-        let first = var.iter_definable_name_rev().next().unwrap();
-        if let Some(references) = state.free_var_references.get(&*first) {
-            for (name, value) in &references.0 {
-                if name.len() + 1 != def_name_len {
-                    continue;
-                }
-
-                let it = name.iter().map(Cow::Borrowed).rev();
-                if it.eq(var.iter_definable_name_rev().skip(1)) {
-                    handle_free_var_reference(ast_path, &*value.await?, span, state, analysis)
-                        .await?;
-                    return Ok(());
-                }
-            }
-        }
+    if let Some((name, _)) = var.get_definable_name(None)
+        && let Some(value) = state
+            .compile_time_info_ref
+            .free_var_references
+            .get(&name)
+            .await?
+    {
+        handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
+        return Ok(());
     }
 
     Ok(())
@@ -3206,7 +3168,7 @@ async fn value_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
-    free_var_references: &FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs>,
+    compile_time_info_ref: &CompileTimeInfo,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
@@ -3215,7 +3177,7 @@ async fn value_visitor(
         origin,
         v,
         compile_time_info,
-        free_var_references,
+        compile_time_info_ref,
         var_graph,
         attributes,
         allow_project_root_tracing,
@@ -3229,28 +3191,16 @@ async fn value_visitor_inner(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
-    free_var_references: &FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs>,
+    compile_time_info_ref: &CompileTimeInfo,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
-    // This check is just an optimization
-    if v.get_definable_name_len().is_some() {
-        let compile_time_info = compile_time_info.await?;
-        if let JsValue::TypeOf(_, arg) = &v
-            && let Some(value) = arg.match_free_var_reference(
-                var_graph,
-                free_var_references,
-                &DefinableNameSegment::TypeOf,
-            )
-        {
-            return Ok(((&*value.await?).try_into()?, true));
-        }
-
-        if let Some(value) = v.match_define(&*compile_time_info.defines.individual().await?) {
-            return Ok(((&*value.await?).try_into()?, true));
-        }
+    if let Some((name, _)) = v.get_definable_name(Some(var_graph))
+        && let Some(value) = compile_time_info_ref.defines.get(&name).await?
+    {
+        return Ok(((&*value).try_into()?, true));
     }
     let value = match v {
         JsValue::Call(
