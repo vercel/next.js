@@ -20,6 +20,21 @@ const nextConfig = {
       ],
     },
   },
+  webpack: (config) => {
+    config.module.rules.push(
+      {
+        mimetype: /^text\//,
+        use: [{ loader: require.resolve('./text-loader.js') }],
+        type: 'javascript/auto',
+      },
+      {
+        mimetype: /^image\//,
+        use: [{ loader: require.resolve('./image-loader.js') }],
+        type: 'javascript/auto',
+      }
+    )
+    return config
+  },
 }
 
 module.exports = nextConfig
