@@ -34,6 +34,7 @@ async function readFilesNext(
     (await glob('**/*', {
       cwd: path.join(next.testDir, next.distDir),
       nodir: true,
+      dot: true,
     })) as string[]
   )
     .filter((f) => !IGNORE.test(f) && !IGNORE_CONTENT_NEXT_REGEX.test(f))
@@ -68,7 +69,18 @@ async function readFilesBuilder(
     await Promise.all(
       functions.map(async (fn) => {
         let config = await next.readJSON(fn)
-        let files = Object.values(config.filePathMap)
+        let fnDir = path.dirname(fn)
+        let files = [
+          ...(
+            await glob('**/*', {
+              cwd: path.join(next.testDir, fnDir),
+              nodir: true,
+              dot: true,
+              ignore: ['.vc-config.json'],
+            })
+          ).map((f) => path.join(fnDir, f)),
+          ...Object.values(config.filePathMap),
+        ] as string[]
         files.sort()
         return [
           fn,
@@ -81,6 +93,7 @@ async function readFilesBuilder(
                 if (symlinkTarget) {
                   return [f, symlinkTarget] as const
                 } else if (f.includes('node_modules')) {
+                  // Use hash to avoid OOMs from loading all node_modules content
                   return [
                     f,
                     crypto
