@@ -785,9 +785,6 @@ mod tests {
             .aggregated_dirty_containers_mut()
             .insert(TaskId::new(50).unwrap(), 2);
 
-        // Note: invalidator and immutable are data category flags, not meta
-        // So we don't set/test them here - they're tested in test_encode_decode_data_roundtrip
-
         // Set transient flag (should NOT be serialized)
         original.flags.set_current_session_clean(true);
 
