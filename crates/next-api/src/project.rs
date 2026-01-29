@@ -10,6 +10,7 @@ use next_core::{
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
+    next_app::{AppPage, AppPath},
     next_client::{
         ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
     },
@@ -218,24 +219,13 @@ struct DebugBuildPathsRouteKeys {
 }
 
 impl DebugBuildPathsRouteKeys {
-    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Self {
-        Self {
+    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Result<Self> {
+        Ok(Self {
             app: paths
                 .app
                 .iter()
-                .map(|path| {
-                    // App router: "/blog/[slug]/page.tsx" -> "/blog/[slug]"
-                    if let Some(last_slash_idx) = path.rfind('/') {
-                        if last_slash_idx == 0 {
-                            "/".into() // Root: "/page.tsx" -> "/"
-                        } else {
-                            path[..last_slash_idx].into()
-                        }
-                    } else {
-                        path.clone()
-                    }
-                })
-                .collect(),
+                .map(|path| Ok(AppPath::from(AppPage::parse(path)?).to_string().into()))
+                .collect::<Result<FxHashSet<_>>>()?,
             pages: paths
                 .pages
                 .iter()
@@ -248,7 +238,23 @@ impl DebugBuildPathsRouteKeys {
                     }
                 })
                 .collect(),
+        })
+    }
+
+    fn should_include_app_route(&self, route_key: &RcStr) -> bool {
+        // Special app router framework routes
+        if matches!(route_key.as_str(), "/_not-found" | "/_global-error") {
+            return true;
         }
+        self.app.contains(route_key)
+    }
+
+    fn should_include_pages_route(&self, route_key: &RcStr) -> bool {
+        // Special pages router framework routes
+        if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
+            return true;
+        }
+        self.pages.contains(route_key)
     }
 }
 
@@ -522,24 +528,6 @@ fn define_env_diff_report(old: &DefineEnv, new: &DefineEnv) -> String {
         }
     }
     report
-}
-
-/// Checks if an app router route should be included based on pre-converted route keys.
-fn should_include_app_route(route_key: &RcStr, route_keys: &FxHashSet<RcStr>) -> bool {
-    // Special app router framework routes
-    if matches!(route_key.as_str(), "/_not-found" | "/_global-error") {
-        return true;
-    }
-    route_keys.contains(route_key)
-}
-
-/// Checks if a pages router route should be included based on pre-converted route keys.
-fn should_include_pages_route(route_key: &RcStr, route_keys: &FxHashSet<RcStr>) -> bool {
-    // Special pages router framework routes
-    if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
-        return true;
-    }
-    route_keys.contains(route_key)
 }
 
 impl ProjectContainer {
@@ -1635,7 +1623,8 @@ impl Project {
         let debug_build_paths_route_keys = this
             .debug_build_paths
             .as_ref()
-            .map(DebugBuildPathsRouteKeys::from_debug_build_paths);
+            .map(DebugBuildPathsRouteKeys::from_debug_build_paths)
+            .transpose()?;
 
         if let Some(app_project) = &*app_project.await? {
             let app_routes = app_project.routes();
@@ -1646,17 +1635,20 @@ impl Project {
                     .filter(|(k, _)| {
                         debug_build_paths_route_keys
                             .as_ref()
-                            .is_none_or(|keys| should_include_app_route(k, &keys.app))
+                            .is_none_or(|keys| keys.should_include_app_route(k))
                     })
                     .map(|(k, v)| (k.clone(), v.clone())),
             );
         }
 
-        for (pathname, page_route) in pages_project.routes().await?.iter().filter(|(k, _)| {
-            debug_build_paths_route_keys
+        for (pathname, page_route) in &pages_project.routes().await? {
+            if debug_build_paths_route_keys
                 .as_ref()
-                .is_none_or(|keys| should_include_pages_route(k, &keys.pages))
-        }) {
+                .is_some_and(|keys| !keys.should_include_pages_route(pathname))
+            {
+                continue;
+            }
+
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
                     ConflictIssue {
