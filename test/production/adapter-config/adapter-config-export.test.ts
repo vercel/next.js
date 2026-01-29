@@ -88,6 +88,7 @@ describe('adapter-config export', () => {
       onMatch: expect.toBeArray(),
       fallback: expect.toBeArray(),
       shouldNormalizeNextData: expect.toBeBoolean(),
+      rsc: expect.toBeObject(),
     })
   })
 })

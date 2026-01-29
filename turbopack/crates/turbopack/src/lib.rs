@@ -31,8 +31,8 @@ use turbopack_core::{
     output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, ImportWithType,
-        InnerAssets, ReferenceType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, InnerAssets,
+        ReferenceType,
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
@@ -530,28 +530,11 @@ async fn process_default_internal(
         ReferenceType::Internal(inner_assets) => Some(*inner_assets),
         _ => None,
     };
-
-    let mut has_type_attribute = false;
-
     let mut current_source = source;
-    let mut current_module_type = match &reference_type {
-        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportWithType(ty)) => {
-            has_type_attribute = true;
-
-            match ty {
-                ImportWithType::Json => Some(ModuleType::Json),
-                // Reenable this once `import {type: "bytes"}` is stabilized
-                ImportWithType::Bytes => None,
-            }
-        }
-        _ => None,
-    };
+    let mut current_module_type = None;
 
     let options_value = options.await?;
     for (i, rule) in options_value.rules.iter().enumerate() {
-        if has_type_attribute && current_module_type.is_some() {
-            continue;
-        }
         if processed_rules.contains(&i) {
             continue;
         }
@@ -674,10 +657,12 @@ async fn process_default_internal(
                                 ModuleIssue::new(
                                     *ident,
                                     rcstr!("Invalid module type"),
-                                    rcstr!(
+                                    format!(
                                         "The module type must be Ecmascript or Typescript to add \
-                                         Ecmascript transforms"
-                                    ),
+                                         Ecmascript transforms (got {})",
+                                        module_type
+                                    )
+                                    .into(),
                                     Some(IssueSource::from_source_only(current_source)),
                                 )
                                 .to_resolved()
@@ -795,7 +780,6 @@ impl AssetContext for ModuleAssetContext {
     async fn resolve_options(
         self: Vc<Self>,
         origin_path: FileSystemPath,
-        _reference_type: ReferenceType,
     ) -> Result<Vc<ResolveOptions>> {
         let this = self.await?;
         let module_asset_context = if let Some(transition) = this.transition {
@@ -1006,18 +990,6 @@ pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
         .as_side_effect()
         .await?;
 
-    Ok(())
-}
-
-#[turbo_tasks::function]
-pub async fn emit_asset_into_dir(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    let dir = output_dir.clone();
-    if asset.path().await?.is_inside_ref(&dir) {
-        emit_asset(asset).as_side_effect().await?;
-    }
     Ok(())
 }
 

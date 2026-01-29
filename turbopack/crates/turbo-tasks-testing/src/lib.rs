@@ -14,6 +14,7 @@ use std::{
 use anyhow::{Result, anyhow};
 use futures::FutureExt;
 use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
     CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
@@ -267,6 +268,7 @@ impl TurboTasksApi for VcStorage {
         index: CellId,
         _is_serializable_cell_content: bool,
         content: CellContent,
+        _updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         _verification_mode: VerificationMode,
     ) {
         let mut map = self.cells.lock().unwrap();
@@ -290,10 +292,10 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
-    fn detached_for_testing(
+    fn spawn_detached_for_testing(
         &self,
-        _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
+        _f: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+    ) {
         unimplemented!()
     }
 

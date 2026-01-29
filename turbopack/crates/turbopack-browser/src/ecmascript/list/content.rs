@@ -116,14 +116,11 @@ impl EcmascriptDevChunkListContent {
 
         let by_merger = by_merger
             .into_iter()
-            .map(|(merger, contents)| async move {
+            .map(|(merger, contents)| (merger, Vc::cell(contents)))
+            .map(async |(merger, contents)| {
                 Ok((
                     merger.to_resolved().await?,
-                    merger
-                        .merge(Vc::cell(contents))
-                        .version()
-                        .into_trait_ref()
-                        .await?,
+                    merger.merge(contents).version().into_trait_ref().await?,
                 ))
             })
             .try_join()

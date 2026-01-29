@@ -95,8 +95,9 @@ env:
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
-  TURBO_TEAM: 'vercel'
+  TURBO_TEAM: 'vtest314-next-e2e-tests'
   TURBO_CACHE: 'remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
 
   NEXT_TELEMETRY_DISABLED: 1
   # allow not skipping install-native postinstall script if we don't have a binary available already
@@ -110,12 +111,18 @@ env:
   NEXT_TEST_JOB: 1
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+  VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
+  VERCEL_ADAPTER_TEST_TEAM: vtest314-next-adapter-e2e-tests
   NEXT_TEST_PREFER_OFFLINE: 1
   NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
   NEXT_TEST_PROXY_ADDRESS: ${{ inputs.overrideProxyAddress || '' }}
 
   # defaults to 256, but we run a lot of tests in parallel, so the limit should be lower
   NEXT_TURBOPACK_IO_CONCURRENCY: 64
+
+  # Disable warnings from baseline-browser-mapping
+  # https://github.com/web-platform-dx/baseline-browser-mapping/blob/ec8136ae9e034b332fab991d63a340d2e13b8afc/README.md?plain=1#L34
+  BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA: 1
 
 jobs:
   build:
@@ -198,6 +205,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 25
+
+      # Cache pnpm store on GitHub-hosted runners (self-hosted runners have their own persistent storage)
+      - name: Get pnpm store directory
+        if: ${{ runner.environment == 'github-hosted' }}
+        id: get-store-path
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        if: ${{ runner.environment == 'github-hosted' }}
+        uses: actions/cache@v4
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       # local action -> needs to run after checkout
       - name: Install Rust
@@ -294,9 +317,10 @@ jobs:
         timeout-minutes: ${{ inputs.timeout_minutes }}
 
       # This file messes up the tests because it influences the build root autodetection.
+      # Jest has a global cache, so PRs that poison the cache can bring down CI
       - name: Clean up stray files
         if: ${{ always() }}
-        run: rm -f /tmp/package-lock.json
+        run: rm -f /tmp/package-lock.json .jest-cache
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

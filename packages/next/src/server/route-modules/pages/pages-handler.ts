@@ -4,7 +4,12 @@ import { RouteKind } from '../../route-kind'
 import { BaseServerSpan } from '../../lib/trace/constants'
 import { getTracer, SpanKind, type Span } from '../../lib/trace/tracer'
 import { formatUrl } from '../../../shared/lib/router/utils/format-url'
-import { addRequestMeta, getRequestMeta } from '../../request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  setRequestMeta,
+  type RequestMeta,
+} from '../../request-meta'
 import { interopDefault } from '../../app-render/interop-default'
 import { getRevalidateReason } from '../../instrumentation/utils'
 import { normalizeDataPath } from '../../../shared/lib/page-path/normalize-data-path'
@@ -67,9 +72,13 @@ export const getHandler = ({
     req: IncomingMessage,
     res: ServerResponse,
     ctx: {
-      waitUntil: (prom: Promise<void>) => void
+      waitUntil?: (prom: Promise<void>) => void
+      requestMeta?: RequestMeta
     }
-  ): Promise<void> {
+  ) {
+    if (ctx.requestMeta) {
+      setRequestMeta(req, ctx.requestMeta)
+    }
     if (routeModule.isDev) {
       addRequestMeta(
         req,
@@ -256,7 +265,7 @@ export const getHandler = ({
                     buildId,
                     customServer:
                       Boolean(routerServerContext?.isCustomServer) || undefined,
-                    deploymentId: getDeploymentId(),
+                    deploymentId: getDeploymentId() || '',
                   },
                   renderOpts: {
                     params,
@@ -680,7 +689,12 @@ export const getHandler = ({
 
         // In dev, we should not cache pages for any reason.
         if (routeModule.isDev) {
-          res.setHeader('Cache-Control', 'no-store, must-revalidate')
+          res.setHeader(
+            'Cache-Control',
+            nextConfig.experimental.devCacheControlNoCache
+              ? 'no-cache, must-revalidate'
+              : 'no-store, must-revalidate'
+          )
         }
 
         // Draft mode should never be cached

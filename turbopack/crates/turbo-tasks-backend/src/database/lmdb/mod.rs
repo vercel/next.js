@@ -18,8 +18,7 @@ pub struct LmbdKeyValueDatabase {
     infra_db: Database,
     data_db: Database,
     meta_db: Database,
-    forward_task_cache_db: Database,
-    reverse_task_cache_db: Database,
+    task_cache_db: Database,
 }
 
 impl LmbdKeyValueDatabase {
@@ -38,23 +37,19 @@ impl LmbdKeyValueDatabase {
                     | EnvironmentFlags::NO_TLS,
             )
             .set_max_readers((available_parallelism().map_or(16, |v| v.get()) * 8) as u32)
-            .set_max_dbs(5)
+            .set_max_dbs(4)
             .set_map_size(MAP_SIZE)
             .open(path)?;
         let infra_db = env.create_db(Some("infra"), DatabaseFlags::INTEGER_KEY)?;
         let data_db = env.create_db(Some("data"), DatabaseFlags::INTEGER_KEY)?;
         let meta_db = env.create_db(Some("meta"), DatabaseFlags::INTEGER_KEY)?;
-        let forward_task_cache_db =
-            env.create_db(Some("forward_task_cache"), DatabaseFlags::empty())?;
-        let reverse_task_cache_db =
-            env.create_db(Some("reverse_task_cache"), DatabaseFlags::INTEGER_KEY)?;
+        let task_cache_db = env.create_db(Some("task_cache"), DatabaseFlags::empty())?;
         Ok(LmbdKeyValueDatabase {
             env,
             infra_db,
             data_db,
             meta_db,
-            forward_task_cache_db,
-            reverse_task_cache_db,
+            task_cache_db,
         })
     }
 
@@ -63,8 +58,7 @@ impl LmbdKeyValueDatabase {
             KeySpace::Infra => self.infra_db,
             KeySpace::TaskMeta => self.meta_db,
             KeySpace::TaskData => self.data_db,
-            KeySpace::ForwardTaskCache => self.forward_task_cache_db,
-            KeySpace::ReverseTaskCache => self.reverse_task_cache_db,
+            KeySpace::TaskCache => self.task_cache_db,
         }
     }
 }
@@ -91,8 +85,7 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
             KeySpace::Infra => self.infra_db,
             KeySpace::TaskMeta => self.meta_db,
             KeySpace::TaskData => self.data_db,
-            KeySpace::ForwardTaskCache => self.forward_task_cache_db,
-            KeySpace::ReverseTaskCache => self.reverse_task_cache_db,
+            KeySpace::TaskCache => self.task_cache_db,
         };
 
         let value = match extended_key::get(transaction, db, key) {

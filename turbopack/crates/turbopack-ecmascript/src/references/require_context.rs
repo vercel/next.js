@@ -21,7 +21,6 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext,
         MinifyType, ModuleChunkItemIdExt,
@@ -33,7 +32,7 @@ use turbopack_core::{
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::CommonJsReferenceSubType,
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
+    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -188,7 +187,7 @@ impl RequireContextMap {
         recursive: bool,
         filter: Vc<EsRegex>,
         issue_source: Option<IssueSource>,
-        is_optional: bool,
+        error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
         let origin_path = origin.origin_path().await?.parent();
 
@@ -209,7 +208,7 @@ impl RequireContextMap {
                 *request,
                 CommonJsReferenceSubType::Undefined,
                 issue_source,
-                is_optional,
+                error_mode,
             )
             .to_resolved()
             .await?;
@@ -238,7 +237,7 @@ pub struct RequireContextAssetReference {
     pub include_subdirs: bool,
 
     pub issue_source: Option<IssueSource>,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
 }
 
 impl RequireContextAssetReference {
@@ -249,7 +248,7 @@ impl RequireContextAssetReference {
         include_subdirs: bool,
         filter: Vc<EsRegex>,
         issue_source: Option<IssueSource>,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
     ) -> Result<Self> {
         let map = RequireContextMap::generate(
             *origin,
@@ -257,7 +256,7 @@ impl RequireContextAssetReference {
             include_subdirs,
             filter,
             issue_source,
-            in_try,
+            error_mode,
         )
         .to_resolved()
         .await?;
@@ -276,7 +275,7 @@ impl RequireContextAssetReference {
             dir,
             include_subdirs,
             issue_source,
-            in_try,
+            error_mode,
         })
     }
 }
@@ -436,14 +435,6 @@ impl Module for RequireContextAsset {
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::SideEffectFree.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for RequireContextAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
     }
 }
 

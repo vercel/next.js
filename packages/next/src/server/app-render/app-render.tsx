@@ -3,8 +3,8 @@ import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
   ActionResult,
   DynamicParamTypesShort,
+  DynamicSegmentTuple,
   FlightRouterState,
-  Segment,
   CacheNodeSeedData,
   RSCPayload,
   FlightData,
@@ -219,14 +219,14 @@ import { anySegmentHasRuntimePrefetchEnabled } from './staged-validation'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 
 export type GetDynamicParamFromSegment = (
-  // [slug] / [[slug]] / [...slug]
-  segment: string
+  // The LoaderTree to extract the dynamic param from
+  loaderTree: LoaderTree
 ) => DynamicParam | null
 
 export type DynamicParam = {
   param: string
   value: string | string[] | null
-  treeSegment: Segment
+  treeSegment: DynamicSegmentTuple
   type: DynamicParamTypesShort
 }
 
@@ -234,6 +234,7 @@ export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
 export type AppSharedContext = {
   buildId: string
+  deploymentId: string
 }
 
 export type AppRenderContext = {
@@ -385,10 +386,15 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   return [
     '',
     {
-      children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents],
+      children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
-    // When global-not-found is present, skip layout from components
-    hasGlobalNotFound ? components : {},
+    // Always include global-error so that getGlobalErrorStyles can access it.
+    // When global-not-found is present, use full components.
+    // Otherwise, only include global-error module.
+    hasGlobalNotFound
+      ? components
+      : { 'global-error': components['global-error'] },
+    null, // staticSiblings
   ]
 }
 
@@ -397,23 +403,25 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
  */
 function makeGetDynamicParamFromSegment(
   interpolatedParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  optimisticRouting: boolean
 ): GetDynamicParamFromSegment {
-  return function getDynamicParamFromSegment(
-    // [slug] / [[slug]] / [...slug]
-    segment: string
-  ) {
+  return function getDynamicParamFromSegment(loaderTree: LoaderTree) {
+    const [segment, , , staticSiblings] = loaderTree
     const segmentParam = getSegmentParam(segment)
     if (!segmentParam) {
       return null
     }
     const segmentKey = segmentParam.paramName
     const dynamicParamType = dynamicParamTypes[segmentParam.paramType]
+    // Static siblings are only included when optimistic routing is enabled
+    const siblings = optimisticRouting ? staticSiblings : null
     return getDynamicParam(
       interpolatedParams,
       segmentKey,
       dynamicParamType,
-      fallbackRouteParams
+      fallbackRouteParams,
+      siblings
     )
   }
 }
@@ -614,7 +622,7 @@ async function generateDynamicFlightRenderResult(
     dev = false,
     onInstrumentationRequestError,
     setReactDebugChannel,
-    nextExport = false,
+    isBuildTimePrerendering = false,
   } = renderOpts
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
@@ -628,7 +636,7 @@ async function generateDynamicFlightRenderResult(
 
   const onError = createReactServerErrorHandler(
     dev,
-    nextExport,
+    isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
     onFlightDataRenderError
   )
@@ -771,7 +779,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     onInstrumentationRequestError,
     setReactDebugChannel,
     setCacheStatus,
-    nextExport = false,
+    isBuildTimePrerendering = false,
   } = renderOpts
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
@@ -785,7 +793,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 
   const onError = createReactServerErrorHandler(
     dev,
-    nextExport,
+    isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
     onFlightDataRenderError
   )
@@ -917,7 +925,8 @@ async function generateRuntimePrefetchResult(
   requestStore: RequestStore
 ): Promise<RenderResult> {
   const { workStore, renderOpts } = ctx
-  const { nextExport = false, onInstrumentationRequestError } = renderOpts
+  const { isBuildTimePrerendering = false, onInstrumentationRequestError } =
+    renderOpts
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
@@ -931,7 +940,7 @@ async function generateRuntimePrefetchResult(
 
   const onError = createReactServerErrorHandler(
     false,
-    nextExport,
+    isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
     onFlightDataRenderError
   )
@@ -2012,14 +2021,22 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     interpolatedParams,
-    fallbackRouteParams
+    fallbackRouteParams,
+    renderOpts.experimental.optimisticRouting
   )
 
   const isPossibleActionRequest = getIsPossibleServerAction(req)
 
+  // For implicit tags, we use the resolved pathname which has dynamic params
+  // interpolated, is decoded, and has trailing slash removed.
+  const resolvedPathname = getRequestMeta(req, 'resolvedPathname')
+  if (!resolvedPathname) {
+    throw new InvariantError('resolvedPathname must be set in request metadata')
+  }
+
   const implicitTags = await getImplicitTags(
     workStore.page,
-    url,
+    resolvedPathname,
     fallbackRouteParams
   )
 
@@ -2108,22 +2125,19 @@ async function renderToHTMLOrFlightImpl(
       metadata,
       contentType: HTML_CONTENT_TYPE_HEADER,
     }
+
     // If we have pending revalidates, wait until they are all resolved.
-    if (
-      workStore.pendingRevalidates ||
-      workStore.pendingRevalidateWrites ||
-      workStore.pendingRevalidatedTags
-    ) {
-      const pendingPromise = executeRevalidates(workStore).finally(() => {
+    const maybeRevalidatesPromise = executeRevalidates(workStore)
+    if (maybeRevalidatesPromise !== false) {
+      const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log('pending revalidates promise finished for:', url)
+          console.log('pending revalidates promise finished for:', url.href)
         }
       })
-
       if (renderOpts.waitUntil) {
-        renderOpts.waitUntil(pendingPromise)
+        renderOpts.waitUntil(revalidatesPromise)
       } else {
-        options.waitUntil = pendingPromise
+        options.waitUntil = revalidatesPromise
       }
     }
 
@@ -2204,9 +2218,6 @@ async function renderToHTMLOrFlightImpl(
     let didExecuteServerAction = false
     let formState: null | any = null
     if (isPossibleActionRequest) {
-      // For action requests, we don't want to use the resume data cache.
-      requestStore.renderResumeDataCache = null
-
       // For action requests, we handle them differently with a special render result.
       const actionRequestResult = await handleAction({
         req,
@@ -2253,8 +2264,6 @@ async function renderToHTMLOrFlightImpl(
       }
 
       didExecuteServerAction = true
-      // Restore the resume data cache
-      requestStore.renderResumeDataCache = renderResumeDataCache
     }
 
     const options: RenderResultOptions = {
@@ -2290,21 +2299,17 @@ async function renderToHTMLOrFlightImpl(
     }
 
     // If we have pending revalidates, wait until they are all resolved.
-    if (
-      workStore.pendingRevalidates ||
-      workStore.pendingRevalidateWrites ||
-      workStore.pendingRevalidatedTags
-    ) {
-      const pendingPromise = executeRevalidates(workStore).finally(() => {
+    const maybeRevalidatesPromise = executeRevalidates(workStore)
+    if (maybeRevalidatesPromise !== false) {
+      const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log('pending revalidates promise finished for:', url)
+          console.log('pending revalidates promise finished for:', url.href)
         }
       })
-
       if (renderOpts.waitUntil) {
-        renderOpts.waitUntil(pendingPromise)
+        renderOpts.waitUntil(revalidatesPromise)
       } else {
-        options.waitUntil = pendingPromise
+        options.waitUntil = revalidatesPromise
       }
     }
 
@@ -2371,7 +2376,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
     postponedState = parsePostponedState(
       renderOpts.postponed,
-      interpolatedParams
+      interpolatedParams,
+      renderOpts.experimental.maxPostponedStateSizeBytes
     )
   } else {
     interpolatedParams = interpolateParallelRouteParams(
@@ -2512,7 +2518,7 @@ async function renderToStream(
     crossOrigin,
     dev = false,
     experimental,
-    nextExport = false,
+    isBuildTimePrerendering = false,
     onInstrumentationRequestError,
     page,
     reactMaxHeadersLength,
@@ -2611,7 +2617,7 @@ async function renderToStream(
     }
     const serverComponentsErrorHandler = createReactServerErrorHandler(
       dev,
-      nextExport,
+      isBuildTimePrerendering,
       reactServerErrorsByDigest,
       onHTMLRenderRSCError,
       renderSpan
@@ -2632,7 +2638,7 @@ async function renderToStream(
     const allCapturedErrors: Array<unknown> = []
     const htmlRendererErrorHandler = createHTMLErrorHandler(
       dev,
-      nextExport,
+      isBuildTimePrerendering,
       reactServerErrorsByDigest,
       allCapturedErrors,
       onHTMLRenderSSRError,
@@ -2886,6 +2892,7 @@ async function renderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            deploymentId: ctx.sharedContext.deploymentId,
           })
         }
       }
@@ -2963,6 +2970,7 @@ async function renderToStream(
         isStaticGeneration: generateStaticHTML,
         isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
         buildId: ctx.workStore.buildId,
+        deploymentId: ctx.sharedContext.deploymentId,
         getServerInsertedHTML,
         getServerInsertedMetadata,
         validateRootLayout: dev,
@@ -3132,6 +3140,7 @@ async function renderToStream(
           isBuildTimePrerendering:
             ctx.workStore.isBuildTimePrerendering === true,
           buildId: ctx.workStore.buildId,
+          deploymentId: ctx.sharedContext.deploymentId,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
             renderServerInsertedHTML,
@@ -4114,7 +4123,7 @@ async function prerenderToStream(
     dev = false,
     experimental,
     isDebugDynamicAccesses,
-    nextExport = false,
+    isBuildTimePrerendering = false,
     onInstrumentationRequestError,
     page,
     reactMaxHeadersLength,
@@ -4177,7 +4186,7 @@ async function prerenderToStream(
   }
   const serverComponentsErrorHandler = createReactServerErrorHandler(
     dev,
-    nextExport,
+    isBuildTimePrerendering,
     reactServerErrorsByDigest,
     onHTMLRenderRSCError
   )
@@ -4198,7 +4207,7 @@ async function prerenderToStream(
   const allCapturedErrors: Array<unknown> = []
   const htmlRendererErrorHandler = createHTMLErrorHandler(
     dev,
-    nextExport,
+    isBuildTimePrerendering,
     reactServerErrorsByDigest,
     allCapturedErrors,
     onHTMLRenderSSRError
@@ -4273,22 +4282,11 @@ async function prerenderToStream(
       // to cut the render off.
       const cacheSignal = new CacheSignal()
 
-      let resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache
-      let renderResumeDataCache: RenderResumeDataCache | null = null
-      let prerenderResumeDataCache: PrerenderResumeDataCache | null = null
-
-      if (renderOpts.renderResumeDataCache) {
-        // If a prefilled immutable render resume data cache is provided, e.g.
-        // when prerendering an optional fallback shell after having prerendered
-        // pages with defined params, we use this instead of a prerender resume
-        // data cache.
-        resumeDataCache = renderResumeDataCache =
-          renderOpts.renderResumeDataCache
-      } else {
-        // Otherwise we create a new mutable prerender resume data cache.
-        resumeDataCache = prerenderResumeDataCache =
-          createPrerenderResumeDataCache()
-      }
+      // Always start with a fresh prerender RDC so warmup can fill misses,
+      // even when we have a prefilled render RDC to seed from.
+      const prerenderResumeDataCache = createPrerenderResumeDataCache()
+      let renderResumeDataCache: RenderResumeDataCache | null =
+        renderOpts.renderResumeDataCache ?? null
 
       const initialServerPayloadPrerenderStore: PrerenderStore = {
         type: 'prerender',
@@ -4558,6 +4556,13 @@ async function prerenderToStream(
         initialClientReactController.abort()
       }
 
+      if (renderOpts.renderResumeDataCache) {
+        // Swap to the warmed cache so the final render uses entries produced during warmup.
+        renderResumeDataCache = createRenderResumeDataCache(
+          prerenderResumeDataCache
+        )
+      }
+
       const finalServerReactController = new AbortController()
       const finalServerRenderController = new AbortController()
 
@@ -4824,13 +4829,13 @@ async function prerenderToStream(
               ? DynamicHTMLPreludeState.Empty
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
-            resumeDataCache,
+            prerenderResumeDataCache,
             cacheComponents
           )
         } else {
           // Dynamic Data case
           metadata.postponed = await getDynamicDataPostponedState(
-            resumeDataCache,
+            prerenderResumeDataCache,
             cacheComponents
           )
         }
@@ -4841,6 +4846,7 @@ async function prerenderToStream(
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            deploymentId: ctx.sharedContext.deploymentId,
           }),
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
@@ -4851,7 +4857,9 @@ async function prerenderToStream(
           collectedExpire: finalServerPrerenderStore.expire,
           collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
           collectedTags: finalServerPrerenderStore.tags,
-          renderResumeDataCache: createRenderResumeDataCache(resumeDataCache),
+          renderResumeDataCache: createRenderResumeDataCache(
+            prerenderResumeDataCache
+          ),
         }
       } else {
         // Static case
@@ -4936,6 +4944,7 @@ async function prerenderToStream(
             isBuildTimePrerendering:
               ctx.workStore.isBuildTimePrerendering === true,
             buildId: ctx.workStore.buildId,
+            deploymentId: ctx.sharedContext.deploymentId,
           })
         } else {
           // Normal static prerender case, no fallback param handling needed
@@ -4950,6 +4959,7 @@ async function prerenderToStream(
             isBuildTimePrerendering:
               ctx.workStore.isBuildTimePrerendering === true,
             buildId: ctx.workStore.buildId,
+            deploymentId: ctx.sharedContext.deploymentId,
           })
         }
 
@@ -4966,7 +4976,9 @@ async function prerenderToStream(
           collectedExpire: finalServerPrerenderStore.expire,
           collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
           collectedTags: finalServerPrerenderStore.tags,
-          renderResumeDataCache: createRenderResumeDataCache(resumeDataCache),
+          renderResumeDataCache: createRenderResumeDataCache(
+            prerenderResumeDataCache
+          ),
         }
       }
     } else if (experimental.isRoutePPREnabled) {
@@ -5121,6 +5133,7 @@ async function prerenderToStream(
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            deploymentId: ctx.sharedContext.deploymentId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -5142,6 +5155,7 @@ async function prerenderToStream(
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            deploymentId: ctx.sharedContext.deploymentId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -5208,6 +5222,7 @@ async function prerenderToStream(
             isBuildTimePrerendering:
               ctx.workStore.isBuildTimePrerendering === true,
             buildId: ctx.workStore.buildId,
+            deploymentId: ctx.sharedContext.deploymentId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -5308,6 +5323,7 @@ async function prerenderToStream(
           buildId: ctx.workStore.buildId,
           getServerInsertedHTML,
           getServerInsertedMetadata,
+          deploymentId: ctx.sharedContext.deploymentId,
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
@@ -5493,6 +5509,7 @@ async function prerenderToStream(
           }),
           getServerInsertedMetadata,
           validateRootLayout: dev,
+          deploymentId: ctx.sharedContext.deploymentId,
         }),
         dynamicAccess: null,
         collectedRevalidate:
@@ -5525,26 +5542,29 @@ const getGlobalErrorStyles = async (
   GlobalError: GlobalErrorComponent
   styles: ReactNode | undefined
 }> => {
-  const {
-    modules: { 'global-error': globalErrorModule },
-  } = parseLoaderTree(tree)
+  const globalErrorModule = parseLoaderTree(tree).modules['global-error']
+
+  if (!globalErrorModule) {
+    throw new Error(
+      'Invariant: global-error module is required but not found in loader tree'
+    )
+  }
 
   const {
     componentMod: { createElement },
   } = ctx
-  const GlobalErrorComponent: GlobalErrorComponent =
-    ctx.componentMod.GlobalError
-  let globalErrorStyles
-  if (globalErrorModule) {
-    const [, styles] = await createComponentStylesAndScripts({
-      ctx,
-      filePath: globalErrorModule[1],
-      getComponent: globalErrorModule[0],
-      injectedCSS: new Set(),
-      injectedJS: new Set(),
-    })
-    globalErrorStyles = styles
-  }
+
+  // Get the GlobalError component and styles from the loader tree
+  const [GlobalErrorComponent, styles] = await createComponentStylesAndScripts({
+    ctx,
+    filePath: globalErrorModule[1],
+    getComponent: globalErrorModule[0],
+    injectedCSS: new Set(),
+    injectedJS: new Set(),
+  })
+
+  let globalErrorStyles: ReactNode = styles
+
   if (ctx.renderOpts.dev) {
     const dir =
       (process.env.NEXT_RUNTIME === 'edge'
@@ -5553,7 +5573,7 @@ const getGlobalErrorStyles = async (
 
     const globalErrorModulePath = normalizeConventionFilePath(
       dir,
-      globalErrorModule?.[1]
+      globalErrorModule[1]
     )
     if (globalErrorModulePath) {
       const SegmentViewNode = ctx.componentMod.SegmentViewNode

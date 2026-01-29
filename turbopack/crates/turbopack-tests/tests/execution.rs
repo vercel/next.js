@@ -37,8 +37,10 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
-    issue::CollectibleIssuesExt,
-    module_graph::{ModuleGraph, binding_usage_info::compute_binding_usage_info},
+    issue::{CollectibleIssuesExt, IssueFilter},
+    module_graph::{
+        ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
+    },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
@@ -128,6 +130,7 @@ fn test_skipped_fails(resource: PathBuf) {
                 .test_results
                 .into_iter()
                 .any(|r| !r.errors.is_empty()),
+        "Expected an error, but the test passed?"
     );
 }
 
@@ -415,12 +418,13 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ),
                 import_externals: true,
                 enable_exports_info_inlining: true,
+                infer_module_side_effects: true,
                 ..Default::default()
             },
             environment: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InNodeModules,
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
                     ..Default::default()
@@ -433,9 +437,11 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         ResolveOptionsContext {
             enable_typescript: true,
             enable_node_modules: Some(project_root.clone()),
+            enable_node_native_modules: true,
+            enable_node_externals: true,
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InNodeModules,
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root.clone()),
                     custom_conditions: vec![rcstr!("development")],
@@ -477,23 +483,28 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let entries = get_evaluate_entries(jest_entry_asset, asset_context, None);
 
-    let mut module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, true);
+    let single_graph = SingleModuleGraph::new_with_entries(
+        entries.graph_entries().to_resolved().await?,
+        false,
+        true,
+    );
+    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
-        Some(
-            compute_binding_usage_info(
-                module_graph.to_resolved().await?,
-                options.remove_unused_imports,
-            )
-            .resolve_strongly_consistent()
-            .await?,
-        )
+        Some(compute_binding_usage_info(
+            module_graph,
+            options.remove_unused_imports,
+        ))
     } else {
         None
     };
-    if options.remove_unused_imports {
-        module_graph = module_graph.without_unused_references(*binding_usage.unwrap());
+    if options.remove_unused_imports
+        && let Some(binding_usage) = binding_usage
+    {
+        module_graph =
+            ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
     }
+    let module_graph = module_graph.connect();
 
     let mut builder = NodeJsChunkingContext::builder(
         project_root.clone(),
@@ -505,6 +516,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         env,
         RuntimeType::Development,
     )
+    .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
     .module_merging(options.scope_hoisting)
     .minify_type(if options.minify {
         MinifyType::Minify {
@@ -513,16 +525,23 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
-    .export_usage(
-        options
-            .remove_unused_exports
-            .then(|| binding_usage.unwrap()),
-    )
-    .unused_references(
-        options
-            .remove_unused_exports
-            .then(|| binding_usage.unwrap()),
-    );
+    .export_usage(if options.remove_unused_exports {
+        Some(binding_usage.unwrap().connect().to_resolved().await?)
+    } else {
+        None
+    });
+
+    if options.remove_unused_imports {
+        builder = builder.unused_references(
+            binding_usage
+                .unwrap()
+                .connect()
+                .unused_references()
+                .to_resolved()
+                .await?,
+        );
+    }
+
     if options.production_chunking {
         builder = builder
             .chunking_config(
@@ -588,7 +607,10 @@ async fn snapshot_issues(
     let PreparedTest { path, .. } = &*prepared_test.await?;
     let _ = run_result_op.resolve_strongly_consistent().await;
 
-    let plain_issues = run_result_op.peek_issues().get_plain_issues().await?;
+    let plain_issues = run_result_op
+        .peek_issues()
+        .get_plain_issues(IssueFilter::everything())
+        .await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)
         .await

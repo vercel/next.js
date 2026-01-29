@@ -36,26 +36,29 @@ const requiredPackages = [
 export async function verifyTypeScriptSetup({
   dir,
   distDir,
+  distDirRoot,
   cacheDir,
+  strictRouteTypes,
   tsconfigPath,
   typeCheckPreflight,
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
-  isolatedDevBuild,
   appDir,
   pagesDir,
   debugBuildPaths,
 }: {
   dir: string
   distDir: string
+  /** The root dist directory without /dev suffix, used for fixed type paths */
+  distDirRoot?: string
   cacheDir?: string
+  strictRouteTypes: boolean
   tsconfigPath: string | undefined
   typeCheckPreflight: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
-  isolatedDevBuild: boolean | undefined
   appDir?: string
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
@@ -136,13 +139,14 @@ export async function verifyTypeScriptSetup({
       hasAppDir,
       distDir,
       hasPagesDir,
-      isolatedDevBuild
+      strictRouteTypes
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
     await writeAppTypeDeclarations({
       baseDir: dir,
       distDir,
+      distDirRoot,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,
@@ -166,7 +170,6 @@ export async function verifyTypeScriptSetup({
         resolvedTsConfigPath,
         cacheDir,
         hasAppDir,
-        isolatedDevBuild,
         { app: appDir, pages: pagesDir },
         debugBuildPaths
       )
