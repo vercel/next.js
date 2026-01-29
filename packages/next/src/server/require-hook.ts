@@ -2,6 +2,10 @@
 // This is needed for userland plugins to attach to the same webpack instance as Next.js'.
 // Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
 
+if (process.env.BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA === undefined) {
+  process.env.BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA = '1'
+}
+
 // This module will only be loaded once per process.
 const path = require('path') as typeof import('path')
 const mod = require('module') as typeof import('module')
