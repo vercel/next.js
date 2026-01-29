@@ -6,17 +6,17 @@ describe('next start without next build', () => {
       files: __dirname,
       skipStart: true,
       startCommand: `pnpm next start`,
+      serverReadyPattern: /Local:/,
     })
 
-    // next.start() will throw because the process exits before
-    // the "Ready" pattern appears - this is expected
-    try {
-      await next.start()
-    } catch {
-      // Expected - process exits before server is ready
-    }
-
-    expect(next.cliOutput).toContain('Could not find a production build in the')
+    await next.start()
+    await new Promise<void>((resolve, reject) => {
+      next.on('stderr', (msg) => {
+        if (msg.includes('Could not find a production build in the')) {
+          resolve()
+        }
+      })
+    })
 
     await next.destroy()
   })

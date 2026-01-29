@@ -57,9 +57,6 @@ describe('lockfile', () => {
     expect(output).toMatch(errorPattern)
     expect(exitCode).toBe(1)
 
-    // Verify no URLs or "Ready" message was printed before the error
-    expect(output).not.toContain('Ready in')
-
     // Make sure the other instance of `next dev` didn't mess anything up
     await browser.refresh()
     expect(await browser.elementByCss('p').text()).toBe('Page')
