@@ -69,7 +69,8 @@ describe('app-dir static/dynamic handling', () => {
 
     if (isNextDev) {
       expect(data).not.toBe(data2)
-    } else {
+      // custom cache handler is in memory only
+    } else if (!process.env.CUSTOM_CACHE_HANDLER) {
       const pageCache = getCacheHeader(res)
 
       expect(pageCache).toBeTruthy()
@@ -94,7 +95,7 @@ describe('app-dir static/dynamic handling', () => {
 
     if (isNextDev) {
       expect(data).not.toBe(data2)
-    } else {
+    } else if (!process.env.CUSTOM_CACHE_HANDLER) {
       // "default" cache does not impact ISR handling on a page, similar to the above test
       // case for no fetch config
       const pageCache = getCacheHeader(res)
