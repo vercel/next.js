@@ -11,6 +11,7 @@
 
   display: flex;
   flex: 1;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-family: var(--font-geist-sans);
