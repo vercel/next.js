@@ -720,10 +720,9 @@ async fn process_default_internal(
                         }
                     }
                     ModuleRuleEffect::ModuleType(module) => {
-                        // Apply any collected transforms to this module type.
-                        // This clears the collected transform lists.
-                        // If another ModuleType is encountered later, it will override
-                        // with any transforms collected since this point.
+                        // Apply any collected transforms to this module type and exit rule
+                        // processing. Once a ModuleType is determined, we
+                        // stop processing further rules.
                         let mut module = module.clone();
                         apply_module_rule_transforms(
                             &mut module,
