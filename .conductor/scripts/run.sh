@@ -1,20 +1,21 @@
-#!/bin/bash
-#
-# Conductor Run Script for Next.js
-#
-# This script runs when starting work in a Conductor workspace.
-# It starts the watch mode build for fast iteration.
-#
-
+#!/usr/bin/env bash
 set -e
 
-echo "🚀 Starting Next.js development environment..."
-echo ""
-echo "Starting watch mode (pnpm --filter=next dev)..."
-echo "This will auto-rebuild on file changes."
-echo ""
-echo "⚠️  Remember: Never run 'pnpm build' while this is running!"
+echo "🚀 Starting Next.js dev server (open-source Conductor)"
 echo ""
 
-# Start the watch mode build for the next package
-pnpm --filter=next dev
+# Move to repo root (important in Conductor)
+cd "$(dirname "$0")"
+
+# Install deps if needed
+if [ ! -d "node_modules" ]; then
+  echo "📦 Installing dependencies..."
+  npm install -g pnpm
+  pnpm install
+fi
+
+echo "👀 Starting Next.js watch mode..."
+echo "⚠️  Do NOT run pnpm build while this is running"
+echo ""
+
+pnpm --filter=next dev -- -H 0.0.0.0
