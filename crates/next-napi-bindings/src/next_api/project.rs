@@ -1263,7 +1263,7 @@ async fn server_hmr_update_with_issues_operation(
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func))]
+#[tracing::instrument(level = "info", name = "get client HMR events", skip(project, func))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_client_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
