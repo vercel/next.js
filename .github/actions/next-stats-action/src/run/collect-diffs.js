@@ -65,7 +65,7 @@ module.exports = async function collectDiffs(
         const prettierFiles = curFiles.map((f) => path.join(diffingDir, f))
         await exec(
           prettierPath,
-          ['--write', '--no-error-on-unmatched-pattern', ...prettierFiles],
+          ['--write', '--no-error-on-unmatched-pattern', '--', ...prettierFiles],
           false,
           { cwd: prettierCwd }
         )
