@@ -958,11 +958,10 @@
       "app dir - prefetching should not prefetch for a bot user agent",
       "app dir - prefetching should not re-render error component when triggering a prefetch action",
       "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params",
-      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment"
-    ],
-    "failed": [
+      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment",
       "app dir - prefetching should show layout eagerly when prefetched with loading one level down"
     ],
+    "failed": [],
     "pending": [
       "app dir - prefetching should not suppress prefetches after navigating back"
     ],
@@ -7108,7 +7107,6 @@
   },
   "test/e2e/app-dir/segment-cache/prefetch-runtime/prefetch-runtime.test.ts": {
     "passed": [
-      "runtime prefetching cache stale time handling includes private caches with cacheLife(\"seconds\")",
       "runtime prefetching cache stale time handling includes public caches with cacheLife(\"seconds\")",
       "runtime prefetching cache stale time handling includes short-lived public caches with a long enough staleTime",
       "runtime prefetching cache stale time handling omits private caches with a short enough staleTime",
@@ -7143,7 +7141,9 @@
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
     ],
-    "failed": [],
+    "failed": [
+      "runtime prefetching cache stale time handling includes private caches with cacheLife(\"seconds\")"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21317,6 +21317,15 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/build-tracing-message/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "build-tracing-message should warn when tracing all files in the project"
+    ],
     "flakey": [],
     "runtimeError": false
   },
