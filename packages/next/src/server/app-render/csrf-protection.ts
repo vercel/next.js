@@ -4,8 +4,13 @@
 // https://nextjs.org/docs/app/api-reference/components/image#remotepatterns
 // TODO - retrofit micromatch to work in edge and use that instead
 function matchWildcardDomain(domain: string, pattern: string) {
-  const domainParts = domain.split('.')
-  const patternParts = pattern.split('.')
+  // DNS names are case-insensitive per RFC 1035
+  // Use ASCII-only toLowerCase to avoid unicode issues
+  const normalizedDomain = domain.replace(/[A-Z]/g, (c) => c.toLowerCase())
+  const normalizedPattern = pattern.replace(/[A-Z]/g, (c) => c.toLowerCase())
+
+  const domainParts = normalizedDomain.split('.')
+  const patternParts = normalizedPattern.split('.')
 
   if (patternParts.length < 1) {
     // pattern is empty and therefore invalid to match against
@@ -68,10 +73,22 @@ export const isCsrfOriginAllowed = (
   originDomain: string,
   allowedOrigins: string[] = []
 ): boolean => {
-  return allowedOrigins.some(
-    (allowedOrigin) =>
-      allowedOrigin &&
-      (allowedOrigin === originDomain ||
-        matchWildcardDomain(originDomain, allowedOrigin))
+  // DNS names are case-insensitive per RFC 1035
+  // Use ASCII-only toLowerCase to avoid unicode issues
+  const normalizedOrigin = originDomain.replace(/[A-Z]/g, (c) =>
+    c.toLowerCase()
   )
+
+  return allowedOrigins.some((allowedOrigin) => {
+    if (!allowedOrigin) return false
+
+    const normalizedAllowed = allowedOrigin.replace(/[A-Z]/g, (c) =>
+      c.toLowerCase()
+    )
+
+    return (
+      normalizedAllowed === normalizedOrigin ||
+      matchWildcardDomain(originDomain, allowedOrigin)
+    )
+  })
 }
