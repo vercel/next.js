@@ -21,6 +21,7 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
 declare var ASSET_SUFFIX: string
+declare var WORKER_FORWARDED_GLOBALS: string[]
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -338,6 +339,9 @@ browserContextPrototype.q = exportUrl
  * The entrypoint is a pre-compiled worker runtime file. The params configure
  * which module chunks to load and which module to run as the entry point.
  *
+ * The params are a JSON array of the following structure:
+ * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
+ *
  * @param entrypoint URL path to the worker entrypoint chunk
  * @param moduleChunks list of module chunk paths to load
  * @param shared whether this is a SharedWorker (uses querystring for URL identity)
@@ -347,14 +351,15 @@ function getWorkerURL(
   moduleChunks: ChunkPath[],
   shared: boolean
 ): URL {
-  const url = new URL(getChunkRelativeUrl(entrypoint), location.origin)
-
-  const params = {
-    S: ASSET_SUFFIX,
-    N: (globalThis as any).NEXT_DEPLOYMENT_ID,
-    NC: moduleChunks.map((chunk) => getChunkRelativeUrl(chunk)),
+  const chunkUrls = moduleChunks
+    .map((chunk) => getChunkRelativeUrl(chunk))
+    .reverse()
+  const params: unknown[] = [chunkUrls, ASSET_SUFFIX]
+  for (const globalName of WORKER_FORWARDED_GLOBALS) {
+    params.push((globalThis as Record<string, unknown>)[globalName])
   }
 
+  const url = new URL(getChunkRelativeUrl(entrypoint), location.origin)
   const paramsJson = JSON.stringify(params)
   if (shared) {
     url.searchParams.set('params', paramsJson)

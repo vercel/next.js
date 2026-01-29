@@ -11,6 +11,7 @@ const CHUNK_BASE_PATH = "";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const RUNTIME_PUBLIC_PATH = "";
 const ASSET_SUFFIX = "";
+const WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -1191,18 +1192,41 @@ browserContextPrototype.q = exportUrl;
  * The entrypoint is a pre-compiled worker runtime file. The params configure
  * which module chunks to load and which module to run as the entry point.
  *
+ * The params are a JSON array of the following structure:
+ * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
+ *
  * @param entrypoint URL path to the worker entrypoint chunk
  * @param moduleChunks list of module chunk paths to load
  * @param shared whether this is a SharedWorker (uses querystring for URL identity)
  */ function getWorkerURL(entrypoint, moduleChunks, shared) {
+    var chunkUrls = moduleChunks.map(function(chunk) {
+        return getChunkRelativeUrl(chunk);
+    }).reverse();
+    var params = [
+        chunkUrls,
+        ASSET_SUFFIX
+    ];
+    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+    try {
+        for(var _iterator = WORKER_FORWARDED_GLOBALS[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+            var globalName = _step.value;
+            params.push(globalThis[globalName]);
+        }
+    } catch (err) {
+        _didIteratorError = true;
+        _iteratorError = err;
+    } finally{
+        try {
+            if (!_iteratorNormalCompletion && _iterator.return != null) {
+                _iterator.return();
+            }
+        } finally{
+            if (_didIteratorError) {
+                throw _iteratorError;
+            }
+        }
+    }
     var url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
-    var params = {
-        S: ASSET_SUFFIX,
-        N: globalThis.NEXT_DEPLOYMENT_ID,
-        NC: moduleChunks.map(function(chunk) {
-            return getChunkRelativeUrl(chunk);
-        })
-    };
     var paramsJson = JSON.stringify(params);
     if (shared) {
         url.searchParams.set('params', paramsJson);

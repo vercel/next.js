@@ -121,12 +121,7 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
                 // For web workers, generate code that creates a worker URL using the real
                 // entrypoint
-                let asset_context = *this.asset_context;
-                let entrypoint_full_path = this
-                    .chunking_context
-                    .worker_entrypoint(asset_context)
-                    .path()
-                    .await?;
+                let entrypoint_full_path = this.chunking_context.worker_entrypoint().path().await?;
 
                 // Get the entrypoint path relative to output root
                 let output_root = this.chunking_context.output_root().owned().await?;
@@ -210,12 +205,9 @@ impl OutputAssetsReference for WorkerLoaderChunkItem {
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         match this.worker_type {
-            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
-                let asset_context = *this.asset_context;
-                Ok(self
-                    .chunk_group()
-                    .concatenate_asset(this.chunking_context.worker_entrypoint(asset_context)))
-            }
+            WorkerType::WebWorker | WorkerType::SharedWebWorker => Ok(self
+                .chunk_group()
+                .concatenate_asset(this.chunking_context.worker_entrypoint())),
             WorkerType::NodeWorkerThread => {
                 // Node.js workers don't need a separate entrypoint asset
                 Ok(self.chunk_group())

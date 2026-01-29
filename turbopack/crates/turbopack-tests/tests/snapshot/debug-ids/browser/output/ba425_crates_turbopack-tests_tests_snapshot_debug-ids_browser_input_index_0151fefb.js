@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="03178dfb-da5f-714f-0925-63c49edb4e28")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="1c6724ca-60ec-910e-12f5-fb9306888096")}catch(e){}}();
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -12,6 +12,7 @@ const CHUNK_BASE_PATH = "";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const RUNTIME_PUBLIC_PATH = "";
 const ASSET_SUFFIX = "";
+const WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -694,16 +695,22 @@ browserContextPrototype.q = exportUrl;
  * The entrypoint is a pre-compiled worker runtime file. The params configure
  * which module chunks to load and which module to run as the entry point.
  *
+ * The params are a JSON array of the following structure:
+ * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
+ *
  * @param entrypoint URL path to the worker entrypoint chunk
  * @param moduleChunks list of module chunk paths to load
  * @param shared whether this is a SharedWorker (uses querystring for URL identity)
  */ function getWorkerURL(entrypoint, moduleChunks, shared) {
+    const chunkUrls = moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk)).reverse();
+    const params = [
+        chunkUrls,
+        ASSET_SUFFIX
+    ];
+    for (const globalName of WORKER_FORWARDED_GLOBALS){
+        params.push(globalThis[globalName]);
+    }
     const url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
-    const params = {
-        S: ASSET_SUFFIX,
-        N: globalThis.NEXT_DEPLOYMENT_ID,
-        NC: moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk))
-    };
     const paramsJson = JSON.stringify(params);
     if (shared) {
         url.searchParams.set('params', paramsJson);
@@ -1904,5 +1911,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=03178dfb-da5f-714f-0925-63c49edb4e28
+//# debugId=1c6724ca-60ec-910e-12f5-fb9306888096
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map

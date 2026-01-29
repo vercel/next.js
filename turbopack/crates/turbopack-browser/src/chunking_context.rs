@@ -19,7 +19,6 @@ use turbopack_core::{
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
     },
-    context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -232,6 +231,13 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn worker_forwarded_globals(mut self, globals: Vec<RcStr>) -> Self {
+        self.chunking_context
+            .worker_forwarded_globals
+            .extend(globals);
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -321,6 +327,8 @@ pub struct BrowserChunkingContext {
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Whether to use absolute URLs for static assets (e.g. in CSS: `url("/absolute/path")`)
     should_use_absolute_url_references: bool,
+    /// Global variable names to forward to workers (e.g. NEXT_DEPLOYMENT_ID)
+    worker_forwarded_globals: Vec<RcStr>,
 }
 
 impl BrowserChunkingContext {
@@ -370,6 +378,7 @@ impl BrowserChunkingContext {
                 unused_references: None,
                 chunking_configs: Default::default(),
                 should_use_absolute_url_references: false,
+                worker_forwarded_globals: vec![],
             },
         }
     }
@@ -930,14 +939,17 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn worker_entrypoint(
-        self: Vc<Self>,
-        asset_context: Vc<Box<dyn AssetContext>>,
-    ) -> Vc<Box<dyn OutputAsset>> {
-        Vc::upcast(EcmascriptBrowserWorkerEntrypoint::new(
-            Vc::upcast(self),
-            asset_context,
-        ))
+    fn worker_forwarded_globals(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.worker_forwarded_globals.clone())
+    }
+
+    #[turbo_tasks::function]
+    async fn worker_entrypoint(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let chunking_context: Vc<Box<dyn ChunkingContext>> = Vc::upcast(self);
+        let resolved = chunking_context.to_resolved().await?;
+        let forwarded_globals = chunking_context.worker_forwarded_globals();
+        let entrypoint = EcmascriptBrowserWorkerEntrypoint::new(*resolved, forwarded_globals);
+        Ok(Vc::upcast(entrypoint))
     }
 }
 
