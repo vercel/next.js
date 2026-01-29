@@ -47,7 +47,6 @@ describe('writeConfigurationDefaults()', () => {
         hasAppDir,
         distDir,
         hasPagesDir,
-        undefined,
         experimentalStrictRouteTypes
       )
 
@@ -136,7 +135,6 @@ describe('writeConfigurationDefaults()', () => {
         hasAppDir,
         distDir,
         hasPagesDir,
-        undefined,
         experimentalStrictRouteTypes
       )
 

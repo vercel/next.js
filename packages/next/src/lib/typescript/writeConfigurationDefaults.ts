@@ -189,7 +189,6 @@ export async function writeConfigurationDefaults(
   hasAppDir: boolean,
   distDir: string,
   hasPagesDir: boolean,
-  _isolatedDevBuild: boolean | undefined,
   strictRouteTypes: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {

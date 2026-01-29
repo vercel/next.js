@@ -67,7 +67,6 @@ const nextTypegen = async (
     disableStaticImages: nextConfig.images.disableStaticImages,
     hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
-    isolatedDevBuild: undefined,
     appDir: appDir || undefined,
     pagesDir: pagesDir || undefined,
   })

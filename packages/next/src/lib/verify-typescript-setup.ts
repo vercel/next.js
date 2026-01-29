@@ -59,8 +59,6 @@ export async function verifyTypeScriptSetup({
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
-  /** @deprecated No longer used, kept for backwards compatibility */
-  isolatedDevBuild?: boolean | undefined
   appDir?: string
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
@@ -141,7 +139,6 @@ export async function verifyTypeScriptSetup({
       hasAppDir,
       distDir,
       hasPagesDir,
-      undefined,
       strictRouteTypes
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
@@ -173,7 +170,6 @@ export async function verifyTypeScriptSetup({
         resolvedTsConfigPath,
         cacheDir,
         hasAppDir,
-        undefined,
         { app: appDir, pages: pagesDir },
         debugBuildPaths
       )

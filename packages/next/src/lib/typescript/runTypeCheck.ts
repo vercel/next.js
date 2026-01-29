@@ -43,7 +43,6 @@ export async function runTypeCheck(
   tsConfigPath: string,
   cacheDir?: string,
   isAppDirEnabled?: boolean,
-  _isolatedDevBuild?: boolean,
   dirs?: TypeCheckDirs,
   debugBuildPaths?: DebugBuildPaths
 ): Promise<TypeCheckResult> {

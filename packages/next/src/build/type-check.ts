@@ -29,8 +29,6 @@ function verifyTypeScriptSetup(
   enableWorkerThreads: boolean | undefined,
   hasAppDir: boolean,
   hasPagesDir: boolean,
-  /** @deprecated No longer used, kept for backwards compatibility */
-  _isolatedDevBuild: boolean | undefined,
   appDir: string | undefined,
   pagesDir: string | undefined,
   debugBuildPaths: { app: string[]; pages: string[] } | undefined
@@ -61,7 +59,6 @@ function verifyTypeScriptSetup(
       cacheDir,
       hasAppDir,
       hasPagesDir,
-      isolatedDevBuild: undefined,
       appDir,
       pagesDir,
       debugBuildPaths,
@@ -131,7 +128,6 @@ export async function startTypeChecking({
           config.experimental.workerThreads,
           !!appDir,
           !!pagesDir,
-          undefined,
           appDir,
           pagesDir,
           debugBuildPaths
