@@ -1,3 +1,4 @@
+const path = require('path')
 const nextJest = require('next/jest')
 
 const createJestConfig = nextJest()
@@ -25,6 +26,10 @@ const customJestConfig = {
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
+}
+
+if (process.env.CI) {
+  customJestConfig.cacheDirectory = path.join(__dirname, '.jest-cache')
 }
 
 // Check if the environment variable is set to enable test report,
