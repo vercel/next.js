@@ -159,15 +159,6 @@ pub async fn follow_reexports(
     let mut module = module;
     let mut export_name = export_name;
     loop {
-        let exports = module.get_exports().await?;
-        let EcmascriptExports::EsmExports(exports) = &*exports else {
-            return Ok(FollowExportsResult::cell(FollowExportsResult {
-                module,
-                export_name: Some(export_name),
-                ty: FoundExportType::Dynamic,
-            }));
-        };
-
         if !ignore_side_effects
             && *module.side_effects().await? != ModuleSideEffects::SideEffectFree
         {
@@ -181,6 +172,15 @@ pub async fn follow_reexports(
             }));
         }
         ignore_side_effects = false;
+
+        let exports = module.get_exports().await?;
+        let EcmascriptExports::EsmExports(exports) = &*exports else {
+            return Ok(FollowExportsResult::cell(FollowExportsResult {
+                module,
+                export_name: Some(export_name),
+                ty: FoundExportType::Dynamic,
+            }));
+        };
 
         // Try to find the export in the local exports
         let exports_ref = exports.await?;
