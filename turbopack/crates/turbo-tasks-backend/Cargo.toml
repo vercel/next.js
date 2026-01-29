@@ -13,7 +13,7 @@ bench = false
 workspace = true
 
 [features]
-default = ["print_cache_item_size"]
+default = []
 print_cache_item_size = ["dep:lzzzz"]
 no_fast_stale = []
 verify_serialization = []
