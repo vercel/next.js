@@ -28,6 +28,9 @@ patchedDependencies:
   '@types/node@20.17.6':
     hash: rvl3vkomen3tospgr67bzubfyu
     path: patches/@types__node@20.17.6.patch
+  minizlib@3.1.0:
+    hash: o4nv5mg6kfnuzlknbdln3azhvu
+    path: patches/minizlib@3.1.0.patch
   stacktrace-parser@0.1.10:
     hash: x5tdcojc7b5m2b5ojepbcdl36a
     path: patches/stacktrace-parser@0.1.10.patch
@@ -959,9 +962,6 @@ importers:
       '@types/prompts':
         specifier: 2.4.2
         version: 2.4.2
-      '@types/tar':
-        specifier: 6.1.13
-        version: 6.1.13
       '@types/validate-npm-package-name':
         specifier: 4.0.2
         version: 4.0.2
@@ -996,8 +996,8 @@ importers:
         specifier: 2.4.2
         version: 2.4.2
       tar:
-        specifier: 7.4.3
-        version: 7.4.3
+        specifier: 7.5.7
+        version: 7.5.7
       update-check:
         specifier: 1.5.4
         version: 1.5.4
@@ -6850,9 +6850,6 @@ packages:
 
   '@types/supports-color@8.1.3':
     resolution: {integrity: sha512-Hy6UMpxhE3j1tLpl27exp1XqHD7n8chAiNPzWfz16LPZoMMoSc4dzLl6w9qijkEb/r5O1ozdu1CWGA2L83ZeZg==}
-
-  '@types/tar@6.1.13':
-    resolution: {integrity: sha512-IznnlmU5f4WcGTh2ltRu/Ijpmk8wiWXfF0VA4s+HPjHZgvFggk1YaIkbo5krX/zUCzWF8N/l4+W/LNxnvAJ8nw==}
 
   '@types/text-table@0.2.1':
     resolution: {integrity: sha512-dchbFCWfVgUSWEvhOkXGS7zjm+K7jCUvGrQkAHPk2Fmslfofp4HQTH2pqnQ3Pw5GPYv0zWa2AQjKtsfZThuemQ==}
@@ -13735,10 +13732,6 @@ packages:
     resolution: {integrity: sha512-bAxsR8BVfj60DWXHE3u30oHzfl4G7khkSuPW+qvpd7jFRHm7dLxOjUk1EHACJ/hxLY8phGJ0YhYHZo7jil7Qdg==}
     engines: {node: '>= 8'}
 
-  minizlib@3.0.1:
-    resolution: {integrity: sha512-umcy022ILvb5/3Djuu8LWeqUa8D68JaBzlttKeMWen48SjabqS3iY5w/vzeMzMUNhLDifyhbOwKDSznB1vvrwg==}
-    engines: {node: '>= 18'}
-
   minizlib@3.1.0:
     resolution: {integrity: sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==}
     engines: {node: '>= 18'}
@@ -13753,11 +13746,6 @@ packages:
 
   mkdirp@1.0.4:
     resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
-    engines: {node: '>=10'}
-    hasBin: true
-
-  mkdirp@3.0.1:
-    resolution: {integrity: sha512-+NsyUUAZDmo6YVHzL/stxSu3t9YS1iljliy3BSDrXJ/dkn1KYdmtZODGGjLcc9XLgVVpH4KshHB8XmZgMhaBXg==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -16421,11 +16409,6 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
 
-  rimraf@5.0.9:
-    resolution: {integrity: sha512-3i7b8OcswU6CpU8Ej89quJD4O98id7TtVM5U4Mybh84zQXdrFmDLouWBEEaD/QfO3gDDfH+AGFCGsR7kngzQnA==}
-    engines: {node: 14 >=14.20 || 16 >=16.20 || >=18}
-    hasBin: true
-
   rimraf@6.0.1:
     resolution: {integrity: sha512-9dkvaxAsk/xNXSJzMgFqqMCuFgt2+KsOFek3TMLfo8NCPfWpBmqwyNn5Y+NX56QUYfCtsyhF3ayiboEoUmJk/A==}
     engines: {node: 20 || >=22}
@@ -17430,10 +17413,6 @@ packages:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
     deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
-
-  tar@7.4.3:
-    resolution: {integrity: sha512-5S7Va8hKfV7W5U6g3aYxXmlPoZVAwUMy9AOKyF2fVuZa2UD3qZjg578OrLRt8PcNN1PleVaL/5/yYATNL0ICUw==}
-    engines: {node: '>=18'}
 
   tar@7.5.7:
     resolution: {integrity: sha512-fov56fJiRuThVFXD6o6/Q354S7pnWMJIVlDBYijsTNx6jKSE4pvrDTs6lUnmGvNyfJwFQQwWy3owKz1ucIhveQ==}
@@ -24314,11 +24293,6 @@ snapshots:
   '@types/string-hash@1.1.1': {}
 
   '@types/supports-color@8.1.3': {}
-
-  '@types/tar@6.1.13':
-    dependencies:
-      '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
-      minipass: 4.2.8
 
   '@types/text-table@0.2.1': {}
 
@@ -33339,7 +33313,7 @@ snapshots:
     dependencies:
       minipass: 7.1.2
       minipass-sized: 1.0.3
-      minizlib: 3.0.1
+      minizlib: 3.1.0(patch_hash=o4nv5mg6kfnuzlknbdln3azhvu)
     optionalDependencies:
       encoding: 0.1.13
 
@@ -33370,12 +33344,7 @@ snapshots:
       minipass: 3.1.3
       yallist: 4.0.0
 
-  minizlib@3.0.1:
-    dependencies:
-      minipass: 7.1.2
-      rimraf: 5.0.9
-
-  minizlib@3.1.0:
+  minizlib@3.1.0(patch_hash=o4nv5mg6kfnuzlknbdln3azhvu):
     dependencies:
       minipass: 7.1.2
 
@@ -33386,8 +33355,6 @@ snapshots:
       minimist: 1.2.8
 
   mkdirp@1.0.4: {}
-
-  mkdirp@3.0.1: {}
 
   modify-values@1.0.1: {}
 
@@ -33790,7 +33757,7 @@ snapshots:
       make-fetch-happen: 15.0.2
       minipass: 7.1.2
       minipass-fetch: 4.0.1
-      minizlib: 3.0.1
+      minizlib: 3.1.0(patch_hash=o4nv5mg6kfnuzlknbdln3azhvu)
       npm-package-arg: 13.0.1
       proc-log: 5.0.0
     transitivePeerDependencies:
@@ -36479,10 +36446,6 @@ snapshots:
     dependencies:
       glob: 9.3.5
 
-  rimraf@5.0.9:
-    dependencies:
-      glob: 10.4.5
-
   rimraf@6.0.1:
     dependencies:
       glob: 11.0.3
@@ -37793,21 +37756,12 @@ snapshots:
       mkdirp: 1.0.4
       yallist: 4.0.0
 
-  tar@7.4.3:
-    dependencies:
-      '@isaacs/fs-minipass': 4.0.1
-      chownr: 3.0.0
-      minipass: 7.1.2
-      minizlib: 3.0.1
-      mkdirp: 3.0.1
-      yallist: 5.0.0
-
   tar@7.5.7:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
       minipass: 7.1.2
-      minizlib: 3.1.0
+      minizlib: 3.1.0(patch_hash=o4nv5mg6kfnuzlknbdln3azhvu)
       yallist: 5.0.0
 
   taskr@1.1.0(patch_hash=utitb3olraq7egc3hk7waltisu):

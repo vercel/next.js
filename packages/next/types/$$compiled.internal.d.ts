@@ -708,8 +708,7 @@ declare module 'next/dist/compiled/@vercel/nft' {
 }
 
 declare module 'next/dist/compiled/tar' {
-  import m from 'tar'
-  export = m
+  export * from 'tar'
 }
 
 declare module 'next/dist/compiled/terser' {
