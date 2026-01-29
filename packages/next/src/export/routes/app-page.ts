@@ -130,6 +130,8 @@ export async function exportAppPage(
     // If page data isn't available, it means that the page couldn't be rendered
     // properly so long as we don't have unknown route params. When a route doesn't
     // have unknown route params, there will not be any flight data.
+    let hasStaticRsc = false
+
     if (!flightData) {
       if (
         !fallbackRouteParams ||
@@ -139,17 +141,17 @@ export async function exportAppPage(
         throw new Error(`Invariant: failed to get page data for ${path}`)
       }
     } else {
-      const hasFallbackParams = Boolean(
-        fallbackRouteParams && fallbackRouteParams.size > 0
-      )
+      const hasFallbackParams =
+        fallbackRouteParams != null && fallbackRouteParams.size > 0
       const shouldWriteRsc =
         !renderOpts.experimental.isRoutePPREnabled ||
         (!postponed && !hasFallbackParams)
+      hasStaticRsc = shouldWriteRsc
 
       // With PPR enabled, we normally skip writing .rsc because it may contain
       // dynamic data. However, for fully static outputs (no postponed state and
       // no fallback params), we can safely emit the route .rsc to support
-      // static navigations
+      // static navigations.
       if (shouldWriteRsc) {
         fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
@@ -232,6 +234,7 @@ export async function exportAppPage(
           },
       hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
+      hasStaticRsc,
       cacheControl,
       fetchMetrics,
       renderResumeDataCache: renderResumeDataCache

@@ -3306,6 +3306,7 @@ export default async function build(
                 metadata = {},
                 hasEmptyStaticShell,
                 hasPostponed,
+                hasStaticRsc,
               } = exportResult.byPath.get(route.pathname) ?? {}
 
               const cacheControl = getCacheControl(
@@ -3337,25 +3338,16 @@ export default async function build(
                 } else {
                   dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
                 }
+                const prefetchDataRoute =
+                  isRoutePPREnabled && dataRoute && hasStaticRsc
+                    ? dataRoute
+                    : undefined
 
                 const meta = collectMeta(metadata)
                 const status =
                   route.pathname === UNDERSCORE_NOT_FOUND_ROUTE
                     ? 404
                     : meta.status
-
-                const canUseStaticPrefetchDataRoute =
-                  isRoutePPREnabled &&
-                  metadata?.postponed == null &&
-                  dataRoute &&
-                  existsSync(
-                    path.join(
-                      distDir,
-                      'server',
-                      'app',
-                      dataRoute.replace(/^\//, '')
-                    )
-                  )
 
                 prerenderManifest.routes[route.pathname] = {
                   initialStatus: status,
@@ -3371,9 +3363,7 @@ export default async function build(
                   initialExpireSeconds: cacheControl.expire,
                   srcRoute: page,
                   dataRoute,
-                  prefetchDataRoute: canUseStaticPrefetchDataRoute
-                    ? dataRoute
-                    : undefined,
+                  prefetchDataRoute,
                   allowHeader: ALLOWED_HEADERS,
                 }
               } else {
