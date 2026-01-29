@@ -26,8 +26,52 @@ mod write_batch;
 mod tests;
 
 pub use arc_slice::ArcSlice;
-pub use constants::{DbConfig, FamilyConfig};
+use constants::{DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE};
 pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
+
+/// Configuration for a single family's file limits during writes.
+///
+/// Controls when SST files are split during writes.
+/// Files are split when either the entry count OR data size threshold is reached.
+///
+/// Note: Compaction uses the global constants `MAX_ENTRIES_PER_COMPACTED_FILE` and
+/// `DATA_THRESHOLD_PER_COMPACTED_FILE` for all families.
+#[derive(Clone, Copy, Debug)]
+pub struct FamilyConfig {
+    /// Maximum number of entries per initial SST file (during writes).
+    /// Controls the size of the Collector datastructures when writing files,
+    /// as well as when we switch to a 'sharded' file writing strategy.
+    pub max_entries_per_initial_file: usize,
+    /// Data size threshold for initial SST files (bytes).
+    /// Controls memory usage during writes.
+    pub data_threshold_per_initial_file: usize,
+}
+
+impl Default for FamilyConfig {
+    fn default() -> Self {
+        Self {
+            max_entries_per_initial_file: MAX_ENTRIES_PER_INITIAL_FILE,
+            data_threshold_per_initial_file: DATA_THRESHOLD_PER_INITIAL_FILE,
+        }
+    }
+}
+
+/// Database-wide configuration with per-family settings.
+///
+/// Each family (keyspace) can have different file size limits to optimize
+/// for its specific access patterns and data characteristics.
+#[derive(Clone, Debug)]
+pub struct DbConfig<const FAMILIES: usize> {
+    pub family_configs: [FamilyConfig; FAMILIES],
+}
+
+impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
+    fn default() -> Self {
+        Self {
+            family_configs: [FamilyConfig::default(); FAMILIES],
+        }
+    }
+}
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
 pub use meta_file::MetaEntryFlags;
 pub use parallel_scheduler::{ParallelScheduler, SerialScheduler};

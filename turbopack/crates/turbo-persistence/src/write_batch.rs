@@ -15,11 +15,11 @@ use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 
 use crate::{
-    ValueBuffer,
+    FamilyConfig, ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
     compression::compress_into_buffer,
-    constants::{FamilyConfig, MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     key::StoreKey,
     meta_file::MetaEntryFlags,
     meta_file_builder::MetaFileBuilder,

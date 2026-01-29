@@ -20,12 +20,12 @@ use smallvec::SmallVec;
 
 pub use crate::compaction::selector::CompactConfig;
 use crate::{
-    QueryKey,
+    DbConfig, QueryKey,
     arc_slice::ArcSlice,
     compaction::selector::{Compactable, get_merge_segments},
     compression::decompress_into_arc,
     constants::{
-        DATA_THRESHOLD_PER_COMPACTED_FILE, DbConfig, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
+        DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
     key::{StoreKey, hash_key},
@@ -1102,12 +1102,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             collector.total_key_size += key_size;
                                             collector.total_value_size += value_size;
 
-                                            let family_config =
-                                                &self.config.family_configs[family as usize];
                                             if collector.total_key_size + collector.total_value_size
-                                                > family_config.data_threshold_per_compacted_file
+                                                > DATA_THRESHOLD_PER_COMPACTED_FILE
                                                 || collector.entries.len()
-                                                    >= family_config.max_entries_per_compacted_file
+                                                    >= MAX_ENTRIES_PER_COMPACTED_FILE
                                             {
                                                 let selected_total_key_size =
                                                     collector.last_entries_total_key_size;

@@ -3,9 +3,7 @@ use std::mem::take;
 use crate::{
     ValueBuffer,
     collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey, TINY_VALUE_THRESHOLD},
-    constants::{
-        DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
-    },
+    constants::{MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE},
     key::{StoreKey, hash_key},
 };
 
@@ -22,15 +20,6 @@ pub struct Collector<K: StoreKey, const SIZE_SHIFT: usize = 0> {
 }
 
 impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
-    /// Creates a new collector with default limits. Note that this allocates the full capacity for
-    /// the entries.
-    pub fn new() -> Self {
-        Self::with_config(
-            MAX_ENTRIES_PER_INITIAL_FILE,
-            DATA_THRESHOLD_PER_INITIAL_FILE,
-        )
-    }
-
     /// Creates a new collector with custom limits.
     ///
     /// The limits are shifted right by `SIZE_SHIFT` to support thread-local collectors
