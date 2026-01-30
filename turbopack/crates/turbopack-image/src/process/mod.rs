@@ -82,27 +82,6 @@ pub struct BlurPlaceholderOptions {
     pub size: u32,
 }
 
-fn extension_to_image_format(extension: &str) -> Option<ImageFormat> {
-    Some(match extension {
-        "avif" => ImageFormat::Avif,
-        "jpg" | "jpeg" => ImageFormat::Jpeg,
-        "png" => ImageFormat::Png,
-        "gif" => ImageFormat::Gif,
-        "webp" => ImageFormat::WebP,
-        "tif" | "tiff" => ImageFormat::Tiff,
-        "tga" => ImageFormat::Tga,
-        "dds" => ImageFormat::Dds,
-        "bmp" => ImageFormat::Bmp,
-        "ico" => ImageFormat::Ico,
-        "hdr" => ImageFormat::Hdr,
-        "exr" => ImageFormat::OpenExr,
-        "pbm" | "pam" | "ppm" | "pgm" => ImageFormat::Pnm,
-        "ff" | "farbfeld" => ImageFormat::Farbfeld,
-        "qoi" => ImageFormat::Qoi,
-        _ => return None,
-    })
-}
-
 fn result_to_issue<T>(source: ResolvedVc<Box<dyn Source>>, result: Result<T>) -> Option<T> {
     match result {
         Ok(r) => Some(r),
@@ -132,12 +111,13 @@ fn load_image(
 /// Type of raw image buffer read by reader from `load_image`.
 /// If the image could not be decoded, the raw bytes are returned.
 enum ImageBuffer {
+    #[allow(unused)]
     Raw(Vec<u8>),
     Decoded(image::DynamicImage),
 }
 
 fn load_image_internal(
-    image: ResolvedVc<Box<dyn Source>>,
+    #[allow(unused_variables)] image: ResolvedVc<Box<dyn Source>>,
     bytes: &[u8],
     extension: &str,
 ) -> Result<(ImageBuffer, Option<ImageFormat>)> {
@@ -147,7 +127,7 @@ fn load_image_internal(
         .context("unable to determine image format from file content")?;
     let mut format = reader.format();
     if format.is_none()
-        && let Some(new_format) = extension_to_image_format(extension)
+        && let Some(new_format) = ImageFormat::from_extension(extension)
     {
         format = Some(new_format);
         reader.set_format(new_format);
