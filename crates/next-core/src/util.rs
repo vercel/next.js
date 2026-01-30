@@ -15,6 +15,7 @@ use turbopack_core::{
         FreeVarReferences,
     },
     condition::ContextCondition,
+    issue::IssueSeverity,
     source::Source,
     virtual_source::VirtualSource,
 };
@@ -137,13 +138,14 @@ pub fn free_var_references_with_vercel_system_env_warnings(
                         c
                     )
                     .into();
-                    if should_error {
-                        FreeVarReference::Error(message)
-                    } else {
-                        FreeVarReference::Warning {
-                            message,
-                            inner: Box::new(FreeVarReference::Value(value)),
-                        }
+                    FreeVarReference::ReportUsage {
+                        message,
+                        severity: if should_error {
+                            IssueSeverity::Error
+                        } else {
+                            IssueSeverity::Warning
+                        },
+                        inner: Some(Box::new(FreeVarReference::Value(value))),
                     }
                 } else {
                     FreeVarReference::Value(value)
