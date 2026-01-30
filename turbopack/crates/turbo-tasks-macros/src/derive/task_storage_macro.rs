@@ -768,6 +768,23 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
     let data_count = grouped_fields.persisted_data_flags_count();
     let persisted_count = meta_count + data_count;
 
+    // Ensure counts fit within u16 bitfield (and u8 for individual categories)
+    assert!(
+        meta_count <= 8,
+        "Too many persisted meta flags ({meta_count}), maximum is 8 (though this could be \
+         expanded)"
+    );
+    assert!(
+        data_count <= 8,
+        "Too many persisted data flags ({data_count}), maximum is 8 (though this could be \
+         expanded)"
+    );
+    assert!(
+        all_flags.len() <= 16,
+        "Too many total flags ({}), maximum is 16 (though this could be expanded)",
+        all_flags.len()
+    );
+
     // Generate bitfield accessors
     // Format: pub field_name, set_field_name: bit_index;
     let bitfield_accessors: Vec<_> = all_flags
@@ -834,13 +851,18 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
             }
 
             #[doc = "Get only the persisted meta bits (for meta serialization)"]
-            pub fn persisted_meta_bits(&self) -> u16 {
-                self.0 & Self::META_MASK
+            pub fn persisted_meta_bits(&self) -> u8 {
+                // Meta bits are in the lowest positions (bits 0..meta_count),
+                // and we assert meta_count <= 8, so this fits in a u8
+                (self.0 & Self::META_MASK) as u8
             }
 
             #[doc = "Get only the persisted data bits (for data serialization)"]
-            pub fn persisted_data_bits(&self) -> u16 {
-                self.0 & Self::DATA_MASK
+            pub fn persisted_data_bits(&self) -> u8 {
+                // Data bits are in positions meta_count..meta_count+data_count,
+                // so we shift right to get them into the low bits.
+                // We assert data_count <= 8, so this fits in a u8
+                ((self.0 & Self::DATA_MASK) >> #meta_count) as u8
             }
 
             #[doc = "Get all persisted bits (for serialization)"]
@@ -849,13 +871,16 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
             }
 
             #[doc = "Set meta bits from a raw value, preserving other flags"]
-            pub fn set_persisted_meta_bits(&mut self, bits: u16) {
-                self.0 = (self.0 & !Self::META_MASK) | (bits & Self::META_MASK);
+            pub fn set_persisted_meta_bits(&mut self, bits: u8) {
+                // Meta bits go in the lowest positions (bits 0..meta_count)
+                self.0 = (self.0 & !Self::META_MASK) | (bits as u16 & Self::META_MASK);
             }
 
             #[doc = "Set data bits from a raw value, preserving other flags"]
-            pub fn set_persisted_data_bits(&mut self, bits: u16) {
-                self.0 = (self.0 & !Self::DATA_MASK) | (bits & Self::DATA_MASK);
+            pub fn set_persisted_data_bits(&mut self, bits: u8) {
+                // Data bits go in positions meta_count..meta_count+data_count,
+                // so we shift left to place them correctly
+                self.0 = (self.0 & !Self::DATA_MASK) | (((bits as u16) << #meta_count) & Self::DATA_MASK);
             }
 
             #[doc = "Set all persisted bits from a raw value, preserving transient flags"]
@@ -2422,8 +2447,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
     let decode_meta_flags = if has_meta_flags {
         quote! {
             // Decode only the persisted meta flag bits, preserving other flags
-            let meta_flags: u16 = bincode::Decode::decode(decoder)?;
-            self.flags.set_persisted_meta_bits(meta_flags);
+            self.flags.set_persisted_meta_bits(bincode::Decode::decode(decoder)?);
         }
     } else {
         quote! {}
@@ -2432,8 +2456,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
     let decode_data_flags = if has_data_flags {
         quote! {
             // Decode only the persisted data flag bits, preserving other flags
-            let data_flags: u16 = bincode::Decode::decode(decoder)?;
-            self.flags.set_persisted_data_bits(data_flags);
+            self.flags.set_persisted_data_bits(bincode::Decode::decode(decoder)?);
         }
     } else {
         quote! {}
