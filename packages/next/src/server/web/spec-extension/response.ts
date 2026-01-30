@@ -5,6 +5,12 @@ import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { ReflectAdapter } from './adapters/reflect'
 
 import { ResponseCookies } from './cookies'
+import {
+  type NextWebSocket,
+  createWebSocketPair,
+  WEBSOCKET_INTERNAL,
+  type WebSocketCloseMessage,
+} from './websocket'
 
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
@@ -33,12 +39,23 @@ function handleMiddlewareField(
  *
  * Read more: [Next.js Docs: `NextResponse`](https://nextjs.org/docs/app/api-reference/functions/next-response)
  */
+// WebSocket internal data type
+interface WebSocketInternalData {
+  readable: ReadableStream<
+    string | ArrayBufferLike | Blob | ArrayBufferView | WebSocketCloseMessage
+  >
+  writable: WritableStream
+}
+
 export class NextResponse<Body = unknown> extends Response {
   [INTERNALS]: {
     cookies: ResponseCookies
     url?: NextURL
     body?: Body
-  }
+  };
+
+  // WebSocket internal storage
+  [WEBSOCKET_INTERNAL]?: WebSocketInternalData
 
   constructor(body?: BodyInit | null, init: ResponseInit = {}) {
     super(body, init)
@@ -149,6 +166,55 @@ export class NextResponse<Body = unknown> extends Response {
 
     handleMiddlewareField(init, headers)
     return new NextResponse(null, { ...init, headers })
+  }
+
+  /**
+   * Creates a WebSocket upgrade response. Returns a tuple of [socket, response].
+   *
+   * The socket must have `accept()` called before sending messages.
+   *
+   * @example
+   * ```ts
+   * import { NextResponse } from 'next/server'
+   *
+   * export const GET = async () => {
+   *   const [socket, response] = NextResponse.upgrade()
+   *
+   *   socket.accept()
+   *   socket.send("WELCOME")
+   *
+   *   socket.addEventListener("message", (event) => {
+   *     socket.send("ECHO: " + event.data)
+   *   })
+   *
+   *   socket.addEventListener("close", () => {
+   *     console.log("Connection closed")
+   *   })
+   *
+   *   return response
+   * }
+   * ```
+   */
+  static upgrade(init?: {
+    headers?: HeadersInit
+  }): [NextWebSocket, NextResponse] {
+    const { socket, readable, writable } = createWebSocketPair()
+
+    const headers = new Headers(init?.headers)
+    // Mark this response as a WebSocket upgrade
+    // We use 200 status code because the Web API doesn't allow 101
+    // The server will detect the x-next-websocket-upgrade header and handle it
+    headers.set('x-next-websocket-upgrade', '1')
+
+    const response = new NextResponse(null, {
+      status: 200,
+      headers,
+    })
+
+    // Store the WebSocket streams internally for the server to access
+    response[WEBSOCKET_INTERNAL] = { readable, writable }
+
+    return [socket, response]
   }
 }
 

@@ -60,6 +60,7 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import { bridgeWebSocket } from '../web/websocket-bridge'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -800,6 +801,111 @@ export async function initialize(opts: {
     development?.bundler?.ensureMiddleware
   )
 
+  /**
+   * Handle WebSocket upgrade for app route handlers.
+   * Returns { handled: true } if the upgrade was handled, { handled: false } otherwise.
+   */
+  async function handleWebSocketUpgrade(
+    req: import('http').IncomingMessage,
+    socket: import('stream').Duplex,
+    head: Buffer,
+    itemPath: string,
+    parsedUrl: NextUrlWithParsedQuery
+  ): Promise<{ handled: boolean }> {
+    // Create a mock response to capture the route handler's response
+    const { ServerResponse } = require('http') as typeof import('http')
+    const mockRes = new ServerResponse(req)
+
+    // We need to capture the response from the route handler
+    let responseHeaders: Record<string, string | string[] | undefined> = {}
+    let responseStatus = 200
+    let wsInternalData: any = null
+
+    // Create a proxy response that captures the WebSocket upgrade response
+    const capturedChunks: Buffer[] = []
+
+    mockRes.writeHead = function (
+      this: typeof mockRes,
+      statusCode: number,
+      statusMessage?: string | Record<string, string | string[] | undefined>,
+      headers?: Record<string, string | string[] | undefined>
+    ) {
+      responseStatus = statusCode
+      if (typeof statusMessage === 'object') {
+        responseHeaders = { ...responseHeaders, ...statusMessage }
+      } else if (headers) {
+        responseHeaders = { ...responseHeaders, ...headers }
+      }
+      return this
+    } as any
+
+    mockRes.setHeader = function (
+      this: typeof mockRes,
+      name: string,
+      value: string | string[]
+    ) {
+      responseHeaders[name.toLowerCase()] = value
+      return this
+    } as any
+
+    mockRes.end = function (this: typeof mockRes, chunk?: any) {
+      if (chunk) {
+        capturedChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      }
+      return this
+    } as any
+
+    mockRes.write = function (this: typeof mockRes, chunk: any) {
+      capturedChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      return true
+    } as any
+
+    // Set up request metadata
+    addRequestMeta(req, 'invokePath', itemPath)
+    addRequestMeta(req, 'invokeQuery', parsedUrl.query)
+    addRequestMeta(req, 'middlewareInvoke', false)
+    addRequestMeta(req, 'isWebSocketUpgrade', true)
+    addRequestMeta(req, 'upgradeSocket', socket)
+    addRequestMeta(req, 'upgradeHead', head)
+
+    try {
+      // Initialize render server and invoke the handler
+      const initResult =
+        await renderServer?.instance?.initialize(renderServerOpts)
+      if (!initResult) {
+        return { handled: false }
+      }
+
+      // Create a custom request handler that can capture WebSocket upgrade responses
+      await initResult.requestHandler(req, mockRes as any)
+
+      // Check if the response indicates a WebSocket upgrade
+      const isWebSocketUpgrade =
+        responseHeaders['x-next-websocket-upgrade'] === '1' ||
+        responseStatus === 101
+
+      if (!isWebSocketUpgrade) {
+        return { handled: false }
+      }
+
+      // Get the WebSocket internal data from the request metadata
+      wsInternalData = getRequestMeta(req, 'websocketInternal')
+
+      if (!wsInternalData) {
+        debug('WebSocket upgrade requested but no internal data found')
+        return { handled: false }
+      }
+
+      // Bridge the WebSocket
+      await bridgeWebSocket(req, socket, head, wsInternalData)
+
+      return { handled: true }
+    } catch (err) {
+      debug('Error handling WebSocket upgrade:', err)
+      return { handled: false }
+    }
+  }
+
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
     try {
       req.on('error', (_err) => {
@@ -877,15 +983,99 @@ export async function initialize(opts: {
           )
         },
       })
-      const { matchedOutput, parsedUrl } = await resolveRoutes({
-        req,
-        res,
-        isUpgradeReq: true,
-        signal: signalFromNodeResponse(socket),
-      })
+      const { matchedOutput, parsedUrl, finished, statusCode, resHeaders } =
+        await resolveRoutes({
+          req,
+          res,
+          isUpgradeReq: true,
+          signal: signalFromNodeResponse(socket),
+        })
 
-      // TODO: allow upgrade requests to pages/app paths?
-      // this was not previously supported
+      // If middleware returned a redirect response, send the redirect
+      if (
+        finished &&
+        statusCode &&
+        statusCode >= 300 &&
+        statusCode < 400 &&
+        resHeaders
+      ) {
+        const location = resHeaders['location']
+        if (location) {
+          const redirectResponse = [
+            `HTTP/1.1 ${statusCode} ${statusCode === 301 ? 'Moved Permanently' : statusCode === 302 ? 'Found' : statusCode === 307 ? 'Temporary Redirect' : statusCode === 308 ? 'Permanent Redirect' : 'Redirect'}`,
+            `Location: ${location}`,
+            'Connection: close',
+            '',
+            '',
+          ].join('\r\n')
+          socket.write(redirectResponse)
+          return socket.end()
+        }
+      }
+
+      // If middleware returned an error response (e.g., 403 Forbidden),
+      // send the error response instead of upgrading the connection
+      if (finished && statusCode && statusCode >= 400) {
+        const statusText =
+          statusCode === 400
+            ? 'Bad Request'
+            : statusCode === 401
+              ? 'Unauthorized'
+              : statusCode === 403
+                ? 'Forbidden'
+                : statusCode === 404
+                  ? 'Not Found'
+                  : 'Error'
+        const errorResponse = [
+          `HTTP/1.1 ${statusCode} ${statusText}`,
+          'Content-Type: text/plain',
+          'Connection: close',
+          '',
+          statusText,
+        ].join('\r\n')
+        socket.write(errorResponse)
+        return socket.end()
+      }
+
+      // Note: When middleware returns NextResponse.next() with header modifications,
+      // finished=true but statusCode is typically 200. In this case, we should
+      // continue to handle the WebSocket upgrade, not close the connection.
+
+      // Handle WebSocket upgrade for app route handlers (only if experimental.webSockets is enabled)
+      if (
+        config.experimental.webSockets &&
+        matchedOutput &&
+        matchedOutput.type === 'appFile'
+      ) {
+        // Check if this is an app route handler that might support WebSocket
+        const itemPath = matchedOutput.itemPath
+
+        // Try to invoke the route handler and check if it returns a WebSocket upgrade
+        try {
+          const result = await handleWebSocketUpgrade(
+            req,
+            socket,
+            head,
+            itemPath,
+            parsedUrl
+          )
+          if (result.handled) {
+            return
+          }
+        } catch (err) {
+          debug('WebSocket upgrade handler error:', err)
+        }
+
+        // If not handled as WebSocket, close the socket
+        return socket.end()
+      }
+
+      // If webSockets is not enabled but we matched an app route, close the socket
+      if (matchedOutput && matchedOutput.type === 'appFile') {
+        return socket.end()
+      }
+
+      // Pages router doesn't support WebSocket upgrades
       if (matchedOutput) {
         return socket.end()
       }

@@ -198,13 +198,15 @@ export function checkCustomRoutes(
       (route as Rewrite).basePath === false &&
       !(
         (route as Rewrite).destination.startsWith('http://') ||
-        (route as Rewrite).destination.startsWith('https://')
+        (route as Rewrite).destination.startsWith('https://') ||
+        (route as Rewrite).destination.startsWith('ws://') ||
+        (route as Rewrite).destination.startsWith('wss://')
       )
     ) {
       console.error(
         `The route ${
           (route as Rewrite).source
-        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://nextjs.org/docs/messages/invalid-external-rewrite`
+        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\`, \`https://\`, \`ws://\`, or \`wss://\` https://nextjs.org/docs/messages/invalid-external-rewrite`
       )
       numInvalidRoutes++
       continue
@@ -305,10 +307,10 @@ export function checkCustomRoutes(
         invalidParts.push('`destination` is not a string')
       } else if (
         type === 'rewrite' &&
-        !_route.destination.match(/^(\/|https:\/\/|http:\/\/)/)
+        !_route.destination.match(/^(\/|https:\/\/|http:\/\/|wss:\/\/|ws:\/\/)/)
       ) {
         invalidParts.push(
-          '`destination` does not start with `/`, `http://`, or `https://`'
+          '`destination` does not start with `/`, `http://`, `https://`, `ws://`, or `wss://`'
         )
       }
     }
