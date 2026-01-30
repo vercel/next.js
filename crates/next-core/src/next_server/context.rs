@@ -553,11 +553,11 @@ pub async fn get_server_module_options_context(
 
     // A set of custom ecma transform rules being applied to server context.
     let source_transform_rules: Vec<ModuleRule> = vec![
-        get_swc_ecma_transform_plugin_rule(next_config, project_path.clone()).await?,
-        get_relay_transform_rule(next_config, project_path.clone()).await?,
-        get_emotion_transform_rule(next_config).await?,
-        get_react_remove_properties_transform_rule(next_config).await?,
         get_remove_console_transform_rule(next_config).await?,
+        get_react_remove_properties_transform_rule(next_config).await?,
+        get_emotion_transform_rule(next_config).await?,
+        get_relay_transform_rule(next_config, project_path.clone()).await?,
+        get_swc_ecma_transform_plugin_rule(next_config, project_path.clone()).await?,
     ]
     .into_iter()
     .flatten()
@@ -578,6 +578,7 @@ pub async fn get_server_module_options_context(
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
+            enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
             source_maps,
@@ -620,15 +621,14 @@ pub async fn get_server_module_options_context(
 
     let module_options_context = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
-            next_server_rules.extend(page_transform_rules);
+            next_server_rules.extend(source_transform_rules);
             if let ServerContextType::Pages { .. } = ty {
                 next_server_rules.push(
                     get_next_react_server_components_transform_rule(next_config, false, None)
                         .await?,
                 );
             }
-
-            next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(page_transform_rules);
 
             foreign_next_server_rules.extend(internal_custom_rules);
 
@@ -698,12 +698,12 @@ pub async fn get_server_module_options_context(
         ServerContextType::AppSSR { app_dir, .. } => {
             foreign_next_server_rules.extend(internal_custom_rules);
 
-            next_server_rules.extend(page_transform_rules.clone());
+            next_server_rules.extend(source_transform_rules);
             next_server_rules.push(
                 get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
                     .await?,
             );
-            next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(page_transform_rules.clone());
 
             let module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
@@ -762,8 +762,6 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
-            next_server_rules.extend(page_transform_rules);
-
             let client_directive_transformer = ecmascript_client_reference_transition_name.map(
                 |ecmascript_client_reference_transition_name| {
                     get_ecma_transform_rule(
@@ -776,16 +774,16 @@ pub async fn get_server_module_options_context(
                 },
             );
 
-            foreign_next_server_rules.extend(client_directive_transformer.clone());
             foreign_next_server_rules.extend(internal_custom_rules);
+            foreign_next_server_rules.extend(client_directive_transformer.clone());
 
-            next_server_rules.extend(client_directive_transformer.clone());
+            next_server_rules.extend(source_transform_rules);
             next_server_rules.push(
                 get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
             );
-
-            next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(client_directive_transformer.clone());
+            next_server_rules.extend(page_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
@@ -842,8 +840,6 @@ pub async fn get_server_module_options_context(
             app_dir,
             ecmascript_client_reference_transition_name,
         } => {
-            next_server_rules.extend(source_transform_rules);
-
             let mut common_next_server_rules = vec![
                 get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
@@ -863,6 +859,8 @@ pub async fn get_server_module_options_context(
 
             next_server_rules.extend(common_next_server_rules.iter().cloned());
             internal_custom_rules.extend(common_next_server_rules);
+
+            next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {

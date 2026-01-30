@@ -19,7 +19,9 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     chunk::SourceMapsType,
     ident::Layer,
-    reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
+    reference_type::{
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType,
+    },
     resolve::options::{ImportMap, ImportMapping},
 };
 use turbopack_css::CssModuleAssetType;
@@ -234,6 +236,7 @@ impl ModuleOptions {
                     esm_url_rewrite_behavior,
                     enable_typeof_window_inlining,
                     enable_exports_info_inlining,
+                    enable_import_as_bytes,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
@@ -354,7 +357,168 @@ impl ModuleOptions {
         let postprocess = ResolvedVc::cell(postprocess);
         let empty = ResolvedVc::<EcmascriptInputTransforms>::cell(vec![]);
 
-        let mut rules = vec![
+        let mut rules = vec![];
+
+        if let Some(webpack_loaders_options) = enable_webpack_loaders {
+            let webpack_loaders_options = webpack_loaders_options.await?;
+            let execution_context =
+                execution_context.context("execution_context is required for webpack_loaders")?;
+            let import_map = if let Some(loader_runner_package) =
+                webpack_loaders_options.loader_runner_package
+            {
+                package_import_map_from_import_mapping(
+                    rcstr!("loader-runner"),
+                    *loader_runner_package,
+                )
+            } else {
+                package_import_map_from_context(
+                    rcstr!("loader-runner"),
+                    path.clone()
+                        .context("need_path in ModuleOptions::new is incorrect")?,
+                )
+            };
+            let builtin_conditions = webpack_loaders_options
+                .builtin_conditions
+                .into_trait_ref()
+                .await?;
+            for (key, rule) in webpack_loaders_options.rules.await?.iter() {
+                let mut rule_conditions = Vec::new();
+
+                // prefer to add the glob condition ahead of the user-defined `condition` field,
+                // because we know it's cheap to check
+                rule_conditions.push(
+                    rule_condition_from_webpack_condition_glob(execution_context, key).await?,
+                );
+
+                if let Some(condition) = &rule.condition {
+                    rule_conditions.push(
+                        rule_condition_from_webpack_condition(
+                            execution_context,
+                            &*builtin_conditions,
+                            condition,
+                        )
+                        .await?,
+                    )
+                }
+
+                rule_conditions.push(RuleCondition::not(RuleCondition::ResourceIsVirtualSource));
+                rule_conditions.push(module_css_external_transform_conditions.clone());
+
+                let mut all_rule_condition = RuleCondition::All(rule_conditions);
+                all_rule_condition.flatten();
+                if !matches!(all_rule_condition, RuleCondition::False) {
+                    rules.push(ModuleRule::new(
+                        all_rule_condition,
+                        vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                            ResolvedVc::upcast(
+                                WebpackLoaders::new(
+                                    node_evaluate_asset_context(
+                                        *execution_context,
+                                        Some(import_map),
+                                        None,
+                                        Layer::new(rcstr!("webpack_loaders")),
+                                        false,
+                                    ),
+                                    *execution_context,
+                                    *rule.loaders,
+                                    rule.rename_as.clone(),
+                                    resolve_options_context,
+                                    matches!(ecmascript_source_maps, SourceMapsType::Full),
+                                )
+                                .to_resolved()
+                                .await?,
+                            ),
+                        ]))],
+                    ));
+                }
+            }
+        }
+
+        rules.extend(module_rules.iter().cloned());
+
+        if enable_mdx || enable_mdx_rs.is_some() {
+            let (jsx_runtime, jsx_import_source, development) = if let Some(enable_jsx) = enable_jsx
+            {
+                let jsx = enable_jsx.await?;
+                (
+                    jsx.runtime.clone(),
+                    jsx.import_source.clone(),
+                    jsx.development,
+                )
+            } else {
+                (None, None, false)
+            };
+
+            let mdx_options = &*enable_mdx_rs
+                .unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
+                .await?;
+
+            let mdx_transform_options = (MdxTransformOptions {
+                development: Some(development),
+                jsx: Some(false),
+                jsx_runtime,
+                jsx_import_source,
+                ..(mdx_options.clone())
+            })
+            .cell();
+
+            rules.push(ModuleRule::new(
+                RuleCondition::any(vec![
+                    RuleCondition::ResourcePathEndsWith(".md".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
+                    RuleCondition::ContentTypeStartsWith("text/markdown".to_string()),
+                ]),
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(
+                        MdxTransform::new(mdx_transform_options)
+                            .to_resolved()
+                            .await?,
+                    ),
+                ]))],
+            ));
+        }
+
+        // Rules that apply for certains references
+        rules.extend([
+            ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss {
+                    tag: static_url_tag.clone(),
+                })],
+            ),
+            ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
+                    tag: static_url_tag.clone(),
+                })],
+            ),
+            ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::Url(
+                    UrlReferenceSubType::EcmaScriptNewUrl,
+                )),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
+                    tag: static_url_tag.clone(),
+                })],
+            ),
+            ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::ImportWithType("json".into()),
+                )),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
+            ),
+        ]);
+
+        if enable_import_as_bytes {
+            rules.push(ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
+                )),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::InlinedBytesJs)],
+            ));
+        }
+
+        // Rules that apply based on file extension or content type
+        rules.extend([
             ModuleRule::new_all(
                 RuleCondition::any(vec![
                     RuleCondition::ResourcePathEndsWith(".json".to_string()),
@@ -437,22 +601,6 @@ impl ModuleOptions {
                     source_ty: WebAssemblySourceType::Text,
                 })],
             ),
-            // Fallback to ecmascript without extension (this is node.js behavior)
-            ModuleRule::new(
-                RuleCondition::all(vec![
-                    RuleCondition::ResourcePathHasNoExtension,
-                    RuleCondition::ContentTypeEmpty,
-                ]),
-                vec![ModuleRuleEffect::ModuleType(
-                    ModuleType::EcmascriptExtensionless {
-                        preprocess: empty,
-                        main: empty,
-                        postprocess: empty,
-                        options: ecmascript_options_vc,
-                    },
-                )],
-            ),
-            // Static assets
             ModuleRule::new(
                 RuleCondition::any(vec![
                     RuleCondition::ResourcePathEndsWith(".apng".to_string()),
@@ -471,26 +619,21 @@ impl ModuleOptions {
                 })],
             ),
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: static_url_tag.clone(),
-                })],
+                RuleCondition::all(vec![
+                    // Fallback to ecmascript without extension (this is node.js behavior)
+                    RuleCondition::ResourcePathHasNoExtension,
+                    RuleCondition::ContentTypeEmpty,
+                ]),
+                vec![ModuleRuleEffect::ModuleType(
+                    ModuleType::EcmascriptExtensionless {
+                        preprocess: empty,
+                        main: empty,
+                        postprocess: empty,
+                        options: ecmascript_options_vc,
+                    },
+                )],
             ),
-            ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(
-                    UrlReferenceSubType::EcmaScriptNewUrl,
-                )),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
-                    tag: static_url_tag.clone(),
-                })],
-            ),
-            ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss {
-                    tag: static_url_tag.clone(),
-                })],
-            ),
-        ];
+        ]);
 
         if let Some(options) = enable_typescript_transform {
             let ts_preprocess = ResolvedVc::cell(
@@ -503,172 +646,101 @@ impl ModuleOptions {
                     .collect(),
             );
 
-            rules.splice(
-                0..0,
-                [
-                    ModuleRule::new_all(
-                        RuleCondition::ResourcePathEndsWith(".ts".to_string()),
-                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                            preprocess: ts_preprocess,
-                            main,
-                            postprocess,
-                            tsx: false,
-                            analyze_types: enable_types,
-                            options: ecmascript_options_vc,
-                        })],
-                    ),
-                    ModuleRule::new_all(
-                        RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                            preprocess: ts_preprocess,
-                            main,
-                            postprocess,
-                            tsx: true,
-                            analyze_types: enable_types,
-                            options: ecmascript_options_vc,
-                        })],
-                    ),
-                    ModuleRule::new_all(
-                        RuleCondition::ResourcePathEndsWith(".mts".to_string()),
-                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                            preprocess: ts_preprocess,
-                            main,
-                            postprocess,
-                            tsx: false,
-                            analyze_types: enable_types,
-                            options: EcmascriptOptions {
-                                specified_module_type: SpecifiedModuleType::EcmaScript,
-                                ..ecmascript_options
-                            }
-                            .resolved_cell(),
-                        })],
-                    ),
-                    ModuleRule::new_all(
-                        RuleCondition::ResourcePathEndsWith(".mtsx".to_string()),
-                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                            preprocess: ts_preprocess,
-                            main,
-                            postprocess,
-                            tsx: true,
-                            analyze_types: enable_types,
-                            options: EcmascriptOptions {
-                                specified_module_type: SpecifiedModuleType::EcmaScript,
-                                ..ecmascript_options
-                            }
-                            .resolved_cell(),
-                        })],
-                    ),
-                    ModuleRule::new_all(
-                        RuleCondition::ResourcePathEndsWith(".cts".to_string()),
-                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                            preprocess: ts_preprocess,
-                            main,
-                            postprocess,
-                            tsx: false,
-                            analyze_types: enable_types,
-                            options: EcmascriptOptions {
-                                specified_module_type: SpecifiedModuleType::CommonJs,
-                                ..ecmascript_options
-                            }
-                            .resolved_cell(),
-                        })],
-                    ),
-                    ModuleRule::new_all(
-                        RuleCondition::ResourcePathEndsWith(".ctsx".to_string()),
-                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                            preprocess: ts_preprocess,
-                            main,
-                            postprocess,
-                            tsx: true,
-                            analyze_types: enable_types,
-                            options: EcmascriptOptions {
-                                specified_module_type: SpecifiedModuleType::CommonJs,
-                                ..ecmascript_options
-                            }
-                            .resolved_cell(),
-                        })],
-                    ),
-                ],
-            );
-        }
-
-        if let Some(webpack_loaders_options) = enable_webpack_loaders {
-            let webpack_loaders_options = webpack_loaders_options.await?;
-            let execution_context =
-                execution_context.context("execution_context is required for webpack_loaders")?;
-            let import_map = if let Some(loader_runner_package) =
-                webpack_loaders_options.loader_runner_package
-            {
-                package_import_map_from_import_mapping(
-                    rcstr!("loader-runner"),
-                    *loader_runner_package,
-                )
-            } else {
-                package_import_map_from_context(
-                    rcstr!("loader-runner"),
-                    path.clone()
-                        .context("need_path in ModuleOptions::new is incorrect")?,
-                )
-            };
-            let builtin_conditions = webpack_loaders_options
-                .builtin_conditions
-                .into_trait_ref()
-                .await?;
-            for (key, rule) in webpack_loaders_options.rules.await?.iter() {
-                let mut rule_conditions = Vec::new();
-
-                // prefer to add the glob condition ahead of the user-defined `condition` field,
-                // because we know it's cheap to check
-                rule_conditions.push(
-                    rule_condition_from_webpack_condition_glob(execution_context, key).await?,
-                );
-
-                if let Some(condition) = &rule.condition {
-                    rule_conditions.push(
-                        rule_condition_from_webpack_condition(
-                            execution_context,
-                            &*builtin_conditions,
-                            condition,
-                        )
-                        .await?,
-                    )
-                }
-
-                rule_conditions.push(RuleCondition::not(RuleCondition::ResourceIsVirtualSource));
-                rule_conditions.push(module_css_external_transform_conditions.clone());
-
-                let mut all_rule_condition = RuleCondition::All(rule_conditions);
-                all_rule_condition.flatten();
-                if !matches!(all_rule_condition, RuleCondition::False) {
-                    rules.push(ModuleRule::new(
-                        all_rule_condition,
-                        vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                            ResolvedVc::upcast(
-                                WebpackLoaders::new(
-                                    node_evaluate_asset_context(
-                                        *execution_context,
-                                        Some(import_map),
-                                        None,
-                                        Layer::new(rcstr!("webpack_loaders")),
-                                        false,
-                                    ),
-                                    *execution_context,
-                                    *rule.loaders,
-                                    rule.rename_as.clone(),
-                                    resolve_options_context,
-                                    matches!(ecmascript_source_maps, SourceMapsType::Full),
-                                )
-                                .to_resolved()
-                                .await?,
-                            ),
-                        ]))],
-                    ));
-                }
-            }
+            rules.extend([
+                ModuleRule::new_all(
+                    RuleCondition::ResourcePathEndsWith(".ts".to_string()),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                        preprocess: ts_preprocess,
+                        main,
+                        postprocess,
+                        tsx: false,
+                        analyze_types: enable_types,
+                        options: ecmascript_options_vc,
+                    })],
+                ),
+                ModuleRule::new_all(
+                    RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                        preprocess: ts_preprocess,
+                        main,
+                        postprocess,
+                        tsx: true,
+                        analyze_types: enable_types,
+                        options: ecmascript_options_vc,
+                    })],
+                ),
+                ModuleRule::new_all(
+                    RuleCondition::ResourcePathEndsWith(".mts".to_string()),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                        preprocess: ts_preprocess,
+                        main,
+                        postprocess,
+                        tsx: false,
+                        analyze_types: enable_types,
+                        options: EcmascriptOptions {
+                            specified_module_type: SpecifiedModuleType::EcmaScript,
+                            ..ecmascript_options
+                        }
+                        .resolved_cell(),
+                    })],
+                ),
+                ModuleRule::new_all(
+                    RuleCondition::ResourcePathEndsWith(".mtsx".to_string()),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                        preprocess: ts_preprocess,
+                        main,
+                        postprocess,
+                        tsx: true,
+                        analyze_types: enable_types,
+                        options: EcmascriptOptions {
+                            specified_module_type: SpecifiedModuleType::EcmaScript,
+                            ..ecmascript_options
+                        }
+                        .resolved_cell(),
+                    })],
+                ),
+                ModuleRule::new_all(
+                    RuleCondition::ResourcePathEndsWith(".cts".to_string()),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                        preprocess: ts_preprocess,
+                        main,
+                        postprocess,
+                        tsx: false,
+                        analyze_types: enable_types,
+                        options: EcmascriptOptions {
+                            specified_module_type: SpecifiedModuleType::CommonJs,
+                            ..ecmascript_options
+                        }
+                        .resolved_cell(),
+                    })],
+                ),
+                ModuleRule::new_all(
+                    RuleCondition::ResourcePathEndsWith(".ctsx".to_string()),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                        preprocess: ts_preprocess,
+                        main,
+                        postprocess,
+                        tsx: true,
+                        analyze_types: enable_types,
+                        options: EcmascriptOptions {
+                            specified_module_type: SpecifiedModuleType::CommonJs,
+                            ..ecmascript_options
+                        }
+                        .resolved_cell(),
+                    })],
+                ),
+            ]);
         }
 
         if enable_raw_css {
             rules.extend([
+                ModuleRule::new(
+                    module_css_condition.clone(),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Module,
+                        environment,
+                    })],
+                ),
                 ModuleRule::new(
                     RuleCondition::any(vec![
                         RuleCondition::ResourcePathEndsWith(".css".to_string()),
@@ -676,13 +748,6 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        environment,
-                    })],
-                ),
-                ModuleRule::new(
-                    module_css_condition.clone(),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
                         environment,
                     })],
                 ),
@@ -736,28 +801,6 @@ impl ModuleOptions {
             }
 
             rules.extend([
-                ModuleRule::new_all(
-                    RuleCondition::Any(vec![
-                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
-                        environment,
-                    })],
-                ),
-                ModuleRule::new(
-                    RuleCondition::all(vec![
-                        module_css_condition.clone(),
-                        // Only create a module CSS asset if not `@import`ed from CSS already.
-                        // NOTE: `composes` references should not be treated as `@import`s and
-                        // should also create a module CSS asset.
-                        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::AtImport(None),
-                        ))),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule)],
-                ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
                         module_css_condition.clone(),
@@ -774,10 +817,10 @@ impl ModuleOptions {
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
                 ModuleRule::new(
                     RuleCondition::all(vec![
+                        module_css_condition.clone(),
                         RuleCondition::ReferenceType(ReferenceType::Css(
                             CssReferenceSubType::Inner,
                         )),
-                        module_css_condition.clone(),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
@@ -787,62 +830,32 @@ impl ModuleOptions {
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
                 ModuleRule::new(
                     RuleCondition::all(vec![
+                        module_css_condition.clone(),
                         RuleCondition::ReferenceType(ReferenceType::Css(
                             CssReferenceSubType::Analyze,
                         )),
-                        module_css_condition.clone(),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         environment,
                     })],
                 ),
+                ModuleRule::new(
+                    RuleCondition::all(vec![module_css_condition.clone()]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule)],
+                ),
+                ModuleRule::new_all(
+                    RuleCondition::Any(vec![
+                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                    ]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Default,
+                        environment,
+                    })],
+                ),
             ]);
         }
-
-        if enable_mdx || enable_mdx_rs.is_some() {
-            let (jsx_runtime, jsx_import_source, development) = if let Some(enable_jsx) = enable_jsx
-            {
-                let jsx = enable_jsx.await?;
-                (
-                    jsx.runtime.clone(),
-                    jsx.import_source.clone(),
-                    jsx.development,
-                )
-            } else {
-                (None, None, false)
-            };
-
-            let mdx_options = &*enable_mdx_rs
-                .unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
-                .await?;
-
-            let mdx_transform_options = (MdxTransformOptions {
-                development: Some(development),
-                jsx: Some(false),
-                jsx_runtime,
-                jsx_import_source,
-                ..(mdx_options.clone())
-            })
-            .cell();
-
-            rules.push(ModuleRule::new(
-                RuleCondition::any(vec![
-                    RuleCondition::ResourcePathEndsWith(".md".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
-                    RuleCondition::ContentTypeStartsWith("text/markdown".to_string()),
-                ]),
-                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                    ResolvedVc::upcast(
-                        MdxTransform::new(mdx_transform_options)
-                            .to_resolved()
-                            .await?,
-                    ),
-                ]))],
-            ));
-        }
-
-        rules.extend(module_rules.iter().cloned());
 
         Ok(ModuleOptions::cell(ModuleOptions { rules }))
     }
