@@ -407,9 +407,11 @@ impl ModuleOptions {
                 let mut all_rule_condition = RuleCondition::All(rule_conditions);
                 all_rule_condition.flatten();
                 if !matches!(all_rule_condition, RuleCondition::False) {
-                    rules.push(ModuleRule::new(
-                        all_rule_condition,
-                        vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    let mut effects = Vec::new();
+
+                    // Add source transforms if loaders are specified
+                    if !rule.loaders.await?.is_empty() {
+                        effects.push(ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                             ResolvedVc::upcast(
                                 WebpackLoaders::new(
                                     node_evaluate_asset_context(
@@ -428,8 +430,25 @@ impl ModuleOptions {
                                 .to_resolved()
                                 .await?,
                             ),
-                        ]))],
-                    ));
+                        ])));
+                    }
+
+                    // Add module type if specified
+                    if let Some(type_str) = rule.module_type.as_ref() {
+                        let module_type = ModuleType::from_str_with_defaults(
+                            type_str,
+                            ecma_preprocess,
+                            main,
+                            postprocess,
+                            ecmascript_options_vc,
+                            environment,
+                        )?;
+                        effects.push(ModuleRuleEffect::ModuleType(module_type));
+                    }
+
+                    if !effects.is_empty() {
+                        rules.push(ModuleRule::new(all_rule_condition, effects));
+                    }
                 }
             }
         }

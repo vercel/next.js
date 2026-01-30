@@ -833,11 +833,14 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RuleConfigItem {
+    #[serde(default)]
     pub loaders: Vec<LoaderItem>,
     #[serde(default, alias = "as")]
     pub rename_as: Option<RcStr>,
     #[serde(default)]
     pub condition: Option<ConfigConditionItem>,
+    #[serde(default, alias = "type")]
+    pub module_type: Option<RcStr>,
 }
 
 #[derive(
@@ -1563,6 +1566,7 @@ impl NextConfig {
                                 loaders: transform_loaders(&mut [loaders].into_iter()),
                                 rename_as: None,
                                 condition: None,
+                                module_type: None,
                             },
                         ));
                     }
@@ -1570,6 +1574,7 @@ impl NextConfig {
                         loaders,
                         rename_as,
                         condition,
+                        module_type,
                     }) => {
                         // If the extension contains a wildcard, and the rename_as does not,
                         // emit an issue to prevent users from encountering duplicate module
@@ -1618,6 +1623,7 @@ impl NextConfig {
                                 loaders: transform_loaders(&mut loaders.iter()),
                                 rename_as: rename_as.clone(),
                                 condition,
+                                module_type: module_type.clone(),
                             },
                         ));
                     }
@@ -2172,6 +2178,7 @@ mod tests {
             RuleConfigItem {
                 loaders: vec![],
                 rename_as: Some(rcstr!("*.js")),
+                module_type: None,
                 condition: Some(ConfigConditionItem::All(
                     [
                         ConfigConditionItem::Builtin(WebpackLoaderBuiltinCondition::Production),

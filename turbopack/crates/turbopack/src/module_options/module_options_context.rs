@@ -30,6 +30,7 @@ pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
     pub condition: Option<ConditionItem>,
+    pub module_type: Option<RcStr>,
 }
 
 /// This is a list of instructions for the rule engine to process. The first element in each tuple

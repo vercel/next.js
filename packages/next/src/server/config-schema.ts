@@ -134,11 +134,24 @@ const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.union([
   }),
 ])
 
+const zTurbopackModuleType = z.enum([
+  'asset',
+  'ecmascript',
+  'typescript',
+  'css',
+  'css-module',
+  'wasm',
+  'raw',
+  'node',
+  'bytes',
+])
+
 const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> =
   z.strictObject({
-    loaders: z.array(zTurbopackLoaderItem),
+    loaders: z.array(zTurbopackLoaderItem).optional(),
     as: z.string().optional(),
     condition: zTurbopackCondition.optional(),
+    type: zTurbopackModuleType.optional(),
   })
 
 const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection> =

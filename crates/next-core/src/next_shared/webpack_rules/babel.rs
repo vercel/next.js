@@ -230,6 +230,7 @@ pub async fn get_babel_loader_rules(
             }]),
             rename_as: Some(rcstr!("*")),
             condition: Some(ConditionItem::All(loader_conditions.into())),
+            module_type: None,
         },
     )])
 }
