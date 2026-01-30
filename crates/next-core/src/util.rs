@@ -10,7 +10,10 @@ use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemP
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
     asset::AssetContent,
-    compile_time_info::{CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment},
+    compile_time_info::{
+        CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment, FreeVarReference,
+        FreeVarReferences,
+    },
     condition::ContextCondition,
     source::Source,
     virtual_source::VirtualSource,
@@ -56,6 +59,99 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
     }
 
     CompileTimeDefines(defines)
+}
+
+/// Emits warnings or errors when inlining frequently changing system env vars
+pub fn free_var_references_with_vercel_system_env_warnings(
+    defines: CompileTimeDefines,
+) -> FreeVarReferences {
+    // constant:
+    //      VERCEL
+    //      CI
+    //      VERCEL_PROJECT_PRODUCTION_URL
+    //      VERCEL_REGION
+    //      VERCEL_SKEW_PROTECTION_ENABLED
+    //      VERCEL_AUTOMATION_BYPASS_SECRET
+    //      VERCEL_PROJECT_ID
+    //      VERCEL_GIT_PROVIDER
+    //      VERCEL_GIT_REPO_SLUG
+    //      VERCEL_GIT_REPO_OWNER
+    //      VERCEL_GIT_REPO_ID
+
+    // suboptimal (changes production main branch VS preview branches):
+    //      VERCEL_ENV
+    //      VERCEL_TARGET_ENV
+
+    // bad (changes per branch):
+    //      VERCEL_BRANCH_URL
+    //      VERCEL_GIT_COMMIT_REF
+    //      VERCEL_GIT_PULL_REQUEST_ID
+
+    // catastrophic (changes per commit):
+    //      VERCEL_URL
+    //      VERCEL_DEPLOYMENT_ID
+    //      VERCEL_OIDC_TOKEN
+    //      VERCEL_GIT_COMMIT_SHA
+    //      VERCEL_GIT_COMMIT_MESSAGE
+    //      VERCEL_GIT_COMMIT_AUTHOR_LOGIN
+    //      VERCEL_GIT_COMMIT_AUTHOR_NAME
+    //      VERCEL_GIT_PREVIOUS_SHA
+
+    let should_error = std::env::var("NEXT_TURBOPACK_SYSTEM_ENV_ERROR")
+        .ok()
+        .is_some_and(|v| !v.is_empty());
+
+    FreeVarReferences(
+        defines
+            .0
+            .into_iter()
+            .map(|(k, value)| {
+                const LIST: [&str; 11] = [
+                    "VERCEL_BRANCH_URL",
+                    "VERCEL_DEPLOYMENT_ID",
+                    "VERCEL_GIT_COMMIT_AUTHOR_LOGIN",
+                    "VERCEL_GIT_COMMIT_AUTHOR_NAME",
+                    "VERCEL_GIT_COMMIT_MESSAGE",
+                    "VERCEL_GIT_COMMIT_REF",
+                    "VERCEL_GIT_COMMIT_SHA",
+                    "VERCEL_GIT_PREVIOUS_SHA",
+                    "VERCEL_GIT_PULL_REQUEST_ID",
+                    "VERCEL_OIDC_TOKEN",
+                    "VERCEL_URL",
+                ];
+
+                let value = if let &[
+                    DefinableNameSegment::Name(a),
+                    DefinableNameSegment::Name(b),
+                    DefinableNameSegment::Name(c),
+                ] = &&*k
+                    && a == "process"
+                    && b == "env"
+                    && c.strip_prefix("NEXT_PUBLIC_")
+                        .is_some_and(|n| LIST.binary_search(&n).is_ok())
+                {
+                    let message = format!(
+                        "The system environment variable {} is being inlined. This variable \
+                         changes on every deployment, causing slower deploy times and worse \
+                         browser client-side caching.",
+                        c
+                    )
+                    .into();
+                    if should_error {
+                        FreeVarReference::Error(message)
+                    } else {
+                        FreeVarReference::Warning {
+                            message,
+                            inner: Box::new(FreeVarReference::Value(value)),
+                        }
+                    }
+                } else {
+                    FreeVarReference::Value(value)
+                };
+                (k, value)
+            })
+            .collect(),
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]

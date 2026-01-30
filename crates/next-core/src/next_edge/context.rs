@@ -30,7 +30,10 @@ use crate::{
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
         get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
     },
-    util::{NextRuntime, OptionEnvMap, defines, foreign_code_context_condition},
+    util::{
+        NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
+        free_var_references_with_vercel_system_env_warnings,
+    },
 };
 
 #[turbo_tasks::function]
@@ -46,7 +49,7 @@ async fn next_edge_free_vars(
     define_env: Vc<OptionEnvMap>,
 ) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
-        ..defines(&*define_env.await?).into_iter(),
+        ..free_var_references_with_vercel_system_env_warnings(defines(&*define_env.await?)),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: rcstr!("buffer"),
             lookup_path: Some(project_path),

@@ -68,7 +68,8 @@ use crate::{
         get_typescript_transform_options,
     },
     util::{
-        OptionEnvMap, defines, foreign_code_context_condition, internal_assets_conditions,
+        OptionEnvMap, defines, foreign_code_context_condition,
+        free_var_references_with_vercel_system_env_warnings, internal_assets_conditions,
         module_styles_rule_condition,
     },
 };
@@ -81,7 +82,7 @@ async fn next_client_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileT
 #[turbo_tasks::function]
 async fn next_client_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
-        ..defines(&*define_env.await?).into_iter(),
+        ..free_var_references_with_vercel_system_env_warnings(defines(&*define_env.await?)),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: rcstr!("node:buffer"),
             lookup_path: None,
