@@ -37,7 +37,6 @@ use std::{
     borrow::Cow,
     cmp::{Ordering, min},
     env,
-    error::Error as StdError,
     fmt::{self, Debug, Formatter},
     fs::FileType,
     future::Future,
@@ -79,6 +78,7 @@ use turbo_unix_path::{
 
 use crate::{
     attach::AttachedFileSystem,
+    error::{FsError, FsErrorLinkType, FsErrorOperation, FsErrorSource},
     glob::Glob,
     invalidation::Write,
     invalidator_map::{InvalidatorMap, WriteContent},
@@ -117,59 +117,53 @@ pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
 /// 255 characters, because it is the shortest of the three options.
 ///
 /// [PATH_MAX]: https://eklitzke.org/path-max-is-tricky
-pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
-    /// Here we check if the path is too long for windows, and if so, attempt to canonicalize it
-    /// to a UNC path.
-    fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
-        if cfg!(windows) {
-            const MAX_PATH_LENGTH_WINDOWS: usize = 260;
-            const UNC_PREFIX: &str = "\\\\?\\";
+fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>, FsErrorSource> {
+    // Here we check if the path is too long for windows, and if so, attempt to canonicalize it
+    // to a UNC path.
+    if cfg!(windows) {
+        const MAX_PATH_LENGTH_WINDOWS: usize = 260;
+        const UNC_PREFIX: &str = "\\\\?\\";
 
-            if path.starts_with(UNC_PREFIX) {
-                return Ok(path.into());
-            }
-
-            if path.as_os_str().len() > MAX_PATH_LENGTH_WINDOWS {
-                let new_path = std::fs::canonicalize(path).map_err(|err| {
-                    anyhow!(err).context("file is too long, and could not be normalized")
-                })?;
-                return Ok(new_path.into());
-            }
-
-            Ok(path.into())
-        } else {
-            /// here we are only going to check if the total length exceeds, or the last segment
-            /// exceeds. This heuristic is primarily to avoid long file names, and it makes the
-            /// operation much cheaper.
-            const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
-            // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
-            // so we subtract a bit to be safe. on most linux distros this is likely a lot larger
-            // than 1024, but macOS is *special*
-            const MAX_PATH_LENGTH: usize = 1024 - 8;
-
-            // check the last segment (file name)
-            if path
-                .file_name()
-                .map(|n| n.as_encoded_bytes().len())
-                .unwrap_or(0)
-                > MAX_FILE_NAME_LENGTH_UNIX
-            {
-                anyhow::bail!(
-                    "file name is too long (exceeds {} bytes)",
-                    MAX_FILE_NAME_LENGTH_UNIX,
-                );
-            }
-
-            if path.as_os_str().len() > MAX_PATH_LENGTH {
-                anyhow::bail!("path is too long (exceeds {MAX_PATH_LENGTH} bytes)");
-            }
-
-            Ok(path.into())
+        if path.starts_with(UNC_PREFIX) {
+            return Ok(path.into());
         }
-    }
 
-    validate_path_length_inner(path)
-        .with_context(|| format!("path length for file {path:?} exceeds max length of filesystem"))
+        if path.as_os_str().len() > MAX_PATH_LENGTH_WINDOWS {
+            let new_path = std::fs::canonicalize(path).map_err(FsErrorSource::Io)?;
+            return Ok(new_path.into());
+        }
+
+        Ok(path.into())
+    } else {
+        // Here we are only going to check if the total length exceeds, or the last segment exceeds.
+        // This heuristic is primarily to avoid long file names, and it makes the operation much
+        // cheaper.
+        const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
+        // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
+        // so we subtract a bit to be safe. on most linux distros this is likely a lot larger
+        // than 1024, but macOS is *special*
+        const MAX_PATH_LENGTH: usize = 1024 - 8;
+
+        // check the last segment (file name)
+        if path
+            .file_name()
+            .map(|n| n.as_encoded_bytes().len())
+            .unwrap_or(0)
+            > MAX_FILE_NAME_LENGTH_UNIX
+        {
+            return Err(FsErrorSource::PathSegmentTooLong {
+                max_length: MAX_FILE_NAME_LENGTH_UNIX,
+            });
+        }
+
+        if path.as_os_str().len() > MAX_PATH_LENGTH {
+            return Err(FsErrorSource::PathTooLong {
+                max_length: MAX_PATH_LENGTH,
+            });
+        }
+
+        Ok(path.into())
+    }
 }
 
 trait ConcurrencyLimitedExt {
@@ -980,16 +974,23 @@ impl FileSystem for DiskFileSystem {
         #[derive(TraceRawVcs, NonLocalValue)]
         struct WriteEffect {
             full_path: PathBuf,
+            fs_path: FileSystemPath,
             inner: Arc<DiskFileSystemInner>,
             invalidator: Option<Invalidator>,
             content: ReadRef<FileContent>,
         }
 
         impl Effect for WriteEffect {
-            type Error = AnyhowWrapper;
+            type Error = FsError;
 
             async fn apply(&self) -> Result<(), Self::Error> {
-                let full_path = validate_path_length(&self.full_path)?;
+                let make_err = |source: FsErrorSource| FsError {
+                    operation: FsErrorOperation::Write,
+                    path: self.fs_path.clone(),
+                    source,
+                };
+
+                let full_path = validate_path_length(&self.full_path).map_err(&make_err)?;
 
                 let _lock = self.inner.lock_path(&full_path).await;
 
@@ -1003,7 +1004,8 @@ impl FileSystem for DiskFileSystem {
                             WriteContent::File(self.content.clone()),
                         )
                     })
-                    .transpose()?
+                    .transpose()
+                    .map_err(|err| make_err(FsErrorSource::Anyhow(err)))?
                     .unwrap_or_default();
 
                 // We perform an untracked comparison here, so that this write is not dependent
@@ -1016,7 +1018,10 @@ impl FileSystem for DiskFileSystem {
                     .streaming_compare(&full_path)
                     .instrument(tracing::info_span!("read file before write", name = ?full_path))
                     .concurrency_limited(&self.inner.read_semaphore)
-                    .await?;
+                    .await
+                    .map_err(|err| {
+                        make_err(FsErrorSource::Io(io::Error::other(err.to_string())))
+                    })?;
                 if compare == FileComparison::Equal {
                     if !old_invalidators.is_empty() {
                         for (invalidator, write_content) in old_invalidators {
@@ -1034,11 +1039,8 @@ impl FileSystem for DiskFileSystem {
                     FileContent::Content(..) => {
                         let create_directory = compare == FileComparison::Create;
                         if create_directory && let Some(parent) = full_path.parent() {
-                            self.inner.create_directory(parent).await.with_context(|| {
-                                format!(
-                                    "failed to create directory {parent:?} for write to \
-                                     {full_path:?}",
-                                )
+                            self.inner.create_directory(parent).await.map_err(|err| {
+                                make_err(FsErrorSource::Io(io::Error::other(err.to_string())))
                             })?;
                         }
 
@@ -1078,7 +1080,7 @@ impl FileSystem for DiskFileSystem {
                         .instrument(tracing::info_span!("write file", name = ?full_path))
                         .concurrency_limited(&self.inner.write_semaphore)
                         .await
-                        .with_context(|| format!("failed to write to {full_path:?}"))?;
+                        .map_err(|err| make_err(FsErrorSource::Io(err)))?;
                     }
                     FileContent::NotFound => {
                         retry_blocking(|| std::fs::remove_file(&full_path))
@@ -1092,7 +1094,7 @@ impl FileSystem for DiskFileSystem {
                                     Err(err)
                                 }
                             })
-                            .with_context(|| format!("removing {full_path:?} failed"))?;
+                            .map_err(|err| make_err(FsErrorSource::Io(err)))?;
                     }
                 }
 
@@ -1105,6 +1107,7 @@ impl FileSystem for DiskFileSystem {
 
         emit_effect(WriteEffect {
             full_path,
+            fs_path,
             inner,
             invalidator,
             content,
@@ -1132,16 +1135,44 @@ impl FileSystem for DiskFileSystem {
         #[derive(TraceRawVcs, NonLocalValue)]
         struct WriteLinkEffect {
             full_path: PathBuf,
+            fs_path: FileSystemPath,
             inner: Arc<DiskFileSystemInner>,
             invalidator: Option<Invalidator>,
             content: ReadRef<LinkContent>,
         }
 
         impl Effect for WriteLinkEffect {
-            type Error = AnyhowWrapper;
+            type Error = FsError;
 
             async fn apply(&self) -> Result<(), Self::Error> {
-                let full_path = validate_path_length(&self.full_path)?;
+                // Helper to construct link errors. The link_type and target are determined
+                // based on the content when needed.
+                let make_link_err =
+                    |source: FsErrorSource, link_type: FsErrorLinkType, target: RcStr| -> FsError {
+                        FsError {
+                            operation: FsErrorOperation::Link { link_type, target },
+                            path: self.fs_path.clone(),
+                            source,
+                        }
+                    };
+
+                // For errors that occur before we know the link type/target, use a default
+                let make_early_err = |source: FsErrorSource| -> FsError {
+                    // Use Symbolic as default for early errors (before we know the actual type)
+                    FsError {
+                        operation: FsErrorOperation::Link {
+                            link_type: FsErrorLinkType::Symbolic,
+                            target: match &*self.content {
+                                LinkContent::Link { target, .. } => target.clone(),
+                                _ => RcStr::default(),
+                            },
+                        },
+                        path: self.fs_path.clone(),
+                        source,
+                    }
+                };
+
+                let full_path = validate_path_length(&self.full_path).map_err(&make_early_err)?;
 
                 let _lock = self.inner.lock_path(&full_path).await;
 
@@ -1154,7 +1185,8 @@ impl FileSystem for DiskFileSystem {
                             WriteContent::Link(self.content.clone()),
                         )
                     })
-                    .transpose()?
+                    .transpose()
+                    .map_err(|err| make_early_err(FsErrorSource::Anyhow(err)))?
                     .unwrap_or_default();
 
                 enum OsSpecificLinkContent {
@@ -1162,6 +1194,7 @@ impl FileSystem for DiskFileSystem {
                         #[cfg(windows)]
                         is_directory: bool,
                         target: PathBuf,
+                        target_str: RcStr,
                     },
                     NotFound,
                     Invalid,
@@ -1188,6 +1221,7 @@ impl FileSystem for DiskFileSystem {
                             #[cfg(windows)]
                             is_directory,
                             target: target_path,
+                            target_str: target.clone(),
                         }
                     }
                     LinkContent::Invalid => OsSpecificLinkContent::Invalid,
@@ -1226,18 +1260,30 @@ impl FileSystem for DiskFileSystem {
                 match os_specific_link_content {
                     OsSpecificLinkContent::Link {
                         target,
+                        target_str,
                         #[cfg(windows)]
                         is_directory,
                         ..
                     } => {
                         let full_path = full_path.into_owned();
 
+                        // Determine the link type for error reporting
+                        #[cfg(not(windows))]
+                        let link_type = FsErrorLinkType::Symbolic;
+                        #[cfg(windows)]
+                        let link_type = if is_directory {
+                            FsErrorLinkType::Junction
+                        } else {
+                            FsErrorLinkType::Symbolic
+                        };
+
                         let create_directory = old_content.is_none();
                         if create_directory && let Some(parent) = full_path.parent() {
-                            self.inner.create_directory(parent).await.with_context(|| {
-                                format!(
-                                    "failed to create directory {parent:?} for write link to \
-                                     {full_path:?}",
+                            self.inner.create_directory(parent).await.map_err(|err| {
+                                make_link_err(
+                                    FsErrorSource::Io(io::Error::other(err.to_string())),
+                                    link_type.clone(),
+                                    target_str.clone(),
                                 )
                             })?;
                         }
@@ -1288,28 +1334,6 @@ impl FileSystem for DiskFileSystem {
                         fn can_retry_link(err: &SymlinkCreationError) -> bool {
                             err.source.kind() == ErrorKind::AlreadyExists || can_retry(&err.source)
                         }
-                        let err_context = || {
-                            #[cfg(not(windows))]
-                            let message = format!(
-                                "failed to create symlink at {full_path:?} pointing to {target:?}"
-                            );
-                            #[cfg(windows)]
-                            let message = if is_directory {
-                                format!(
-                                    "failed to create junction point at {full_path:?} pointing to \
-                                     {target:?}"
-                                )
-                            } else {
-                                format!(
-                                    "failed to create symlink at {full_path:?} pointing to \
-                                     {target:?}\n\
-                                    (Note: creating file symlinks on Windows require developer \
-                                     mode or admin permissions: \
-                                     https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
-                                )
-                            };
-                            message
-                        };
                         retry_blocking_custom(try_create_link, can_retry_link)
                             .instrument(tracing::info_span!(
                                 "write symlink",
@@ -1318,19 +1342,36 @@ impl FileSystem for DiskFileSystem {
                             ))
                             .concurrency_limited(&self.inner.write_semaphore)
                             .await
-                            .with_context(err_context)?;
+                            .map_err(|err| {
+                                make_link_err(FsErrorSource::Io(err.source), link_type, target_str)
+                            })?;
                     }
                     OsSpecificLinkContent::Invalid => {
-                        return Err(AnyhowWrapper(anyhow!(
-                            "invalid symlink target: {full_path:?}"
-                        )));
+                        return Err(FsError {
+                            operation: FsErrorOperation::Link {
+                                link_type: FsErrorLinkType::Symbolic,
+                                target: match &*self.content {
+                                    LinkContent::Link { target, .. } => target.clone(),
+                                    _ => RcStr::default(),
+                                },
+                            },
+                            path: self.fs_path.clone(),
+                            source: FsErrorSource::InvalidLinkTarget,
+                        });
                     }
                     OsSpecificLinkContent::NotFound => {
                         retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
                             .instrument(tracing::info_span!("remove symlink", name = ?full_path))
                             .concurrency_limited(&self.inner.write_semaphore)
                             .await
-                            .with_context(|| format!("removing {full_path:?} failed"))?;
+                            .map_err(|err| {
+                                // For NotFound removal, use Symbolic as the link type
+                                make_link_err(
+                                    FsErrorSource::Io(err),
+                                    FsErrorLinkType::Symbolic,
+                                    RcStr::default(),
+                                )
+                            })?;
                     }
                 }
 
@@ -1340,6 +1381,7 @@ impl FileSystem for DiskFileSystem {
 
         emit_effect(WriteLinkEffect {
             full_path,
+            fs_path,
             inner,
             invalidator,
             content,
@@ -2861,35 +2903,6 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         symlinks: symlinks.into_iter().collect(),
     }
     .cell())
-}
-
-/// Wrapper to convert `anyhow::Error` to `impl std::error::Error` for use in `Effect::apply`.
-// TODO(bgw): use a structured error type instead of anyhow for write/write_link
-#[derive(TraceRawVcs, NonLocalValue)]
-struct AnyhowWrapper(anyhow::Error);
-
-impl std::fmt::Display for AnyhowWrapper {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.0, f)
-    }
-}
-
-impl std::fmt::Debug for AnyhowWrapper {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.0, f)
-    }
-}
-
-impl StdError for AnyhowWrapper {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        self.0.source()
-    }
-}
-
-impl From<anyhow::Error> for AnyhowWrapper {
-    fn from(err: anyhow::Error) -> Self {
-        AnyhowWrapper(err)
-    }
 }
 
 #[cfg(test)]

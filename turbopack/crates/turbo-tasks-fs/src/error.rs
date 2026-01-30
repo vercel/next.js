@@ -8,6 +8,7 @@ use std::{
 };
 
 use bincode::{Decode, Encode};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use crate::FileSystemPath;
@@ -26,16 +27,11 @@ pub struct FsError {
 }
 
 impl FsError {
-    fn io_error(&self) -> Option<&io::Error> {
-        match &self.source {
-            FsErrorSource::Io(err) => Some(err),
-            _ => None,
-        }
-    }
-
     // It might be possible for this to return a `StyledString`, but we'd need to move
     // `StyledString` into a standalone crate.
     pub fn hint(&self) -> Option<Cow<'static, str>> {
+        #[cfg(windows)]
+        use std::io::ErrorKind;
         match (&self.operation, &self.source) {
             #[cfg(windows)]
             (
@@ -66,7 +62,11 @@ impl FsError {
 
 impl std::error::Error for FsError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.io_error().map(|err| err as &dyn std::error::Error)
+        match &self.source {
+            FsErrorSource::Io(err) => Some(err as &dyn std::error::Error),
+            FsErrorSource::Anyhow(err) => err.source(),
+            _ => None,
+        }
     }
 }
 
@@ -93,7 +93,7 @@ pub enum FsErrorOperation {
     Write,
     Link {
         link_type: FsErrorLinkType,
-        target: FileSystemPath,
+        target: RcStr,
     },
 }
 
@@ -108,7 +108,7 @@ impl Display for FsErrorOperation {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, Eq, PartialEq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum FsErrorLinkType {
     Symbolic,
     #[cfg(windows)]
@@ -136,12 +136,23 @@ pub enum FsErrorSource {
     /// error.
     DeniedPath,
     InvalidLinkTarget,
+    /// Path segment exceeds the maximum length (typically 255 bytes on Unix)
+    PathSegmentTooLong {
+        max_length: usize,
+    },
+    /// Full path exceeds the maximum length
+    PathTooLong {
+        max_length: usize,
+    },
+    /// A catch-all for other errors that don't fit into the other categories
+    Anyhow(#[bincode(with = "bincode_anyhow_error")] anyhow::Error),
 }
 
 impl PartialEq for FsErrorSource {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Io(l), Self::Io(r)) => l.to_string() == r.to_string(),
+            (Self::Anyhow(l), Self::Anyhow(r)) => l.to_string() == r.to_string(),
             _ => discriminant(self) == discriminant(other),
         }
     }
@@ -155,6 +166,13 @@ impl Display for FsErrorSource {
             FsErrorSource::Io(err) => err.fmt(f),
             FsErrorSource::DeniedPath => write!(f, "access to this path is restricted"),
             FsErrorSource::InvalidLinkTarget => write!(f, "link target is invalid"),
+            FsErrorSource::PathSegmentTooLong { max_length } => {
+                write!(f, "path segment is too long (exceeds {max_length} bytes)")
+            }
+            FsErrorSource::PathTooLong { max_length } => {
+                write!(f, "path is too long (exceeds {max_length} bytes)")
+            }
+            FsErrorSource::Anyhow(err) => err.fmt(f),
         }
     }
 }
@@ -213,5 +231,33 @@ mod bincode_io_error {
             // The kind becomes Other after roundtrip
             assert_eq!(err2.0.kind(), ErrorKind::Other);
         }
+    }
+}
+
+/// Best effort string-based serialization for `anyhow::Error`.
+mod bincode_anyhow_error {
+    use anyhow::anyhow;
+    use bincode::{
+        Decode, Encode,
+        de::{BorrowDecoder, Decoder},
+        enc::Encoder,
+        error::{DecodeError, EncodeError},
+    };
+
+    pub fn encode<E: Encoder>(err: &anyhow::Error, encoder: &mut E) -> Result<(), EncodeError> {
+        err.to_string().encode(encoder)
+    }
+
+    pub fn decode<Context, D: Decoder<Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<anyhow::Error, DecodeError> {
+        let message = String::decode(decoder)?;
+        Ok(anyhow!(message))
+    }
+
+    pub fn borrow_decode<'de, Context, D: BorrowDecoder<'de, Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<anyhow::Error, DecodeError> {
+        decode(decoder)
     }
 }
