@@ -1924,7 +1924,7 @@ export async function fetchSegmentOnCacheMiss(
     // across different param values for params that the segment doesn't
     // actually depend on.
     const varyParams = serverData.varyParams
-    if (varyParams !== null) {
+    if (process.env.__NEXT_VARY_PARAMS && varyParams !== null) {
       // Re-key the entry by storing it at a more generic vary path where
       // unused params are replaced with Fallback.
       const fulfilledVaryPath = getFulfilledSegmentVaryPath(
@@ -2407,7 +2407,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       isPartial
     )
     // Re-key the entry based on which params the segment actually depends on.
-    if (segmentVaryParams !== null) {
+    if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
       const fulfilledVaryPath = getFulfilledSegmentVaryPath(
         tree.varyPath,
         segmentVaryParams
@@ -2437,7 +2437,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         isPartial
       )
       // Re-key the entry based on which params the segment actually depends on.
-      if (segmentVaryParams !== null) {
+      if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
         const fulfilledVaryPath = getFulfilledSegmentVaryPath(
           tree.varyPath,
           segmentVaryParams
@@ -2465,7 +2465,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       // Use the fulfilled vary path if available, otherwise fall back to
       // the request vary path.
       const varyPath =
-        segmentVaryParams !== null
+        process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null
           ? getFulfilledSegmentVaryPath(tree.varyPath, segmentVaryParams)
           : getSegmentVaryPathForRequest(fetchStrategy, tree)
       upsertSegmentEntry(now, varyPath, newEntry)

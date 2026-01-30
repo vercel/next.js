@@ -333,6 +333,7 @@ export interface ExperimentalConfig {
   clientParamParsingOrigins?: string[]
   dynamicOnHover?: boolean
   optimisticRouting?: boolean
+  varyParams?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -1568,6 +1569,7 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
+    varyParams: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
