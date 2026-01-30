@@ -107,7 +107,8 @@ pub fn free_var_references_with_vercel_system_env_warnings(
             .0
             .into_iter()
             .map(|(k, value)| {
-                const LIST: [&str; 11] = [
+                const LIST: [&str; 12] = [
+                    "NEXT_DEPLOYMENT_ID",
                     "VERCEL_BRANCH_URL",
                     "VERCEL_DEPLOYMENT_ID",
                     "VERCEL_GIT_COMMIT_AUTHOR_LOGIN",
@@ -128,16 +129,27 @@ pub fn free_var_references_with_vercel_system_env_warnings(
                 ] = &&*k
                     && a == "process"
                     && b == "env"
-                    && c.strip_prefix("NEXT_PUBLIC_")
-                        .is_some_and(|n| LIST.binary_search(&n).is_ok())
+                    && let Some(env_var) = c.strip_prefix("NEXT_PUBLIC_")
+                    && LIST.binary_search(&env_var).is_ok()
                 {
-                    let message = format!(
-                        "The system environment variable {} is being inlined. This variable \
-                         changes on every deployment, causing slower deploy times and worse \
-                         browser client-side caching.",
-                        c
-                    )
-                    .into();
+                    let message = match &**c {
+                        "NEXT_PUBLIC_NEXT_DEPLOYMENT_ID" | "NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID" => {
+                            rcstr!(
+                                "The deployment id is being inlined. Use \
+                                 process.env.NEXT_DEPLOYMENT_ID instead to access the same value \
+                                 without inlining, for faster deploy times and better browser \
+                                 client-side caching."
+                            )
+                        }
+                        _ => format!(
+                            "A system environment variable is being inlined. This variable \
+                             changes on every deployment, causing slower deploy times and worse \
+                             browser client-side caching. For server-side code, replace with \
+                             process.env.{} and for browser code, try to remove it.",
+                            env_var,
+                        )
+                        .into(),
+                    };
                     FreeVarReference::ReportUsage {
                         message,
                         severity: if should_error {
