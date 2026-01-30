@@ -1267,6 +1267,12 @@ export async function handleAction({
   }
 }
 
+/**
+ * Limit on the number of arguments passed to a server action. This prevents
+ * stack overflow during `action.apply()` from malicious requests.
+ */
+const SERVER_ACTION_ARGS_LIMIT = 1000
+
 async function executeActionAndPrepareForRender<
   TFn extends (...args: any[]) => Promise<any>,
 >(
@@ -1281,6 +1287,12 @@ async function executeActionAndPrepareForRender<
 }> {
   requestStore.phase = 'action'
   let skipPageRendering = actionWasForwarded
+
+  if (args.length > SERVER_ACTION_ARGS_LIMIT) {
+    throw new Error(
+      `Server Action arguments list is too long (${args.length}). Maximum allowed is ${SERVER_ACTION_ARGS_LIMIT}.`
+    )
+  }
 
   try {
     const actionResult = await workUnitAsyncStorage.run(requestStore, () =>

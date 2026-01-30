@@ -1651,6 +1651,7 @@ async function getErrorRSCPayload(
     null,
     false,
     false, // We don't currently support runtime prefetching for error pages.
+    null, // varyParams - not tracked for error pages
   ]
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
@@ -1719,6 +1720,8 @@ function App<T>({
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     initialRenderedSearch: response.q,
+    initialCouldBeIntercepted: response.i,
+    initialPrerendered: response.S,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
@@ -1782,6 +1785,8 @@ function ErrorApp<T>({
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     initialRenderedSearch: response.q,
+    initialCouldBeIntercepted: response.i,
+    initialPrerendered: response.S,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,

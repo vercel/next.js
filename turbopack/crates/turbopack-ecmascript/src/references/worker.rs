@@ -18,8 +18,8 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{
-        ModuleResolveResult, ModuleResolveResultItem, handle_resolve_error, origin::ResolveOrigin,
-        parse::Request, pattern::Pattern, resolve_raw, url_resolve,
+        ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode, handle_resolve_error,
+        origin::ResolveOrigin, parse::Request, pattern::Pattern, resolve_raw, url_resolve,
     },
 };
 
@@ -42,7 +42,7 @@ pub struct WorkerAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: WorkerRequest,
     pub issue_source: IssueSource,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
     /// When true, skip creating WorkerLoaderModule and return the inner module directly.
     /// This is used when we're only tracing dependencies, not generating code.
     pub tracing_only: bool,
@@ -68,7 +68,7 @@ impl WorkerAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         tracing_only: bool,
         is_shared: bool,
     ) -> Self {
@@ -81,7 +81,7 @@ impl WorkerAssetReference {
             origin,
             request: WorkerRequest::Url(request),
             issue_source,
-            in_try,
+            error_mode,
             tracing_only,
         }
     }
@@ -92,7 +92,7 @@ impl WorkerAssetReference {
         path: ResolvedVc<Pattern>,
         collect_affecting_sources: bool,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         tracing_only: bool,
     ) -> Self {
         WorkerAssetReference {
@@ -104,7 +104,7 @@ impl WorkerAssetReference {
                 collect_affecting_sources,
             },
             issue_source,
-            in_try,
+            error_mode,
             tracing_only,
         }
     }
@@ -124,7 +124,7 @@ impl ModuleReference for WorkerAssetReference {
                     **request,
                     self.worker_type.reference_type(),
                     Some(self.issue_source),
-                    self.in_try,
+                    self.error_mode,
                 )
             }
             (
@@ -152,7 +152,7 @@ impl ModuleReference for WorkerAssetReference {
                     *self.origin,
                     Request::parse(path.owned().await?),
                     self.origin.resolve_options(),
-                    self.in_try,
+                    self.error_mode,
                     Some(self.issue_source),
                 )
                 .await?
@@ -258,10 +258,12 @@ impl ModuleReference for WorkerAssetReference {
 }
 
 impl WorkerAssetReference {
-    /// Downgrade errors to warnings if we are in a try context or if loos errors is enabled
+    /// Downgrade errors to warnings if we are not in Error mode or if loose errors is enabled
     async fn get_module_type_issue_severity(&self) -> Result<IssueSeverity> {
         Ok(
-            if self.in_try || self.origin.resolve_options().await?.loose_errors {
+            if self.error_mode != ResolveErrorMode::Error
+                || self.origin.resolve_options().await?.loose_errors
+            {
                 IssueSeverity::Warning
             } else {
                 IssueSeverity::Error

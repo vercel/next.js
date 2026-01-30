@@ -247,7 +247,6 @@ export const experimentalSchema = {
   prerenderEarlyExit: z.boolean().optional(),
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),
-  isolatedDevBuild: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
