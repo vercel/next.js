@@ -647,8 +647,19 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Validate that the response is a valid response object.
     if (!(res instanceof Response)) {
+      const invalidType =
+        res === null
+          ? 'null'
+          : res === undefined
+            ? 'undefined'
+            : typeof res === 'object'
+              ? res.constructor?.name || 'object'
+              : typeof res
+
       throw new Error(
-        `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
+        `No response is returned from route handler '${this.resolvedPagePath}'. ` +
+          `Expected a Response object but received '${invalidType}' (method: ${request.method}, url: ${requestStore.url.pathname}). ` +
+          `Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
       )
     }
 

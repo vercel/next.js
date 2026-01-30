@@ -80,6 +80,17 @@ export type SegmentPrefetch = {
   buildId: string
   rsc: React.ReactNode | null
   isPartial: boolean
+  staleTime: number
+  /**
+   * The set of params that this segment's output depends on. Used by the client
+   * cache to determine which entries can be reused across different param
+   * values.
+   * - `null` means vary params were not tracked (conservative: assume all
+   *   params matter)
+   * - Empty set means no params were accessed (segment is reusable for any
+   *   param values)
+   */
+  varyParams: Set<string> | null
 }
 
 const filterStackFrame =
@@ -241,6 +252,7 @@ async function PrefetchTreeData({
     isClientParamParsingEnabled,
     flightRouterState,
     buildId,
+    staleTime,
     seedData,
     clientModules,
     ROOT_SEGMENT_REQUEST_KEY,
@@ -253,7 +265,16 @@ async function PrefetchTreeData({
   // the client cache.
   segmentTasks.push(
     waitAtLeastOneReactRenderTask().then(() =>
-      renderSegmentPrefetch(buildId, head, HEAD_REQUEST_KEY, clientModules)
+      renderSegmentPrefetch(
+        buildId,
+        staleTime,
+        head,
+        HEAD_REQUEST_KEY,
+        // TODO: Track vary params for metadata. For now, assume all
+        // params vary.
+        null,
+        clientModules
+      )
     )
   )
 
@@ -275,6 +296,7 @@ function collectSegmentDataImpl(
   isClientParamParsingEnabled: boolean,
   route: FlightRouterState,
   buildId: string,
+  staleTime: number,
   seedData: CacheNodeSeedData | null,
   clientModules: ManifestNode,
   requestKey: SegmentRequestKey,
@@ -301,6 +323,7 @@ function collectSegmentDataImpl(
       isClientParamParsingEnabled,
       childRoute,
       buildId,
+      staleTime,
       childSeedData,
       clientModules,
       childRequestKey,
@@ -313,6 +336,7 @@ function collectSegmentDataImpl(
   }
 
   const hasRuntimePrefetch = seedData !== null ? seedData[4] : false
+  const varyParams = seedData !== null ? seedData[5] : null
 
   if (seedData !== null) {
     // Spawn a task to write the segment data to a new Flight stream.
@@ -320,7 +344,14 @@ function collectSegmentDataImpl(
       // Since we're already in the middle of a render, wait until after the
       // current task to escape the current rendering context.
       waitAtLeastOneReactRenderTask().then(() =>
-        renderSegmentPrefetch(buildId, seedData[0], requestKey, clientModules)
+        renderSegmentPrefetch(
+          buildId,
+          staleTime,
+          seedData[0],
+          requestKey,
+          varyParams,
+          clientModules
+        )
       )
     )
   } else {
@@ -361,17 +392,19 @@ function collectSegmentDataImpl(
 
 async function renderSegmentPrefetch(
   buildId: string,
+  staleTime: number,
   rsc: React.ReactNode,
   requestKey: SegmentRequestKey,
+  varyParams: Set<string> | null,
   clientModules: ManifestNode
 ): Promise<[SegmentRequestKey, Buffer]> {
   // Render the segment data to a stream.
-  // In the future, this is where we can include additional metadata, like the
-  // stale time and cache tags.
   const segmentPrefetch: SegmentPrefetch = {
     buildId,
     rsc,
     isPartial: await isPartialRSCData(rsc, clientModules),
+    staleTime,
+    varyParams,
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises

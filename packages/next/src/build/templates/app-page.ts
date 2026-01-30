@@ -75,10 +75,6 @@ import {
  */
 declare const tree: LoaderTree
 
-// TODO this should ideally be read from the loader tree instead, where it's always inserted already anyway.
-import GlobalError from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-component' }
-export { GlobalError }
-
 // These are injected by the loader afterwards.
 declare const __next_app_require__: (id: string | number) => unknown
 declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
@@ -86,7 +82,6 @@ declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
 // We inject the tree and pages here so that we can use them in the route
 // module.
 // INJECT:tree
-
 // INJECT:__next_app_require__
 // INJECT:__next_app_load_chunk__
 
@@ -386,8 +381,17 @@ export async function handler(
   // If PPR is enabled, and this is a RSC request (but not a prefetch), then
   // we can use this fact to only generate the flight data for the request
   // because we can't cache the HTML (as it's also dynamic).
+  const staticPrefetchDataRoute =
+    prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+
   let isDynamicRSCRequest =
-    isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
+    isRoutePPREnabled &&
+    isRSCRequest &&
+    !isPrefetchRSCRequest &&
+    // If generated at build time, treat the RSC request as static
+    // so we can serve the prebuilt .rsc without a dynamic render.
+    // Only do this for routes that have a concrete prefetchDataRoute.
+    !staticPrefetchDataRoute
 
   // During a PPR revalidation, the RSC request is not dynamic if we do not have the postponed data.
   // We only attach the postponed data during a resume. If there's no postponed data, then it must be a revalidation.
@@ -491,7 +495,6 @@ export async function handler(
   const ComponentMod = {
     ...entryBase,
     tree,
-    GlobalError,
     handler,
     routeModule,
     __next_app__,

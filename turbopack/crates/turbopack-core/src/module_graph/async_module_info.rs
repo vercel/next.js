@@ -3,7 +3,7 @@ use rustc_hash::FxHashSet;
 use turbo_tasks::{OperationVc, ResolvedVc, TryFlatJoinIterExt, Vc};
 
 use crate::{
-    module::{Module, Modules},
+    module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
 
@@ -12,26 +12,12 @@ pub struct ModulesSet(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
 /// This lists all the modules that are async (self or transitively because they reference another
 /// module in this list).
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct AsyncModulesInfo(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
-#[turbo_tasks::value_impl]
 impl AsyncModulesInfo {
-    #[turbo_tasks::function]
-    pub fn is_async(&self, module: ResolvedVc<Box<dyn Module>>) -> Vc<bool> {
-        Vc::cell(self.0.contains(&module))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn is_async_multiple(&self, modules: ResolvedVc<Modules>) -> Result<Vc<ModulesSet>> {
-        Ok(Vc::cell(
-            modules
-                .await?
-                .iter()
-                .copied()
-                .filter(|m| self.0.contains(m))
-                .collect(),
-        ))
+    pub async fn is_async(self: Vc<Self>, module: ResolvedVc<Box<dyn Module>>) -> Result<bool> {
+        self.contains_key(&module).await
     }
 }
 

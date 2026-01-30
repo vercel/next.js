@@ -900,9 +900,12 @@ export async function fetchInternalImage(
   ) => Promise<void>
 ): Promise<ImageUpstream> {
   try {
+    // Coerce HEAD to GET to avoid issues with the image optimizer
+    const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
+
     const mocked = createRequestResponseMocks({
       url: href,
-      method: _req.method || 'GET',
+      method,
       socket: _req.socket,
     })
 
@@ -1193,7 +1196,12 @@ export function sendResponse(
   )
   if (!result.finished) {
     res.setHeader('Content-Length', Buffer.byteLength(buffer))
-    res.end(buffer)
+    // A response body must not be sent for HEAD requests
+    if (req.method === 'HEAD') {
+      res.end()
+    } else {
+      res.end(buffer)
+    }
   }
 }
 
