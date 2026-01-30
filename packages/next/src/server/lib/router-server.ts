@@ -263,14 +263,11 @@ export async function initialize(opts: {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
 
-      const cleanupCompression = () => {
+      // Only on client abort: destroy response so compression streams are cleaned up
+      req.once('aborted', () => {
         if (res.destroyed || res.writableFinished) return
         res.destroy()
-      }
-
-      req.once('aborted', cleanupCompression)
-      req.once('close', cleanupCompression)
-      res.once('close', cleanupCompression)
+      })
     }
     req.on('error', (_err) => {
       // TODO: log socket errors?
