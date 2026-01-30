@@ -121,6 +121,7 @@ async fn rule_condition_from_webpack_condition(
             path,
             content,
             query,
+            content_type,
         } => {
             let mut rule_conditions = Vec::new();
             match &path {
@@ -138,6 +139,17 @@ async fn rule_condition_from_webpack_condition(
                 }
                 Some(ConditionQuery::Regex(regex)) => {
                     rule_conditions.push(RuleCondition::ResourceQueryEsRegex(regex.await?));
+                }
+                None => {}
+            }
+            match &content_type {
+                Some(ConditionContentType::Glob(glob)) => {
+                    rule_conditions.push(RuleCondition::ContentTypeGlob(
+                        Glob::new(glob.clone(), GlobOptions::default()).await?,
+                    ));
+                }
+                Some(ConditionContentType::Regex(regex)) => {
+                    rule_conditions.push(RuleCondition::ContentTypeEsRegex(regex.await?));
                 }
                 None => {}
             }
