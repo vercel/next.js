@@ -43,7 +43,7 @@ use swc_core::{
     common::{
         GLOBALS, Globals, Span, Spanned, SyntaxContext,
         comments::{CommentKind, Comments},
-        errors::{DiagnosticId, HANDLER, Handler},
+        errors::{DiagnosticId, HANDLER, Handler, Level},
         pass::AstNodePath,
         source_map::SmallPos,
     },
@@ -2909,13 +2909,6 @@ async fn handle_free_var_reference(
     }
 
     match value {
-        FreeVarReference::Error(error_message) => state.handler.span_err_with_code(
-            span,
-            error_message,
-            DiagnosticId::Error(
-                errors::failed_to_analyze::ecmascript::FREE_VAR_REFERENCE.to_string(),
-            ),
-        ),
         FreeVarReference::Value(value) => {
             analysis.add_code_gen(ConstantValueCodeGen::new(
                 value.clone(),
@@ -2998,18 +2991,34 @@ async fn handle_free_var_reference(
                 ast_path.to_vec().into(),
             ));
         }
-        FreeVarReference::Warning { message, inner } => {
-            state.handler.span_warn_with_code(
-                span,
+        FreeVarReference::ReportUsage {
+            message,
+            severity,
+            inner,
+        } => {
+            state.handler.emit_with_code(
+                &span.into(),
                 message,
                 DiagnosticId::Error(
                     errors::failed_to_analyze::ecmascript::FREE_VAR_REFERENCE.to_string(),
                 ),
+                match severity {
+                    IssueSeverity::Bug => Level::Bug,
+                    IssueSeverity::Fatal => Level::Fatal,
+                    IssueSeverity::Error => Level::Error,
+                    IssueSeverity::Warning => Level::Warning,
+                    IssueSeverity::Hint => Level::Help,
+                    IssueSeverity::Info | IssueSeverity::Note => Level::Note,
+                    IssueSeverity::Suggestion => Level::Cancelled,
+                },
             );
-            return Box::pin(handle_free_var_reference(
-                ast_path, inner, span, state, analysis,
-            ))
-            .await;
+
+            if let Some(inner) = inner {
+                return Box::pin(handle_free_var_reference(
+                    ast_path, inner, span, state, analysis,
+                ))
+                .await;
+            }
         }
     }
     Ok(true)

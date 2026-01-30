@@ -7,7 +7,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
-use crate::environment::Environment;
+use crate::{environment::Environment, issue::IssueSeverity};
 
 #[macro_export]
 macro_rules! definable_name_map_pattern_internal {
@@ -313,12 +313,12 @@ pub enum FreeVarReference {
     Member(RcStr, RcStr),
     Value(CompileTimeDefineValue),
     InputRelative(InputRelativeConstant),
-    Error(RcStr),
-    /// Emits a warning when the free variable is inlined, then processes the inner reference.
-    /// Unlike `Error`, this will still perform the replacement after emitting the warning.
-    Warning {
+    // Report the replacement of this free var with the given severity and message, and
+    // potentially replace with the `inner` value.
+    ReportUsage {
         message: RcStr,
-        inner: Box<FreeVarReference>,
+        severity: IssueSeverity,
+        inner: Option<Box<FreeVarReference>>,
     },
 }
 

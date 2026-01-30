@@ -42,7 +42,7 @@ use turbopack_core::{
     file_source::FileSource,
     free_var_references,
     ident::Layer,
-    issue::{CollectibleIssuesExt, IssueFilter},
+    issue::{CollectibleIssuesExt, IssueFilter, IssueSeverity},
     module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
@@ -326,11 +326,12 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .free_var_references(
             free_var_references!(
                 ..defines.into_iter(),
-                WARNED_VALUE = FreeVarReference::Warning {
+                WARNED_VALUE = FreeVarReference::ReportUsage {
+                    severity: IssueSeverity::Warning,
                     message: rcstr!("WARNED_VALUE is deprecated, use REPLACEMENT_VALUE instead"),
-                    inner: Box::new(FreeVarReference::Value(CompileTimeDefineValue::String(
-                        rcstr!("replacement")
-                    ),)),
+                    inner: Some(Box::new(FreeVarReference::Value(
+                        CompileTimeDefineValue::String(rcstr!("replacement"))
+                    ))),
                 },
             )
             .resolved_cell(),
