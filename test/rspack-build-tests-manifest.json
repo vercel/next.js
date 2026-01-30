@@ -958,11 +958,10 @@
       "app dir - prefetching should not prefetch for a bot user agent",
       "app dir - prefetching should not re-render error component when triggering a prefetch action",
       "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params",
-      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment"
-    ],
-    "failed": [
+      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment",
       "app dir - prefetching should show layout eagerly when prefetched with loading one level down"
     ],
+    "failed": [],
     "pending": [
       "app dir - prefetching should not suppress prefetches after navigating back"
     ],
@@ -5023,6 +5022,7 @@
       "app dir - next-image image content should render images on /client route",
       "app dir - next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route",
       "app dir - next-image image content should render legacy images under /legacy route",
+      "app dir - next-image ssr content should handle HEAD requests for uncached images",
       "app dir - next-image ssr content should render images nested under page dir on /nested route",
       "app dir - next-image ssr content should render images on / route",
       "app dir - next-image ssr content should render images on /client route"
@@ -5239,6 +5239,22 @@
       "nx-handling should work for pages page",
       "nx-handling should work with app page",
       "nx-handling should work with app route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/optimistic-routing/optimistic-routing.test.ts": {
+    "passed": [
+      "optimistic-routing basic dynamic route prediction: shows loading state instantly for unprefetched route",
+      "optimistic-routing nested dynamic routes: predicts through multiple dynamic segments",
+      "optimistic-routing optional catch-all: predicts between paths with different segment counts",
+      "optimistic-routing optional catch-all: predicts from index to path with segments",
+      "optimistic-routing required catch-all: predicts between paths with different segment counts",
+      "optimistic-routing rewrite detection (search params): does not use cached pattern when search params cause different rewrite",
+      "optimistic-routing rewrite detection: detects dynamic rewrite when URL does not match route structure",
+      "optimistic-routing static sibling detection: does not incorrectly match static route to dynamic pattern"
     ],
     "failed": [],
     "pending": [],
@@ -7220,6 +7236,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/vary-params/vary-params.test.ts": {
+    "passed": [
+      "segment cache - vary params reuses prefetched segment when layout is marked with 'use client'",
+      "segment cache - vary params reuses prefetched segment when there is no user-provided layout"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/self-importing-package-monorepo/self-importing-package-monorepo.test.ts": {
     "passed": [
       "self-importing-package-monorepo should resolve self-imports inside a monorepo"
@@ -7370,6 +7396,15 @@
       "app-dir static-generation-status should render the non existed route redirect with status 404",
       "app-dir static-generation-status should render the page using notFound with status 404",
       "app-dir static-generation-status should render the page using redirect with status 307"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/static-rsc-cache-components/static-rsc-cache-components.test.ts": {
+    "passed": [
+      "static-rsc-cache-components navigates to prerendered route without waiting for dynamic render"
     ],
     "failed": [],
     "pending": [],
@@ -11298,6 +11333,7 @@
       "404 Page Support production mode should output 404.html during build",
       "404 Page Support production mode should render _error for a 500 error still",
       "404 Page Support production mode should set correct status code with pages/404",
+      "404 Page Support production mode should still output 404.js anyway",
       "404 Page Support production mode should use pages/404",
       "404 Page Support production mode should use pages/404 for .d.ts file",
       "404 Page Support production mode shows error with getInitialProps in pages/404 build",
@@ -20151,8 +20187,6 @@
       "config telemetry production mode emits telemetry for enabled React Compiler",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
       "config telemetry production mode emits telemetry for filesystem cache in dev mode",
-      "config telemetry production mode emits telemetry for isolatedDevBuild disabled",
-      "config telemetry production mode emits telemetry for isolatedDevBuild enabled by default",
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
@@ -21317,6 +21351,15 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/build-tracing-message/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "build-tracing-message should warn when tracing all files in the project"
+    ],
     "flakey": [],
     "runtimeError": false
   },
