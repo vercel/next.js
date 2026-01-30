@@ -1343,7 +1343,11 @@
             return;
           }
         case "function":
-          value = "" === value.name ? "() => {}" : value.name + "() {}";
+          value = value.name;
+          value =
+            "" === value || "string" !== typeof value
+              ? "() => {}"
+              : value + "() {}";
           break;
         case "string":
           value =
