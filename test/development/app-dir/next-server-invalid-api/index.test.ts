@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createSandbox } from 'development-sandbox'
+import { retry } from 'next-test-utils'
 
 describe('next/server APIs in client components', () => {
   const { next } = nextTestSetup({
@@ -22,29 +23,31 @@ describe('next/server APIs in client components', () => {
     await session.patch(pageFile, uncomment)
     await session.waitForRedbox()
 
-    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-     "./app/invalid-after/page.js (3:10)
-     Ecmascript file had an error
-       1 | 'use client'
-       2 |
-     > 3 | import { after } from 'next/server'
-         |          ^^^^^
-       4 |
-       5 | export default function Page() {
-       6 |   after(() => {})
+    await retry(async () => {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+       "./app/invalid-after/page.js (3:10)
+       Ecmascript file had an error
+         1 | 'use client'
+         2 |
+       > 3 | import { after } from 'next/server'
+           |          ^^^^^
+         4 |
+         5 | export default function Page() {
+         6 |   after(() => {})
 
-     You're importing a component that needs "after". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.
-     Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+       You're importing a component that needs "after". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.
+       Learn more: https://nextjs.org/docs/app/building-your-application/rendering
 
-     Import traces:
-       Client Component Browser:
-         ./app/invalid-after/page.js [Client Component Browser]
-         ./app/invalid-after/page.js [Server Component]
+       Import traces:
+         Client Component Browser:
+           ./app/invalid-after/page.js [Client Component Browser]
+           ./app/invalid-after/page.js [Server Component]
 
-       Client Component SSR:
-         ./app/invalid-after/page.js [Client Component SSR]
-         ./app/invalid-after/page.js [Server Component]"
-    `)
+         Client Component SSR:
+           ./app/invalid-after/page.js [Client Component SSR]
+           ./app/invalid-after/page.js [Server Component]"
+      `)
+    })
   })
 
   it('errors at compile time when connection() is used in a client module', async () => {
@@ -66,28 +69,30 @@ describe('next/server APIs in client components', () => {
     await session.patch(pageFile, uncomment)
     await session.waitForRedbox()
 
-    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-     "./app/invalid-connection/page.js (3:10)
-     Ecmascript file had an error
-       1 | 'use client'
-       2 |
-     > 3 | import { connection } from 'next/server'
-         |          ^^^^^^^^^^
-       4 |
-       5 | export default function Page() {
-       6 |   connection()
+    await retry(async () => {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+       "./app/invalid-connection/page.js (3:10)
+       Ecmascript file had an error
+         1 | 'use client'
+         2 |
+       > 3 | import { connection } from 'next/server'
+           |          ^^^^^^^^^^
+         4 |
+         5 | export default function Page() {
+         6 |   connection()
 
-     You're importing a component that needs "connection". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.
-     Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+       You're importing a component that needs "connection". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.
+       Learn more: https://nextjs.org/docs/app/building-your-application/rendering
 
-     Import traces:
-       Client Component Browser:
-         ./app/invalid-connection/page.js [Client Component Browser]
-         ./app/invalid-connection/page.js [Server Component]
+       Import traces:
+         Client Component Browser:
+           ./app/invalid-connection/page.js [Client Component Browser]
+           ./app/invalid-connection/page.js [Server Component]
 
-       Client Component SSR:
-         ./app/invalid-connection/page.js [Client Component SSR]
-         ./app/invalid-connection/page.js [Server Component]"
-    `)
+         Client Component SSR:
+           ./app/invalid-connection/page.js [Client Component SSR]
+           ./app/invalid-connection/page.js [Server Component]"
+      `)
+    })
   })
 })
