@@ -61,6 +61,7 @@ import {
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
 import { bridgeWebSocket } from '../web/websocket-bridge'
+import { getBuiltinRequestContext } from '../after/builtin-request-context'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -897,7 +898,14 @@ export async function initialize(opts: {
       }
 
       // Bridge the WebSocket
-      await bridgeWebSocket(req, socket, head, wsInternalData)
+      // Use waitUntil if available (for serverless environments like Vercel)
+      // to keep the function alive while the WebSocket connection is open
+      const bridgePromise = bridgeWebSocket(req, socket, head, wsInternalData)
+      const waitUntil = getBuiltinRequestContext()?.waitUntil
+      if (waitUntil) {
+        waitUntil(bridgePromise)
+      }
+      await bridgePromise
 
       return { handled: true }
     } catch (err) {
