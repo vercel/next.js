@@ -2,6 +2,7 @@ use std::fmt::Write;
 
 /// Prints a markdown table to stdout.
 /// See `write_markdown_table` for details.
+#[allow(dead_code)]
 pub fn print_markdown_table<T, const N: usize>(
     headers: [&str; N],
     data: impl IntoIterator<Item = T> + Clone,
@@ -12,10 +13,12 @@ pub fn print_markdown_table<T, const N: usize>(
 
 /// Writes a markdown table to the given writer.
 /// The headers and fields can specify alignment by starting or ending with a space:
-/// - " Text" - right aligned
-/// - " Text " - center aligned
-/// - "Text" - left aligned
+///   - " Text" - right aligned
+///   - " Text " - center aligned
+///   - "Text" - left aligned
+///
 /// Also, if multiple consecutive headers are identical, they will be form a merged header cell.
+#[allow(dead_code)]
 pub fn write_markdown_table<T, const N: usize>(
     write: &mut impl std::io::Write,
     headers: [&str; N],
@@ -113,6 +116,7 @@ pub fn write_markdown_table<T, const N: usize>(
     }
 }
 
+#[allow(dead_code)]
 fn escape_markdown_cell(content: &str) -> String {
     content.replace('|', "\\|").replace('\n', " ")
 }

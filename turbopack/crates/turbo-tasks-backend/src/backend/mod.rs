@@ -1718,14 +1718,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
     }
 
+    #[allow(dead_code)]
     fn debug_get_task_name(&self, task_id: TaskId) -> String {
         let task = self.storage.access_mut(task_id);
         if let Some(value) = task.get_persistent_task_type() {
-            format!("{}", value)
+            value.to_string()
         } else if let Some(value) = task.get_transient_task_type() {
-            format!("{}", value)
+            value.to_string()
         } else {
-            format!("unknown")
+            "unknown".to_string()
         }
     }
 
