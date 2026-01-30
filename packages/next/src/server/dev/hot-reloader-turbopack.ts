@@ -290,7 +290,8 @@ export async function createHotReloaderTurbopack(
   serverFields: ServerFields,
   distDir: string,
   resetFetch: () => void,
-  lockfile: Lockfile | undefined
+  lockfile: Lockfile | undefined,
+  experimentalServerFastRefresh?: boolean
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -607,7 +608,9 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  setupServerHmr(project)
+  if (experimentalServerFastRefresh) {
+    setupServerHmr(project)
+  }
 
   let hmrEventHappened = false
   let hmrHash = 0
