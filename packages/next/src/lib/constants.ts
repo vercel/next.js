@@ -19,8 +19,6 @@ export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
 
-export const NEXT_NAV_DEPLOYMENT_ID_HEADER = 'x-nextjs-deployment-id'
-
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =

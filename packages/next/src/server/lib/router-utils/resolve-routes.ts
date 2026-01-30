@@ -331,10 +331,7 @@ export function getResolveRoutes(
         config.basePath && config.basePath !== '/'
           ? new BasePathPathnameNormalizer(config.basePath)
           : undefined,
-      data: new NextDataPathnameNormalizer(
-        fsChecker.buildId,
-        config.deploymentId || ''
-      ),
+      data: new NextDataPathnameNormalizer(fsChecker.buildId),
     }
 
     async function handleRoute(
