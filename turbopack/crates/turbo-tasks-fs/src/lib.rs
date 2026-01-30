@@ -88,7 +88,6 @@ use crate::{
     read_glob::{read_glob, track_glob},
     retry::{can_retry, retry_blocking, retry_blocking_custom},
     rope::{Rope, RopeReader},
-    util::extract_disk_access,
     watcher::DiskWatcher,
 };
 pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
@@ -531,7 +530,7 @@ impl DiskFileSystemInner {
         Ok(())
     }
 
-    async fn create_directory(self: &Arc<Self>, directory: &Path) -> Result<()> {
+    async fn create_directory(self: &Arc<Self>, directory: &Path) -> io::Result<()> {
         let already_created = ApplyEffectsContext::with_or_insert_with(
             DiskFileSystemApplyContext::default,
             |fs_context| fs_context.created_directories.contains(directory),
@@ -1019,9 +1018,7 @@ impl FileSystem for DiskFileSystem {
                     .instrument(tracing::info_span!("read file before write", name = ?full_path))
                     .concurrency_limited(&self.inner.read_semaphore)
                     .await
-                    .map_err(|err| {
-                        make_err(FsErrorSource::Io(io::Error::other(err.to_string())))
-                    })?;
+                    .map_err(|err| make_err(FsErrorSource::Io(err)))?;
                 if compare == FileComparison::Equal {
                     if !old_invalidators.is_empty() {
                         for (invalidator, write_content) in old_invalidators {
@@ -1039,9 +1036,10 @@ impl FileSystem for DiskFileSystem {
                     FileContent::Content(..) => {
                         let create_directory = compare == FileComparison::Create;
                         if create_directory && let Some(parent) = full_path.parent() {
-                            self.inner.create_directory(parent).await.map_err(|err| {
-                                make_err(FsErrorSource::Io(io::Error::other(err.to_string())))
-                            })?;
+                            self.inner
+                                .create_directory(parent)
+                                .await
+                                .map_err(|err| make_err(FsErrorSource::Io(err)))?;
                         }
 
                         let content = self.content.clone();
@@ -1281,7 +1279,7 @@ impl FileSystem for DiskFileSystem {
                         if create_directory && let Some(parent) = full_path.parent() {
                             self.inner.create_directory(parent).await.map_err(|err| {
                                 make_link_err(
-                                    FsErrorSource::Io(io::Error::other(err.to_string())),
+                                    FsErrorSource::Io(err),
                                     link_type.clone(),
                                     target_str.clone(),
                                 )
@@ -2036,27 +2034,33 @@ enum FileComparison {
 impl FileContent {
     /// Performs a comparison of self's data against a disk file's streamed
     /// read.
-    async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
-        let old_file =
-            extract_disk_access(retry_blocking(|| std::fs::File::open(path)).await, path)?;
-        let Some(old_file) = old_file else {
-            return Ok(match self {
-                FileContent::NotFound => FileComparison::Equal,
-                _ => FileComparison::Create,
-            });
+    async fn streaming_compare(&self, path: &Path) -> io::Result<FileComparison> {
+        let old_file = match retry_blocking(|| std::fs::File::open(path)).await {
+            Ok(file) => file,
+            Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::InvalidFilename) => {
+                return Ok(match self {
+                    FileContent::NotFound => FileComparison::Equal,
+                    _ => FileComparison::Create,
+                });
+            }
+            Err(e) => return Err(e),
         };
+
         // We know old file exists, does the new file?
         let FileContent::Content(new_file) = self else {
             return Ok(FileComparison::NotEqual);
         };
 
-        let old_meta = extract_disk_access(retry_blocking(|| old_file.metadata()).await, path)?;
-        let Some(old_meta) = old_meta else {
-            // If we failed to get meta, then the old file has been deleted between the
-            // handle open. In which case, we just pretend the file never
-            // existed.
-            return Ok(FileComparison::Create);
+        let old_meta = match retry_blocking(|| old_file.metadata()).await {
+            Ok(meta) => meta,
+            Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::InvalidFilename) => {
+                // If we failed to get meta, then the old file has been deleted between the
+                // handle open. In which case, we just pretend the file never existed.
+                return Ok(FileComparison::Create);
+            }
+            Err(e) => return Err(e),
         };
+
         // If the meta is different, we need to rewrite the file to update it.
         if new_file.meta != old_meta.into() {
             return Ok(FileComparison::NotEqual);

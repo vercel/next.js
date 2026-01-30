@@ -1,24 +1,9 @@
-use std::{
-    io::{self, ErrorKind},
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use turbo_tasks::ResolvedVc;
 
 use crate::{DiskFileSystem, FileSystemPath};
-
-/// Converts a disk access `Result<T>` into a `Result<Some<T>>`, where a [`ErrorKind::NotFound`] (or
-/// [`ErrorKind::InvalidFilename`]) error results in a [`None`] value. This is purely to reduce
-/// boilerplate code comparing [`ErrorKind::NotFound`] errors against all other errors.
-pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Option<T>> {
-    match value {
-        Ok(v) => Ok(Some(v)),
-        Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::InvalidFilename) => Ok(None),
-        // ast-grep-ignore: no-context-format
-        Err(e) => Err(anyhow!(e).context(format!("reading file {}", path.display()))),
-    }
-}
 
 pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
     let root_fs = root.fs;
