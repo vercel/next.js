@@ -137,7 +137,10 @@ export async function verifyTypeScriptSetup({
       }
 
       // If there are other missing deps besides typescript, only install those
-      if (missingWithoutTypescript.length > 0 && missingWithoutTypescript.length < deps.missing.length) {
+      if (
+        missingWithoutTypescript.length > 0 &&
+        missingWithoutTypescript.length < deps.missing.length
+      ) {
         deps.missing = missingWithoutTypescript
       }
     }
