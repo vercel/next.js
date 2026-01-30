@@ -359,6 +359,7 @@ export function getDefineEnv({
       config.experimental.gestureTransition ?? false,
     'process.env.__NEXT_OPTIMISTIC_ROUTING':
       config.experimental.optimisticRouting ?? false,
+    'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,
     'process.env.__NEXT_CACHE_LIFE': config.cacheLife,
     'process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS':
       config.experimental.clientParamParsingOrigins || [],
