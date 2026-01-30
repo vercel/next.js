@@ -7,6 +7,10 @@ import type {
   CacheNodeSeedData,
   Segment as FlightRouterStateSegment,
 } from '../../../shared/lib/app-router-types'
+import {
+  readVaryParams,
+  type VaryParams,
+} from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { HasLoadingBoundary } from '../../../shared/lib/app-router-types'
 import {
   NEXT_DID_POSTPONE_HEADER,
@@ -1756,6 +1760,13 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
+      // Read head vary params synchronously. Individual segments carry their
+      // own thenables in CacheNodeSeedData.
+      const headVaryParamsThenable = serverData.h
+      const headVaryParams =
+        headVaryParamsThenable !== null
+          ? readVaryParams(headVaryParamsThenable)
+          : null
       writeDynamicTreeResponseIntoCache(
         Date.now(),
         task,
@@ -1768,6 +1779,7 @@ export async function fetchRouteOnCacheMiss(
         couldBeIntercepted,
         canonicalUrl,
         routeIsPPREnabled,
+        headVaryParams,
         pathname
       )
     }
@@ -2049,6 +2061,13 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         : // Full and LoadingBoundary prefetches cannot have holes.
           // (even if we did set the prefetch header, we only use this codepath for non-PPR-enabled routes)
           false
+    // Read head vary params synchronously. Individual segments carry their
+    // own thenables in CacheNodeSeedData.
+    const headVaryParamsThenable = serverData.h
+    const headVaryParams =
+      headVaryParamsThenable !== null
+        ? readVaryParams(headVaryParamsThenable)
+        : null
 
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
@@ -2060,6 +2079,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       response as RSCResponse<NavigationFlightResponse>,
       serverData,
       isResponsePartial,
+      headVaryParams,
       route,
       spawnedEntries
     )
@@ -2086,8 +2106,9 @@ function writeDynamicTreeResponseIntoCache(
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   routeIsPPREnabled: boolean,
+  headVaryParams: VaryParams | null,
   originalPathname: string
-) {
+): void {
   const renderedSearch = getRenderedSearch(response)
 
   const normalizedFlightDataResult = normalizeFlightData(serverData.f)
@@ -2160,6 +2181,7 @@ function writeDynamicTreeResponseIntoCache(
     response,
     serverData,
     isResponsePartial,
+    headVaryParams,
     fulfilledEntry,
     null
   )
@@ -2190,6 +2212,7 @@ function writeDynamicRenderResponseIntoCache(
   response: RSCResponse<NavigationFlightResponse>,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
+  headVaryParams: VaryParams | null,
   route: FulfilledRouteCacheEntry,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
@@ -2261,12 +2284,14 @@ function writeDynamicRenderResponseIntoCache(
 
     const head = flightData.head
     if (head !== null) {
+      // For head entries, use the head-specific vary params passed as parameter.
       fulfillEntrySpawnedByRuntimePrefetch(
         now,
         fetchStrategy,
         head,
         flightData.isHeadPartial,
         staleAt,
+        headVaryParams,
         route.metadata,
         spawnedEntries
       )
@@ -2310,12 +2335,19 @@ function writeSeedDataIntoCache(
   // (CacheNodeSeedData) into the prefetch cache.
   const rsc = seedData[0]
   const isPartial = rsc === null || isResponsePartial
+  const varyParamsThenable = seedData[5]
+  // Each segment carries its own vary params thenable in the seed data. The
+  // thenable resolves to the set of params the segment accessed during render.
+  // A null thenable means tracking was not enabled (not a prerender).
+  const varyParams =
+    varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
   fulfillEntrySpawnedByRuntimePrefetch(
     now,
     fetchStrategy,
     rsc,
     isPartial,
     staleAt,
+    varyParams,
     tree,
     entriesOwnedByCurrentTask
   )
@@ -2353,6 +2385,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   rsc: React.ReactNode,
   isPartial: boolean,
   staleAt: number,
+  segmentVaryParams: Set<string> | null,
   tree: RouteTree,
   entriesOwnedByCurrentTask: Map<
     SegmentRequestKey,
@@ -2367,7 +2400,26 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       ? entriesOwnedByCurrentTask.get(tree.requestKey)
       : undefined
   if (ownedEntry !== undefined) {
-    fulfillSegmentCacheEntry(ownedEntry, rsc, staleAt, isPartial)
+    const fulfilledEntry = fulfillSegmentCacheEntry(
+      ownedEntry,
+      rsc,
+      staleAt,
+      isPartial
+    )
+    // Re-key the entry based on which params the segment actually depends on.
+    if (segmentVaryParams !== null) {
+      const fulfilledVaryPath = getFulfilledSegmentVaryPath(
+        tree.varyPath,
+        segmentVaryParams
+      )
+      const isRevalidation = false
+      setInCacheMap(
+        segmentCacheMap,
+        fulfilledVaryPath,
+        fulfilledEntry,
+        isRevalidation
+      )
+    }
   } else {
     // There's no matching entry. Attempt to create a new one.
     const possiblyNewEntry = readOrCreateSegmentCacheEntry(
@@ -2378,12 +2430,26 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     if (possiblyNewEntry.status === EntryStatus.Empty) {
       // Confirmed this is a new entry. We can fulfill it.
       const newEntry = possiblyNewEntry
-      fulfillSegmentCacheEntry(
+      const fulfilledEntry = fulfillSegmentCacheEntry(
         upgradeToPendingSegment(newEntry, fetchStrategy),
         rsc,
         staleAt,
         isPartial
       )
+      // Re-key the entry based on which params the segment actually depends on.
+      if (segmentVaryParams !== null) {
+        const fulfilledVaryPath = getFulfilledSegmentVaryPath(
+          tree.varyPath,
+          segmentVaryParams
+        )
+        const isRevalidation = false
+        setInCacheMap(
+          segmentCacheMap,
+          fulfilledVaryPath,
+          fulfilledEntry,
+          isRevalidation
+        )
+      }
     } else {
       // There was already an entry in the cache. But we may be able to
       // replace it with the new one from the server.
@@ -2396,11 +2462,13 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         staleAt,
         isPartial
       )
-      upsertSegmentEntry(
-        now,
-        getSegmentVaryPathForRequest(fetchStrategy, tree),
-        newEntry
-      )
+      // Use the fulfilled vary path if available, otherwise fall back to
+      // the request vary path.
+      const varyPath =
+        segmentVaryParams !== null
+          ? getFulfilledSegmentVaryPath(tree.varyPath, segmentVaryParams)
+          : getSegmentVaryPathForRequest(fetchStrategy, tree)
+      upsertSegmentEntry(now, varyPath, newEntry)
     }
   }
 }

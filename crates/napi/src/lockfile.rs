@@ -1,5 +1,6 @@
 use std::{
     fs::{File, OpenOptions},
+    io::Write,
     mem::ManuallyDrop,
     sync::Mutex,
 };
@@ -24,10 +25,10 @@ pub struct LockfileInner {
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Lockfile\" } | null")]
-pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<JsLockfile>>> {
-    let mut open_options = OpenOptions::new();
-    open_options.write(true).create(true);
-
+pub fn lockfile_try_acquire_sync(
+    path: String,
+    content: Option<String>,
+) -> napi::Result<Option<External<JsLockfile>>> {
     // On Windows, we don't use `File::lock` because that grabs a mandatory lock. That can break
     // tools or code that read the contents of the `.next` directory because the mandatory lock
     // file will fail with EBUSY when read. Instead, we open a file with write mode, but without
@@ -42,13 +43,24 @@ pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<J
 
         use windows_sys::Win32::{Foundation, Storage::FileSystem};
 
+        // On Windows, opening with write mode without FILE_SHARE_WRITE acts as the lock.
+        // We use truncate(true) here because if we can open the file, we have the lock.
+        let mut open_options = OpenOptions::new();
+        open_options.write(true).create(true).truncate(true);
         open_options
             .share_mode(FileSystem::FILE_SHARE_READ | FileSystem::FILE_SHARE_DELETE)
             .custom_flags(FileSystem::FILE_FLAG_DELETE_ON_CLOSE);
         match open_options.open(&path) {
-            Ok(file) => Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
-                LockfileInner { file },
-            )))))),
+            Ok(mut file) => {
+                // Write content to the lockfile if provided
+                if let Some(ref data) = content {
+                    file.write_all(data.as_bytes())?;
+                    file.flush()?;
+                }
+                Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
+                    LockfileInner { file },
+                ))))))
+            }
             Err(err)
                 if err.raw_os_error()
                     == Some(Foundation::ERROR_SHARING_VIOLATION.try_into().unwrap()) =>
@@ -61,16 +73,31 @@ pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<J
 
     #[cfg(not(windows))]
     return {
-        use std::fs::TryLockError;
+        use std::{fs::TryLockError, io::Seek};
+
+        // On Unix, we must NOT truncate on open because flock is advisory -
+        // opening with truncate would clear another process's lockfile content.
+        // Instead, open without truncate, acquire the lock, then truncate.
+        let mut open_options = OpenOptions::new();
+        open_options.write(true).create(true).read(true);
 
         let file = open_options.open(&path)?;
         match file.try_lock() {
-            Ok(_) => Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
-                LockfileInner {
-                    file,
-                    path: path.into(),
-                },
-            )))))),
+            Ok(_) => {
+                // We have the lock - now truncate and write content
+                file.set_len(0)?;
+                (&file).seek(std::io::SeekFrom::Start(0))?;
+                if let Some(ref data) = content {
+                    (&file).write_all(data.as_bytes())?;
+                    (&file).flush()?;
+                }
+                Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
+                    LockfileInner {
+                        file,
+                        path: path.into(),
+                    },
+                ))))))
+            }
             Err(TryLockError::WouldBlock) => Ok(None),
             Err(TryLockError::Error(err)) => Err(err.into()),
         }
@@ -78,8 +105,11 @@ pub fn lockfile_try_acquire_sync(path: String) -> napi::Result<Option<External<J
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Lockfile\" } | null>")]
-pub async fn lockfile_try_acquire(path: String) -> napi::Result<Option<External<JsLockfile>>> {
-    tokio::task::spawn_blocking(move || lockfile_try_acquire_sync(path))
+pub async fn lockfile_try_acquire(
+    path: String,
+    content: Option<String>,
+) -> napi::Result<Option<External<JsLockfile>>> {
+    tokio::task::spawn_blocking(move || lockfile_try_acquire_sync(path, content))
         .await
         .context("panicked while attempting to acquire lockfile")?
 }

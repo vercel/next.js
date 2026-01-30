@@ -68,8 +68,11 @@ export interface Binding {
     imports: Record<string, string | null>
   ): string
 
-  lockfileTryAcquire(path: string): Promise<Lockfile | null>
-  lockfileTryAcquireSync(path: string): Lockfile | null
+  lockfileTryAcquire(
+    path: string,
+    content?: string | null
+  ): Promise<Lockfile | null>
+  lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
   lockfileUnlock(lockfile: Lockfile): Promise<void>
   lockfileUnlockSync(lockfile: Lockfile): void
 }

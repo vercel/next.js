@@ -11,6 +11,8 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
+import type { VaryParamsThenable } from './segment-cache/vary-params-decoding'
+
 /** viewport metadata node */
 export type HeadData = React.ReactNode
 
@@ -194,16 +196,20 @@ export type CacheNodeSeedData = [
   /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
   hasRuntimePrefetch: boolean,
   /**
-   * The set of params that this segment's server-rendered output depends on.
-   * Used by the client cache to determine which entries can be reused across
-   * different param values.
+   * A thenable that resolves to the set of route params this segment accessed
+   * during server rendering. Used by the client router to determine cache key
+   * specificity - segments that only access certain params can be reused across
+   * navigations where unaccessed params change.
    *
-   * - `null` means vary params were not tracked (conservative: assume all
-   *   params vary)
-   * - Empty set means no params were accessed (segment is reusable for any
-   *   param values)
+   * - null thenable: tracking was not enabled for this render (e.g., not a
+   *   prerender). Treat conservatively - assume all params vary.
+   * - Thenable resolves to empty Set: segment accesses no params (e.g., client
+   *   components, or server components that don't read params). Can be shared
+   *   across all param values.
+   * - Thenable resolves to non-empty Set: segment depends on those params.
+   *   Can only reuse when those specific params match.
    */
-  varyParams: Set<string> | null,
+  varyParams: VaryParamsThenable | null,
 ]
 
 export type FlightDataSegment = [
@@ -248,6 +254,10 @@ export type InitialRSCPayload = {
   G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** prerendered */
   S: boolean
+  /**
+   * headVaryParams - vary params for the head (metadata) of the response.
+   */
+  h: VaryParamsThenable | null
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -264,6 +274,8 @@ export type NavigationFlightResponse = {
   i: boolean
   /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
   rp?: [boolean, number]
+  /** headVaryParams */
+  h: VaryParamsThenable | null
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
