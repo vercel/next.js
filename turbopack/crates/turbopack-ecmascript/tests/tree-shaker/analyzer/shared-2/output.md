@@ -318,13 +318,13 @@ export { a };
 ## Part 6
 ```js
 export { order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export order"
+    __turbopack_part__: -2
 };
 export { b } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export b"
+    __turbopack_part__: -4
 };
 export { a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export a"
+    __turbopack_part__: -5
 };
 
 ```
@@ -444,13 +444,13 @@ export { a };
 ## Part 6
 ```js
 export { order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export order"
+    __turbopack_part__: -2
 };
 export { b } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export b"
+    __turbopack_part__: -4
 };
 export { a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export a"
+    __turbopack_part__: -5
 };
 
 ```

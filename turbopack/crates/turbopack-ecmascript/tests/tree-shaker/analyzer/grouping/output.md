@@ -353,10 +353,10 @@ export { x };
 ## Part 6
 ```js
 export { y } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export y"
+    __turbopack_part__: -4
 };
 export { x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export x"
+    __turbopack_part__: -5
 };
 
 ```
@@ -463,10 +463,10 @@ export { x };
 ## Part 7
 ```js
 export { y } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export y"
+    __turbopack_part__: -5
 };
 export { x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export x"
+    __turbopack_part__: -6
 };
 
 ```

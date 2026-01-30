@@ -301,10 +301,10 @@ export { getClientComponentLoaderMetrics as e } from "__TURBOPACK_VAR__" assert 
 ## Part 5
 ```js
 export { wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export wrapClientComponentLoader"
+    __turbopack_part__: -3
 };
 export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getClientComponentLoaderMetrics"
+    __turbopack_part__: -4
 };
 
 ```
@@ -437,10 +437,10 @@ export { getClientComponentLoaderMetrics as e } from "__TURBOPACK_VAR__" assert 
 ## Part 5
 ```js
 export { wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export wrapClientComponentLoader"
+    __turbopack_part__: -3
 };
 export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getClientComponentLoaderMetrics"
+    __turbopack_part__: -4
 };
 
 ```

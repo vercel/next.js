@@ -112,10 +112,10 @@ export { cat as b } from "__TURBOPACK_VAR__" assert {
 ## Part 2
 ```js
 export { DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export DOG"
+    __turbopack_part__: -0
 };
 export { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export cat"
+    __turbopack_part__: -1
 };
 
 ```
@@ -167,10 +167,10 @@ export { cat as b } from "__TURBOPACK_VAR__" assert {
 ## Part 2
 ```js
 export { DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export DOG"
+    __turbopack_part__: -0
 };
 export { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export cat"
+    __turbopack_part__: -1
 };
 
 ```

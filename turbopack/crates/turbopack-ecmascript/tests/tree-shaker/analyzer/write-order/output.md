@@ -291,13 +291,13 @@ export { shared };
 ## Part 4
 ```js
 export { func } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export func"
+    __turbopack_part__: -1
 };
 export { order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export order"
+    __turbopack_part__: -1
 };
 export { shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export shared"
+    __turbopack_part__: -3
 };
 
 ```
@@ -422,13 +422,13 @@ export { shared };
 ## Part 6
 ```js
 export { func } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export func"
+    __turbopack_part__: -1
 };
 export { order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export order"
+    __turbopack_part__: -4
 };
 export { shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export shared"
+    __turbopack_part__: -5
 };
 
 ```

@@ -21,7 +21,7 @@ use crate::{
     SpecifiedModuleType,
     analyzer::{ConstantValue, ObjectPart},
     magic_identifier,
-    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
+    tree_shake::find_turbopack_part_id_in_asserts,
 };
 
 #[turbo_tasks::value]
@@ -831,11 +831,8 @@ fn parse_directives(
 
 fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
     find_turbopack_part_id_in_asserts(with?).map(|v| match v {
-        PartId::Internal(index, true) => ImportedSymbol::PartEvaluation(index),
-        PartId::Internal(index, false) => ImportedSymbol::Part(index),
-        PartId::ModuleEvaluation => ImportedSymbol::ModuleEvaluation,
-        PartId::Export(e) => ImportedSymbol::Symbol(e.as_str().into()),
-        PartId::Exports => ImportedSymbol::Exports,
+        (index, true) => ImportedSymbol::PartEvaluation(index),
+        (index, false) => ImportedSymbol::Part(index),
     })
 }
 

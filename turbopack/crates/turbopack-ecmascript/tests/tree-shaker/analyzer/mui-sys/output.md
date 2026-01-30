@@ -1571,43 +1571,43 @@ export { gridTemplateRows };
 ## Part 38
 ```js
 export { gap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gap"
+    __turbopack_part__: -13
 };
 export { columnGap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export columnGap"
+    __turbopack_part__: -16
 };
 export { rowGap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export rowGap"
+    __turbopack_part__: -19
 };
 export { gridArea } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridArea"
+    __turbopack_part__: -28
 };
 export { default } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export default"
+    __turbopack_part__: -29
 };
 export { gridAutoColumns } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridAutoColumns"
+    __turbopack_part__: -30
 };
 export { gridAutoFlow } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridAutoFlow"
+    __turbopack_part__: -31
 };
 export { gridAutoRows } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridAutoRows"
+    __turbopack_part__: -32
 };
 export { gridColumn } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridColumn"
+    __turbopack_part__: -33
 };
 export { gridRow } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridRow"
+    __turbopack_part__: -34
 };
 export { gridTemplateAreas } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridTemplateAreas"
+    __turbopack_part__: -35
 };
 export { gridTemplateColumns } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridTemplateColumns"
+    __turbopack_part__: -36
 };
 export { gridTemplateRows } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridTemplateRows"
+    __turbopack_part__: -37
 };
 
 ```
@@ -2249,43 +2249,43 @@ export { gridTemplateRows };
 ## Part 38
 ```js
 export { gap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gap"
+    __turbopack_part__: -13
 };
 export { columnGap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export columnGap"
+    __turbopack_part__: -16
 };
 export { rowGap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export rowGap"
+    __turbopack_part__: -19
 };
 export { gridArea } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridArea"
+    __turbopack_part__: -28
 };
 export { default } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export default"
+    __turbopack_part__: -29
 };
 export { gridAutoColumns } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridAutoColumns"
+    __turbopack_part__: -30
 };
 export { gridAutoFlow } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridAutoFlow"
+    __turbopack_part__: -31
 };
 export { gridAutoRows } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridAutoRows"
+    __turbopack_part__: -32
 };
 export { gridColumn } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridColumn"
+    __turbopack_part__: -33
 };
 export { gridRow } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridRow"
+    __turbopack_part__: -34
 };
 export { gridTemplateAreas } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridTemplateAreas"
+    __turbopack_part__: -35
 };
 export { gridTemplateColumns } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridTemplateColumns"
+    __turbopack_part__: -36
 };
 export { gridTemplateRows } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gridTemplateRows"
+    __turbopack_part__: -37
 };
 
 ```

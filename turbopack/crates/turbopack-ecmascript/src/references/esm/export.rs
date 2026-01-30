@@ -18,6 +18,7 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleChunkItemIdExt},
+    context::ProcessResult,
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
@@ -310,19 +311,22 @@ async fn find_export_from_reexports(
     if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module)
         && matches!(module.await?.part, ModulePart::Exports)
     {
-        let module_part = EcmascriptModulePartAsset::select_part(
+        let ProcessResult::Module(module_part) = *EcmascriptModulePartAsset::select_part(
             *module.await?.full_module,
             ModulePart::export(export_name.clone()),
-        );
+        )
+        .await?
+        else {
+            bail!("ModulePart::export should always return a module part in select_part");
+        };
 
-        // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
-        // target module.
-        if (ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(
-            module_part.to_resolved().await?,
-        ))
-        .is_none()
-        {
-            return Ok(find_export_from_reexports(module_part, export_name));
+        if let Some(module_part) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module_part) {
+            // TODO This sounds like a bit hack! Refactor!
+            // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
+            // target module.
+            if (ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(module_part)).is_none() {
+                return Ok(find_export_from_reexports(*module_part, export_name));
+            }
         }
     }
 

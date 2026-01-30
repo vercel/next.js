@@ -138,10 +138,10 @@ export { };
 ## Part 2
 ```js
 export { effect } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export effect"
+    __turbopack_part__: -0
 };
 export { effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export effects"
+    __turbopack_part__: -0
 };
 
 ```
@@ -207,10 +207,10 @@ export { };
 ## Part 4
 ```js
 export { effect } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export effect"
+    __turbopack_part__: -1
 };
 export { effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export effects"
+    __turbopack_part__: -2
 };
 
 ```

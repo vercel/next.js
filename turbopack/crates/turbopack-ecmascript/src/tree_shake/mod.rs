@@ -17,9 +17,7 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
-pub(crate) use self::graph::{
-    PartId, create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts,
-};
+pub(crate) use self::graph::{create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts};
 use crate::{
     EcmascriptModuleAsset, EcmascriptParsable, analyzer::graph::EvalContext, parse::ParseResult,
 };
@@ -450,7 +448,7 @@ pub(crate) enum SplitResult {
         modules: Vec<ResolvedVc<ParseResult>>,
 
         #[turbo_tasks(trace_ignore)]
-        deps: FxHashMap<u32, Vec<PartId>>,
+        deps: FxHashMap<u32, Vec<(u32, bool)>>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
         star_reexports: Vec<ExportAll>,
@@ -642,18 +640,21 @@ pub(crate) async fn part_of_module(
                         .collect::<Vec<_>>();
                     export_names.sort();
 
-                    module
-                        .body
-                        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                            span: DUMMY_SP,
-                            specifiers: vec![],
-                            src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                            type_only: false,
-                            with: Some(Box::new(create_turbopack_part_id_assert(
-                                PartId::ModuleEvaluation,
-                            ))),
-                            phase: Default::default(),
-                        })));
+                    if let Some(evaluation_id) = entrypoints.get(&Key::ModuleEvaluation) {
+                        module
+                            .body
+                            .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                span: DUMMY_SP,
+                                specifiers: vec![],
+                                src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                                type_only: false,
+                                with: Some(Box::new(create_turbopack_part_id_assert(
+                                    *evaluation_id,
+                                    true,
+                                ))),
+                                phase: Default::default(),
+                            })));
+                    }
 
                     let specifiers = export_names
                         .into_iter()
@@ -671,19 +672,22 @@ pub(crate) async fn part_of_module(
                         })
                         .collect::<Vec<_>>();
 
-                    module
-                        .body
-                        .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
-                            NamedExport {
-                                span: DUMMY_SP,
-                                specifiers,
-                                src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
-                                type_only: false,
-                                with: Some(Box::new(create_turbopack_part_id_assert(
-                                    PartId::Exports,
-                                ))),
-                            },
-                        )));
+                    if let Some(exports_id) = entrypoints.get(&Key::Exports) {
+                        module
+                            .body
+                            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                                NamedExport {
+                                    span: DUMMY_SP,
+                                    specifiers,
+                                    src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
+                                    type_only: false,
+                                    with: Some(Box::new(create_turbopack_part_id_assert(
+                                        *exports_id,
+                                        false,
+                                    ))),
+                                },
+                            )));
+                    }
 
                     module.body.extend(star_reexports.iter().map(|export_all| {
                         ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export_all.clone()))

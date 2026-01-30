@@ -542,22 +542,22 @@ export { routeModule };
 ## Part 14
 ```js
 export { originalPathname } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export originalPathname"
+    __turbopack_part__: -10
 };
 export { patchFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export patchFetch"
+    __turbopack_part__: -11
 };
 export { serverHooks } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export serverHooks"
+    __turbopack_part__: -11
 };
 export { workAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export workAsyncStorage"
+    __turbopack_part__: -11
 };
 export { requestAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export requestAsyncStorage"
+    __turbopack_part__: -12
 };
 export { routeModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export routeModule"
+    __turbopack_part__: -13
 };
 
 ```
@@ -802,22 +802,22 @@ export { workAsyncStorage };
 ## Part 16
 ```js
 export { originalPathname } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export originalPathname"
+    __turbopack_part__: -10
 };
 export { patchFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export patchFetch"
+    __turbopack_part__: -11
 };
 export { requestAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export requestAsyncStorage"
+    __turbopack_part__: -12
 };
 export { routeModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export routeModule"
+    __turbopack_part__: -13
 };
 export { serverHooks } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export serverHooks"
+    __turbopack_part__: -14
 };
 export { workAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export workAsyncStorage"
+    __turbopack_part__: -15
 };
 
 ```

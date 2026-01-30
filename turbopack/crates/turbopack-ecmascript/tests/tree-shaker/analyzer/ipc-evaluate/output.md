@@ -357,7 +357,7 @@ export { };
 ## Part 3
 ```js
 export { run } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export run"
+    __turbopack_part__: -2
 };
 
 ```
@@ -617,7 +617,7 @@ export { };
 ## Part 3
 ```js
 export { run } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export run"
+    __turbopack_part__: -2
 };
 
 ```

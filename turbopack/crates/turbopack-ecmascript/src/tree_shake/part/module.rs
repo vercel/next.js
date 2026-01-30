@@ -1,8 +1,9 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    context::ProcessResult,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -116,6 +117,13 @@ impl EcmascriptModulePartAsset {
     /// of the module.
     #[turbo_tasks::function]
     fn new_raw(module: ResolvedVc<EcmascriptModuleAsset>, part: ModulePart) -> Vc<Self> {
+        debug_assert!(matches!(
+            part,
+            // The generated facade
+            ModulePart::Facade |
+            // The internal part
+            ModulePart::Internal(..)
+        ));
         Self {
             full_module: module,
             part,
@@ -128,10 +136,7 @@ impl EcmascriptModulePartAsset {
         module: ResolvedVc<EcmascriptModuleAsset>,
         part: ModulePart,
     ) -> Result<Vc<Self>> {
-        if matches!(
-            part,
-            ModulePart::Internal(..) | ModulePart::Facade | ModulePart::Exports
-        ) {
+        if matches!(part, ModulePart::Internal(..) | ModulePart::Facade) {
             return Ok(Self::new_raw(*module, part));
         }
 
@@ -144,39 +149,65 @@ impl EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     pub async fn select_part(
-        module: Vc<EcmascriptModuleAsset>,
+        module: ResolvedVc<EcmascriptModuleAsset>,
         part: ModulePart,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let SplitResult::Ok { entrypoints, .. } = &*split_module(module).await? else {
-            return Ok(Vc::upcast(module));
+    ) -> Result<Vc<ProcessResult>> {
+        let SplitResult::Ok { entrypoints, .. } = &*split_module(*module).await? else {
+            return Ok(ProcessResult::Module(ResolvedVc::upcast(module)).cell());
         };
 
         match part {
             ModulePart::Evaluation => {
-                // We resolve the module evaluation here to prevent duplicate assets.
-                let idx = *entrypoints.get(&Key::ModuleEvaluation).unwrap();
-                return Ok(Vc::upcast(
-                    EcmascriptModulePartAsset::new_with_resolved_part(
-                        module,
-                        ModulePart::internal(idx),
-                    ),
-                ));
+                // We resolve the module evaluation here
+                if let Some(&idx) = entrypoints.get(&Key::ModuleEvaluation) {
+                    return Ok(ProcessResult::Module(ResolvedVc::upcast(
+                        EcmascriptModulePartAsset::new_with_resolved_part(
+                            *module,
+                            ModulePart::internal(idx),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ))
+                    .cell());
+                } else {
+                    return Ok(ProcessResult::Ignore.cell());
+                }
+            }
+
+            ModulePart::Exports => {
+                // We resolve the exports here
+                if let Some(&idx) = entrypoints.get(&Key::Exports) {
+                    return Ok(ProcessResult::Module(ResolvedVc::upcast(
+                        EcmascriptModulePartAsset::new_with_resolved_part(
+                            *module,
+                            ModulePart::internal(idx),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ))
+                    .cell());
+                } else {
+                    return Ok(ProcessResult::Ignore.cell());
+                }
             }
 
             ModulePart::Export(export) => {
                 if entrypoints.contains_key(&Key::Export(export.clone())) {
-                    return Ok(Vc::upcast(
+                    return Ok(ProcessResult::Module(ResolvedVc::upcast(
                         EcmascriptModulePartAsset::new_with_resolved_part(
-                            module,
+                            *module,
                             ModulePart::Export(export),
-                        ),
-                    ));
+                        )
+                        .to_resolved()
+                        .await?,
+                    ))
+                    .cell());
                 }
-                let source_module = Vc::upcast(module);
+                let source_module = ResolvedVc::upcast(module);
                 let FollowExportsWithSideEffectsResult {
                     side_effects,
                     result,
-                } = &*follow_reexports_with_side_effects(source_module, export.clone()).await?;
+                } = &*follow_reexports_with_side_effects(*source_module, export.clone()).await?;
                 let FollowExportsResult {
                     module: final_module,
                     export_name: new_export,
@@ -206,22 +237,27 @@ impl EcmascriptModulePartAsset {
                     )
                 };
                 if side_effects.is_empty() {
-                    return Ok(*final_module);
+                    return Ok(ProcessResult::Module(ResolvedVc::upcast(final_module)).cell());
                 }
                 let side_effects_module = SideEffectsModule::new(
-                    module,
+                    *module,
                     ModulePart::Export(export),
                     *final_module,
                     side_effects.iter().map(|v| **v).collect(),
-                );
-                return Ok(Vc::upcast(side_effects_module));
+                )
+                .to_resolved()
+                .await?;
+                return Ok(ProcessResult::Module(ResolvedVc::upcast(side_effects_module)).cell());
             }
             _ => (),
         }
 
-        Ok(Vc::upcast(
-            EcmascriptModulePartAsset::new_with_resolved_part(module, part.clone()),
+        Ok(ProcessResult::Module(ResolvedVc::upcast(
+            EcmascriptModulePartAsset::new_with_resolved_part(*module, part.clone())
+                .to_resolved()
+                .await?,
         ))
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -320,12 +356,29 @@ impl Module for EcmascriptModulePartAsset {
             ))
         };
 
-        if let ModulePart::Facade = self.part {
-            // Facade depends on evaluation and re-exports
-            let mut references = vec![];
-            references.push(part_dep(ModulePart::evaluation()).to_resolved().await?);
-            references.push(part_dep(ModulePart::exports()).to_resolved().await?);
-            return Ok(Vc::cell(references));
+        match self.part {
+            ModulePart::Facade => {
+                let SplitResult::Ok { entrypoints, .. } = &*split_module(*self.full_module).await?
+                else {
+                    bail!("Facade part requires split module to have entrypoints")
+                };
+
+                // Facade depends on evaluation and re-exports
+                let mut references = vec![];
+                if entrypoints.contains_key(&Key::ModuleEvaluation) {
+                    references.push(part_dep(ModulePart::evaluation()).to_resolved().await?);
+                }
+                if entrypoints.contains_key(&Key::Exports) {
+                    references.push(part_dep(ModulePart::exports()).to_resolved().await?);
+                }
+                return Ok(Vc::cell(references));
+            }
+            ModulePart::Evaluation => {
+                // Evaluation part is the fake empty evaluation part with no dependencies
+                // It's only used when there is no internal evaluation part.
+                return Ok(Vc::cell(vec![]));
+            }
+            _ => {}
         }
 
         let analyze = analyze(*self.full_module, self.part.clone());
@@ -334,13 +387,25 @@ impl Module for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
-    async fn side_effects(&self) -> Vc<ModuleSideEffects> {
-        match self.part {
-            ModulePart::Exports | ModulePart::Export(..) => {
-                ModuleSideEffects::SideEffectFree.cell()
+    async fn side_effects(&self) -> Result<Vc<ModuleSideEffects>> {
+        let SplitResult::Ok { entrypoints, .. } = &*split_module(*self.full_module).await? else {
+            return Ok(self.full_module.side_effects());
+        };
+        let evaluation = entrypoints.get(&Key::ModuleEvaluation);
+
+        Ok(match self.part {
+            ModulePart::Internal(idx) => {
+                if Some(&idx) == evaluation {
+                    ModuleSideEffects::SideEffectful.cell()
+                } else {
+                    ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
+                }
             }
-            _ => self.full_module.side_effects(),
-        }
+            ModulePart::Facade => ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell(),
+            _ => {
+                unreachable!();
+            }
+        })
     }
 }
 

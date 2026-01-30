@@ -1332,10 +1332,10 @@ export { structuredError };
 ## Part 12
 ```js
 export { IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export IPC"
+    __turbopack_part__: -10
 };
 export { structuredError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export structuredError"
+    __turbopack_part__: -11
 };
 
 ```
@@ -1698,10 +1698,10 @@ export { structuredError };
 ## Part 12
 ```js
 export { IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export IPC"
+    __turbopack_part__: -10
 };
 export { structuredError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export structuredError"
+    __turbopack_part__: -11
 };
 
 ```
