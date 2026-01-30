@@ -122,6 +122,12 @@ async function runAction({
       // Still need to run remaining actions even for discarded actions
       // to potentially trigger the refresh
       runRemainingActions(actionQueue, setState)
+      // Resolve the discarded action's promise with the current state.
+      // This is critical to prevent transition deadlocks - even though we
+      // discard the state update, we must resolve the promise so that any
+      // React transition wrapping this action can complete.
+      // See: https://github.com/vercel/next.js/issues/84299
+      action.resolve(actionQueue.state)
       return
     }
 
