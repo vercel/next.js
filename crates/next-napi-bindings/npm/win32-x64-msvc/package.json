@@ -1,20 +1,20 @@
 {
-  "name": "@next/swc-darwin-x64",
+  "name": "@next/swc-win32-x64-msvc",
   "version": "0.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/vercel/next.js",
-    "directory": "crates/napi/npm/darwin-x64"
+    "directory": "crates/next-napi-bindings/npm/win32-x64-msvc"
   },
   "os": [
-    "darwin"
+    "win32"
   ],
   "cpu": [
     "x64"
   ],
-  "main": "next-swc.darwin-x64.node",
+  "main": "next-swc.win32-x64-msvc.node",
   "files": [
-    "next-swc.darwin-x64.node"
+    "next-swc.win32-x64-msvc.node"
   ],
   "license": "MIT",
   "engines": {

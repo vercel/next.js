@@ -199,7 +199,7 @@ export interface HmrIdentifiers {
   identifiers: string[]
 }
 
-/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/packages/next-swc/crates/napi/src/next_api/project.rs#L824-L833 */
+/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/crates/next-napi-bindings/src/next_api/project.rs#L824-L833 */
 export interface TurbopackStackFrame {
   isServer: boolean
   isInternal?: boolean

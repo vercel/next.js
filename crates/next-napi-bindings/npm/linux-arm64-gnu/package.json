@@ -1,23 +1,23 @@
 {
-  "name": "@next/swc-linux-x64-gnu",
+  "name": "@next/swc-linux-arm64-gnu",
   "version": "0.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/vercel/next.js",
-    "directory": "crates/napi/npm/linux-x64-gnu"
+    "directory": "crates/next-napi-bindings/npm/linux-arm64-gnu"
   },
   "os": [
     "linux"
   ],
   "cpu": [
-    "x64"
+    "arm64"
   ],
   "libc": [
     "glibc"
   ],
-  "main": "next-swc.linux-x64-gnu.node",
+  "main": "next-swc.linux-arm64-gnu.node",
   "files": [
-    "next-swc.linux-x64-gnu.node"
+    "next-swc.linux-arm64-gnu.node"
   ],
   "license": "MIT",
   "engines": {
