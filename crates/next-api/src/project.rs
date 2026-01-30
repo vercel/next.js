@@ -1097,13 +1097,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn client_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
-        let this = self.await?;
-        Ok(get_client_compile_time_info(
-            this.browserslist_query.clone(),
-            this.define_env.client(),
-            self.ci_has_next_support(),
-        ))
+    pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
+        get_client_compile_time_info(self.browserslist_query.clone(), self.define_env.client())
     }
 
     #[turbo_tasks::function]
@@ -1341,7 +1336,6 @@ impl Project {
             self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
-            self.ci_has_next_support(),
         ))
     }
 
@@ -1352,7 +1346,6 @@ impl Project {
             self.project_path().owned().await?,
             this.define_env.edge(),
             self.current_node_js_version(),
-            self.ci_has_next_support(),
         ))
     }
 

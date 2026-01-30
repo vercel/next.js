@@ -355,15 +355,8 @@ async fn next_server_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileT
 }
 
 #[turbo_tasks::function]
-async fn next_server_free_vars(
-    define_env: Vc<OptionEnvMap>,
-    has_next_support: Vc<bool>,
-) -> Result<Vc<FreeVarReferences>> {
-    Ok(free_var_references_with_vercel_system_env_warnings(
-        defines(&*define_env.await?),
-        *has_next_support.await?,
-    )
-    .cell())
+async fn next_server_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVarReferences>> {
+    Ok(free_var_references_with_vercel_system_env_warnings(defines(&*define_env.await?)).cell())
 }
 
 #[turbo_tasks::function]
@@ -371,7 +364,6 @@ pub async fn get_server_compile_time_info(
     cwd: Vc<FileSystemPath>,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
-    has_next_support: Vc<bool>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -386,11 +378,7 @@ pub async fn get_server_compile_time_info(
         .await?,
     )
     .defines(next_server_defines(define_env).to_resolved().await?)
-    .free_var_references(
-        next_server_free_vars(define_env, has_next_support)
-            .to_resolved()
-            .await?,
-    )
+    .free_var_references(next_server_free_vars(define_env).to_resolved().await?)
     .cell()
     .await
 }

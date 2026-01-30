@@ -65,34 +65,37 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
 /// Emits warnings or errors when inlining frequently changing Vercel system env vars
 pub fn free_var_references_with_vercel_system_env_warnings(
     defines: CompileTimeDefines,
-    has_next_support: bool,
 ) -> FreeVarReferences {
-    // constant:
-    //      VERCEL
+    // List of system env vars:
+    //   not available as NEXT_PUBLIC_* anyway:
     //      CI
-    //      VERCEL_PROJECT_PRODUCTION_URL
-    //      VERCEL_REGION
+    //      VERCEL
     //      VERCEL_SKEW_PROTECTION_ENABLED
     //      VERCEL_AUTOMATION_BYPASS_SECRET
-    //      VERCEL_PROJECT_ID
     //      VERCEL_GIT_PROVIDER
     //      VERCEL_GIT_REPO_SLUG
     //      VERCEL_GIT_REPO_OWNER
     //      VERCEL_GIT_REPO_ID
-
-    // suboptimal (changes production main branch VS preview branches):
+    //      VERCEL_OIDC_TOKEN
+    //
+    //   constant:
+    //      VERCEL_PROJECT_PRODUCTION_URL
+    //      VERCEL_REGION
+    //      VERCEL_PROJECT_ID
+    //
+    //   suboptimal (changes production main branch VS preview branches):
     //      VERCEL_ENV
     //      VERCEL_TARGET_ENV
-
-    // bad (changes per branch):
+    //
+    //   bad (changes per branch):
     //      VERCEL_BRANCH_URL
     //      VERCEL_GIT_COMMIT_REF
     //      VERCEL_GIT_PULL_REQUEST_ID
-
-    // catastrophic (changes per commit):
+    //
+    //   catastrophic (changes per commit):
+    //      NEXT_DEPLOYMENT_ID
     //      VERCEL_URL
     //      VERCEL_DEPLOYMENT_ID
-    //      VERCEL_OIDC_TOKEN
     //      VERCEL_GIT_COMMIT_SHA
     //      VERCEL_GIT_COMMIT_MESSAGE
     //      VERCEL_GIT_COMMIT_AUTHOR_LOGIN
@@ -104,97 +107,87 @@ pub fn free_var_references_with_vercel_system_env_warnings(
         .into_iter()
         .map(|(k, value)| (k, FreeVarReference::Value(value)));
 
-    let entries = if has_next_support {
-        let should_error = std::env::var("NEXT_TURBOPACK_SYSTEM_ENV_ERROR")
-            .ok()
-            .is_some_and(|v| !v.is_empty());
+    let should_error = std::env::var("NEXT_TURBOPACK_SYSTEM_ENV_ERROR")
+        .ok()
+        .is_some_and(|v| !v.is_empty());
 
-        fn wrap_report_next_public_usage(
-            public_env_var: &str,
-            inner: Option<Box<FreeVarReference>>,
-            should_error: bool,
-        ) -> FreeVarReference {
-            let message = match public_env_var {
-                "NEXT_DEPLOYMENT_ID" | "VERCEL_DEPLOYMENT_ID" => {
-                    rcstr!(
-                        "The deployment id is being inlined. Use process.env.NEXT_DEPLOYMENT_ID \
-                         instead to access the same value without inlining, for faster deploy \
-                         times and better browser client-side caching."
-                    )
-                }
-                _ => format!(
-                    "A system environment variable is being inlined. This variable changes on \
-                     every deployment, causing slower deploy times and worse browser client-side \
-                     caching. For server-side code, replace with process.env.{} and for browser \
-                     code, try to remove it.",
-                    public_env_var.strip_prefix("NEXT_PUBLIC_").unwrap(),
+    fn wrap_report_next_public_usage(
+        public_env_var: &str,
+        inner: Option<Box<FreeVarReference>>,
+        should_error: bool,
+    ) -> FreeVarReference {
+        let message = match public_env_var {
+            "NEXT_PUBLIC_NEXT_DEPLOYMENT_ID" | "NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID" => {
+                rcstr!(
+                    "The deployment id is being inlined. Use process.env.NEXT_DEPLOYMENT_ID \
+                     instead to access the same value without inlining, for faster deploy times \
+                     and better browser client-side caching."
                 )
-                .into(),
-            };
-            FreeVarReference::ReportUsage {
-                message,
-                severity: if should_error {
-                    IssueSeverity::Error
-                } else {
-                    IssueSeverity::Warning
-                },
-                inner,
             }
+            _ => format!(
+                "A system environment variable is being inlined. This variable changes on every \
+                 deployment, causing slower deploy times and worse browser client-side caching. \
+                 For server-side code, replace with process.env.{} and for browser code, try to \
+                 remove it.",
+                public_env_var.strip_prefix("NEXT_PUBLIC_").unwrap(),
+            )
+            .into(),
+        };
+        FreeVarReference::ReportUsage {
+            message,
+            severity: if should_error {
+                IssueSeverity::Error
+            } else {
+                IssueSeverity::Warning
+            },
+            inner,
         }
+    }
 
-        let mut list = fxindexset!(
-            "NEXT_PUBLIC_NEXT_DEPLOYMENT_ID",
-            "NEXT_PUBLIC_VERCEL_BRANCH_URL",
-            "NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID",
-            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_LOGIN",
-            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_NAME",
-            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_MESSAGE",
-            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF",
-            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA",
-            "NEXT_PUBLIC_VERCEL_GIT_PREVIOUS_SHA",
-            "NEXT_PUBLIC_VERCEL_GIT_PULL_REQUEST_ID",
-            "NEXT_PUBLIC_VERCEL_OIDC_TOKEN",
-            "NEXT_PUBLIC_VERCEL_URL",
+    let mut list = fxindexset!(
+        "NEXT_PUBLIC_NEXT_DEPLOYMENT_ID",
+        "NEXT_PUBLIC_VERCEL_BRANCH_URL",
+        "NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_LOGIN",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_NAME",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_MESSAGE",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA",
+        "NEXT_PUBLIC_VERCEL_GIT_PREVIOUS_SHA",
+        "NEXT_PUBLIC_VERCEL_GIT_PULL_REQUEST_ID",
+        "NEXT_PUBLIC_VERCEL_URL",
+    );
+
+    let mut entries: FxIndexMap<_, _> = entries
+        .map(|(k, value)| {
+            let value = if let &[
+                DefinableNameSegment::Name(a),
+                DefinableNameSegment::Name(b),
+                DefinableNameSegment::Name(public_env_var),
+            ] = &&*k
+                && a == "process"
+                && b == "env"
+                && list.swap_remove(&**public_env_var)
+            {
+                wrap_report_next_public_usage(public_env_var, Some(Box::new(value)), should_error)
+            } else {
+                value
+            };
+            (k, value)
+        })
+        .collect();
+
+    // For the remaining ones, still add a warning, but without replacement
+    for public_env_var in list {
+        entries.insert(
+            vec![
+                rcstr!("process").into(),
+                rcstr!("env").into(),
+                DefinableNameSegment::Name(public_env_var.into()),
+            ],
+            wrap_report_next_public_usage(public_env_var, None, should_error),
         );
-
-        let mut entries: FxIndexMap<_, _> = entries
-            .map(|(k, value)| {
-                let value = if let &[
-                    DefinableNameSegment::Name(a),
-                    DefinableNameSegment::Name(b),
-                    DefinableNameSegment::Name(public_env_var),
-                ] = &&*k
-                    && a == "process"
-                    && b == "env"
-                    && list.swap_remove(&**public_env_var)
-                {
-                    wrap_report_next_public_usage(
-                        public_env_var,
-                        Some(Box::new(value)),
-                        should_error,
-                    )
-                } else {
-                    value
-                };
-                (k, value)
-            })
-            .collect();
-
-        // For the remaining ones, still add a warning, but without replacement
-        for public_env_var in list {
-            entries.insert(
-                vec![
-                    rcstr!("process").into(),
-                    rcstr!("env").into(),
-                    DefinableNameSegment::Name(public_env_var.into()),
-                ],
-                wrap_report_next_public_usage(public_env_var, None, should_error),
-            );
-        }
-        entries
-    } else {
-        entries.collect()
-    };
+    }
 
     FreeVarReferences(entries)
 }
