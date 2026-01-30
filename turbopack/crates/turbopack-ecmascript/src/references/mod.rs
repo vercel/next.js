@@ -62,8 +62,8 @@ use tokio::sync::OnceCell;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
-    ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
+    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -73,7 +73,6 @@ use turbopack_core::{
         InputRelativeConstant,
     },
     environment::Rendering,
-    error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},

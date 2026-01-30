@@ -3492,8 +3492,8 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 pub mod test_utils {
     use anyhow::Result;
     use turbo_rcstr::rcstr;
-    use turbo_tasks::{FxIndexMap, Vc};
-    use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
+    use turbo_tasks::{FxIndexMap, PrettyPrintError, Vc};
+    use turbopack_core::compile_time_info::CompileTimeInfo;
 
     use super::{
         ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
