@@ -174,6 +174,7 @@ impl EcmascriptBrowserEvaluateChunk {
                     environment,
                     this.chunking_context.chunk_base_path(),
                     this.chunking_context.asset_suffix(),
+                    this.chunking_context.worker_forwarded_globals(),
                     runtime_type,
                     output_root_to_root_path,
                     source_maps,

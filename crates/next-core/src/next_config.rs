@@ -14,8 +14,8 @@ use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
-    ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem, WebpackRules,
-    module_options_context::MdxTransformOptions,
+    ConditionContentType, ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem,
+    WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
     chunk::SourceMapsType,
@@ -710,6 +710,42 @@ impl TryFrom<ConfigConditionQuery> for ConditionQuery {
 }
 
 #[derive(
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ConfigConditionContentType {
+    Glob(RcStr),
+    Regex(RegexComponents),
+}
+
+impl TryFrom<ConfigConditionContentType> for ConditionContentType {
+    type Error = anyhow::Error;
+
+    fn try_from(config: ConfigConditionContentType) -> Result<ConditionContentType> {
+        Ok(match config {
+            ConfigConditionContentType::Glob(value) => ConditionContentType::Glob(value),
+            ConfigConditionContentType::Regex(regex) => {
+                ConditionContentType::Regex(EsRegex::try_from(regex)?.resolved_cell())
+            }
+        })
+    }
+}
+
+#[derive(
     Deserialize,
     Clone,
     PartialEq,
@@ -741,6 +777,8 @@ pub enum ConfigConditionItem {
         content: Option<RegexComponents>,
         #[serde(default)]
         query: Option<ConfigConditionQuery>,
+        #[serde(default, rename = "contentType")]
+        content_type: Option<ConfigConditionContentType>,
     },
 }
 
@@ -765,6 +803,7 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
                 path,
                 content,
                 query,
+                content_type,
             } => ConditionItem::Base {
                 path: path.map(ConditionPath::try_from).transpose()?,
                 content: content
@@ -772,6 +811,9 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
                     .transpose()?
                     .map(EsRegex::resolved_cell),
                 query: query.map(ConditionQuery::try_from).transpose()?,
+                content_type: content_type
+                    .map(ConditionContentType::try_from)
+                    .transpose()?,
             },
         })
     }
@@ -2151,6 +2193,7 @@ mod tests {
                                         source: rcstr!("@someQuery"),
                                         flags: rcstr!(""),
                                     })),
+                                    content_type: None,
                                 },
                             ]
                             .into(),

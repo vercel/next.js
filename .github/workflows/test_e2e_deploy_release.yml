@@ -19,6 +19,14 @@ on:
         description: Override the proxy address to use for the test
         default: ''
         type: string
+      deployScriptPath:
+        description: Custom deploy script path (NEXT_TEST_DEPLOY_SCRIPT_PATH)
+        default: ''
+        type: string
+      deployLogsScriptPath:
+        description: Custom deploy logs script path (NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH)
+        default: ''
+        type: string
 
 env:
   DD_ENV: 'ci'
@@ -84,6 +92,8 @@ jobs:
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
+        NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
@@ -95,6 +105,7 @@ jobs:
   test-deploy-adapter:
     name: Run Deploy Adapter Tests
     needs: setup
+    if: ${{ github.event.inputs.deployScriptPath == '' }}
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     strategy:

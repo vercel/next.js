@@ -25,8 +25,8 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
   experimental: ExperimentalConfig
-  // The root directory of the distDir. Generally the same as `distDir` but when `isolatedDevBuild`
-  // is true it is the parent directory of `distDir`.  This is used to ensure that the bundler doesn't
+  // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
+  // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
 }
@@ -119,6 +119,7 @@ export type TurbopackRuleCondition =
       path?: string | RegExp
       content?: RegExp
       query?: string | RegExp
+      contentType?: string | RegExp
     }
 
 export type TurbopackRuleConfigItem = {
@@ -818,13 +819,6 @@ export interface ExperimentalConfig {
    * Enable accessing root params via the `next/root-params` module.
    */
   rootParams?: boolean
-
-  /**
-   * Use an isolated directory for development builds to prevent conflicts
-   * with production builds. Development builds will use `{distDir}/dev`
-   * instead of `{distDir}`.
-   */
-  isolatedDevBuild?: boolean
 
   /**
    * Body size limit for request bodies with middleware configured.
@@ -1608,7 +1602,6 @@ export const defaultConfig = Object.freeze({
     globalNotFound: false,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
-    isolatedDevBuild: true,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,

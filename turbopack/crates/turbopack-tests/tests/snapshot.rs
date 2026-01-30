@@ -361,6 +361,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
+                enable_import_as_bytes: true,
                 enable_jsx: Some(JsxTransformOptions::resolved_cell(JsxTransformOptions {
                     development: true,
                     ..Default::default()

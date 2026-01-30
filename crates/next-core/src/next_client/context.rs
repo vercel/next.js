@@ -327,6 +327,7 @@ pub async fn get_client_module_options_context(
         ecmascript: EcmascriptOptionsContext {
             esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
+            enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             ..Default::default()
@@ -488,7 +489,8 @@ pub async fn get_client_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(vec![rcstr!("NEXT_DEPLOYMENT_ID")]);
 
     if next_mode.is_development() {
         builder = builder

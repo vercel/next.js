@@ -1397,12 +1397,9 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.cacheComponents
   }
 
-  // Store the distDirRoot in the config before it is modified by the isolatedDevBuild flag
+  // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
-  if (
-    phase === PHASE_DEVELOPMENT_SERVER &&
-    result.experimental.isolatedDevBuild
-  ) {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
   }
 

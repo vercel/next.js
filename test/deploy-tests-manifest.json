@@ -3,7 +3,8 @@
   "suites": {
     "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
       "failed": [
-        "app dir client cache semantics (default semantics) prefetch={true} should re-use the cache for the full page, only for 5 mins"
+        "app dir client cache semantics (default semantics) prefetch={true} should re-use the cache for the full page, only for 5 mins",
+        "app dir client cache semantics (default semantics) prefetch={undefined} - default should refetch the full page after 5 mins"
       ]
     },
     "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
@@ -85,6 +86,11 @@
     },
     "test/e2e/middleware-rewrites/test/index.test.ts": {
       "failed": ["Middleware Rewrite should handle catch-all rewrite correctly"]
+    },
+    "test/e2e/app-dir/resume-data-cache/resume-data-cache.test.ts": {
+      "failed": [
+        "resume-data-cache should have consistent data between static and dynamic renders with fetch cache"
+      ]
     }
   },
   "rules": {

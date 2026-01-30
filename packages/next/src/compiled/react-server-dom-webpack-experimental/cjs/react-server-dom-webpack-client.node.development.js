@@ -1149,7 +1149,8 @@
           if (
             "function" === typeof value ||
             ("string" === typeof value && 50 < value.length) ||
-            (0 !== kind && 2 !== kind)
+            (0 !== kind && 2 !== kind) ||
+            "bigint" === typeof value
           )
             return 1;
           kind = 2;
@@ -3461,9 +3462,10 @@
       try {
         var fn = (0, eval)(encodedName)[name];
       } catch (x) {
-        fn = function (_) {
+        (fn = function (_) {
           return _();
-        };
+        }),
+          Object.defineProperty(fn, "name", { value: name });
       }
       return fn;
     }
