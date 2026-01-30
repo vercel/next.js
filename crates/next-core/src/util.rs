@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
 use serde::{Deserialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
@@ -62,9 +62,10 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
     CompileTimeDefines(defines)
 }
 
-/// Emits warnings or errors when inlining frequently changing system env vars
+/// Emits warnings or errors when inlining frequently changing Vercel system env vars
 pub fn free_var_references_with_vercel_system_env_warnings(
     defines: CompileTimeDefines,
+    has_next_support: bool,
 ) -> FreeVarReferences {
     // constant:
     //      VERCEL
@@ -98,74 +99,104 @@ pub fn free_var_references_with_vercel_system_env_warnings(
     //      VERCEL_GIT_COMMIT_AUTHOR_NAME
     //      VERCEL_GIT_PREVIOUS_SHA
 
-    let should_error = std::env::var("NEXT_TURBOPACK_SYSTEM_ENV_ERROR")
-        .ok()
-        .is_some_and(|v| !v.is_empty());
+    let entries = defines
+        .0
+        .into_iter()
+        .map(|(k, value)| (k, FreeVarReference::Value(value)));
 
-    FreeVarReferences(
-        defines
-            .0
-            .into_iter()
+    let entries = if has_next_support {
+        let should_error = std::env::var("NEXT_TURBOPACK_SYSTEM_ENV_ERROR")
+            .ok()
+            .is_some_and(|v| !v.is_empty());
+
+        fn wrap_report_next_public_usage(
+            public_env_var: &str,
+            inner: Option<Box<FreeVarReference>>,
+            should_error: bool,
+        ) -> FreeVarReference {
+            let message = match public_env_var {
+                "NEXT_DEPLOYMENT_ID" | "VERCEL_DEPLOYMENT_ID" => {
+                    rcstr!(
+                        "The deployment id is being inlined. Use process.env.NEXT_DEPLOYMENT_ID \
+                         instead to access the same value without inlining, for faster deploy \
+                         times and better browser client-side caching."
+                    )
+                }
+                _ => format!(
+                    "A system environment variable is being inlined. This variable changes on \
+                     every deployment, causing slower deploy times and worse browser client-side \
+                     caching. For server-side code, replace with process.env.{} and for browser \
+                     code, try to remove it.",
+                    public_env_var.strip_prefix("NEXT_PUBLIC_").unwrap(),
+                )
+                .into(),
+            };
+            FreeVarReference::ReportUsage {
+                message,
+                severity: if should_error {
+                    IssueSeverity::Error
+                } else {
+                    IssueSeverity::Warning
+                },
+                inner,
+            }
+        }
+
+        let mut list = fxindexset!(
+            "NEXT_PUBLIC_NEXT_DEPLOYMENT_ID",
+            "NEXT_PUBLIC_VERCEL_BRANCH_URL",
+            "NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID",
+            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_LOGIN",
+            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_NAME",
+            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_MESSAGE",
+            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF",
+            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA",
+            "NEXT_PUBLIC_VERCEL_GIT_PREVIOUS_SHA",
+            "NEXT_PUBLIC_VERCEL_GIT_PULL_REQUEST_ID",
+            "NEXT_PUBLIC_VERCEL_OIDC_TOKEN",
+            "NEXT_PUBLIC_VERCEL_URL",
+        );
+
+        let mut entries: FxIndexMap<_, _> = entries
             .map(|(k, value)| {
-                const LIST: [&str; 12] = [
-                    "NEXT_DEPLOYMENT_ID",
-                    "VERCEL_BRANCH_URL",
-                    "VERCEL_DEPLOYMENT_ID",
-                    "VERCEL_GIT_COMMIT_AUTHOR_LOGIN",
-                    "VERCEL_GIT_COMMIT_AUTHOR_NAME",
-                    "VERCEL_GIT_COMMIT_MESSAGE",
-                    "VERCEL_GIT_COMMIT_REF",
-                    "VERCEL_GIT_COMMIT_SHA",
-                    "VERCEL_GIT_PREVIOUS_SHA",
-                    "VERCEL_GIT_PULL_REQUEST_ID",
-                    "VERCEL_OIDC_TOKEN",
-                    "VERCEL_URL",
-                ];
-
                 let value = if let &[
                     DefinableNameSegment::Name(a),
                     DefinableNameSegment::Name(b),
-                    DefinableNameSegment::Name(c),
+                    DefinableNameSegment::Name(public_env_var),
                 ] = &&*k
                     && a == "process"
                     && b == "env"
-                    && let Some(env_var) = c.strip_prefix("NEXT_PUBLIC_")
-                    && LIST.binary_search(&env_var).is_ok()
+                    && list.swap_remove(&**public_env_var)
                 {
-                    let message = match &**c {
-                        "NEXT_PUBLIC_NEXT_DEPLOYMENT_ID" | "NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID" => {
-                            rcstr!(
-                                "The deployment id is being inlined. Use \
-                                 process.env.NEXT_DEPLOYMENT_ID instead to access the same value \
-                                 without inlining, for faster deploy times and better browser \
-                                 client-side caching."
-                            )
-                        }
-                        _ => format!(
-                            "A system environment variable is being inlined. This variable \
-                             changes on every deployment, causing slower deploy times and worse \
-                             browser client-side caching. For server-side code, replace with \
-                             process.env.{} and for browser code, try to remove it.",
-                            env_var,
-                        )
-                        .into(),
-                    };
-                    FreeVarReference::ReportUsage {
-                        message,
-                        severity: if should_error {
-                            IssueSeverity::Error
-                        } else {
-                            IssueSeverity::Warning
-                        },
-                        inner: Some(Box::new(FreeVarReference::Value(value))),
-                    }
+                    wrap_report_next_public_usage(
+                        public_env_var,
+                        Some(Box::new(value)),
+                        should_error,
+                    )
                 } else {
-                    FreeVarReference::Value(value)
+                    value
                 };
                 (k, value)
             })
-            .collect(),
-    )
+            .collect();
+
+        // For the remaining ones, still add a warning, but without replacement
+        for public_env_var in list {
+            entries.insert(
+                vec![
+                    rcstr!("process").into(),
+                    rcstr!("env").into(),
+                    DefinableNameSegment::Name(public_env_var.into()),
+                ],
+                wrap_report_next_public_usage(public_env_var, None, should_error),
+            );
+        }
+        entries
+    } else {
+        entries.collect()
+    };
+
+    FreeVarReferences(entries)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]

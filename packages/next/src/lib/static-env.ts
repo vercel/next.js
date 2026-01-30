@@ -22,52 +22,6 @@ function errorIfEnvConflicted(
  */
 export function getNextPublicEnvironmentVariables() {
   const defineEnv: [string, string | undefined][] = []
-
-  process.env.NEXT_PUBLIC_VERCEL = process.env.NEXT_PUBLIC_VERCEL || ''
-  process.env.NEXT_PUBLIC_CI = process.env.NEXT_PUBLIC_CI || ''
-  process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL =
-    process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL || ''
-  process.env.NEXT_PUBLIC_VERCEL_REGION =
-    process.env.NEXT_PUBLIC_VERCEL_REGION || ''
-  process.env.NEXT_PUBLIC_VERCEL_SKEW_PROTECTION_ENABLED =
-    process.env.NEXT_PUBLIC_VERCEL_SKEW_PROTECTION_ENABLED || ''
-  process.env.NEXT_PUBLIC_VERCEL_AUTOMATION_BYPASS_SECRET =
-    process.env.NEXT_PUBLIC_VERCEL_AUTOMATION_BYPASS_SECRET || ''
-  process.env.NEXT_PUBLIC_VERCEL_PROJECT_ID =
-    process.env.NEXT_PUBLIC_VERCEL_PROJECT_ID || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_PROVIDER =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_PROVIDER || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_REPO_SLUG =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_REPO_SLUG || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_REPO_OWNER =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_REPO_OWNER || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_REPO_ID =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_REPO_ID || ''
-  process.env.NEXT_PUBLIC_VERCEL_ENV = process.env.NEXT_PUBLIC_VERCEL_ENV || ''
-  process.env.NEXT_PUBLIC_VERCEL_TARGET_ENV =
-    process.env.NEXT_PUBLIC_VERCEL_TARGET_ENV || ''
-  process.env.NEXT_PUBLIC_VERCEL_BRANCH_URL =
-    process.env.NEXT_PUBLIC_VERCEL_BRANCH_URL || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_PULL_REQUEST_ID =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_PULL_REQUEST_ID || ''
-  process.env.NEXT_PUBLIC_VERCEL_URL = process.env.NEXT_PUBLIC_VERCEL_URL || ''
-  process.env.NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID =
-    process.env.NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID || ''
-  process.env.NEXT_PUBLIC_VERCEL_OIDC_TOKEN =
-    process.env.NEXT_PUBLIC_VERCEL_OIDC_TOKEN || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_MESSAGE =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_MESSAGE || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_LOGIN =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_LOGIN || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_NAME =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_NAME || ''
-  process.env.NEXT_PUBLIC_VERCEL_GIT_PREVIOUS_SHA =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_PREVIOUS_SHA || ''
-
   for (const key in process.env) {
     if (key.startsWith('NEXT_PUBLIC_')) {
       const value = process.env[key]

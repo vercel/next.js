@@ -80,9 +80,15 @@ async fn next_client_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileT
 }
 
 #[turbo_tasks::function]
-async fn next_client_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVarReferences>> {
+async fn next_client_free_vars(
+    define_env: Vc<OptionEnvMap>,
+    has_next_support: Vc<bool>,
+) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
-        ..free_var_references_with_vercel_system_env_warnings(defines(&*define_env.await?)),
+        ..free_var_references_with_vercel_system_env_warnings(
+            defines(&*define_env.await?),
+            *has_next_support.await?
+        ),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: rcstr!("node:buffer"),
             lookup_path: None,
@@ -101,6 +107,7 @@ async fn next_client_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVa
 pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<OptionEnvMap>,
+    has_next_support: Vc<bool>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::Browser(
@@ -116,7 +123,11 @@ pub async fn get_client_compile_time_info(
         .await?,
     )
     .defines(next_client_defines(define_env).to_resolved().await?)
-    .free_var_references(next_client_free_vars(define_env).to_resolved().await?)
+    .free_var_references(
+        next_client_free_vars(define_env, has_next_support)
+            .to_resolved()
+            .await?,
+    )
     .cell()
     .await
 }
