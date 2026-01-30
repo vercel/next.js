@@ -585,10 +585,6 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
     const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
     return instance.exports;
 }
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
-/// <reference path="../shared-node/base-externals-utils.ts" />
-/// <reference path="../shared-node/node-externals-utils.ts" />
-/// <reference path="../shared-node/node-wasm-utils.ts" />
 var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
@@ -802,6 +798,11 @@ module.exports = (sourcePath)=>({
         m: (id)=>getOrInstantiateRuntimeModule(sourcePath, id),
         c: (chunkData)=>loadRuntimeChunk(sourcePath, chunkData)
     });
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared-node/base-externals-utils.ts" />
+/// <reference path="../shared-node/node-externals-utils.ts" />
+/// <reference path="../shared-node/node-wasm-utils.ts" />
+export { };
 
 
 //# sourceMappingURL=%5Bturbopack%5D_runtime.js.map

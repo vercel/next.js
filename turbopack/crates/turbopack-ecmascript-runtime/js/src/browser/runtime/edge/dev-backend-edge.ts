@@ -21,12 +21,3 @@ let DEV_BACKEND: DevRuntimeBackend
 function _eval(_: EcmascriptModuleEntry) {
   throw new Error('HMR evaluation is not implemented on this backend')
 }
-
-function __turbopack_server_hmr_apply__(_update: any): boolean {
-  // Server-side HMR is not supported in Edge Runtime (for API routes/middleware).
-  // Edge Runtime has limited Node.js APIs and doesn't support the full HMR implementation.
-  // Return false to indicate the update was not applied.
-  return false
-}
-
-globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__

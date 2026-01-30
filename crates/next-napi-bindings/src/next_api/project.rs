@@ -1229,31 +1229,31 @@ struct HmrUpdateWithIssues {
 #[turbo_tasks::function(operation)]
 fn project_client_hmr_update_operation(
     project: ResolvedVc<Project>,
-    identifier: RcStr,
+    chunk_name: RcStr,
     state: ResolvedVc<VersionState>,
 ) -> Vc<Update> {
-    project.client_hmr_update(identifier, *state)
+    project.client_hmr_update(chunk_name, *state)
 }
 
 #[turbo_tasks::function(operation)]
 fn project_server_hmr_update_operation(
     project: ResolvedVc<Project>,
-    identifier: RcStr,
+    chunk_name: RcStr,
     state: ResolvedVc<VersionState>,
 ) -> Vc<Update> {
-    project.server_hmr_update(identifier, *state)
+    project.server_hmr_update(chunk_name, *state)
 }
 
 #[turbo_tasks::function(operation)]
 async fn hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
-    identifier: RcStr,
+    chunk_name: RcStr,
     state: ResolvedVc<VersionState>,
     target: HmrTarget,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_op = match target {
-        HmrTarget::Client => project_client_hmr_update_operation(project, identifier, state),
-        HmrTarget::Server => project_server_hmr_update_operation(project, identifier, state),
+        HmrTarget::Client => project_client_hmr_update_operation(project, chunk_name, state),
+        HmrTarget::Server => project_server_hmr_update_operation(project, chunk_name, state),
     };
     let update = update_op.read_strongly_consistent().await?;
     let issues = get_issues(update_op, NEXT_ISSUE_FILTER).await?;
@@ -1272,7 +1272,7 @@ async fn hmr_update_with_issues_operation(
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    identifier: RcStr,
+    chunk_name: RcStr,
     target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
@@ -1286,23 +1286,23 @@ pub fn project_hmr_events(
         project.turbopack_ctx.clone(),
         func,
         {
-            let outer_identifier = identifier.clone();
+            let outer_chunk_name = chunk_name.clone();
             let session = session.clone();
             move || {
-                let identifier: RcStr = outer_identifier.clone();
+                let chunk_name: RcStr = outer_chunk_name.clone();
                 let session = session.clone();
                 async move {
                     let project = container.project().to_resolved().await?;
                     let state = match hmr_target {
                         HmrTarget::Client => {
                             project
-                                .client_hmr_version_state(identifier.clone(), session)
+                                .client_hmr_version_state(chunk_name.clone(), session)
                                 .to_resolved()
                                 .await?
                         }
                         HmrTarget::Server => {
                             project
-                                .server_hmr_version_state(identifier.clone(), session)
+                                .server_hmr_version_state(chunk_name.clone(), session)
                                 .to_resolved()
                                 .await?
                         }
@@ -1310,7 +1310,7 @@ pub fn project_hmr_events(
 
                     let update_op = hmr_update_with_issues_operation(
                         project,
-                        identifier.clone(),
+                        chunk_name.clone(),
                         state,
                         hmr_target,
                     );
@@ -1348,7 +1348,7 @@ pub fn project_hmr_events(
                 .collect::<Vec<_>>();
 
             let identifier = ResourceIdentifier {
-                path: identifier.clone(),
+                path: chunk_name.clone(),
                 headers: None,
             };
             let update = match update.as_deref() {
