@@ -524,7 +524,7 @@ export default abstract class Server<
         ? new SegmentPrefixRSCPathnameNormalizer()
         : undefined,
       data: this.enabledDirectories.pages
-        ? new NextDataPathnameNormalizer(this.buildId, this.deploymentId)
+        ? new NextDataPathnameNormalizer(this.buildId)
         : undefined,
     }
 
@@ -680,21 +680,19 @@ export default abstract class Server<
         return false
       }
 
-      if (!this.nextConfig.deploymentId) {
-        if (params.path[0] !== this.buildId) {
-          // Ignore if its a middleware request when we aren't on edge.
-          if (getRequestMeta(req, 'middlewareInvoke')) {
-            return false
-          }
-
-          // Make sure to 404 if the buildId isn't correct
-          await this.render404(req, res, parsedUrl)
-          return true
+      if (params.path[0] !== this.buildId) {
+        // Ignore if its a middleware request when we aren't on edge.
+        if (getRequestMeta(req, 'middlewareInvoke')) {
+          return false
         }
 
-        // remove buildId from URL
-        params.path.shift()
+        // Make sure to 404 if the buildId isn't correct
+        await this.render404(req, res, parsedUrl)
+        return true
       }
+
+      // remove buildId from URL
+      params.path.shift()
 
       const lastParam = params.path[params.path.length - 1]
 
@@ -2442,12 +2440,13 @@ export default abstract class Server<
   }
 
   private stripNextDataPath(filePath: string, stripLocale = true) {
-    if (this.deploymentId) {
-      filePath = filePath.replace(/\/_next\/data/, '')
-    } else {
-      filePath = filePath.replace(/\/_next\/data\/[^/]+/, '')
+    if (filePath.includes(this.buildId)) {
+      const splitPath = filePath.substring(
+        filePath.indexOf(this.buildId) + this.buildId.length
+      )
+
+      filePath = denormalizePagePath(splitPath.replace(/\.json$/, ''))
     }
-    filePath = filePath.replace(/\.json$/, '')
 
     if (this.localeNormalizer && stripLocale) {
       return this.localeNormalizer.normalize(filePath)

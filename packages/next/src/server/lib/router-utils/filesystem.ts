@@ -283,16 +283,10 @@ export async function setupFsCheck(opts: {
             // upstream builder that relies on this
             re: opts.config.i18n
               ? new RegExp(
-                  opts.config.deploymentId ||
-                  opts.config.experimental.runtimeServerDeploymentId
-                    ? route.dataRouteRegex.replace(
-                        `/_next/data/`,
-                        `/_next/data/(?<nextLocale>[^/]+?)/`
-                      )
-                    : route.dataRouteRegex.replace(
-                        `/_next/data/${escapedBuildId}/`,
-                        `/_next/data/${escapedBuildId}/(?<nextLocale>[^/]+?)/`
-                      )
+                  route.dataRouteRegex.replace(
+                    `/${escapedBuildId}/`,
+                    `/${escapedBuildId}/(?<nextLocale>[^/]+?)/`
+                  )
                 )
               : new RegExp(route.dataRouteRegex),
             groups: routeRegex.groups,
@@ -580,12 +574,7 @@ export async function setupFsCheck(opts: {
           continue
         }
 
-        // When deploymentId is set, data URLs don't include the build ID
-        const nextDataPrefix =
-          opts.config.deploymentId ||
-          opts.config.experimental.runtimeServerDeploymentId
-            ? '/_next/data/'
-            : `/_next/data/${buildId}/`
+        const nextDataPrefix = `/_next/data/${buildId}/`
 
         if (
           type === 'pageFile' &&
@@ -593,7 +582,7 @@ export async function setupFsCheck(opts: {
           curItemPath.endsWith('.json')
         ) {
           items = nextDataRoutes
-          // remove _next/data/ or _next/data/<build-id>/ prefix
+          // remove _next/data/<build-id> prefix
           curItemPath = curItemPath.substring(nextDataPrefix.length - 1)
 
           // remove .json postfix
