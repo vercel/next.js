@@ -6,6 +6,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
 import { isFullStringUrl } from './url'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from './constants'
 
 export type RouteHas =
   | {
@@ -746,13 +747,25 @@ export default async function loadCustomRoutes(
     )
   }
 
-  if (config.experimental?.useSkewCookie && config.deploymentId) {
+  if (config.deploymentId) {
+    if (config.experimental?.useSkewCookie) {
+      headers.unshift({
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Set-Cookie',
+            value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+          },
+        ],
+      })
+    }
+
     headers.unshift({
-      source: '/:path*',
+      source: '/_next/data/(.*)',
       headers: [
         {
-          key: 'Set-Cookie',
-          value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+          key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
+          value: config.deploymentId,
         },
       ],
     })

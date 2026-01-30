@@ -1088,7 +1088,11 @@ async function startWatcher(
         const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
 
         for (const page of sortedRoutes) {
-          const route = buildDataRoute(page, 'development')
+          const route = buildDataRoute(
+            page,
+            'development',
+            nextConfig.deploymentId
+          )
           const routeRegex = getNamedRouteRegex(route.page, {
             prefixRouteKeys: true,
           })

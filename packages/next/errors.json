@@ -986,5 +986,6 @@
   "985": "No response is returned from route handler '%s'. Expected a Response object but received '%s' (method: %s, url: %s). Ensure you return a \\`Response\\` or a \\`NextResponse\\` in all branches of your handler.",
   "986": "Server Action arguments list is too long (%s). Maximum allowed is %s.",
   "987": "Invalid \\`deploymentId\\` configuration: must be a string. See https://nextjs.org/docs/messages/deploymentid-not-a-string",
-  "988": "Invalid \\`deploymentId\\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters"
+  "988": "Invalid \\`deploymentId\\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters",
+  "989": "Loaded static props were from an outdated deployment, forcing a hard reload"
 }
