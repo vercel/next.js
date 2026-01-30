@@ -42,8 +42,6 @@ export declare function lockfileTryAcquire(
   path: string,
   content?: string | undefined | null
 ): Promise<{ __napiType: 'Lockfile' } | null>
-export declare function lockfileReadSync(path: string): string | null
-export declare function lockfileRead(path: string): Promise<string | null>
 export declare function lockfileUnlockSync(lockfile: {
   __napiType: 'Lockfile'
 }): void

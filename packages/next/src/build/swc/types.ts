@@ -75,8 +75,6 @@ export interface Binding {
   lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
   lockfileUnlock(lockfile: Lockfile): Promise<void>
   lockfileUnlockSync(lockfile: Lockfile): void
-  lockfileRead(path: string): Promise<string | null>
-  lockfileReadSync(path: string): string | null
 }
 
 export type StyledString =

@@ -1356,14 +1356,6 @@ async function loadWasm(importPath = '') {
         '`lockfileUnlockSync` is not supported by the wasm bindings.'
       )
     },
-    lockfileRead(_filePath: string) {
-      throw new Error('`lockfileRead` is not supported by the wasm bindings.')
-    },
-    lockfileReadSync(_filePath: string) {
-      throw new Error(
-        '`lockfileReadSync` is not supported by the wasm bindings.'
-      )
-    },
   }
   return wasmBindings
 }
@@ -1577,12 +1569,6 @@ function loadNative(importPath?: string) {
       },
       lockfileUnlockSync(lockfile: Lockfile) {
         return bindings.lockfileUnlockSync(lockfile)
-      },
-      lockfileRead(filePath: string) {
-        return bindings.lockfileRead(filePath)
-      },
-      lockfileReadSync(filePath: string) {
-        return bindings.lockfileReadSync(filePath)
       },
     }
     return loadedBindings

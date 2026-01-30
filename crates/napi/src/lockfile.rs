@@ -1,6 +1,6 @@
 use std::{
     fs::{File, OpenOptions},
-    io::{Read, Write},
+    io::Write,
     mem::ManuallyDrop,
     sync::Mutex,
 };
@@ -103,26 +103,6 @@ pub async fn lockfile_try_acquire(
     tokio::task::spawn_blocking(move || lockfile_try_acquire_sync(path, content))
         .await
         .context("panicked while attempting to acquire lockfile")?
-}
-
-/// Read the content of a lockfile without acquiring it.
-/// Returns None if the file doesn't exist or can't be read.
-#[napi]
-pub fn lockfile_read_sync(path: String) -> Option<String> {
-    let mut file = File::open(&path).ok()?;
-    let mut content = String::new();
-    file.read_to_string(&mut content).ok()?;
-    Some(content)
-}
-
-/// Async version of lockfile_read_sync.
-#[napi]
-pub async fn lockfile_read(path: String) -> napi::Result<Option<String>> {
-    Ok(
-        tokio::task::spawn_blocking(move || lockfile_read_sync(path))
-            .await
-            .context("panicked while attempting to read lockfile")?,
-    )
 }
 
 #[napi]
