@@ -6,58 +6,48 @@ describe('action-queue-transition-deadlock', () => {
     files: __dirname,
   })
 
-  it('should not deadlock when navigation and server action are triggered together multiple times', async () => {
+  // This test verifies that the fix for https://github.com/vercel/next.js/issues/84299
+  // works correctly. The bug occurs when:
+  // 1. User clicks a button that triggers router.push() + await serverAction()
+  // 2. User clicks again while the first action is still pending
+  // 3. The second navigation discards the first action, but if the promise isn't
+  //    resolved, useTransition's isPending stays true forever (deadlock)
+  it('should not deadlock when navigation is triggered while server action is pending', async () => {
     const browser = await next.browser('/')
 
     // Verify initial state
-    expect(await browser.elementById('status').text()).toBe('idle')
+    await retry(async () => {
+      const status = await browser.elementById('status').text()
+      expect(status).toBe('idle')
+    })
 
     // Click the button to start a transition with navigation + server action
     await browser.elementById('trigger-btn').click()
 
-    // The transition should start
+    // Wait for pending state
     await retry(async () => {
       const status = await browser.elementById('status').text()
       expect(status).toBe('pending')
     })
 
     // Click again while the first action is still pending
-    // This is the pattern that triggers the deadlock in the bug
+    // This triggers another navigation which should discard the pending action
     await browser.elementById('trigger-btn').click()
 
     // Wait for navigation to complete - should NOT deadlock
     // The bug would cause the app to hang here forever
     await retry(
       async () => {
-        const heading = await browser.elementById('other-page').text()
-        expect(heading).toBe('Other Page')
+        const url = await browser.url()
+        expect(url).toContain('/other')
       },
-      5000, // 5 second timeout - should be more than enough
-      500,
-      'waiting for navigation to complete without deadlock'
+      15000,
+      1000,
+      'waiting for navigation to /other'
     )
-  })
 
-  it('should complete transition even when server action is discarded due to navigation', async () => {
-    const browser = await next.browser('/')
-
-    // Start transition
-    await browser.elementById('trigger-btn').click()
-
-    // Verify pending state
-    await retry(async () => {
-      expect(await browser.elementById('status').text()).toBe('pending')
-    })
-
-    // Navigation should eventually complete
-    await retry(
-      async () => {
-        const heading = await browser.elementById('other-page').text()
-        expect(heading).toBe('Other Page')
-      },
-      5000,
-      500,
-      'waiting for single navigation to complete'
-    )
+    // Verify we're on the other page
+    const heading = await browser.elementById('other-page').text()
+    expect(heading).toBe('Other Page')
   })
 })

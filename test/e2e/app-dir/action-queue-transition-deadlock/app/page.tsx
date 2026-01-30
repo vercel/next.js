@@ -10,8 +10,6 @@ export default function Page() {
 
   const handleClick = () => {
     startTransition(async () => {
-      // Navigate first, then await server action
-      // This is the pattern that causes deadlock when clicked twice
       router.push('/other')
       await slowServerAction()
     })
