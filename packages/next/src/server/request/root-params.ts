@@ -17,6 +17,7 @@ import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
 import { describeStringPropertyAccess } from '../../shared/lib/utils/reflect-utils'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
+import { accumulateRootVaryParam } from '../app-render/vary-params'
 
 /**
  * Used for the compiler-generated `next/root-params` module.
@@ -83,6 +84,8 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       workUnitStore satisfies never
     }
   }
+
+  accumulateRootVaryParam(paramName)
   return Promise.resolve(workUnitStore.rootParams[paramName])
 }
 
@@ -148,6 +151,7 @@ function createPrerenderRootParamPromise(
   }
 
   // If the param is not a fallback param, we just return the statically available value.
+  accumulateRootVaryParam(paramName)
   return Promise.resolve(underlyingParams[paramName])
 }
 

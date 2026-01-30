@@ -1,4 +1,9 @@
 import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { VaryParamsAccumulator } from '../app-render/vary-params'
+import {
+  createVaryingSearchParams,
+  getMetadataVaryParamsAccumulator,
+} from '../app-render/vary-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
@@ -73,12 +78,22 @@ export function createSearchParamsFromClient(
 }
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
-export const createServerSearchParamsForMetadata =
-  createServerSearchParamsForServerPage
+export function createServerSearchParamsForMetadata(
+  underlyingSearchParams: SearchParams,
+  workStore: WorkStore
+): Promise<SearchParams> {
+  const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
+  return createServerSearchParamsForServerPage(
+    underlyingSearchParams,
+    workStore,
+    metadataVaryParamsAccumulator
+  )
+}
 
 export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
-  workStore: WorkStore
+  workStore: WorkStore,
+  varyParamsAccumulator: VaryParamsAccumulator | null = null
 ): Promise<SearchParams> {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
@@ -97,7 +112,8 @@ export function createServerSearchParamsForServerPage(
       case 'prerender-runtime':
         return createRuntimePrerenderSearchParams(
           underlyingSearchParams,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
         )
       case 'request':
         return createRenderSearchParams(
@@ -181,11 +197,16 @@ function createStaticPrerenderSearchParams(
 
 function createRuntimePrerenderSearchParams(
   underlyingSearchParams: SearchParams,
-  workUnitStore: PrerenderStoreModernRuntime
+  workUnitStore: PrerenderStoreModernRuntime,
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<SearchParams> {
+  const underlyingSearchParamsWithVarying =
+    varyParamsAccumulator !== null
+      ? createVaryingSearchParams(varyParamsAccumulator, underlyingSearchParams)
+      : underlyingSearchParams
   return delayUntilRuntimeStage(
     workUnitStore,
-    makeUntrackedSearchParams(underlyingSearchParams)
+    makeUntrackedSearchParams(underlyingSearchParamsWithVarying)
   )
 }
 

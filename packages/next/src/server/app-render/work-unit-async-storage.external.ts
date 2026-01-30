@@ -4,6 +4,7 @@ import type { ResponseCookies } from '../web/spec-extension/cookies'
 import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
+import type { ResponseVaryParamsAccumulator } from './vary-params'
 import type { DynamicTrackingState } from './dynamic-rendering'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
@@ -207,6 +208,13 @@ interface PrerenderStoreModernCommon
    * subsequent dynamic render.
    */
   readonly hmrRefreshHash: string | undefined
+
+  /**
+   * A mutable accumulator for per-segment vary params during prerender. Tracks
+   * which route params each segment actually accesses, allowing the client
+   * cache to re-key entries for better sharing across different param values.
+   */
+  readonly varyParamsAccumulator: ResponseVaryParamsAccumulator | null
 }
 
 interface StaticPrerenderStoreCommon {

@@ -3,6 +3,11 @@ import {
   type WorkStore,
 } from '../app-render/work-async-storage.external'
 import type { OpaqueFallbackRouteParams } from './fallback-params'
+import type { VaryParamsAccumulator } from '../app-render/vary-params'
+import {
+  createVaryingParams,
+  getMetadataVaryParamsAccumulator,
+} from '../app-render/vary-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
@@ -48,10 +53,15 @@ export function createParamsFromClient(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
+        // Client params don't need additional vary tracking because by the
+        // time they reach the client, the access would have already been
+        // tracked by the server.
+        const varyParamsAccumulator = null
         return createStaticPrerenderParams(
           underlyingParams,
           workStore,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
         )
       case 'cache':
       case 'private-cache':
@@ -87,12 +97,23 @@ export function createParamsFromClient(
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
 export type CreateServerParamsForMetadata = typeof createServerParamsForMetadata
-export const createServerParamsForMetadata = createServerParamsForServerSegment
+export function createServerParamsForMetadata(
+  underlyingParams: Params,
+  workStore: WorkStore
+): Promise<Params> {
+  const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
+  return createServerParamsForServerSegment(
+    underlyingParams,
+    workStore,
+    metadataVaryParamsAccumulator
+  )
+}
 
 // routes always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerParamsForRoute(
   underlyingParams: Params,
-  workStore: WorkStore
+  workStore: WorkStore,
+  varyParamsAccumulator: VaryParamsAccumulator | null = null
 ): Promise<Params> {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
@@ -104,7 +125,8 @@ export function createServerParamsForRoute(
         return createStaticPrerenderParams(
           underlyingParams,
           workStore,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
         )
       case 'cache':
       case 'private-cache':
@@ -113,7 +135,11 @@ export function createServerParamsForRoute(
           'createServerParamsForRoute should not be called in cache contexts.'
         )
       case 'prerender-runtime':
-        return createRuntimePrerenderParams(underlyingParams, workUnitStore)
+        return createRuntimePrerenderParams(
+          underlyingParams,
+          workUnitStore,
+          varyParamsAccumulator
+        )
       case 'request':
         if (process.env.NODE_ENV === 'development') {
           // Semantically we only need the dev tracking when running in `next dev`
@@ -138,7 +164,8 @@ export function createServerParamsForRoute(
 
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
-  workStore: WorkStore
+  workStore: WorkStore,
+  varyParamsAccumulator: VaryParamsAccumulator | null = null
 ): Promise<Params> {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
@@ -150,7 +177,8 @@ export function createServerParamsForServerSegment(
         return createStaticPrerenderParams(
           underlyingParams,
           workStore,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
         )
       case 'cache':
       case 'private-cache':
@@ -159,7 +187,11 @@ export function createServerParamsForServerSegment(
           'createServerParamsForServerSegment should not be called in cache contexts.'
         )
       case 'prerender-runtime':
-        return createRuntimePrerenderParams(underlyingParams, workUnitStore)
+        return createRuntimePrerenderParams(
+          underlyingParams,
+          workUnitStore,
+          varyParamsAccumulator
+        )
       case 'request':
         if (process.env.NODE_ENV === 'development') {
           // Semantically we only need the dev tracking when running in `next dev`
@@ -238,8 +270,14 @@ export function createPrerenderParamsForClientSegment(
 function createStaticPrerenderParams(
   underlyingParams: Params,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore
+  prerenderStore: StaticPrerenderStore,
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
+  const underlyingParamsWithVarying =
+    varyParamsAccumulator !== null
+      ? createVaryingParams(varyParamsAccumulator, underlyingParams)
+      : underlyingParams
+
   switch (prerenderStore.type) {
     case 'prerender':
     case 'prerender-client': {
@@ -252,7 +290,7 @@ function createStaticPrerenderParams(
             // we are in cacheComponents mode we encode this as a promise that never
             // resolves.
             return makeHangingParams(
-              underlyingParams,
+              underlyingParamsWithVarying,
               workStore,
               prerenderStore
             )
@@ -267,7 +305,7 @@ function createStaticPrerenderParams(
         for (const key in underlyingParams) {
           if (fallbackParams.has(key)) {
             return makeErroringParams(
-              underlyingParams,
+              underlyingParamsWithVarying,
               fallbackParams,
               workStore,
               prerenderStore
@@ -283,16 +321,22 @@ function createStaticPrerenderParams(
       prerenderStore satisfies never
   }
 
-  return makeUntrackedParams(underlyingParams)
+  return makeUntrackedParams(underlyingParamsWithVarying)
 }
 
 function createRuntimePrerenderParams(
   underlyingParams: Params,
-  workUnitStore: PrerenderStoreModernRuntime
+  workUnitStore: PrerenderStoreModernRuntime,
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
+  const underlyingParamsWithVarying =
+    varyParamsAccumulator !== null
+      ? createVaryingParams(varyParamsAccumulator, underlyingParams)
+      : underlyingParams
+
   return delayUntilRuntimeStage(
     workUnitStore,
-    makeUntrackedParams(underlyingParams)
+    makeUntrackedParams(underlyingParamsWithVarying)
   )
 }
 
