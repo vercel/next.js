@@ -288,12 +288,31 @@ pub struct StorageWriteGuard<'a> {
 
 impl StorageWriteGuard<'_> {
     /// Tracks mutation of this task
-    pub fn track_modification(&mut self, category: SpecificTaskDataCategory) {
+    #[inline(always)]
+    pub fn track_modification(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        #[allow(unused_variables)] name: &str,
+    ) {
+        self.track_modification_internal(
+            category,
+            #[cfg(feature = "trace_task_modification")]
+            name,
+        );
+    }
+
+    fn track_modification_internal(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        #[cfg(feature = "trace_task_modification")] name: &str,
+    ) {
         let flags = &self.inner.flags;
         if flags.is_snapshot(category) {
             return;
         }
         let modified = flags.is_modified(category);
+        #[cfg(feature = "trace_task_modification")]
+        let _span = (!modified).then(|| tracing::trace_span!("mark_modified", name).entered());
         match (self.storage.snapshot_mode(), modified) {
             (false, false) => {
                 // Not in snapshot mode and item is unmodified

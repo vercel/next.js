@@ -993,8 +993,10 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         // TODO this causes race conditions, since we never know when a value is changed. We can't
         // "snapshot" the value correctly.
         if !self.task_id.is_transient() {
-            self.task.track_modification(SpecificTaskDataCategory::Data);
-            self.task.track_modification(SpecificTaskDataCategory::Meta);
+            self.task
+                .track_modification(SpecificTaskDataCategory::Data, "invalidate_serialization");
+            self.task
+                .track_modification(SpecificTaskDataCategory::Meta, "invalidate_serialization");
         }
     }
 
@@ -1043,9 +1045,14 @@ impl<'a, B: BackingStorage> TaskStorageAccessors for TaskGuardImpl<'a, B> {
         &mut self.task
     }
 
-    fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory) {
+    #[inline(always)]
+    fn track_modification(
+        &mut self,
+        category: crate::backend::storage::SpecificTaskDataCategory,
+        name: &str,
+    ) {
         if !self.task_id.is_transient() {
-            self.task.track_modification(category);
+            self.task.track_modification(category, name);
         }
     }
 

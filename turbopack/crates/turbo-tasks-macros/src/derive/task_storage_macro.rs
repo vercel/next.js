@@ -99,12 +99,13 @@ impl FieldInfo {
 
     /// Generate the full `self.track_modification(...)` call for this field.
     fn track_modification_call(&self) -> TokenStream {
+        let field_name_str = self.field_name.to_string();
         match self.category {
             Category::Data => {
-                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data); }
+                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data, #field_name_str); }
             }
             Category::Meta => {
-                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); }
+                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta, #field_name_str); }
             }
             Category::Transient => {
                 quote! {
@@ -1230,7 +1231,7 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
             #[doc = "Should be called after confirming that data actually changed."]
             #[doc = "This is separate from `typed_mut()` to allow optimizations where"]
             #[doc = "we only track modifications when something actually changes."]
-            fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory);
+            fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory, name: &str);
 
             #[doc = "Verify that the task was accessed with the correct category before reading/writing."]
             #[doc = ""]
