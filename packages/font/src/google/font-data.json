@@ -7551,7 +7551,7 @@
   "Kedebideri": {
     "weights": ["400", "500", "600", "700", "800", "900"],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "subsets": ["beria-erfe", "latin"]
   },
   "Kelly Slab": {
     "weights": ["400"],

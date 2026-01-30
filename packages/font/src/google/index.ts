@@ -11920,7 +11920,7 @@ export declare function Kedebideri<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'beria-erfe' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kelly_Slab<
   T extends CssVariable | undefined = undefined,
