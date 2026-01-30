@@ -196,6 +196,20 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).not.toContain('/blog/[slug]/comments')
       })
 
+      it('should build route inside route group with glob pattern', async () => {
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', 'app/(auth)/**/page.tsx'],
+        })
+        expect(buildResult.exitCode).toBe(0)
+
+        expect(buildResult.cliOutput).toContain('Route (app)')
+        expect(buildResult.cliOutput).toContain('/login/[[...mode]]')
+        // Should not build other app routes
+        expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
+        expect(buildResult.cliOutput).not.toContain('○ /about')
+        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+      })
+
       it('should support multiple negation patterns', async () => {
         const buildResult = await next.build({
           args: [
