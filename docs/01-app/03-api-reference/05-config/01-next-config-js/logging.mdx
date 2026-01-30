@@ -33,6 +33,25 @@ module.exports = {
 }
 ```
 
+### Server Functions
+
+You can enable logging of [Server Function](https://react.dev/reference/rsc/server-functions) invocations during development by setting `logging.serverFunctions` to `true`.
+
+```js filename="next.config.js"
+module.exports = {
+  logging: {
+    serverFunctions: true,
+  },
+}
+```
+
+When enabled, the terminal will display each Server Function call with its function name, arguments, and duration:
+
+```bash filename="Terminal"
+POST /
+  └─ ƒ myAction(arg1, arg2) in 5ms app/actions.ts
+```
+
 ### Incoming Requests
 
 By default all the incoming requests will be logged in the console during development. You can use the `incomingRequests` option to decide which requests to ignore.

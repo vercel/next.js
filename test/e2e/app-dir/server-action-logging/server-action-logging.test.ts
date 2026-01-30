@@ -186,4 +186,32 @@ describe('server-action-logging', () => {
       expect(logs).not.toContain('test/e2e/app-dir/server-action-logging/')
     })
   })
+
+  describe('when logging.serverFunctions is not enabled', () => {
+    beforeAll(async () => {
+      await next.patchFile('next.config.js', (content) =>
+        content.replace('serverFunctions: true', '// serverFunctions: true')
+      )
+    })
+
+    afterAll(async () => {
+      await next.patchFile('next.config.js', (content) =>
+        content.replace('// serverFunctions: true', 'serverFunctions: true')
+      )
+    })
+
+    it('should not log server actions', async () => {
+      const browser = await next.browser('/')
+      const outputIndex = next.cliOutput.length
+
+      await browser.elementByCss('#success-action').click()
+      await browser.waitForElementByCss('#result')
+
+      await retry(() => {
+        const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+        expect(logs).toContain('POST /')
+        expect(logs).not.toContain('└─ ƒ successAction')
+      })
+    })
+  })
 })

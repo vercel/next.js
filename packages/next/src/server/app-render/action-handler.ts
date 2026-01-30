@@ -1084,9 +1084,12 @@ export async function handleAction({
             actionId!
           ]
 
-        // Log server action call in development
+        // Log server action call in development when enabled
         let logInfo: ServerActionLogInfo | null = null
-        if (process.env.NODE_ENV === 'development') {
+        if (
+          process.env.NODE_ENV === 'development' &&
+          ctx.renderOpts.logServerFunctions
+        ) {
           const serverActionsManifest = getServerActionsManifest()
           const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
           const actionInfo = serverActionsManifest[runtime]?.[actionId!]
