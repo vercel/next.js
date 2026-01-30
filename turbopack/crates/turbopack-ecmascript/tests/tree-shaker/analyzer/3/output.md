@@ -477,13 +477,13 @@ export { c2_2 };
 ## Part 9
 ```js
 export { c1_1 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export c1_1"
+    __turbopack_part__: -6
 };
 export { c1_3 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export c1_3"
+    __turbopack_part__: -7
 };
 export { c2_2 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export c2_2"
+    __turbopack_part__: -8
 };
 
 ```
@@ -625,13 +625,13 @@ export { c2_2 };
 ## Part 6
 ```js
 export { c1_1 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export c1_1"
+    __turbopack_part__: -3
 };
 export { c1_3 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export c1_3"
+    __turbopack_part__: -4
 };
 export { c2_2 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export c2_2"
+    __turbopack_part__: -5
 };
 
 ```

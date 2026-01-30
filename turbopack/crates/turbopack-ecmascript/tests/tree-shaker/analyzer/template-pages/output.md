@@ -1240,40 +1240,40 @@ export { unstable_getStaticProps };
 ## Part 35
 ```js
 export { routeModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export routeModule"
+    __turbopack_part__: -23
 };
 export { default } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export default"
+    __turbopack_part__: -24
 };
 export { config } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export config"
+    __turbopack_part__: -25
 };
 export { getServerSideProps } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getServerSideProps"
+    __turbopack_part__: -26
 };
 export { getStaticPaths } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getStaticPaths"
+    __turbopack_part__: -27
 };
 export { getStaticProps } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getStaticProps"
+    __turbopack_part__: -28
 };
 export { reportWebVitals } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export reportWebVitals"
+    __turbopack_part__: -29
 };
 export { unstable_getServerProps } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export unstable_getServerProps"
+    __turbopack_part__: -30
 };
 export { unstable_getServerSideProps } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export unstable_getServerSideProps"
+    __turbopack_part__: -31
 };
 export { unstable_getStaticParams } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export unstable_getStaticParams"
+    __turbopack_part__: -32
 };
 export { unstable_getStaticPaths } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export unstable_getStaticPaths"
+    __turbopack_part__: -33
 };
 export { unstable_getStaticProps } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export unstable_getStaticProps"
+    __turbopack_part__: -34
 };
 
 ```
@@ -1803,40 +1803,40 @@ export { unstable_getStaticProps };
 ## Part 35
 ```js
 export { routeModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export routeModule"
+    __turbopack_part__: -23
 };
 export { default } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export default"
+    __turbopack_part__: -24
 };
 export { config } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export config"
+    __turbopack_part__: -25
 };
 export { getServerSideProps } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getServerSideProps"
+    __turbopack_part__: -26
 };
 export { getStaticPaths } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getStaticPaths"
+    __turbopack_part__: -27
 };
 export { getStaticProps } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getStaticProps"
+    __turbopack_part__: -28
 };
 export { reportWebVitals } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export reportWebVitals"
+    __turbopack_part__: -29
 };
 export { unstable_getServerProps } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export unstable_getServerProps"
+    __turbopack_part__: -30
 };
 export { unstable_getServerSideProps } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export unstable_getServerSideProps"
+    __turbopack_part__: -31
 };
 export { unstable_getStaticParams } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export unstable_getStaticParams"
+    __turbopack_part__: -32
 };
 export { unstable_getStaticPaths } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export unstable_getStaticPaths"
+    __turbopack_part__: -33
 };
 export { unstable_getStaticProps } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export unstable_getStaticProps"
+    __turbopack_part__: -34
 };
 
 ```

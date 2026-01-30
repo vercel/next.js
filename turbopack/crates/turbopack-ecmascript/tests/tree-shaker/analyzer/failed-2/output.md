@@ -914,28 +914,28 @@ export { createPostponedAbortSignal as k } from "__TURBOPACK_VAR__" assert {
 ## Part 17
 ```js
 export { createPrerenderState } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export createPrerenderState"
+    __turbopack_part__: -9
 };
 export { markCurrentScopeAsDynamic } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export markCurrentScopeAsDynamic"
+    __turbopack_part__: -10
 };
 export { trackDynamicDataAccessed } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export trackDynamicDataAccessed"
+    __turbopack_part__: -11
 };
 export { Postpone } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export Postpone"
+    __turbopack_part__: -12
 };
 export { trackDynamicFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export trackDynamicFetch"
+    __turbopack_part__: -13
 };
 export { usedDynamicAPIs } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export usedDynamicAPIs"
+    __turbopack_part__: -14
 };
 export { formatDynamicAPIAccesses } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export formatDynamicAPIAccesses"
+    __turbopack_part__: -15
 };
 export { createPostponedAbortSignal } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export createPostponedAbortSignal"
+    __turbopack_part__: -16
 };
 
 ```
@@ -1325,28 +1325,28 @@ export { createPostponedAbortSignal as k } from "__TURBOPACK_VAR__" assert {
 ## Part 19
 ```js
 export { createPrerenderState } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export createPrerenderState"
+    __turbopack_part__: -9
 };
 export { markCurrentScopeAsDynamic } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export markCurrentScopeAsDynamic"
+    __turbopack_part__: -10
 };
 export { trackDynamicDataAccessed } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export trackDynamicDataAccessed"
+    __turbopack_part__: -11
 };
 export { Postpone } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export Postpone"
+    __turbopack_part__: -12
 };
 export { trackDynamicFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export trackDynamicFetch"
+    __turbopack_part__: -13
 };
 export { usedDynamicAPIs } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export usedDynamicAPIs"
+    __turbopack_part__: -15
 };
 export { formatDynamicAPIAccesses } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export formatDynamicAPIAccesses"
+    __turbopack_part__: -16
 };
 export { createPostponedAbortSignal } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export createPostponedAbortSignal"
+    __turbopack_part__: -18
 };
 
 ```

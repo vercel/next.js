@@ -188,10 +188,10 @@ async fn apply_module_type(
 
                 match tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
-                        Vc::upcast(EcmascriptModulePartAsset::select_part(
+                        return Ok(EcmascriptModulePartAsset::select_part(
                             *module,
                             part.unwrap_or(ModulePart::facade()),
-                        ))
+                        ));
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
                         if *module.get_exports().split_locals_and_reexports().await? {

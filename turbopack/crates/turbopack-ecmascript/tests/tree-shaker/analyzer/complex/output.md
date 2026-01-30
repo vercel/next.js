@@ -484,16 +484,16 @@ export { cat };
 ## Part 7
 ```js
 export { dogRef } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export dogRef"
+    __turbopack_part__: -2
 };
 export { initialCat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export initialCat"
+    __turbopack_part__: -4
 };
 export { getChimera } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getChimera"
+    __turbopack_part__: -5
 };
 export { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export cat"
+    __turbopack_part__: -6
 };
 
 ```
@@ -680,16 +680,16 @@ export { cat };
 ## Part 9
 ```js
 export { dogRef } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export dogRef"
+    __turbopack_part__: -3
 };
 export { initialCat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export initialCat"
+    __turbopack_part__: -6
 };
 export { getChimera } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getChimera"
+    __turbopack_part__: -7
 };
 export { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export cat"
+    __turbopack_part__: -8
 };
 
 ```

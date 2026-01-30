@@ -172,10 +172,10 @@ export { DOG as d } from "__TURBOPACK_VAR__" assert {
 ## Part 3
 ```js
 export { CHIMERA } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export CHIMERA"
+    __turbopack_part__: -1
 };
 export { DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export DOG"
+    __turbopack_part__: -2
 };
 
 ```
@@ -245,10 +245,10 @@ export { DOG as d } from "__TURBOPACK_VAR__" assert {
 ## Part 3
 ```js
 export { CHIMERA } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export CHIMERA"
+    __turbopack_part__: -1
 };
 export { DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export DOG"
+    __turbopack_part__: -2
 };
 
 ```

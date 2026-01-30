@@ -454,7 +454,7 @@ export { };
 ## Part 11
 ```js
 export { default } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export default"
+    __turbopack_part__: -10
 };
 
 ```
@@ -681,7 +681,7 @@ export { };
 ## Part 11
 ```js
 export { default } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export default"
+    __turbopack_part__: -10
 };
 
 ```

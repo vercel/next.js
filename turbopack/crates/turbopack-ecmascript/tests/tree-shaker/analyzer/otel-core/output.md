@@ -279,10 +279,10 @@ export { getEnvWithoutDefaults as b } from "__TURBOPACK_VAR__" assert {
 ## Part 7
 ```js
 export { getEnv } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getEnv"
+    __turbopack_part__: -5
 };
 export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getEnvWithoutDefaults"
+    __turbopack_part__: -6
 };
 
 ```
@@ -393,10 +393,10 @@ export { getEnvWithoutDefaults as b } from "__TURBOPACK_VAR__" assert {
 ## Part 7
 ```js
 export { getEnv } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getEnv"
+    __turbopack_part__: -5
 };
 export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getEnvWithoutDefaults"
+    __turbopack_part__: -6
 };
 
 ```

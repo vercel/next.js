@@ -1028,19 +1028,19 @@ export { rootSpanAttributesStore as i } from "__TURBOPACK_VAR__" assert {
 ## Part 14
 ```js
 export { getTracer } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getTracer"
+    __turbopack_part__: -6
 };
 export { SpanStatusCode } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export SpanStatusCode"
+    __turbopack_part__: -9
 };
 export { BubbledError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export BubbledError"
+    __turbopack_part__: -10
 };
 export { SpanKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export SpanKind"
+    __turbopack_part__: -11
 };
 export { isBubbledError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export isBubbledError"
+    __turbopack_part__: -12
 };
 
 ```
@@ -1650,19 +1650,19 @@ export { isBubbledError };
 ## Part 13
 ```js
 export { getTracer } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getTracer"
+    __turbopack_part__: -6
 };
 export { SpanStatusCode } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export SpanStatusCode"
+    __turbopack_part__: -9
 };
 export { BubbledError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export BubbledError"
+    __turbopack_part__: -10
 };
 export { SpanKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export SpanKind"
+    __turbopack_part__: -11
 };
 export { isBubbledError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export isBubbledError"
+    __turbopack_part__: -12
 };
 
 ```

@@ -352,13 +352,13 @@ export { sendMessage as f } from "__TURBOPACK_VAR__" assert {
 ## Part 5
 ```js
 export { connectHMR } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export connectHMR"
+    __turbopack_part__: -2
 };
 export { addMessageListener } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export addMessageListener"
+    __turbopack_part__: -3
 };
 export { sendMessage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export sendMessage"
+    __turbopack_part__: -4
 };
 
 ```
@@ -505,13 +505,13 @@ export { sendMessage as f } from "__TURBOPACK_VAR__" assert {
 ## Part 5
 ```js
 export { connectHMR } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export connectHMR"
+    __turbopack_part__: -2
 };
 export { addMessageListener } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export addMessageListener"
+    __turbopack_part__: -3
 };
 export { sendMessage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export sendMessage"
+    __turbopack_part__: -4
 };
 
 ```

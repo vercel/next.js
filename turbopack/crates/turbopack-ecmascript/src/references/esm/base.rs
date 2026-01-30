@@ -14,6 +14,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
+    context::ProcessResult,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
@@ -434,11 +435,15 @@ impl ModuleReference for EsmAssetReference {
                 && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
             {
                 if let Some(part) = &self.export_name {
-                    return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-                        EcmascriptModulePartAsset::select_part(*self.module, part.clone())
-                            .to_resolved()
-                            .await?,
-                    )));
+                    let ProcessResult::Module(module_part) =
+                        *EcmascriptModulePartAsset::select_part(*self.module, part.clone()).await?
+                    else {
+                        bail!(
+                            "ModulePart::Internal should always return a module part in \
+                             select_part"
+                        );
+                    };
+                    return Ok(*ModuleResolveResult::module(module_part));
                 }
                 bail!("export_name is required for part import")
             }

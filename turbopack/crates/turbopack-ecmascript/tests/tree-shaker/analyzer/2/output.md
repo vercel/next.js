@@ -563,16 +563,16 @@ export { foo };
 ## Part 12
 ```js
 export { external1 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export external1"
+    __turbopack_part__: -0
 };
 export { external2 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export external2"
+    __turbopack_part__: -10
 };
 export { foobar } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export foobar"
+    __turbopack_part__: -10
 };
 export { foo } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export foo"
+    __turbopack_part__: -11
 };
 
 ```
@@ -767,16 +767,16 @@ export { foobar };
 ## Part 12
 ```js
 export { external1 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export external1"
+    __turbopack_part__: -0
 };
 export { foo } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export foo"
+    __turbopack_part__: -4
 };
 export { external2 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export external2"
+    __turbopack_part__: -10
 };
 export { foobar } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export foobar"
+    __turbopack_part__: -11
 };
 
 ```

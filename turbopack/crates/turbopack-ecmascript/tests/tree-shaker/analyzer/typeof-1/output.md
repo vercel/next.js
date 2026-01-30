@@ -198,7 +198,7 @@ export { };
 ## Part 1
 ```js
 export { GET } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export GET"
+    __turbopack_part__: -0
 };
 
 ```
@@ -261,7 +261,7 @@ export { };
 ## Part 1
 ```js
 export { GET } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export GET"
+    __turbopack_part__: -0
 };
 
 ```

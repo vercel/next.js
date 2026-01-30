@@ -107,7 +107,7 @@ export { };
 ## Part 1
 ```js
 export { RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export RouteKind"
+    __turbopack_part__: -0
 };
 
 ```
@@ -160,7 +160,7 @@ export { };
 ## Part 1
 ```js
 export { RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export RouteKind"
+    __turbopack_part__: -0
 };
 
 ```

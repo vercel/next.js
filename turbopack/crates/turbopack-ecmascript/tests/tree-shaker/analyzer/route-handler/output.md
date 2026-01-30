@@ -157,10 +157,10 @@ export { runtime as b } from "__TURBOPACK_VAR__" assert {
 ## Part 2
 ```js
 export { GET } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export GET"
+    __turbopack_part__: -0
 };
 export { runtime } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export runtime"
+    __turbopack_part__: -2
 };
 
 ```
@@ -225,10 +225,10 @@ export { runtime as b } from "__TURBOPACK_VAR__" assert {
 ## Part 2
 ```js
 export { GET } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export GET"
+    __turbopack_part__: -0
 };
 export { runtime } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export runtime"
+    __turbopack_part__: -2
 };
 
 ```
