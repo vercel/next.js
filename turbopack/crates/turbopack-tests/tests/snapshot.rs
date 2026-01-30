@@ -33,7 +33,9 @@ use turbopack_core::{
         EvaluatableAssets, MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
-    compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment},
+    compile_time_info::{
+        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
+    },
     condition::ContextCondition,
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -321,7 +323,18 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let compile_time_info = CompileTimeInfo::builder(env)
         .defines(defines.clone().resolved_cell())
-        .free_var_references(free_var_references!(..defines.into_iter()).resolved_cell())
+        .free_var_references(
+            free_var_references!(
+                ..defines.into_iter(),
+                WARNED_VALUE = FreeVarReference::Warning {
+                    message: rcstr!("WARNED_VALUE is deprecated, use REPLACEMENT_VALUE instead"),
+                    inner: Box::new(FreeVarReference::Value(CompileTimeDefineValue::String(
+                        rcstr!("replacement")
+                    ),)),
+                },
+            )
+            .resolved_cell(),
+        )
         .cell()
         .await?;
 

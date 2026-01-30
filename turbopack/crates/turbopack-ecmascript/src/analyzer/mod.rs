@@ -659,6 +659,7 @@ impl TryFrom<&FreeVarReference> for JsValue {
                     },
                 ))
             }
+            FreeVarReference::Warning { inner, .. } => inner.as_ref().try_into(),
         }
     }
 }

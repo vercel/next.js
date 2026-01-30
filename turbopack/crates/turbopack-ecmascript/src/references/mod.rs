@@ -2998,6 +2998,19 @@ async fn handle_free_var_reference(
                 ast_path.to_vec().into(),
             ));
         }
+        FreeVarReference::Warning { message, inner } => {
+            state.handler.span_warn_with_code(
+                span,
+                message,
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::FREE_VAR_REFERENCE.to_string(),
+                ),
+            );
+            return Box::pin(handle_free_var_reference(
+                ast_path, inner, span, state, analysis,
+            ))
+            .await;
+        }
     }
     Ok(true)
 }

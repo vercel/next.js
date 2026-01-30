@@ -314,6 +314,12 @@ pub enum FreeVarReference {
     Value(CompileTimeDefineValue),
     InputRelative(InputRelativeConstant),
     Error(RcStr),
+    /// Emits a warning when the free variable is inlined, then processes the inner reference.
+    /// Unlike `Error`, this will still perform the replacement after emitting the warning.
+    Warning {
+        message: RcStr,
+        inner: Box<FreeVarReference>,
+    },
 }
 
 impl From<bool> for FreeVarReference {
