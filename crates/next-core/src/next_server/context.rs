@@ -863,6 +863,7 @@ pub async fn get_server_module_options_context(
 
             next_server_rules.extend(common_next_server_rules.iter().cloned());
             internal_custom_rules.extend(common_next_server_rules);
+            foreign_next_server_rules.extend(internal_custom_rules.clone());
 
             let module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
@@ -872,7 +873,7 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
-                module_rules: internal_custom_rules.clone(),
+                module_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
