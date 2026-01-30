@@ -24,8 +24,7 @@ function stringifyUrlQueryParam(param: unknown): string {
 
   if (
     (typeof param === 'number' && !isNaN(param)) ||
-    typeof param === 'boolean' ||
-    typeof param === 'bigint'
+    typeof param === 'boolean'
   ) {
     return String(param)
   } else {
