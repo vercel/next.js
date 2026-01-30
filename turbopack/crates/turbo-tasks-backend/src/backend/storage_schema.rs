@@ -80,7 +80,7 @@ struct TaskStorageSchema {
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
     #[field(storage = "direct", category = "meta", inline, filter_transient)]
-    output: Option<OutputValue>,
+    pub output: Option<OutputValue>,
 
     /// Upper nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", inline, filter_transient)]
@@ -539,6 +539,32 @@ impl TaskStorage {
             reason: TaskExecutionReason::Initial,
         });
     }
+
+    /// Returns counts for aggregation tree and collectibles fields.
+    /// Used for cache size statistics.
+    pub fn meta_counts(&self) -> MetaCounts {
+        MetaCounts {
+            upper: self.upper().len(),
+            collectibles: self.collectibles().map_or(0, |c| c.len()),
+            aggregated_collectibles: self.aggregated_collectibles().map_or(0, |c| c.len()),
+            children: self.children().map_or(0, |c| c.len()),
+            followers: self.followers().map_or(0, |c| c.len()),
+            collectibles_dependents: self.collectibles_dependents().map_or(0, |c| c.len()),
+            aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
+        }
+    }
+}
+
+/// Counts for aggregation tree and collectibles fields.
+#[derive(Default)]
+pub struct MetaCounts {
+    pub upper: usize,
+    pub collectibles: usize,
+    pub aggregated_collectibles: usize,
+    pub children: usize,
+    pub followers: usize,
+    pub collectibles_dependents: usize,
+    pub aggregated_dirty_containers: usize,
 }
 
 // Support serialization filtering for CellDependents and CollectibleDependents
