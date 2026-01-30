@@ -18,6 +18,7 @@ import {
   DEV_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import { resolvePromiseWithTimeout } from './lib/promise'
+import { getDeploymentId } from '../shared/lib/deployment-id'
 
 declare global {
   interface Window {
@@ -170,8 +171,12 @@ export default class PageLoader {
         removeTrailingSlash(addLocale(path, locale)),
         '.json'
       )
+
+      // We check the response header instead
       return addBasePath(
-        `/_next/data/${this.buildId}${dataRoute}${search}`,
+        getDeploymentId()
+          ? `/_next/data${dataRoute}${search}`
+          : `/_next/data/${this.buildId}${dataRoute}${search}`,
         true
       )
     }

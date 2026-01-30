@@ -7,12 +7,15 @@ import { SuffixPathnameNormalizer } from './suffix'
 export class NextDataPathnameNormalizer implements PathnameNormalizer {
   private readonly prefix: PrefixPathnameNormalizer
   private readonly suffix = new SuffixPathnameNormalizer('.json')
-  constructor(buildID: string) {
+  constructor(buildID: string, deploymentId: string) {
     if (!buildID) {
       throw new Error('Invariant: buildID is required')
     }
 
-    this.prefix = new PrefixPathnameNormalizer(`/_next/data/${buildID}`)
+    // When deploymentId is set, data URLs don't include the build ID
+    this.prefix = new PrefixPathnameNormalizer(
+      deploymentId ? '/_next/data' : `/_next/data/${buildID}`
+    )
   }
 
   public match(pathname: string) {

@@ -31,6 +31,7 @@ import {
   CACHE_ONE_YEAR,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
 } from '../../../lib/constants'
 import path from 'path'
 import { sendRenderResult } from '../../send-payload'
@@ -634,6 +635,10 @@ export const getHandler = ({
           res.statusCode = 404
 
           if (isNextDataRequest) {
+            const deploymentId = getDeploymentId()
+            if (deploymentId) {
+              res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+            }
             res.end('{"notFound":true}')
             return
           }
@@ -642,6 +647,10 @@ export const getHandler = ({
 
         if (result.value.kind === CachedRouteKind.REDIRECT) {
           if (isNextDataRequest) {
+            const deploymentId = getDeploymentId()
+            if (deploymentId) {
+              res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+            }
             res.setHeader('content-type', JSON_CONTENT_TYPE_HEADER)
             res.end(JSON.stringify(result.value.props))
             return
@@ -712,6 +721,14 @@ export const getHandler = ({
           (isErrorPage && isMinimalMode && res.statusCode === 500)
         ) {
           return null
+        }
+
+        // Add deployment ID header for data requests
+        if (isNextDataRequest && !isErrorPage && !is500Page) {
+          const deploymentId = getDeploymentId()
+          if (deploymentId) {
+            res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+          }
         }
 
         await sendRenderResult({

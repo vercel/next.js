@@ -1,15 +1,22 @@
 import { pathHasPrefix } from '../router/utils/path-has-prefix'
+import { getDeploymentId } from '../deployment-id'
 
 /**
- * strip _next/data/<build-id>/ prefix and .json suffix
+ * strip _next/data/(<build-id>/) prefix and .json suffix
+ * When deploymentId is set, the path does NOT contain build-id.
  */
 export function normalizeDataPath(pathname: string) {
   if (!pathHasPrefix(pathname || '/', '/_next/data')) {
     return pathname
   }
-  pathname = pathname
-    .replace(/\/_next\/data\/[^/]{1,}/, '')
-    .replace(/\.json$/, '')
+
+  if (getDeploymentId()) {
+    pathname = pathname.replace(/\/_next\/data/, '')
+  } else {
+    pathname = pathname.replace(/\/_next\/data\/[^/]+/, '')
+  }
+
+  pathname = pathname.replace(/\.json$/, '')
 
   if (pathname === '/index') {
     return '/'

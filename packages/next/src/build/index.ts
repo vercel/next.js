@@ -2791,7 +2791,7 @@ export default async function build(
           ...serverPropsPages,
           ...ssgPages,
         ]).map((page) => {
-          return buildDataRoute(page, buildId)
+          return buildDataRoute(page, buildId, config.deploymentId)
         })
       }
 
@@ -3876,11 +3876,13 @@ export default async function build(
                       experimentalPPR: undefined,
                       renderingMode: undefined,
                       srcRoute: null,
-                      dataRoute: path.posix.join(
-                        '/_next/data',
-                        buildId,
-                        `${localePage}.json`
-                      ),
+                      dataRoute: config.deploymentId
+                        ? path.posix.join('/_next/data', `${localePage}.json`)
+                        : path.posix.join(
+                            '/_next/data',
+                            buildId,
+                            `${localePage}.json`
+                          ),
                       prefetchDataRoute: undefined,
                       allowHeader: ALLOWED_HEADERS,
                     }
@@ -3894,11 +3896,9 @@ export default async function build(
                     experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: null,
-                    dataRoute: path.posix.join(
-                      '/_next/data',
-                      buildId,
-                      `${file}.json`
-                    ),
+                    dataRoute: config.deploymentId
+                      ? path.posix.join('/_next/data', `${file}.json`)
+                      : path.posix.join('/_next/data', buildId, `${file}.json`),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
                     allowHeader: ALLOWED_HEADERS,
@@ -3939,11 +3939,16 @@ export default async function build(
                     experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: page,
-                    dataRoute: path.posix.join(
-                      '/_next/data',
-                      buildId,
-                      `${normalizePagePath(route.pathname)}.json`
-                    ),
+                    dataRoute: config.deploymentId
+                      ? path.posix.join(
+                          '/_next/data',
+                          `${normalizePagePath(route.pathname)}.json`
+                        )
+                      : path.posix.join(
+                          '/_next/data',
+                          buildId,
+                          `${normalizePagePath(route.pathname)}.json`
+                        ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
                     allowHeader: ALLOWED_HEADERS,
@@ -4052,11 +4057,9 @@ export default async function build(
       if (ssgPages.size > 0 || appDir) {
         tbdPrerenderRoutes.forEach((tbdRoute) => {
           const normalizedRoute = normalizePagePath(tbdRoute)
-          const dataRoute = path.posix.join(
-            '/_next/data',
-            buildId,
-            `${normalizedRoute}.json`
-          )
+          const dataRoute = config.deploymentId
+            ? path.posix.join('/_next/data', `${normalizedRoute}.json`)
+            : path.posix.join('/_next/data', buildId, `${normalizedRoute}.json`)
 
           prerenderManifest.dynamicRoutes[tbdRoute] = {
             routeRegex: normalizeRouteRegex(
