@@ -4092,7 +4092,11 @@
             return;
           }
         case "function":
-          value = "" === value.name ? "() => {}" : value.name + "() {}";
+          value = value.name;
+          value =
+            "" === value || "string" !== typeof value
+              ? "() => {}"
+              : value + "() {}";
           break;
         case "string":
           value =
@@ -32677,11 +32681,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-230772f9-20260128" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-da641178-20260129" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-230772f9-20260128\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-da641178-20260129\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -32718,10 +32722,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-230772f9-20260128",
+          version: "19.3.0-experimental-da641178-20260129",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-230772f9-20260128"
+          reconcilerVersion: "19.3.0-experimental-da641178-20260129"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -32869,7 +32873,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.3.0-experimental-230772f9-20260128";
+    exports.version = "19.3.0-experimental-da641178-20260129";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
