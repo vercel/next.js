@@ -393,10 +393,15 @@ function assignDefaultsAndValidate(
     if (!('browserToTerminal' in loggingConfig)) {
       const expConfig = result.experimental.browserDebugInfoInTerminal
       // Convert object config to simple format (level or true)
+      // Note: 'verbose' in the old API maps to `true` in the new API
       const normalizedValue =
         typeof expConfig === 'object' && expConfig !== null
-          ? (expConfig.level ?? true)
-          : expConfig
+          ? expConfig.level === 'verbose'
+            ? true
+            : (expConfig.level ?? true)
+          : expConfig === 'verbose'
+            ? true
+            : expConfig
 
       result.logging = {
         ...loggingConfig,
