@@ -1,3 +1,5 @@
+import fs from 'fs'
+import nodePath from 'path'
 import { bold, cyan } from '../lib/picocolors'
 import * as Log from './output/log'
 import { getBindingsSync } from './swc'
@@ -6,6 +8,44 @@ import type { Binding, Lockfile as NativeLockfile } from './swc/types'
 
 const RETRY_DELAY_MS = 10
 const MAX_RETRY_MS = 1000
+
+/**
+ * Information about a running dev server, stored inside the lock file itself.
+ * This is a common pattern in Unix applications (e.g., storing PID in a lockfile).
+ */
+export interface DevServerInfo {
+  pid: number
+  port: number
+  hostname: string
+  appUrl: string
+  startedAt: number
+}
+
+/**
+ * Reads dev server info from a lockfile.
+ * Returns undefined if the file doesn't exist or can't be parsed.
+ *
+ * Uses Node's fs.readFileSync which works on both Unix (with advisory flock)
+ * and Windows (with FILE_SHARE_READ flag set by the lock holder).
+ */
+export function readLockfileContent(lockfilePath: string): string | undefined {
+  try {
+    return fs.readFileSync(lockfilePath, 'utf-8')
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Parses dev server info from lockfile content.
+ */
+export function parseDevServerInfo(content: string): DevServerInfo | undefined {
+  try {
+    return JSON.parse(content) as DevServerInfo
+  } catch {
+    return undefined
+  }
+}
 
 /**
  * A cross-platform on-disk best-effort advisory exclusive lockfile
@@ -56,10 +96,15 @@ export class Lockfile {
    *
    * - If we fail to acquire the lock, we return `undefined`.
    * - If we're on wasm, this always returns a dummy `Lockfile` object.
+   *
+   * @param path - Path to the lock file
+   * @param unlockOnExit - Whether to unlock the file on process exit
+   * @param content - Optional content to write to the lockfile (e.g., JSON with server info)
    */
   static tryAcquire(
     path: string,
-    unlockOnExit: boolean = true
+    unlockOnExit: boolean = true,
+    content?: string
   ): Lockfile | undefined {
     const bindings = getBindingsSync()
     if (bindings.isWasm) {
@@ -70,7 +115,7 @@ export class Lockfile {
     } else {
       let nativeLockfile
       try {
-        nativeLockfile = bindings.lockfileTryAcquireSync(path)
+        nativeLockfile = bindings.lockfileTryAcquireSync(path, content)
       } catch (e) {
         // this happens if there's an IO error (e.g. `ENOENT`), which is
         // different than if we just didn't acquire the lock
@@ -110,26 +155,76 @@ export class Lockfile {
    * This will retry a small number of times. This can be useful when running
    * processes in a loop, e.g. if cleanup isn't fully synchronous due to child
    * parent/processes.
+   *
+   * @param path - Path to the lock file
+   * @param processName - Name of the process for error messages (e.g., 'next dev')
+   * @param unlockOnExit - Whether to unlock the file on process exit
+   * @param content - Optional content to write to the lockfile (e.g., JSON with server info)
+   * @param projectDir - Optional project directory for enhanced error messages
+   * @param relativeDistDir - Optional relative dist directory path (e.g., '.next/dev')
    */
   static async acquireWithRetriesOrExit(
     path: string,
     processName: string,
-    unlockOnExit: boolean = true
+    unlockOnExit: boolean = true,
+    content?: string,
+    projectDir?: string,
+    relativeDistDir?: string
   ): Promise<Lockfile> {
     const startMs = Date.now()
     let lockfile
     while (Date.now() - startMs < MAX_RETRY_MS) {
-      lockfile = Lockfile.tryAcquire(path, unlockOnExit)
+      lockfile = Lockfile.tryAcquire(path, unlockOnExit, content)
       if (lockfile !== undefined) break
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
     }
     if (lockfile === undefined) {
-      Log.error(
-        `Unable to acquire lock at ${cyan(path)}, is another instance of ${cyan(processName)} running?`
-      )
-      Log.info(
-        `${bold('Suggestion:')} If you intended to restart ${cyan(processName)}, terminate the other process, and then try again.`
-      )
+      const isDev = processName === 'next dev'
+
+      if (isDev) {
+        // For dev server, try to read server info from the lockfile itself
+        const lockfileContent = readLockfileContent(path)
+        const serverInfo = lockfileContent
+          ? parseDevServerInfo(lockfileContent)
+          : undefined
+
+        if (serverInfo) {
+          Log.error(`Another ${cyan(processName)} server is already running.`)
+          console.error()
+          console.error(`- Local:        ${cyan(serverInfo.appUrl)}`)
+          console.error(`- PID:          ${serverInfo.pid}`)
+          if (projectDir) {
+            console.error(`- Dir:          ${projectDir}`)
+          }
+          if (relativeDistDir) {
+            console.error(
+              `- Log:          ${nodePath.join(relativeDistDir, 'logs', 'next-development.log')}`
+            )
+          }
+          console.error()
+          // Use platform-appropriate kill command
+          const killCommand =
+            process.platform === 'win32'
+              ? `taskkill /PID ${serverInfo.pid} /F`
+              : `kill ${serverInfo.pid}`
+          console.error(`Run ${cyan(killCommand)} to stop it.`)
+        } else {
+          // Fallback when we can't read server info from the lockfile
+          Log.error(
+            `Another ${cyan(processName)} server is already running in this directory.`
+          )
+          console.error(`Stop the other server before starting a new one.`)
+        }
+      } else {
+        // For build, show that a build is in progress
+        Log.error(`Another ${cyan(processName)} process is already running.`)
+        console.error()
+        console.error(`  This could be:`)
+        console.error(`  - A ${cyan('next build')} still in progress`)
+        console.error(`  - A previous build that didn't exit cleanly`)
+        console.error()
+        Log.info(`${bold('Suggestion:')} Wait for the build to complete.`)
+      }
       process.exit(1)
     }
     return lockfile
