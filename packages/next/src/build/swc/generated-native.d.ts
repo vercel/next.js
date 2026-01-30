@@ -314,12 +314,12 @@ export declare function projectEntrypointsSubscribe(
 ): { __napiType: 'RootTask' }
 export declare function projectHmrEvents(
   project: { __napiType: 'Project' },
-  identifier: RcStr,
+  chunkName: RcStr,
   target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface HmrIdentifiers {
-  identifiers: Array<RcStr>
+  chunkPaths: Array<RcStr>
 }
 export declare function projectHmrIdentifiersSubscribe(
   project: { __napiType: 'Project' },

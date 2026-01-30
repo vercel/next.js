@@ -195,6 +195,13 @@ interface PartialUpdate extends BaseUpdate {
 
 export type Update = IssuesUpdate | PartialUpdate
 
+/**
+ * IMPORTANT: This type is duplicated in:
+ * turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/hmr-types.d.ts
+ *
+ * The runtime file cannot import from this ES module without triggering module semantics,
+ * so we maintain a copy there. Please keep both definitions in sync.
+ */
 export interface NodeJsPartialHmrUpdate extends BaseUpdate {
   type: 'partial'
   instruction: {
