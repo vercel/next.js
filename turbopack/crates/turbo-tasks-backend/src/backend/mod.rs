@@ -2534,20 +2534,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // Shrink memory usage for collections that are only mutated during/after execution
-        task.shrink_persistent_cell_data();
-        task.shrink_transient_cell_data();
-        task.shrink_cell_type_max_index();
-        task.shrink_cell_dependencies();
-        task.shrink_output_dependencies();
-        task.shrink_collectibles_dependencies();
-        task.shrink_outdated_cell_dependencies();
-        task.shrink_outdated_output_dependencies();
-        task.shrink_outdated_collectibles();
-        task.shrink_outdated_collectibles_dependencies();
-        task.shrink_children();
-        task.shrink_collectibles();
-        task.shrink_in_progress_cells();
+        // Clean up task storage after execution:
+        // - Shrink collections marked with shrink_on_completion
+        // - Drop dependency fields for immutable tasks (they'll never re-execute)
+        task.cleanup_after_execution();
 
         drop(task);
 

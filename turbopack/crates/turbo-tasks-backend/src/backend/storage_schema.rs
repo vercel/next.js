@@ -90,7 +90,12 @@ struct TaskStorageSchema {
     // COLLECTIBLES (meta)
     // =========================================================================
     /// Collectibles emitted by this task (reference counted).
-    #[field(storage = "counter_map", category = "meta", filter_transient)]
+    #[field(
+        storage = "counter_map",
+        category = "meta",
+        filter_transient,
+        shrink_on_completion
+    )]
     collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Aggregated collectibles from the subgraph.
@@ -98,7 +103,7 @@ struct TaskStorageSchema {
     aggregated_collectibles: CounterMap<CollectibleRef, i32>,
 
     /// Outdated collectibles to be cleaned up (transient).
-    #[field(storage = "counter_map", category = "transient")]
+    #[field(storage = "counter_map", category = "transient", shrink_on_completion)]
     outdated_collectibles: CounterMap<CollectibleRef, i32>,
 
     // =========================================================================
@@ -180,7 +185,12 @@ struct TaskStorageSchema {
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
     /// Child tasks of this task.
-    #[field(storage = "auto_set", category = "meta", filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "meta",
+        filter_transient,
+        shrink_on_completion
+    )]
     children: AutoSet<TaskId>,
 
     /// Follower nodes in the aggregation tree (reference counted).
@@ -190,33 +200,56 @@ struct TaskStorageSchema {
     // =========================================================================
     // DEPENDENCIES (data)
     // =========================================================================
-    #[field(storage = "auto_set", category = "data", filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        shrink_on_completion,
+        drop_on_completion_if_immutable
+    )]
     output_dependencies: AutoSet<TaskId>,
 
     /// Cells this task depends on.
-    #[field(storage = "auto_set", category = "data", filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        shrink_on_completion,
+        drop_on_completion_if_immutable
+    )]
     cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
 
     /// Collectibles this task depends on.
-    #[field(storage = "auto_set", category = "data", filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        shrink_on_completion,
+        drop_on_completion_if_immutable
+    )]
     collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     /// Outdated output dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient")]
+    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
     outdated_output_dependencies: AutoSet<TaskId>,
 
     /// Outdated cell dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient")]
+    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
     outdated_cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient")]
+    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
     outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
 
     // =========================================================================
     // DEPENDENTS - Tasks that depend on this task's cells
     // =========================================================================
-    #[field(storage = "auto_set", category = "data", filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        drop_on_completion_if_immutable
+    )]
     cell_dependents: AutoSet<(CellId, Option<u64>, TaskId)>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
@@ -229,15 +262,15 @@ struct TaskStorageSchema {
     // CELL DATA (data)
     // =========================================================================
     /// Persistent cell data (serializable).
-    #[field(storage = "auto_map", category = "data")]
+    #[field(storage = "auto_map", category = "data", shrink_on_completion)]
     persistent_cell_data: AutoMap<CellId, TypedSharedReference>,
 
     /// Transient cell data (not serializable).
-    #[field(storage = "auto_map", category = "transient")]
+    #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
     transient_cell_data: AutoMap<CellId, SharedReference>,
 
     /// Maximum cell index per cell type.
-    #[field(storage = "auto_map", category = "data")]
+    #[field(storage = "auto_map", category = "data", shrink_on_completion)]
     cell_type_max_index: AutoMap<ValueTypeId, u32>,
 
     // =========================================================================
@@ -252,7 +285,7 @@ struct TaskStorageSchema {
     in_progress: InProgressState,
 
     /// In-progress cell state for cells being computed (transient).
-    #[field(storage = "auto_map", category = "transient")]
+    #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
     in_progress_cells: AutoMap<CellId, InProgressCellState>,
 
     #[field(storage = "direct", category = "data", inline)]
