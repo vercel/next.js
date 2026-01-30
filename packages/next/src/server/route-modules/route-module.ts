@@ -1,3 +1,4 @@
+import '../../build/adapter/setup-node-env.external'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
   InstrumentationOnRequestError,
