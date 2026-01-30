@@ -211,7 +211,7 @@ function setupServerHmr(project: Project) {
     // Process chunk paths (both initial and subsequent updates)
     for await (const data of serverHmrChunkPaths) {
       const currentChunkPaths = new Set(
-        data.chunk_paths.filter((path) => path.endsWith('.js'))
+        data.chunkPaths.filter((path) => path.endsWith('.js'))
       )
 
       // Clean up subscriptions for removed chunk paths (like when pages are deleted)

@@ -1,3 +1,5 @@
+import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 export {
   createTemporaryReferenceSet,

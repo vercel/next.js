@@ -742,18 +742,18 @@ function bindingToApi(
     }
 
     hmrEvents(
-      identifier: string,
+      chunkName: string,
       target: HmrTarget.Client
     ): AsyncIterableIterator<TurbopackResult<Update>>
     hmrEvents(
-      identifier: string,
+      chunkName: string,
       target: HmrTarget.Server
     ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-    hmrEvents(identifier: string, target: HmrTarget.Client | HmrTarget.Server) {
+    hmrEvents(chunkName: string, target: HmrTarget.Client | HmrTarget.Server) {
       return subscribe(true, async (callback) =>
         binding.projectHmrEvents(
           this._nativeProject,
-          identifier,
+          chunkName,
           target,
           callback
         )

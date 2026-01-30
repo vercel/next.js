@@ -2039,10 +2039,10 @@ impl Project {
     #[turbo_tasks::function]
     async fn client_hmr_content(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
     ) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
-            let content = map.get(self.client_relative_path().await?.join(&identifier)?);
+            let content = map.get(self.client_relative_path().await?.join(&chunk_name)?);
             Ok(content)
         } else {
             bail!("must be in dev mode to hmr")
@@ -2050,8 +2050,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn client_hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
-        let content = self.client_hmr_content(identifier).await?;
+    async fn client_hmr_version(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<Box<dyn Version>>> {
+        let content = self.client_hmr_content(chunk_name).await?;
         if let Some(content) = &*content {
             Ok(content.version())
         } else {
@@ -2064,10 +2064,10 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_hmr_version_state(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
-        let version = self.client_hmr_version(identifier);
+        let version = self.client_hmr_version(chunk_name);
 
         // The session argument is important to avoid caching this function between
         // sessions.
@@ -2088,15 +2088,15 @@ impl Project {
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group
-    /// internally known as `identifier`.
+    /// internally known as `chunk_name`.
     #[turbo_tasks::function]
     pub async fn client_hmr_update(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        let content = self.client_hmr_content(identifier).await?;
+        let content = self.client_hmr_content(chunk_name).await?;
         if let Some(content) = *content {
             Ok(content.update(from))
         } else {
@@ -2115,16 +2115,16 @@ impl Project {
         }
     }
 
-    /// Get server module content by identifier (path relative to node_root).
+    /// Get server module content by chunk_name (path relative to node_root).
     /// This is the server-side equivalent of `hmr_content`.
     #[turbo_tasks::function]
     async fn server_hmr_content(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
     ) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
             // Key difference from hmr_content: use node_root instead of client_relative_path
-            let content = map.get(self.node_root().await?.join(&identifier)?);
+            let content = map.get(self.node_root().await?.join(&chunk_name)?);
             Ok(content)
         } else {
             bail!("must be in dev mode to hmr")
@@ -2134,8 +2134,8 @@ impl Project {
     /// Get server module version.
     /// This is the server-side equivalent of `hmr_version`.
     #[turbo_tasks::function]
-    async fn server_hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
-        let content = self.server_hmr_content(identifier).await?;
+    async fn server_hmr_version(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<Box<dyn Version>>> {
+        let content = self.server_hmr_content(chunk_name).await?;
         if let Some(content) = &*content {
             Ok(content.version())
         } else {
@@ -2149,10 +2149,10 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn server_hmr_version_state(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
-        let version = self.server_hmr_version(identifier);
+        let version = self.server_hmr_version(chunk_name);
 
         // The session argument is important to avoid caching this function between
         // sessions.
@@ -2173,16 +2173,16 @@ impl Project {
     }
 
     /// Emits opaque HMR events whenever a change is detected in server-side modules
-    /// internally known as `identifier`.
+    /// internally known as `chunk_name`.
     /// This is the server-side equivalent of `hmr_update`.
     #[turbo_tasks::function]
     pub async fn server_hmr_update(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        let content = self.server_hmr_content(identifier).await?;
+        let content = self.server_hmr_content(chunk_name).await?;
         if let Some(content) = *content {
             Ok(content.update(from))
         } else {
