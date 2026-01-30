@@ -53,8 +53,8 @@ pub fn lockfile_try_acquire_sync(
             Ok(mut file) => {
                 // Write content to the lockfile if provided
                 if let Some(ref data) = content {
-                    let _ = file.write_all(data.as_bytes());
-                    let _ = file.flush();
+                    file.write_all(data.as_bytes())?;
+                    file.flush()?;
                 }
                 Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
                     LockfileInner { file },
@@ -79,10 +79,8 @@ pub fn lockfile_try_acquire_sync(
             Ok(_) => {
                 // Write content to the lockfile if provided
                 if let Some(ref data) = content {
-                    // Need to get a mutable reference
-                    let mut file_ref = &file;
-                    let _ = file_ref.write_all(data.as_bytes());
-                    let _ = file_ref.flush();
+                    (&file).write_all(data.as_bytes())?;
+                    (&file).flush()?;
                 }
                 Ok(Some(External::new(Mutex::new(ManuallyDrop::new(Some(
                     LockfileInner {

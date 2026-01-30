@@ -1,3 +1,4 @@
+import fs from 'fs'
 import nodePath from 'path'
 import { bold, cyan } from '../lib/picocolors'
 import * as Log from './output/log'
@@ -23,14 +24,13 @@ export interface DevServerInfo {
 /**
  * Reads dev server info from a lockfile.
  * Returns undefined if the file doesn't exist or can't be parsed.
+ *
+ * Uses Node's fs.readFileSync which works on both Unix (with advisory flock)
+ * and Windows (with FILE_SHARE_READ flag set by the lock holder).
  */
 export function readLockfileContent(lockfilePath: string): string | undefined {
   try {
-    const bindings = getBindingsSync()
-    if (bindings.isWasm) {
-      return undefined
-    }
-    return bindings.lockfileReadSync(lockfilePath) ?? undefined
+    return fs.readFileSync(lockfilePath, 'utf-8')
   } catch {
     return undefined
   }
@@ -209,12 +209,11 @@ export class Lockfile {
               : `kill ${serverInfo.pid}`
           console.error(`Run ${cyan(killCommand)} to stop it.`)
         } else {
+          // Fallback when we can't read server info from the lockfile
           Log.error(
-            `Another ${cyan(processName)} process is already running in this directory.`
+            `Another ${cyan(processName)} server is already running in this directory.`
           )
-          console.error(
-            `Stop the other process or delete ${cyan(path)} if no process is running.`
-          )
+          console.error(`Stop the other server before starting a new one.`)
         }
       } else {
         // For build, show that a build is in progress
@@ -224,9 +223,7 @@ export class Lockfile {
         console.error(`  - A ${cyan('next build')} still in progress`)
         console.error(`  - A previous build that didn't exit cleanly`)
         console.error()
-        Log.info(
-          `${bold('Suggestion:')} Wait for the build to complete, or delete ${cyan(path)} if no build is running.`
-        )
+        Log.info(`${bold('Suggestion:')} Wait for the build to complete.`)
       }
       process.exit(1)
     }
