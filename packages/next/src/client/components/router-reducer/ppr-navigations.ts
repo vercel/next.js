@@ -1073,6 +1073,14 @@ function createCacheNodeForSegment(
     doesSegmentNeedDynamicRequest = isCachedRscPartial
   }
 
+  if (isCachedRscPartial) {
+    // Partial prefetch payloads may include unresolved thenables that never
+    // resolve during prefetch. We must not render them as initial UI, or a
+    // Suspense boundary can remain stuck in its fallback indefinitely. Only
+    // the dynamic response should fulfill missing data.
+    prefetchRsc = null
+  }
+
   // If this is a page segment, we need to do the same for the head. This
   // follows analogous logic to the segment data above.
   // TODO: We don't need to store the head on the page segment's CacheNode; we
@@ -1082,10 +1090,10 @@ function createCacheNodeForSegment(
   let prefetchHead: HeadData | null = null
   let head: React.ReactNode | null = null
   let doesHeadNeedDynamicRequest: boolean = isPage
+  let isCachedHeadPartial: boolean = true
 
   if (isPage) {
     let cachedHead: HeadData | null = null
-    let isCachedHeadPartial: boolean = true
     if (metadataVaryPath !== null) {
       const metadataEntry = readSegmentCacheEntry(now, metadataVaryPath)
       if (metadataEntry !== null) {
@@ -1152,6 +1160,12 @@ function createCacheNodeForSegment(
       }
       doesHeadNeedDynamicRequest = isCachedHeadPartial
     }
+  }
+
+  if (isPage && isCachedHeadPartial) {
+    // Same rationale as prefetchRsc: avoid rendering partial head data that may
+    // contain unresolved thenables.
+    prefetchHead = null
   }
 
   // Now that we're creating a new segment, write its data to the BFCache. A
