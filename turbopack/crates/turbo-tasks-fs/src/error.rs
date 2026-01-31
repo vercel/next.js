@@ -8,10 +8,9 @@ use std::{
 };
 
 use bincode::{Decode, Encode};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ReadRef, trace::TraceRawVcs};
 
-use crate::FileSystemPath;
+use crate::{FileSystemPath, LinkContent};
 
 pub type FsResult<T, E = FsError> = Result<T, E>;
 
@@ -36,7 +35,7 @@ impl FsError {
             #[cfg(windows)]
             (
                 FsErrorOperation::Link {
-                    link_type: FsErrorLinkType::Symbolic,
+                    creation_method: LinkCreationMethod::Symbolic,
                     ..
                 },
                 FsErrorSource::Io(err),
@@ -47,7 +46,7 @@ impl FsError {
             #[cfg(windows)]
             (
                 FsErrorOperation::Link {
-                    link_type: FsErrorLinkType::Junction,
+                    creation_method: LinkCreationMethod::Junction,
                     ..
                 },
                 FsErrorSource::Io(err),
@@ -92,8 +91,8 @@ impl Display for FsError {
 pub enum FsErrorOperation {
     Write,
     Link {
-        link_type: FsErrorLinkType,
-        target: RcStr,
+        creation_method: LinkCreationMethod,
+        content: ReadRef<LinkContent>,
     },
 }
 
@@ -101,26 +100,40 @@ impl Display for FsErrorOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Write => write!(f, "write to file"),
-            Self::Link { link_type, target } => {
-                write!(f, "create a {link_type} pointing to {target}")
-            }
+            Self::Link {
+                creation_method,
+                content,
+            } => match &**content {
+                LinkContent::Link { target, .. } => {
+                    write!(f, "create a {creation_method} pointing to {target}")
+                }
+                LinkContent::Invalid => {
+                    write!(f, "create a {creation_method} (invalid target)")
+                }
+                LinkContent::NotFound => {
+                    write!(f, "remove a {creation_method}")
+                }
+            },
         }
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, TraceRawVcs, NonLocalValue, Encode, Decode)]
-pub enum FsErrorLinkType {
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum LinkCreationMethod {
     Symbolic,
     #[cfg(windows)]
     Junction,
+    /// The creation method could not be determined.
+    Unknown,
 }
 
-impl Display for FsErrorLinkType {
+impl Display for LinkCreationMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Symbolic => write!(f, "symbolic link"),
             #[cfg(windows)]
             Self::Junction => write!(f, "junction point"),
+            Self::Unknown => write!(f, "link"),
         }
     }
 }
@@ -144,7 +157,7 @@ pub enum FsErrorSource {
     PathTooLong {
         max_length: usize,
     },
-    /// A catch-all for other errors that don't fit into the other categories
+    /// A catch-all for other errors that haven't been migrated to use structured errors yet.
     Anyhow(#[bincode(with = "bincode_anyhow_error")] anyhow::Error),
 }
 

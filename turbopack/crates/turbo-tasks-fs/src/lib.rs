@@ -78,7 +78,7 @@ use turbo_unix_path::{
 
 use crate::{
     attach::AttachedFileSystem,
-    error::{FsError, FsErrorLinkType, FsErrorOperation, FsErrorSource},
+    error::{FsError, FsErrorOperation, FsErrorSource, LinkCreationMethod},
     glob::Glob,
     invalidation::Write,
     invalidator_map::{InvalidatorMap, WriteContent},
@@ -1143,34 +1143,21 @@ impl FileSystem for DiskFileSystem {
             type Error = FsError;
 
             async fn apply(&self) -> Result<(), Self::Error> {
-                // Helper to construct link errors. The link_type and target are determined
-                // based on the content when needed.
+                // Helper to construct link errors
                 let make_link_err =
-                    |source: FsErrorSource, link_type: FsErrorLinkType, target: RcStr| -> FsError {
+                    |source: FsErrorSource, creation_method: LinkCreationMethod| -> FsError {
                         FsError {
-                            operation: FsErrorOperation::Link { link_type, target },
+                            operation: FsErrorOperation::Link {
+                                creation_method,
+                                content: self.content.clone(),
+                            },
                             path: self.fs_path.clone(),
                             source,
                         }
                     };
 
-                // For errors that occur before we know the link type/target, use a default
-                let make_early_err = |source: FsErrorSource| -> FsError {
-                    // Use Symbolic as default for early errors (before we know the actual type)
-                    FsError {
-                        operation: FsErrorOperation::Link {
-                            link_type: FsErrorLinkType::Symbolic,
-                            target: match &*self.content {
-                                LinkContent::Link { target, .. } => target.clone(),
-                                _ => RcStr::default(),
-                            },
-                        },
-                        path: self.fs_path.clone(),
-                        source,
-                    }
-                };
-
-                let full_path = validate_path_length(&self.full_path).map_err(&make_early_err)?;
+                let full_path = validate_path_length(&self.full_path)
+                    .map_err(|source| make_link_err(source, LinkCreationMethod::Unknown))?;
 
                 let _lock = self.inner.lock_path(&full_path).await;
 
@@ -1184,7 +1171,9 @@ impl FileSystem for DiskFileSystem {
                         )
                     })
                     .transpose()
-                    .map_err(|err| make_early_err(FsErrorSource::Anyhow(err)))?
+                    .map_err(|err| {
+                        make_link_err(FsErrorSource::Anyhow(err), LinkCreationMethod::Unknown)
+                    })?
                     .unwrap_or_default();
 
                 enum OsSpecificLinkContent {
@@ -1192,7 +1181,6 @@ impl FileSystem for DiskFileSystem {
                         #[cfg(windows)]
                         is_directory: bool,
                         target: PathBuf,
-                        target_str: RcStr,
                     },
                     NotFound,
                     Invalid,
@@ -1219,7 +1207,6 @@ impl FileSystem for DiskFileSystem {
                             #[cfg(windows)]
                             is_directory,
                             target: target_path,
-                            target_str: target.clone(),
                         }
                     }
                     LinkContent::Invalid => OsSpecificLinkContent::Invalid,
@@ -1258,31 +1245,26 @@ impl FileSystem for DiskFileSystem {
                 match os_specific_link_content {
                     OsSpecificLinkContent::Link {
                         target,
-                        target_str,
                         #[cfg(windows)]
                         is_directory,
                         ..
                     } => {
                         let full_path = full_path.into_owned();
 
-                        // Determine the link type for error reporting
+                        // Determine the creation method for error reporting
                         #[cfg(not(windows))]
-                        let link_type = FsErrorLinkType::Symbolic;
+                        let creation_method = LinkCreationMethod::Symbolic;
                         #[cfg(windows)]
-                        let link_type = if is_directory {
-                            FsErrorLinkType::Junction
+                        let creation_method = if is_directory {
+                            LinkCreationMethod::Junction
                         } else {
-                            FsErrorLinkType::Symbolic
+                            LinkCreationMethod::Symbolic
                         };
 
                         let create_directory = old_content.is_none();
                         if create_directory && let Some(parent) = full_path.parent() {
                             self.inner.create_directory(parent).await.map_err(|err| {
-                                make_link_err(
-                                    FsErrorSource::Io(err),
-                                    link_type.clone(),
-                                    target_str.clone(),
-                                )
+                                make_link_err(FsErrorSource::Io(err), creation_method)
                             })?;
                         }
 
@@ -1341,21 +1323,14 @@ impl FileSystem for DiskFileSystem {
                             .concurrency_limited(&self.inner.write_semaphore)
                             .await
                             .map_err(|err| {
-                                make_link_err(FsErrorSource::Io(err.source), link_type, target_str)
+                                make_link_err(FsErrorSource::Io(err.source), creation_method)
                             })?;
                     }
                     OsSpecificLinkContent::Invalid => {
-                        return Err(FsError {
-                            operation: FsErrorOperation::Link {
-                                link_type: FsErrorLinkType::Symbolic,
-                                target: match &*self.content {
-                                    LinkContent::Link { target, .. } => target.clone(),
-                                    _ => RcStr::default(),
-                                },
-                            },
-                            path: self.fs_path.clone(),
-                            source: FsErrorSource::InvalidLinkTarget,
-                        });
+                        return Err(make_link_err(
+                            FsErrorSource::InvalidLinkTarget,
+                            LinkCreationMethod::Unknown,
+                        ));
                     }
                     OsSpecificLinkContent::NotFound => {
                         retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
@@ -1363,12 +1338,7 @@ impl FileSystem for DiskFileSystem {
                             .concurrency_limited(&self.inner.write_semaphore)
                             .await
                             .map_err(|err| {
-                                // For NotFound removal, use Symbolic as the link type
-                                make_link_err(
-                                    FsErrorSource::Io(err),
-                                    FsErrorLinkType::Symbolic,
-                                    RcStr::default(),
-                                )
+                                make_link_err(FsErrorSource::Io(err), LinkCreationMethod::Unknown)
                             })?;
                     }
                 }
