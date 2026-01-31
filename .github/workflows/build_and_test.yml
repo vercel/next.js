@@ -2,9 +2,10 @@ name: build-and-test
 
 on:
   push:
-    branches: ['canary']
+    branches: ['canary', 'debug-devlow-bench-timeout']
   pull_request:
     types: [opened, synchronize]
+  workflow_dispatch:
 
 concurrency:
   # Limit concurrent runs to 1 per PR,
