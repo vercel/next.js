@@ -7190,14 +7190,15 @@
   },
   "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts": {
     "passed": [
-      "segment cache (revalidation) call router.prefetch(..., {onInvalidate}) after cache is revalidated",
       "segment cache (revalidation) delay re-prefetch after revalidation to allow CDN propagation",
       "segment cache (revalidation) evict client cache when Server Action calls revalidatePath",
       "segment cache (revalidation) evict client cache when Server Action calls revalidateTag",
       "segment cache (revalidation) re-fetch visible links after a navigation, if needed",
       "segment cache (revalidation) refetch visible Form components after cache is revalidated"
     ],
-    "failed": [],
+    "failed": [
+      "segment cache (revalidation) call router.prefetch(..., {onInvalidate}) after cache is revalidated"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7238,11 +7239,18 @@
   },
   "test/e2e/app-dir/segment-cache/vary-params/vary-params.test.ts": {
     "passed": [
-      "segment cache - vary params reuses prefetched segment when layout is marked with 'use client'",
-      "segment cache - vary params reuses prefetched segment when there is no user-provided layout"
+      "segment cache - vary params caches head segment when generateMetadata does not access params",
+      "segment cache - vary params does not reuse prefetched segment when page accesses searchParams",
+      "segment cache - vary params renders cached loading state instantly during navigation",
+      "segment cache - vary params reuses page segment when layout varies but page does not",
+      "segment cache - vary params reuses prefetched segment when page does not access searchParams",
+      "segment cache - vary params tracks param access in generateMetadata",
+      "segment cache - vary params tracks root param access via rootParams API"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "segment cache - vary params renders cached loading state instantly with runtime prefetching"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -7550,6 +7558,17 @@
       "transition-indicator displays during any Transition that does not commit a pending state",
       "transition-indicator displays while loading content without fallback",
       "transition-indicator does not display while loading content with fallback"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/turbopack-loader-content-type/turbopack-loader-content-type.test.ts": {
+    "passed": [
+      "turbopack-loader-content-type should apply loader based on contentType for text/javascript",
+      "turbopack-loader-content-type should apply loader based on contentType glob pattern",
+      "turbopack-loader-content-type should apply loader based on contentType regex"
     ],
     "failed": [],
     "pending": [],
@@ -7940,6 +7959,17 @@
     "passed": ["webpack-loader-fs should allow reading the input FS"],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-module-type/webpack-loader-module-type.test.ts": {
+    "passed": [
+      "webpack-loader-module-type should load svg as asset/resource and return URL"
+    ],
+    "failed": [],
+    "pending": [
+      "webpack-loader-module-type should load data file as bytes and return Uint8Array"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -20186,7 +20216,6 @@
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
-      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
@@ -20199,7 +20228,9 @@
       "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
-    "failed": [],
+    "failed": [
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
