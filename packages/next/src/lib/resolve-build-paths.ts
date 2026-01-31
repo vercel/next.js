@@ -65,31 +65,30 @@ export async function resolveBuildPaths(
       ? includePatterns[0]
       : `{${includePatterns.join(',')}}`
 
+  let matches: string[]
   try {
-    const matches = (await glob(combinedPattern, {
+    matches = (await glob(combinedPattern, {
       cwd: projectDir,
       ignore: excludePatterns,
     })) as string[]
-
-    if (matches.length === 0) {
-      throw new Error(`Pattern "${patterns.join(',')}" did not match any files`)
-    } else {
-      Log.info(
-        `Pattern "${patterns.join(',')}" did match ${matches.length} files`
-      )
-    }
-
-    for (const file of matches) {
-      if (!fs.statSync(path.join(projectDir, file)).isDirectory()) {
-        categorizeAndAddPath(file, appPaths, pagePaths)
-      }
-    }
   } catch (error) {
     throw new Error(
       `Failed to resolve pattern "${patterns.join(',')}": ${
         isError(error) ? error.message : String(error)
       }`
     )
+  }
+
+  if (matches.length === 0) {
+    throw new Error(`Pattern "${patterns.join(',')}" did not match any files`)
+  }
+
+  Log.info(`Pattern "${patterns.join(',')}" did match ${matches.length} files`)
+
+  for (const file of matches) {
+    if (!fs.statSync(path.join(projectDir, file)).isDirectory()) {
+      categorizeAndAddPath(file, appPaths, pagePaths)
+    }
   }
 
   return {

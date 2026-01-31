@@ -159,8 +159,8 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('○ /about')
         expect(buildResult.cliOutput).toContain('○ /dashboard')
         expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        // Should not build routes not specified (check route format, not just substring)
-        expect(buildResult.cliOutput).not.toMatch(/[○ƒ] \/with-type-error/)
+        // Should not build routes not specified
+        expect(buildResult.cliOutput).not.toContain('/with-type-error')
         // Should not build pages routes
         expect(buildResult.cliOutput).not.toContain('Route (pages)')
       })
@@ -179,7 +179,6 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('○ /about')
         expect(buildResult.cliOutput).toContain('○ /dashboard')
         expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        // Check that the route is not in the build output (not just anywhere in the log)
         expect(buildResult.cliOutput).not.toMatch(/[○ƒ] \/with-type-error/)
       })
 
@@ -194,7 +193,6 @@ describe('debug-build-paths', () => {
 
         expect(buildResult.cliOutput).toContain('Route (app)')
         expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        // Check that the route is not in the build output (not just anywhere in the log)
         expect(buildResult.cliOutput).not.toMatch(
           /[○ƒ] \/blog\/\[slug\]\/comments/
         )
@@ -212,7 +210,6 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('Route (app)')
         expect(buildResult.cliOutput).toContain('○ /')
         expect(buildResult.cliOutput).toContain('○ /about')
-        // Check that routes are not in the build output (not just anywhere in the log)
         expect(buildResult.cliOutput).not.toMatch(/[○ƒ] \/with-type-error/)
         expect(buildResult.cliOutput).not.toContain('○ /dashboard')
       })
@@ -228,7 +225,6 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('○ /')
         expect(buildResult.cliOutput).toContain('○ /about')
         expect(buildResult.cliOutput).toContain('○ /foo')
-        // Check that the route is not in the build output (not just anywhere in the log)
         expect(buildResult.cliOutput).not.toMatch(/[○ƒ] \/with-type-error/)
       })
 
