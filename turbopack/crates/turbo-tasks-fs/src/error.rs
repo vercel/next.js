@@ -15,7 +15,7 @@ use crate::{FileSystemPath, LinkContent};
 pub type FsResult<T, E = FsError> = Result<T, E>;
 
 #[cfg(windows)]
-const ERROR_INVALID_FUNCTION: u32 = 1;
+const ERROR_INVALID_FUNCTION: i32 = 1;
 
 #[turbo_tasks::value]
 #[derive(Debug)]
@@ -145,9 +145,6 @@ pub enum FsErrorSource {
         #[turbo_tasks(trace_ignore)]
         io::Error,
     ),
-    /// During reads, a denied path is treated as non-existent, but during writes, we generate an
-    /// error.
-    DeniedPath,
     InvalidLinkTarget,
     /// Path segment exceeds the maximum length (typically 255 bytes on Unix)
     PathSegmentTooLong {
@@ -177,7 +174,6 @@ impl Display for FsErrorSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FsErrorSource::Io(err) => err.fmt(f),
-            FsErrorSource::DeniedPath => write!(f, "access to this path is restricted"),
             FsErrorSource::InvalidLinkTarget => write!(f, "link target is invalid"),
             FsErrorSource::PathSegmentTooLong { max_length } => {
                 write!(f, "path segment is too long (exceeds {max_length} bytes)")
