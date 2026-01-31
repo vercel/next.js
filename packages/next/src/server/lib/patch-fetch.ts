@@ -38,7 +38,7 @@ type Fetcher = typeof fetch
 type PatchedFetcher = Fetcher & {
   readonly __nextPatched: true
   readonly __nextGetStaticStore: () => WorkAsyncStorage
-  // readonly _nextOriginalFetch: Fetcher
+  readonly _nextOriginalFetch: Fetcher
 }
 
 export const NEXT_PATCH_SYMBOL = Symbol.for('next-patch')
@@ -1265,7 +1265,7 @@ export function createPatchedFetcher(
   // patched.
   patched.__nextPatched = true as const
   patched.__nextGetStaticStore = () => workAsyncStorage
-  // patched._nextOriginalFetch = originFetch
+  patched._nextOriginalFetch = originFetch
   ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = true
 
   // Assign the function name also as a name property, so that it's preserved
