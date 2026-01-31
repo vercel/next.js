@@ -76,7 +76,9 @@ const nextBuildWorkflow =
       })
 
       // startup browser
+      console.log('[DEBUG] Creating browser session...')
       let session = await newBrowserSession({})
+      console.log('[DEBUG] Browser session created')
       const closeSession = async () => {
         if (session) {
           await session.close()
@@ -90,6 +92,10 @@ const nextBuildWorkflow =
 
       // run command to start dev server
       const startArgs = [turbopack ? 'start-turbopack' : 'start-webpack']
+      console.log(
+        '[DEBUG] Starting server with command: pnpm',
+        startArgs.join(' ')
+      )
       let shell = command('pnpm', startArgs, {
         cwd: benchmarkDir,
         env: serverEnv,
@@ -103,12 +109,32 @@ const nextBuildWorkflow =
       cleanupTasks.push(killShell)
 
       // wait for server to be ready
+      console.log('[DEBUG] Waiting for URL output matching:', URL_REGEXP)
+      const startWaitTime = Date.now()
+      const urlPromise = shell.waitForOutput(URL_REGEXP)
+
+      // Add a timeout warning
+      const timeoutWarning = setTimeout(() => {
+        console.log('[DEBUG] Still waiting for URL output after 60s...')
+        console.log('[DEBUG] Current shell output:', shell.output)
+      }, 60000)
+
       const {
         groups: { url },
-      } = await shell.waitForOutput(URL_REGEXP)
+      } = await urlPromise
+      clearTimeout(timeoutWarning)
+      console.log(`[DEBUG] Got URL after ${Date.now() - startWaitTime}ms:`, url)
 
       // wait for server to be ready
+      console.log(
+        '[DEBUG] Waiting for ready message matching:',
+        START_SERVER_REGEXP
+      )
+      const readyWaitTime = Date.now()
       await shell.waitForOutput(START_SERVER_REGEXP)
+      console.log(
+        `[DEBUG] Got ready message after ${Date.now() - readyWaitTime}ms`
+      )
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },

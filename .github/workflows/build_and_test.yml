@@ -205,20 +205,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Only test the failing combination for debugging
         mode:
           - '--turbopack=false'
-          - '--turbopack=true'
         selector:
-          - '--scenario=heavy-npm-deps-dev --page=homepage'
           - '--scenario=heavy-npm-deps-build --page=homepage'
-          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
     uses: ./.github/workflows/build_reusable.yml
     with:
+      timeout_minutes: 10
       afterBuild: |
-        ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
+        echo "=== Debug: Starting devlow-bench at $(date) ==="
+        echo "=== Debug: Environment info ==="
+        echo "Node version: $(node --version)"
+        echo "PWD: $(pwd)"
+        echo "Free memory: $(free -h || echo 'free command not available')"
+        echo "Disk space: $(df -h . || echo 'df command not available')"
+
+        # Run with timeout to prevent indefinite hang
+        timeout 480 ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
           --datadog=ubuntu-latest-16-core \
           ${{ matrix.mode }} \
-          ${{ matrix.selector }}
+          ${{ matrix.selector }} || {
+          exit_code=$?
+          echo "=== Debug: devlow-bench exited with code $exit_code at $(date) ==="
+          if [ $exit_code -eq 124 ]; then
+            echo "=== Debug: TIMEOUT after 8 minutes ==="
+          fi
+          exit $exit_code
+        }
+
+        echo "=== Debug: devlow-bench completed successfully at $(date) ==="
       stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
     secrets: inherit
 
