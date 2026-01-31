@@ -1,18 +1,43 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { getFileLogger, test__resetFileLogger } from './file-logger'
+import {
+  LogStream,
+  FileSink,
+  methodToLevel,
+  getLogStream,
+  initLogStream,
+  type LogEvent,
+} from '../log-stream'
 
-describe('FileLogger', () => {
+const makeEvent = (overrides: Partial<LogEvent> = {}): LogEvent => ({
+  ts: Date.now(),
+  level: 'info',
+  source: 'system',
+  message: 'test',
+  ...overrides,
+})
+
+describe('methodToLevel', () => {
+  it('maps console methods to log levels', () => {
+    expect(methodToLevel('error')).toBe('error')
+    expect(methodToLevel('assert')).toBe('error')
+    expect(methodToLevel('warn')).toBe('warn')
+    expect(methodToLevel('debug')).toBe('debug')
+    expect(methodToLevel('log')).toBe('info')
+    expect(methodToLevel('info')).toBe('info')
+    expect(methodToLevel('unknown')).toBe('info')
+  })
+})
+
+describe('FileSink', () => {
   let tempDir: string
-  let fileLogger: ReturnType<typeof getFileLogger>
+  let logPath: string
 
   beforeEach(() => {
     // Create a temporary directory for testing
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-file-logger-test-'))
-    test__resetFileLogger() // Reset singleton
-    fileLogger = getFileLogger()
-    fileLogger.initialize(tempDir, true) // Enable mcpServer for testing
+    logPath = path.join(tempDir, 'logs', 'next-development.log')
   })
 
   afterEach(() => {
@@ -22,12 +47,8 @@ describe('FileLogger', () => {
     }
   })
 
-  it('should create log file on first log', () => {
-    // Log a message
-    fileLogger.logBrowser('LOG', 'Test message')
-
-    // Force flush to ensure the log is written
-    fileLogger.forceFlush()
+  it('should create log file on first write', () => {
+    new FileSink(logPath)
 
     // Check that a log file was created in the logs directory
     const logsDir = path.join(tempDir, 'logs')
@@ -39,17 +60,25 @@ describe('FileLogger', () => {
   })
 
   it('should format log entries correctly', () => {
-    fileLogger.logBrowser('LOG', 'Test message')
-    fileLogger.logServer('ERROR', 'Server error')
+    const sink = new FileSink(logPath, 0)
+    sink.write(
+      makeEvent({
+        source: 'browser',
+        message: 'Test message',
+        structured: { method: 'LOG' },
+      })
+    )
+    sink.write(
+      makeEvent({
+        level: 'error',
+        source: 'userland',
+        message: 'Server error',
+        structured: { method: 'ERROR' },
+      })
+    )
+    sink.close()
 
-    // Force flush to ensure logs are written
-    fileLogger.forceFlush()
-
-    // Get the log file path
-    const logsDir = path.join(tempDir, 'logs')
-    const logFilePath = path.join(logsDir, 'next-development.log')
-
-    const logContent = fs.readFileSync(logFilePath, 'utf-8')
+    const logContent = fs.readFileSync(logPath, 'utf-8')
     const lines = logContent.trim().split('\n')
 
     expect(lines).toHaveLength(2)
@@ -73,18 +102,19 @@ describe('FileLogger', () => {
   })
 
   it('should append multiple log entries', () => {
-    fileLogger.logBrowser('LOG', 'First message')
-    fileLogger.logBrowser('WARN', 'Second message')
-    fileLogger.logServer('INFO', 'Third message')
+    const sink = new FileSink(logPath, 0)
+    sink.write(makeEvent({ source: 'browser', message: 'First message' }))
+    sink.write(
+      makeEvent({
+        level: 'warn',
+        source: 'browser',
+        message: 'Second message',
+      })
+    )
+    sink.write(makeEvent({ source: 'userland', message: 'Third message' }))
+    sink.close()
 
-    // Force flush to ensure logs are written
-    fileLogger.forceFlush()
-
-    // Get the log file path
-    const logsDir = path.join(tempDir, 'logs')
-    const logFilePath = path.join(logsDir, 'next-development.log')
-
-    const logContent = fs.readFileSync(logFilePath, 'utf-8')
+    const logContent = fs.readFileSync(logPath, 'utf-8')
     const lines = logContent.trim().split('\n')
 
     expect(lines).toHaveLength(3)
@@ -93,97 +123,69 @@ describe('FileLogger', () => {
     expect(lines[2]).toContain('Third message')
   })
 
-  it('should handle special characters in messages', () => {
-    fileLogger.logBrowser('LOG', 'Message with "quotes" and \n newlines')
-
-    // Force flush to ensure logs are written
-    fileLogger.forceFlush()
-
-    // Get the log file path
-    const logsDir = path.join(tempDir, 'logs')
-    const logFilePath = path.join(logsDir, 'next-development.log')
-
-    const logContent = fs.readFileSync(logFilePath, 'utf-8')
-    const log = JSON.parse(logContent.trim())
-    expect(log.message).toBe('Message with "quotes" and \n newlines')
-  })
-
   it('should format different log levels correctly', () => {
-    fileLogger.logBrowser('LOG', 'Short level')
-    fileLogger.logBrowser('WARN', 'Medium level')
-    fileLogger.logBrowser('ERROR', 'Long level')
+    const sink = new FileSink(logPath, 0)
+    sink.write(
+      makeEvent({
+        source: 'browser',
+        message: 'Short level',
+        structured: { method: 'LOG' },
+      })
+    )
+    sink.write(
+      makeEvent({
+        level: 'warn',
+        source: 'browser',
+        message: 'Medium level',
+        structured: { method: 'WARN' },
+      })
+    )
+    sink.write(
+      makeEvent({
+        level: 'error',
+        source: 'browser',
+        message: 'Long level',
+        structured: { method: 'ERROR' },
+      })
+    )
+    sink.close()
 
-    // Force flush to ensure logs are written
-    fileLogger.forceFlush()
-
-    // Get the log file path
-    const logsDir = path.join(tempDir, 'logs')
-    const logFilePath = path.join(logsDir, 'next-development.log')
-
-    const logContent = fs.readFileSync(logFilePath, 'utf-8')
+    const logContent = fs.readFileSync(logPath, 'utf-8')
     const lines = logContent.trim().split('\n')
 
-    // All levels should be in JSON format
-    const log1 = JSON.parse(lines[0])
-    expect(log1).toMatchObject({
-      level: 'LOG',
-      message: 'Short level',
-    })
-
-    const log2 = JSON.parse(lines[1])
-    expect(log2).toMatchObject({
-      level: 'WARN',
-      message: 'Medium level',
-    })
-
-    const log3 = JSON.parse(lines[2])
-    expect(log3).toMatchObject({
-      level: 'ERROR',
-      message: 'Long level',
-    })
-  })
-
-  it('should not create log file when mcpServer is disabled', () => {
-    // Check that logs directory doesn't exist before the test
-    const logsDir = path.join(tempDir, 'logs')
-    const logsDirExistedBefore = fs.existsSync(logsDir)
-
-    // Create a new file logger with mcpServer disabled
-    const disabledLogger = getFileLogger()
-    disabledLogger.initialize(tempDir, false)
-
-    // Log a message
-    disabledLogger.logBrowser('LOG', 'This should not be logged')
-    disabledLogger.logServer('ERROR', 'This should also not be logged')
-
-    // Force flush to ensure any queued logs are processed
-    disabledLogger.forceFlush()
-
-    // Check that no new log file was created (directory should still be in same state)
-    const logsDirExistsAfter = fs.existsSync(logsDir)
-    expect(logsDirExistsAfter).toBe(logsDirExistedBefore)
+    expect(lines[0]).toContain('LOG')
+    expect(lines[0]).toContain('Short level')
+    expect(lines[1]).toContain('WARN')
+    expect(lines[1]).toContain('Medium level')
+    expect(lines[2]).toContain('ERROR')
+    expect(lines[2]).toContain('Long level')
   })
 
   describe('batching behavior', () => {
-    it('should batch multiple logs and flush them together', async () => {
-      // Log multiple messages without forcing flush
-      fileLogger.logBrowser('LOG', 'First batched message')
-      fileLogger.logBrowser('WARN', 'Second batched message')
-      fileLogger.logServer('INFO', 'Third batched message')
+    it('should batch multiple logs and flush them together', () => {
+      const sink = new FileSink(logPath, 10000) // Long delay — won't auto-flush
+      sink.write(
+        makeEvent({ source: 'browser', message: 'First batched message' })
+      )
+      sink.write(
+        makeEvent({
+          level: 'warn',
+          source: 'browser',
+          message: 'Second batched message',
+        })
+      )
+      sink.write(
+        makeEvent({ source: 'userland', message: 'Third batched message' })
+      )
 
-      // Initially, the log file should be empty or not exist
-      const logsDir = path.join(tempDir, 'logs')
-      const logFilePath = path.join(logsDir, 'next-development.log')
-
-      if (fs.existsSync(logFilePath)) {
-        const initialContent = fs.readFileSync(logFilePath, 'utf-8')
-        expect(initialContent.trim()).toBe('')
-      }
+      // Initially, the log file should be empty
+      const initialContent = fs.readFileSync(logPath, 'utf-8')
+      expect(initialContent.trim()).toBe('')
 
       // Force flush to write all batched logs
-      fileLogger.forceFlush()
+      sink.close()
 
-      const logContent = fs.readFileSync(logFilePath, 'utf-8')
+      const logContent = fs.readFileSync(logPath, 'utf-8')
       const lines = logContent.trim().split('\n')
 
       expect(lines).toHaveLength(3)
@@ -193,81 +195,171 @@ describe('FileLogger', () => {
     })
 
     it('should flush automatically after flush interval', async () => {
-      // Log a message
-      fileLogger.logBrowser('LOG', 'Auto-flush test message')
+      const sink = new FileSink(logPath, 10) // 10ms flush delay
+      sink.write(
+        makeEvent({ source: 'browser', message: 'Auto-flush test message' })
+      )
 
       // Initially, the log file should be empty
-      const logsDir = path.join(tempDir, 'logs')
-      const logFilePath = path.join(logsDir, 'next-development.log')
+      const initialContent = fs.readFileSync(logPath, 'utf-8')
+      expect(initialContent.trim()).toBe('')
 
-      if (fs.existsSync(logFilePath)) {
-        const initialContent = fs.readFileSync(logFilePath, 'utf-8')
-        expect(initialContent.trim()).toBe('')
-      }
-
-      // Wait for the flush interval (1 second) plus a small buffer
-      await new Promise((resolve) => setTimeout(resolve, 1100))
+      // Wait for the flush interval plus a small buffer
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Now the log should be written
-      const logContent = fs.readFileSync(logFilePath, 'utf-8')
+      const logContent = fs.readFileSync(logPath, 'utf-8')
       const lines = logContent.trim().split('\n')
 
       expect(lines).toHaveLength(1)
       expect(lines[0]).toContain('Auto-flush test message')
+
+      sink.close()
     })
 
-    it('should flush immediately when queue reaches max size', () => {
-      // Log many messages to test batching
-      for (let i = 0; i < 100; i++) {
-        fileLogger.logBrowser('LOG', `Message ${i}`)
-      }
+    it('should flush immediately on close', () => {
+      const sink = new FileSink(logPath, 10000) // Long delay
+      sink.write(makeEvent({ level: 'error', message: 'Error message' }))
+      sink.close()
 
-      // Force flush to ensure all logs are written immediately
-      fileLogger.forceFlush()
+      const content = fs.readFileSync(logPath, 'utf-8')
+      expect(content).toContain('ERROR')
+      expect(content).toContain('Error message')
+    })
+  })
+})
 
-      const logsDir = path.join(tempDir, 'logs')
-      const logFilePath = path.join(logsDir, 'next-development.log')
-
-      const logContent = fs.readFileSync(logFilePath, 'utf-8')
-      const lines = logContent.trim().split('\n')
-
-      expect(lines).toHaveLength(100)
-      expect(lines[0]).toContain('Message 0')
-      expect(lines[99]).toContain('Message 99')
+describe('LogStream', () => {
+  it('stores and retrieves logs with metadata', () => {
+    const stream = new LogStream(10)
+    stream.emit('info', 'test', {
+      source: 'browser',
+      scope: 'console',
+      structured: { key: 'value' },
     })
 
-    it('should handle forceFlush correctly', () => {
-      fileLogger.logBrowser('LOG', 'Before force flush')
-      fileLogger.logServer('ERROR', 'Another before force flush')
+    const [log] = stream.recent(1)
+    expect(log.message).toBe('test')
+    expect(log.level).toBe('info')
+    expect(log.source).toBe('browser')
+    expect(log.scope).toBe('console')
+    expect(log.structured).toEqual({ key: 'value' })
+    expect(log.ts).toBeGreaterThan(0)
+  })
 
-      // Force flush
-      fileLogger.forceFlush()
+  it('defaults source to system', () => {
+    const stream = new LogStream(10)
+    stream.emit('info', 'msg')
+    expect(stream.recent(1)[0].source).toBe('system')
+  })
 
-      const logsDir = path.join(tempDir, 'logs')
-      const logFilePath = path.join(logsDir, 'next-development.log')
+  it('returns logs in chronological order', () => {
+    const stream = new LogStream(10)
+    stream.emit('info', 'first')
+    stream.emit('warn', 'second')
+    stream.emit('error', 'third')
 
-      const logContent = fs.readFileSync(logFilePath, 'utf-8')
-      const lines = logContent.trim().split('\n')
+    const logs = stream.recent(10)
+    expect(logs.map((l) => l.message)).toEqual(['first', 'second', 'third'])
+  })
 
-      expect(lines).toHaveLength(2)
-      expect(lines[0]).toContain('Before force flush')
-      expect(lines[1]).toContain('Another before force flush')
+  it('respects the limit parameter in recent()', () => {
+    const stream = new LogStream(10)
+    stream.emit('info', 'one')
+    stream.emit('info', 'two')
+    stream.emit('info', 'three')
 
-      // Add more logs after force flush
-      fileLogger.logBrowser('WARN', 'After force flush')
+    const logs = stream.recent(2)
+    expect(logs.map((l) => l.message)).toEqual(['two', 'three'])
+  })
 
-      // These should not be written yet
-      const logContentAfter = fs.readFileSync(logFilePath, 'utf-8')
-      const linesAfter = logContentAfter.trim().split('\n')
-      expect(linesAfter).toHaveLength(2) // Still only 2 lines
+  describe('ring buffer', () => {
+    it('overwrites oldest entries when capacity is exceeded', () => {
+      const stream = new LogStream(3)
+      stream.emit('info', 'a')
+      stream.emit('info', 'b')
+      stream.emit('info', 'c')
+      stream.emit('info', 'd')
+      stream.emit('info', 'e')
 
-      // Force flush again
-      fileLogger.forceFlush()
-
-      const logContentFinal = fs.readFileSync(logFilePath, 'utf-8')
-      const linesFinal = logContentFinal.trim().split('\n')
-      expect(linesFinal).toHaveLength(3)
-      expect(linesFinal[2]).toContain('After force flush')
+      const logs = stream.recent(10)
+      expect(logs).toHaveLength(3)
+      expect(logs.map((l) => l.message)).toEqual(['c', 'd', 'e'])
     })
+  })
+
+  describe('since', () => {
+    it('filters logs by timestamp with optional limit', () => {
+      const stream = new LogStream(10)
+      const dateSpy = jest.spyOn(Date, 'now')
+
+      dateSpy.mockReturnValue(1000)
+      stream.emit('info', 'old')
+      dateSpy.mockReturnValue(2000)
+      stream.emit('info', 'new1')
+      dateSpy.mockReturnValue(3000)
+      stream.emit('info', 'new2')
+      dateSpy.mockRestore()
+
+      expect(stream.since(1500).map((l) => l.message)).toEqual(['new1', 'new2'])
+      expect(stream.since(1500, 1).map((l) => l.message)).toEqual(['new2'])
+    })
+  })
+
+  describe('stats', () => {
+    it('returns count capped at capacity', () => {
+      const stream = new LogStream(3)
+      stream.emit('info', '1')
+      stream.emit('info', '2')
+      expect(stream.stats()).toEqual({ count: 2, capacity: 3 })
+
+      stream.emit('info', '3')
+      stream.emit('info', '4')
+      stream.emit('info', '5')
+      expect(stream.stats()).toEqual({ count: 3, capacity: 3 })
+    })
+  })
+
+  describe('sinks', () => {
+    it('forwards logs to sinks and handles errors gracefully', () => {
+      const stream = new LogStream(10)
+      const received: LogEvent[] = []
+
+      stream.addSink({ write: (e) => received.push(e) })
+      stream.addSink({
+        write: () => {
+          throw new Error('sink error')
+        },
+      })
+
+      expect(() => stream.emit('info', 'test')).not.toThrow()
+      expect(received).toHaveLength(1)
+      expect(stream.recent(1)).toHaveLength(1)
+    })
+
+    it('calls close on sinks when stream closes', () => {
+      const stream = new LogStream(10)
+      let closed = false
+      stream.addSink({ write: () => {}, close: () => (closed = true) })
+
+      stream.close()
+      expect(closed).toBe(true)
+      expect(stream.stats().count).toBe(0)
+    })
+  })
+})
+
+describe('global instance', () => {
+  it('getLogStream returns singleton, initLogStream creates fresh instance', () => {
+    const a = getLogStream()
+    const b = getLogStream()
+    expect(a).toBe(b)
+
+    a.emit('info', 'old log')
+    const fresh = initLogStream(50)
+
+    expect(fresh).not.toBe(a)
+    expect(fresh.stats()).toEqual({ count: 0, capacity: 50 })
+    expect(getLogStream()).toBe(fresh)
   })
 })

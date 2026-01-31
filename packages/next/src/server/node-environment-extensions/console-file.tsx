@@ -1,5 +1,5 @@
 import { consoleAsyncStorage } from '../app-render/console-async-storage.external'
-import { getFileLogger } from '../dev/browser-logs/file-logger'
+import { getLogStream, methodToLevel } from '../dev/log-stream'
 import { formatConsoleArgs } from '../../client/lib/console'
 
 type InterceptableConsoleMethod =
@@ -16,6 +16,9 @@ type InterceptableConsoleMethod =
   | 'table'
   | 'trace'
   | 'warn'
+
+// eslint-disable-next-line no-control-regex
+const ANSI_ESCAPE_REGEX = /\u001b\[[0-9;]*m/g
 
 // Based on https://github.com/facebook/react/blob/28dc0776be2e1370fe217549d32aee2519f0cf05/packages/react-server/src/ReactFlightServer.js#L248
 function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
@@ -37,13 +40,14 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
       } else {
         const ret = originalMethod.apply(this, args)
 
-        const fileLogger = getFileLogger()
         const message = formatConsoleArgs(args)
         // Strip ANSI escape codes for file logging
-        // eslint-disable-next-line no-control-regex
-        const ansiEscapeRegex = new RegExp('\u001b\\[[0-9;]*m', 'g')
-        const cleanMessage = message.replace(ansiEscapeRegex, '')
-        fileLogger.logServer(methodName.toUpperCase(), cleanMessage)
+        const cleanMessage = message.replace(ANSI_ESCAPE_REGEX, '')
+        getLogStream().emit(methodToLevel(methodName), cleanMessage, {
+          source: 'userland',
+          scope: 'console',
+          structured: { method: methodName.toUpperCase() },
+        })
         return ret
       }
     }
