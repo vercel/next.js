@@ -13,8 +13,12 @@ import {
   type ConsoleEntry,
   UNDEFINED_MARKER,
 } from '../../../next-devtools/shared/forward-logs-shared'
-import { formatConsoleArgs } from '../../../client/lib/console'
-import { getFileLogger } from './file-logger'
+import { configure } from 'next/dist/compiled/safe-stable-stringify'
+import {
+  getLogStream,
+  methodToLevel,
+  type LogLevel as LogStreamLevel,
+} from '../log-stream'
 
 export function restoreUndefined(x: any): any {
   if (x === UNDEFINED_MARKER) return undefined
@@ -25,23 +29,6 @@ export function restoreUndefined(x: any): any {
     }
   }
   return x
-}
-
-function cleanConsoleArgsForFileLogging(args: any[]): string {
-  /**
-   * Use formatConsoleArgs to strip out background and color format specifiers
-   * and keep only the original string content for file logging
-   */
-  try {
-    return formatConsoleArgs(args)
-  } catch {
-    // Fallback to simple string conversion if formatting fails
-    return args
-      .map((arg) =>
-        typeof arg === 'string' ? arg : util.inspect(arg, { depth: 2 })
-      )
-      .join(' ')
-  }
 }
 
 const methods: Array<LogMethod> = [
@@ -135,25 +122,18 @@ const colorError = (
   mapped satisfies never
 }
 
+/** Regex to detect console format specifiers (%s, %d, %i, %f, %o, %O, %c) */
+const FORMAT_SPECIFIER_REGEX = /%[sdifcoO]/
+
+/**
+ * Process console format strings to expand specifiers.
+ * Otherwise we'd see the format specifier directly in terminal output.
+ */
 function processConsoleFormatStrings(args: any[]): any[] {
-  /**
-   * this handles the case formatting is applied to the console log
-   * otherwise we will see the format specifier directly in the terminal output
-   */
   if (args.length > 0 && typeof args[0] === 'string') {
-    const formatString = args[0]
-    if (
-      formatString.includes('%s') ||
-      formatString.includes('%d') ||
-      formatString.includes('%i') ||
-      formatString.includes('%f') ||
-      formatString.includes('%o') ||
-      formatString.includes('%O') ||
-      formatString.includes('%c')
-    ) {
+    if (FORMAT_SPECIFIER_REGEX.test(args[0])) {
       try {
-        const formatted = util.format(...args)
-        return [formatted]
+        return [util.format(...args)]
       } catch {
         return args
       }
@@ -315,19 +295,12 @@ async function handleTable(
     })
   )
 
-  const location = await (async () => {
-    if (!entry.consoleMethodStack) {
-      return
-    }
-    const frames = await getSourceMappedStackFrames(
-      entry.consoleMethodStack,
-      ctx,
-      distDir
-    )
-    return getConsoleLocation(frames)
-  })()
+  const location = entry.consoleMethodStack
+    ? getConsoleLocation(
+        await getSourceMappedStackFrames(entry.consoleMethodStack, ctx, distDir)
+      )
+    : undefined
 
-  // we can't inline pass browser prefix, but it looks better multiline for table anyways
   forwardConsole.log(browserPrefix)
   forwardConsole.table(...deserializedArgs)
   if (location) {
@@ -361,7 +334,6 @@ async function handleTrace(
     return
   }
 
-  // TODO(rob): refactor so we can re-use result and not re-run the entire source map to avoid trivial post processing
   const [mapped, mappedIgnored] = await Promise.all([
     getSourceMappedStackFrames(entry.consoleMethodStack, ctx, distDir, false),
     getSourceMappedStackFrames(entry.consoleMethodStack, ctx, distDir),
@@ -404,8 +376,9 @@ async function handleDir(
     } finally {
       process.stdout.write = originalWrite
     }
-    const preserved = captured.replace(/\r?\n$/, '')
-    originalWrite(`${browserPrefix}${preserved} ${location}\n`)
+    originalWrite(
+      `${browserPrefix}${captured.replace(/\r?\n$/, '')} ${location}\n`
+    )
     return
   }
   consoleMethod(browserPrefix, ...loggableEntry)
@@ -414,16 +387,15 @@ async function handleDir(
 async function handleDefaultConsole(
   entry: ConsoleEntry<string>,
   browserPrefix: string,
+  consoleArgs: any[],
   ctx: MappingContext,
   distDir: string,
-  config: BrowserLogConfig,
-  isServerLog: boolean
+  config: BrowserLogConfig
 ) {
-  const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
   const withStackEntry = await withLocation(
     {
       original: consoleArgs,
-      stack: (entry as any).consoleMethodStack || null,
+      stack: entry.consoleMethodStack || null,
     },
     ctx,
     distDir,
@@ -431,47 +403,28 @@ async function handleDefaultConsole(
   )
   const consoleMethod = forwardConsole[entry.method] || forwardConsole.log
   ;(consoleMethod as (...args: any[]) => void)(browserPrefix, ...withStackEntry)
-
-  // Process enqueued logs and write to file
-  // Log to file with correct source based on context
-  const fileLogger = getFileLogger()
-
-  // Use cleaned console args to strip out background and color format specifiers
-  const message = cleanConsoleArgsForFileLogging(consoleArgs)
-  if (isServerLog) {
-    fileLogger.logServer(entry.method.toUpperCase(), message)
-  } else {
-    fileLogger.logBrowser(entry.method.toUpperCase(), message)
-  }
 }
 
-type LogLevel = 'error' | 'warn' | 'verbose'
+type FilterLevel = 'error' | 'warn' | 'verbose'
 
-type BrowserLogConfig = boolean | 'error' | 'warn'
+type BrowserLogConfig =
+  | boolean
+  | FilterLevel
+  | { level?: FilterLevel; showSourceLocation?: boolean }
 
-// Log levels from most severe to least severe
-// Lower index = more severe
-const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
-  error: 0,
-  warn: 1,
-  verbose: 2,
+// LogStream level priority (higher = more severe)
+const LOG_LEVEL_PRIORITY: Record<LogStreamLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
 }
 
-// Map console methods to log levels
-const METHOD_TO_LEVEL: Record<string, LogLevel> = {
-  error: 'error',
-  warn: 'warn',
-  info: 'verbose',
-  log: 'verbose',
-  debug: 'verbose',
-  table: 'verbose',
-  trace: 'verbose',
-  dir: 'verbose',
-  dirxml: 'verbose',
-  assert: 'error',
-  group: 'verbose',
-  groupCollapsed: 'verbose',
-  groupEnd: 'verbose',
+// Map filter config to minimum LogStream level threshold
+const CONFIG_TO_MIN_LEVEL: Record<FilterLevel, LogStreamLevel> = {
+  verbose: 'debug', // show everything
+  warn: 'warn', // show warn + error
+  error: 'error', // show only error
 }
 
 function shouldShowEntry(
@@ -483,22 +436,48 @@ function shouldShowEntry(
     return false
   }
 
-  // Determine the effective minimum log level
-  const minLevel: LogLevel = typeof config === 'string' ? config : 'verbose' // true means show everything
+  // Determine the effective filter level from config
+  const filterLevel: FilterLevel =
+    typeof config === 'string'
+      ? config
+      : config === true
+        ? 'verbose' // true means show everything
+        : typeof config === 'object'
+          ? (config.level ?? 'verbose') // object config defaults to verbose for backward compatibility
+          : 'warn' // default for new installations
 
+  // Convert filter level to minimum LogStream level threshold
+  const minLevel = CONFIG_TO_MIN_LEVEL[filterLevel]
   const minPriority = LOG_LEVEL_PRIORITY[minLevel]
 
-  // formatted-error and any-logged-error are always treated as errors
+  // Get the entry's LogStream level
+  let entryLevel: LogStreamLevel
   if (entry.kind === 'formatted-error' || entry.kind === 'any-logged-error') {
-    return LOG_LEVEL_PRIORITY['error'] <= minPriority
+    entryLevel = 'error'
+  } else if (entry.kind === 'console') {
+    entryLevel = methodToLevel(entry.method)
+  } else {
+    return false
   }
 
-  if (entry.kind === 'console') {
-    const entryLevel = METHOD_TO_LEVEL[entry.method] || 'log'
-    return LOG_LEVEL_PRIORITY[entryLevel] <= minPriority
-  }
+  // Show entry if its priority meets or exceeds the minimum threshold
+  return LOG_LEVEL_PRIORITY[entryLevel] >= minPriority
+}
 
-  return false
+const safeStringify = configure({ maximumDepth: 5, maximumBreadth: 100 })
+
+/** Format args to a clean string for LogStream file logging */
+function formatArgsForLogStream(args: any[]): string {
+  return args
+    .map((arg) => {
+      if (typeof arg === 'string') return arg
+      if (typeof arg === 'number' || typeof arg === 'boolean')
+        return String(arg)
+      if (arg === null) return 'null'
+      if (arg === undefined) return 'undefined'
+      return safeStringify(arg) ?? '[Unable to view]'
+    })
+    .join(' ')
 }
 
 export async function handleLog(
@@ -507,79 +486,93 @@ export async function handleLog(
   distDir: string,
   config: BrowserLogConfig
 ): Promise<void> {
-  // Determine the source based on the context
   const isServerLog = ctx.isServer || ctx.isEdgeServer
   const browserPrefix = isServerLog ? cyan('[server]') : cyan('[browser]')
-  const fileLogger = getFileLogger()
+  const logSource = isServerLog ? 'userland' : ('browser' as const)
+  const logStream = getLogStream()
+
+  /** Emit a log entry to LogStream (always, regardless of terminal config) */
+  const emitToLogStream = (
+    level: LogStreamLevel,
+    args: any[],
+    entry: ServerLogEntry
+  ) => {
+    const method =
+      entry.kind === 'console'
+        ? entry.method.toUpperCase()
+        : level.toUpperCase()
+    logStream.emit(level, formatArgsForLogStream(args), {
+      source: logSource,
+      scope: 'console',
+      structured: { method },
+    })
+  }
 
   for (const entry of entries) {
-    // Filter entries based on config mode
-    if (!shouldShowEntry(entry, config)) {
-      continue
-    }
+    const showTerminal = shouldShowEntry(entry, config)
     try {
       switch (entry.kind) {
         case 'console': {
+          // Prepare args once — shared between terminal output and LogStream
+          const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
+
           switch (entry.method) {
             case 'table': {
-              // timeout based abort on source mapping result
-              await handleTable(entry, browserPrefix, ctx, distDir)
+              if (showTerminal) {
+                await handleTable(entry, browserPrefix, ctx, distDir)
+              }
               break
             }
-            // ignore frames
             case 'trace': {
-              await handleTrace(entry, browserPrefix, ctx, distDir)
+              if (showTerminal) {
+                await handleTrace(entry, browserPrefix, ctx, distDir)
+              }
               break
             }
             case 'dir': {
-              await handleDir(entry, browserPrefix, ctx, distDir)
+              if (showTerminal) {
+                await handleDir(entry, browserPrefix, ctx, distDir)
+              }
               break
             }
-            case 'dirxml': {
-              // xml log thing maybe needs an impl
-              // fallthrough
-            }
+            case 'dirxml':
             case 'group':
             case 'groupCollapsed':
-            case 'groupEnd': {
-              // [browser] undefined (app/page.tsx:8:11) console.group
-              // fallthrough
-            }
-            case 'assert': {
-              // check console assert
-              // fallthrough
-            }
+            case 'groupEnd':
+            case 'assert':
             case 'log':
             case 'info':
             case 'debug':
             case 'error':
             case 'warn': {
-              await handleDefaultConsole(
-                entry,
-                browserPrefix,
-                ctx,
-                distDir,
-                config,
-                isServerLog
-              )
+              if (showTerminal) {
+                await handleDefaultConsole(
+                  entry,
+                  browserPrefix,
+                  consoleArgs,
+                  ctx,
+                  distDir,
+                  config
+                )
+              }
               break
             }
             default: {
               entry satisfies never
             }
           }
+
+          // Always emit to LogStream for file/MCP logging
+          emitToLogStream(methodToLevel(entry.method), consoleArgs, entry)
           break
         }
         // any logged errors are anything that are logged as "red" in the browser but aren't only an Error (console.error, Promise.reject(100))
         case 'any-logged-error': {
           const consoleArgs = await prepareConsoleErrorArgs(entry, ctx, distDir)
-          forwardConsole.error(browserPrefix, ...consoleArgs)
-
-          // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(consoleArgs)
-          )
+          if (showTerminal) {
+            forwardConsole.error(browserPrefix, ...consoleArgs)
+          }
+          emitToLogStream('error', consoleArgs, entry)
           break
         }
         // formatted error is an explicit error event (rejections, uncaught errors)
@@ -589,59 +582,28 @@ export async function handleLog(
             ctx,
             distDir
           )
-          forwardConsole.error(browserPrefix, ...formattedArgs)
-
-          // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(formattedArgs)
-          )
+          if (showTerminal) {
+            forwardConsole.error(browserPrefix, ...formattedArgs)
+          }
+          emitToLogStream('error', formattedArgs, entry)
           break
         }
         default: {
         }
       }
     } catch {
-      switch (entry.kind) {
-        case 'any-logged-error': {
-          const consoleArgs = await prepareConsoleErrorArgs(entry, ctx, distDir)
-          forwardConsole.error(browserPrefix, ...consoleArgs)
-          // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(consoleArgs)
-          )
-          break
-        }
-        case 'console': {
-          const consoleMethod =
-            forwardConsole[entry.method] || forwardConsole.log
-          const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
-          ;(consoleMethod as (...args: any[]) => void)(
-            browserPrefix,
-            ...consoleArgs
-          )
+      // Fallback on processing error: emit raw message
+      const message =
+        entry.kind === 'formatted-error'
+          ? `${entry.prefix}\n${entry.stack}`
+          : entry.kind === 'console'
+            ? entry.args.map((a: any) => a.data ?? a.prefix ?? '').join(' ')
+            : 'Error processing log entry'
 
-          // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(consoleArgs)
-          )
-          break
-        }
-        case 'formatted-error': {
-          forwardConsole.error(browserPrefix, `${entry.prefix}\n`, entry.stack)
-
-          // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging([`${entry.prefix}\n${entry.stack}`])
-          )
-          break
-        }
-        default: {
-        }
+      if (showTerminal) {
+        forwardConsole.error(browserPrefix, message)
       }
+      logStream.emit('error', message, { source: logSource, scope: 'console' })
     }
   }
 }
@@ -712,15 +674,4 @@ export async function receiveBrowserLogsTurbopack(opts: {
   }
 
   await handleLog(entries, ctx, distDir, opts.config)
-}
-
-// Handle client file logs (always logged regardless of terminal flag)
-export async function handleClientFileLogs(
-  logs: Array<{ timestamp: string; level: string; message: string }>
-): Promise<void> {
-  const fileLogger = getFileLogger()
-
-  for (const log of logs) {
-    fileLogger.logBrowser(log.level, log.message)
-  }
 }

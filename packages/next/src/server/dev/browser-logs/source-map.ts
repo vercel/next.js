@@ -261,7 +261,12 @@ export const withLocation = async (
   },
   ctx: MappingContext,
   distDir: string,
-  _config: boolean | 'error' | 'warn'
+  _config:
+    | boolean
+    | 'error'
+    | 'warn'
+    | 'verbose'
+    | { level?: 'error' | 'warn' | 'verbose'; showSourceLocation?: boolean }
 ) => {
   if (!stack) {
     return original
