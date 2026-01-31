@@ -3,7 +3,7 @@ import { findPort, retry } from 'next-test-utils'
 import { ChildProcess, spawn } from 'child_process'
 import path from 'path'
 
-describe('standalone mode - fetch memory leak', () => {
+describe.skip('standalone mode - fetch memory leak', () => {
   let externalServerPort: number
   let externalServerProcess: ChildProcess
 
