@@ -159,8 +159,8 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('○ /about')
         expect(buildResult.cliOutput).toContain('○ /dashboard')
         expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        // Should not build routes not specified
-        expect(buildResult.cliOutput).not.toContain('/with-type-error')
+        // Should not build routes not specified (check route format, not just substring)
+        expect(buildResult.cliOutput).not.toMatch(/[○ƒ] \/with-type-error/)
         // Should not build pages routes
         expect(buildResult.cliOutput).not.toContain('Route (pages)')
       })
@@ -179,7 +179,8 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('○ /about')
         expect(buildResult.cliOutput).toContain('○ /dashboard')
         expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        expect(buildResult.cliOutput).not.toContain('/with-type-error')
+        // Check that the route is not in the build output (not just anywhere in the log)
+        expect(buildResult.cliOutput).not.toMatch(/[○ƒ] \/with-type-error/)
       })
 
       it('should exclude dynamic route paths with negation', async () => {
@@ -193,7 +194,10 @@ describe('debug-build-paths', () => {
 
         expect(buildResult.cliOutput).toContain('Route (app)')
         expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        expect(buildResult.cliOutput).not.toContain('/blog/[slug]/comments')
+        // Check that the route is not in the build output (not just anywhere in the log)
+        expect(buildResult.cliOutput).not.toMatch(
+          /[○ƒ] \/blog\/\[slug\]\/comments/
+        )
       })
 
       it('should support multiple negation patterns', async () => {
@@ -208,7 +212,8 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('Route (app)')
         expect(buildResult.cliOutput).toContain('○ /')
         expect(buildResult.cliOutput).toContain('○ /about')
-        expect(buildResult.cliOutput).not.toContain('/with-type-error')
+        // Check that routes are not in the build output (not just anywhere in the log)
+        expect(buildResult.cliOutput).not.toMatch(/[○ƒ] \/with-type-error/)
         expect(buildResult.cliOutput).not.toContain('○ /dashboard')
       })
 
@@ -223,7 +228,8 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('○ /')
         expect(buildResult.cliOutput).toContain('○ /about')
         expect(buildResult.cliOutput).toContain('○ /foo')
-        expect(buildResult.cliOutput).not.toContain('/with-type-error')
+        // Check that the route is not in the build output (not just anywhere in the log)
+        expect(buildResult.cliOutput).not.toMatch(/[○ƒ] \/with-type-error/)
       })
 
       it('should build routes inside route groups', async () => {
