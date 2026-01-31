@@ -729,6 +729,20 @@ declare module 'next/dist/compiled/ora' {
   import m from 'ora'
   export = m
 }
+// TUI module type declaration (bundled with ink as ESM)
+declare module 'next/dist/compiled/tui/index.mjs' {
+  import type { ChildProcess } from 'child_process'
+  export interface TuiInstance {
+    unmount: () => void
+    waitUntilExit: () => Promise<void>
+  }
+  export function startTui(child: ChildProcess, serverUrl: string): TuiInstance
+}
+
+// ink types for TUI (ESM module, re-export from actual package types)
+declare module 'ink' {
+  export * from 'ink/build/index'
+}
 declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
   export = m

@@ -2341,6 +2341,7 @@ export async function next_compile(task, opts) {
   await task.parallel(
     [
       'cli',
+      'next_tui',
       'copy_bundle_analyzer_ui',
       'bin',
       'server',
@@ -2398,9 +2399,20 @@ export async function bin(task, opts) {
 
 export async function cli(task, opts) {
   await task
-    .source('src/cli/**/*.+(js|ts|tsx)')
+    .source('src/cli/**/*.+(js|ts|tsx)', {
+      ignore: ['src/cli/tui/**/*'],
+    })
     .swc('server', { dev: opts.dev })
     .target('dist/cli')
+}
+
+// TUI is bundled with rspack including ink and react for full isolation
+export async function next_tui(task, opts) {
+  await task.source('src/cli/tui').webpack({
+    watch: opts.dev,
+    config: require('./tui.webpack-config')(),
+    name: 'bundle-tui',
+  })
 }
 
 export async function lib(task, opts) {

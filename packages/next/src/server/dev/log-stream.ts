@@ -65,6 +65,9 @@ export class FileSink implements LogSink {
   }
 
   write(event: LogEvent): void {
+    // Only log console messages, not request events
+    if (event.scope === 'request') return
+
     // Format timestamp as HH:MM:SS.mmm (matching old FileLogger)
     const d = new Date(event.ts)
     const hh = String(d.getHours()).padStart(2, '0')
@@ -75,9 +78,10 @@ export class FileSink implements LogSink {
 
     const source = event.source === 'browser' ? 'Browser' : 'Server'
 
-    // Level: use original method name if available, else map from level
+    // Level: use console method name if available, else map from level
     const method =
-      (event.structured?.method as string) ||
+      (event.scope === 'console' &&
+        (event.structured?.method as string | undefined)) ||
       FileSink.levelToFileMethod(event.level)
     const level = method.toUpperCase()
 
@@ -125,6 +129,44 @@ export class FileSink implements LogSink {
   }
 }
 
+export class TuiSink implements LogSink {
+  write(event: LogEvent): void {
+    if (!process.send) return
+
+    // Forward console logs from userland or browser
+    if (
+      event.scope === 'console' &&
+      (event.source === 'userland' || event.source === 'browser')
+    ) {
+      process.send({
+        tuiMessage: {
+          type: 'structured-log',
+          payload: {
+            ...event.structured,
+            type: 'console',
+            level: event.level,
+            method:
+              (event.structured?.method as string | undefined) || event.level,
+            message: event.message,
+            source: event.source,
+          },
+        },
+      })
+      return
+    }
+
+    // Forward request logs with structured data (includes fetch metrics)
+    if (event.scope === 'request' && event.structured) {
+      process.send({
+        tuiMessage: {
+          type: 'structured-log',
+          payload: event.structured,
+        },
+      })
+    }
+  }
+}
+
 type LogOpts = {
   source?: LogSource
   scope?: string
@@ -164,6 +206,22 @@ export class LogStream {
         /* ignore sink errors */
       }
     }
+  }
+
+  debug(msg: string, opts?: LogOpts): void {
+    this.emit('debug', msg, opts)
+  }
+
+  info(msg: string, opts?: LogOpts): void {
+    this.emit('info', msg, opts)
+  }
+
+  warn(msg: string, opts?: LogOpts): void {
+    this.emit('warn', msg, opts)
+  }
+
+  error(msg: string, opts?: LogOpts): void {
+    this.emit('error', msg, opts)
   }
 
   addSink(sink: LogSink): void {

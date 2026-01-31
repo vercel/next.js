@@ -189,3 +189,33 @@ store.subscribe((state) => {
   flushAllTraces()
   teardownTraceSubscriber()
 })
+
+// When TUI is enabled, forward compilation state to the parent process via IPC
+// so the TUI can show a real-time compilation spinner / error count.
+if (process.env.__NEXT_TUI_ENABLED && process.send) {
+  store.subscribe((state) => {
+    if (state.bootstrap || !process.send) return
+
+    if (state.loading) {
+      process.send({
+        tuiMessage: {
+          type: 'compilation',
+          payload: {
+            loading: true,
+            trigger: state.trigger ? formatTrigger(state.trigger) : undefined,
+          },
+        },
+      })
+    } else {
+      process.send({
+        tuiMessage: {
+          type: 'compilation',
+          payload: {
+            loading: false,
+            errors: state.errors || undefined,
+          },
+        },
+      })
+    }
+  })
+}

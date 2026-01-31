@@ -4,6 +4,7 @@ import os from 'os'
 import {
   LogStream,
   FileSink,
+  TuiSink,
   methodToLevel,
   getLogStream,
   initLogStream,
@@ -159,6 +160,37 @@ describe('FileSink', () => {
     expect(lines[1]).toContain('Medium level')
     expect(lines[2]).toContain('ERROR')
     expect(lines[2]).toContain('Long level')
+  })
+
+  it('should skip request-scope events', () => {
+    const sink = new FileSink(logPath, 0)
+    sink.write(
+      makeEvent({
+        scope: 'request',
+        message: 'GET /test 200 in 42ms',
+        structured: {
+          type: 'request',
+          method: 'GET',
+          url: '/test',
+          status: 200,
+        },
+      })
+    )
+    sink.write(
+      makeEvent({
+        scope: 'console',
+        source: 'browser',
+        message: 'Hello',
+        structured: { method: 'log' },
+      })
+    )
+    sink.close()
+
+    const logContent = fs.readFileSync(logPath, 'utf-8')
+    const lines = logContent.trim().split('\n')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toContain('Hello')
+    expect(logContent).not.toContain('GET /test')
   })
 
   describe('batching behavior', () => {
@@ -345,6 +377,150 @@ describe('LogStream', () => {
       stream.close()
       expect(closed).toBe(true)
       expect(stream.stats().count).toBe(0)
+    })
+  })
+})
+
+describe('TuiSink', () => {
+  let originalSend: typeof process.send
+  let sentMessages: any[]
+
+  beforeEach(() => {
+    sentMessages = []
+    originalSend = process.send as typeof process.send
+    ;(process as any).send = (msg: any) => {
+      sentMessages.push(msg)
+      return true
+    }
+  })
+
+  afterEach(() => {
+    ;(process as any).send = originalSend
+  })
+
+  it('sends console logs from userland to TUI via IPC', () => {
+    const sink = new TuiSink()
+
+    sink.write({
+      ts: Date.now(),
+      level: 'info',
+      source: 'userland',
+      scope: 'console',
+      message: 'Test console message',
+    })
+
+    expect(sentMessages).toHaveLength(1)
+    expect(sentMessages[0].tuiMessage).toEqual({
+      type: 'structured-log',
+      payload: {
+        type: 'console',
+        level: 'info',
+        method: 'info',
+        message: 'Test console message',
+        source: 'userland',
+      },
+    })
+  })
+
+  it('sends console logs from browser to TUI via IPC', () => {
+    const sink = new TuiSink()
+
+    sink.write({
+      ts: Date.now(),
+      level: 'error',
+      source: 'browser',
+      scope: 'console',
+      message: 'Browser error',
+    })
+
+    expect(sentMessages).toHaveLength(1)
+    expect(sentMessages[0].tuiMessage.payload).toMatchObject({
+      type: 'console',
+      source: 'browser',
+      level: 'error',
+    })
+  })
+
+  it('ignores request scope logs without structured data', () => {
+    const sink = new TuiSink()
+
+    sink.write({
+      ts: Date.now(),
+      level: 'info',
+      source: 'userland',
+      scope: 'request',
+      message: 'Request log',
+    })
+
+    expect(sentMessages).toHaveLength(0)
+  })
+
+  it('forwards request scope logs with structured data', () => {
+    const sink = new TuiSink()
+
+    const structured = {
+      type: 'request',
+      method: 'GET',
+      url: '/test',
+      status: 200,
+      totalTime: 42,
+    }
+    sink.write({
+      ts: Date.now(),
+      level: 'info',
+      source: 'userland',
+      scope: 'request',
+      message: 'GET /test 200 in 42ms',
+      structured,
+    })
+
+    expect(sentMessages).toHaveLength(1)
+    expect(sentMessages[0].tuiMessage).toEqual({
+      type: 'structured-log',
+      payload: structured,
+    })
+  })
+
+  it('ignores system source logs', () => {
+    const sink = new TuiSink()
+
+    sink.write({
+      ts: Date.now(),
+      level: 'info',
+      source: 'system',
+      scope: 'console',
+      message: 'System log',
+    })
+
+    expect(sentMessages).toHaveLength(0)
+  })
+
+  it('forwards structured console data (location, stack) when available', () => {
+    const sink = new TuiSink()
+
+    sink.write({
+      ts: Date.now(),
+      level: 'error',
+      source: 'browser',
+      scope: 'console',
+      message: 'Component error',
+      structured: {
+        method: 'error',
+        location: 'src/app/page.tsx:10:5',
+        rawStack: 'Error: Component error\n    at Page (src/app/page.tsx:10:5)',
+      },
+    })
+
+    expect(sentMessages).toHaveLength(1)
+    const payload = sentMessages[0].tuiMessage.payload
+    expect(payload).toMatchObject({
+      type: 'console',
+      level: 'error',
+      method: 'error',
+      message: 'Component error',
+      source: 'browser',
+      location: 'src/app/page.tsx:10:5',
+      rawStack: expect.stringContaining('Component error'),
     })
   })
 })
