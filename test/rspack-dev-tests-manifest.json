@@ -533,10 +533,10 @@
     "runtimeError": false
   },
   "test/development/app-dir/browser-log-forwarding/fixtures/verbose-level/verbose-level.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "browser-log-forwarding verbose level should forward all logs to terminal"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -714,8 +714,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/dev-output/dev-output.test.ts": {
-    "passed": ["dev-output shows Cache Components indicator when enabled"],
-    "failed": [],
+    "passed": [],
+    "failed": ["dev-output shows Cache Components indicator when enabled"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2577,6 +2577,15 @@
     "passed": [
       "typescript-auto-install should detect TypeScript being added and auto setup",
       "typescript-auto-install should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-native-preview/index.test.ts": {
+    "passed": [
+      "typescript-native-preview should detect @typescript/native-preview and not auto-install typescript"
     ],
     "failed": [],
     "pending": [],
@@ -9254,10 +9263,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/no-prefetch/no-prefetch.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "navigating without a prefetch can show a loading boundary from the dynamic response"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9641,6 +9650,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/turbopack-loader-content-type/turbopack-loader-content-type.test.ts": {
+    "passed": [
+      "turbopack-loader-content-type should apply loader based on contentType for text/javascript",
+      "turbopack-loader-content-type should apply loader based on contentType glob pattern",
+      "turbopack-loader-content-type should apply loader based on contentType regex"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
     "passed": ["turbopack-reports should render page importing sqlite3"],
     "failed": [],
@@ -10011,6 +10031,17 @@
     "passed": ["webpack-loader-fs should allow reading the input FS"],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-module-type/webpack-loader-module-type.test.ts": {
+    "passed": [
+      "webpack-loader-module-type should load svg as asset/resource and return URL"
+    ],
+    "failed": [],
+    "pending": [
+      "webpack-loader-module-type should load data file as bytes and return Uint8Array"
+    ],
     "flakey": [],
     "runtimeError": false
   },
