@@ -1,14 +1,11 @@
-export default function Layout({
-  children,
-  sidebar,
-}: {
+export default function Layout(props: {
   children: React.ReactNode
   sidebar: React.ReactNode
 }) {
   return (
     <div>
-      {children}
-      {sidebar}
+      {props.children}
+      {props.sidebar}
     </div>
   )
 }
