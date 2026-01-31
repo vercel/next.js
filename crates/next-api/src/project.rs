@@ -225,14 +225,32 @@ impl DebugBuildPathsRouteKeys {
                 .iter()
                 .map(|path| {
                     // App router: "/blog/[slug]/page.tsx" -> "/blog/[slug]"
-                    if let Some(last_slash_idx) = path.rfind('/') {
+                    // First strip the filename
+                    let path_without_file = if let Some(last_slash_idx) = path.rfind('/') {
                         if last_slash_idx == 0 {
-                            "/".into() // Root: "/page.tsx" -> "/"
+                            "/" // Root: "/page.tsx" -> "/"
                         } else {
-                            path[..last_slash_idx].into()
+                            &path[..last_slash_idx]
                         }
                     } else {
-                        path.clone()
+                        path.as_str()
+                    };
+
+                    // Strip route groups (xxx) and parallel routes @xxx to match AppPath format
+                    // This matches the behavior in next-core/src/next_app/mod.rs AppPage -> AppPath
+                    let segments: Vec<&str> = path_without_file
+                        .split('/')
+                        .filter(|s| {
+                            !s.is_empty()
+                                && !s.starts_with('(') // route groups like (dashboard)
+                                && !s.starts_with('@') // parallel routes like @modal
+                        })
+                        .collect();
+
+                    if segments.is_empty() {
+                        "/".into()
+                    } else {
+                        format!("/{}", segments.join("/")).into()
                     }
                 })
                 .collect(),
