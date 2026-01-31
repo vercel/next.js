@@ -238,6 +238,19 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).not.toContain('○ /about')
         expect(buildResult.cliOutput).not.toContain('○ /dashboard')
       })
+
+      it('should build routes with parallel routes', async () => {
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', 'app/parallel-test/**/page.tsx'],
+        })
+        expect(buildResult.exitCode).toBe(0)
+        expect(buildResult.cliOutput).toContain('Route (app)')
+        // Parallel route segments (@sidebar) are stripped from the path
+        expect(buildResult.cliOutput).toContain('/parallel-test')
+        // Should not build other routes
+        expect(buildResult.cliOutput).not.toContain('○ /about')
+        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+      })
     })
 
     describe('typechecking with debug-build-paths', () => {
