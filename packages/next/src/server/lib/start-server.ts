@@ -15,6 +15,7 @@ import path from 'path'
 import http from 'http'
 import https from 'https'
 import os from 'os'
+import * as inspector from 'inspector'
 import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
@@ -435,6 +436,13 @@ export async function startServer(
             }
 
             debug('start-server process cleanup finished')
+
+            // Close the Node.js inspector if it's open. The inspector keeps
+            // the event loop alive which prevents the process from exiting.
+            if (inspector.url()) {
+              inspector.close()
+            }
+
             process.exit(0)
           })()
         }
