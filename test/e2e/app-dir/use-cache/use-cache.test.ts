@@ -1419,6 +1419,22 @@ describe('use-cache', () => {
     const numbers = await browser.elementById('numbers').text()
     expect(numbers).toBe(initialNumbers)
   })
+
+  if (isNextDev) {
+    it('should not log "use cache" functions called from client', async () => {
+      const browser = await next.browser('/passed-to-client')
+      const outputIndex = next.cliOutput.length
+
+      await browser.elementByCss('#submit-button').click()
+
+      await retry(() => {
+        const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+        // Should have the POST request but not the function log
+        expect(logs).toContain('POST /passed-to-client')
+        expect(logs).not.toContain('└─ ƒ')
+      })
+    })
+  }
 })
 
 async function getSanitizedLogs(browser: Playwright): Promise<string[]> {
