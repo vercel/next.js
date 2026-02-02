@@ -100,7 +100,7 @@ impl EcmascriptChunkPlaceable for NextServerUtilityModule {
         let module_reference: Vc<Box<dyn ModuleReference>> = Vc::upcast(
             NextServerUtilityModuleReference::new(Vc::upcast(*self.module)),
         );
-        EsmExports::reexport_including_default(module_reference)
+        EsmExports::reexport(module_reference)
     }
 
     #[turbo_tasks::function]

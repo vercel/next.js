@@ -199,10 +199,15 @@ async fn apply_module_type(
                         // Returns the split module if necessary due to re-exports
                         if let Some(part) = part {
                             match part {
-                                ModulePart::Evaluation => Vc::upcast(module.get_locals_if_split()),
+                                ModulePart::Evaluation => {
+                                    Vc::upcast(module.get_split(ModulePart::Locals))
+                                }
                                 ModulePart::Export(_) => {
-                                    apply_reexport_tree_shaking(module.get_facade_if_split(), part)
-                                        .await?
+                                    apply_reexport_tree_shaking(
+                                        module.get_split(ModulePart::Facade),
+                                        part,
+                                    )
+                                    .await?
                                 }
                                 _ => bail!(
                                     "Invalid module part \"{}\" for reexports only tree shaking \
@@ -211,7 +216,7 @@ async fn apply_module_type(
                                 ),
                             }
                         } else {
-                            Vc::upcast(module.get_facade_if_split())
+                            Vc::upcast(module.get_split(ModulePart::Facade))
                         }
                     }
                     None => Vc::upcast(*module),

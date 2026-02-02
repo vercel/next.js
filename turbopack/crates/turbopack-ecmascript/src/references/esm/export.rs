@@ -517,7 +517,7 @@ impl EsmExports {
     /// - A default export binding to the module's default
     /// - A star export that re-exports all named exports
     #[turbo_tasks::function]
-    pub async fn reexport_including_default(
+    pub async fn reexport(
         module_reference: Vc<Box<dyn ModuleReference>>,
     ) -> Result<Vc<EcmascriptExports>> {
         let module_reference = module_reference.to_resolved().await?;

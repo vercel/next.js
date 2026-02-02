@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use either::Either;
 use itertools::Itertools;
 use turbo_rcstr::rcstr;
@@ -19,7 +19,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAssets, OutputAssetsWithReferenced},
-    resolve::{FindContextFileResult, find_context_file, package_json},
+    resolve::{FindContextFileResult, ModulePart, find_context_file, package_json},
 };
 
 use crate::{
@@ -73,6 +73,19 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
         _module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssetsWithReferenced> {
         OutputAssetsWithReferenced::from_assets(OutputAssets::empty())
+    }
+
+    /// Returns a split version of this module for the given module part, or self if no
+    /// split exists.
+    #[turbo_tasks::function]
+    fn get_split(
+        self: Vc<Self>,
+        part: ModulePart,
+    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
+        match part {
+            ModulePart::Facade | ModulePart::Locals => Ok(self),
+            _ => bail!("Unexpected module part: {part:?}"),
+        }
     }
 }
 

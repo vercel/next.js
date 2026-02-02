@@ -106,7 +106,7 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
                 dynamic_ref_description(),
                 ExportUsage::all(),
             ));
-        EsmExports::reexport_including_default(module_reference)
+        EsmExports::reexport(module_reference)
     }
 
     #[turbo_tasks::function]
