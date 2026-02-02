@@ -17,11 +17,15 @@ let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
 
 export const hookPropertyMap = new Map()
 
-export const defaultOverrides = {
-  'styled-jsx': path.dirname(resolve('styled-jsx/package.json')),
-  'styled-jsx/style': resolve('styled-jsx/style'),
-  'styled-jsx/style.js': resolve('styled-jsx/style'),
-}
+export const defaultOverrides: Record<string, string> = {}
+
+try {
+  Object.assign(defaultOverrides, {
+    'styled-jsx': path.dirname(resolve('styled-jsx/package.json')),
+    'styled-jsx/style': resolve('styled-jsx/style'),
+    'styled-jsx/style.js': resolve('styled-jsx/style'),
+  })
+} catch (_) {}
 
 const toResolveMap = (map: Record<string, string>): [string, string][] =>
   Object.entries(map).map(([key, value]) => [key, resolve(value)])
