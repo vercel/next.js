@@ -1,18 +1,5 @@
-import { type NextInstance, nextTestSetup } from 'e2e-utils'
-import { type ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
-
-async function loadClientReferenceManifest(
-  next: NextInstance,
-  page: string
-): Promise<ClientReferenceManifest> {
-  return JSON.parse(
-    (
-      await next.readFile(
-        `${next.distDir}/server/app${page}page_client-reference-manifest.js`
-      )
-    ).match(/]\s*=\s*([\S\s]+)$/)[1]
-  )
-}
+import { nextTestSetup } from 'e2e-utils'
+import { getClientReferenceManifest } from 'next-test-utils'
 
 describe('client-reference-chunking', () => {
   const { next } = nextTestSetup({
@@ -28,8 +15,8 @@ describe('client-reference-chunking', () => {
       'Welcome to the Issue Page'
     )
 
-    let rootManifest = await loadClientReferenceManifest(next, '/')
-    let issueManifest = await loadClientReferenceManifest(next, '/issue/')
+    let rootManifest = getClientReferenceManifest(next, '/page')
+    let issueManifest = getClientReferenceManifest(next, '/issue/page')
 
     // These two routes have the same client component references, so these should be exactly the
     // same (especially the `chunks` field)

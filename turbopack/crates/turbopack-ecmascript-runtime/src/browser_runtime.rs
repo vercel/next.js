@@ -5,22 +5,22 @@ use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
+    chunk::AssetSuffix,
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
     environment::{ChunkLoading, Environment},
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
-use crate::{
-    ChunkSuffix, RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code,
-};
+use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
 
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
     environment: ResolvedVc<Environment>,
     chunk_base_path: Vc<Option<RcStr>>,
-    chunk_suffix: Vc<ChunkSuffix>,
+    asset_suffix: Vc<AssetSuffix>,
+    worker_forwarded_globals: Vc<Vec<RcStr>>,
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
@@ -82,7 +82,7 @@ pub async fn get_browser_runtime_code(
     let relative_root_path = output_root_to_root_path;
     let chunk_base_path = chunk_base_path.await?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
-    let chunk_suffix = chunk_suffix.await?;
+    let asset_suffix = asset_suffix.await?;
 
     writedoc!(
         code,
@@ -101,36 +101,55 @@ pub async fn get_browser_runtime_code(
         StringifyJs(chunk_base_path),
     )?;
 
-    match &*chunk_suffix {
-        ChunkSuffix::None => {
+    match &*asset_suffix {
+        AssetSuffix::None => {
             writedoc!(
                 code,
                 r#"
-                    const CHUNK_SUFFIX = "";
+                    const ASSET_SUFFIX = "";
                 "#
             )?;
         }
-        ChunkSuffix::Constant(suffix) => {
+        AssetSuffix::Constant(suffix) => {
             writedoc!(
                 code,
                 r#"
-                    const CHUNK_SUFFIX = {};
+                    const ASSET_SUFFIX = {};
                 "#,
                 StringifyJs(suffix.as_str())
             )?;
         }
-        ChunkSuffix::FromScriptSrc => {
+        AssetSuffix::Inferred => {
             if chunk_loading == &ChunkLoading::Edge {
-                panic!("ChunkSuffix::FromScriptSrc is not supported in Edge runtimes");
+                panic!("AssetSuffix::Inferred is not supported in Edge runtimes");
             }
             writedoc!(
                 code,
                 r#"
-                    const CHUNK_SUFFIX = getChunkSuffixFromScriptSrc();
+                    const ASSET_SUFFIX = getAssetSuffixFromScriptSrc();
                 "#
             )?;
         }
+        AssetSuffix::FromGlobal(global_name) => {
+            writedoc!(
+                code,
+                r#"
+                    const ASSET_SUFFIX = globalThis[{}] || "";
+                "#,
+                StringifyJs(global_name)
+            )?;
+        }
     }
+
+    // Output the list of global variable names to forward to workers
+    let worker_forwarded_globals = worker_forwarded_globals.await?;
+    writedoc!(
+        code,
+        r#"
+            const WORKER_FORWARDED_GLOBALS = {};
+        "#,
+        StringifyJs(&*worker_forwarded_globals)
+    )?;
 
     code.push_code(&*shared_runtime_utils_code.await?);
     for runtime_code in runtime_base_code {
@@ -204,4 +223,16 @@ pub async fn get_browser_runtime_code(
     )?;
 
     Ok(Code::cell(code.build()))
+}
+
+/// Returns the code for the ECMAScript worker entrypoint bootstrap.
+pub fn get_worker_runtime_code(
+    asset_context: Vc<Box<dyn AssetContext>>,
+    generate_source_map: bool,
+) -> Result<Vc<Code>> {
+    Ok(embed_static_code(
+        asset_context,
+        rcstr!("browser/runtime/base/worker-entrypoint.ts"),
+        generate_source_map,
+    ))
 }

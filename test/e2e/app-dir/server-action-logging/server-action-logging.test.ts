@@ -6,6 +6,9 @@ describe('server-action-logging', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     skipDeployment: true,
     files: __dirname,
+    env: {
+      NEXT_TEST_SERVER_FUNCTION_LOGGING: 'true',
+    },
   })
 
   if (skipped) return
@@ -184,6 +187,31 @@ describe('server-action-logging', () => {
       expect(logs).toMatch(/app\/actions\.js/)
       // Should not contain the test directory prefix
       expect(logs).not.toContain('test/e2e/app-dir/server-action-logging/')
+    })
+  })
+})
+
+describe('server-action-logging when logging.serverFunctions is not enabled', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
+    skipDeployment: true,
+    files: __dirname,
+  })
+
+  if (skipped) return
+
+  it('should not log server actions', async () => {
+    const browser = await next.browser('/')
+    const outputIndex = next.cliOutput.length
+
+    await browser.elementByCss('#success-action').click()
+    await browser.waitForElementByCss('#result')
+
+    await retry(() => {
+      const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+      if (isNextDev) {
+        expect(logs).toContain('POST /')
+      }
+      expect(logs).not.toContain('└─ ƒ successAction')
     })
   })
 })

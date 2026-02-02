@@ -94,6 +94,7 @@ jobs:
         export NEXT_TEST_MODE=${{
           inputs.test_type == 'development' && 'dev' || 'start'
         }}
+        export NEXT_TEST_EMIT_ALL_OUTPUT=1
 
         ${{ inputs.run_before_test }}
 
@@ -129,6 +130,7 @@ jobs:
             'TURBOPACK_DEV=1' ||
             'TURBOPACK_BUILD=1'
         }}
+        export NEXT_TEST_EMIT_ALL_OUTPUT=1
 
         ${{ inputs.run_before_test }}
 

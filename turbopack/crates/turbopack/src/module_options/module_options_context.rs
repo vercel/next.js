@@ -30,6 +30,7 @@ pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
     pub condition: Option<ConditionItem>,
+    pub module_type: Option<RcStr>,
 }
 
 /// This is a list of instructions for the rule engine to process. The first element in each tuple
@@ -53,6 +54,12 @@ pub enum ConditionQuery {
     Regex(ResolvedVc<EsRegex>),
 }
 
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum ConditionContentType {
+    Glob(RcStr),
+    Regex(ResolvedVc<EsRegex>),
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ConditionItem {
@@ -64,6 +71,7 @@ pub enum ConditionItem {
         path: Option<ConditionPath>,
         content: Option<ResolvedVc<EsRegex>>,
         query: Option<ConditionQuery>,
+        content_type: Option<ConditionContentType>,
     },
 }
 
@@ -202,6 +210,8 @@ pub struct ModuleOptionsContext {
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
+    pub static_url_tag: Option<RcStr>,
+
     /// Generate (non-emitted) output assets for static assets and externals, to facilitate
     /// generating a list of all non-bundled files that will be required at runtime.
     pub enable_externals_tracing: Option<ResolvedVc<ExternalsTracingOptions>>,
@@ -250,6 +260,9 @@ pub struct EcmascriptOptionsContext {
 
     /// Whether to allow accessing exports info via `__webpack_exports_info__`.
     pub enable_exports_info_inlining: bool,
+
+    /// Whether to enable `import bytes from 'module' as { type: "bytes }` syntax.
+    pub enable_import_as_bytes: bool,
 
     // TODO should this be a part of Environment instead?
     pub inline_helpers: bool,

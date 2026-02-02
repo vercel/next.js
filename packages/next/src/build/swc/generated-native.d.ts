@@ -35,10 +35,12 @@ export declare class ExternalObject<T> {
   }
 }
 export declare function lockfileTryAcquireSync(
-  path: string
+  path: string,
+  content?: string | undefined | null
 ): { __napiType: 'Lockfile' } | null
 export declare function lockfileTryAcquire(
-  path: string
+  path: string,
+  content?: string | undefined | null
 ): Promise<{ __napiType: 'Lockfile' } | null>
 export declare function lockfileUnlockSync(lockfile: {
   __napiType: 'Lockfile'
@@ -407,7 +409,7 @@ export interface NapiNextTurbopackCallbacksJsObject {
     opts: TurbopackInternalErrorOpts
   ) => never
 }
-/** Arguments for [`NapiNextTurbopackCallbacks::throw_turbopack_internal_error`]. */
+/** Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`. */
 export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string

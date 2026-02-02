@@ -27,11 +27,15 @@ import {
 import {
   type RouteTree,
   type RefreshState,
+  type FulfilledRouteCacheEntry,
   convertReusedFlightRouterStateToRouteTree,
   readSegmentCacheEntry,
   waitForSegmentCacheEntry,
+  markRouteEntryAsDynamicRewrite,
+  invalidateRouteCacheEntries,
   EntryStatus,
 } from '../segment-cache/cache'
+import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import {
   getRenderedSearchFromVaryPath,
@@ -41,7 +45,9 @@ import {
   readFromBFCache,
   readFromBFCacheDuringRegularNavigation,
   writeToBFCache,
+  writeHeadToBFCache,
 } from '../segment-cache/bfcache'
+import { DYNAMIC_STALETIME_MS } from './reducers/navigate-reducer'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -881,20 +887,28 @@ function createCacheNodeForSegment(
   switch (freshness) {
     case FreshnessPolicy.Default: {
       // When experimental.staleTimes.dynamic config is set, we read from the
-      // BFCache even during regular navigations.
-      const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
-        now,
-        tree.varyPath
-      )
-      if (bfcacheEntry !== null) {
-        return {
-          cacheNode: createCacheNode(
-            bfcacheEntry.rsc,
-            bfcacheEntry.prefetchRsc,
-            bfcacheEntry.head,
-            bfcacheEntry.prefetchHead
-          ),
-          needsDynamicRequest: false,
+      // BFCache even during regular navigations. (This is not a recommended API
+      // with Cache Components, but it's supported for backwards compatibility.
+      // Use cacheLife instead.)
+
+      // This outer check isn't semantically necessary; even if the configured
+      // stale time is 0, the bfcache will return null, because any entry would
+      // have immediately expired. Just an optimization.
+      if (DYNAMIC_STALETIME_MS > 0) {
+        const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
+          now,
+          tree.varyPath
+        )
+        if (bfcacheEntry !== null) {
+          return {
+            cacheNode: createCacheNode(
+              bfcacheEntry.rsc,
+              bfcacheEntry.prefetchRsc,
+              bfcacheEntry.head,
+              bfcacheEntry.prefetchHead
+            ),
+            needsDynamicRequest: false,
+          }
         }
       }
       break
@@ -921,6 +935,9 @@ function createCacheNodeForSegment(
       const head = isPage ? seedHead : null
       const prefetchHead = null
       writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+      if (isPage && metadataVaryPath !== null) {
+        writeHeadToBFCache(now, metadataVaryPath, head, prefetchHead)
+      }
       return {
         cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
         needsDynamicRequest: false,
@@ -1097,6 +1114,25 @@ function createCacheNodeForSegment(
       }
     }
 
+    if (process.env.__NEXT_OPTIMISTIC_ROUTING && isCachedHeadPartial) {
+      // TODO: When optimistic routing is enabled, don't block on waiting for
+      // the viewport to resolve. This is a temporary workaround until Vary
+      // Params are tracked when rendering the metadata. We'll fix it before
+      // this feature is stable. However, it's not a critical issue because 1)
+      // it will stream in eventually anyway 2) metadata is wrapped in an
+      // internal Suspense boundary, so is always non-blocking; this only
+      // affects the viewport node, which is meant to blocking, however... 3)
+      // before Segment Cache landed this wasn't always the case, anyway, so
+      // it's unlikely that many people are relying on this behavior. Still,
+      // will be fixed before stable. It's the very next step in the sequence of
+      // work on this project.
+      //
+      // This line of code works because the App Router treats `null` as
+      // "no renderable head available", rather than an empty head. React treats
+      // an empty string as empty.
+      cachedHead = ''
+    }
+
     if (seedHead !== null) {
       if (isCachedHeadPartial) {
         prefetchHead = cachedHead
@@ -1126,6 +1162,9 @@ function createCacheNodeForSegment(
   // and will be replaced by the canonical navigation.
   if (freshness !== FreshnessPolicy.Gesture) {
     writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+    if (isPage && metadataVaryPath !== null) {
+      writeHeadToBFCache(now, metadataVaryPath, head, prefetchHead)
+    }
   }
 
   return {
@@ -1178,7 +1217,12 @@ export function spawnDynamicRequests(
   primaryUrl: URL,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
-  accumulation: NavigationRequestAccumulation
+  accumulation: NavigationRequestAccumulation,
+  // The route cache entry used for this navigation, if it came from route
+  // prediction. Passed through so it can be marked as having a dynamic rewrite
+  // if the server returns a different pathname than expected (indicating
+  // dynamic rewrite behavior that varies by param value).
+  routeCacheEntry: FulfilledRouteCacheEntry | null
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
   if (dynamicRequestTree === null) {
@@ -1265,7 +1309,8 @@ export function spawnDynamicRequests(
     task,
     nextUrl,
     primaryRequestPromise,
-    refreshRequestPromises
+    refreshRequestPromises,
+    routeCacheEntry
   )
   // `finishNavigationTask` is responsible for error handling, so we can attach
   // noop callbacks to this promise.
@@ -1278,7 +1323,8 @@ async function finishNavigationTask(
   primaryRequestPromise: ReturnType<typeof fetchMissingDynamicData>,
   refreshRequestPromises: Array<
     ReturnType<typeof fetchMissingDynamicData>
-  > | null
+  > | null,
+  routeCacheEntry: FulfilledRouteCacheEntry | null
 ): Promise<void> {
   // Wait for all the requests to finish, or for the first one to fail.
   let exitStatus = await waitForRequestsToFinish(
@@ -1314,7 +1360,8 @@ async function finishNavigationTask(
         primaryRequestResult.url,
         nextUrl,
         primaryRequestResult.seed,
-        task.route
+        task.route,
+        routeCacheEntry
       )
       return
     }
@@ -1334,7 +1381,8 @@ async function finishNavigationTask(
         primaryRequestResult.url,
         nextUrl,
         primaryRequestResult.seed,
-        task.route
+        task.route,
+        routeCacheEntry
       )
       return
     }
@@ -1398,8 +1446,43 @@ function dispatchRetryDueToTreeMismatch(
   retryUrl: URL,
   retryNextUrl: string | null,
   seed: NavigationSeed | null,
-  baseTree: FlightRouterState
+  baseTree: FlightRouterState,
+  // The route cache entry used for this navigation, if it came from route
+  // prediction. If the navigation results in a mismatch, we mark it as having
+  // a dynamic rewrite so future predictions bail out.
+  routeCacheEntry: FulfilledRouteCacheEntry | null
 ) {
+  // If the navigation used a route prediction, mark it as having a dynamic
+  // rewrite since it resulted in a mismatch.
+  if (routeCacheEntry !== null) {
+    markRouteEntryAsDynamicRewrite(routeCacheEntry)
+  } else if (seed !== null) {
+    // Even without a direct reference to the route cache entry, we can still
+    // mark the route as having a dynamic rewrite by traversing the known route
+    // tree. This handles cases where the navigation didn't originate from a
+    // route prediction, but still needs to mark the pattern.
+    const metadataVaryPath = seed.metadataVaryPath
+    if (metadataVaryPath !== null) {
+      const now = Date.now()
+      discoverKnownRoute(
+        now,
+        retryUrl.pathname,
+        null,
+        seed.routeTree,
+        metadataVaryPath,
+        false, // couldBeIntercepted - doesn't matter, we're just marking hasDynamicRewrite
+        createHrefFromUrl(retryUrl),
+        false, // isPPREnabled - doesn't matter, we're just marking hasDynamicRewrite
+        true // hasDynamicRewrite
+      )
+    }
+  }
+
+  // Invalidate all route cache entries. Other entries may have been derived
+  // from the template before we knew it had a dynamic rewrite. This also
+  // triggers re-prefetching of visible links.
+  invalidateRouteCacheEntries(retryNextUrl, baseTree)
+
   // If this is the second time in a row that a navigation resulted in a
   // mismatch, fall back to a hard (MPA) refresh.
   isHardRetry = isHardRetry || previousNavigationDidMismatch

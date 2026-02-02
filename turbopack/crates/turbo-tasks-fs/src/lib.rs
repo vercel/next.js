@@ -39,7 +39,7 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     fs::FileType,
     future::Future,
-    io::{self, BufRead, BufReader, ErrorKind, Read},
+    io::{self, BufRead, BufReader, ErrorKind, Read, Write as _},
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
     sync::{Arc, LazyLock, Weak},
@@ -80,7 +80,7 @@ use crate::{
     json::UnparsableJson,
     mutex_map::MutexMap,
     read_glob::{read_glob, track_glob},
-    retry::retry_blocking,
+    retry::{can_retry, retry_blocking, retry_blocking_custom},
     rope::{Rope, RopeReader},
     util::extract_disk_access,
     watcher::DiskWatcher,
@@ -127,61 +127,56 @@ pub const MAX_SAFE_FILE_NAME_LENGTH: usize = 200;
 pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
     /// Here we check if the path is too long for windows, and if so, attempt to canonicalize it
     /// to a UNC path.
-    #[cfg(windows)]
     fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
-        const MAX_PATH_LENGTH_WINDOWS: usize = 260;
-        const UNC_PREFIX: &str = "\\\\?\\";
+        if cfg!(windows) {
+            const MAX_PATH_LENGTH_WINDOWS: usize = 260;
+            const UNC_PREFIX: &str = "\\\\?\\";
 
-        if path.starts_with(UNC_PREFIX) {
-            return Ok(path.into());
+            if path.starts_with(UNC_PREFIX) {
+                return Ok(path.into());
+            }
+
+            if path.as_os_str().len() > MAX_PATH_LENGTH_WINDOWS {
+                let new_path = std::fs::canonicalize(path).map_err(|err| {
+                    anyhow!(err).context("file is too long, and could not be normalized")
+                })?;
+                return Ok(new_path.into());
+            }
+
+            Ok(path.into())
+        } else {
+            /// here we are only going to check if the total length exceeds, or the last segment
+            /// exceeds. This heuristic is primarily to avoid long file names, and it makes the
+            /// operation much cheaper.
+            const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
+            // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
+            // so we subtract a bit to be safe. on most linux distros this is likely a lot larger
+            // than 1024, but macOS is *special*
+            const MAX_PATH_LENGTH: usize = 1024 - 8;
+
+            // check the last segment (file name)
+            if path
+                .file_name()
+                .map(|n| n.as_encoded_bytes().len())
+                .unwrap_or(0)
+                > MAX_FILE_NAME_LENGTH_UNIX
+            {
+                anyhow::bail!(
+                    "file name is too long (exceeds {} bytes)",
+                    MAX_FILE_NAME_LENGTH_UNIX,
+                );
+            }
+
+            if path.as_os_str().len() > MAX_PATH_LENGTH {
+                anyhow::bail!("path is too long (exceeds {MAX_PATH_LENGTH} bytes)");
+            }
+
+            Ok(path.into())
         }
-
-        if path.as_os_str().len() > MAX_PATH_LENGTH_WINDOWS {
-            let new_path = std::fs::canonicalize(path)
-                .map_err(|_| anyhow!("file is too long, and could not be normalized"))?;
-            return Ok(new_path.into());
-        }
-
-        Ok(path.into())
     }
 
-    /// Here we are only going to check if the total length exceeds, or the last segment exceeds.
-    /// This heuristic is primarily to avoid long file names, and it makes the operation much
-    /// cheaper.
-    #[cfg(not(windows))]
-    fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
-        const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
-        // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
-        // so we subtract a bit to be safe. on most linux distros this is likely a lot larger than
-        // 1024, but macOS is *special*
-        const MAX_PATH_LENGTH: usize = 1024 - 8;
-
-        // check the last segment (file name)
-        if path
-            .file_name()
-            .map(|n| n.as_encoded_bytes().len())
-            .unwrap_or(0)
-            > MAX_FILE_NAME_LENGTH_UNIX
-        {
-            anyhow::bail!(
-                "file name is too long (exceeds {} bytes)",
-                MAX_FILE_NAME_LENGTH_UNIX
-            );
-        }
-
-        if path.as_os_str().len() > MAX_PATH_LENGTH {
-            anyhow::bail!("path is too long (exceeds {} bytes)", MAX_PATH_LENGTH);
-        }
-
-        Ok(path.into())
-    }
-
-    validate_path_length_inner(path).with_context(|| {
-        format!(
-            "path length for file {} exceeds max length of filesystem",
-            path.to_string_lossy()
-        )
-    })
+    validate_path_length_inner(path)
+        .with_context(|| format!("path length for file {path:?} exceeds max length of filesystem"))
 }
 
 trait ConcurrencyLimitedExt {
@@ -469,15 +464,10 @@ impl DiskFileSystemInner {
         let root_path = self.root_path().to_path_buf();
 
         // create the directory for the filesystem on disk, if it doesn't exist
-        retry_blocking(root_path.clone(), move |path| {
-            let _tracing =
-                tracing::info_span!("create root directory", name = display(path.display()))
-                    .entered();
-
-            std::fs::create_dir_all(path)
-        })
-        .concurrency_limited(&self.write_semaphore)
-        .await?;
+        retry_blocking(|| std::fs::create_dir_all(&root_path))
+            .instrument(tracing::info_span!("create root directory", name = ?root_path))
+            .concurrency_limited(&self.write_semaphore)
+            .await?;
 
         self.watcher
             .start_watching(self.clone(), report_invalidation_reason, poll_interval)?;
@@ -491,12 +481,8 @@ impl DiskFileSystemInner {
             |fs_context| fs_context.created_directories.contains(directory),
         );
         if !already_created {
-            let func = |p: &Path| std::fs::create_dir_all(p);
-            retry_blocking(directory.to_path_buf(), func)
-                .instrument(tracing::info_span!(
-                    "create directory",
-                    name = display(directory.display())
-                ))
+            retry_blocking(|| std::fs::create_dir_all(directory))
+                .instrument(tracing::info_span!("create directory", name = ?directory))
                 .concurrency_limited(&self.write_semaphore)
                 .await?;
             ApplyEffectsContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
@@ -707,11 +693,8 @@ impl FileSystem for DiskFileSystem {
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
-        let content = match retry_blocking(full_path.clone(), |path: &Path| File::from_path(path))
-            .instrument(tracing::info_span!(
-                "read file",
-                name = display(full_path.display())
-            ))
+        let content = match retry_blocking(|| File::from_path(&full_path))
+            .instrument(tracing::info_span!("read file", name = ?full_path))
             .concurrency_limited(&self.inner.read_semaphore)
             .await
         {
@@ -719,9 +702,7 @@ impl FileSystem for DiskFileSystem {
             Err(e) if e.kind() == ErrorKind::NotFound || e.kind() == ErrorKind::InvalidFilename => {
                 FileContent::NotFound
             }
-            Err(e) => {
-                bail!(anyhow!(e).context(format!("reading file {}", full_path.display())))
-            }
+            Err(e) => return Err(anyhow!(e).context(format!("reading file {full_path:?}"))),
         };
         Ok(content.cell())
     }
@@ -738,15 +719,11 @@ impl FileSystem for DiskFileSystem {
 
         self.inner.register_dir_invalidator(&full_path)?;
 
-        // we use the sync std function here as it's a lot faster (600%) in
-        // node-file-trace
-        let read_dir = match retry_blocking(full_path.clone(), |path| {
-            let _span =
-                tracing::info_span!("read directory", name = display(path.display())).entered();
-            std::fs::read_dir(path)
-        })
-        .concurrency_limited(&self.inner.read_semaphore)
-        .await
+        // we use the sync std function here as it's a lot faster (600%) in node-file-trace
+        let read_dir = match retry_blocking(|| std::fs::read_dir(&full_path))
+            .instrument(tracing::info_span!("read directory", name = ?full_path))
+            .concurrency_limited(&self.inner.read_semaphore)
+            .await
         {
             Ok(dir) => dir,
             Err(e)
@@ -757,7 +734,7 @@ impl FileSystem for DiskFileSystem {
                 return Ok(RawDirectoryContent::not_found());
             }
             Err(e) => {
-                bail!(anyhow!(e).context(format!("reading dir {}", full_path.display())))
+                return Err(anyhow!(e).context(format!("reading dir {full_path:?}")));
             }
         };
         let dir_path = fs_path.path.as_str();
@@ -797,7 +774,7 @@ impl FileSystem for DiskFileSystem {
                 };
 
                 // we filter out any non unicode names
-                let file_name: RcStr = e.file_name().to_str()?.into();
+                let file_name = RcStr::from(e.file_name().to_str()?);
                 // Filter out denied entries
                 if denied_entries.contains(file_name.as_str()) {
                     return None;
@@ -814,7 +791,7 @@ impl FileSystem for DiskFileSystem {
                 Some(anyhow::Ok((file_name, entry)))
             })
             .collect::<Result<_>>()
-            .with_context(|| format!("reading directory item in {}", full_path.display()))?;
+            .with_context(|| format!("reading directory item in {full_path:?}"))?;
 
         Ok(RawDirectoryContent::new(entries))
     }
@@ -832,18 +809,14 @@ impl FileSystem for DiskFileSystem {
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
-        let link_path =
-            match retry_blocking(full_path.clone(), |path: &Path| std::fs::read_link(path))
-                .instrument(tracing::info_span!(
-                    "read symlink",
-                    name = display(full_path.display())
-                ))
-                .concurrency_limited(&self.inner.read_semaphore)
-                .await
-            {
-                Ok(res) => res,
-                Err(_) => return Ok(LinkContent::NotFound.cell()),
-            };
+        let link_path = match retry_blocking(|| std::fs::read_link(&full_path))
+            .instrument(tracing::info_span!("read symlink", name = ?full_path))
+            .concurrency_limited(&self.inner.read_semaphore)
+            .await
+        {
+            Ok(res) => res,
+            Err(_) => return Ok(LinkContent::NotFound.cell()),
+        };
         let is_link_absolute = link_path.is_absolute();
 
         let mut file = link_path.clone();
@@ -880,7 +853,7 @@ impl FileSystem for DiskFileSystem {
         };
 
         let (target, file_type) = if is_link_absolute {
-            let target_string: RcStr = relative_to_root_path.to_string_lossy().into();
+            let target_string = RcStr::from(relative_to_root_path.to_string_lossy());
             (
                 target_string.clone(),
                 FileSystemPath::new_normalized(fs_path.fs().to_resolved().await?, target_string)
@@ -889,7 +862,7 @@ impl FileSystem for DiskFileSystem {
             )
         } else {
             let link_path_string_cow = link_path.to_string_lossy();
-            let link_path_unix: RcStr = sys_to_unix(&link_path_string_cow).into();
+            let link_path_unix = RcStr::from(sys_to_unix(&link_path_string_cow));
             (
                 link_path_unix.clone(),
                 fs_path.parent().join(&link_path_unix)?.get_type().await?,
@@ -956,10 +929,7 @@ impl FileSystem for DiskFileSystem {
             // not wasting cycles.
             let compare = content
                 .streaming_compare(&full_path)
-                .instrument(tracing::info_span!(
-                    "read file before write",
-                    name = display(full_path.display())
-                ))
+                .instrument(tracing::info_span!("read file before write", name = ?full_path))
                 .concurrency_limited(&inner.read_semaphore)
                 .await?;
             if compare == FileComparison::Equal {
@@ -981,19 +951,14 @@ impl FileSystem for DiskFileSystem {
                     if create_directory && let Some(parent) = full_path.parent() {
                         inner.create_directory(parent).await.with_context(|| {
                             format!(
-                                "failed to create directory {} for write to {}",
-                                parent.display(),
-                                full_path.display()
+                                "failed to create directory {parent:?} for write to {full_path:?}",
                             )
                         })?;
                     }
 
-                    let full_path_to_write = full_path.clone();
                     let content = content.clone();
-                    retry_blocking(full_path_to_write.into_owned(), move |full_path| {
-                        use std::io::Write;
-
-                        let mut f = std::fs::File::create(full_path)?;
+                    retry_blocking(|| {
+                        let mut f = std::fs::File::create(&full_path)?;
                         let FileContent::Content(file) = &*content else {
                             unreachable!()
                         };
@@ -1007,7 +972,7 @@ impl FileSystem for DiskFileSystem {
                                 .is_some_and(|v| v == "1" || v == "true")
                         });
                         if *WRITE_VERSION {
-                            let mut full_path = full_path.to_owned();
+                            let mut full_path = full_path.clone().into_owned();
                             let hash = hash_xxh3_hash64(file);
                             let ext = full_path.extension();
                             let ext = if let Some(ext) = ext {
@@ -1024,32 +989,24 @@ impl FileSystem for DiskFileSystem {
                         }
                         Ok::<(), io::Error>(())
                     })
-                    .instrument(tracing::info_span!(
-                        "write file",
-                        name = display(full_path.display())
-                    ))
+                    .instrument(tracing::info_span!("write file", name = ?full_path))
                     .concurrency_limited(&inner.write_semaphore)
                     .await
-                    .with_context(|| format!("failed to write to {}", full_path.display()))?;
+                    .with_context(|| format!("failed to write to {full_path:?}"))?;
                 }
                 FileContent::NotFound => {
-                    retry_blocking(full_path.clone().into_owned(), |path| {
-                        std::fs::remove_file(path)
-                    })
-                    .instrument(tracing::info_span!(
-                        "remove file",
-                        name = display(full_path.display())
-                    ))
-                    .concurrency_limited(&inner.write_semaphore)
-                    .await
-                    .or_else(|err| {
-                        if err.kind() == ErrorKind::NotFound {
-                            Ok(())
-                        } else {
-                            Err(err)
-                        }
-                    })
-                    .with_context(|| format!("removing {} failed", full_path.display()))?;
+                    retry_blocking(|| std::fs::remove_file(&full_path))
+                        .instrument(tracing::info_span!("remove file", name = ?full_path))
+                        .concurrency_limited(&inner.write_semaphore)
+                        .await
+                        .or_else(|err| {
+                            if err.kind() == ErrorKind::NotFound {
+                                Ok(())
+                            } else {
+                                Err(err)
+                            }
+                        })
+                        .with_context(|| format!("removing {full_path:?} failed"))?;
                 }
             }
 
@@ -1134,17 +1091,10 @@ impl FileSystem for DiskFileSystem {
                 LinkContent::NotFound => OsSpecificLinkContent::NotFound,
             };
 
-            // TODO(sokra) perform a untracked read here, register an invalidator and get
-            // all existing invalidators
-            let old_content = match retry_blocking(full_path.clone().into_owned(), |path| {
-                std::fs::read_link(path)
-            })
-            .instrument(tracing::info_span!(
-                "read symlink before write",
-                name = display(full_path.display())
-            ))
-            .concurrency_limited(&inner.read_semaphore)
-            .await
+            let old_content = match retry_blocking(|| std::fs::read_link(&full_path))
+                .instrument(tracing::info_span!("read symlink before write", name = ?full_path))
+                .concurrency_limited(&inner.read_semaphore)
+                .await
             {
                 Ok(res) => Some((res.is_absolute(), res)),
                 Err(_) => None,
@@ -1183,81 +1133,97 @@ impl FileSystem for DiskFileSystem {
                     if create_directory && let Some(parent) = full_path.parent() {
                         inner.create_directory(parent).await.with_context(|| {
                             format!(
-                                "failed to create directory {} for write link to {}",
-                                parent.display(),
-                                full_path.display()
+                                "failed to create directory {parent:?} for write link to \
+                                 {full_path:?}",
                             )
                         })?;
                     }
 
-                    if old_content.is_some() {
-                        // Remove existing symlink before creating a new one. On Unix, symlink(2)
-                        // fails with EEXIST if the link already exists instead of overwriting it.
-                        // Windows has similar behavior with junction points.
-                        remove_symbolic_link_dir_helper(&full_path)
-                            .instrument(tracing::info_span!(
-                                "remove existing symlink before write",
-                                name = display(full_path.display())
-                            ))
-                            .concurrency_limited(&inner.write_semaphore)
-                            .await
-                            .with_context(|| {
-                                format!("removing existing symlink {} failed", full_path.display())
-                            })?;
+                    #[derive(thiserror::Error, Debug)]
+                    #[error("{msg}: {source}")]
+                    struct SymlinkCreationError {
+                        msg: &'static str,
+                        #[source]
+                        source: io::Error,
                     }
 
-                    let span =
-                        tracing::info_span!("create symlink", name = display(full_path.display()));
-                    retry_blocking(target.clone(), move |target_path| {
-                        let _span = tracing::info_span!(
-                            "write symlink",
-                            name = display(target_path.display())
-                        )
-                        .entered();
-                        #[cfg(not(windows))]
-                        {
-                            std::os::unix::fs::symlink(target_path, &full_path)
+                    let mut has_old_content = old_content.is_some();
+                    let try_create_link = || {
+                        if has_old_content {
+                            // Remove existing symlink before creating a new one. On Unix,
+                            // symlink(2) fails with EEXIST if the link already exists instead of
+                            // overwriting it. Windows has similar behavior with junction points.
+                            remove_symbolic_link_dir_helper(&full_path).map_err(|err| {
+                                SymlinkCreationError {
+                                    msg: "removal of existing symbolic link or junction point \
+                                          failed",
+                                    source: err,
+                                }
+                            })?;
+                            has_old_content = false;
                         }
+                        #[cfg(not(windows))]
+                        let io_result = std::os::unix::fs::symlink(&target, &full_path);
                         #[cfg(windows)]
-                        {
-                            if is_directory {
-                                std::os::windows::fs::junction_point(target_path, &full_path)
-                            } else {
-                                std::os::windows::fs::symlink_file(target_path, &full_path)
+                        let io_result = if is_directory {
+                            std::os::windows::fs::junction_point(&target, &full_path)
+                        } else {
+                            std::os::windows::fs::symlink_file(&target, &full_path)
+                        };
+                        io_result.map_err(|err| {
+                            if err.kind() == ErrorKind::AlreadyExists {
+                                // try to remove the symlink on the next iteration of the loop
+                                has_old_content = true;
                             }
-                        }
-                    })
-                    .instrument(span)
-                    .concurrency_limited(&inner.write_semaphore)
-                    .await
-                    .with_context(|| {
+                            SymlinkCreationError {
+                                msg: "creation of a new symbolic link or junction point failed",
+                                source: err,
+                            }
+                        })
+                    };
+                    fn can_retry_link(err: &SymlinkCreationError) -> bool {
+                        err.source.kind() == ErrorKind::AlreadyExists || can_retry(&err.source)
+                    }
+                    let err_context = || {
                         #[cfg(not(windows))]
-                        let message = format!("failed to create symlink to {}", target.display());
+                        let message = format!(
+                            "failed to create symlink at {full_path:?} pointing to {target:?}"
+                        );
                         #[cfg(windows)]
                         let message = if is_directory {
-                            format!("failed to create junction point to {}", target.display())
+                            format!(
+                                "failed to create junction point at {full_path:?} pointing to \
+                                 {target:?}"
+                            )
                         } else {
                             format!(
-                                "failed to create symlink to {}\n\
-                                (Note: creating file symlinks on Windows require developer mode or admin permissions: https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
-                                target.display()
+                                "failed to create symlink at {full_path:?} pointing to {target:?}\n\
+                                (Note: creating file symlinks on Windows require developer mode or \
+                                admin permissions: \
+                                https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
                             )
                         };
                         message
-                    })?;
-                }
-                OsSpecificLinkContent::Invalid => {
-                    bail!("invalid symlink target: {}", full_path.display())
-                }
-                OsSpecificLinkContent::NotFound => {
-                    remove_symbolic_link_dir_helper(&full_path)
+                    };
+                    retry_blocking_custom(try_create_link, can_retry_link)
                         .instrument(tracing::info_span!(
-                            "remove symlink",
-                            name = display(full_path.display())
+                            "write symlink",
+                            name = ?full_path,
+                            target = ?target,
                         ))
                         .concurrency_limited(&inner.write_semaphore)
                         .await
-                        .with_context(|| format!("removing {} failed", full_path.display()))?;
+                        .with_context(err_context)?;
+                }
+                OsSpecificLinkContent::Invalid => {
+                    bail!("invalid symlink target: {full_path:?}")
+                }
+                OsSpecificLinkContent::NotFound => {
+                    retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
+                        .instrument(tracing::info_span!("remove symlink", name = ?full_path))
+                        .concurrency_limited(&inner.write_semaphore)
+                        .await
+                        .with_context(|| format!("removing {full_path:?} failed"))?;
                 }
             }
 
@@ -1282,55 +1248,45 @@ impl FileSystem for DiskFileSystem {
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
-        let meta = retry_blocking(full_path.clone(), |path| std::fs::metadata(path))
-            .instrument(tracing::info_span!(
-                "read metadata",
-                name = display(full_path.display())
-            ))
+        let meta = retry_blocking(|| std::fs::metadata(&full_path))
+            .instrument(tracing::info_span!("read metadata", name = ?full_path))
             .concurrency_limited(&self.inner.read_semaphore)
             .await
-            .with_context(|| format!("reading metadata for {}", full_path.display()))?;
+            .with_context(|| format!("reading metadata for {:?}", full_path))?;
 
         Ok(FileMeta::cell(meta.into()))
     }
 }
 
-async fn remove_symbolic_link_dir_helper(path: impl AsRef<Path>) -> Result<()> {
-    let path = path.as_ref();
-    retry_blocking(path.to_owned(), move |path| {
-        if cfg!(windows) {
-            // Junction points on Windows are treated as directories, and therefore need
-            // `remove_dir`:
-            //
-            // > `RemoveDirectory` can be used to remove a directory junction. Since the target
-            // > directory and its contents will remain accessible through its canonical path, the
-            // > target directory itself is not affected by removing a junction which targets it.
-            //
-            // -- https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-removedirectoryw
-            //
-            // However, Next 16.1.0 shipped with symlinks, before we switched to junction links on
-            // Windows, and `remove_dir` won't work on symlinks. So try to remove it as a directory
-            // (junction) first, and then fall back to removing it as a file (symlink).
-            std::fs::remove_dir(path).or_else(|err| {
-                if err.kind() == ErrorKind::NotADirectory {
-                    std::fs::remove_file(path)
-                } else {
-                    Err(err)
-                }
-            })
-        } else {
-            std::fs::remove_file(path)
-        }
-    })
-    .await
-    .or_else(|err| {
-        if err.kind() == ErrorKind::NotFound {
-            Ok(())
-        } else {
-            Err(err)
-        }
-    })
-    .with_context(|| format!("removing existing symlink {path:?} failed"))
+fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
+    let result = if cfg!(windows) {
+        // Junction points on Windows are treated as directories, and therefore need
+        // `remove_dir`:
+        //
+        // > `RemoveDirectory` can be used to remove a directory junction. Since the target
+        // > directory and its contents will remain accessible through its canonical path, the
+        // > target directory itself is not affected by removing a junction which targets it.
+        //
+        // -- https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-removedirectoryw
+        //
+        // However, Next 16.1.0 shipped with symlinks, before we switched to junction links on
+        // Windows, and `remove_dir` won't work on symlinks. So try to remove it as a directory
+        // (junction) first, and then fall back to removing it as a file (symlink).
+        std::fs::remove_dir(path).or_else(|err| {
+            if err.kind() == ErrorKind::NotADirectory {
+                std::fs::remove_file(path)
+            } else {
+                Err(err)
+            }
+        })
+    } else {
+        std::fs::remove_file(path)
+    };
+    match result {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(err),
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -1531,7 +1487,7 @@ impl FileSystemPath {
             bail!(
                 "FileSystemPath(\"{}\").join(\"{}\") leaves the filesystem root",
                 self.path,
-                path
+                path,
             );
         }
     }
@@ -1542,7 +1498,7 @@ impl FileSystemPath {
             bail!(
                 "FileSystemPath(\"{}\").append(\"{}\") must not append '/'",
                 self.path,
-                path
+                path,
             )
         }
         Ok(Self::new_normalized(
@@ -1558,7 +1514,7 @@ impl FileSystemPath {
             bail!(
                 "FileSystemPath(\"{}\").append_to_stem(\"{}\") must not append '/'",
                 self.path,
-                appending
+                appending,
             )
         }
         if let (path, Some(ext)) = self.split_extension() {
@@ -1925,10 +1881,8 @@ impl FileContent {
     /// Performs a comparison of self's data against a disk file's streamed
     /// read.
     async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
-        let old_file = extract_disk_access(
-            retry_blocking(path.to_path_buf(), |path| std::fs::File::open(path)).await,
-            path,
-        )?;
+        let old_file =
+            extract_disk_access(retry_blocking(|| std::fs::File::open(path)).await, path)?;
         let Some(old_file) = old_file else {
             return Ok(match self {
                 FileContent::NotFound => FileComparison::Equal,
@@ -1940,14 +1894,7 @@ impl FileContent {
             return Ok(FileComparison::NotEqual);
         };
 
-        let old_meta = extract_disk_access(
-            retry_blocking(path.to_path_buf(), {
-                let file_for_metadata = old_file.try_clone()?;
-                move |_| file_for_metadata.metadata()
-            })
-            .await,
-            path,
-        )?;
+        let old_meta = extract_disk_access(retry_blocking(|| old_file.metadata()).await, path)?;
         let Some(old_meta) = old_meta else {
             // If we failed to get meta, then the old file has been deleted between the
             // handle open. In which case, we just pretend the file never
@@ -2987,8 +2934,9 @@ mod tests {
             io::Write,
         };
 
+        use rand::{Rng, SeedableRng};
         use turbo_rcstr::{RcStr, rcstr};
-        use turbo_tasks::{ResolvedVc, apply_effects};
+        use turbo_tasks::{ResolvedVc, Vc, apply_effects};
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use crate::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
@@ -3085,6 +3033,111 @@ mod tests {
             .await
             .unwrap();
         }
+
+        const STRESS_ITERATIONS: usize = 100;
+        const STRESS_PARALLELISM: usize = 8;
+        const STRESS_TARGET_COUNT: usize = 20;
+        const STRESS_SYMLINK_COUNT: usize = 16;
+
+        #[turbo_tasks::function(operation)]
+        fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
+            DiskFileSystem::new(rcstr!("test"), fs_root)
+        }
+
+        #[turbo_tasks::function(operation)]
+        fn disk_file_system_root_operation(fs: ResolvedVc<DiskFileSystem>) -> Vc<FileSystemPath> {
+            fs.root()
+        }
+
+        #[turbo_tasks::function(operation)]
+        async fn write_symlink_stress_batch(
+            fs: ResolvedVc<DiskFileSystem>,
+            symlinks_dir: FileSystemPath,
+            updates: Vec<(usize, usize)>,
+        ) -> anyhow::Result<()> {
+            use turbo_tasks::TryJoinIterExt;
+
+            updates
+                .into_iter()
+                .map(|(symlink_idx, target_idx)| {
+                    let target = RcStr::from(format!("../_targets/{target_idx}"));
+                    let symlink_path = symlinks_dir.join(&symlink_idx.to_string()).unwrap();
+                    async move {
+                        fs.write_link(
+                            symlink_path,
+                            LinkContent::Link {
+                                target,
+                                link_type: LinkType::DIRECTORY,
+                            }
+                            .cell(),
+                        )
+                        .await
+                    }
+                })
+                .try_join()
+                .await?;
+            Ok(())
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_symlink_stress() {
+            let scratch = tempfile::tempdir().unwrap();
+            let path = scratch.path().to_owned();
+
+            let targets_dir = path.join("_targets");
+            create_dir_all(&targets_dir).unwrap();
+            for i in 0..STRESS_TARGET_COUNT {
+                create_dir_all(targets_dir.join(i.to_string())).unwrap();
+            }
+            create_dir_all(path.join("_symlinks")).unwrap();
+
+            let root = RcStr::from(path.to_str().unwrap());
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                let fs = disk_file_system_operation(root)
+                    .resolve_strongly_consistent()
+                    .await?;
+                let root_path = disk_file_system_root_operation(fs)
+                    .resolve_strongly_consistent()
+                    .await?
+                    .owned()
+                    .await?;
+                let symlinks_dir = root_path.join("_symlinks")?;
+
+                let initial_updates: Vec<(usize, usize)> =
+                    (0..STRESS_SYMLINK_COUNT).map(|i| (i, 0)).collect();
+                let initial_op =
+                    write_symlink_stress_batch(fs, symlinks_dir.clone(), initial_updates);
+                initial_op.read_strongly_consistent().await?;
+                apply_effects(initial_op).await?;
+
+                let mut rng = rand::rngs::SmallRng::seed_from_u64(0);
+                for _ in 0..STRESS_ITERATIONS {
+                    let updates: Vec<(usize, usize)> = (0..STRESS_PARALLELISM)
+                        .map(|_| {
+                            let symlink_idx = rng.random_range(0..STRESS_SYMLINK_COUNT);
+                            let target_idx = rng.random_range(0..STRESS_TARGET_COUNT);
+                            (symlink_idx, target_idx)
+                        })
+                        .collect();
+
+                    let write_op = write_symlink_stress_batch(fs, symlinks_dir.clone(), updates);
+                    write_op.read_strongly_consistent().await?;
+                    apply_effects(write_op).await?;
+                }
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+
+            tt.stop_and_wait().await;
+        }
     }
 
     // Tests helpers for denied_path tests
@@ -3142,9 +3195,9 @@ mod tests {
                 .write_all(b"deep secret")
                 .unwrap();
 
-            let root: RcStr = path.to_str().unwrap().into();
+            let root = RcStr::from(path.to_str().unwrap());
             // denied_path should be relative to root, using unix separators
-            let denied_path: RcStr = rcstr!("denied_dir");
+            let denied_path = rcstr!("denied_dir");
 
             (scratch, root, denied_path)
         }

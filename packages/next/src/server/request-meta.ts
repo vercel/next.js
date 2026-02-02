@@ -87,6 +87,12 @@ export interface RequestMeta {
   rewrittenPathname?: string
 
   /**
+   * The resolved pathname for the request. Dynamic route params are
+   * interpolated, the pathname is decoded, and the trailing slash is removed.
+   */
+  resolvedPathname?: string
+
+  /**
    * The cookies that were added by middleware and were added to the response.
    */
   middlewareCookie?: string[]

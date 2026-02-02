@@ -14,7 +14,9 @@ use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext, ReferenceType},
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
+    resolve::{
+        ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request, url_resolve,
+    },
     source::Source,
     source_pos::SourcePos,
 };
@@ -178,5 +180,11 @@ pub fn css_resolve(
     ty: CssReferenceSubType,
     issue_source: Option<IssueSource>,
 ) -> Vc<ModuleResolveResult> {
-    url_resolve(origin, request, ReferenceType::Css(ty), issue_source, false)
+    url_resolve(
+        origin,
+        request,
+        ReferenceType::Css(ty),
+        issue_source,
+        ResolveErrorMode::Error,
+    )
 }

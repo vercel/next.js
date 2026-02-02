@@ -9,11 +9,11 @@ use std::{
 };
 
 use anyhow::{Result, bail};
-use graph::VarGraph;
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHasher;
+use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
     common::Mark,
@@ -24,15 +24,16 @@ use swc_core::{
 };
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::compile_time_info::{
-    CompileTimeDefineValue, DefinableNameSegment, FreeVarReference, FreeVarReferenceVcs,
+    CompileTimeDefineValue, DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference,
 };
 
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
 use crate::{
-    analyzer::graph::EvalContext, references::require_context::RequireContextMap,
+    analyzer::graph::{EvalContext, VarGraph},
+    references::require_context::RequireContextMap,
     utils::StringifyJs,
 };
 
@@ -640,10 +641,16 @@ impl TryFrom<&FreeVarReference> for JsValue {
                 false,
                 "compile time injected free var module",
             )),
-            FreeVarReference::Error(_) => Ok(JsValue::unknown_empty(
-                false,
-                "compile time injected free var error",
-            )),
+            FreeVarReference::ReportUsage { inner, .. } => {
+                if let Some(inner) = &inner {
+                    inner.as_ref().try_into()
+                } else {
+                    Ok(JsValue::unknown_empty(
+                        false,
+                        "compile time injected free var error",
+                    ))
+                }
+            }
             FreeVarReference::InputRelative(kind) => {
                 use turbopack_core::compile_time_info::InputRelativeConstant;
                 Ok(JsValue::unknown_empty(
@@ -1862,6 +1869,10 @@ impl JsValue {
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
                     ),
+                    WellKnownFunctionKind::SharedWorkerConstructor => (
+                      "SharedWorker".to_string(),
+                      "The standard SharedWorker constructor: https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker/SharedWorker"
+                    ),
                     WellKnownFunctionKind::URLConstructor => (
                       "URL".to_string(),
                       "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL"
@@ -1945,158 +1956,87 @@ impl JsValue {
 
 // Definable name management
 impl JsValue {
-    /// When the value has a user-definable name, return the length of it (in segments). Otherwise
+    /// When the value has a user-definable name, return it in segments. Otherwise
     /// returns None.
+    /// It also returns a boolean whether the variable was potentially reassigned.
     /// - any free var has itself as user-definable name: ["foo"]
     /// - any member access adds the identifier as segment after the object: ["foo", "prop"]
     /// - some well-known objects/functions have a user-definable names: ["import"]
-    /// - member calls without arguments also have a user-definable name which is the property with
-    ///   `()` appended: ["foo", "prop()"]
+    /// - member calls without arguments also have a user-definable name: ["foo", Call("func")]
     /// - typeof expressions add `typeof` after the argument's segments: ["foo", "typeof"]
-    pub fn get_definable_name_len(&self) -> Option<usize> {
-        match self {
-            JsValue::FreeVar(_) => Some(1),
-            JsValue::Member(_, obj, prop) if prop.as_str().is_some() => {
-                Some(obj.get_definable_name_len()? + 1)
-            }
-            JsValue::WellKnownObject(obj) => obj.as_define_name().map(|d| d.len()),
-            JsValue::WellKnownFunction(func) => func.as_define_name().map(|d| d.len()),
-            JsValue::MemberCall(_, callee, prop, args)
-                if args.is_empty() && prop.as_str().is_some() =>
-            {
-                Some(callee.get_definable_name_len()? + 1)
-            }
-            JsValue::TypeOf(_, arg) => Some(arg.get_definable_name_len()? + 1),
-
-            _ => None,
-        }
-    }
-
-    /// Returns a reverse iterator over the segments of the user-definable
-    /// name. e. g. `foo.bar().baz` would yield `baz`, `bar()`, `foo`.
-    /// `(1+2).foo.baz` would also yield `baz`, `foo` even while the value is
-    /// not a complete user-definable name. Before calling this method you must
-    /// use [JsValue::get_definable_name_len] to determine if the value has a
-    /// user-definable name at all.
-    pub fn iter_definable_name_rev(&self) -> DefinableNameIter<'_> {
-        DefinableNameIter {
-            next: Some(self),
-            index: 0,
-        }
-    }
-
-    /// Returns any matching defined replacement that matches this value (the replacement that
-    /// matches `$self.$prop`).
-    ///
-    /// Uses the `VarGraph` to verify that the first segment is not a local
-    /// variable/was not reassigned.
-    pub fn match_free_var_reference(
+    pub fn get_definable_name(
         &self,
-        var_graph: &VarGraph,
-        free_var_references: &FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs>,
-        prop: &DefinableNameSegment,
-    ) -> Option<ResolvedVc<FreeVarReference>> {
-        if let Some(def_name_len) = self.get_definable_name_len()
-            && let Some(references) = free_var_references.get(prop)
-        {
-            for (name, value) in &references.0 {
-                if name.len() != def_name_len {
-                    continue;
-                }
-
-                let name_rev_it = name.iter().map(Cow::Borrowed).rev();
-                if name_rev_it.eq(self.iter_definable_name_rev()) {
-                    if let DefinableNameSegment::Name(first_str) = name.first().unwrap() {
-                        let first_str: &str = first_str;
-                        if var_graph
+        var_graph: Option<&VarGraph>,
+    ) -> Option<(DefinableNameSegmentRefs<'_>, bool)> {
+        let mut current = self;
+        let mut segments = SmallVec::new();
+        let mut potentially_reassigned = false;
+        loop {
+            match current {
+                JsValue::FreeVar(name) => {
+                    if var_graph.is_some_and(|var_graph| {
+                        var_graph
                             .free_var_ids
-                            .get(&Atom::from(first_str))
+                            .get(name)
                             .is_some_and(|id| var_graph.values.contains_key(id))
-                        {
-                            // `typeof foo...` but `foo` was reassigned
-                            return None;
-                        }
+                    }) {
+                        // `foo` was potentially reassigned
+                        potentially_reassigned = true;
                     }
-
-                    return Some(*value);
+                    segments.push(DefinableNameSegmentRef::Name(name));
+                    break;
                 }
+                JsValue::Member(_, obj, prop) => {
+                    if let Some(prop) = prop.as_str() {
+                        segments.push(DefinableNameSegmentRef::Name(prop));
+                    } else {
+                        return None;
+                    }
+                    current = obj;
+                }
+                JsValue::WellKnownObject(obj) => {
+                    if let Some(name) = obj.as_define_name() {
+                        segments.extend(
+                            name.iter()
+                                .rev()
+                                .copied()
+                                .map(DefinableNameSegmentRef::Name),
+                        );
+                        break;
+                    } else {
+                        return None;
+                    }
+                }
+                JsValue::WellKnownFunction(func) => {
+                    if let Some(name) = func.as_define_name() {
+                        segments.extend(
+                            name.iter()
+                                .rev()
+                                .copied()
+                                .map(DefinableNameSegmentRef::Name),
+                        );
+                        break;
+                    } else {
+                        return None;
+                    }
+                }
+                JsValue::MemberCall(_, callee, prop, args) if args.is_empty() => {
+                    if let Some(prop) = prop.as_str() {
+                        segments.push(DefinableNameSegmentRef::Call(prop));
+                    } else {
+                        return None;
+                    }
+                    current = callee;
+                }
+                JsValue::TypeOf(_, arg) => {
+                    segments.push(DefinableNameSegmentRef::TypeOf);
+                    current = arg;
+                }
+                _ => return None,
             }
         }
-
-        None
-    }
-
-    /// Returns any matching defined replacement that matches this value.
-    pub fn match_define<'a, T>(
-        &self,
-        defines: &'a FxIndexMap<Vec<DefinableNameSegment>, T>,
-    ) -> Option<&'a T> {
-        if let Some(def_name_len) = self.get_definable_name_len() {
-            for (name, value) in defines.iter() {
-                if name.len() != def_name_len {
-                    continue;
-                }
-
-                if name
-                    .iter()
-                    .map(Cow::Borrowed)
-                    .rev()
-                    .eq(self.iter_definable_name_rev())
-                {
-                    return Some(value);
-                }
-            }
-        }
-
-        None
-    }
-}
-
-pub struct DefinableNameIter<'a> {
-    next: Option<&'a JsValue>,
-    index: usize,
-}
-
-impl<'a> Iterator for DefinableNameIter<'a> {
-    type Item = Cow<'a, DefinableNameSegment>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let value = self.next.take()?;
-        Some(Cow::Owned(match value {
-            JsValue::FreeVar(kind) => (&**kind).into(),
-            JsValue::Member(_, obj, prop) => {
-                self.next = Some(obj);
-                prop.as_str()?.into()
-            }
-            JsValue::WellKnownObject(obj) => {
-                let name = obj.as_define_name()?;
-                let i = self.index;
-                self.index += 1;
-                if self.index < name.len() {
-                    self.next = Some(value);
-                }
-                name[name.len() - i - 1].into()
-            }
-            JsValue::WellKnownFunction(func) => {
-                let name = func.as_define_name()?;
-                let i = self.index;
-                self.index += 1;
-                if self.index < name.len() {
-                    self.next = Some(value);
-                }
-                name[name.len() - i - 1].into()
-            }
-            JsValue::MemberCall(_, callee, prop, args) if args.is_empty() => {
-                self.next = Some(callee);
-                format!("{}()", prop.as_str()?).into()
-            }
-            JsValue::TypeOf(_, arg) => {
-                self.next = Some(arg);
-                DefinableNameSegment::TypeOf
-            }
-
-            _ => return None,
-        }))
+        segments.reverse();
+        Some((DefinableNameSegmentRefs(segments), potentially_reassigned))
     }
 }
 
@@ -3527,6 +3467,7 @@ pub enum WellKnownFunctionKind {
     NodeResolveFrom,
     NodeProtobufLoad,
     WorkerConstructor,
+    SharedWorkerConstructor,
     // The worker_threads Worker class
     NodeWorkerConstructor,
     URLConstructor,
@@ -3557,8 +3498,8 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 pub mod test_utils {
     use anyhow::Result;
     use turbo_rcstr::rcstr;
-    use turbo_tasks::{FxIndexMap, Vc};
-    use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
+    use turbo_tasks::{FxIndexMap, PrettyPrintError, Vc};
+    use turbopack_core::compile_time_info::CompileTimeInfo;
 
     use super::{
         ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,

@@ -49,6 +49,10 @@ const segmentSchema = s.union([
     s.string(),
     // Dynamic param type
     dynamicParamTypesSchema,
+    // Static siblings at the same URL level. Used by the client router to
+    // determine if a prefetch can be reused when navigating to a static
+    // sibling of a dynamic route. null means siblings are unknown.
+    s.nullable(s.array(s.string())),
   ]),
 ])
 
@@ -118,11 +122,10 @@ export interface RenderOptsPartial {
     errorsRscStream: ReadableStream<Uint8Array>,
     htmlRequestId: string
   ) => void
-  nextExport?: boolean
+  isBuildTimePrerendering?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError
   isDraftMode?: boolean
-  deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (
     phase: string,
@@ -135,6 +138,7 @@ export interface RenderOptsPartial {
     bodySizeLimit?: SizeLimit
     allowedOrigins?: string[]
   }
+  logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
   htmlLimitedBots: string | undefined
@@ -155,6 +159,7 @@ export interface RenderOptsPartial {
      */
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
+    optimisticRouting: boolean
     inlineCss: boolean
     authInterrupts: boolean
 

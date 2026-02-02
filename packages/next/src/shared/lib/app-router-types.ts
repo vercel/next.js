@@ -11,6 +11,8 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
+import type { VaryParamsThenable } from './segment-cache/vary-params-decoding'
+
 /** viewport metadata node */
 export type HeadData = React.ReactNode
 
@@ -75,21 +77,29 @@ export type DynamicParamTypesShort =
   | 'di(..)'
   | 'di(...)'
 
-export type Segment =
-  | string
-  | [
-      // Param name
-      paramName: string,
-      // Param cache key (almost the same as the value, but arrays are
-      // concatenated into strings)
-      // TODO: We should change this to just be the value. Currently we convert
-      // it back to a value when passing to useParams. It only needs to be
-      // a string when converted to a a cache key, but that doesn't mean we
-      // need to store it as that representation.
-      paramCacheKey: string,
-      // Dynamic param type
-      dynamicParamType: DynamicParamTypesShort,
-    ]
+// The tuple form of a segment, used for dynamic route params
+export type DynamicSegmentTuple = [
+  // Param name
+  paramName: string,
+  // Param cache key (almost the same as the value, but arrays are
+  // concatenated into strings)
+  // TODO: We should change this to just be the value. Currently we convert
+  // it back to a value when passing to useParams. It only needs to be
+  // a string when converted to a a cache key, but that doesn't mean we
+  // need to store it as that representation.
+  paramCacheKey: string,
+  // Dynamic param type
+  dynamicParamType: DynamicParamTypesShort,
+  // Static sibling segments at the same URL level. Used by the client
+  // router to determine if a prefetch can be reused when navigating to
+  // a static sibling of a dynamic route. For example, if the route is
+  // /products/[id] and there's also /products/sale, then staticSiblings
+  // would be ['sale']. null means the siblings are unknown (e.g. in
+  // webpack dev mode).
+  staticSiblings: readonly string[] | null,
+]
+
+export type Segment = string | DynamicSegmentTuple
 
 /**
  * Router state
@@ -185,6 +195,21 @@ export type CacheNodeSeedData = [
   isPartial: boolean,
   /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
   hasRuntimePrefetch: boolean,
+  /**
+   * A thenable that resolves to the set of route params this segment accessed
+   * during server rendering. Used by the client router to determine cache key
+   * specificity - segments that only access certain params can be reused across
+   * navigations where unaccessed params change.
+   *
+   * - null thenable: tracking was not enabled for this render (e.g., not a
+   *   prerender). Treat conservatively - assume all params vary.
+   * - Thenable resolves to empty Set: segment accesses no params (e.g., client
+   *   components, or server components that don't read params). Can be shared
+   *   across all param values.
+   * - Thenable resolves to non-empty Set: segment depends on those params.
+   *   Can only reuse when those specific params match.
+   */
+  varyParams: VaryParamsThenable | null,
 ]
 
 export type FlightDataSegment = [
@@ -229,6 +254,10 @@ export type InitialRSCPayload = {
   G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** prerendered */
   S: boolean
+  /**
+   * headVaryParams - vary params for the head (metadata) of the response.
+   */
+  h: VaryParamsThenable | null
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -245,6 +274,8 @@ export type NavigationFlightResponse = {
   i: boolean
   /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
   rp?: [boolean, number]
+  /** headVaryParams */
+  h: VaryParamsThenable | null
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
