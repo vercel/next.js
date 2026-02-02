@@ -58,6 +58,11 @@ if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 ("TURBOPACK compile-time value", "development") != 'production' && console.log('development');
 ("TURBOPACK compile-time value", "development") == 'production' && console.log('production');
 console.log(("TURBOPACK compile-time value", "/ROOT/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input"));
+// Test that WARNED_VALUE triggers a warning but still gets replaced
+console.log(("TURBOPACK compile-time value", "replacement"));
+if (("TURBOPACK compile-time value", "replacement") === 'replacement') {
+    console.log('warning replacement works');
+}
 }),
 ]);
 
