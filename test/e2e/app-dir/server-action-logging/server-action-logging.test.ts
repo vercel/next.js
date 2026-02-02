@@ -6,9 +6,6 @@ describe('server-action-logging', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     skipDeployment: true,
     files: __dirname,
-    env: {
-      NEXT_TEST_SERVER_FUNCTION_LOGGING: 'true',
-    },
   })
 
   if (skipped) return
@@ -191,10 +188,13 @@ describe('server-action-logging', () => {
   })
 })
 
-describe('server-action-logging when logging.serverFunctions is not enabled', () => {
+describe('server-action-logging when logging.serverFunctions is disabled', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     skipDeployment: true,
     files: __dirname,
+    env: {
+      NEXT_TEST_SERVER_FUNCTION_LOGGING: 'false',
+    },
   })
 
   if (skipped) return

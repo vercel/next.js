@@ -306,7 +306,8 @@ export interface LoggingConfig {
   incomingRequests?: boolean | IncomingRequestLoggingConfig
 
   /**
-   * If true, Server Function invocations will be logged.
+   * If false, Server Function invocation logging is disabled.
+   * @default true
    */
   serverFunctions?: boolean
 
@@ -1507,7 +1508,9 @@ export const defaultConfig = Object.freeze({
   httpAgentOptions: {
     keepAlive: true,
   },
-  logging: {},
+  logging: {
+    serverFunctions: true,
+  } satisfies LoggingConfig,
   compiler: {},
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined
