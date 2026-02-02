@@ -212,6 +212,23 @@ export default async function Page({ searchParams }) {
 
 Alternatively you can add a Suspense boundary above the component that is accessing `params` or `searchParams` so Next.js understands what UI should be used when while waiting for this request data to be accessed.
 
+#### `generateStaticParams`
+
+For Layout and Page `params`, you can use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide sample values for build-time validation, which allows you to await params directly without Suspense.
+
+```jsx filename="app/blog/[slug]/page.js"
+export async function generateStaticParams() {
+  return [{ slug: 'hello-world' }]
+}
+
+export default async function Page({ params }) {
+  const { slug } = await params //  Valid with generateStaticParams
+  return <div>Blog post: {slug}</div>
+}
+```
+
+Note that validation is path-dependent. Runtime parameters may trigger conditional branches accessing runtime APIs without Suspense, or dynamic content without Suspense or `use cache`, resulting in errors. See [Dynamic Routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components).
+
 ### Short-lived Caches
 
 `"use cache"` allows you to describe a [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) that might be too short to be practical to prerender. The utility of doing this is that it can still describe a non-zero caching time for the client router cache to reuse the cache entry in the browser and it can also be useful for protecting upstream APIs while experiencing high request traffic.

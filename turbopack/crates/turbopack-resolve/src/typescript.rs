@@ -15,13 +15,13 @@ use turbopack_core::{
     },
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
-        AliasPattern, ModuleResolveResult, handle_resolve_error,
+        AliasPattern, ModuleResolveResult, RequestKey, ResolveErrorMode, handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
             ResolveOptions,
         },
-        origin::{ResolveOrigin, ResolveOriginExt},
+        origin::ResolveOrigin,
         parse::Request,
         pattern::Pattern,
         resolve,
@@ -255,7 +255,7 @@ async fn try_join_base_url(
     base_url: RcStr,
 ) -> Result<Vc<FileSystemPathOption>> {
     Ok(Vc::cell(
-        source.ident().path().await?.parent().try_join(&base_url)?,
+        source.ident().path().await?.parent().try_join(&base_url),
     ))
 }
 
@@ -294,7 +294,7 @@ pub async fn tsconfig_resolve_options(
         {
             let mut context_dir = source.ident().path().await?.parent();
             if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str()
-                && let Some(new_context) = context_dir.try_join(base_url)?
+                && let Some(new_context) = context_dir.try_join(base_url)
             {
                 context_dir = new_context;
             };
@@ -417,7 +417,7 @@ pub async fn type_resolve(
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
     let context_path = origin.origin_path().await?.parent();
-    let options = origin.resolve_options(ty.clone()).await?;
+    let options = origin.resolve_options();
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -475,10 +475,10 @@ pub async fn type_resolve(
     handle_resolve_error(
         result,
         ty,
-        origin.origin_path().owned().await?,
+        origin,
         request,
         options,
-        false,
+        ResolveErrorMode::Error,
         None,
     )
     .await
@@ -488,9 +488,14 @@ pub async fn type_resolve(
 pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
     let mut result = result.owned().await?;
     result.primary = IntoIterator::into_iter(take(&mut result.primary))
-        .map(|(mut k, v)| {
-            k.conditions.insert("types".to_string(), true);
-            (k, v)
+        .map(|(k, v)| {
+            (
+                RequestKey {
+                    request: k.request.clone(),
+                    conditions: k.conditions.extend([(rcstr!("types"), true)]),
+                },
+                v,
+            )
         })
         .collect();
     Ok(result.cell())

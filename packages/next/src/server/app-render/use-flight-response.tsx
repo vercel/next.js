@@ -1,11 +1,10 @@
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { BinaryStreamOf } from './app-render'
 import type { Readable } from 'node:stream'
 
 import { htmlEscapeJsonString } from '../htmlescape'
-import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { getClientReferenceManifest } from './manifests-singleton'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -34,7 +33,6 @@ export function getFlightStream<T>(
   flightStream: Readable | BinaryStreamOf<T>,
   debugStream: Readable | ReadableStream<Uint8Array> | undefined,
   debugEndTime: number | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   nonce: string | undefined
 ): Promise<T> {
   const response = flightResponses.get(flightStream)
@@ -42,6 +40,9 @@ export function getFlightStream<T>(
   if (response) {
     return response
   }
+
+  const { moduleLoading, edgeSSRModuleMapping, ssrModuleMapping } =
+    getClientReferenceManifest()
 
   let newResponse: Promise<T>
   if (flightStream instanceof ReadableStream) {
@@ -58,10 +59,8 @@ export function getFlightStream<T>(
     newResponse = createFromReadableStream<T>(flightStream, {
       findSourceMapURL,
       serverConsumerManifest: {
-        moduleLoading: clientReferenceManifest.moduleLoading,
-        moduleMap: isEdgeRuntime
-          ? clientReferenceManifest.edgeSSRModuleMapping
-          : clientReferenceManifest.ssrModuleMapping,
+        moduleLoading,
+        moduleMap: isEdgeRuntime ? edgeSSRModuleMapping : ssrModuleMapping,
         serverModuleMap: null,
       },
       nonce,
@@ -90,10 +89,8 @@ export function getFlightStream<T>(
       newResponse = createFromNodeStream<T>(
         flightStream,
         {
-          moduleLoading: clientReferenceManifest.moduleLoading,
-          moduleMap: isEdgeRuntime
-            ? clientReferenceManifest.edgeSSRModuleMapping
-            : clientReferenceManifest.ssrModuleMapping,
+          moduleLoading,
+          moduleMap: isEdgeRuntime ? edgeSSRModuleMapping : ssrModuleMapping,
           serverModuleMap: null,
         },
         {

@@ -488,6 +488,9 @@ function rustifyOptionEnv(
   }))
 }
 
+const normalizePathOnWindows = (p: string) =>
+  path.sep === '\\' ? p.replace(/\\/g, '/') : p
+
 // TODO(sokra) Support wasm option.
 function bindingToApi(
   binding: RawBindings,
@@ -852,11 +855,10 @@ function bindingToApi(
     // Avoid mutating the existing `nextConfig` object. NOTE: This is only a shallow clone.
     let nextConfigSerializable: Record<string, any> = { ...nextConfig }
 
-    nextConfigSerializable.generateBuildId =
-      await nextConfigSerializable.generateBuildId?.()
-
-    // TODO: these functions takes arguments, have to be supported in a different way
+    // These values are never read by Turbopack and are potentially non-serializable.
     nextConfigSerializable.exportPathMap = {}
+    nextConfigSerializable.generateBuildId =
+      nextConfigSerializable.generateBuildId && {}
     nextConfigSerializable.webpack = nextConfigSerializable.webpack && {}
 
     if (nextConfigSerializable.modularizeImports) {
@@ -876,13 +878,23 @@ function bindingToApi(
       )
     }
 
+    // These are relative paths, but might be backslash-separated on Windows
+    nextConfigSerializable.distDir = normalizePathOnWindows(
+      nextConfigSerializable.distDir
+    )
+    nextConfigSerializable.distDirRoot = normalizePathOnWindows(
+      nextConfigSerializable.distDirRoot
+    )
+
     // loaderFile is an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.images.loaderFile) {
       nextConfigSerializable.images = {
         ...nextConfigSerializable.images,
         loaderFile:
           './' +
-          path.relative(projectPath, nextConfigSerializable.images.loaderFile),
+          normalizePathOnWindows(
+            path.relative(projectPath, nextConfigSerializable.images.loaderFile)
+          ),
       }
     }
 
@@ -890,9 +902,11 @@ function bindingToApi(
     if (nextConfigSerializable.cacheHandler) {
       nextConfigSerializable.cacheHandler =
         './' +
-        (path.isAbsolute(nextConfigSerializable.cacheHandler)
-          ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
-          : nextConfigSerializable.cacheHandler)
+        normalizePathOnWindows(
+          path.isAbsolute(nextConfigSerializable.cacheHandler)
+            ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
+            : nextConfigSerializable.cacheHandler
+        )
     }
     if (nextConfigSerializable.cacheHandlers) {
       nextConfigSerializable.cacheHandlers = Object.fromEntries(
@@ -903,9 +917,11 @@ function bindingToApi(
           .map(([key, value]) => [
             key,
             './' +
-              (path.isAbsolute(value)
-                ? path.relative(projectPath, value)
-                : value),
+              normalizePathOnWindows(
+                path.isAbsolute(value)
+                  ? path.relative(projectPath, value)
+                  : value
+              ),
           ])
       )
     }
@@ -934,6 +950,12 @@ function bindingToApi(
           | { type: 'regex'; value: { source: string; flags: string } }
           | { type: 'glob'; value: string }
         content?: { source: string; flags: string }
+        query?:
+          | { type: 'regex'; value: { source: string; flags: string } }
+          | { type: 'constant'; value: string }
+        contentType?:
+          | { type: 'regex'; value: { source: string; flags: string } }
+          | { type: 'glob'; value: string }
       }
 
   // converts regexes to a `RegexComponents` object so that it can be JSON-serialized when passed to
@@ -969,6 +991,24 @@ function bindingToApi(
                 }
               : { type: 'glob', value: cond.path },
         content: cond.content && regexComponents(cond.content),
+        query:
+          cond.query == null
+            ? undefined
+            : cond.query instanceof RegExp
+              ? {
+                  type: 'regex',
+                  value: regexComponents(cond.query),
+                }
+              : { type: 'constant', value: cond.query },
+        contentType:
+          cond.contentType == null
+            ? undefined
+            : cond.contentType instanceof RegExp
+              ? {
+                  type: 'regex',
+                  value: regexComponents(cond.contentType),
+                }
+              : { type: 'glob', value: cond.contentType },
       }
     }
   }
@@ -981,10 +1021,13 @@ function bindingToApi(
     for (const [glob, rule] of Object.entries(turbopackRules)) {
       if (Array.isArray(rule)) {
         serializedRules[glob] = rule.map((item) => {
-          if (typeof item !== 'string' && 'loaders' in item) {
-            return serializeConfigItem(item, glob)
+          if (
+            typeof item !== 'string' &&
+            ('loaders' in item || 'type' in item || 'condition' in item)
+          ) {
+            return serializeConfigItem(item as TurbopackRuleConfigItem, glob)
           } else {
-            checkLoaderItem(item, glob)
+            checkLoaderItem(item as TurbopackLoaderItem, glob)
             return item
           }
         })
@@ -1000,8 +1043,10 @@ function bindingToApi(
       glob: string
     ): any {
       if (!rule) return rule
-      for (const item of rule.loaders) {
-        checkLoaderItem(item, glob)
+      if (rule.loaders) {
+        for (const item of rule.loaders) {
+          checkLoaderItem(item, glob)
+        }
       }
       let serializedRule: any = rule
       if (rule.condition != null) {
@@ -1310,12 +1355,12 @@ async function loadWasm(importPath = '') {
         imports
       )
     },
-    lockfileTryAcquire(_filePath: string) {
+    lockfileTryAcquire(_filePath: string, _content?: string | null) {
       throw new Error(
         '`lockfileTryAcquire` is not supported by the wasm bindings.'
       )
     },
-    lockfileTryAcquireSync(_filePath: string) {
+    lockfileTryAcquireSync(_filePath: string, _content?: string | null) {
       throw new Error(
         '`lockfileTryAcquireSync` is not supported by the wasm bindings.'
       )
@@ -1530,11 +1575,11 @@ function loadNative(importPath?: string) {
           imports
         )
       },
-      lockfileTryAcquire(filePath: string) {
-        return bindings.lockfileTryAcquire(filePath)
+      lockfileTryAcquire(filePath: string, content?: string | null) {
+        return bindings.lockfileTryAcquire(filePath, content)
       },
-      lockfileTryAcquireSync(filePath: string) {
-        return bindings.lockfileTryAcquireSync(filePath)
+      lockfileTryAcquireSync(filePath: string, content?: string | null) {
+        return bindings.lockfileTryAcquireSync(filePath, content)
       },
       lockfileUnlock(lockfile: Lockfile) {
         return bindings.lockfileUnlock(lockfile)

@@ -37,7 +37,7 @@ describe('default', () => {
         }
 
         // we don't know the name of the minified `__turbopack_external_require__`, so we just check the content.
-        expect(allBundles).toContain('"external-package"')
+        expect(allBundles).toMatch(/"external-package(-[0-9a-f]+)?"/)
         expect(allBundles).not.toContain('"external-package content"')
       } else {
         const output = await fs.readFile(

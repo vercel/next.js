@@ -4,6 +4,16 @@ const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join, resolve } = require('path')
 const { Module } = require('module')
 
+// files might be lower case and not able to be found on case-sensitive
+// file systems (ubuntu)
+const potentialLicenseFiles = [
+  'LICENSE',
+  'license',
+  'LICENSE.md',
+  'License.md',
+  'license.md',
+]
+
 // See taskfile.js bundleContext definition for explanation
 const m = new Module(resolve(__dirname, 'bundles', '_'))
 m.filename = m.id
@@ -83,23 +93,15 @@ function writePackageManifest(
     `${!precompiled ? 'dist/' : ''}src/compiled/${bundleName || packageName}`
   )
 
-  const potentialLicensePath = join(dirname(packagePath), './LICENSE')
-  if (existsSync(potentialLicensePath)) {
-    this._.files.push({
-      dir: compiledPackagePath,
-      base: 'LICENSE',
-      data: readFileSync(potentialLicensePath, 'utf8'),
-    })
-  } else {
-    // license might be lower case and not able to be found on case-sensitive
-    // file systems (ubuntu)
-    const otherPotentialLicensePath = join(dirname(packagePath), './license')
-    if (existsSync(otherPotentialLicensePath)) {
+  for (const licenseFile of potentialLicenseFiles) {
+    const potentialLicensePath = join(dirname(packagePath), licenseFile)
+    if (existsSync(potentialLicensePath)) {
       this._.files.push({
         dir: compiledPackagePath,
         base: 'LICENSE',
-        data: readFileSync(otherPotentialLicensePath, 'utf8'),
+        data: readFileSync(potentialLicensePath, 'utf8'),
       })
+      break
     }
   }
 

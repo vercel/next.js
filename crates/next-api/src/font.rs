@@ -2,7 +2,7 @@ use anyhow::Result;
 use next_core::next_manifests::NextFontManifest;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
@@ -94,7 +94,10 @@ impl Asset for FontManifest {
         };
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&next_font_manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(
+                &next_font_manifest,
+            )?))
+            .cell(),
         ))
     }
 }

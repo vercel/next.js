@@ -5,9 +5,9 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -1228,7 +1228,10 @@ impl Pattern {
     /// Calls `cb` on all constants that are at the end of the pattern and
     /// replaces the given final constant with the returned pattern. Returns
     /// true if replacements were performed.
-    pub fn replace_final_constants(&mut self, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> bool {
+    pub fn replace_final_constants(
+        &mut self,
+        cb: &mut impl FnMut(&RcStr) -> Option<Pattern>,
+    ) -> bool {
         let mut replaced = false;
         match self {
             Pattern::Constant(c) => {
@@ -1489,15 +1492,7 @@ impl ValueToString for Pattern {
 }
 
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    ValueDebugFormat,
-    NonLocalValue,
+    Debug, PartialEq, Eq, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum PatternMatch {
     File(RcStr, FileSystemPath),
@@ -1521,6 +1516,7 @@ impl PatternMatch {
 // TODO this isn't super efficient
 // avoid storing a large list of matches
 #[turbo_tasks::value(transparent)]
+#[derive(Debug)]
 pub struct PatternMatches(Vec<PatternMatch>);
 
 /// Find all files or directories that match the provided `pattern` with the
@@ -1561,9 +1557,9 @@ pub async fn read_matches(
                     if last_segment.is_empty() {
                         // This means we don't have a last segment, so we just have a directory
                         let joined = if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(parent_path)?
+                            lookup_dir.try_join_inside(parent_path)
                         } else {
-                            lookup_dir.try_join(parent_path)?
+                            lookup_dir.try_join(parent_path)
                         };
                         let Some(fs_path) = joined else {
                             continue;
@@ -1579,9 +1575,9 @@ pub async fn read_matches(
                         Entry::Occupied(e) => Some(e.into_mut()),
                         Entry::Vacant(e) => {
                             let path_option = if force_in_lookup_dir {
-                                lookup_dir.try_join_inside(parent_path)?
+                                lookup_dir.try_join_inside(parent_path)
                             } else {
-                                lookup_dir.try_join(parent_path)?
+                                lookup_dir.try_join(parent_path)
                             };
                             if let Some(path) = path_option {
                                 Some(e.insert((path.raw_read_dir().await?, path)))
@@ -1635,9 +1631,9 @@ pub async fn read_matches(
                     let subpath = &str[..=str.rfind('/').unwrap()];
                     if handled.insert(subpath) {
                         let joined = if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(subpath)?
+                            lookup_dir.try_join_inside(subpath)
                         } else {
-                            lookup_dir.try_join(subpath)?
+                            lookup_dir.try_join(subpath)
                         };
                         let Some(fs_path) = joined else {
                             continue;
@@ -2489,12 +2485,12 @@ mod tests {
 
     #[test]
     fn replace_final_constants() {
-        fn f(mut p: Pattern, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> Pattern {
+        fn f(mut p: Pattern, cb: &mut impl FnMut(&RcStr) -> Option<Pattern>) -> Pattern {
             p.replace_final_constants(cb);
             p
         }
 
-        let js_to_ts_tsx = |c: &RcStr| -> Option<Pattern> {
+        let mut js_to_ts_tsx = |c: &RcStr| -> Option<Pattern> {
             c.strip_suffix(".js").map(|rest| {
                 let new_ending = Pattern::Alternatives(vec![
                     Pattern::Constant(rcstr!(".ts")),
@@ -2520,7 +2516,7 @@ mod tests {
                         Pattern::Constant(rcstr!(".node")),
                     ])
                 ]),
-                &js_to_ts_tsx
+                &mut js_to_ts_tsx
             ),
             Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!(".")),
@@ -2543,7 +2539,7 @@ mod tests {
                     Pattern::Constant(rcstr!("/")),
                     Pattern::Constant(rcstr!("abc.js")),
                 ]),
-                &js_to_ts_tsx
+                &mut js_to_ts_tsx
             ),
             Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!(".")),

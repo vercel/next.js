@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import url from 'url'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -30,7 +29,7 @@ const runTests = (isDev: boolean) => {
     )
     expect(res.status).toBe(307)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'))
 
     expect(pathname).toBe('/404')
   })
@@ -46,7 +45,7 @@ const runTests = (isDev: boolean) => {
     )
     expect(res.status).toBe(308)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'))
 
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toMatch(/url=\/404/)
@@ -63,7 +62,7 @@ const runTests = (isDev: boolean) => {
     )
     expect(res.status).toBe(301)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'))
 
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toBe(null)
@@ -80,7 +79,7 @@ const runTests = (isDev: boolean) => {
     )
     expect(res.status).toBe(303)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'))
 
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toBe(null)
@@ -104,7 +103,7 @@ const runTests = (isDev: boolean) => {
       },
     })
     const initialHref = await browser.eval(() => (window as any).initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/redirect-dest-_gsp-blog_first')
   })
 
@@ -126,7 +125,7 @@ const runTests = (isDev: boolean) => {
       },
     })
     const initialHref = await browser.eval(() => (window as any).initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
 
@@ -148,7 +147,7 @@ const runTests = (isDev: boolean) => {
       },
     })
     const initialHref = await browser.eval(() => (window as any).initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
 
@@ -170,7 +169,7 @@ const runTests = (isDev: boolean) => {
       },
     })
     const initialHref = await browser.eval(() => (window as any).initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
 
@@ -192,7 +191,7 @@ const runTests = (isDev: boolean) => {
       },
     })
     const initialHref = await browser.eval(() => (window as any).initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
 
@@ -215,7 +214,7 @@ const runTests = (isDev: boolean) => {
         },
       })
       const initialHref = await browser.eval(() => (window as any).initialHref)
-      const { pathname } = url.parse(initialHref)
+      const { pathname } = new URL(initialHref)
       // since it was cached the initial value is now the redirect
       // result
       expect(pathname).toBe('/gsp-blog/first')
@@ -230,7 +229,7 @@ const runTests = (isDev: boolean) => {
     await browser.waitForElementByCss('#index')
 
     const initialHref = await browser.eval(() => (window as any).initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/redirect-dest-_')
   })
 
@@ -243,7 +242,7 @@ const runTests = (isDev: boolean) => {
       await browser.waitForElementByCss('#index')
 
       const initialHref = await browser.eval(() => (window as any).initialHref)
-      const { pathname } = url.parse(initialHref)
+      const { pathname } = new URL(initialHref)
       expect(pathname).toBe('/')
     })
   }
@@ -266,7 +265,7 @@ const runTests = (isDev: boolean) => {
     expect(initialHref).toBeFalsy()
 
     const curUrl = await browser.url()
-    const { pathname } = url.parse(curUrl)
+    const { pathname } = new URL(curUrl)
     expect(pathname).toBe('/missing')
   })
 
@@ -315,7 +314,7 @@ const runTests = (isDev: boolean) => {
     )
     expect(res.status).toBe(307)
 
-    const parsed = url.parse(res.headers.get('location'))
+    const parsed = new URL(res.headers.get('location'))
     expect(parsed.hostname).toBe('example.vercel.sh')
     expect(parsed.pathname).toBe('/')
   })
@@ -427,8 +426,8 @@ const runTests = (isDev: boolean) => {
     })()`)
 
     const curUrl = await browser.url()
-    const { path } = url.parse(curUrl)
-    expect(path).toEqual('/')
+    const { pathname, search } = new URL(curUrl)
+    expect(pathname + search).toEqual('/')
   })
 
   it('should not replace history of the origin page when GSSP page is navigated to client-side (external)', async () => {
@@ -451,8 +450,8 @@ const runTests = (isDev: boolean) => {
     })()`)
 
     const curUrl = await browser.url()
-    const { path } = url.parse(curUrl)
-    expect(path).toEqual('/')
+    const { pathname, search } = new URL(curUrl)
+    expect(pathname + search).toEqual('/')
   })
 
   it('should not replace history of the origin page when GSP page is navigated to client-side (internal)', async () => {
@@ -475,8 +474,8 @@ const runTests = (isDev: boolean) => {
     })()`)
 
     const curUrl = await browser.url()
-    const { path } = url.parse(curUrl)
-    expect(path).toEqual('/')
+    const { pathname, search } = new URL(curUrl)
+    expect(pathname + search).toEqual('/')
   })
 
   it('should not replace history of the origin page when GSP page is navigated to client-side (external)', async () => {
@@ -499,8 +498,8 @@ const runTests = (isDev: boolean) => {
     })()`)
 
     const curUrl = await browser.url()
-    const { path } = url.parse(curUrl)
-    expect(path).toEqual('/')
+    const { pathname, search } = new URL(curUrl)
+    expect(pathname + search).toEqual('/')
   })
 }
 

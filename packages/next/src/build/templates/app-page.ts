@@ -10,7 +10,12 @@ import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition
 
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
-import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
+import type { RequestMeta } from '../../server/request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  setRequestMeta,
+} from '../../server/request-meta'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { interopDefault } from '../../server/app-render/interop-default'
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
@@ -21,12 +26,11 @@ import {
   createOpaqueFallbackRouteParams,
   type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params'
-import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
+import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import {
   isHtmlBotRequest,
   shouldServeStreamingMetadata,
 } from '../../server/lib/streaming-metadata'
-import { createServerModuleMap } from '../../server/app-render/action-utils'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
 import {
@@ -52,11 +56,16 @@ import {
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
+  NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import {
+  DEFAULT_MAX_POSTPONED_STATE_SIZE,
+  parseMaxPostponedStateSize,
+} from '../../shared/lib/size-limit'
 
 // These are injected by the loader afterwards.
 
@@ -66,18 +75,13 @@ import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
  */
 declare const tree: LoaderTree
 
-// We inject the tree and pages here so that we can use them in the route
-// module.
-// INJECT:tree
-
-import GlobalError from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
-
-export { GlobalError }
-
 // These are injected by the loader afterwards.
 declare const __next_app_require__: (id: string | number) => unknown
 declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
 
+// We inject the tree and pages here so that we can use them in the route
+// module.
+// INJECT:tree
 // INJECT:__next_app_require__
 // INJECT:__next_app_load_chunk__
 
@@ -116,15 +120,18 @@ export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
   ctx: {
-    waitUntil: (prom: Promise<void>) => void
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
   }
 ) {
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
+
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
-  const isMinimalMode = Boolean(
-    process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-  )
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
   let srcPage = 'VAR_DEFINITION_PAGE'
 
@@ -171,6 +178,7 @@ export async function handler(
     nextConfig,
     parsedUrl,
     interceptionRoutePatterns,
+    deploymentId,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -219,6 +227,92 @@ export async function handler(
   const couldSupportPPR: boolean = checkIsAppPPREnabled(
     nextConfig.experimental.ppr
   )
+
+  // Stash postponed state for server actions when in minimal mode.
+  // We extract it here so the RDC is available for the re-render after the action completes.
+  const resumeStateLengthHeader = req.headers[NEXT_RESUME_STATE_LENGTH_HEADER]
+  if (
+    !getRequestMeta(req, 'postponed') &&
+    isMinimalMode &&
+    couldSupportPPR &&
+    isPossibleServerAction &&
+    resumeStateLengthHeader &&
+    typeof resumeStateLengthHeader === 'string'
+  ) {
+    const stateLength = parseInt(resumeStateLengthHeader, 10)
+    const maxPostponedStateSize =
+      nextConfig.experimental.maxPostponedStateSize ??
+      DEFAULT_MAX_POSTPONED_STATE_SIZE
+    const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
+      nextConfig.experimental.maxPostponedStateSize
+    )
+
+    if (!isNaN(stateLength) && stateLength > 0) {
+      if (
+        maxPostponedStateSizeBytes === undefined ||
+        stateLength > maxPostponedStateSizeBytes
+      ) {
+        res.statusCode = 413
+        res.end(
+          `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
+            `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
+        )
+        ctx.waitUntil?.(Promise.resolve())
+        return null
+      }
+
+      // Calculate max total body size to prevent buffering excessively large
+      // payloads before the action handler checks. We use stateLength (not
+      // maxPostponedStateSizeBytes) so the postponed state doesn't eat into
+      // the action body budget - it's already validated above.
+      const defaultActionBodySizeLimit = '1 MB'
+      const actionBodySizeLimit =
+        nextConfig.experimental.serverActions?.bodySizeLimit ??
+        defaultActionBodySizeLimit
+      const actionBodySizeLimitBytes =
+        actionBodySizeLimit !== defaultActionBodySizeLimit
+          ? (
+              require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+            ).parse(actionBodySizeLimit)
+          : 1024 * 1024 // 1 MB
+      const maxTotalBodySize = stateLength + actionBodySizeLimitBytes
+
+      // Read the entire body, checking size as we go.
+      const bodyChunks: Array<Buffer> = []
+      let size = 0
+      for await (const chunk of req) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        size += buffer.byteLength
+        if (size > maxTotalBodySize) {
+          res.statusCode = 413
+          res.end(
+            `Request body exceeded limit. ` +
+              `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+          )
+          ctx.waitUntil?.(Promise.resolve())
+          return null
+        }
+        bodyChunks.push(buffer)
+      }
+      const fullBody = Buffer.concat(bodyChunks)
+
+      if (fullBody.length >= stateLength) {
+        // Extract postponed state from the beginning
+        const postponedState = fullBody
+          .subarray(0, stateLength)
+          .toString('utf8')
+        addRequestMeta(req, 'postponed', postponedState)
+
+        // Store the remaining action body for the action handler
+        const actionBody = fullBody.subarray(stateLength)
+        addRequestMeta(req, 'actionBody', actionBody)
+      } else {
+        throw new Error(
+          `invariant: expected ${stateLength} bytes of postponed state but only received ${fullBody.length} bytes`
+        )
+      }
+    }
+  }
 
   if (
     !getRequestMeta(req, 'postponed') &&
@@ -287,8 +381,17 @@ export async function handler(
   // If PPR is enabled, and this is a RSC request (but not a prefetch), then
   // we can use this fact to only generate the flight data for the request
   // because we can't cache the HTML (as it's also dynamic).
+  const staticPrefetchDataRoute =
+    prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+
   let isDynamicRSCRequest =
-    isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
+    isRoutePPREnabled &&
+    isRSCRequest &&
+    !isPrefetchRSCRequest &&
+    // If generated at build time, treat the RSC request as static
+    // so we can serve the prebuilt .rsc without a dynamic render.
+    // Only do this for routes that have a concrete prefetchDataRoute.
+    !staticPrefetchDataRoute
 
   // During a PPR revalidation, the RSC request is not dynamic if we do not have the postponed data.
   // We only attach the postponed data during a resume. If there's no postponed data, then it must be a revalidation.
@@ -308,7 +411,7 @@ export async function handler(
   // when fixing this to correct logic it causes hydration issue since we set
   // serveStreamingMetadata to true during export
   const serveStreamingMetadata =
-    isHtmlBot && isRoutePPREnabled
+    botType && isRoutePPREnabled
       ? false
       : !userAgent
         ? true
@@ -318,9 +421,10 @@ export async function handler(
     (prerenderInfo ||
       isPrerendered ||
       prerenderManifest.routes[normalizedSrcPage]) &&
-      // If this is a html bot request and PPR is enabled, then we don't want
-      // to serve a static response.
-      !(isHtmlBot && isRoutePPREnabled)
+      // If this is a bot request and PPR is enabled, then we don't want
+      // to serve a static response. This applies to both DOM bots (like Googlebot)
+      // and HTML-limited bots.
+      !(botType && isRoutePPREnabled)
   )
 
   // When a page supports cacheComponents, we can support RDC for Navigations
@@ -350,8 +454,9 @@ export async function handler(
       : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
         isDynamicRSCRequest)
 
-  // When html bots request PPR page, perform the full dynamic rendering.
-  const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
+  // When bots request PPR page, perform the full dynamic rendering.
+  // This applies to both DOM bots (like Googlebot) and HTML-limited bots.
+  const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
 
   let ssgCacheKey: string | null = null
   if (
@@ -390,7 +495,6 @@ export async function handler(
   const ComponentMod = {
     ...entryBase,
     tree,
-    GlobalError,
     handler,
     routeModule,
     __next_app__,
@@ -400,13 +504,10 @@ export async function handler(
   // set the reference manifests to our global store so Server Action's
   // encryption util can access to them at the top level of the page module.
   if (serverActionsManifest && clientReferenceManifest) {
-    setReferenceManifestsSingleton({
+    setManifestsSingleton({
       page: srcPage,
       clientReferenceManifest,
       serverActionsManifest,
-      serverModuleMap: createServerModuleMap({
-        serverActionsManifest,
-      }),
     })
   }
 
@@ -479,7 +580,17 @@ export async function handler(
       })
     }
 
-    const incrementalCache = getRequestMeta(req, 'incrementalCache')
+    const incrementalCache =
+      getRequestMeta(req, 'incrementalCache') ||
+      (await routeModule.getIncrementalCache(
+        req,
+        nextConfig,
+        prerenderManifest,
+        isMinimalMode
+      ))
+
+    incrementalCache?.resetRequestCache()
+    ;(globalThis as any).__incrementalCache = incrementalCache
 
     const doRender = async ({
       span,
@@ -515,6 +626,7 @@ export async function handler(
         page: normalizedSrcPage,
         sharedContext: {
           buildId,
+          deploymentId,
         },
         serverComponentsHmrCache: getRequestMeta(
           req,
@@ -540,8 +652,6 @@ export async function handler(
           nextFontManifest,
           reactLoadableManifest,
           subresourceIntegrityManifest,
-          serverActionsManifest,
-          clientReferenceManifest,
           setCacheStatus: routerServerContext?.setCacheStatus,
           setIsrStatus: routerServerContext?.setIsrStatus,
           setReactDebugChannel: routerServerContext?.setReactDebugChannel,
@@ -565,7 +675,6 @@ export async function handler(
           trailingSlash: nextConfig.trailingSlash,
           images: nextConfig.images,
           previewProps: prerenderManifest.preview,
-          deploymentId: nextConfig.deploymentId,
           enableTainting: nextConfig.experimental.taint,
           htmlLimitedBots: nextConfig.htmlLimitedBots,
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
@@ -580,7 +689,7 @@ export async function handler(
           isDebugDynamicAccesses ||
           isDebugFallbackShell
             ? {
-                nextExport: true,
+                isBuildTimePrerendering: true,
                 supportsDynamicResponse: false,
                 isStaticGeneration: true,
                 isDebugDynamicAccesses: isDebugDynamicAccesses,
@@ -592,12 +701,18 @@ export async function handler(
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
             dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
+            optimisticRouting: Boolean(
+              nextConfig.experimental.optimisticRouting
+            ),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),
             clientParamParsingOrigins:
               nextConfig.experimental.clientParamParsingOrigins,
+            maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+              nextConfig.experimental.maxPostponedStateSize
+            ),
           },
 
           waitUntil: ctx.waitUntil,
@@ -606,22 +721,22 @@ export async function handler(
           },
           onAfterTaskError: () => {},
 
-          onInstrumentationRequestError: (error, _request, errorContext) =>
+          onInstrumentationRequestError: (
+            error,
+            _request,
+            errorContext,
+            silenceLog
+          ) =>
             routeModule.onRequestError(
               req,
               error,
               errorContext,
+              silenceLog,
               routerServerContext
             ),
           err: getRequestMeta(req, 'invokeError'),
           dev: routeModule.isDev,
         },
-      }
-
-      if (isDebugStaticShell || isDebugDynamicAccesses) {
-        context.renderOpts.nextExport = true
-        context.renderOpts.supportsDynamicResponse = false
-        context.renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 
       // When we're revalidating in the background, we should not allow dynamic
@@ -843,17 +958,20 @@ export async function handler(
           ? minimalPostponed
           : undefined
 
-      // If this is a dynamic RSC request, we should use the postponed data from
-      // the static render (if available). This ensures that we can utilize the
-      // resume data cache (RDC) from the static render to ensure that the data
-      // is consistent between the static and dynamic renders.
+      // If this is a dynamic RSC request or a server action request, we should
+      // use the postponed data from the static render (if available). This
+      // ensures that we can utilize the resume data cache (RDC) from the static
+      // render to ensure that the data is consistent between the static and
+      // dynamic renders (for navigations) or when re-rendering after a server
+      // action.
       if (
         // Only enable RDC for Navigations if the feature is enabled.
         supportsRDCForNavigations &&
         process.env.NEXT_RUNTIME !== 'edge' &&
         !isMinimalMode &&
         incrementalCache &&
-        isDynamicRSCRequest &&
+        // Include both dynamic RSC requests (navigations) and server actions
+        (isDynamicRSCRequest || isPossibleServerAction) &&
         // We don't typically trigger an on-demand revalidation for dynamic RSC
         // requests, as we're typically revalidating the page in the background
         // instead. However, if the cache entry is stale, we should trigger a
@@ -996,7 +1114,12 @@ export async function handler(
 
       // In dev, we should not cache pages for any reason.
       if (routeModule.isDev) {
-        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        res.setHeader(
+          'Cache-Control',
+          nextConfig.experimental.devCacheControlNoCache
+            ? 'no-cache, must-revalidate'
+            : 'no-store, must-revalidate'
+        )
       }
 
       if (!cacheEntry) {
@@ -1414,6 +1537,7 @@ export async function handler(
     }
   } catch (err) {
     if (!(err instanceof NoFallbackError)) {
+      const silenceLog = false
       await routeModule.onRequestError(
         req,
         err,
@@ -1426,6 +1550,7 @@ export async function handler(
             isOnDemandRevalidate,
           }),
         },
+        silenceLog,
         routerServerContext
       )
     }

@@ -74,7 +74,7 @@ async fn dynamic_image_metadata_with_generator_source(
 
             export default async function (props) {{
                 const {{ __metadata_id__: _, ...params }} = await props.params
-                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment})
+                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment}, false)
 
                 const {{ generateImageMetadata }} = imageModule
 
@@ -109,7 +109,7 @@ async fn dynamic_image_metadata_with_generator_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--metadata.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -148,7 +148,7 @@ async fn dynamic_image_metadata_without_generator_source(
 
             export default async function (props) {{
                 const {{ __metadata_id__: _, ...params }} = await props.params
-                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment})
+                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment}, false)
 
                 function getImageMetadata(imageMetadata, idParam) {{
                     const data = {{
@@ -177,7 +177,7 @@ async fn dynamic_image_metadata_without_generator_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--metadata.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))

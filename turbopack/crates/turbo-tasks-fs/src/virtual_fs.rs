@@ -2,8 +2,7 @@ use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueDefault, ValueToString, Vc};
 
-use super::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
-use crate::RawDirectoryContent;
+use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
 
 #[turbo_tasks::value]
 pub struct VirtualFileSystem {

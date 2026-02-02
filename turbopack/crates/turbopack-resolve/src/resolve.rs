@@ -12,7 +12,7 @@ use turbopack_core::resolve::{
 };
 
 use crate::{
-    resolve_options_context::ResolveOptionsContext,
+    resolve_options_context::{ResolveOptionsContext, TsConfigHandling},
     typescript::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
 };
 
@@ -246,22 +246,24 @@ pub async fn resolve_options(
 
         // Use a specified tsconfig path if provided. In Next.js, this is always provided by the
         // default config, at the very least.
-        if let Some(tsconfig_path) = &options_context_value.tsconfig_path {
-            let meta = tsconfig_path.metadata().await;
-            if meta.is_ok() {
-                // If the file exists, use it.
-                apply_tsconfig_resolve_options(
-                    resolve_options,
-                    tsconfig_resolve_options(tsconfig_path.clone()),
-                )
-            } else {
-                // Otherwise, try and find one.
-                // TODO: If the user provides a tsconfig.json explicitly, this should fail
-                // explicitly. Currently implemented this way for parity with webpack.
-                find_tsconfig().await?
+        match &options_context_value.tsconfig_path {
+            TsConfigHandling::Disabled => resolve_options,
+            TsConfigHandling::ContextFile => find_tsconfig().await?,
+            TsConfigHandling::Fixed(tsconfig_path) => {
+                let meta = tsconfig_path.metadata().await;
+                if meta.is_ok() {
+                    // If the file exists, use it.
+                    apply_tsconfig_resolve_options(
+                        resolve_options,
+                        tsconfig_resolve_options(tsconfig_path.clone()),
+                    )
+                } else {
+                    // Otherwise, try and find one.
+                    // TODO: If the user provides a tsconfig.json explicitly, this should fail
+                    // explicitly. Currently implemented this way for parity with webpack.
+                    find_tsconfig().await?
+                }
             }
-        } else {
-            find_tsconfig().await?
         }
     } else {
         resolve_options

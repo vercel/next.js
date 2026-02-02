@@ -11,6 +11,7 @@ cargo-fuzz = true
 afl = "0.15.18"
 anyhow = { workspace = true }
 arbitrary = { version = "1.4.1", features = ["derive"] }
+bincode = { workspace = true }
 libfuzzer-sys = "0.4.9"
 once_cell = { workspace = true }
 serde = { workspace = true }

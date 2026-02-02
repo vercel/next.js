@@ -2,6 +2,7 @@ use std::mem::take;
 
 use anyhow::{Context, Result, bail};
 use base64::Engine;
+use bincode::{Decode, Encode};
 use either::Either;
 use futures::try_join;
 use serde::{Deserialize, Serialize};
@@ -29,7 +30,7 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
@@ -38,9 +39,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
-    source_map::{
-        GenerateSourceMap, OptionStringifiedSourceMap, utils::resolve_source_map_sources,
-    },
+    source_map::{GenerateSourceMap, utils::resolve_source_map_sources},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -49,7 +48,6 @@ use turbopack_resolve::{
     resolve_options_context::ResolveOptionsContext,
 };
 
-use super::util::{EmittedAsset, emitted_assets_to_virtual_sources};
 use crate::{
     AssetsForSourceMapping,
     debug::should_debug,
@@ -61,20 +59,22 @@ use crate::{
     execution_context::ExecutionContext,
     pool::{FormattingMode, NodeJsPool},
     source_map::{StackFrame, StructuredError},
+    transforms::util::{EmittedAsset, emitted_assets_to_virtual_sources},
 };
 
 #[serde_as]
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Encode, Decode)]
 struct BytesBase64 {
     #[serde_as(as = "serde_with::base64::Base64")]
     binary: Vec<u8>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Deserialize)]
+#[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
-#[turbo_tasks::value(serialization = "custom")]
 struct WebpackLoadersProcessingResult {
     #[serde(with = "either::serde_untagged")]
+    #[bincode(with = "turbo_bincode::either")]
     #[turbo_tasks(debug_ignore, trace_ignore)]
     source: Either<RcStr, BytesBase64>,
     map: Option<RcStr>,
@@ -83,11 +83,22 @@ struct WebpackLoadersProcessingResult {
 }
 
 #[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 pub struct WebpackLoaderItem {
     pub loader: RcStr,
     #[serde(default)]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -176,7 +187,7 @@ impl Asset for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionStringifiedSourceMap>> {
+    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<FileContent>> {
         Ok(*self.process().await?.source_map)
     }
 }
@@ -184,7 +195,7 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value]
 struct ProcessWebpackLoadersResult {
     content: ResolvedVc<AssetContent>,
-    source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    source_map: ResolvedVc<FileContent>,
     assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
@@ -205,16 +216,15 @@ async fn webpack_loaders_executor(
 #[turbo_tasks::value_impl]
 impl WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    async fn process(self: Vc<Self>) -> Result<Vc<ProcessWebpackLoadersResult>> {
-        let this = self.await?;
-        let transform = this.transform.await?;
+    async fn process(&self) -> Result<Vc<ProcessWebpackLoadersResult>> {
+        let transform = self.transform.await?;
 
         let ExecutionContext {
             project_path,
             chunking_context,
             env,
         } = &*transform.execution_context.await?;
-        let source_content = this.source.content();
+        let source_content = self.source.content();
         let AssetContent::File(file) = *source_content.await? else {
             bail!("Webpack Loaders transform only support transforming files");
         };
@@ -222,7 +232,7 @@ impl WebpackLoadersProcessedAsset {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
-                source_map: ResolvedVc::cell(None),
+                source_map: FileContent::NotFound.resolved_cell(),
             }
             .cell());
         };
@@ -247,11 +257,16 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false)
-            .to_resolved()
-            .await?;
+        let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        ))
+        .connect()
+        .to_resolved()
+        .await?;
 
-        let resource_fs_path = this.source.ident().path().await?;
+        let resource_fs_path = self.source.ident().path().await?;
         let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
             bail!(format!(
                 "Resource path \"{}\" need to be on project filesystem \"{}\"",
@@ -263,7 +278,7 @@ impl WebpackLoadersProcessedAsset {
             entries,
             cwd: project_path.clone(),
             env: *env,
-            context_source_for_issue: this.source,
+            context_source_for_issue: self.source,
             chunking_context: *chunking_context,
             module_graph,
             resolve_options_context: Some(transform.resolve_options_context),
@@ -271,7 +286,7 @@ impl WebpackLoadersProcessedAsset {
                 ResolvedVc::cell(content),
                 // We need to pass the query string to the loader
                 ResolvedVc::cell(resource_path.to_string().into()),
-                ResolvedVc::cell(this.source.ident().await?.query.to_string().into()),
+                ResolvedVc::cell(self.source.ident().await?.query.to_string().into()),
                 ResolvedVc::cell(json!(*loaders)),
                 ResolvedVc::cell(transform.source_maps.into()),
             ],
@@ -284,7 +299,7 @@ impl WebpackLoadersProcessedAsset {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
-                source_map: ResolvedVc::cell(None),
+                source_map: FileContent::NotFound.resolved_cell(),
             }
             .cell());
         };
@@ -312,7 +327,11 @@ impl WebpackLoadersProcessedAsset {
         Ok(ProcessWebpackLoadersResult {
             content,
             assets,
-            source_map: ResolvedVc::cell(source_map),
+            source_map: if let Some(source_map) = source_map {
+                FileContent::Content(File::from(source_map)).resolved_cell()
+            } else {
+                FileContent::NotFound.resolved_cell()
+            },
         }
         .cell())
     }
@@ -325,7 +344,7 @@ pub(crate) async fn evaluate_webpack_loader(
     custom_evaluate(webpack_loader_context).await
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 enum LogType {
     Error,
@@ -344,11 +363,12 @@ enum LogType {
     Status,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct LogInfo {
     time: u64,
     log_type: LogType,
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     args: Vec<JsonValue>,
     trace: Option<Vec<StackFrame<'static>>>,
 }
@@ -379,7 +399,9 @@ pub enum InfoMessage {
     },
 }
 
-#[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Debug, Clone, TaskInput, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
@@ -414,7 +436,7 @@ pub enum ResponseMessage {
     TrackFileRead {},
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, Debug, TraceRawVcs)]
+#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
 pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,

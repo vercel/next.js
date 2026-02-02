@@ -14,10 +14,15 @@ use std::{
 };
 
 use anyhow::{Error, anyhow};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
 use pin_project_lite::pin_project;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-pub use super::{
+pub use crate::{
     id_factory::{IdFactory, IdFactoryWithReuse},
     once_map::*,
 };
@@ -73,32 +78,33 @@ impl PartialEq for SharedError {
 
 impl Eq for SharedError {}
 
-impl Serialize for SharedError {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+impl Encode for SharedError {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         let mut v = vec![self.to_string()];
         let mut source = self.source();
         while let Some(s) = source {
             v.push(s.to_string());
             source = s.source();
         }
-        Serialize::serialize(&v, serializer)
+        Encode::encode(&v, encoder)
     }
 }
 
-impl<'de> Deserialize<'de> for SharedError {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        use serde::de::Error;
-        let mut messages = <Vec<String>>::deserialize(deserializer)?;
-        let mut e = match messages.pop() {
-            Some(e) => anyhow!(e),
-            None => return Err(Error::custom("expected at least 1 error message")),
-        };
+impl<Context> Decode<Context> for SharedError {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let mut messages = <Vec<String>>::decode(decoder)?;
+        let msg = messages
+            .pop()
+            .ok_or(DecodeError::Other("expected at least 1 error message"))?;
+        let mut e = anyhow!(msg);
         while let Some(message) = messages.pop() {
             e = e.context(message);
         }
         Ok(SharedError::new(e))
     }
 }
+
+bincode::impl_borrow_decode!(SharedError);
 
 impl Deref for SharedError {
     type Target = Arc<Error>;
@@ -296,6 +302,16 @@ pub struct IntoChunks<T> {
     chunk_size: usize,
 }
 
+impl<T> IntoChunks<T> {
+    pub fn len(&self) -> usize {
+        (self.data.len() - self.index).div_ceil(self.chunk_size)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.index >= self.data.len()
+    }
+}
+
 impl<T> Iterator for IntoChunks<T> {
     type Item = Chunk<T>;
 
@@ -379,6 +395,18 @@ impl<T> Drop for Chunk<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_into_chunks_len() {
+        assert_eq!(into_chunks::<i32>(vec![], 2).len(), 0);
+        assert_eq!(into_chunks(vec![1], 2).len(), 1);
+        assert_eq!(into_chunks(vec![1, 2], 2).len(), 1);
+        assert_eq!(into_chunks(vec![1, 2, 3], 2).len(), 2);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4], 2).len(), 2);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4, 5], 2).len(), 3);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4, 5, 6], 2).len(), 3);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4, 5, 6, 7], 2).len(), 4);
+    }
 
     #[test]
     fn test_chunk_iterator() {

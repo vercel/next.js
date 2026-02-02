@@ -3,16 +3,13 @@ use swc_core::ecma::ast::Lit;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        ModuleResolveResult, ModuleResolveResultItem,
-        origin::{ResolveOrigin, ResolveOriginExt},
-        parse::Request,
+        ModuleResolveResult, ModuleResolveResultItem, origin::ResolveOrigin, parse::Request,
         resolve,
     },
     source::Source,
@@ -64,19 +61,17 @@ impl Module for WebpackModuleAsset {
     fn references(&self) -> Vc<ModuleReferences> {
         module_references(*self.source, *self.runtime, *self.transforms)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for WebpackModuleAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct WebpackChunkAssetReference {
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     pub chunk_id: Lit,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
@@ -164,8 +159,7 @@ pub struct WebpackRuntimeAssetReference {
 impl ModuleReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
-        let options = self.origin.resolve_options(ty.clone()).await?;
+        let options = self.origin.resolve_options();
 
         let options = apply_cjs_specific_options(options);
 

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt,
@@ -15,15 +15,7 @@ use turbopack_core::{
 use crate::{operation::OptionEndpoint, paths::ServerPath, project::Project};
 
 #[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
+    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
 )]
 pub struct AppPageRoute {
     pub original_name: RcStr,
@@ -75,15 +67,7 @@ pub trait Endpoint {
 }
 
 #[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
+    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
 )]
 pub enum EndpointGroupKey {
     Instrumentation,
@@ -95,6 +79,20 @@ pub enum EndpointGroupKey {
     Route(RcStr),
 }
 
+impl EndpointGroupKey {
+    pub fn as_str(&self) -> &str {
+        match self {
+            EndpointGroupKey::Instrumentation => "instrumentation",
+            EndpointGroupKey::InstrumentationEdge => "instrumentation-edge",
+            EndpointGroupKey::Middleware => "middleware",
+            EndpointGroupKey::PagesError => "_error",
+            EndpointGroupKey::PagesApp => "_app",
+            EndpointGroupKey::PagesDocument => "_document",
+            EndpointGroupKey::Route(route) => route,
+        }
+    }
+}
+
 impl Display for EndpointGroupKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -104,41 +102,54 @@ impl Display for EndpointGroupKey {
             EndpointGroupKey::PagesError => write!(f, "_error"),
             EndpointGroupKey::PagesApp => write!(f, "_app"),
             EndpointGroupKey::PagesDocument => write!(f, "_document"),
-            EndpointGroupKey::Route(route) => write!(f, "/{}", route),
+            EndpointGroupKey::Route(route) => write!(f, "{}", route),
         }
     }
 }
 
 #[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
+    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
+)]
+pub struct EndpointGroupEntry {
+    pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    pub sub_name: Option<RcStr>,
+}
+
+#[derive(
+    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
 )]
 pub struct EndpointGroup {
-    pub primary: Vec<ResolvedVc<Box<dyn Endpoint>>>,
-    pub additional: Vec<ResolvedVc<Box<dyn Endpoint>>>,
+    pub primary: Vec<EndpointGroupEntry>,
+    pub additional: Vec<EndpointGroupEntry>,
 }
 
 impl EndpointGroup {
     pub fn from(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Self {
         Self {
-            primary: vec![endpoint],
+            primary: vec![EndpointGroupEntry {
+                endpoint,
+                sub_name: None,
+            }],
             additional: vec![],
         }
     }
 
     pub fn output_assets(&self) -> Vc<OutputAssets> {
-        output_of_endpoints(self.primary.iter().map(|endpoint| **endpoint).collect())
+        output_of_endpoints(
+            self.primary
+                .iter()
+                .map(|endpoint| *endpoint.endpoint)
+                .collect(),
+        )
     }
 
     pub fn module_graphs(&self) -> Vc<ModuleGraphs> {
-        module_graphs_of_endpoints(self.primary.iter().map(|endpoint| **endpoint).collect())
+        module_graphs_of_endpoints(
+            self.primary
+                .iter()
+                .map(|endpoint| *endpoint.endpoint)
+                .collect(),
+        )
     }
 }
 
@@ -266,4 +277,4 @@ pub enum EndpointOutputPaths {
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
 #[turbo_tasks::value(transparent)]
-pub struct Routes(FxIndexMap<RcStr, Route>);
+pub struct Routes(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Route>);

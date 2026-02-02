@@ -38,6 +38,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 console-subscriber = { workspace = true, optional = true }
 dunce = { workspace = true }
@@ -60,7 +61,9 @@ turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
+turbopack-css = { workspace = true }
 turbopack-dev-server = { workspace = true }
+turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, features = [
   "transform_emotion",
 ] }

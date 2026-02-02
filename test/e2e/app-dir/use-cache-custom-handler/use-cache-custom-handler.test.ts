@@ -126,7 +126,7 @@ describe('use-cache-custom-handler', () => {
   if (isNextStart) {
     it('should save a short-lived cache during prerendering at buildtime', async () => {
       expect(next.cliOutput).toMatch(
-        /ModernCustomCacheHandler::set \["[A-Za-z0-9_-]{21}","([0-9a-f]{2})+",\[{"id":"dynamic-cache"},"\$undefined"\]\]/
+        /ModernCustomCacheHandler::set \["[A-Za-z0-9_-]{21}","([0-9a-f]{2})+",\[{"id":"dynamic-cache"}]\]/
       )
     })
   }

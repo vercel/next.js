@@ -7,7 +7,6 @@ mod assert_fields;
 mod derive;
 mod func;
 mod function_macro;
-mod generic_type_macro;
 mod global_name;
 mod primitive_macro;
 mod value_impl_macro;
@@ -15,7 +14,6 @@ mod value_macro;
 mod value_trait_macro;
 
 mod expand;
-mod generic_type_input;
 mod ident;
 mod primitive_input;
 mod self_filter;
@@ -61,11 +59,11 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
 
 /// <!--
 /// Documentation for this macro is available on the re-export:
-/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/derive.KeyValuePair.html>
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.task_storage.html>
 /// -->
-#[proc_macro_derive(KeyValuePair)]
-pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
-    derive::derive_key_value_pair(input)
+#[proc_macro_attribute]
+pub fn task_storage(_args: TokenStream, input: TokenStream) -> TokenStream {
+    derive::task_storage(input)
 }
 
 /// <!--
@@ -116,29 +114,4 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn primitive(input: TokenStream) -> TokenStream {
     primitive_macro::primitive(input)
-}
-
-/// Registers a value type that is generic over the `Vc` it contains.
-///
-/// # Example
-///
-/// ```
-/// use crate::generic_type as __turbo_tasks_internal_generic_type;
-///
-/// __turbo_tasks_internal_generic_type!(<A, B>, GenericType<Vc<A>, Vc<B>>);
-///
-/// // Now you can do the following, for any `A` and `B` value types:
-///
-/// let vc: Vc<GenericType<Vc<u32>, Vc<RcStr>>> = Vc::cell(
-///     GenericType::new(
-///         Vc::cell(42),
-///         Vc::cell("hello".to_string())
-///     )
-/// );
-/// ```
-#[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
-#[proc_macro_error]
-#[proc_macro]
-pub fn generic_type(input: TokenStream) -> TokenStream {
-    generic_type_macro::generic_type(input)
 }

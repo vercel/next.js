@@ -298,7 +298,7 @@ impl ApplyEffectsContext {
                 .get_mut(&TypeId::of::<T>())
                 .map(|value| {
                     // Safety: the map is keyed by TypeId
-                    unsafe { value.downcast_mut_unchecked() }
+                    unsafe { value.downcast_unchecked_mut() }
                 })
                 .map(f)
         })
@@ -315,7 +315,7 @@ impl ApplyEffectsContext {
             });
             f(
                 // Safety: the map is keyed by TypeId
-                unsafe { value.downcast_mut_unchecked() },
+                unsafe { value.downcast_unchecked_mut() },
             )
         })
     }

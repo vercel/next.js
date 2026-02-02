@@ -6,7 +6,6 @@ use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, ValueToString, 
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::AnalyzeMode,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
@@ -25,6 +24,7 @@ use turbopack_core::{
     reference_type::ReferenceType,
     traced_asset::TracedAsset,
 };
+use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 pub async fn node_file_trace(

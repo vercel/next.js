@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Ident, Lit},
@@ -14,22 +14,22 @@ use turbopack_core::{
     },
     module::Module,
     reference::ModuleReference,
-    resolve::{ExportUsage, ModulePart, ModuleResolveResult},
+    resolve::{BindingUsage, ExportUsage, ImportUsage, ModulePart, ModuleResolveResult},
 };
 
-use super::{
-    facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
-};
 use crate::{
     ScopeHoistingContext,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     references::esm::base::{ReferencedAsset, ReferencedAssetIdent},
     runtime_functions::TURBOPACK_IMPORT,
+    side_effect_optimization::{
+        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+    },
     utils::module_id_to_lit,
 };
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, NonLocalValue, TraceRawVcs)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode)]
 enum EcmascriptModulePartReferenceMode {
     Synthesize,
     Normal,
@@ -144,8 +144,12 @@ impl ChunkableModuleReference for EcmascriptModulePartReference {
     }
 
     #[turbo_tasks::function]
-    fn export_usage(&self) -> Vc<ExportUsage> {
-        *self.export_usage
+    async fn binding_usage(&self) -> Result<Vc<BindingUsage>> {
+        Ok(BindingUsage {
+            import: ImportUsage::TopLevel,
+            export: self.export_usage.owned().await?,
+        }
+        .cell())
     }
 }
 

@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -19,21 +19,20 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext,
         MinifyType, ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::CommonJsReferenceSubType,
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
+    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -61,7 +60,9 @@ pub(crate) enum DirListEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct DirList(FxIndexMap<RcStr, DirListEntry>);
+pub(crate) struct DirList(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, DirListEntry>,
+);
 
 #[turbo_tasks::value_impl]
 impl DirList {
@@ -151,7 +152,9 @@ impl DirList {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FlatDirList(FxIndexMap<RcStr, FileSystemPath>);
+pub(crate) struct FlatDirList(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, FileSystemPath>,
+);
 
 #[turbo_tasks::value_impl]
 impl FlatDirList {
@@ -171,7 +174,9 @@ pub struct RequireContextMapEntry {
 
 /// The resolved context map for a `require.context(..)` call.
 #[turbo_tasks::value(transparent)]
-pub struct RequireContextMap(FxIndexMap<RcStr, RequireContextMapEntry>);
+pub struct RequireContextMap(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RequireContextMapEntry>,
+);
 
 #[turbo_tasks::value_impl]
 impl RequireContextMap {
@@ -182,7 +187,7 @@ impl RequireContextMap {
         recursive: bool,
         filter: Vc<EsRegex>,
         issue_source: Option<IssueSource>,
-        is_optional: bool,
+        error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
         let origin_path = origin.origin_path().await?.parent();
 
@@ -203,7 +208,7 @@ impl RequireContextMap {
                 *request,
                 CommonJsReferenceSubType::Undefined,
                 issue_source,
-                is_optional,
+                error_mode,
             )
             .to_resolved()
             .await?;
@@ -232,7 +237,7 @@ pub struct RequireContextAssetReference {
     pub include_subdirs: bool,
 
     pub issue_source: Option<IssueSource>,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
 }
 
 impl RequireContextAssetReference {
@@ -243,7 +248,7 @@ impl RequireContextAssetReference {
         include_subdirs: bool,
         filter: Vc<EsRegex>,
         issue_source: Option<IssueSource>,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
     ) -> Result<Self> {
         let map = RequireContextMap::generate(
             *origin,
@@ -251,7 +256,7 @@ impl RequireContextAssetReference {
             include_subdirs,
             filter,
             issue_source,
-            in_try,
+            error_mode,
         )
         .to_resolved()
         .await?;
@@ -270,7 +275,7 @@ impl RequireContextAssetReference {
             dir,
             include_subdirs,
             issue_source,
-            in_try,
+            error_mode,
         })
     }
 }
@@ -318,7 +323,7 @@ impl IntoCodeGenReference for RequireContextAssetReference {
 }
 
 #[derive(
-    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct RequireContextAssetReferenceCodeGen {
     path: AstPath,
@@ -428,19 +433,8 @@ impl Module for RequireContextAsset {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(true)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for RequireContextAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 

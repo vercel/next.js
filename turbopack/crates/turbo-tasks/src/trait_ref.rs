@@ -1,7 +1,6 @@
 use std::{fmt::Debug, future::Future, marker::PhantomData};
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     Vc, VcValueTrait,
@@ -54,21 +53,6 @@ impl<T> Eq for TraitRef<T> {}
 impl<T> std::hash::Hash for TraitRef<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.shared_reference.hash(state)
-    }
-}
-
-impl<T> Serialize for TraitRef<T> {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.shared_reference.serialize(serializer)
-    }
-}
-
-impl<'de, T> Deserialize<'de> for TraitRef<T> {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(Self {
-            shared_reference: TypedSharedReference::deserialize(deserializer)?,
-            _t: PhantomData,
-        })
     }
 }
 
@@ -157,6 +141,8 @@ where
     type Future = ReadVcFuture<T, VcValueTraitCast<T>>;
 
     fn into_trait_ref(self) -> Self::Future {
-        self.node.into_read().into()
+        self.node
+            .into_read_with_unknown_is_serializable_cell_content()
+            .into()
     }
 }

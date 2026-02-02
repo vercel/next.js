@@ -184,7 +184,8 @@ async function createCachedDynamicResponse(
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   revalidate: number,
   input: RequestInfo | URL,
-  handleUnlock: () => Promise<void> | void
+  handleUnlock: () => Promise<void> | void,
+  signal: AbortSignal | null
 ): Promise<Response> {
   // We're cloning the response using this utility because there exists a bug in
   // the undici library around response cloning. See the following pull request
@@ -216,7 +217,12 @@ async function createCachedDynamicResponse(
         )
       }
     })
-    .catch((error) => console.warn(`Failed to set fetch cache`, input, error))
+    .catch((error) => {
+      // Don't warn if the request was aborted intentionally.
+      if (!signal?.aborted) {
+        console.warn(`Failed to set fetch cache`, input, error)
+      }
+    })
     .finally(handleUnlock)
 
   const pendingRevalidateKey = `cache-set-${cacheKey}`
@@ -871,10 +877,15 @@ export function createPatchedFetcher(
                     if (
                       process.env.NODE_ENV === 'development' &&
                       workUnitStore.stagedRendering &&
-                      workUnitStore.cacheSignal
+                      workUnitStore.cacheSignal &&
+                      isCacheableRevalidate
                     ) {
-                      // We're filling caches for a staged render,
-                      // so we need to wait for the response to finish instead of streaming.
+                      // We're filling caches for a staged render with an
+                      // explicit cache config, so we need to wait for the
+                      // response to finish instead of streaming. For HMR-only
+                      // caching (no explicit revalidate), we fall through to
+                      // createCachedDynamicResponse which handles streaming
+                      // and abort gracefully.
                       return createCachedPrerenderResponse(
                         res,
                         cacheKey,
@@ -900,7 +911,8 @@ export function createPatchedFetcher(
                       serverComponentsHmrCache,
                       normalizedRevalidate,
                       input,
-                      handleUnlock
+                      handleUnlock,
+                      getRequestMeta('signal')
                     )
                   default:
                     workUnitStore satisfies never

@@ -4,13 +4,14 @@ pub mod client_reference_manifest;
 mod encode_uri_component;
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
     Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
@@ -32,6 +33,7 @@ pub struct BuildManifest {
 
     pub polyfill_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
 }
 
@@ -153,7 +155,7 @@ impl Asset for BuildManifest {
         };
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
 }
@@ -164,6 +166,7 @@ pub struct ClientBuildManifest {
     pub output_path: FileSystemPath,
     pub client_relative_path: FileSystemPath,
 
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
@@ -210,7 +213,7 @@ impl Asset for ClientBuildManifest {
             .collect();
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
 }
@@ -244,10 +247,12 @@ impl Default for MiddlewaresManifest {
     Serialize,
     Deserialize,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase", default)]
 pub struct ProxyMatcher {
-    // When skipped next.js with fill that during merging.
+    // When skipped, next.js will fill the field during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regexp: Option<RcStr>,
     #[serde(skip_serializing_if = "bool_is_true")]
@@ -385,6 +390,14 @@ pub struct ActionManifestEntry<'a> {
     pub exported_name: &'a str,
 
     pub filename: &'a str,
+
+    /// Source location line number (1-indexed), if available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+
+    /// Source location column number (1-indexed), if available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub col: Option<u32>,
 }
 
 #[derive(Serialize, Debug)]
@@ -419,6 +432,8 @@ pub enum ActionManifestModuleId<'a> {
     Serialize,
     Deserialize,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ActionLayer {

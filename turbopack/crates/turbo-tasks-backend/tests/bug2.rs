@@ -5,14 +5,14 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_tasks::{NonLocalValue, State, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Hash, NonLocalValue, Serialize, Deserialize, TraceRawVcs, TaskInput,
+    Clone, Debug, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, TaskInput, Encode, Decode,
 )]
 pub struct TaskReferenceSpec {
     task: u16,
@@ -22,7 +22,7 @@ pub struct TaskReferenceSpec {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Hash, NonLocalValue, Serialize, Deserialize, TraceRawVcs, TaskInput,
+    Clone, Debug, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, TaskInput, Encode, Decode,
 )]
 pub struct TaskSpec {
     references: Vec<TaskReferenceSpec>,

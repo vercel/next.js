@@ -18,7 +18,11 @@ pub use self::{
 };
 
 #[turbo_tasks::value(transparent)]
-pub struct EnvMap(#[turbo_tasks(trace_ignore)] FxIndexMap<RcStr, RcStr>);
+pub struct EnvMap(
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with = "turbo_bincode::indexmap")]
+    FxIndexMap<RcStr, RcStr>,
+);
 
 #[turbo_tasks::value_impl]
 impl EnvMap {
