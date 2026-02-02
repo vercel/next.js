@@ -158,7 +158,7 @@ The following JavaScript language features are disabled, and **will not work:**
 | [`WebAssembly.compile`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/compile)         | Compiles a WebAssembly module from a buffer source                  |
 | [`WebAssembly.instantiate`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate) | Compiles and instantiates a WebAssembly module from a buffer source |
 
-In rare cases, your code could contain (or import) some dynamic code evaluation statements which _can not be reached at runtime_ and which can not be removed by treeshaking.
+In rare cases, your code could contain (or import) some dynamic code evaluation statements which _cannot be reached at runtime_ and which cannot be removed by treeshaking.
 You can relax the check to allow specific files with your Proxy configuration:
 
 ```javascript filename="proxy.ts"
