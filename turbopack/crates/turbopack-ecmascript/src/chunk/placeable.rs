@@ -83,7 +83,10 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
         part: ModulePart,
     ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
         match part {
-            ModulePart::Facade | ModulePart::Locals => Ok(self),
+            ModulePart::Facade
+            | ModulePart::Locals
+            | ModulePart::RenamedExport { .. }
+            | ModulePart::RenamedNamespace { .. } => Ok(self),
             _ => bail!("Unexpected module part: {part:?}"),
         }
     }

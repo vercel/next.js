@@ -839,15 +839,14 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
         // Only split if the module has re-exports that need to be separated
         let should_split = *self.get_exports().split_locals_and_reexports().await?;
 
+        // Create the facade/locals if needed. turbo_tasks caching ensures
+        // we get the same module instances.
         Ok(match part {
             ModulePart::Locals if should_split => {
                 Vc::upcast(EcmascriptModuleLocalsModule::new(self))
             }
-            ModulePart::Facade if should_split => {
-                Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(self), part))
-            }
             _ if should_split => {
-                bail!("Unexpected module part: {part:?}")
+                Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(self), part))
             }
             _ => Vc::upcast(self),
         })
