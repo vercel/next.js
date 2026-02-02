@@ -687,7 +687,7 @@ async function notifyUpdate(): Promise<void> {
       }
       const distTag = getDistTag(packageJson.version)
       const pkgTag = distTag === 'latest' ? '' : `@${distTag}`
-      const updateMessage = `${global[packageManager]}{pkgTag}`
+      const updateMessage = `${global[packageManager]}${pkgTag}`
       console.log(
         yellow(bold('A new version of `create-next-app` is available!')) +
           '\n' +
