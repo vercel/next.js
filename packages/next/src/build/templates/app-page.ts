@@ -684,6 +684,9 @@ export async function handler(
           cacheLifeProfiles: nextConfig.cacheLife,
           basePath: nextConfig.basePath,
           serverActions: nextConfig.experimental.serverActions,
+          logServerFunctions:
+            typeof nextConfig.logging === 'object' &&
+            Boolean(nextConfig.logging.serverFunctions),
 
           ...(isDebugStaticShell ||
           isDebugDynamicAccesses ||
