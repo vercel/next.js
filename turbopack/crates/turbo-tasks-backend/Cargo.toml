@@ -64,6 +64,7 @@ turbo-tasks = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 futures = { workspace = true }
+indoc = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-malloc = { workspace = true }

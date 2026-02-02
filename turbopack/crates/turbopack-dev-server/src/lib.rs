@@ -32,13 +32,10 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    NonLocalValue, OperationVc, TurboTasksApi, Vc, apply_effects, run_once_with_reason,
-    trace::TraceRawVcs, util::FormatDuration,
+    NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, apply_effects,
+    run_once_with_reason, trace::TraceRawVcs, util::FormatDuration,
 };
-use turbopack_core::{
-    error::PrettyPrintError,
-    issue::{IssueReporter, IssueSeverity, handle_issues},
-};
+use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
 
 use self::{source::ContentSource, update::UpdateServer};
 use crate::{

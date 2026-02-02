@@ -36,8 +36,9 @@ use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef, ResolvedVc,
-    TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, UpdateInfo, Vc, get_effects,
+    Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, PrettyPrintError, ReadRef,
+    ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, UpdateInfo, Vc,
+    get_effects,
     message_queue::{CompilationEvent, Severity},
     trace::TraceRawVcs,
 };
@@ -49,7 +50,6 @@ use turbo_unix_path::{get_relative_path_to, sys_to_unix};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     diagnostics::PlainDiagnostic,
-    error::PrettyPrintError,
     issue::{IssueFilter, PlainIssue},
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},

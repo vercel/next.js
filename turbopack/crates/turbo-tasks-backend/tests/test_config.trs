@@ -1,6 +1,7 @@
 |name, initial| {
+  use std::hash::BuildHasher;
   let path = std::path::PathBuf::from(
-    format!("{}/.cache/{}", env!("CARGO_TARGET_TMPDIR"), name));
+    format!("{}/.cache/{}", env!("CARGO_TARGET_TMPDIR"), rustc_hash::FxBuildHasher.hash_one(name)));
   if initial {
     let _ = std::fs::remove_dir_all(&path);
   }

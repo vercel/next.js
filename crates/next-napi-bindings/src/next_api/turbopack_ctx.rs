@@ -18,7 +18,7 @@ use owo_colors::OwoColorize;
 use serde::Serialize;
 use terminal_hyperlink::Hyperlink;
 use turbo_tasks::{
-    TurboTasks, TurboTasksApi,
+    PrettyPrintError, TurboTasks, TurboTasksApi,
     backend::TurboTasksExecutionError,
     message_queue::{CompilationEvent, Severity},
 };
@@ -27,7 +27,6 @@ use turbo_tasks_backend::{
     TurboTasksBackend, db_invalidation::invalidation_reasons, default_backing_storage,
     noop_backing_storage,
 };
-use turbopack_core::error::PrettyPrintError;
 
 pub type NextTurboTasks =
     Arc<TurboTasks<TurboTasksBackend<Either<DefaultBackingStorage, NoopBackingStorage>>>>;

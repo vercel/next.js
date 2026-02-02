@@ -5,7 +5,8 @@ use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    NonLocalValue, PrettyPrintError, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -14,7 +15,6 @@ use turbopack_core::{
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
     code_builder::{Code, CodeBuilder},
-    error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     output::OutputAssetsReference,
     source_map::utils::{absolute_fileify_source_map, relative_fileify_source_map},

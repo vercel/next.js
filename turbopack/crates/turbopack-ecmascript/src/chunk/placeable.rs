@@ -2,7 +2,7 @@ use anyhow::Result;
 use either::Either;
 use itertools::Itertools;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -10,7 +10,6 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     asset::Asset,
     chunk::ChunkableModule,
-    error::PrettyPrintError,
     file_source::FileSource,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
