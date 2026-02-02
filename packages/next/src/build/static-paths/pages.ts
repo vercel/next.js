@@ -167,10 +167,19 @@ export async function buildPagesStaticPaths({
           (!repeat && typeof paramValue !== 'string') ||
           typeof paramValue === 'undefined'
         ) {
-          throw new Error(
-            `A required parameter (${validParamKey}) was not provided as ${
-              repeat ? 'an array' : 'a string'
-            } received ${typeof paramValue} in getStaticPaths for ${page}`
+          const expectedType = repeat ? 'an array of strings' : 'a string'
+          const receivedType =
+            paramValue === null
+              ? 'null'
+              : Array.isArray(paramValue)
+                ? 'an array'
+                : typeof paramValue
+          throw new TypeError(
+            `A required parameter (${validParamKey}) was not provided as ${expectedType} in getStaticPaths for ${page}.\n` +
+              `Received: ${receivedType}${typeof paramValue !== 'undefined' && paramValue !== null ? ` (${JSON.stringify(paramValue)})` : ''}\n` +
+              `\nMake sure to provide the parameter as ${expectedType}. For example:\n` +
+              `  { params: { ${validParamKey}: ${repeat ? '["value1", "value2"]' : '"value"'} } }\n` +
+              `\nSee: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
           )
         }
 
