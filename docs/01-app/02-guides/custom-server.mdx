@@ -24,17 +24,20 @@ const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
-app.prepare().then(() => {
-  createServer((req, res) => {
-    handle(req, res)
-  }).listen(port)
-})
-
-console.log(
-  `> Server listening at http://localhost:${port} as ${
-    dev ? 'development' : process.env.NODE_ENV
-  }`
-)
+app
+  .prepare()
+  .then(() => {
+    createServer((req, res) => {
+      handle(req, res)
+    }).listen(port)
+  })
+  .then(() => {
+    console.log(
+      `> Server listening at http://localhost:${port} as ${
+        dev ? 'development' : process.env.NODE_ENV
+      }`
+    )
+  })
 ```
 
 ```js filename="server.js" switcher
@@ -46,17 +49,20 @@ const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
-app.prepare().then(() => {
-  createServer((req, res) => {
-    handle(req, res)
-  }).listen(port)
-})
-
-console.log(
-  `> Server listening at http://localhost:${port} as ${
-    dev ? 'development' : process.env.NODE_ENV
-  }`
-)
+app
+  .prepare()
+  .then(() => {
+    createServer((req, res) => {
+      handle(req, res)
+    }).listen(port)
+  })
+  .then(() => {
+    console.log(
+      `> Server listening at http://localhost:${port} as ${
+        dev ? 'development' : process.env.NODE_ENV
+      }`
+    )
+  })
 ```
 
 > `server.js` does not run through the Next.js Compiler or bundling process. Make sure the syntax and source code this file requires are compatible with the current Node.js version you are using. [View an example](https://github.com/vercel/next.js/tree/canary/examples/custom-server).
