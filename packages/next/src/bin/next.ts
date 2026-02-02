@@ -297,6 +297,10 @@ program
     false
   )
   .option(
+    '--no-turbo',
+    'Disables Turbopack and uses webpack for the dev server.'
+  )
+  .option(
     '--experimental-https',
     'Starts the server with HTTPS and generates a self-signed certificate.'
   )

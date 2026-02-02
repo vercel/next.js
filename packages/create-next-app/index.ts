@@ -590,13 +590,18 @@ async function run(): Promise<void> {
     }
   }
 
+  const isWasmOnlyPlatform =
+    process.platform === 'openbsd' || !!process.env.NEXT_TEST_WASM
+
   const bundler: Bundler = opts.turbopack
     ? Bundler.Turbopack
     : opts.webpack
       ? Bundler.Webpack
       : opts.rspack
         ? Bundler.Rspack
-        : Bundler.Turbopack
+        : isWasmOnlyPlatform
+          ? Bundler.Webpack
+          : Bundler.Turbopack
 
   try {
     await createApp({

@@ -43,6 +43,7 @@ export type NextDevOptions = {
   disableSourceMaps: boolean
   // Commander is not putting `--inspect` through the arg parser
   inspect?: DebugAddress | true
+  noTurbo?: boolean
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
@@ -172,6 +173,14 @@ const nextDev = async (
   portSource: PortSource,
   directory?: string
 ) => {
+  // `--no-turbo` is a convenience flag to force webpack without having to
+  // remember the exact Turbopack flags. Treat it as an alias for `--webpack`.
+  if (options.noTurbo) {
+    options.webpack = true
+    options.turbo = false
+    options.turbopack = false
+  }
+
   // Note: parseBundlerArgs can only decide on Turbopack or webpack.
   // Rspack can be configured via next.config.js but next.config.js is not loaded in the main process, only in the child process.
   isTurbopack = parseBundlerArgs(options) === Bundler.Turbopack

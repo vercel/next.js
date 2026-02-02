@@ -1,0 +1,69 @@
+---
+title: Turbopack is not supported on this platform
+description: Next.js fell back to webpack because Turbopack requires native next-swc bindings, which are not available on your platform.
+---
+
+Next.js attempted to start the development server with **Turbopack**, but your platform only supports the **wasm** version of `next-swc`. The wasm bindings intentionally do not implement Turbopack's APIs, so Turbopack cannot run.
+
+Because of this, Next.js automatically **falls back to webpack** for the development server.
+
+## Why this happens
+
+Turbopack relies on native `next-swc` bindings for:
+
+- Creating and updating the Turbopack project graph
+- Emitting dev-server bundles and HMR updates
+- Providing advanced tracing and diagnostics
+
+On some platforms (for example, OpenBSD, or environments that only have `@next/swc-wasm-*` available), only the **wasm** bindings can be loaded. The wasm bindings intentionally **stub out** all Turbopack entrypoints (such as `turbo.createProject`) and will throw if they are called.
+
+To avoid crashes, Next.js detects when the wasm bindings are in use and skips Turbopack entirely.
+
+## How to proceed
+
+- **No action required**: your app will continue to work using webpack for `next dev`.
+- To **explicitly disable Turbopack** in your project configuration, set:
+
+  ```ts filename="next.config.ts"
+  import type { NextConfig } from 'next'
+
+  const nextConfig: NextConfig = {
+    experimental: {
+      turbo: {
+        enabled: false,
+      },
+    },
+  }
+
+  export default nextConfig
+  ```
+
+  ```js filename="next.config.js"
+  /** @type {import('next').NextConfig} */
+  const nextConfig = {
+    experimental: {
+      turbo: {
+        enabled: false,
+      },
+    },
+  }
+
+  module.exports = nextConfig
+  ```
+
+- To **disable Turbopack from the CLI** when starting the dev server, use:
+
+  ```bash
+  next dev --no-turbo
+  ```
+
+  This is equivalent to opting into webpack with `--webpack`, but makes it explicit that you are turning off Turbopack.
+
+## When Turbopack will be available
+
+Turbopack support on wasm-only platforms requires additional work in both the Rust and JavaScript bindings. Until that is implemented, Turbopack will remain unavailable when Next.js can only load the wasm `next-swc` bindings.
+
+If you rely on a platform that currently only has wasm bindings, you can:
+
+- Continue using webpack (the default fallback), and
+- Track progress or discuss support in the relevant GitHub issue.

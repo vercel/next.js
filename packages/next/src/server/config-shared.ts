@@ -919,6 +919,27 @@ export interface ExperimentalConfig {
    * @default false
    */
   devCacheControlNoCache?: boolean
+
+  /**
+   * Turbopack-specific experimental options.
+   *
+   * Turbopack itself is configured via the top-level `turbopack` option, but
+   * this nested `experimental.turbo` object can be used for simple feature
+   * toggles that affect how Turbopack is selected (for example, opting out
+   * of Turbopack entirely on certain platforms).
+   */
+  turbo?: {
+    /**
+     * Globally enable or disable Turbopack for this project.
+     *
+     * When set to `false`, Next.js will use webpack instead of Turbopack for
+     * `next dev`, even if Turbopack would otherwise be selected by default
+     * or via CLI flags.
+     *
+     * @default true
+     */
+    enabled?: boolean
+  }
 }
 
 export type ExportPathMap = {

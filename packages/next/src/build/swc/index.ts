@@ -1647,6 +1647,22 @@ export function getBinaryMetadata() {
 }
 
 /**
+ * Returns true when the currently loaded SWC bindings are using the wasm
+ * implementation instead of native bindings.
+ *
+ * This is primarily used to detect platforms where native bindings are not
+ * available and Turbopack cannot be used (Turbopack requires native
+ * bindings, while the wasm bindings intentionally stub out all Turbopack
+ * entrypoints).
+ *
+ * Note: This only reflects the state *after* `installBindings` / `loadBindings`
+ * has been called. Before that, it will return `false`.
+ */
+export function isUsingWasmBindings(): boolean {
+  return loadedBindings?.isWasm === true
+}
+
+/**
  * Initialize trace subscriber to emit traces.
  *
  */

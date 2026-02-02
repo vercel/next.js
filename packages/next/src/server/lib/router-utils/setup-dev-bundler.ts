@@ -7,7 +7,7 @@ import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/midd
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
-import { createDefineEnv } from '../../../build/swc'
+import { createDefineEnv, isUsingWasmBindings } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
 import path from 'path'
@@ -1348,8 +1348,38 @@ export async function setupDevBundler(opts: SetupOpts) {
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
   await installBindings(opts.nextConfig.experimental?.useWasmBinary)
+
+  // Decide whether to use Turbopack or fall back to webpack for the dev
+  // bundler. Turbopack currently requires native next-swc bindings; the wasm
+  // bindings intentionally do not support the Turbopack APIs.
+  //
+  // We treat Turbopack as enabled when:
+  // - The CLI / environment requested it (`opts.turbo`), AND
+  // - The config does not explicitly disable it
+  //   (`experimental.turbo.enabled !== false`), AND
+  // - We are not running with wasm bindings.
+  const turboEnabledInConfig =
+    opts.nextConfig.experimental?.turbo == null ||
+    opts.nextConfig.experimental.turbo.enabled !== false
+
+  const runningWithWasmBindings =
+    !!process.env.NEXT_TEST_WASM || isUsingWasmBindings()
+
+  const shouldUseTurbopack =
+    !!opts.turbo && turboEnabledInConfig && !runningWithWasmBindings
+
+  if (!!opts.turbo && !shouldUseTurbopack) {
+    // Log once per dev server startup so that users on unsupported platforms
+    // understand why Turbopack was not used.
+    Log.warn(
+      'Turbopack is not available when using next-swc WASM bindings on this platform. Falling back to webpack for `next dev`.\n' +
+        'Learn more: https://nextjs.org/docs/messages/turbopack-unsupported-platform'
+    )
+  }
+
   const result = await startWatcher({
     ...opts,
+    turbo: shouldUseTurbopack,
     isSrcDir,
   })
 
