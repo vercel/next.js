@@ -95,7 +95,7 @@ use turbopack_core::{
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
-        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
+        FindContextFileResult, ModulePart, find_context_file, origin::ResolveOrigin, package_json,
         parse::Request,
     },
     source::Source,
@@ -118,7 +118,10 @@ use crate::{
         async_module::OptionAsyncModule,
         esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
     },
-    side_effect_optimization::reference::EcmascriptModulePartReference,
+    side_effect_optimization::{
+        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+        reference::EcmascriptModulePartReference,
+    },
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
 };
@@ -826,6 +829,28 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
         }
         .instrument(span)
         .await
+    }
+
+    #[turbo_tasks::function]
+    async fn get_split(
+        self: Vc<Self>,
+        part: ModulePart,
+    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
+        // Only split if the module has re-exports that need to be separated
+        let should_split = *self.get_exports().split_locals_and_reexports().await?;
+
+        Ok(match part {
+            ModulePart::Locals if should_split => {
+                Vc::upcast(EcmascriptModuleLocalsModule::new(self))
+            }
+            ModulePart::Facade if should_split => {
+                Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(self), part))
+            }
+            _ if should_split => {
+                bail!("Unexpected module part: {part:?}")
+            }
+            _ => Vc::upcast(self),
+        })
     }
 }
 

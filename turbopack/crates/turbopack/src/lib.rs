@@ -54,9 +54,7 @@ use turbopack_ecmascript::{
         external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
         follow_reexports,
     },
-    side_effect_optimization::{
-        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
-    },
+    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
@@ -201,30 +199,14 @@ async fn apply_module_type(
                         if let Some(part) = part {
                             match part {
                                 ModulePart::Evaluation => {
-                                    if *module.get_exports().split_locals_and_reexports().await? {
-                                        Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
-                                    } else {
-                                        Vc::upcast(*module)
-                                    }
+                                    Vc::upcast(module.get_split(ModulePart::Locals))
                                 }
                                 ModulePart::Export(_) => {
-                                    if *module.get_exports().split_locals_and_reexports().await? {
-                                        apply_reexport_tree_shaking(
-                                            Vc::upcast(
-                                                EcmascriptModuleFacadeModule::new(
-                                                    Vc::upcast(*module),
-                                                    ModulePart::facade(),
-                                                )
-                                                .resolve()
-                                                .await?,
-                                            ),
-                                            part,
-                                        )
-                                        .await?
-                                    } else {
-                                        apply_reexport_tree_shaking(Vc::upcast(*module), part)
-                                            .await?
-                                    }
+                                    apply_reexport_tree_shaking(
+                                        module.get_split(ModulePart::Facade),
+                                        part,
+                                    )
+                                    .await?
                                 }
                                 _ => bail!(
                                     "Invalid module part \"{}\" for reexports only tree shaking \
@@ -232,13 +214,8 @@ async fn apply_module_type(
                                     part
                                 ),
                             }
-                        } else if *module.get_exports().split_locals_and_reexports().await? {
-                            Vc::upcast(EcmascriptModuleFacadeModule::new(
-                                Vc::upcast(*module),
-                                ModulePart::facade(),
-                            ))
                         } else {
-                            Vc::upcast(*module)
+                            Vc::upcast(module.get_split(ModulePart::Facade))
                         }
                     }
                     None => Vc::upcast(*module),
