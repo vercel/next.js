@@ -266,13 +266,14 @@ export default class DevServer extends Server {
 
     if (appDir) {
       // We create a new file reader for the app directory because we don't want
-      // to include any folders or files starting with an underscore. This will
-      // prevent the reader from wasting time reading files that we know we
-      // don't care about.
+      // to include any folders or files starting with an underscore or node_modules
+      // directories. This will prevent the reader from wasting time reading files
+      // that we know we don't care about.
       const fileReader = new BatchedFileReader(
         new DefaultFileReader({
-          // Ignore any directory prefixed with an underscore.
-          ignorePartFilter: (part) => part.startsWith('_'),
+          // Ignore any directory prefixed with an underscore or named node_modules.
+          ignorePartFilter: (part) =>
+            part.startsWith('_') || part === 'node_modules',
         })
       )
 
