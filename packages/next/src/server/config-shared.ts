@@ -306,6 +306,11 @@ export interface LoggingConfig {
   incomingRequests?: boolean | IncomingRequestLoggingConfig
 
   /**
+   * If true, Server Function invocations will be logged.
+   */
+  serverFunctions?: boolean
+
+  /**
    * Forward browser console logs to terminal.
    * - `false`: Disable browser log forwarding
    * - `true`: Forward all browser console output to terminal
@@ -1703,6 +1708,7 @@ export interface NextConfigRuntime {
   skipProxyUrlNormalize: NextConfigComplete['skipProxyUrlNormalize']
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
+  logging?: NextConfigComplete['logging']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1843,6 +1849,7 @@ export function getNextConfigRuntime(
     skipProxyUrlNormalize: config.skipProxyUrlNormalize,
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
+    logging: config.logging,
 
     experimental,
   }
