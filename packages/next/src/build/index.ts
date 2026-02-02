@@ -4234,6 +4234,7 @@ export default async function build(
               config,
               appType,
               buildId,
+              bundler,
               configOutDir: path.join(dir, configOutDir),
               staticPages,
               serverPropsPages,

@@ -45,7 +45,11 @@ import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-routes'
+import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
+import { defaultOverrides } from '../../server/require-hook'
+import { makeIgnoreFn } from '../collect-build-traces'
 import { generateRoutesManifest } from '../generate-routes-manifest'
+import { Bundler } from '../../lib/bundler'
 
 interface SharedRouteFields {
   /**
@@ -403,6 +407,7 @@ export async function handleBuildComplete({
   configOutDir,
   distDir,
   pageKeys,
+  bundler,
   tracingRoot,
   adapterPath,
   appPageKeys,
@@ -429,6 +434,7 @@ export async function handleBuildComplete({
   nextVersion: string
   hasStatic404: boolean
   hasStatic500: boolean
+  bundler: Bundler
   staticPages: Set<string>
   hasNodeMiddleware: boolean
   config: NextConfigComplete
@@ -489,6 +495,26 @@ export async function handleBuildComplete({
       }
 
       const sharedNodeAssets: Record<string, string> = {}
+      const pagesSharedNodeAssets: Record<string, string> = {}
+      const appPagesSharedNodeAssets: Record<string, string> = {}
+
+      const sharedTraceIgnores = [
+        '**/next/dist/compiled/next-server/**/*.dev.js',
+        '**/next/dist/compiled/webpack/*',
+        '**/node_modules/webpack5/**/*',
+        '**/next/dist/server/lib/route-resolver*',
+        'next/dist/compiled/semver/semver/**/*.js',
+        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
+        '**/*.d.ts',
+        '**/*.map',
+        '**/next/dist/pages/**/*',
+        '**/node_modules/sharp/**/*',
+        '**/@img/sharp-libvips*/**/*',
+        '**/next/dist/compiled/edge-runtime/**/*',
+        '**/next/dist/server/web/sandbox/**/*',
+        '**/next/dist/server/post-process.js',
+      ]
+      const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
 
       for (const file of requiredServerFiles) {
         // add to shared node assets
@@ -496,7 +522,8 @@ export async function handleBuildComplete({
         const fileOutputPath = path.relative(tracingRoot, filePath)
         sharedNodeAssets[fileOutputPath] = filePath
       }
-      // add "next/setup-node-env" stub so it can be required via
+
+      // add "next/setup-node-env" stub so it can be required top-level
       // TODO: should we make this always available without adapters
       const setupNodeStubPath = path.join(
         path.dirname(require.resolve('next/package.json')),
@@ -505,9 +532,81 @@ export async function handleBuildComplete({
       sharedNodeAssets[path.relative(tracingRoot, setupNodeStubPath)] =
         require.resolve('next/dist/build/adapter/setup-node-env.external')
 
+      if (bundler !== Bundler.Turbopack) {
+        const moduleTypes = ['app-page', 'pages'] as const
+
+        for (const type of moduleTypes) {
+          const currentDependencies: string[] = []
+          const modulePath = require.resolve(
+            `next/dist/server/route-modules/${type}/module.compiled`
+          )
+          const contextDir = path.join(
+            path.dirname(modulePath),
+            'vendored',
+            'contexts'
+          )
+
+          for (const item of await fs.readdir(contextDir)) {
+            if (item.match(/\.(mjs|cjs|js)$/)) {
+              currentDependencies.push(path.join(contextDir, item))
+            }
+          }
+
+          const { fileList, esmFileList } = await nodeFileTrace(
+            currentDependencies,
+            {
+              base: tracingRoot,
+              ignore: sharedIgnoreFn,
+            }
+          )
+          esmFileList.forEach((item) => fileList.add(item))
+
+          for (const rootRelativeFilePath of fileList) {
+            if (type === 'pages') {
+              pagesSharedNodeAssets[rootRelativeFilePath] = path.join(
+                tracingRoot,
+                rootRelativeFilePath
+              )
+            } else {
+              appPagesSharedNodeAssets[rootRelativeFilePath] = path.join(
+                tracingRoot,
+                rootRelativeFilePath
+              )
+            }
+          }
+        }
+
+        // These are modules that are necessary for bootstrapping node env
+        const necessaryNodeDependencies = [
+          require.resolve('next/dist/server/node-environment'),
+          require.resolve('next/dist/server/require-hook'),
+          require.resolve('next/dist/server/node-polyfill-crypto'),
+          ...Object.values(defaultOverrides).filter((item) =>
+            path.extname(item)
+          ),
+        ]
+
+        const { fileList, esmFileList } = await nodeFileTrace(
+          necessaryNodeDependencies,
+          {
+            base: tracingRoot,
+            ignore: sharedIgnoreFn,
+          }
+        )
+        esmFileList.forEach((item) => fileList.add(item))
+
+        for (const rootRelativeFilePath of fileList) {
+          sharedNodeAssets[rootRelativeFilePath] = path.join(
+            tracingRoot,
+            rootRelativeFilePath
+          )
+        }
+      }
+
       if (hasInstrumentationHook) {
         const assets = await handleTraceFiles(
-          path.join(distDir, 'server', 'instrumentation.js.nft.json')
+          path.join(distDir, 'server', 'instrumentation.js.nft.json'),
+          'neutral'
         )
         const fileOutputPath = path.relative(
           tracingRoot,
@@ -522,11 +621,14 @@ export async function handleBuildComplete({
       }
 
       async function handleTraceFiles(
-        traceFilePath: string
+        traceFilePath: string,
+        type: 'pages' | 'app' | 'neutral'
       ): Promise<Record<string, string>> {
         const assets: Record<string, string> = Object.assign(
           {},
-          sharedNodeAssets
+          sharedNodeAssets,
+          type === 'pages' ? pagesSharedNodeAssets : {},
+          type === 'app' ? appPagesSharedNodeAssets : {}
         )
         const traceData = JSON.parse(
           await fs.readFile(traceFilePath, 'utf8')
@@ -763,12 +865,14 @@ export async function handleBuildComplete({
         }
 
         const pageTraceFile = `${pageFile}.nft.json`
-        const assets = await handleTraceFiles(pageTraceFile).catch((err) => {
-          if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
-            Log.warn(`Failed to locate traced assets for ${pageFile}`, err)
+        const assets = await handleTraceFiles(pageTraceFile, 'pages').catch(
+          (err) => {
+            if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
+              Log.warn(`Failed to locate traced assets for ${pageFile}`, err)
+            }
+            return {} as Record<string, string>
           }
-          return {} as Record<string, string>
-        })
+        )
         const functionConfig = functionsConfigManifest.functions[route] || {}
         let sourcePage = route.replace(/^\//, '')
 
@@ -858,7 +962,7 @@ export async function handleBuildComplete({
       if (hasNodeMiddleware) {
         const middlewareFile = path.join(distDir, 'server', 'middleware.js')
         const middlewareTrace = `${middlewareFile}.nft.json`
-        const assets = await handleTraceFiles(middlewareTrace)
+        const assets = await handleTraceFiles(middlewareTrace, 'neutral')
         const functionConfig =
           functionsConfigManifest.functions['/_middleware'] || {}
 
@@ -905,10 +1009,12 @@ export async function handleBuildComplete({
           const normalizedPage = normalizeAppPath(page)
           const pageFile = path.join(appDistDir, `${page}.js`)
           const pageTraceFile = `${pageFile}.nft.json`
-          const assets = await handleTraceFiles(pageTraceFile).catch((err) => {
-            Log.warn(`Failed to copy traced files for ${pageFile}`, err)
-            return {} as Record<string, string>
-          })
+          const assets = await handleTraceFiles(pageTraceFile, 'app').catch(
+            (err) => {
+              Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+              return {} as Record<string, string>
+            }
+          )
 
           // If this is a parallel route we just need to merge
           // the assets as they share the same pathname
