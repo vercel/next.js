@@ -17,7 +17,6 @@ Take a look at the [following example](https://github.com/vercel/next.js/tree/ca
 
 ```ts filename="server.ts" switcher
 import { createServer } from 'http'
-import { parse } from 'url'
 import next from 'next'
 
 const port = parseInt(process.env.PORT || '3000', 10)
@@ -29,7 +28,6 @@ app.prepare().then(() => {
   createServer((req, res) => {
     handle(req, res)
   }).listen(port)
-})
 
   console.log(
     `> Server listening at http://localhost:${port} as ${
@@ -41,7 +39,6 @@ app.prepare().then(() => {
 
 ```js filename="server.js" switcher
 import { createServer } from 'http'
-import { parse } from 'url'
 import next from 'next'
 
 const port = parseInt(process.env.PORT || '3000', 10)
@@ -53,7 +50,6 @@ app.prepare().then(() => {
   createServer((req, res) => {
     handle(req, res)
   }).listen(port)
-})
 
   console.log(
     `> Server listening at http://localhost:${port} as ${
