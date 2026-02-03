@@ -55,6 +55,7 @@ import {
   CACHE_ONE_YEAR,
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
@@ -1144,6 +1145,15 @@ export async function handler(
       }
 
       const didPostpone = typeof cacheEntry.value.postponed === 'string'
+
+      // Set the build ID header for RSC navigation requests when deploymentId is configured. This
+      // corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the build ID
+      // from the RSC payload when deploymentId is set (relying on this header instead). Server
+      // actions are excluded because the client doesn't check the build ID for action responses.
+      // For static prerenders served from CDN, routes-manifest.json adds a header.
+      if (isRSCRequest && !isPossibleServerAction && deploymentId) {
+        res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+      }
 
       if (
         isSSG &&

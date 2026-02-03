@@ -238,8 +238,8 @@ export type FlightData = Array<FlightDataPath> | string
 export type ActionResult = Promise<any>
 
 export type InitialRSCPayload = {
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** initialCanonicalUrlParts */
   c: string[]
   /** initialRenderedSearch */
@@ -262,8 +262,8 @@ export type InitialRSCPayload = {
 
 // Response from `createFromFetch` for normal rendering
 export type NavigationFlightResponse = {
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** flightData */
   f: FlightData
   /** prerendered */
@@ -282,8 +282,8 @@ export type NavigationFlightResponse = {
 export type ActionFlightResponse = {
   /** actionResult */
   a: ActionResult
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** flightData */
   f: FlightData
   /** renderedSearch */

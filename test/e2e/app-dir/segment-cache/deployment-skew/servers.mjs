@@ -11,12 +11,13 @@ function getEnv(id, mode) {
   if (mode === 'BUILD_ID') {
     return {
       ...process.env,
-      BUILD_ID: id,
+      DIST_DIR: id,
       NEXT_PUBLIC_BUILD_ID: id,
     }
   } else if (mode === 'DEPLOYMENT_ID') {
     return {
       ...process.env,
+      DIST_DIR: id,
       NEXT_DEPLOYMENT_ID: id,
     }
   } else {
