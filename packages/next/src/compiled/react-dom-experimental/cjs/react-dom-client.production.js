@@ -1938,6 +1938,8 @@ var KeyboardEventInterface = assign({}, UIEventInterface, {
     isPrimary: 0
   }),
   SyntheticPointerEvent = createSyntheticEvent(PointerEventInterface),
+  SubmitEventInterface = assign({}, EventInterface, { submitter: 0 }),
+  SyntheticSubmitEvent = createSyntheticEvent(SubmitEventInterface),
   TouchEventInterface = assign({}, UIEventInterface, {
     touches: 0,
     targetTouches: 0,
@@ -11227,7 +11229,12 @@ function recursivelyResetForms(parentFiber) {
     for (parentFiber = parentFiber.child; null !== parentFiber; ) {
       var fiber = parentFiber;
       recursivelyResetForms(fiber);
-      5 === fiber.tag && fiber.flags & 1024 && fiber.stateNode.reset();
+      5 === fiber.tag &&
+        fiber.flags & 1024 &&
+        ((fiber = fiber.stateNode),
+        (_enabled = !0),
+        fiber.reset(),
+        (_enabled = !1));
       parentFiber = parentFiber.sibling;
     }
 }
@@ -15161,6 +15168,9 @@ function dispatchEventForPluginEventSystem(
           case "pointerover":
           case "pointerup":
             SyntheticEventCtor = SyntheticPointerEvent;
+            break;
+          case "submit":
+            SyntheticEventCtor = SyntheticSubmitEvent;
             break;
           case "toggle":
           case "beforetoggle":
@@ -19849,14 +19859,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2237 = React.version;
 if (
-  "19.3.0-experimental-ed4bd540-20260202" !==
+  "19.3.0-experimental-b1533b03-20260203" !==
   isomorphicReactPackageVersion$jscomp$inline_2237
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2237,
-      "19.3.0-experimental-ed4bd540-20260202"
+      "19.3.0-experimental-b1533b03-20260203"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19876,24 +19886,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2940 = {
+var internals$jscomp$inline_2936 = {
   bundleType: 0,
-  version: "19.3.0-experimental-ed4bd540-20260202",
+  version: "19.3.0-experimental-b1533b03-20260203",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-ed4bd540-20260202"
+  reconcilerVersion: "19.3.0-experimental-b1533b03-20260203"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2941 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2937 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2941.isDisabled &&
-    hook$jscomp$inline_2941.supportsFiber
+    !hook$jscomp$inline_2937.isDisabled &&
+    hook$jscomp$inline_2937.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2941.inject(
-        internals$jscomp$inline_2940
+      (rendererID = hook$jscomp$inline_2937.inject(
+        internals$jscomp$inline_2936
       )),
-        (injectedHook = hook$jscomp$inline_2941);
+        (injectedHook = hook$jscomp$inline_2937);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -19988,4 +19998,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-experimental-ed4bd540-20260202";
+exports.version = "19.3.0-experimental-b1533b03-20260203";

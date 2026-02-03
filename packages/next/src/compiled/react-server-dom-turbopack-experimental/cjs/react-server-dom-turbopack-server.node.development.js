@@ -1105,6 +1105,7 @@
       onFatalError,
       identifierPrefix,
       temporaryReferences,
+      debugStartTime,
       environmentName,
       filterStackFrame,
       keepDebugAlive
@@ -1171,7 +1172,10 @@
       this.deferredDebugObjects = keepDebugAlive
         ? { retained: new Map(), existing: new Map() }
         : null;
-      type = this.timeOrigin = performance.now();
+      type =
+        "number" === typeof debugStartTime
+          ? (this.timeOrigin = debugStartTime - performance.timeOrigin)
+          : (this.timeOrigin = performance.now());
       emitTimeOriginChunk(this, type + performance.timeOrigin);
       this.abortTime = -0;
       model = createTask(
@@ -1194,6 +1198,7 @@
       onError,
       identifierPrefix,
       temporaryReferences,
+      debugStartTime,
       environmentName,
       filterStackFrame,
       keepDebugAlive
@@ -1208,6 +1213,7 @@
         noop,
         identifierPrefix,
         temporaryReferences,
+        debugStartTime,
         environmentName,
         filterStackFrame,
         keepDebugAlive
@@ -1221,6 +1227,7 @@
       onError,
       identifierPrefix,
       temporaryReferences,
+      debugStartTime,
       environmentName,
       filterStackFrame,
       keepDebugAlive
@@ -1235,6 +1242,7 @@
         onFatalError,
         identifierPrefix,
         temporaryReferences,
+        debugStartTime,
         environmentName,
         filterStackFrame,
         keepDebugAlive
@@ -6610,6 +6618,7 @@
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
           options ? options.temporaryReferences : void 0,
+          options ? options.startTime : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
           !1
@@ -6646,6 +6655,7 @@
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
           options ? options.temporaryReferences : void 0,
+          options ? options.startTime : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
           !1
@@ -6710,6 +6720,7 @@
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
           options ? options.temporaryReferences : void 0,
+          options ? options.startTime : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
           void 0 !== debugChannel
@@ -6766,6 +6777,7 @@
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
           options ? options.temporaryReferences : void 0,
+          options ? options.startTime : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
           void 0 !== debugChannelReadable
