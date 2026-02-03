@@ -374,6 +374,17 @@ function validateParams(
             `A required parameter (${key}) was not provided as an array received ${typeof paramValue} in generateStaticParams for ${page}`
           )
         }
+
+        // Ensure all array elements are strings
+        const invalidElement = paramValue.find(
+          (element) => typeof element !== 'string'
+        )
+        if (invalidElement !== undefined) {
+          throw new Error(
+            `A required parameter (${key}) contains a non-string value in the array. ` +
+              `All values must be strings, received ${typeof invalidElement} (${JSON.stringify(invalidElement)}) in generateStaticParams for ${page}`
+          )
+        }
       } else {
         if (typeof paramValue !== 'string') {
           throw new Error(
