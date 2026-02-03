@@ -236,6 +236,9 @@ export async function createPost(formData) {
 
 ### Event Handlers
 
+> **Good to know**:
+> When invoking Server Functions from Client Components outside of form actions (for example, in event handlers or effects), wrap the call in a React transition such as [`useTransition`](https://react.dev/reference/react/useTransition) to avoid blocking rendering and to ensure consistent UI updates.
+
 You can invoke a Server Function in a Client Component by using event handlers such as `onClick`.
 
 ```tsx filename="app/like-button.tsx" switcher
