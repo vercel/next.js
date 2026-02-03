@@ -18,6 +18,7 @@ export interface AnalyzeChunkPart {
   source_index: number
   output_file_index: number
   size: number
+  compressed_size: number
 }
 
 export interface AnalyzeOutputFile {
@@ -336,16 +337,41 @@ export class AnalyzeData {
     return parentPath + source.path
   }
 
-  getSourceOutputSize(index: SourceIndex): number {
+  getOwnSizes(index: SourceIndex): {
+    size: number
+    compressedSize: number
+  } {
     const chunkParts = this.sourceChunkParts(index)
-    let totalSize = 0
+    let size = 0
+    let compressedSize = 0
     for (const chunkPartIndex of chunkParts) {
       const chunkPart = this.chunkPart(chunkPartIndex)
       if (chunkPart) {
-        totalSize += chunkPart.size
+        size += chunkPart.size
+        compressedSize += chunkPart.compressed_size
       }
     }
-    return totalSize
+    return { size, compressedSize }
+  }
+
+  getRecursiveModuleCount(
+    index: SourceIndex,
+    filterSource: (sourceIndex: SourceIndex) => boolean
+  ): number {
+    const selfVisible = filterSource(index)
+    const selfCount =
+      selfVisible && this.sourceChunkParts(index).length > 0 ? 1 : 0
+
+    const children = this.sourceChildren(index)
+    if (children.length === 0) {
+      return selfCount
+    }
+
+    let totalCount = selfCount
+    for (const childIndex of children) {
+      totalCount += this.getRecursiveModuleCount(childIndex, filterSource)
+    }
+    return totalCount
   }
 
   sourceChunks(index: SourceIndex): string[] {
@@ -363,6 +389,35 @@ export class AnalyzeData {
     }
 
     return Array.from(uniqueChunks).sort()
+  }
+
+  getRecursiveSizes(
+    index: SourceIndex,
+    filterSource: (sourceIndex: SourceIndex) => boolean
+  ): { size: number; compressedSize: number } {
+    let size = 0
+    let compressedSize = 0
+
+    if (filterSource(index)) {
+      const { size: ownUncompressedSize, compressedSize: ownCompressedSize } =
+        this.getOwnSizes(index)
+      size += ownUncompressedSize
+      compressedSize += ownCompressedSize
+    }
+
+    for (const childIndex of this.sourceChildren(index)) {
+      const {
+        size: childUncompressedSize,
+        compressedSize: childCompressedSize,
+      } = this.getRecursiveSizes(childIndex, filterSource)
+      size += childUncompressedSize
+      compressedSize += childCompressedSize
+    }
+
+    return {
+      size,
+      compressedSize,
+    }
   }
 
   getSourceFlags(index: SourceIndex): {

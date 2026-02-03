@@ -35,10 +35,12 @@ export declare class ExternalObject<T> {
   }
 }
 export declare function lockfileTryAcquireSync(
-  path: string
+  path: string,
+  content?: string | undefined | null
 ): { __napiType: 'Lockfile' } | null
 export declare function lockfileTryAcquire(
-  path: string
+  path: string,
+  content?: string | undefined | null
 ): Promise<{ __napiType: 'Lockfile' } | null>
 export declare function lockfileUnlockSync(lockfile: {
   __napiType: 'Lockfile'
@@ -159,6 +161,11 @@ export interface NapiProjectOptions {
   writeRoutesHashesManifest: boolean
   /** The version of Node.js that is available/currently running. */
   currentNodeJsVersion: RcStr
+  /**
+   * Debug build paths for selective builds.
+   * When set, only routes matching these paths will be included in the build.
+   */
+  debugBuildPaths?: NapiDebugBuildPaths
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -291,6 +298,10 @@ export interface NapiEntrypoints {
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
 }
+export interface NapiDebugBuildPaths {
+  app: Array<RcStr>
+  pages: Array<RcStr>
+}
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
@@ -398,7 +409,7 @@ export interface NapiNextTurbopackCallbacksJsObject {
     opts: TurbopackInternalErrorOpts
   ) => never
 }
-/** Arguments for [`NapiNextTurbopackCallbacks::throw_turbopack_internal_error`]. */
+/** Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`. */
 export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string

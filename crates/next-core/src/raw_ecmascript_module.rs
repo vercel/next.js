@@ -1,24 +1,25 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use either::Either;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, glob::Glob, rope::Rope};
+use turbo_tasks_fs::{FileContent, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
+        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegmentRef, DefinableNameSegmentRefs,
+        FreeVarReference,
     },
     context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     resolve::ModulePart,
@@ -31,7 +32,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
-    source_map::parse_source_map_comment,
+    source_map::{extract_source_mapping_url_from_content, parse_source_map_comment},
     utils::StringifyJs,
 };
 
@@ -99,19 +100,8 @@ impl Module for RawEcmascriptModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(false)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for RawEcmascriptModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
@@ -205,12 +195,7 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
 
             let mut code = CodeBuilder::default();
             if !env_vars.is_empty() {
-                let replacements = module
-                    .compile_time_info
-                    .await?
-                    .free_var_references
-                    .individual()
-                    .await?;
+                let replacements = module.compile_time_info.await?.free_var_references;
                 code += "var process = {env:\n";
                 writeln!(
                     code,
@@ -221,20 +206,14 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
                             .map(async |name| {
                                 Ok((
                                     name,
-                                    if let Some(value) =
-                                        replacements.get(&DefinableNameSegment::Name(name.into()))
-                                        && let Some((_, value)) =
-                                            value.0.iter().find(|(path, _)| {
-                                                matches!(
-                                                    path.as_slice(),
-                                                    [
-                                                        DefinableNameSegment::Name(a),
-                                                        DefinableNameSegment::Name(b)
-                                                    ] if a == "process" && b == "env"
-                                                )
-                                            })
+                                    if let Some(value) = replacements
+                                        .get(&DefinableNameSegmentRefs(smallvec![
+                                            DefinableNameSegmentRef::Name("process"),
+                                            DefinableNameSegmentRef::Name("env"),
+                                            DefinableNameSegmentRef::Name(name),
+                                        ]))
+                                        .await?
                                     {
-                                        let value = value.await?;
                                         let value = match &*value {
                                             FreeVarReference::Value(
                                                 CompileTimeDefineValue::String(value),
@@ -266,9 +245,10 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
             }
 
             code += "(function(){\n";
+            let source_mapping_url = extract_source_mapping_url_from_content(&content_str);
             let source_map = if let Some((source_map, _)) = parse_source_map_comment(
                 source,
-                Either::Right(&content_str),
+                source_mapping_url,
                 &*self.module.ident().path().await?,
             )
             .await?

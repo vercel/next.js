@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use indoc::formatdoc;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
@@ -12,11 +12,11 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    changed::any_content_changed_of_module,
+    changed::any_source_content_changed_of_module,
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
@@ -36,7 +36,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 #[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
 struct PostCssProcessingResult {
@@ -54,8 +54,6 @@ struct PostCssProcessingResult {
     Hash,
     Debug,
     TraceRawVcs,
-    Serialize,
-    Deserialize,
     TaskInput,
     NonLocalValue,
     Encode,
@@ -86,6 +84,9 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".postcssrc.js",
             ".postcssrc.mjs",
             ".postcssrc.cjs",
+            ".postcssrc.ts",
+            ".postcssrc.mts",
+            ".postcssrc.cts",
             ".config/postcssrc",
             ".config/postcssrc.json",
             ".config/postcssrc.yaml",
@@ -93,9 +94,15 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".config/postcssrc.js",
             ".config/postcssrc.mjs",
             ".config/postcssrc.cjs",
+            ".config/postcssrc.ts",
+            ".config/postcssrc.mts",
+            ".config/postcssrc.cts",
             "postcss.config.js",
             "postcss.config.mjs",
             "postcss.config.cjs",
+            "postcss.config.ts",
+            "postcss.config.mts",
+            "postcss.config.cts",
             "postcss.config.json",
         ]
         .into_iter()
@@ -197,7 +204,7 @@ async fn config_changed(
         .module();
 
     Ok(Vc::<Completions>::cell(vec![
-        any_content_changed_of_module(config_asset)
+        any_source_content_changed_of_module(config_asset)
             .to_resolved()
             .await?,
         extra_configs_changed(asset_context, postcss_config_path)
@@ -233,9 +240,11 @@ async fn extra_configs_changed(
                         .try_into_module()
                         .await?
                     {
-                        Some(module) => {
-                            Some(any_content_changed_of_module(*module).to_resolved().await?)
-                        }
+                        Some(module) => Some(
+                            any_source_content_changed_of_module(*module)
+                                .to_resolved()
+                                .await?,
+                        ),
                         None => None,
                     }
                 } else {
@@ -503,9 +512,14 @@ impl PostCssTransformedAsset {
             .to_resolved()
             .await?;
 
-        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false)
-            .to_resolved()
-            .await?;
+        let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        ))
+        .connect()
+        .to_resolved()
+        .await?;
 
         let css_fs_path = self.source.ident().path();
 

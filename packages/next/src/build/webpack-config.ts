@@ -51,6 +51,7 @@ import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin as NextFlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { RspackFlightClientEntryPlugin } from './webpack/plugins/rspack-flight-client-entry-plugin'
+import { DeferredEntriesPlugin } from './webpack/plugins/deferred-entries-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -320,6 +321,7 @@ export default async function getBaseWebpackConfig(
     compilerType,
     dev = false,
     entrypoints,
+    deferredEntrypoints,
     isDevFallback = false,
     pagesDir,
     reactProductionProfiling = false,
@@ -347,6 +349,7 @@ export default async function getBaseWebpackConfig(
     compilerType: CompilerNameValues
     dev?: boolean
     entrypoints: webpack.EntryObject
+    deferredEntrypoints?: webpack.EntryObject
     isDevFallback?: boolean
     pagesDir: string | undefined
     reactProductionProfiling?: boolean
@@ -1232,7 +1235,7 @@ export default async function getBaseWebpackConfig(
         isRspack
           ? new (getRspackCore().SwcJsMinimizerRspackPlugin)({
               // JS minimizer configuration
-              // options should align with crates/napi/src/minify.rs#patch_opts
+              // options should align with crates/next-napi-bindings/src/minify.rs#patch_opts
               minimizerOptions: {
                 compress: {
                   inline: 2,
@@ -1972,6 +1975,15 @@ export default async function getBaseWebpackConfig(
       //
       // TODO: Rspack currently does not support the hooks and chunk methods required by ForceCompleteRuntimePlugin.
       dev && !isRspack && new ForceCompleteRuntimePlugin(),
+      // Handle deferred entries - must be added early to intercept entry processing
+      !isRspack &&
+        config.experimental.deferredEntries?.length &&
+        deferredEntrypoints &&
+        new DeferredEntriesPlugin({
+          dev,
+          config,
+          deferredEntrypoints,
+        }),
       isNodeServer &&
         new bundler.NormalModuleReplacementPlugin(
           /\.\/(.+)\.shared-runtime$/,
@@ -2115,6 +2127,8 @@ export default async function getBaseWebpackConfig(
       isClient &&
         new BuildManifestPlugin({
           buildId,
+          dev,
+          deploymentId: config.deploymentId,
           rewrites,
           isDevFallback,
           appDirEnabled: hasAppDir,
@@ -2263,6 +2277,15 @@ export default async function getBaseWebpackConfig(
   if (isRspack) {
     // The layers experiment is now stable in Rspack
     delete webpack5Config.experiments!.layers
+
+    if (!webpack5Config.node) {
+      webpack5Config.node = {}
+    }
+    // NOTE: Rspack's defaults differ from webpack.
+    if (isClient || isEdgeServer) {
+      webpack5Config.node.__dirname = 'mock'
+      webpack5Config.node.__filename = 'mock'
+    }
   }
 
   webpack5Config.module!.parser = {
@@ -2352,7 +2375,7 @@ export default async function getBaseWebpackConfig(
     serverReferenceHashSalt: encryptionKey,
   })
 
-  const cache: any = {
+  const cache: webpack.Configuration['cache'] = {
     type: 'filesystem',
     // Disable memory cache in development in favor of our own MemoryWithGcCachePlugin.
     maxMemoryGenerations: dev ? 0 : Infinity, // Infinity is default value for production in webpack currently.
@@ -2397,6 +2420,30 @@ export default async function getBaseWebpackConfig(
   })
 
   webpack5Config.cache = cache
+
+  if (isRspack) {
+    const buildDependencies: string[] = []
+    if (config.configFile) {
+      buildDependencies.push(config.configFile)
+    }
+    if (babelConfigFile) {
+      buildDependencies.push(babelConfigFile)
+    }
+    if (jsConfigPath) {
+      buildDependencies.push(jsConfigPath)
+    }
+
+    // @ts-ignore
+    webpack5Config.experiments.cache = {
+      type: 'persistent',
+      buildDependencies,
+      storage: {
+        type: 'filesystem',
+        directory: cache.cacheDirectory,
+      },
+      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}`,
+    }
+  }
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
     const infra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')

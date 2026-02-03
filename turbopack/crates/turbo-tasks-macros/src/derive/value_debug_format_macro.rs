@@ -34,6 +34,7 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
         match_expansion(&derive_input, &format_named, &format_unnamed, &format_unit);
 
     quote! {
+        #[automatically_derived]
         impl #impl_generics turbo_tasks::debug::ValueDebugFormat for #ident #ty_generics #where_clause {
             fn value_debug_format<'a>(&'a self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString<'a> {
                 turbo_tasks::debug::ValueDebugFormatString::Async(

@@ -168,11 +168,11 @@ export async function packageFiles(path: string): Promise<string[]> {
     // We add the full path, but check for parent directories too.
     // This catches the case where the whole directory is added and then a single file from the directory.
     // The sorting before ensures that the directory comes before the files inside of the directory.
-    set.add(f)
     while (f.includes('/')) {
-      f = f.replace(/\/[^/]+$/, '')
+      f = f.replace(/\/[^/]*$/, '')
       if (set.has(f)) return false
     }
+    set.add(f)
     return true
   })
 }

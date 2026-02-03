@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
     ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
     visit::fields::{CalleeField, PropField},
@@ -22,19 +21,7 @@ use crate::{
     },
 };
 
-#[derive(
-    Hash,
-    Clone,
-    Debug,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct EsmBinding {
     reference: ResolvedVc<EsmAssetReference>,
     export: Option<RcStr>,

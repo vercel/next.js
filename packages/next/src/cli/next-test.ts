@@ -140,13 +140,15 @@ async function runPlaywright(
     const { version: typeScriptVersion } = await verifyTypeScriptSetup({
       dir: baseDir,
       distDir: nextConfig.distDir,
-      intentDirs: [pagesDir, appDir].filter(Boolean) as string[],
+      distDirRoot: nextConfig.distDirRoot,
+      strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
       typeCheckPreflight: false,
       tsconfigPath: nextConfig.typescript.tsconfigPath,
       disableStaticImages: nextConfig.images.disableStaticImages,
       hasAppDir: !!appDir,
       hasPagesDir: !!pagesDir,
-      isolatedDevBuild: nextConfig.experimental.isolatedDevBuild,
+      appDir: appDir || undefined,
+      pagesDir: pagesDir || undefined,
     })
 
     const isUsingTypeScript = !!typeScriptVersion

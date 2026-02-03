@@ -12,10 +12,9 @@ use bincode::{
     impl_borrow_decode,
 };
 use bytes::Bytes as CBytes;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Bytes is a thin wrapper around [bytes::Bytes], implementing easy
-/// conversion to/from, ser/de support, and Vc containers.
+/// conversion to/from, bincode support, and Vc containers.
 #[derive(Clone, Debug, Default)]
 #[turbo_tasks::value(transparent, serialization = "custom")]
 pub struct Bytes(#[turbo_tasks(trace_ignore)] CBytes);
@@ -23,19 +22,6 @@ pub struct Bytes(#[turbo_tasks(trace_ignore)] CBytes);
 impl Bytes {
     pub fn to_str(&self) -> Result<&'_ str, Utf8Error> {
         from_utf8(&self.0)
-    }
-}
-
-impl Serialize for Bytes {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serde_bytes::Bytes::new(&self.0).serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Bytes {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let bytes = serde_bytes::ByteBuf::deserialize(deserializer)?;
-        Ok(Bytes(bytes.into_vec().into()))
     }
 }
 
@@ -92,10 +78,8 @@ impl From<Bytes> for CBytes {
 
 #[cfg(test)]
 mod tests {
-    use bytes::Bytes as CBytes;
-    use serde_test::{Token, assert_tokens};
+    use super::*;
 
-    use super::Bytes;
     impl PartialEq<&str> for Bytes {
         fn eq(&self, other: &&str) -> bool {
             self.0 == other
@@ -110,12 +94,6 @@ mod tests {
         assert_eq!(Bytes::from(s.as_bytes().to_vec()), "foo");
         assert_eq!(Bytes::from(s.as_bytes().to_vec().into_boxed_slice()), "foo");
         assert_eq!(Bytes::from(s), "foo");
-    }
-
-    #[test]
-    fn serde() {
-        let s = Bytes::from("test");
-        assert_tokens(&s, &[Token::Bytes(b"test")])
     }
 
     #[test]

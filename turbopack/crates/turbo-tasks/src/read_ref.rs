@@ -21,7 +21,6 @@ use crate::{
     SharedReference, Vc, VcRead, VcValueType,
     debug::{ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    triomphe_utils::unchecked_sidecast_triomphe_arc,
     vc::VcCellMode,
 };
 
@@ -32,7 +31,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 /// certain point in time.
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
-pub struct ReadRef<T>(triomphe::Arc<T>);
+pub struct ReadRef<T>(pub(crate) triomphe::Arc<T>);
 
 impl<T> Clone for ReadRef<T> {
     fn clone(&self) -> Self {
@@ -255,6 +254,11 @@ impl<T> ReadRef<T> {
         &this.0
     }
 
+    /// Returns the inner `Arc<T>`.
+    pub fn into_raw_arc(self) -> triomphe::Arc<T> {
+        self.0
+    }
+
     pub fn ptr_eq(&self, other: &ReadRef<T>) -> bool {
         triomphe::Arc::ptr_eq(&self.0, &other.0)
     }
@@ -272,14 +276,9 @@ where
     /// reference.
     pub fn cell(read_ref: ReadRef<T>) -> Vc<T> {
         let type_id = T::get_value_type_id();
-        // SAFETY: `T` and `T::Read::Repr` must have equivalent memory representations,
-        // guaranteed by the unsafe implementation of `VcValueType`.
-        let value = unsafe {
-            unchecked_sidecast_triomphe_arc::<T, <T::Read as VcRead<T>>::Repr>(read_ref.0)
-        };
         Vc {
             node: <T::CellMode as VcCellMode<T>>::raw_cell(
-                SharedReference::new(value).into_typed(type_id),
+                SharedReference::new(read_ref.0).into_typed(type_id),
             ),
             _t: PhantomData,
         }

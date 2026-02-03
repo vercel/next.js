@@ -1,3 +1,4 @@
 import { build } from './servers.mjs'
 
-build()
+build('DEPLOYMENT_ID')
+// build('BUILD_ID')

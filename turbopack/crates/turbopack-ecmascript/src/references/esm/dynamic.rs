@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{DUMMY_SP, util::take::Take},
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
@@ -17,7 +16,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        ModuleResolveResult,
+        ModuleResolveResult, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -41,7 +40,7 @@ pub struct EsmAsyncAssetReference {
     pub request: ResolvedVc<Request>,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
 }
 
@@ -61,7 +60,7 @@ impl EsmAsyncAssetReference {
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         import_externals: bool,
     ) -> Self {
         EsmAsyncAssetReference {
@@ -69,7 +68,7 @@ impl EsmAsyncAssetReference {
             request,
             issue_source,
             annotations,
-            in_try,
+            error_mode,
             import_externals,
         }
     }
@@ -83,7 +82,7 @@ impl ModuleReference for EsmAsyncAssetReference {
             self.get_origin().resolve().await?,
             *self.request,
             EcmaScriptModulesReferenceSubType::DynamicImport,
-            self.in_try,
+            self.error_mode,
             Some(self.issue_source),
         )
         .await
@@ -125,17 +124,7 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Hash,
-    Debug,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct EsmAsyncAssetReferenceCodeGen {
     path: AstPath,

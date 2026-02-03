@@ -13,7 +13,6 @@ use std::{
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
@@ -30,8 +29,6 @@ pub use crate::next_app::{
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -137,8 +134,6 @@ impl Display for PageSegment {
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -173,8 +168,6 @@ impl Display for PageType {
     PartialEq,
     Eq,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
@@ -355,8 +348,6 @@ impl PartialOrd for AppPage {
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -413,8 +404,6 @@ impl Display for PathSegment {
     PartialEq,
     Eq,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,

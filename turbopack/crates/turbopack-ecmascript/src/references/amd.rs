@@ -2,7 +2,6 @@ use std::mem::take;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -21,7 +20,7 @@ use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
+    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
@@ -41,7 +40,7 @@ pub struct AmdDefineAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
     issue_source: IssueSource,
-    in_try: bool,
+    error_mode: ResolveErrorMode,
 }
 
 #[turbo_tasks::value_impl]
@@ -51,13 +50,13 @@ impl AmdDefineAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
     ) -> Vc<Self> {
         Self::cell(AmdDefineAssetReference {
             origin,
             request,
             issue_source,
-            in_try,
+            error_mode,
         })
     }
 }
@@ -71,7 +70,7 @@ impl ModuleReference for AmdDefineAssetReference {
             *self.request,
             CommonJsReferenceSubType::Undefined,
             Some(self.issue_source),
-            self.in_try,
+            self.error_mode,
         )
     }
 }
@@ -90,18 +89,7 @@ impl ValueToString for AmdDefineAssetReference {
 impl ChunkableModuleReference for AmdDefineAssetReference {}
 
 #[derive(
-    ValueDebugFormat,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Clone,
-    NonLocalValue,
-    Hash,
-    Encode,
-    Decode,
+    ValueDebugFormat, Debug, PartialEq, Eq, TraceRawVcs, Clone, NonLocalValue, Hash, Encode, Decode,
 )]
 pub enum AmdDefineDependencyElement {
     Request {
@@ -118,8 +106,6 @@ pub enum AmdDefineDependencyElement {
     Debug,
     PartialEq,
     Eq,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     Copy,
     Clone,
@@ -135,17 +121,7 @@ pub enum AmdDefineFactoryType {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Hash,
-    Debug,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
@@ -153,7 +129,7 @@ pub struct AmdDefineWithDependenciesCodeGen {
     path: AstPath,
     factory_type: AmdDefineFactoryType,
     issue_source: IssueSource,
-    in_try: bool,
+    error_mode: ResolveErrorMode,
 }
 
 impl AmdDefineWithDependenciesCodeGen {
@@ -163,7 +139,7 @@ impl AmdDefineWithDependenciesCodeGen {
         path: AstPath,
         factory_type: AmdDefineFactoryType,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
     ) -> Self {
         AmdDefineWithDependenciesCodeGen {
             dependencies_requests,
@@ -171,7 +147,7 @@ impl AmdDefineWithDependenciesCodeGen {
             path,
             factory_type,
             issue_source,
-            in_try,
+            error_mode,
         }
     }
 
@@ -199,7 +175,7 @@ impl AmdDefineWithDependenciesCodeGen {
                                 **request,
                                 CommonJsReferenceSubType::Undefined,
                                 Some(self.issue_source),
-                                self.in_try,
+                                self.error_mode,
                             ),
                             ResolveType::ChunkItem,
                         )

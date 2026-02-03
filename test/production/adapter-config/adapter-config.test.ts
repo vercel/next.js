@@ -25,7 +25,7 @@ describe('adapter-config', () => {
 
     const {
       outputs,
-      routes,
+      routing,
       config,
       ...ctx
     }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
@@ -110,10 +110,15 @@ describe('adapter-config', () => {
       try {
         expect(prerenderOutput.parentOutputId).toBeTruthy()
         if (prerenderOutput.fallback) {
-          const stats = await fs.promises.stat(
+          if (
+            'filePath' in prerenderOutput.fallback &&
             prerenderOutput.fallback.filePath
-          )
-          expect(stats.isFile()).toBe(true)
+          ) {
+            const stats = await fs.promises.stat(
+              prerenderOutput.fallback.filePath
+            )
+            expect(stats.isFile()).toBe(true)
+          }
           expect(prerenderOutput.fallback.initialRevalidate).toBeDefined()
         }
 
@@ -204,11 +209,15 @@ describe('adapter-config', () => {
       }
     }
 
-    expect(routes).toEqual({
+    expect(routing).toEqual({
+      beforeMiddleware: expect.toBeArray(),
+      beforeFiles: expect.toBeArray(),
+      afterFiles: expect.toBeArray(),
       dynamicRoutes: expect.toBeArray(),
-      rewrites: expect.toBeObject(),
-      redirects: expect.toBeArray(),
-      headers: expect.toBeArray(),
+      onMatch: expect.toBeArray(),
+      fallback: expect.toBeArray(),
+      shouldNormalizeNextData: expect.toBeBoolean(),
+      rsc: expect.toBeObject(),
     })
   })
 })

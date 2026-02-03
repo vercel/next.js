@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -11,8 +11,8 @@ use crate::{
 #[turbo_tasks::value]
 pub struct ChunkData {
     pub path: String,
-    pub included: Vec<ReadRef<ModuleId>>,
-    pub excluded: Vec<ReadRef<ModuleId>>,
+    pub included: Vec<ModuleId>,
+    pub excluded: Vec<ModuleId>,
     pub module_chunks: Vec<String>,
 }
 
@@ -94,12 +94,12 @@ impl ChunkData {
         } = &*runtime_info;
 
         let included = if let Some(included_ids) = included_ids {
-            included_ids.await?.iter().copied().try_join().await?
+            included_ids.owned().await?
         } else {
             Vec::new()
         };
         let excluded = if let Some(excluded_ids) = excluded_ids {
-            excluded_ids.await?.iter().copied().try_join().await?
+            excluded_ids.owned().await?
         } else {
             Vec::new()
         };

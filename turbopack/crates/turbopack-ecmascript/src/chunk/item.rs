@@ -2,11 +2,10 @@ use std::io::Write;
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
+    NonLocalValue, PrettyPrintError, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
@@ -16,7 +15,6 @@ use turbopack_core::{
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
     code_builder::{Code, CodeBuilder},
-    error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     output::OutputAssetsReference,
     source_map::utils::{absolute_fileify_source_map, relative_fileify_source_map},
@@ -35,8 +33,6 @@ use crate::{
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     TaskInput,
     NonLocalValue,
@@ -51,12 +47,14 @@ pub enum RewriteSourcePath {
     None,
 }
 
-#[turbo_tasks::value(shared)]
+// Note we don't want to persist this as `module_factory_with_code_generation_issue` is already
+// persisted and we want to avoid duplicating it.
+#[turbo_tasks::value(shared, serialization = "none")]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
     pub source_map: Option<Rope>,
-    pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: RewriteSourcePath,
     pub placeholder_for_future_extensions: (),
@@ -125,8 +123,8 @@ impl EcmascriptChunkItemContent {
 impl EcmascriptChunkItemContent {
     async fn module_factory(&self) -> Result<ResolvedVc<Code>> {
         let mut code = CodeBuilder::default();
-        for additional_id in self.additional_ids.iter().try_join().await? {
-            writeln!(code, "{}, ", StringifyJs(&*additional_id))?;
+        for additional_id in self.additional_ids.iter() {
+            writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }
         if self.options.module_and_exports {
             code += "((__turbopack_context__, module, exports) => {\n";
@@ -179,19 +177,7 @@ impl EcmascriptChunkItemContent {
     }
 }
 
-#[derive(
-    PartialEq,
-    Eq,
-    Default,
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
@@ -208,18 +194,7 @@ pub struct EcmascriptChunkItemOptions {
 }
 
 #[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub struct EcmascriptChunkItemWithAsyncInfo {
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
@@ -309,6 +284,7 @@ async fn module_factory_with_code_generation_issue(
                 title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                     .resolved_cell(),
                 message: StyledString::Text(error_message).resolved_cell(),
+                source: None,
             }
             .resolved_cell()
             .emit();

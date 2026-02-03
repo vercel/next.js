@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
@@ -13,17 +12,7 @@ use crate::{
 };
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Debug,
-    Hash,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
 )]
 pub struct IdentReplacement {
     value: RcStr,

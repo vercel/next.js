@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
     trace::TraceRawVcs,
@@ -14,19 +13,7 @@ use crate::{
 };
 
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-    Encode,
-    Decode,
+    Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
 )]
 pub enum AvailableModuleItem {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),

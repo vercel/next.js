@@ -15,11 +15,10 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE};
 
-use super::app_entry::AppEntry;
 use crate::{
-    app_page_loader_tree::{AppPageLoaderTreeModule, GLOBAL_ERROR},
+    app_page_loader_tree::AppPageLoaderTreeModule,
     app_structure::AppPageLoaderTree,
-    next_app::{AppPage, AppPath},
+    next_app::{AppPage, AppPath, app_entry::AppEntry},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     next_server_component::NextServerComponentTransition,
@@ -79,14 +78,6 @@ pub async fn get_app_page_entry(
         [
             ("VAR_DEFINITION_PAGE", &*page.to_string()),
             ("VAR_DEFINITION_PATHNAME", &pathname),
-            (
-                "VAR_MODULE_GLOBAL_ERROR",
-                if inner_assets.contains_key(GLOBAL_ERROR) {
-                    GLOBAL_ERROR
-                } else {
-                    "next/dist/client/components/builtin/global-error"
-                },
-            ),
         ],
         [
             ("tree", &*loader_tree_code),
