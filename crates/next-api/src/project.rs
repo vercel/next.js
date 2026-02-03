@@ -1101,7 +1101,7 @@ impl Project {
         get_client_compile_time_info(
             self.browserslist_query.clone(),
             self.define_env.client(),
-            self.next_config.report_system_env_var_inlining(),
+            self.next_config.report_system_env_inlining(),
         )
     }
 
@@ -1340,7 +1340,7 @@ impl Project {
             self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
-            this.next_config.report_system_env_var_inlining(),
+            this.next_config.report_system_env_inlining(),
         ))
     }
 
@@ -1351,7 +1351,7 @@ impl Project {
             self.project_path().owned().await?,
             this.define_env.edge(),
             self.current_node_js_version(),
-            this.next_config.report_system_env_var_inlining(),
+            this.next_config.report_system_env_inlining(),
         ))
     }
 

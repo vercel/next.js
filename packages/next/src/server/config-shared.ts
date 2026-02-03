@@ -943,7 +943,7 @@ export interface ExperimentalConfig {
    * Whether to report inlined system environment variables as warnings or errors.
    * Only supported for Turbopack.
    */
-  reportSystemEnvVarInlining?: 'error' | 'warn'
+  reportSystemEnvInlining?: 'error' | 'warn'
 }
 
 export type ExportPathMap = {

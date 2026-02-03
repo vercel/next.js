@@ -1098,7 +1098,7 @@ pub struct ExperimentalConfig {
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
-    report_system_env_var_inlining: Option<String>,
+    report_system_env_inlining: Option<String>,
 }
 
 #[derive(
@@ -2112,14 +2112,13 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn report_system_env_var_inlining(&self) -> Result<Vc<IssueSeverity>> {
-        match self.experimental.report_system_env_var_inlining.as_deref() {
+    pub async fn report_system_env_inlining(&self) -> Result<Vc<IssueSeverity>> {
+        match self.experimental.report_system_env_inlining.as_deref() {
             None => Ok(IssueSeverity::Suggestion.cell()),
             Some("warn") => Ok(IssueSeverity::Warning.cell()),
             Some("error") => Ok(IssueSeverity::Error.cell()),
             _ => bail!(
-                "`experimental.reportSystemEnvVarInlining` must be undefined, \"error\", or \
-                 \"warn\""
+                "`experimental.reportSystemEnvInlining` must be undefined, \"error\", or \"warn\""
             ),
         }
     }

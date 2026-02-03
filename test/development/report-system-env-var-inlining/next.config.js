@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    reportSystemEnvVarInlining: 'error',
+    reportSystemEnvInlining: 'error',
   },
 }
 

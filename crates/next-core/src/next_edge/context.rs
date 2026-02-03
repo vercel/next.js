@@ -48,12 +48,12 @@ async fn next_edge_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileTim
 async fn next_edge_free_vars(
     project_path: FileSystemPath,
     define_env: Vc<OptionEnvMap>,
-    report_system_env_var_inlining: Vc<IssueSeverity>,
+    report_system_env_inlining: Vc<IssueSeverity>,
 ) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
         ..free_var_references_with_vercel_system_env_warnings(
             defines(&*define_env.await?),
-            *report_system_env_var_inlining.await?
+            *report_system_env_inlining.await?
         ),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: rcstr!("buffer"),
@@ -69,7 +69,7 @@ pub async fn get_edge_compile_time_info(
     project_path: FileSystemPath,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
-    report_system_env_var_inlining: Vc<IssueSeverity>,
+    report_system_env_inlining: Vc<IssueSeverity>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::EdgeWorker(
@@ -80,7 +80,7 @@ pub async fn get_edge_compile_time_info(
     )
     .defines(next_edge_defines(define_env).to_resolved().await?)
     .free_var_references(
-        next_edge_free_vars(project_path, define_env, report_system_env_var_inlining)
+        next_edge_free_vars(project_path, define_env, report_system_env_inlining)
             .to_resolved()
             .await?,
     )
