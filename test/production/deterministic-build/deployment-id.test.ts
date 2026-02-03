@@ -10,15 +10,15 @@ const glob = promisify(globOrig)
 
 const IGNORE_CONTENT_NEXT_REGEX = new RegExp(
   [
-    // This contains the build id, but is not deployed to the serverless function
-    'BUILD_ID',
+    // This contains the deployment id, but these changing fields are stripped by the builder
+    'routes-manifest\\.json',
+
     // These contain the build id and deployment id (but are not deployed to the serverless function)
     '.*\\.html',
     '.*\\.rsc',
     // These are not critical, as they aren't deployed to the serverless function
     'client-build-manifest\\.json',
     'fallback-build-manifest\\.json',
-    'routes-manifest\\.json',
   ]
     .map((v) => '(?:\\/|^)' + v + '$')
     .join('|')
