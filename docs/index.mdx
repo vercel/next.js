@@ -47,6 +47,20 @@ The App Router and Pages Router handle React versions differently:
 
 This approach ensures new React features work reliably in the App Router while maintaining backwards compatibility for existing Pages Router applications.
 
+> **Good to know**
+>
+> The react and react-dom entries in your package.json primarily act as a contract for external tooling (TypeScript, testing frameworks, linters, IDEs), rather than determining the actual React version used at runtime.
+>
+> Next.js controls the runtime React internally through its own bundling and aliasing (via webpack or Turbopack).
+>
+> However, you still need to declare and install react and react-dom for the broader JavaScript ecosystem to work correctly.
+ These dependencies are required because:
+ > - Type definitions (such as @types/react*) must be declared explicitly, even though they live in separate packages.
+ > - Testing frameworks resolve React from node_modules.
+ > - Linters and IDEs need to detect the installed React version for correct analysis and autocomplete.
+ > - Peer dependencies rely on the declared React version.
+ > - Many tools read package.json directly to determine which React version is installed.
+
 ## Pre-requisite knowledge
 
 Our documentation assumes some familiarity with web development. Before getting started, it'll help if you're comfortable with:
