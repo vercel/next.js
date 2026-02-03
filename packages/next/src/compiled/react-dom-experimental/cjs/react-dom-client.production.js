@@ -7789,6 +7789,12 @@ function updateSuspenseListComponent(current, workInProgress, renderLanes) {
   }
   return workInProgress.child;
 }
+function updateContextProvider(current, workInProgress, renderLanes) {
+  var newProps = workInProgress.pendingProps;
+  pushProvider(workInProgress, workInProgress.type, newProps.value);
+  reconcileChildren(current, workInProgress, newProps.children, renderLanes);
+  return workInProgress.child;
+}
 function bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes) {
   null !== current && (workInProgress.dependencies = current.dependencies);
   workInProgressRootSkippedLanes |= workInProgress.lanes;
@@ -7998,6 +8004,15 @@ function beginWork(current, workInProgress, renderLanes) {
                 workInProgress,
                 current,
                 props,
+                renderLanes
+              );
+              break a;
+            } else if ($$typeof === REACT_CONTEXT_TYPE) {
+              workInProgress.tag = 10;
+              workInProgress.type = current;
+              workInProgress = updateContextProvider(
+                null,
+                workInProgress,
                 renderLanes
               );
               break a;
@@ -8299,12 +8314,7 @@ function beginWork(current, workInProgress, renderLanes) {
         workInProgress.child
       );
     case 10:
-      return (
-        (props = workInProgress.pendingProps),
-        pushProvider(workInProgress, workInProgress.type, props.value),
-        reconcileChildren(current, workInProgress, props.children, renderLanes),
-        workInProgress.child
-      );
+      return updateContextProvider(current, workInProgress, renderLanes);
     case 9:
       return (
         ($$typeof = workInProgress.type._context),
@@ -14827,20 +14837,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1819 = 0;
-  i$jscomp$inline_1819 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1819++
+  var i$jscomp$inline_1810 = 0;
+  i$jscomp$inline_1810 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1810++
 ) {
-  var eventName$jscomp$inline_1820 =
-      simpleEventPluginEvents[i$jscomp$inline_1819],
-    domEventName$jscomp$inline_1821 =
-      eventName$jscomp$inline_1820.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1822 =
-      eventName$jscomp$inline_1820[0].toUpperCase() +
-      eventName$jscomp$inline_1820.slice(1);
+  var eventName$jscomp$inline_1811 =
+      simpleEventPluginEvents[i$jscomp$inline_1810],
+    domEventName$jscomp$inline_1812 =
+      eventName$jscomp$inline_1811.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1813 =
+      eventName$jscomp$inline_1811[0].toUpperCase() +
+      eventName$jscomp$inline_1811.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1821,
-    "on" + capitalizedEvent$jscomp$inline_1822
+    domEventName$jscomp$inline_1812,
+    "on" + capitalizedEvent$jscomp$inline_1813
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -19857,16 +19867,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2237 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2228 = React.version;
 if (
-  "19.3.0-experimental-b1533b03-20260203" !==
-  isomorphicReactPackageVersion$jscomp$inline_2237
+  "19.3.0-experimental-3e00319b-20260203" !==
+  isomorphicReactPackageVersion$jscomp$inline_2228
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2237,
-      "19.3.0-experimental-b1533b03-20260203"
+      isomorphicReactPackageVersion$jscomp$inline_2228,
+      "19.3.0-experimental-3e00319b-20260203"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19886,24 +19896,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2936 = {
+var internals$jscomp$inline_2927 = {
   bundleType: 0,
-  version: "19.3.0-experimental-b1533b03-20260203",
+  version: "19.3.0-experimental-3e00319b-20260203",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-b1533b03-20260203"
+  reconcilerVersion: "19.3.0-experimental-3e00319b-20260203"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2937 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2928 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2937.isDisabled &&
-    hook$jscomp$inline_2937.supportsFiber
+    !hook$jscomp$inline_2928.isDisabled &&
+    hook$jscomp$inline_2928.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2937.inject(
-        internals$jscomp$inline_2936
+      (rendererID = hook$jscomp$inline_2928.inject(
+        internals$jscomp$inline_2927
       )),
-        (injectedHook = hook$jscomp$inline_2937);
+        (injectedHook = hook$jscomp$inline_2928);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -19998,4 +20008,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-experimental-b1533b03-20260203";
+exports.version = "19.3.0-experimental-3e00319b-20260203";

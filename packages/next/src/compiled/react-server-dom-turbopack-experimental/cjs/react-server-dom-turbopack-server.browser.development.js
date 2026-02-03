@@ -5201,7 +5201,7 @@
       },
       PROMISE_PROTOTYPE = Promise.prototype,
       deepProxyHandlers = {
-        get: function (target, name) {
+        get: function (target, name, receiver) {
           switch (name) {
             case "$$typeof":
               return target.$$typeof;
@@ -5224,9 +5224,7 @@
             case Symbol.toStringTag:
               return Object.prototype[Symbol.toStringTag];
             case "Provider":
-              throw Error(
-                "Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider."
-              );
+              return receiver;
             case "then":
               throw Error(
                 "Cannot await or return from a thenable. You cannot await a client module from a server component."
@@ -5361,7 +5359,7 @@
       stackTraceCache = new WeakMap(),
       TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
       proxyHandlers = {
-        get: function (target, name) {
+        get: function (target, name, receiver) {
           switch (name) {
             case "$$typeof":
               return target.$$typeof;
@@ -5380,9 +5378,7 @@
             case Symbol.toStringTag:
               return Object.prototype[Symbol.toStringTag];
             case "Provider":
-              throw Error(
-                "Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider."
-              );
+              return receiver;
             case "then":
               return;
           }
