@@ -79,6 +79,7 @@ import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-serv
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
+import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
@@ -337,6 +338,73 @@ export async function createHotReloaderTurbopack(
   )
 
   const assetMapper = new AssetMapper()
+
+  // Deferred entries state management
+  const deferredEntriesConfig = nextConfig.experimental.deferredEntries
+  const hasDeferredEntriesConfig =
+    deferredEntriesConfig && deferredEntriesConfig.length > 0
+  let onBeforeDeferredEntriesCalled = false
+  let onBeforeDeferredEntriesPromise: Promise<void> | null = null
+  // Track non-deferred entries that are currently being built
+  const nonDeferredBuildingEntries: Set<string> = new Set()
+
+  // Function to wait for all non-deferred entries to be built
+  async function waitForNonDeferredEntries(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const checkEntries = () => {
+        // Check if there are any non-deferred entries that are still building
+        if (nonDeferredBuildingEntries.size === 0) {
+          resolve()
+        } else {
+          // Check again after a short delay
+          setTimeout(checkEntries, 100)
+        }
+      }
+      checkEntries()
+    })
+  }
+
+  // Function to handle deferred entry processing
+  async function processDeferredEntry(): Promise<void> {
+    if (!hasDeferredEntriesConfig) return
+
+    // Wait for all non-deferred entries to be built
+    await waitForNonDeferredEntries()
+
+    // Call the onBeforeDeferredEntries callback once
+    if (!onBeforeDeferredEntriesCalled) {
+      onBeforeDeferredEntriesCalled = true
+
+      if (nextConfig.experimental.onBeforeDeferredEntries) {
+        if (!onBeforeDeferredEntriesPromise) {
+          onBeforeDeferredEntriesPromise =
+            nextConfig.experimental.onBeforeDeferredEntries()
+        }
+        await onBeforeDeferredEntriesPromise
+      }
+    } else if (onBeforeDeferredEntriesPromise) {
+      // Wait for any in-progress callback
+      await onBeforeDeferredEntriesPromise
+    }
+  }
+
+  // Track whether HMR is pending - used to call callback once after HMR settles
+  let hmrPendingDeferredCallback = false
+
+  // Debounced function to call onBeforeDeferredEntries after HMR
+  // This prevents rapid-fire calls when turbopack fires many update events
+  // Use 500ms debounce to ensure all rapid updates are batched together
+  const callOnBeforeDeferredEntriesAfterHMR = debounce(() => {
+    // Only call if HMR triggered a need for the callback
+    if (hasDeferredEntriesConfig && hmrPendingDeferredCallback) {
+      hmrPendingDeferredCallback = false
+      onBeforeDeferredEntriesCalled = true
+      if (nextConfig.experimental.onBeforeDeferredEntries) {
+        onBeforeDeferredEntriesPromise =
+          nextConfig.experimental.onBeforeDeferredEntries()
+      }
+    }
+  }, 500)
 
   function clearRequireCache(
     key: EntryKey,
@@ -1336,6 +1404,20 @@ export async function createHotReloaderTurbopack(
             appPaths = definition.appPaths
           }
 
+          // Check if this is a deferred entry and wait for non-deferred entries first
+          if (hasDeferredEntriesConfig) {
+            const isDeferred = isDeferredEntry(
+              routeDef.page,
+              deferredEntriesConfig
+            )
+            if (isDeferred) {
+              await processDeferredEntry()
+            } else {
+              // Track non-deferred entry as building
+              nonDeferredBuildingEntries.add(routeDef.page)
+            }
+          }
+
           let page = routeDef.page
           if (appPaths) {
             const normalizedPage = normalizeAppPath(page)
@@ -1442,6 +1524,10 @@ export async function createHotReloaderTurbopack(
             })
           } finally {
             finishBuilding()
+            // Remove non-deferred entry from building set
+            if (hasDeferredEntriesConfig) {
+              nonDeferredBuildingEntries.delete(routeDef.page)
+            }
           }
         })
     },
@@ -1479,6 +1565,13 @@ export async function createHotReloaderTurbopack(
       switch (updateMessage.updateType) {
         case 'start': {
           hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
+          // Mark that HMR has started and we need to call the callback after it settles
+          // This ensures onBeforeDeferredEntries will be called again during HMR
+          if (hasDeferredEntriesConfig) {
+            hmrPendingDeferredCallback = true
+            onBeforeDeferredEntriesCalled = false
+            onBeforeDeferredEntriesPromise = null
+          }
           break
         }
         case 'end': {
@@ -1542,6 +1635,13 @@ export async function createHotReloaderTurbopack(
               time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
             Log.event(`Compiled in ${timeMessage}`)
             hmrEventHappened = false
+          }
+
+          // Call onBeforeDeferredEntries after compilation completes during HMR
+          // This ensures the callback is invoked even when non-deferred entries change
+          // Use debounced function to prevent rapid-fire calls from turbopack updates
+          if (hasDeferredEntriesConfig) {
+            callOnBeforeDeferredEntriesAfterHMR()
           }
           break
         }
