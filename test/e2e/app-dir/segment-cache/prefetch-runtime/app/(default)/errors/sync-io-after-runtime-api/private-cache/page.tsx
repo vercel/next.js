@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../../shared'
 
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [{ cookies: [] }],
 }

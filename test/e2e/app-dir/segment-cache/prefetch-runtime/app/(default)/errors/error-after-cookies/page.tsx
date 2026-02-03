@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { ErrorBoundary } from '../../../../components/error-boundary'
 
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [{ cookies: [] }],
 }

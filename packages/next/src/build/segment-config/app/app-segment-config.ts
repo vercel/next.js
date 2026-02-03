@@ -21,7 +21,7 @@ const RuntimeSampleSchema = z
   })
   .strict()
 
-const StaticPrefetchSchema = z
+const InstantConfigStaticSchema = z
   .object({
     mode: z.literal('static'),
     from: z.array(z.string()).optional(),
@@ -29,7 +29,7 @@ const StaticPrefetchSchema = z
   })
   .strict()
 
-const RuntimePrefetchSchema = z
+const InstantConfigRuntimeSchema = z
   .object({
     mode: z.literal('runtime'),
     samples: z.array(RuntimeSampleSchema).min(1),
@@ -38,42 +38,48 @@ const RuntimePrefetchSchema = z
   })
   .strict()
 
-const PrefetchSchema = z.discriminatedUnion('mode', [
-  StaticPrefetchSchema,
-  RuntimePrefetchSchema,
+const InstantConfigSchema = z.discriminatedUnion('mode', [
+  InstantConfigStaticSchema,
+  InstantConfigRuntimeSchema,
 ])
 
-export type Prefetch = StaticPrefetch | RuntimePrefetch
-export type PrefetchForTypeCheckInternal = __GenericPrefetch | Prefetch
+export type InstantConfig = InstantConfigStatic | InstantConfigRuntime
+export type InstantConfigForTypeCheckInternal =
+  | __GenericInstantConfig
+  | InstantConfig
 // the __GenericPrefetch type is used to avoid type widening issues with
 // our choice to make exports the medium for programming a Next.js application
 // With exports the type is controlled by the module and all we can do is assert on it
 // from a consumer. However with string literals in objects these are by default typed widely
 // and thus cannot match the discriminated union type. If we figure out a better way we should
 // delete the __GenericPrefetch member.
-interface __GenericPrefetch {
+interface __GenericInstantConfig {
   mode: string
   samples?: Array<WideRuntimeSample>
   from?: string[]
   expectUnableToVerify?: boolean
 }
-interface StaticPrefetch {
+
+interface InstantConfigStatic {
   mode: 'static'
   from?: string[]
   expectUnableToVerify?: boolean
 }
-interface RuntimePrefetch {
+
+interface InstantConfigRuntime {
   mode: 'runtime'
   samples: Array<RuntimeSample>
   from?: string[]
   expectUnableToVerify?: boolean
 }
+
 type WideRuntimeSample = {
   cookies?: RuntimeSample['cookies']
   headers?: Array<string[]>
   params?: RuntimeSample['params']
   searchParams?: RuntimeSample['searchParams']
 }
+
 type RuntimeSample = {
   cookies?: Array<{
     name: string
@@ -127,7 +133,7 @@ const AppSegmentConfigSchema = z.object({
   /**
    * How this segment should be prefetched.
    */
-  unstable_prefetch: PrefetchSchema.optional(),
+  unstable_instant: InstantConfigSchema.optional(),
 
   /**
    * The preferred region for the page.
@@ -166,10 +172,10 @@ export function parseAppSegmentConfig(
               )} on "${route}", must be a non-negative number or false`,
             }
           }
-          case 'unstable_prefetch': {
+          case 'unstable_instant': {
             return {
               // @TODO replace this link with a link to the docs when they are written
-              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be an object with a mode of "static" or "runtime". Read more at https://nextjs.org/docs/messages/invalid-prefetch-configuration`,
+              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with a mode of "static" or "runtime". Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
             }
           }
           default:
@@ -224,7 +230,7 @@ export type AppSegmentConfig = {
   /**
    * How this segment should be prefetched.
    */
-  unstable_prefetch?: Prefetch
+  unstable_instant?: InstantConfig
 
   /**
    * The preferred region for the page.

@@ -23,7 +23,7 @@ If you are using the current time for performance tracking with elapsed time use
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -42,7 +42,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -67,7 +67,7 @@ If you want to read the time when some cache entry is created (such as when a Ne
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -96,7 +96,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -136,7 +136,7 @@ If you go with this approach you will need to ensure the Client Component which 
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -193,7 +193,7 @@ export function RelativeTime({ when }) {
 ```
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -230,7 +230,7 @@ Next.js enforces that it can always produce at least a partially static initial 
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -249,7 +249,7 @@ export default async function Page() {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }

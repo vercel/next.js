@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { cacheLife } from 'next/cache'
 import { cookies } from 'next/headers'
 
-export const unstable_prefetch = { mode: 'runtime', samples: [{}] }
+export const unstable_instant = { mode: 'runtime', samples: [{}] }
 
 export default function Page() {
   return (

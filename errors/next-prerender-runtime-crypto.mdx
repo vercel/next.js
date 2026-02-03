@@ -19,7 +19,7 @@ If you are generating a token to talk to a database that itself should be cached
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -40,7 +40,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -65,7 +65,7 @@ If you require this random value to be unique per Request and an async version o
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -84,7 +84,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -107,7 +107,7 @@ If you require this random value to be unique per Request and an async version o
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
@@ -122,7 +122,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
+export const unstable_instant = {
   mode: 'runtime',
   samples: [...],
 }
