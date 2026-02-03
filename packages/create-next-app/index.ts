@@ -510,7 +510,11 @@ async function run(): Promise<void> {
         opts.tailwind = Boolean(tailwind)
         preferences.tailwind = Boolean(tailwind)
 
-        if (!opts.twDesktopFirst && !args.includes('--tw-mobile-first')) {
+        if (
+          opts.tailwind &&
+          !opts.twDesktopFirst &&
+          !args.includes('--tw-mobile-first')
+        ) {
           // Desktop First Tailwind
           const twDeskFirst = blue('Desktop First Tailwind CSS')
           const { twDesktopFirst } = await prompts({
