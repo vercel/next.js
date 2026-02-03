@@ -89,8 +89,18 @@ export async function resetProject({
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        framework: 'nextjs',
         name: projectName,
+        framework: 'nextjs',
+        resourceConfig: {
+          buildMachineType: 'enhanced',
+        },
+        env: [
+          {
+            key: 'VERCEL_FORCE_NO_BUILD_CACHE_UPLOAD',
+            value: '1',
+            target: ['production', 'preview', 'development'],
+          },
+        ],
       }),
     },
     {
@@ -120,9 +130,6 @@ export async function resetProject({
         body: JSON.stringify({
           ssoProtection: null,
           passwordProtection: null,
-          resourceConfig: {
-            buildMachineType: 'enhanced',
-          },
         }),
       },
       {
