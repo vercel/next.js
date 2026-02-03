@@ -1,0 +1,17 @@
+@theme {
+  /* Clear the default mobile-first breakpoints */
+  --breakpoint-*: initial;
+
+  /* Re-map the default sizes to variables */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* Custom desktop-first variants */
+@custom-variant sm (@media (max-width: 639px));
+@custom-variant md (@media (max-width: 767px));
+@custom-variant lg (@media (max-width: 1023px));
+@custom-variant xl (@media (max-width: 1279px));

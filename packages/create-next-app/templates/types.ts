@@ -5,11 +5,15 @@ export type TemplateType =
   | "app-api"
   | "app-empty"
   | "app-tw"
+  | "app-tw-desktop-first"
   | "app-tw-empty"
+  | "app-tw-desktop-first-empty"
   | "default"
   | "default-empty"
   | "default-tw"
-  | "default-tw-empty";
+  | "default-tw-desktop-first"
+  | "default-tw-empty"
+  | "default-tw-desktop-first-empty";
 export type TemplateMode = "js" | "ts";
 
 export interface GetTemplateFileArgs {

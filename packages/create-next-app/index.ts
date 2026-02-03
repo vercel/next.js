@@ -50,6 +50,10 @@ const program = new Command(packageJson.name)
   .option('--ts, --typescript', 'Initialize as a TypeScript project. (default)')
   .option('--js, --javascript', 'Initialize as a JavaScript project.')
   .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
+  .option(
+    '--tw-desktop-first',
+    'Initialize with Desktop First Tailwind CSS config.'
+  )
   .option('--react-compiler', 'Initialize with React Compiler enabled.')
   .option('--eslint', 'Initialize with ESLint config.')
   .option('--biome', 'Initialize with Biome config.')
@@ -236,6 +240,7 @@ async function run(): Promise<void> {
       eslint: false,
       linter: 'eslint',
       tailwind: true,
+      twDesktopFirst: false,
       app: true,
       srcDir: false,
       importAlias: '@/*',
@@ -504,6 +509,22 @@ async function run(): Promise<void> {
         })
         opts.tailwind = Boolean(tailwind)
         preferences.tailwind = Boolean(tailwind)
+
+        if (!opts.twDesktopFirst && !args.includes('--tw-mobile-first')) {
+          // Desktop First Tailwind
+          const twDeskFirst = blue('Desktop First Tailwind CSS')
+          const { twDesktopFirst } = await prompts({
+            onState: onPromptState,
+            type: 'toggle',
+            name: 'twDesktopFirst',
+            message: `Would you like to use ${twDeskFirst}?`,
+            initial: getPrefOrDefault('twDesktopFirst'),
+            active: 'Yes',
+            inactive: 'No',
+          })
+          opts.twDesktopFirst = Boolean(twDesktopFirst)
+          preferences.twDesktopFirst = Boolean(twDesktopFirst)
+        }
       }
     }
 
@@ -606,6 +627,7 @@ async function run(): Promise<void> {
       examplePath: opts.examplePath,
       typescript: opts.typescript,
       tailwind: opts.tailwind,
+      twDesktopFirst: opts.twDesktopFirst,
       eslint: opts.eslint,
       biome: opts.biome,
       app: opts.app,
@@ -643,6 +665,7 @@ async function run(): Promise<void> {
       eslint: opts.eslint,
       biome: opts.biome,
       tailwind: opts.tailwind,
+      twDesktopFirst: opts.twDesktopFirst,
       app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,

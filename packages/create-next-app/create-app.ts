@@ -31,6 +31,7 @@ export async function createApp({
   examplePath,
   typescript,
   tailwind,
+  twDesktopFirst,
   eslint,
   biome,
   app,
@@ -49,6 +50,7 @@ export async function createApp({
   examplePath?: string
   typescript: boolean
   tailwind: boolean
+  twDesktopFirst: boolean
   eslint: boolean
   biome: boolean
   app: boolean
@@ -63,7 +65,7 @@ export async function createApp({
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = `${app ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
+  const template: TemplateType = `${app ? 'app' : 'default'}${tailwind ? (twDesktopFirst ? '-tw-desktop-first' : '-tw') : ''}${empty ? '-empty' : ''}`
 
   if (example) {
     let repoUrl: URL | undefined
