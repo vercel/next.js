@@ -420,6 +420,7 @@ export class AppRouteRouteModule extends RouteModule<
               prerenderResumeDataCache,
               renderResumeDataCache: null,
               hmrRefreshHash: undefined,
+              varyParamsAccumulator: null,
             })
 
           let prospectiveResult
@@ -516,6 +517,7 @@ export class AppRouteRouteModule extends RouteModule<
             prerenderResumeDataCache,
             renderResumeDataCache: null,
             hmrRefreshHash: undefined,
+            varyParamsAccumulator: null,
           })
 
           let responseHandled = false

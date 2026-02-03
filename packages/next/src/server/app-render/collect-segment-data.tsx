@@ -6,6 +6,7 @@ import type {
   DynamicParamTypesShort,
   HeadData,
 } from '../../shared/lib/app-router-types'
+import { readVaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -81,6 +82,16 @@ export type SegmentPrefetch = {
   rsc: React.ReactNode | null
   isPartial: boolean
   staleTime: number
+  /**
+   * The set of params that this segment's output depends on. Used by the client
+   * cache to determine which entries can be reused across different param
+   * values.
+   * - `null` means vary params were not tracked (conservative: assume all
+   *   params matter)
+   * - Empty set means no params were accessed (segment is reusable for any
+   *   param values)
+   */
+  varyParams: Set<string> | null
 }
 
 const filterStackFrame =
@@ -235,6 +246,15 @@ async function PrefetchTreeData({
   const seedData: CacheNodeSeedData = flightDataPaths[0][1]
   const head: HeadData = flightDataPaths[0][2]
 
+  // Extract the head vary params from the decoded response.
+  // The head vary params thenable should be fulfilled by now; if not, treat
+  // as unknown (null).
+  const headVaryParamsThenable = initialRSCPayload.h
+  const headVaryParams =
+    headVaryParamsThenable !== null
+      ? readVaryParams(headVaryParamsThenable)
+      : null
+
   // Compute the route metadata tree by traversing the FlightRouterState. As we
   // walk the tree, we will also spawn a task to produce a prefetch response for
   // each segment.
@@ -260,6 +280,7 @@ async function PrefetchTreeData({
         staleTime,
         head,
         HEAD_REQUEST_KEY,
+        headVaryParams,
         clientModules
       )
     )
@@ -324,6 +345,15 @@ function collectSegmentDataImpl(
 
   const hasRuntimePrefetch = seedData !== null ? seedData[4] : false
 
+  // Determine which params this segment varies on.
+  // Read the vary params thenable directly from the seed data. By the time
+  // collectSegmentData runs, the thenable should be fulfilled. If it's not
+  // fulfilled or null, treat as unknown (null means we can't share cache
+  // entries across param values).
+  const varyParamsThenable = seedData !== null ? seedData[5] : null
+  const varyParams =
+    varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+
   if (seedData !== null) {
     // Spawn a task to write the segment data to a new Flight stream.
     segmentTasks.push(
@@ -335,6 +365,7 @@ function collectSegmentDataImpl(
           staleTime,
           seedData[0],
           requestKey,
+          varyParams,
           clientModules
         )
       )
@@ -380,6 +411,7 @@ async function renderSegmentPrefetch(
   staleTime: number,
   rsc: React.ReactNode,
   requestKey: SegmentRequestKey,
+  varyParams: Set<string> | null,
   clientModules: ManifestNode
 ): Promise<[SegmentRequestKey, Buffer]> {
   // Render the segment data to a stream.
@@ -388,6 +420,7 @@ async function renderSegmentPrefetch(
     rsc,
     isPartial: await isPartialRSCData(rsc, clientModules),
     staleTime,
+    varyParams,
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
