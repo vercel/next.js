@@ -144,7 +144,6 @@
   "with-reactstrap": true,
   "with-realm-web": true,
   "with-rebass": true,
-  "with-recoil": true,
   "with-redis": true,
   "with-redux": true,
   "with-reflexjs": true,
