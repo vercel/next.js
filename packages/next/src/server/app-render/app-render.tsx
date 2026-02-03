@@ -271,6 +271,23 @@ export type AppRenderContext = {
   implicitTags: ImplicitTags
 }
 
+function maybeAppendBuildIdToRSCPayload<T extends RSCPayload>(
+  ctx: AppRenderContext,
+  payload: T
+): T {
+  if (!ctx.sharedContext.deploymentId) {
+    // When using the build id, we need to initialize the id on initial page load, so a build id
+    // header wouldn't be enough.
+    return {
+      ...payload,
+      b: ctx.sharedContext.buildId,
+    }
+  } else {
+    // We rely on a response header
+    return payload
+  }
+}
+
 interface ParseRequestHeadersOptions {
   readonly isRoutePPREnabled: boolean
   readonly previewModeId: string | undefined
@@ -553,24 +570,22 @@ async function generateDynamicRSCPayload(
   // We can rely on this because `ActionResult` will always be a promise, even if
   // the result is falsey.
   if (options?.actionResult) {
-    return {
+    return maybeAppendBuildIdToRSCPayload(ctx, {
       a: options.actionResult,
       f: flightData,
-      b: ctx.sharedContext.buildId,
       q: getRenderedSearch(query),
       i: !!couldBeIntercepted,
-    }
+    })
   }
 
   // Otherwise, it's a regular RSC response.
-  const baseResponse = {
-    b: ctx.sharedContext.buildId,
+  const baseResponse = maybeAppendBuildIdToRSCPayload(ctx, {
     f: flightData,
     q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
     S: workStore.isStaticGeneration,
     h: getMetadataVaryParamsThenable(),
-  }
+  })
 
   // For runtime prefetches, we encode the stale time and isPartial flag in the response body
   // rather than relying on response headers. Both of these values will be transformed
@@ -1544,12 +1559,11 @@ async function getRSCPayload(
     workStore.isStaticGeneration &&
     ctx.renderOpts.experimental.isRoutePPREnabled === true
 
-  return {
+  return maybeAppendBuildIdToRSCPayload(ctx, {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: createElement(Preloads, {
       preloadCallbacks: preloadCallbacks,
     }),
-    b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
@@ -1565,7 +1579,7 @@ async function getRSCPayload(
     G: [GlobalError, globalErrorStyles],
     S: workStore.isStaticGeneration,
     h: getMetadataVaryParamsThenable(),
-  }
+  })
 }
 
 /**
@@ -1674,8 +1688,7 @@ async function getErrorRSCPayload(
     workStore.isStaticGeneration &&
     ctx.renderOpts.experimental.isRoutePPREnabled === true
 
-  return {
-    b: ctx.sharedContext.buildId,
+  return maybeAppendBuildIdToRSCPayload(ctx, {
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     m: undefined,
@@ -1691,7 +1704,7 @@ async function getErrorRSCPayload(
     G: [GlobalError, globalErrorStyles],
     S: workStore.isStaticGeneration,
     h: getMetadataVaryParamsThenable(),
-  } satisfies InitialRSCPayload
+  } satisfies InitialRSCPayload)
 }
 
 // This component must run in an SSR context. It will render the RSC root component
