@@ -196,6 +196,7 @@ async fn apply_module_type(
                         ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
+                        // get_split will return the split module iff necessary due to re-exports
                         if let Some(part) = part {
                             match part {
                                 ModulePart::Evaluation => {

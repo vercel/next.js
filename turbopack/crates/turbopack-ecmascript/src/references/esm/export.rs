@@ -56,11 +56,11 @@ pub enum Liveness {
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
     ///
-    /// The last bool is true if the binding is a mutable binding
+    /// Fields: (local_name, liveness)
     LocalBinding(RcStr, Liveness),
     /// An imported binding that is exported (export { a as b } from "...")
     ///
-    /// The last bool is true if the binding is a mutable binding
+    /// Fields: (module_reference, name, is_mutable)
     ImportedBinding(ResolvedVc<Box<dyn ModuleReference>>, RcStr, bool),
     /// An imported namespace that is exported (export * from "...")
     ImportedNamespace(ResolvedVc<Box<dyn ModuleReference>>),
@@ -517,7 +517,7 @@ impl EsmExports {
     /// - A default export binding to the module's default
     /// - A star export that re-exports all named exports
     #[turbo_tasks::function]
-    pub async fn reexport(
+    pub async fn reexport_including_default(
         module_reference: Vc<Box<dyn ModuleReference>>,
     ) -> Result<Vc<EcmascriptExports>> {
         let module_reference = module_reference.to_resolved().await?;
