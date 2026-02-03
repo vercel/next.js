@@ -372,6 +372,7 @@ export const experimentalSchema = {
   devCacheControlNoCache: z.boolean().optional(),
   deferredEntries: z.array(z.string()).optional(),
   onBeforeDeferredEntries: z.function().returns(z.promise(z.void())).optional(),
+  reportSystemEnvVarInlining: z.enum(['warn', 'error']).optional(),
 }
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>

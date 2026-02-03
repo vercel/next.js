@@ -21,6 +21,7 @@ use turbopack_core::{
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
+    issue::IssueSeverity,
     module_graph::binding_usage_info::OptionBindingUsageInfo,
     target::CompileTarget,
 };
@@ -355,8 +356,15 @@ async fn next_server_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileT
 }
 
 #[turbo_tasks::function]
-async fn next_server_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVarReferences>> {
-    Ok(free_var_references_with_vercel_system_env_warnings(defines(&*define_env.await?)).cell())
+async fn next_server_free_vars(
+    define_env: Vc<OptionEnvMap>,
+    report_system_env_var_inlining: Vc<IssueSeverity>,
+) -> Result<Vc<FreeVarReferences>> {
+    Ok(free_var_references_with_vercel_system_env_warnings(
+        defines(&*define_env.await?),
+        *report_system_env_var_inlining.await?,
+    )
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -364,6 +372,7 @@ pub async fn get_server_compile_time_info(
     cwd: Vc<FileSystemPath>,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
+    report_system_env_var_inlining: Vc<IssueSeverity>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -378,7 +387,11 @@ pub async fn get_server_compile_time_info(
         .await?,
     )
     .defines(next_server_defines(define_env).to_resolved().await?)
-    .free_var_references(next_server_free_vars(define_env).to_resolved().await?)
+    .free_var_references(
+        next_server_free_vars(define_env, report_system_env_var_inlining)
+            .to_resolved()
+            .await?,
+    )
     .cell()
     .await
 }

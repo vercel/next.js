@@ -65,6 +65,7 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
 /// Emits warnings or errors when inlining frequently changing Vercel system env vars
 pub fn free_var_references_with_vercel_system_env_warnings(
     defines: CompileTimeDefines,
+    severity: IssueSeverity,
 ) -> FreeVarReferences {
     // List of system env vars:
     //   not available as NEXT_PUBLIC_* anyway:
@@ -107,14 +108,10 @@ pub fn free_var_references_with_vercel_system_env_warnings(
         .into_iter()
         .map(|(k, value)| (k, FreeVarReference::Value(value)));
 
-    let should_error = std::env::var("NEXT_TURBOPACK_SYSTEM_ENV_ERROR")
-        .ok()
-        .is_some_and(|v| !v.is_empty());
-
     fn wrap_report_next_public_usage(
         public_env_var: &str,
         inner: Option<Box<FreeVarReference>>,
-        should_error: bool,
+        severity: IssueSeverity,
     ) -> FreeVarReference {
         let message = match public_env_var {
             "NEXT_PUBLIC_NEXT_DEPLOYMENT_ID" | "NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID" => {
@@ -135,11 +132,7 @@ pub fn free_var_references_with_vercel_system_env_warnings(
         };
         FreeVarReference::ReportUsage {
             message,
-            severity: if should_error {
-                IssueSeverity::Error
-            } else {
-                IssueSeverity::Warning
-            },
+            severity,
             inner,
         }
     }
@@ -169,7 +162,7 @@ pub fn free_var_references_with_vercel_system_env_warnings(
                 && b == "env"
                 && list.swap_remove(&**public_env_var)
             {
-                wrap_report_next_public_usage(public_env_var, Some(Box::new(value)), should_error)
+                wrap_report_next_public_usage(public_env_var, Some(Box::new(value)), severity)
             } else {
                 value
             };
@@ -185,7 +178,7 @@ pub fn free_var_references_with_vercel_system_env_warnings(
                 rcstr!("env").into(),
                 DefinableNameSegment::Name(public_env_var.into()),
             ],
-            wrap_report_next_public_usage(public_env_var, None, should_error),
+            wrap_report_next_public_usage(public_env_var, None, severity),
         );
     }
 
