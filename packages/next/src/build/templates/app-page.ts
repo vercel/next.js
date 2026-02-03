@@ -52,7 +52,7 @@ import {
 import { FallbackMode, parseFallbackField } from '../../lib/fallback'
 import RenderResult from '../../server/render-result'
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
@@ -1227,7 +1227,10 @@ export async function handler(
           // Otherwise if the revalidate value is false, then we should use the
           // cache time of one year.
           else {
-            cacheControl = { revalidate: CACHE_ONE_YEAR, expire: undefined }
+            cacheControl = {
+              revalidate: CACHE_ONE_YEAR_SECONDS,
+              expire: undefined,
+            }
           }
         }
       }

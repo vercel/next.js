@@ -28,7 +28,7 @@ import {
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
 } from '../../../lib/constants'
@@ -607,7 +607,7 @@ export const getHandler = ({
           } else {
             // revalidate: false
             cacheControl = {
-              revalidate: CACHE_ONE_YEAR,
+              revalidate: CACHE_ONE_YEAR_SECONDS,
               expire: undefined,
             }
           }
