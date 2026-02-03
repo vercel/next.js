@@ -3,7 +3,7 @@
     {"otherChunks":["output/turbopack_crates_turbopack-tests_tests_snapshot_workers_shared_input_3845375a._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
-if (!Array.isArray(globalThis.TURBOPACK)) {
+if (!Array.isArray(globalThis["TURBOPACK"])) {
     return;
 }
 

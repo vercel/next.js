@@ -109,7 +109,8 @@ impl EcmascriptBrowserChunkContent {
             code,
             // `||=` would be better but we need to be es2020 compatible
             //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
-            r#"(globalThis["{chunk_loading_global}"] || (globalThis["{chunk_loading_global}"] = [])).push([{script_or_path},"#
+            r#"(globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([{script_or_path},"#,
+            chunk_loading_global = StringifyJs(&chunk_loading_global),
         )?;
 
         let content = this.content.await?;

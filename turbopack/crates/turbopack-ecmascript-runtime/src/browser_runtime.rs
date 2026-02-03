@@ -91,7 +91,7 @@ pub async fn get_browser_runtime_code(
         code,
         r#"
             (() => {{
-            if (!Array.isArray(globalThis.{chunk_loading_global})) {{
+            if (!Array.isArray(globalThis[{}])) {{
                 return;
             }}
 
@@ -99,6 +99,7 @@ pub async fn get_browser_runtime_code(
             const RELATIVE_ROOT_PATH = {};
             const RUNTIME_PUBLIC_PATH = {};
         "#,
+        StringifyJs(&chunk_loading_global),
         StringifyJs(chunk_base_path),
         StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
@@ -203,19 +204,21 @@ pub async fn get_browser_runtime_code(
     writedoc!(
         code,
         r#"
-            const chunksToRegister = globalThis["{chunk_loading_global}"];
-            globalThis["{chunk_loading_global}"] = {{ push: registerChunk }};
+            const chunksToRegister = globalThis[{chunk_loading_global}];
+            globalThis[{chunk_loading_global}] = {{ push: registerChunk }};
             chunksToRegister.forEach(registerChunk);
-        "#
+        "#,
+        chunk_loading_global = StringifyJs(&chunk_loading_global),
     )?;
     if matches!(runtime_type, RuntimeType::Development) {
         writedoc!(
             code,
             r#"
-            const chunkListsToRegister = globalThis["{chunk_lists_global}"] || [];
-            globalThis["{chunk_lists_global}"] = {{ push: registerChunkList }};
+            const chunkListsToRegister = globalThis[{chunk_lists_global}] || [];
+            globalThis[{chunk_lists_global}] = {{ push: registerChunkList }};
             chunkListsToRegister.forEach(registerChunkList);
-        "#
+        "#,
+            chunk_lists_global = StringifyJs(&chunk_lists_global),
         )?;
     }
     writedoc!(

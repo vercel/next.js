@@ -160,12 +160,13 @@ impl EcmascriptBrowserEvaluateChunk {
             // `||=` would be better but we need to be es2020 compatible
             //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
             r#"
-                (globalThis["{chunk_loading_global}"] || (globalThis["{chunk_loading_global}"] = [])).push([
+                (globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([
                     {script_or_path},
-                    {}
+                    {params}
                 ]);
             "#,
-            StringifyJs(&params),
+            chunk_loading_global = StringifyJs(&chunk_loading_global),
+            params = StringifyJs(&params),
         )?;
 
         let runtime_type = *this.chunking_context.runtime_type().await?;
