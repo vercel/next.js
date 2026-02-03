@@ -8,7 +8,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
@@ -16,7 +15,7 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
@@ -111,13 +110,12 @@ impl Module for ModuleCssAsset {
 
         Ok(Vc::cell(references))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for ModuleCssAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // modules can still effect global styles using `:root` selectors and other similar features
+        // We could do better with some static analysis if we want
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
@@ -380,7 +378,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             ResolvedVc::upcast(css_module);
 
                         let module_id = placeable.chunk_item_id(*self.chunking_context).await?;
-                        let module_id = StringifyJs(&*module_id);
+                        let module_id = StringifyJs(&module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names
                             .push(format!("{TURBOPACK_IMPORT}({module_id})[{original_name}]"));
@@ -438,7 +436,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(&*sm, mappings, None, true, true)?;
+    let map = generate_js_source_map(&*sm, mappings, None, true, true, Default::default())?;
     Ok(map)
 }
 

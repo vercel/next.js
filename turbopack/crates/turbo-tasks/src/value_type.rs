@@ -9,9 +9,9 @@ use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
 use crate::{
-    RawVc, SharedReference, VcValueType, id::TraitTypeId, macro_helpers::NativeFunction,
-    magic_any::any_as_encode, registry, task::shared_reference::TypedSharedReference,
-    vc::VcCellMode,
+    RawVc, SharedReference, TaskPriority, VcValueType, id::TraitTypeId,
+    macro_helpers::NativeFunction, magic_any::any_as_encode, registry,
+    task::shared_reference::TypedSharedReference, vc::VcCellMode,
 };
 
 type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
@@ -192,10 +192,6 @@ impl ValueType {
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {
         self.traits.contains(trait_type)
     }
-
-    pub fn traits_iter(&self) -> impl Iterator<Item = TraitTypeId> + '_ {
-        self.traits.iter().cloned()
-    }
 }
 
 // A collectable struct for value types
@@ -231,10 +227,11 @@ impl Debug for TraitMethod {
     }
 }
 impl TraitMethod {
-    pub(crate) fn resolve_span(&self) -> Span {
+    pub(crate) fn resolve_span(&self, priority: TaskPriority) -> Span {
         tracing::trace_span!(
             "turbo_tasks::resolve_trait_call",
             name = format_args!("{}::{}", &self.trait_name, &self.method_name),
+            priority = %priority,
         )
     }
 }

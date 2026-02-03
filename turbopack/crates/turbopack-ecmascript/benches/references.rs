@@ -77,6 +77,7 @@ async fn setup(
         layer,
     }
     .resolved_cell();
+
     let module = EcmascriptModuleAsset::builder(
         ResolvedVc::upcast(
             FileSource::new(fs.root().await?.join(file).unwrap())
@@ -96,6 +97,7 @@ async fn setup(
         }
         .resolved_cell(),
         compile_time_info,
+        None,
     )
     .build()
     .to_resolved()

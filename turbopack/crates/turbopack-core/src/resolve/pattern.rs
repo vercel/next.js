@@ -8,7 +8,6 @@ use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -1229,7 +1228,10 @@ impl Pattern {
     /// Calls `cb` on all constants that are at the end of the pattern and
     /// replaces the given final constant with the returned pattern. Returns
     /// true if replacements were performed.
-    pub fn replace_final_constants(&mut self, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> bool {
+    pub fn replace_final_constants(
+        &mut self,
+        cb: &mut impl FnMut(&RcStr) -> Option<Pattern>,
+    ) -> bool {
         let mut replaced = false;
         match self {
             Pattern::Constant(c) => {
@@ -1490,17 +1492,7 @@ impl ValueToString for Pattern {
 }
 
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, PartialEq, Eq, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum PatternMatch {
     File(RcStr, FileSystemPath),
@@ -1524,6 +1516,7 @@ impl PatternMatch {
 // TODO this isn't super efficient
 // avoid storing a large list of matches
 #[turbo_tasks::value(transparent)]
+#[derive(Debug)]
 pub struct PatternMatches(Vec<PatternMatch>);
 
 /// Find all files or directories that match the provided `pattern` with the
@@ -2492,12 +2485,12 @@ mod tests {
 
     #[test]
     fn replace_final_constants() {
-        fn f(mut p: Pattern, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> Pattern {
+        fn f(mut p: Pattern, cb: &mut impl FnMut(&RcStr) -> Option<Pattern>) -> Pattern {
             p.replace_final_constants(cb);
             p
         }
 
-        let js_to_ts_tsx = |c: &RcStr| -> Option<Pattern> {
+        let mut js_to_ts_tsx = |c: &RcStr| -> Option<Pattern> {
             c.strip_suffix(".js").map(|rest| {
                 let new_ending = Pattern::Alternatives(vec![
                     Pattern::Constant(rcstr!(".ts")),
@@ -2523,7 +2516,7 @@ mod tests {
                         Pattern::Constant(rcstr!(".node")),
                     ])
                 ]),
-                &js_to_ts_tsx
+                &mut js_to_ts_tsx
             ),
             Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!(".")),
@@ -2546,7 +2539,7 @@ mod tests {
                     Pattern::Constant(rcstr!("/")),
                     Pattern::Constant(rcstr!("abc.js")),
                 ]),
-                &js_to_ts_tsx
+                &mut js_to_ts_tsx
             ),
             Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!(".")),

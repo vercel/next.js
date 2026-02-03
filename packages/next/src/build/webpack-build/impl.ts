@@ -1,3 +1,5 @@
+// Import cpu-profile first to start profiling early if enabled
+import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
@@ -87,6 +89,12 @@ export async function webpackBuildImpl(
   process.env.NEXT_COMPILER_NAME = compilerName || 'server'
 
   const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
+
+  const hasDeferredEntries =
+    config.experimental.deferredEntries &&
+    config.experimental.deferredEntries.length > 0
+
+  // Create entrypoints - exclude deferred entries if configured
   const entrypoints = await nextBuildSpan
     .traceChild('create-entrypoints')
     .traceAsyncFn(() =>
@@ -104,8 +112,33 @@ export async function webpackBuildImpl(
         previewMode: NextBuildContext.previewProps!,
         rootPaths: NextBuildContext.mappedRootPaths!,
         hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
+        deferredEntriesFilter: hasDeferredEntries ? 'exclude' : undefined,
       })
     )
+
+  // Create deferred entrypoints if configured
+  const deferredEntrypoints = hasDeferredEntries
+    ? await nextBuildSpan
+        .traceChild('create-deferred-entrypoints')
+        .traceAsyncFn(() =>
+          createEntrypoints({
+            buildId: NextBuildContext.buildId!,
+            config: config,
+            envFiles: NextBuildContext.loadedEnvFiles!,
+            isDev: false,
+            rootDir: dir,
+            pageExtensions: config.pageExtensions!,
+            pagesDir: NextBuildContext.pagesDir!,
+            appDir: NextBuildContext.appDir!,
+            pages: NextBuildContext.mappedPages!,
+            appPaths: NextBuildContext.mappedAppPages!,
+            previewMode: NextBuildContext.previewProps!,
+            rootPaths: NextBuildContext.mappedRootPaths!,
+            hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
+            deferredEntriesFilter: 'only',
+          })
+        )
+    : null
 
   const commonWebpackOptions = {
     isServer: false,
@@ -141,6 +174,7 @@ export async function webpackBuildImpl(
           runWebpackSpan,
           compilerType: COMPILER_NAMES.client,
           entrypoints: entrypoints.client,
+          deferredEntrypoints: deferredEntrypoints?.client,
           ...info,
         }),
         getBaseWebpackConfig(dir, {
@@ -149,6 +183,7 @@ export async function webpackBuildImpl(
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.server,
           entrypoints: entrypoints.server,
+          deferredEntrypoints: deferredEntrypoints?.server,
           ...info,
         }),
         getBaseWebpackConfig(dir, {
@@ -157,6 +192,7 @@ export async function webpackBuildImpl(
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
+          deferredEntrypoints: deferredEntrypoints?.edgeServer,
           ...info,
         }),
       ])
@@ -415,6 +451,9 @@ export async function workerMain(workerData: {
   }
   NextBuildContext.nextBuildSpan.stop()
   await telemetry.flush()
+
+  // Save CPU profile before worker exits
+  await saveCpuProfile()
 
   return { ...result, debugTraceEvents: getTraceEvents() }
 }

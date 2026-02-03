@@ -4,6 +4,7 @@ import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
 import { workAsyncStorage } from '../../../app-render/work-async-storage.external'
 import type { RequestStore } from '../../../app-render/work-unit-async-storage.external'
+import { ActionDidRevalidateStaticAndDynamic } from '../../../../shared/lib/action-revalidation-kind'
 
 /**
  * @internal
@@ -116,7 +117,7 @@ export class MutableRequestCookiesAdapter {
       // TODO-APP: change method of getting workStore
       const workStore = workAsyncStorage.getStore()
       if (workStore) {
-        workStore.pathWasRevalidated = true
+        workStore.pathWasRevalidated = ActionDidRevalidateStaticAndDynamic
       }
 
       const allCookies = responseCookies.getAll()

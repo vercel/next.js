@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     common::util::take::Take,
     ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
@@ -15,7 +14,7 @@ use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
+    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
@@ -35,7 +34,7 @@ pub struct CjsAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
     pub issue_source: IssueSource,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
 }
 
 #[turbo_tasks::value_impl]
@@ -45,13 +44,13 @@ impl CjsAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(CjsAssetReference {
             origin,
             request,
             issue_source,
-            in_try,
+            error_mode,
         }))
     }
 }
@@ -65,7 +64,7 @@ impl ModuleReference for CjsAssetReference {
             *self.request,
             CommonJsReferenceSubType::Undefined,
             Some(self.issue_source),
-            self.in_try,
+            self.error_mode,
         )
     }
 }
@@ -89,7 +88,7 @@ pub struct CjsRequireAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
     pub issue_source: IssueSource,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
 }
 
 impl CjsRequireAssetReference {
@@ -97,13 +96,13 @@ impl CjsRequireAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
     ) -> Self {
         CjsRequireAssetReference {
             origin,
             request,
             issue_source,
-            in_try,
+            error_mode,
         }
     }
 }
@@ -117,7 +116,7 @@ impl ModuleReference for CjsRequireAssetReference {
             *self.request,
             CommonJsReferenceSubType::Undefined,
             Some(self.issue_source),
-            self.in_try,
+            self.error_mode,
         )
     }
 }
@@ -152,17 +151,7 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Hash,
-    Debug,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct CjsRequireAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireAssetReference>,
@@ -226,7 +215,7 @@ pub struct CjsRequireResolveAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
     pub issue_source: IssueSource,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
 }
 
 impl CjsRequireResolveAssetReference {
@@ -234,13 +223,13 @@ impl CjsRequireResolveAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
     ) -> Self {
         CjsRequireResolveAssetReference {
             origin,
             request,
             issue_source,
-            in_try,
+            error_mode,
         }
     }
 }
@@ -254,7 +243,7 @@ impl ModuleReference for CjsRequireResolveAssetReference {
             *self.request,
             CommonJsReferenceSubType::Undefined,
             Some(self.issue_source),
-            self.in_try,
+            self.error_mode,
         )
     }
 }
@@ -288,17 +277,7 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Hash,
-    Debug,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct CjsRequireResolveAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireResolveAssetReference>,
@@ -360,17 +339,7 @@ impl CjsRequireResolveAssetReferenceCodeGen {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Debug,
-    Hash,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
 )]
 pub struct CjsRequireCacheAccess {
     pub path: AstPath,

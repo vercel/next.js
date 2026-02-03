@@ -16,7 +16,7 @@ cd ../../
 # Make sure to exit with 1 if there are changes after running ncc-compiled
 # step to ensure we get any changes committed
 
-if [[ ! -z $(git status -s) ]] && [[ -z $IS_PUBLISH ]];then
+if [[ ! -z $(git status -s) ]];then
   echo "Detected changes"
   git diff -a --stat
   exit 1

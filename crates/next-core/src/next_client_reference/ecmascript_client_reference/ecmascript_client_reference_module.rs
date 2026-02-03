@@ -6,7 +6,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::AssetContent,
     chunk::{
         AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule,
         ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
@@ -14,7 +14,7 @@ use turbopack_core::{
     code_builder::CodeBuilder,
     context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::{ModuleGraph, binding_usage_info::ModuleExportUsageInfo},
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
@@ -241,17 +241,11 @@ impl Module for EcmascriptClientReferenceModule {
 
         Ok(Vc::cell(references))
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        AssetContent::File(
-            FileContent::Content("// This is a proxy module for Next.js client references.".into())
-                .resolved_cell(),
-        )
-        .cell()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // These just re-export some specially tagged functions, however we do assume that client
+        // references are executed client side so we need to preserve these in the graph.
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 

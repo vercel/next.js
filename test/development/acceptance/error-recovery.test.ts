@@ -58,11 +58,10 @@ describe('pages/ error recovery', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '>', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '>', got '<eof>'
                │    ,----
                │  1 | export default () => <div/
@@ -314,6 +313,20 @@ describe('pages/ error recovery', () => {
            ],
          }
         `)
+      } else if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+         > 3 |   throw new Error('oops')
+             |         ^",
+           "stack": [
+             "Child child.js (3:9)",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -403,11 +416,10 @@ describe('pages/ error recovery', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '{', got 'return'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '{', got 'return'
                │    ,-[5:1]
                │  2 |
@@ -488,11 +500,10 @@ describe('pages/ error recovery', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '{', got 'throw'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '{', got 'throw'
                │    ,-[5:1]
                │  2 |
@@ -823,11 +834,10 @@ describe('pages/ error recovery', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '}', got '<eof>'
                │    ,-[7:1]
                │  4 |   i++
@@ -889,11 +899,10 @@ describe('pages/ error recovery', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '}', got '<eof>'
                │    ,-[7:1]
                │  4 |   i++

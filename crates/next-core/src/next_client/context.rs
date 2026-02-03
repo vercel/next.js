@@ -2,22 +2,22 @@ use std::collections::BTreeSet;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
     TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
+    side_effect_free_packages_glob,
 };
 use turbopack_browser::{
-    BrowserChunkingContext, ChunkSuffix, ContentHashing, CurrentChunkMethod,
+    BrowserChunkingContext, ContentHashing, CurrentChunkMethod,
     react_refresh::assert_can_resolve_react_refresh,
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType, module_id_strategies::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
+        SourceMapsType, UnusedReferences, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -26,12 +26,14 @@ use turbopack_core::{
     resolve::{parse::Request, pattern::Pattern},
 };
 use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::{AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType};
+use turbopack_ecmascript::{
+    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
 };
-use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
+use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfigHandling};
 
 use crate::{
     mode::NextMode,
@@ -190,22 +192,21 @@ pub async fn get_client_resolve_options_context(
         ..Default::default()
     };
 
-    let tsconfig_path = next_config
-        .typescript_tsconfig_path()
-        .await?
-        .as_ref()
-        // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
-        // resolve tsconfig.json relative to the file being compiled.
-        .or(Some(&RcStr::from("tsconfig.json")))
-        .map(|p| project_path.join(p))
-        .transpose()?;
+    let tsconfig_path = next_config.typescript_tsconfig_path().await?;
+    let tsconfig_path = project_path.join(
+        tsconfig_path
+            .as_ref()
+            // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+            // resolve tsconfig.json relative to the file being compiled.
+            .unwrap_or(&rcstr!("tsconfig.json")),
+    )?;
 
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
-        tsconfig_path,
+        tsconfig_path: TsConfigHandling::Fixed(tsconfig_path),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().resolved_cell(),
@@ -324,8 +325,11 @@ pub async fn get_client_module_options_context(
     let source_maps = *next_config.client_source_maps(mode).await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
+            esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
+            enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
             source_maps,
+            infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             ..Default::default()
         },
         css: CssOptionsContext {
@@ -333,11 +337,16 @@ pub async fn get_client_module_options_context(
             module_css_condition: Some(module_styles_rule_condition()),
             ..Default::default()
         },
+        static_url_tag: Some(rcstr!("client")),
         environment: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         enable_postcss_transform,
-        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
+        side_effect_free_packages: Some(
+            side_effect_free_packages_glob(next_config.optimize_package_imports())
+                .to_resolved()
+                .await?,
+        ),
         keep_last_successful_parse: next_mode.is_development(),
         analyze_mode: if next_mode.is_development() {
             AnalyzeMode::CodeGeneration
@@ -408,19 +417,7 @@ pub async fn get_client_module_options_context(
     Ok(module_options_context)
 }
 
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    TaskInput,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
-)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
 pub struct ClientChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -428,9 +425,9 @@ pub struct ClientChunkingContextOptions {
     pub client_root_to_root_path: RcStr,
     pub asset_prefix: Vc<RcStr>,
     pub environment: Vc<Environment>,
-    pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
-    pub unused_references: Vc<OptionBindingUsageInfo>,
+    pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
     pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
@@ -476,7 +473,7 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(Some(asset_prefix.clone()))
-    .chunk_suffix(ChunkSuffix::FromScriptSrc.resolved_cell())
+    .asset_suffix(AssetSuffix::Inferred.resolved_cell())
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
@@ -488,11 +485,12 @@ pub async fn get_client_chunking_context(
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .export_usage(*export_usage.await?)
-    .unused_references(*unused_references.await?)
+    .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(vec![rcstr!("NEXT_DEPLOYMENT_ID")]);
 
     if next_mode.is_development() {
         builder = builder

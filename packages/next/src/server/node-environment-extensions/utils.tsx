@@ -160,8 +160,8 @@ function applyOwnerStack(error: Error) {
   // via `throwIfDisallowedDynamic`.
   if (process.env.NODE_ENV !== 'production') {
     const ownerStack =
-      getClientReact()?.captureOwnerStack() ??
-      getServerReact()?.captureOwnerStack()
+      getClientReact()?.captureOwnerStack?.() ??
+      getServerReact()?.captureOwnerStack?.()
 
     if (ownerStack) {
       let stack = ownerStack

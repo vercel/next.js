@@ -16,6 +16,7 @@ use bincode::{
     error::{DecodeError, EncodeError},
 };
 use either::Either;
+use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
 
 // This import is necessary for derive macros to work, as their expansion refers to the crate
@@ -284,11 +285,60 @@ where
     T: TaskInput + Ord,
 {
     async fn resolve_input(&self) -> Result<Self> {
-        let mut new_map = BTreeSet::new();
+        let mut new_set = BTreeSet::new();
         for value in self {
-            new_map.insert(TaskInput::resolve_input(value).await?);
+            new_set.insert(TaskInput::resolve_input(value).await?);
         }
-        Ok(new_map)
+        Ok(new_set)
+    }
+
+    fn is_resolved(&self) -> bool {
+        self.iter().all(TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter().any(TaskInput::is_transient)
+    }
+}
+
+impl<K, V> TaskInput for FrozenMap<K, V>
+where
+    K: TaskInput + Ord + 'static,
+    V: TaskInput + 'static,
+{
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut new_entries = Vec::with_capacity(self.len());
+        for (k, v) in self {
+            new_entries.push((
+                TaskInput::resolve_input(k).await?,
+                TaskInput::resolve_input(v).await?,
+            ));
+        }
+        // note: resolving might deduplicate `Vc`s in keys
+        Ok(Self::from(new_entries))
+    }
+
+    fn is_resolved(&self) -> bool {
+        self.iter()
+            .all(|(k, v)| TaskInput::is_resolved(k) && TaskInput::is_resolved(v))
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter()
+            .any(|(k, v)| TaskInput::is_transient(k) || TaskInput::is_transient(v))
+    }
+}
+
+impl<T> TaskInput for FrozenSet<T>
+where
+    T: TaskInput + Ord + 'static,
+{
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut new_set = Vec::with_capacity(self.len());
+        for value in self {
+            new_set.push(TaskInput::resolve_input(value).await?);
+        }
+        Ok(Self::from_iter(new_set))
     }
 
     fn is_resolved(&self) -> bool {

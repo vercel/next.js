@@ -12,7 +12,6 @@ use either::Either;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
@@ -679,24 +678,6 @@ impl Deref for CrateMapWrapper {
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl Serialize for CrateMapWrapper {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        let mut bytes = vec![];
-        self.0.to_writer(&mut bytes).map_err(Error::custom)?;
-        serializer.serialize_bytes(bytes.as_slice())
-    }
-}
-
-impl<'de> Deserialize<'de> for CrateMapWrapper {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        use serde::de::Error;
-        let bytes = <&[u8]>::deserialize(deserializer)?;
-        let map = DecodedMap::from_reader(bytes).map_err(Error::custom)?;
-        Ok(CrateMapWrapper(map))
     }
 }
 

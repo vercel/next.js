@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import '../server/lib/cpu-profile'
+import { saveCpuProfile } from '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import {
   RESTART_EXIT_CODE,
@@ -15,12 +16,9 @@ import {
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
@@ -39,11 +37,7 @@ import { once } from 'node:events'
 import { clearTimeout } from 'timers'
 import { flushAllTraces, trace } from '../trace'
 import { traceId } from '../trace/shared'
-import {
-  Bundler,
-  finalizeBundlerFromConfig,
-  parseBundlerArgs,
-} from '../lib/bundler'
+import { Bundler, parseBundlerArgs } from '../lib/bundler'
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
@@ -60,15 +54,16 @@ export type NextDevOptions = {
   experimentalHttpsCa?: string
   experimentalUploadTrace?: string
   experimentalNextConfigStripTypes?: boolean
+  experimentalCpuProf?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
 
 let dir: string
 let child: undefined | ChildProcess
-// The config in next-dev is only used to access config.distDir for telemetry and trace.
-let config: NextConfigComplete
-let bundler: Bundler
+// distDir is received from the child process via IPC, used for telemetry and trace.
+let distDir: string | undefined
+let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
 const sessionStarted = Date.now()
@@ -122,24 +117,18 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       pagesDir = !!pagesResult.pagesDir
     }
 
-    config =
-      config ||
-      (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
-
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
         typeof import('../telemetry/storage').Telemetry
       >) ||
       new Telemetry({
-        distDir: path.join(dir, config.distDir),
+        distDir: path.join(dir, distDir || '.next'),
       })
-    // Reading the config can modify environment variables that influence the bundler selection.
-    bundler = finalizeBundlerFromConfig(bundler)
 
     telemetry.record(
       eventCliSessionStopped({
         cliCommand: 'dev',
-        turboFlag: bundler === Bundler.Turbopack,
+        turboFlag: isTurbopack,
         durationMilliseconds: Date.now() - sessionStarted,
         pagesDir,
         appDir,
@@ -152,15 +141,18 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     // noise to the output
   }
 
-  if (traceUploadUrl) {
+  if (traceUploadUrl && distDir) {
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
       projectDir: dir,
-      distDir: config.distDir,
-      isTurboSession: bundler === Bundler.Turbopack,
+      distDir,
+      isTurboSession: isTurbopack,
     })
   }
+
+  // Save CPU profile if it was enabled (before exiting)
+  saveCpuProfile()
 
   // ensure we re-enable the terminal cursor before exiting
   // the program, or the cursor could remain hidden
@@ -180,13 +172,21 @@ const nextDev = async (
   portSource: PortSource,
   directory?: string
 ) => {
-  bundler = parseBundlerArgs(options)
+  // Note: parseBundlerArgs can only decide on Turbopack or webpack.
+  // Rspack can be configured via next.config.js but next.config.js is not loaded in the main process, only in the child process.
+  isTurbopack = parseBundlerArgs(options) === Bundler.Turbopack
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, FileType.Directory))) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
+  }
+
+  if (options.experimentalCpuProf) {
+    Log.info(
+      `CPU profiling enabled. Profile will be saved to .next/cpu-profiles/ on exit (Ctrl+C).`
+    )
   }
 
   async function preflight(skipOnReboot: boolean) {
@@ -304,9 +304,8 @@ const nextDev = async (
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          ...(bundler === Bundler.Turbopack
-            ? { TURBOPACK: process.env.TURBOPACK }
-            : undefined),
+          ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
+          NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
@@ -318,6 +317,14 @@ const nextDev = async (
           // https://github.com/nodejs/node/issues/29949
           WATCHPACK_WATCHER_LIMIT:
             os.platform() === 'darwin' ? '20' : undefined,
+          // Enable CPU profiling if requested
+          ...(options.experimentalCpuProf
+            ? {
+                NEXT_CPU_PROF: '1',
+                NEXT_CPU_PROF_DIR: path.join(dir, '.next', 'cpu-profiles'),
+                __NEXT_PRIVATE_CPU_PROFILE: 'dev-server',
+              }
+            : undefined),
         },
       })
 
@@ -330,6 +337,10 @@ const nextDev = async (
               // Store the used port in case a random one was selected, so that
               // it can be re-used on automatic dev server restarts.
               port = parseInt(msg.port, 10)
+            }
+            if (msg.distDir) {
+              // Store the distDir from the child process for telemetry and trace uploads.
+              distDir = msg.distDir
             }
 
             resolved = true
@@ -346,21 +357,13 @@ const nextDev = async (
           // Starting the dev server will overwrite the `.next/trace` file, so we
           // must upload the existing contents before restarting the server to
           // preserve the metrics.
-          if (traceUploadUrl) {
-            // Postpone loading next config when we need to get
-            //  config.distDir for upload trace.
-            config =
-              config ||
-              (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-                silent: true,
-              }))
-            bundler = finalizeBundlerFromConfig(bundler)
+          if (traceUploadUrl && distDir) {
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
               projectDir: dir,
-              distDir: config.distDir,
-              isTurboSession: bundler === Bundler.Turbopack,
+              distDir,
+              isTurboSession: isTurbopack,
               sync: true,
             })
           }

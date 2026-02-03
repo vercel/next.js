@@ -1,11 +1,12 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use serde::Deserialize;
 use swc_core::{atoms::Wtf8Atom, common::comments::NoopComments, ecma::ast::Program};
 use turbo_tasks::{ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct StyledComponentsTransformConfig {
     pub display_name: bool,
