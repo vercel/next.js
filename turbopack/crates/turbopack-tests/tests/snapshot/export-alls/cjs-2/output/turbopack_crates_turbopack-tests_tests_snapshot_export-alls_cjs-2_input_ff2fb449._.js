@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_export-alls_cjs-2_input_ff2fb449._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_export-alls_cjs-2_input_ff2fb449._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 // commonjs.js

@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_imports_static_input_fb142aa8._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_imports_static_input_fb142aa8._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/static/input/vercel.svg (static in ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.q("/static/vercel.ede1923f.svg");}),

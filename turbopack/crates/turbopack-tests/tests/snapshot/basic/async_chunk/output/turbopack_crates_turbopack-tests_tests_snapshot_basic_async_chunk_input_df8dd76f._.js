@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_df8dd76f._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_df8dd76f._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/shared.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 // shared package

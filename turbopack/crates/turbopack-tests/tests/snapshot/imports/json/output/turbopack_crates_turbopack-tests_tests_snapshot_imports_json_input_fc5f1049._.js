@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_imports_json_input_fc5f1049._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_imports_json_input_fc5f1049._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/package.json (json)", ((__turbopack_context__) => {
 
 __turbopack_context__.v({"name":"json-snapshot"});}),

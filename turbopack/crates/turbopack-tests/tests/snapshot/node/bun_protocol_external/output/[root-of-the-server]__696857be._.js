@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/[root-of-the-server]__696857be._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__696857be._.js",
 "[externals]/bun:ffi [external] (bun:ffi, cjs)", ((__turbopack_context__, module, exports) => {
 
 const mod = __turbopack_context__.x("bun:ffi", () => require("bun:ffi"));

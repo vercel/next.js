@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_env_env_input_8affb70a._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_env_env_input_8affb70a._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 const env = process.env = {

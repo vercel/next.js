@@ -238,6 +238,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn chunk_loading_global(mut self, chunk_loading_global: RcStr) -> Self {
+        self.chunking_context.chunk_loading_global = Some(chunk_loading_global);
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -329,6 +334,9 @@ pub struct BrowserChunkingContext {
     should_use_absolute_url_references: bool,
     /// Global variable names to forward to workers (e.g. NEXT_DEPLOYMENT_ID)
     worker_forwarded_globals: Vec<RcStr>,
+    /// The global variable name used for chunk loading.
+    /// Default: "TURBOPACK"
+    chunk_loading_global: Option<RcStr>,
 }
 
 impl BrowserChunkingContext {
@@ -379,6 +387,7 @@ impl BrowserChunkingContext {
                 chunking_configs: Default::default(),
                 should_use_absolute_url_references: false,
                 worker_forwarded_globals: vec![],
+                chunk_loading_global: Default::default(),
             },
         }
     }
@@ -490,6 +499,17 @@ impl BrowserChunkingContext {
             content_hashing: self.content_hashing,
         }
         .cell()
+    }
+
+    /// Returns the chunk loading global variable name.
+    /// Defaults to "TURBOPACK" if not set.
+    #[turbo_tasks::function]
+    pub fn chunk_loading_global(&self) -> Vc<RcStr> {
+        Vc::cell(
+            self.chunk_loading_global
+                .clone()
+                .unwrap_or_else(|| rcstr!("TURBOPACK")),
+        )
     }
 }
 

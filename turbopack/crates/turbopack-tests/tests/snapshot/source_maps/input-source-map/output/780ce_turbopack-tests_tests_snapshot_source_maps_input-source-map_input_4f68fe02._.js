@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/780ce_turbopack-tests_tests_snapshot_source_maps_input-source-map_input_4f68fe02._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/780ce_turbopack-tests_tests_snapshot_source_maps_input-source-map_input_4f68fe02._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map/input/sourcemapped.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 

@@ -1,9 +1,9 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/5c1d0_turbopack-tests_tests_snapshot_runtime_default_dev_runtime_input_index_c0f7e0b0.js",
     {"otherChunks":["output/780ce_turbopack-tests_tests_snapshot_runtime_default_dev_runtime_input_index_e82c1b0b.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/runtime/default_dev_runtime/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
-if (!Array.isArray(globalThis.TURBOPACK)) {
+if (!Array.isArray(globalThis["TURBOPACK"])) {
     return;
 }
 
@@ -1901,11 +1901,11 @@ function _eval({ code, url, map }) {
     // eslint-disable-next-line no-eval
     return eval(code);
 }
-const chunksToRegister = globalThis.TURBOPACK;
-globalThis.TURBOPACK = { push: registerChunk };
+const chunksToRegister = globalThis["TURBOPACK"];
+globalThis["TURBOPACK"] = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
-const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
-globalThis.TURBOPACK_CHUNK_LISTS = { push: registerChunkList };
+const chunkListsToRegister = globalThis["TURBOPACK_CHUNK_LISTS"] || [];
+globalThis["TURBOPACK_CHUNK_LISTS"] = { push: registerChunkList };
 chunkListsToRegister.forEach(registerChunkList);
 })();
 

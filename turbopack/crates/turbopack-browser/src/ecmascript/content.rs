@@ -99,16 +99,18 @@ impl EcmascriptBrowserChunkContent {
 
         // When a chunk is executed, it will either register itself with the current
         // instance of the runtime, or it will push itself onto the list of pending
-        // chunks (`self.TURBOPACK`).
+        // chunks (using the configured chunk loading global variable).
         //
         // When the runtime executes (see the `evaluate` module), it will pick up and
         // register all pending chunks, and replace the list of pending chunks
         // with itself so later chunks can register directly with it.
+        let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
         write!(
             code,
             // `||=` would be better but we need to be es2020 compatible
             //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
-            "(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([{script_or_path},"
+            r#"(globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([{script_or_path},"#,
+            chunk_loading_global = StringifyJs(&chunk_loading_global),
         )?;
 
         let content = this.content.await?;

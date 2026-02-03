@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/780ce_turbopack-tests_tests_snapshot_scope-hoisting_split-shared_input_dbeffdad._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/780ce_turbopack-tests_tests_snapshot_scope-hoisting_split-shared_input_dbeffdad._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 setTimeout(()=>__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/inner.js [test] (ecmascript, async loader)"), 500);

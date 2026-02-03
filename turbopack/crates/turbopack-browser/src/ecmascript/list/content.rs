@@ -45,6 +45,8 @@ pub(super) struct EcmascriptDevChunkListContent {
     #[bincode(with = "turbo_bincode::indexmap")]
     pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
+    /// The global variable name used for chunk loading (derived from chunkLoadingGlobal config).
+    chunk_loading_global: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -70,6 +72,11 @@ impl EcmascriptDevChunkListContent {
                 CurrentChunkMethodWithData::DocumentCurrentScript
             }
         };
+        let chunk_loading_global = (*chunk_list_ref
+            .chunking_context
+            .chunk_loading_global()
+            .await?)
+            .clone();
         Ok(EcmascriptDevChunkListContent {
             current_chunk_method,
             chunks_contents: chunk_list_ref
@@ -90,6 +97,7 @@ impl EcmascriptDevChunkListContent {
                 .filter_map(|(path, content)| path.map(|path| (path, content)))
                 .collect(),
             source: chunk_list_ref.source,
+            chunk_loading_global,
         }
         .cell())
     }
@@ -152,20 +160,22 @@ impl EcmascriptDevChunkListContent {
 
         // When loaded, JS chunks must register themselves with the `TURBOPACK` global
         // variable. Similarly, we register the chunk list with the
-        // `TURBOPACK_CHUNK_LISTS` global variable.
+        // `{chunk_loading_global}_CHUNK_LISTS` global variable.
+        let chunk_lists_global = format!("{}_CHUNK_LISTS", this.chunk_loading_global);
         writedoc!(
             code,
             // `||=` would be better but we need to be es2020 compatible
             //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
             r#"
-                (globalThis.TURBOPACK_CHUNK_LISTS || (globalThis.TURBOPACK_CHUNK_LISTS = [])).push({{
+                (globalThis[{chunk_lists_global}] || (globalThis[{chunk_lists_global}] = [])).push({{
                     script: {script_or_path},
-                    chunks: {:#},
-                    source: {:#}
+                    chunks: {chunks},
+                    source: {source}
                 }});
             "#,
-            StringifyJs(&chunks),
-            StringifyJs(&this.source),
+            chunk_lists_global = StringifyJs(&chunk_lists_global),
+            chunks = StringifyJs(&chunks),
+            source = StringifyJs(&this.source),
         )?;
 
         Ok(Code::cell(code.build()))

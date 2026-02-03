@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/bf321_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_a280e616.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/bf321_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_a280e616.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import/input/lib.js [test] (ecmascript) <internal part 0>", ((__turbopack_context__) => {
 "use strict";
 
