@@ -417,7 +417,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let task_id = chain.last().unwrap();
                 let error = {
                     let task = ctx.task(*task_id, TaskDataCategory::Meta);
-                    if let Some(OutputValue::Error(error)) = task.get_output().clone() {
+                    if let Some(OutputValue::Error(error)) = task.get_output() {
                         Some(error.clone())
                     } else {
                         None

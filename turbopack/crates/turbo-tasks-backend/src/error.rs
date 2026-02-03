@@ -91,17 +91,15 @@ impl PartialEq<TurboTasksExecutionError> for TaskError {
                 }
                 let mut current_source = other.source.as_ref();
                 for &task_id in &chain[1..] {
-                    match current_source {
-                        Some(other) => match other {
-                            TurboTasksExecutionError::TaskContext(task_context) => {
-                                if task_context.task_id != task_id {
-                                    return false;
-                                }
-                                current_source = task_context.source.as_ref();
-                            }
-                            _ => return false,
-                        },
-                        None => return false,
+                    if let Some(TurboTasksExecutionError::TaskContext(task_context)) =
+                        current_source
+                    {
+                        if task_context.task_id != task_id {
+                            return false;
+                        }
+                        current_source = task_context.source.as_ref();
+                    } else {
+                        return false;
                     }
                 }
                 // TaskError will stop at the last task in the chain (this is a pointer), so we do
