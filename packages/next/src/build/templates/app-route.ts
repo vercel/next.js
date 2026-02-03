@@ -12,6 +12,7 @@ import {
   setRequestMeta,
   type RequestMeta,
 } from '../../server/request-meta'
+import { WEBSOCKET_INTERNAL } from '../../server/web/spec-extension/websocket'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -322,6 +323,27 @@ export async function handler(
           }
 
           const response = await invokeRouteModule(currentSpan)
+
+          // Check if this is a WebSocket upgrade response
+          const isWebSocketUpgrade =
+            response.headers.get('x-next-websocket-upgrade') === '1'
+
+          if (isWebSocketUpgrade) {
+            // Get the WebSocket internal data from the response
+            const wsInternal = (response as any)[WEBSOCKET_INTERNAL]
+
+            if (wsInternal && getRequestMeta(req, 'isWebSocketUpgrade')) {
+              // Store the WebSocket internal data in request metadata
+              // so the router-server can access it for bridging
+              addRequestMeta(req, 'websocketInternal', wsInternal)
+
+              // Set response headers to indicate WebSocket upgrade
+              res.statusCode = 101
+              res.setHeader('x-next-websocket-upgrade', '1')
+              // Don't end the response - let the bridge handle it
+              return null
+            }
+          }
 
           ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
           let pendingWaitUntil = context.renderOpts.pendingWaitUntil

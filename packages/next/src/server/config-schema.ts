@@ -370,6 +370,7 @@ export const experimentalSchema = {
   hideLogsAfterAbort: z.boolean().optional(),
   runtimeServerDeploymentId: z.boolean().optional(),
   devCacheControlNoCache: z.boolean().optional(),
+  webSockets: z.boolean().optional(),
 }
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>

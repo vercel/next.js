@@ -925,6 +925,13 @@ export interface ExperimentalConfig {
    * @default false
    */
   devCacheControlNoCache?: boolean
+
+  /**
+   * Enable WebSocket support in App Router route handlers via `NextResponse.upgrade()`.
+   *
+   * @default false
+   */
+  webSockets?: boolean
 }
 
 export type ExportPathMap = {
@@ -1654,6 +1661,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
     devCacheControlNoCache: false,
+    webSockets: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -1752,6 +1760,7 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
+    | 'webSockets'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1815,6 +1824,7 @@ export function getNextConfigRuntime(
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
+        webSockets: ex.webSockets,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

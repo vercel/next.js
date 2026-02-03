@@ -303,6 +303,29 @@ export interface RequestMeta {
     location: string
     duration: number
   }
+
+  /**
+   * True when this is a WebSocket upgrade request
+   */
+  isWebSocketUpgrade?: boolean
+
+  /**
+   * The socket from the WebSocket upgrade request
+   */
+  upgradeSocket?: import('stream').Duplex
+
+  /**
+   * The head buffer from the WebSocket upgrade request
+   */
+  upgradeHead?: Buffer
+
+  /**
+   * Internal WebSocket data for bridging streams to the socket
+   */
+  websocketInternal?: {
+    readable: ReadableStream
+    writable: WritableStream
+  }
 }
 
 /**
