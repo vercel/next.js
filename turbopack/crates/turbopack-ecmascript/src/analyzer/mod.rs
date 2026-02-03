@@ -641,10 +641,16 @@ impl TryFrom<&FreeVarReference> for JsValue {
                 false,
                 "compile time injected free var module",
             )),
-            FreeVarReference::Error(_) => Ok(JsValue::unknown_empty(
-                false,
-                "compile time injected free var error",
-            )),
+            FreeVarReference::ReportUsage { inner, .. } => {
+                if let Some(inner) = &inner {
+                    inner.as_ref().try_into()
+                } else {
+                    Ok(JsValue::unknown_empty(
+                        false,
+                        "compile time injected free var error",
+                    ))
+                }
+            }
             FreeVarReference::InputRelative(kind) => {
                 use turbopack_core::compile_time_info::InputRelativeConstant;
                 Ok(JsValue::unknown_empty(
