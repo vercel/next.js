@@ -9302,6 +9302,7 @@ dependencies = [
  "bincode 2.0.1",
  "bitfield",
  "byteorder",
+ "codspeed-criterion-compat",
  "dashmap 6.1.0",
  "either",
  "jiff",
