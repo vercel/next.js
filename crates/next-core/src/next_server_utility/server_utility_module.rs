@@ -33,34 +33,14 @@ pub struct NextServerUtilityModule {
 
 #[turbo_tasks::value_impl]
 impl NextServerUtilityModule {
+    /// Creates a new server utility module wrapper.
+    ///
+    /// This normalizes the input to the facade module (if splitting is enabled)
+    /// to ensure we re-export with original names, not mangled names.
     #[turbo_tasks::function]
-    pub async fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Result<Vc<Self>> {
-        // Get the facade module to ensure we re-export with original names, not mangled names.
-        // The module might be a locals module (if splitting already happened), a facade,
-        // or the original module.
-        //
-        // IMPORTANT: We normalize to the facade first, then delegate to new_inner with the facade.
-        // This ensures that regardless of whether we receive the original, facade, or locals,
-        // we always wrap the same facade module, avoiding duplicate NextServerUtilityModule
-        // instances.
-        let split_module = module.get_split(ModulePart::Facade).to_resolved().await?;
-
-        // Always delegate to new_inner with the normalized module.
-        // If the input was already the facade, split_module == module, and turbo_tasks
-        // memoization will return the same result.
-        // If the input was locals/original, split_module is the facade, and we'll
-        // get the same wrapper as if the facade had been passed directly.
-        Ok(Self::new_inner(*split_module))
-    }
-
-    /// Internal constructor that wraps the module directly.
-    /// This is called with the normalized facade module from `new()`.
-    #[turbo_tasks::function]
-    async fn new_inner(module: Vc<Box<dyn EcmascriptChunkPlaceable>>) -> Result<Vc<Self>> {
-        Ok(NextServerUtilityModule {
-            module: module.to_resolved().await?,
-        }
-        .cell())
+    pub async fn new(module: Vc<Box<dyn EcmascriptChunkPlaceable>>) -> Result<Vc<Self>> {
+        let facade = module.get_split(ModulePart::Facade).to_resolved().await?;
+        Ok(NextServerUtilityModule { module: facade }.cell())
     }
 
     #[turbo_tasks::function]

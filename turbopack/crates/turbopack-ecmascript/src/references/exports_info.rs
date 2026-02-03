@@ -13,7 +13,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::AstPath,
+    references::{AstPath, esm::EsmExport},
 };
 
 /// Responsible for initializing the `ExportsInfoBinding` object binding, so that it may be
@@ -49,16 +49,16 @@ impl ExportsInfoBinding {
             let esm_exports = exports.await?;
             esm_exports
                 .exports
-                .keys()
-                .map(|e| {
+                .iter()
+                .map(|(e, export)| {
                     let used: Expr = export_usage_info.is_export_used(e).into();
-                    // Include mangled name if available
-                    let mangled_name: Expr = esm_exports
-                        .mangled_names
-                        .as_ref()
-                        .and_then(|m| m.get(e))
-                        .map(|s| Expr::from(s.as_str()))
-                        .unwrap_or_else(|| quote!("null" as Expr));
+                    // Include mangled name if available from LocalBinding
+                    let mangled_name: Expr =
+                        if let EsmExport::LocalBinding(_, _, Some(mangled)) = export {
+                            Expr::from(mangled.as_str())
+                        } else {
+                            quote!("null" as Expr)
+                        };
                     PropOrSpread::Prop(Box::new(swc_core::ecma::ast::Prop::KeyValue(
                         KeyValueProp {
                             key: PropName::Str(e.as_str().into()),

@@ -26,7 +26,7 @@ use crate::{
     },
     references::{
         async_module::OptionAsyncModule,
-        esm::{EsmExport, EsmExports},
+        esm::{EsmExport, EsmExports, Liveness},
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
 };
@@ -145,16 +145,15 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         let esm_exports = exports.await?;
         let mut exports = BTreeMap::new();
 
+        // First pass: collect local bindings (without mangled names yet)
+        let mut local_exports: Vec<(RcStr, RcStr, Liveness)> = Vec::new();
         for (name, export) in &esm_exports.exports {
             match export {
                 EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(..) => {
                     // not included in locals module
                 }
-                EsmExport::LocalBinding(local_name, liveness) => {
-                    exports.insert(
-                        name.clone(),
-                        EsmExport::LocalBinding(local_name.clone(), *liveness),
-                    );
+                EsmExport::LocalBinding(local_name, liveness, _) => {
+                    local_exports.push((name.clone(), local_name.clone(), *liveness));
                 }
                 EsmExport::Error => {
                     exports.insert(name.clone(), EsmExport::Error);
@@ -163,26 +162,32 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         }
 
         // Compute mangled names for all exports if enabled
-        // This is deterministic and stable across chunking contexts
         let options = self.module.options().await?;
-        let mangled_names = if options.mangle_export_names && !exports.is_empty() {
-            let exports_to_mangle: Vec<_> = exports
-                .keys()
-                .map(|name| (name.clone(), name.to_string()))
-                .collect();
-            let mangled: BTreeMap<RcStr, RcStr> = shorten_to_unique_hashes(exports_to_mangle, 1)
-                .into_iter()
-                .map(|(k, v)| (k, RcStr::from(v)))
-                .collect();
-            Some(mangled)
-        } else {
-            None
-        };
+        let mangled_names: Option<BTreeMap<RcStr, RcStr>> =
+            if options.mangle_export_names && !local_exports.is_empty() {
+                let exports_to_mangle: Vec<_> = local_exports
+                    .iter()
+                    .map(|(name, _, _)| (name.clone(), name.to_string()))
+                    .collect();
+                Some(
+                    shorten_to_unique_hashes(exports_to_mangle, 1)
+                        .into_iter()
+                        .map(|(k, v)| (k, RcStr::from(v)))
+                        .collect(),
+                )
+            } else {
+                None
+            };
+
+        // Second pass: create LocalBinding with mangled names
+        for (name, local_name, liveness) in local_exports {
+            let mangled = mangled_names.as_ref().and_then(|m| m.get(&name).cloned());
+            exports.insert(name, EsmExport::LocalBinding(local_name, liveness, mangled));
+        }
 
         let exports = EsmExports {
             exports,
             star_exports: vec![],
-            mangled_names,
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())

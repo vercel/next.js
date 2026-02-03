@@ -1776,7 +1776,7 @@ async fn process_parse_result(
                                 .await?
                                 .exports
                                 .iter()
-                                .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(_, _)))
+                                .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(..)))
                                 .map(|(name, e)| {
                                     if let Some((sym, ctxt)) = export_contexts.get(name) {
                                         Ok((sym.clone(), *ctxt))

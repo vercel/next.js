@@ -56,8 +56,10 @@ pub enum Liveness {
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
     ///
-    /// Fields: (local_name, liveness)
-    LocalBinding(RcStr, Liveness),
+    /// Fields: (local_name, liveness, mangled_export_key)
+    /// The mangled_export_key is Some when the export should use a different key than the
+    /// original export name (e.g., for export name shortening/mangling).
+    LocalBinding(RcStr, Liveness, Option<RcStr>),
     /// An imported binding that is exported (export { a as b } from "...")
     ///
     /// Fields: (module_reference, name, is_mutable)
@@ -494,10 +496,6 @@ pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
     /// Unexpanded `export * from ...` statements (expanded in `expand_star_exports`)
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
-    /// Mangled export names for this module. If Some, exports are mangled.
-    /// Maps original export name → mangled (shortened) export name.
-    /// Only set for locals modules; facades and other modules have None.
-    pub mangled_names: Option<BTreeMap<RcStr, RcStr>>,
 }
 
 /// The expanded version of [`EsmExports`], the `exports` field here includes all exports that could
@@ -536,7 +534,6 @@ impl EsmExports {
             EsmExports {
                 exports,
                 star_exports: vec![module_reference],
-                mangled_names: None,
             }
             .resolved_cell(),
         )
@@ -604,14 +601,11 @@ impl EsmExports {
         eval_context: &EvalContext,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Result<CodeGeneration> {
-        let this = self.await?;
+        let _this = self.await?;
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
         let expanded = self.expand_exports(*export_usage_info.export_usage).await?;
-
-        // Use mangled names from EsmExports if available (set by locals module)
-        let mangled_names = this.mangled_names.as_ref();
 
         if scope_hoisting_context.skip_module_exports() && expanded.dynamic_exports.is_empty() {
             // If the current module is not exposed, no need to generate exports.
@@ -670,7 +664,7 @@ impl EsmExports {
                 EsmExport::Error => ExportBinding::Getter(quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
                 )),
-                EsmExport::LocalBinding(name, liveness) => {
+                EsmExport::LocalBinding(name, liveness, _) => {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
@@ -800,10 +794,12 @@ impl EsmExports {
                 }
             };
             if exprs != ExportBinding::None {
-                let export_key = mangled_names
-                    .and_then(|m| m.get(exported))
-                    .map(|s| s.as_str().into())
-                    .unwrap_or_else(|| exported.as_str().into());
+                // Get the mangled name from LocalBinding if present, otherwise use the original
+                // name
+                let export_key = match local {
+                    EsmExport::LocalBinding(_, _, Some(mangled)) => mangled.as_str().into(),
+                    _ => exported.as_str().into(),
+                };
                 getters.push(Some(
                     Expr::Lit(Lit::Str(Str {
                         span: DUMMY_SP,

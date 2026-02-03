@@ -196,15 +196,14 @@ async fn apply_module_type(
                         ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
-                        // Returns the split module if necessary due to re-exports
+                        // get_split will return the split module iff necessary due to mangling or
+                        // re-exports
                         if let Some(part) = part {
                             match part {
                                 ModulePart::Evaluation => {
-                                    // get_split checks split_locals_and_reexports internally
                                     Vc::upcast(module.get_split(ModulePart::Locals))
                                 }
                                 ModulePart::Export(_) => {
-                                    // get_split returns facade if needed, or self otherwise
                                     apply_reexport_tree_shaking(
                                         module.get_split(ModulePart::Facade),
                                         part,
@@ -218,7 +217,6 @@ async fn apply_module_type(
                                 ),
                             }
                         } else {
-                            // get_split checks split_locals_and_reexports internally
                             Vc::upcast(module.get_split(ModulePart::Facade))
                         }
                     }

@@ -179,7 +179,7 @@ impl ReferencedAsset {
                     let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
                     let esm_export = exports.exports.get(export);
                     match esm_export {
-                        Some(EsmExport::LocalBinding(_name, liveness)) => {
+                        Some(EsmExport::LocalBinding(_name, liveness, _)) => {
                             // A local binding in a module that is merged in the same group. Use the
                             // export name as identifier, it will be replaced with the actual
                             // variable name during AST merging.
@@ -255,12 +255,15 @@ impl ReferencedAsset {
                 let export_key = if let Some(ref export_name) = export {
                     let target_exports = asset.get_exports().await?;
                     if let EcmascriptExports::EsmExports(esm_exports) = &*target_exports {
-                        esm_exports
-                            .await?
-                            .mangled_names
-                            .as_ref()
-                            .and_then(|m| m.get(export_name).cloned())
-                            .or_else(|| Some(export_name.clone()))
+                        let esm_exports = esm_exports.await?;
+                        // Look up the export to check if it has a mangled name
+                        if let Some(EsmExport::LocalBinding(_, _, Some(mangled))) =
+                            esm_exports.exports.get(export_name)
+                        {
+                            Some(mangled.clone())
+                        } else {
+                            Some(export_name.clone())
+                        }
                     } else {
                         Some(export_name.clone())
                     }

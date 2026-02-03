@@ -924,7 +924,6 @@ async fn analyze_ecmascript_module_internal(
             let esm_exports = EsmExports {
                 exports: esm_exports,
                 star_exports: esm_star_exports,
-                mangled_names: None,
             }
             .cell();
 
@@ -945,7 +944,6 @@ async fn analyze_ecmascript_module_internal(
                         EsmExports {
                             exports: Default::default(),
                             star_exports: Default::default(),
-                            mangled_names: None,
                         }
                         .resolved_cell(),
                     )
@@ -957,7 +955,6 @@ async fn analyze_ecmascript_module_internal(
                     EsmExports {
                         exports: Default::default(),
                         star_exports: Default::default(),
-                        mangled_names: None,
                     }
                     .resolved_cell(),
                 ),
@@ -972,7 +969,6 @@ async fn analyze_ecmascript_module_internal(
                         EsmExports {
                             exports: Default::default(),
                             star_exports: Default::default(),
-                            mangled_names: None,
                         }
                         .resolved_cell(),
                     )
@@ -3890,6 +3886,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                     } else {
                                         liveness
                                     },
+                                    None,
                                 )
                             }
                         };
@@ -3917,7 +3914,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 let liveness = self.get_export_ident_liveness((id.clone(), ctx));
                 let name: RcStr = id.as_str().into();
                 self.esm_exports
-                    .insert(name.clone(), EsmExport::LocalBinding(name, liveness));
+                    .insert(name.clone(), EsmExport::LocalBinding(name, liveness, None));
             };
             match decl {
                 Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
@@ -3961,6 +3958,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 magic_identifier::mangle("default export").into(),
                 // The expression passed to `export default` cannot be mutated
                 Liveness::Constant,
+                None,
             ),
         );
         if self.analyze_mode.is_code_gen() {
@@ -3981,11 +3979,13 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                     Some(ident) => EsmExport::LocalBinding(
                         ident.sym.as_str().into(),
                         self.get_export_ident_liveness(ident.to_id()),
+                        None,
                     ),
                     // If there is no name, like `export default function(){}` then it is not live.
                     None => EsmExport::LocalBinding(
                         magic_identifier::mangle("default export").into(),
                         Liveness::Constant,
+                        None,
                     ),
                 };
                 self.esm_exports.insert(rcstr!("default"), export);
