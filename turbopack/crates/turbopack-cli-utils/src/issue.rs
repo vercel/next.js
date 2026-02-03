@@ -15,7 +15,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{RawVc, TransientInstance, TransientValue, Vc};
 use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
-    CollectibleIssuesExt, IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource,
+    CollectibleIssuesExt, IssueFilter, IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource,
     PlainTraceItem, StyledString,
 };
 
@@ -371,7 +371,7 @@ impl IssueReporter for ConsoleUi {
         } = self.options;
         let mut grouped_issues: GroupedIssues = FxHashMap::default();
 
-        let plain_issues = issues.get_plain_issues().await?;
+        let plain_issues = issues.get_plain_issues(IssueFilter::everything()).await?;
         let issues = plain_issues
             .iter()
             .map(|plain_issue| {

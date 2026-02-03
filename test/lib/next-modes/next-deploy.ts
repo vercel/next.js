@@ -3,12 +3,7 @@ import path from 'path'
 import execa from 'execa'
 import fs from 'fs-extra'
 import { NextInstance } from './base'
-import {
-  TEST_PROJECT_NAME,
-  TEST_TEAM_NAME,
-  TEST_TOKEN,
-} from '../../../scripts/reset-project.mjs'
-import fetch from 'node-fetch'
+import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
 
 export class NextDeployInstance extends NextInstance {
@@ -38,10 +33,180 @@ export class NextDeployInstance extends NextInstance {
     return this._buildId
   }
 
+  private async deployUsingCustomScript(): Promise<{ url: string }> {
+    const deployScriptPath = process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH!
+
+    require('console').log(
+      `Deploying project using custom script: ${deployScriptPath}`
+    )
+
+    // Prepare environment variables to pass to the deploy script
+    const scriptEnv = {
+      ...process.env,
+      // Pass the test directory to the script
+      NEXT_TEST_DIR: this.testDir,
+      // Pass test-specific env vars
+      ...this.env,
+    }
+
+    const deployRes = await execa(deployScriptPath, [], {
+      cwd: this.testDir,
+      env: scriptEnv,
+      reject: false,
+      stderr: 'inherit',
+    })
+
+    if (deployRes.exitCode !== 0) {
+      throw new Error(
+        `Custom deploy script failed: ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
+      )
+    }
+
+    // The script should output the deployment URL to stdout
+    const url = deployRes.stdout.trim()
+    if (!url) {
+      throw new Error(
+        'Custom deploy script did not return a deployment URL on stdout'
+      )
+    }
+
+    // Validate it's a proper URL
+    try {
+      new URL(url)
+    } catch (err) {
+      throw new Error(`Custom deploy script returned invalid URL: ${url}`, {
+        cause: err,
+      })
+    }
+
+    return { url }
+  }
+
+  private async fetchBuildLogsUsingCustomScript(): Promise<string> {
+    const logsScriptPath = process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH!
+
+    require('console').log(
+      `Fetching build logs using custom script: ${logsScriptPath}`
+    )
+
+    const scriptEnv = {
+      ...process.env,
+      NEXT_TEST_DIR: this.testDir,
+      // Pass the deployment URL to the logs script
+      NEXT_TEST_DEPLOY_URL: this._url,
+      ...this.env,
+    }
+
+    const logsRes = await execa(logsScriptPath, [], {
+      cwd: this.testDir,
+      env: scriptEnv,
+      reject: false,
+    })
+
+    if (logsRes.exitCode !== 0) {
+      throw new Error(
+        `Custom deploy logs script failed: ${logsRes.stdout} ${logsRes.stderr} (${logsRes.exitCode})`
+      )
+    }
+
+    // The script should output the build logs to stdout
+    return logsRes.stdout + logsRes.stderr
+  }
+
   public async setup(parentSpan: Span) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
 
+    const existingDeployUrl = process.env.NEXT_TEST_DEPLOY_URL?.trim()
+    const customDeployScriptPath =
+      process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim()
+    const customLogsScriptPath =
+      process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH?.trim()
+
+    // Check if using an existing deployment URL (takes priority)
+    if (existingDeployUrl) {
+      try {
+        this._url = new URL(existingDeployUrl).toString()
+      } catch (err) {
+        throw new Error(
+          `Invalid NEXT_TEST_DEPLOY_URL value: ${existingDeployUrl}`,
+          { cause: err }
+        )
+      }
+      require('console').log(`Using existing deployment URL: ${this._url}`)
+
+      this._parsedUrl = new URL(this._url)
+
+      // Configure proxy address if needed
+      await this.configureProxyAddress()
+
+      // Use custom logs script if provided, otherwise use Vercel CLI
+      if (customLogsScriptPath) {
+        this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
+      } else {
+        // Use vercel inspect to get logs for existing deployment
+        const buildLogs = await execa(
+          'vercel',
+          ['inspect', '--logs', this._url],
+          {
+            env: process.env,
+            reject: false,
+          }
+        )
+        if (buildLogs.exitCode !== 0) {
+          throw new Error(
+            `Failed to get build output logs: ${buildLogs.stderr}`
+          )
+        }
+        this._cliOutput = buildLogs.stdout + buildLogs.stderr
+      }
+
+      const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
+
+      if (!buildId) {
+        throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
+      }
+      this._buildId = buildId
+
+      require('console').log(`Got buildId: ${this._buildId}`)
+      return
+    }
+
+    // Check if using custom deploy script
+    if (customDeployScriptPath) {
+      if (!customLogsScriptPath) {
+        throw new Error(
+          'NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH is required when using NEXT_TEST_DEPLOY_SCRIPT_PATH'
+        )
+      }
+
+      const { url } = await this.deployUsingCustomScript()
+      this._url = url
+
+      this._parsedUrl = new URL(this._url)
+
+      // Configure proxy address if needed
+      await this.configureProxyAddress()
+
+      require('console').log(`Deployment URL: ${this._url}`)
+
+      // Use the custom logs script to get build logs and extract buildId
+      this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
+
+      const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
+
+      if (!buildId) {
+        throw new Error(
+          `Failed to get buildId from custom deploy logs ${this._cliOutput}`
+        )
+      }
+      this._buildId = buildId
+
+      require('console').log(`Got buildId: ${this._buildId}`)
+      return
+    }
+
+    // Original Vercel CLI deployment logic
     // ensure Vercel CLI is installed
     try {
       const res = await execa('vercel', ['--version'])
@@ -54,6 +219,15 @@ export class NextDeployInstance extends NextInstance {
     }
 
     const vercelFlags: string[] = []
+    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER
+
+    const TEST_TEAM_NAME = NEXT_ENABLE_ADAPTER
+      ? projectEnv.ADAPTER_TEST_TEAM_NAME
+      : projectEnv.TEST_TEAM_NAME
+
+    const TEST_TOKEN = NEXT_ENABLE_ADAPTER
+      ? projectEnv.ADAPTER_TEST_TOKEN
+      : projectEnv.TEST_TOKEN
 
     // If the team name is available in the environment, use it as the scope.
     if (TEST_TEAM_NAME) {
@@ -84,12 +258,13 @@ export class NextDeployInstance extends NextInstance {
       )
       vercelFlags.push('--global-config', vcConfigDir)
     }
+
     require('console').log(`Linking project at ${this.testDir}`)
 
     // link the project
     const linkRes = await execa(
       'vercel',
-      ['link', '-p', TEST_PROJECT_NAME, '--yes', ...vercelFlags],
+      ['link', '-p', projectEnv.TEST_PROJECT_NAME, '--yes', ...vercelFlags],
       {
         cwd: this.testDir,
         env: vercelEnv,
@@ -127,6 +302,9 @@ export class NextDeployInstance extends NextInstance {
     }
     if (process.env.IS_WEBPACK_TEST) {
       additionalEnv.push(`IS_WEBPACK_TEST=1`)
+    }
+    if (process.env.NEXT_ENABLE_ADAPTER) {
+      additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
     }
 
     const deployRes = await execa(
@@ -169,6 +347,40 @@ export class NextDeployInstance extends NextInstance {
     this._url = deployRes.stdout
     this._parsedUrl = new URL(this._url)
 
+    // Configure proxy address if needed
+    await this.configureProxyAddress()
+
+    require('console').log(`Deployment URL: ${this._url}`)
+
+    // Use the vercel inspect command to get the CLI output from the build.
+    const buildLogs = await execa(
+      'vercel',
+      ['inspect', '--logs', this._url, ...vercelFlags],
+      {
+        env: vercelEnv,
+        reject: false,
+      }
+    )
+    if (buildLogs.exitCode !== 0) {
+      throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
+    }
+    // TODO: Combine with runtime logs (via `vercel logs`)
+    // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
+    this._cliOutput = buildLogs.stdout + buildLogs.stderr
+
+    const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
+
+    if (!buildId) {
+      throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
+    }
+    this._buildId = buildId
+
+    require('console').log(`Got buildId: ${this._buildId}`)
+    // Use the stdout from the logs command as the CLI output. The CLI will
+    // output other unrelated logs to stderr.
+  }
+
+  private async configureProxyAddress(): Promise<void> {
     // If configured, we should configure the `/etc/hosts` file to point the
     // deployment domain to the specified proxy address.
     if (
@@ -198,42 +410,6 @@ export class NextDeployInstance extends NextInstance {
 
       require('console').log(`Proxy address written to hosts file`)
     }
-
-    require('console').log(`Deployment URL: ${this._url}`)
-    const buildIdUrl = `${this._url}${
-      this.basePath || ''
-    }/_next/static/__BUILD_ID`
-
-    const buildIdRes = await fetch(buildIdUrl)
-
-    if (!buildIdRes.ok) {
-      require('console').error(
-        `Failed to load buildId ${buildIdUrl} (${buildIdRes.status})`
-      )
-    }
-    this._buildId = (await buildIdRes.text()).trim()
-
-    require('console').log(`Got buildId: ${this._buildId}`)
-
-    // Use the vercel inspect command to get the CLI output from the build.
-    const buildLogs = await execa(
-      'vercel',
-      ['inspect', '--logs', this._url, ...vercelFlags],
-      {
-        env: vercelEnv,
-        reject: false,
-      }
-    )
-    if (buildLogs.exitCode !== 0) {
-      throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
-    }
-
-    // Use the stdout from the logs command as the CLI output. The CLI will
-    // output other unrelated logs to stderr.
-
-    // TODO: Combine with runtime logs (via `vercel logs`)
-    // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
-    this._cliOutput = buildLogs.stdout + buildLogs.stderr
   }
 
   public async destroy() {

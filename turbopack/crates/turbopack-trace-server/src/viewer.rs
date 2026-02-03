@@ -4,7 +4,7 @@ use either::Either;
 use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     server::ViewRect,
@@ -252,14 +252,14 @@ pub struct Update {
     pub max: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewLineUpdate {
     y: u64,
     spans: Vec<ViewSpan>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewSpan {
     #[serde(with = "u64_empty_string")]

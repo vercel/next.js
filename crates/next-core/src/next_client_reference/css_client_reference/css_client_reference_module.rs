@@ -6,7 +6,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkGroupType, ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
     source::OptionSource,
@@ -56,6 +56,10 @@ impl Module for CssClientReferenceModule {
                 .to_resolved()
                 .await?,
         )]))
+    }
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 

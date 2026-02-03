@@ -1,0 +1,1 @@
+require('./vendors').UiSelectButton2()

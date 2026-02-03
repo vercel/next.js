@@ -1,0 +1,5 @@
+.test-class {
+  /* This red color should be transformed to green by the PostCSS plugin */
+  color: red;
+  display: flex;
+}

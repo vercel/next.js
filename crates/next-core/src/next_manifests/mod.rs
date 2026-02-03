@@ -252,7 +252,7 @@ impl Default for MiddlewaresManifest {
 )]
 #[serde(rename_all = "camelCase", default)]
 pub struct ProxyMatcher {
-    // When skipped next.js with fill that during merging.
+    // When skipped, next.js will fill the field during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regexp: Option<RcStr>,
     #[serde(skip_serializing_if = "bool_is_true")]
@@ -390,6 +390,14 @@ pub struct ActionManifestEntry<'a> {
     pub exported_name: &'a str,
 
     pub filename: &'a str,
+
+    /// Source location line number (1-indexed), if available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+
+    /// Source location column number (1-indexed), if available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub col: Option<u32>,
 }
 
 #[derive(Serialize, Debug)]

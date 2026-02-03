@@ -1,3 +1,4 @@
+const path = require('path')
 const nextJest = require('next/jest')
 
 const createJestConfig = nextJest()
@@ -7,6 +8,7 @@ const createJestConfig = nextJest()
 const customJestConfig = {
   displayName: process.env.IS_WEBPACK_TEST ? 'webpack' : 'Turbopack',
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
+  globalSetup: '<rootDir>/jest-global-setup.ts',
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
   rootDir: 'test',
@@ -16,6 +18,7 @@ const customJestConfig = {
     '<rootDir>/../packages/next-codemod/',
     '<rootDir>/../packages/eslint-plugin-internal/',
     '<rootDir>/../packages/font/src/',
+    '<rootDir>/../packages/next-routing/',
   ],
   modulePathIgnorePatterns: ['/\\.next/'],
   modulePaths: ['<rootDir>/lib'],
@@ -23,6 +26,10 @@ const customJestConfig = {
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
+}
+
+if (process.env.CI) {
+  customJestConfig.cacheDirectory = path.join(__dirname, '.jest-cache')
 }
 
 // Check if the environment variable is set to enable test report,

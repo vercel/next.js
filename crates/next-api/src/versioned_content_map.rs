@@ -2,7 +2,6 @@ use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
@@ -17,17 +16,7 @@ use turbopack_core::{
 };
 
 #[derive(
-    Clone,
-    TraceRawVcs,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Serialize,
-    Deserialize,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
 )]
 struct MapEntry {
     assets_operation: OperationVc<ExpandedOutputAssets>,
@@ -42,17 +31,7 @@ unsafe impl OperationValue for MapEntry {}
 struct OptionMapEntry(Option<MapEntry>);
 
 #[derive(
-    Clone,
-    TraceRawVcs,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Serialize,
-    Deserialize,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
 )]
 pub struct PathToOutputOperation(
     /// We need to use an operation for outputs as it's stored for later usage and we want to
@@ -71,8 +50,6 @@ pub struct PathToOutputOperation(
     PartialEq,
     Eq,
     ValueDebugFormat,
-    Serialize,
-    Deserialize,
     Debug,
     NonLocalValue,
     Encode,

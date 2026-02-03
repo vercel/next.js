@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt,
@@ -16,17 +15,7 @@ use turbopack_core::{
 use crate::{operation::OptionEndpoint, paths::ServerPath, project::Project};
 
 #[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
+    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
 )]
 pub struct AppPageRoute {
     pub original_name: RcStr,
@@ -78,17 +67,7 @@ pub trait Endpoint {
 }
 
 #[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
+    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
 )]
 pub enum EndpointGroupKey {
     Instrumentation,
@@ -129,17 +108,7 @@ impl Display for EndpointGroupKey {
 }
 
 #[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
+    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
 )]
 pub struct EndpointGroupEntry {
     pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
@@ -147,17 +116,7 @@ pub struct EndpointGroupEntry {
 }
 
 #[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
+    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
 )]
 pub struct EndpointGroup {
     pub primary: Vec<EndpointGroupEntry>,

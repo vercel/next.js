@@ -1,4 +1,5 @@
 // TODO: Remove use of `any` type.
+import './register-deployment-id-global'
 import { initialize, version, router, emitter } from './'
 import initHMR from './dev/hot-middleware-client'
 

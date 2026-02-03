@@ -4,6 +4,7 @@
 
 use anyhow::Result;
 use mdxjs::{MdxParseOptions, Options, compile};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
@@ -20,7 +21,7 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Hash, Debug, Clone)]
+#[derive(Hash, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MdxParseConstructs {
     Commonmark,
@@ -31,7 +32,7 @@ pub enum MdxParseConstructs {
 /// into mdxjs. This is thin, near straightforward subset of mdxjs::Options to
 /// enable turbo tasks.
 #[turbo_tasks::value(shared, operation)]
-#[derive(Hash, Debug, Clone)]
+#[derive(Hash, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MdxTransformOptions {
     pub development: Option<bool>,

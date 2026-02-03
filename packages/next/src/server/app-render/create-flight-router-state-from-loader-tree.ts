@@ -7,13 +7,14 @@ import type { GetDynamicParamFromSegment } from './app-render'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 
 function createFlightRouterStateFromLoaderTreeImpl(
-  [segment, parallelRoutes, { layout, loading }]: LoaderTree,
+  loaderTree: LoaderTree,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   searchParams: any,
   includeHasLoadingBoundary: boolean,
   didFindRootLayout: boolean
 ): FlightRouterState {
-  const dynamicParam = getDynamicParamFromSegment(segment)
+  const [segment, parallelRoutes, { layout, loading }] = loaderTree
+  const dynamicParam = getDynamicParamFromSegment(loaderTree)
   const treeSegment = dynamicParam ? dynamicParam.treeSegment : segment
 
   const segmentTree: FlightRouterState = [

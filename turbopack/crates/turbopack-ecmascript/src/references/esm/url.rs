@@ -1,6 +1,5 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
@@ -20,7 +19,8 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
-        ExternalType, ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve,
+        ExternalType, ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request,
+        url_resolve,
     },
 };
 
@@ -38,19 +38,7 @@ use crate::{
 /// This allows to construct url depends on the different building context,
 /// e.g. SSR, CSR, or Node.js.
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub enum UrlRewriteBehavior {
     /// Omits base, resulting in a relative URL.
@@ -72,7 +60,7 @@ pub struct UrlAssetReference {
     request: ResolvedVc<Request>,
     rendering: Rendering,
     issue_source: IssueSource,
-    in_try: bool,
+    error_mode: ResolveErrorMode,
     url_rewrite_behavior: UrlRewriteBehavior,
 }
 
@@ -82,7 +70,7 @@ impl UrlAssetReference {
         request: ResolvedVc<Request>,
         rendering: Rendering,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         url_rewrite_behavior: UrlRewriteBehavior,
     ) -> Self {
         UrlAssetReference {
@@ -90,7 +78,7 @@ impl UrlAssetReference {
             request,
             rendering,
             issue_source,
-            in_try,
+            error_mode,
             url_rewrite_behavior,
         }
     }
@@ -109,7 +97,7 @@ impl ModuleReference for UrlAssetReference {
             *self.request,
             ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl),
             Some(self.issue_source),
-            self.in_try,
+            self.error_mode,
         )
     }
 }
@@ -149,17 +137,7 @@ impl IntoCodeGenReference for UrlAssetReference {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Hash,
-    Debug,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct UrlAssetReferenceCodeGen {
     reference: ResolvedVc<UrlAssetReference>,
