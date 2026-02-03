@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/780ce_turbopack-tests_tests_snapshot_scope-hoisting_duplicate-imports_input_8432fbfe._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/780ce_turbopack-tests_tests_snapshot_scope-hoisting_duplicate-imports_input_8432fbfe._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/shared.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 module.exports = 'shared';

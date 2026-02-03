@@ -925,6 +925,19 @@ export interface ExperimentalConfig {
    * @default false
    */
   devCacheControlNoCache?: boolean
+
+  /**
+   * An array of paths in app or pages directories that should wait to be processed
+   * until all other entries have been processed. This is useful for deferring
+   * compilation of certain routes during development and build.
+   */
+  deferredEntries?: string[]
+
+  /**
+   * An async function that is called and awaited before processing deferred entries.
+   * This callback runs after all non-deferred entries have been compiled.
+   */
+  onBeforeDeferredEntries?: () => Promise<void>
 }
 
 export type ExportPathMap = {
