@@ -306,6 +306,12 @@ export interface LoggingConfig {
   incomingRequests?: boolean | IncomingRequestLoggingConfig
 
   /**
+   * If false, Server Function invocation logging is disabled.
+   * @default true
+   */
+  serverFunctions?: boolean
+
+  /**
    * Forward browser console logs to terminal.
    * - `false`: Disable browser log forwarding
    * - `true`: Forward all browser console output to terminal
@@ -1502,7 +1508,9 @@ export const defaultConfig = Object.freeze({
   httpAgentOptions: {
     keepAlive: true,
   },
-  logging: {},
+  logging: {
+    serverFunctions: true,
+  } satisfies LoggingConfig,
   compiler: {},
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined
@@ -1703,6 +1711,7 @@ export interface NextConfigRuntime {
   skipProxyUrlNormalize: NextConfigComplete['skipProxyUrlNormalize']
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
+  logging?: NextConfigComplete['logging']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1843,6 +1852,7 @@ export function getNextConfigRuntime(
     skipProxyUrlNormalize: config.skipProxyUrlNormalize,
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
+    logging: config.logging,
 
     experimental,
   }
