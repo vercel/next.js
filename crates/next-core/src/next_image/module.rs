@@ -10,7 +10,7 @@ use turbopack_core::{
 use turbopack_ecmascript::EcmascriptInputTransforms;
 use turbopack_static::ecma::StaticUrlJsModule;
 
-use super::source_asset::StructuredImageFileSource;
+use super::{metadata_source::MetadataStaticImageSource, source_asset::StructuredImageFileSource};
 
 #[derive(
     Eq,
@@ -80,6 +80,27 @@ impl StructuredImageModuleType {
         StructuredImageModuleType::cell(StructuredImageModuleType {
             blur_placeholder_mode,
         })
+    }
+
+    /// Creates a module for metadata images without StaticOutputAsset (dev mode only).
+    ///
+    /// Unlike `create_module`, this does not create a `StaticUrlJsModule` which would
+    /// write the image to `/_next/static/media/`. Instead, it generates a module that
+    /// exports `{ src: "hash.ext", width, height }` where `src` is just a content hash
+    /// used for cache-busting query params.
+    ///
+    /// The actual image is served directly from the app/ directory via the route handler.
+    #[turbo_tasks::function]
+    pub(crate) fn create_metadata_module(
+        source: ResolvedVc<Box<dyn Source>>,
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+    ) -> Vc<Box<dyn Module>> {
+        module_asset_context
+            .process(
+                Vc::upcast(MetadataStaticImageSource { image: source }.cell()),
+                ReferenceType::Internal(ResolvedVc::cell(Default::default())),
+            )
+            .module()
     }
 }
 

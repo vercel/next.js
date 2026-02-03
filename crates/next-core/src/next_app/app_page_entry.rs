@@ -18,6 +18,7 @@ use turbopack_ecmascript::runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE}
 use crate::{
     app_page_loader_tree::AppPageLoaderTreeModule,
     app_structure::AppPageLoaderTree,
+    mode::NextMode,
     next_app::{AppPage, AppPath, app_entry::AppEntry},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
@@ -35,6 +36,7 @@ pub async fn get_app_page_entry(
     page: AppPage,
     project_root: FileSystemPath,
     next_config: Vc<NextConfig>,
+    mode: NextMode,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
@@ -53,6 +55,7 @@ pub async fn get_app_page_entry(
         module_asset_context,
         server_component_transition,
         base_path,
+        mode,
     )
     .await?;
 

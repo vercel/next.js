@@ -1112,6 +1112,7 @@ impl AppEndpoint {
             self.page.clone(),
             self.app_project.project().project_path().owned().await?,
             self.app_project.project().next_config(),
+            *self.app_project.project().next_mode().await?,
         ))
     }
 
