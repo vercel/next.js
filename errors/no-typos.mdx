@@ -1,0 +1,54 @@
+---
+title: No typos in Next.js data fetching functions
+---
+
+> Prevent common typos in Next.js data fetching functions.
+
+## Why This Error Occurred
+
+A possible typo was detected in a Next.js data fetching function name. This rule checks for typos in:
+
+- `getStaticProps`
+- `getStaticPaths`
+- `getServerSideProps`
+
+Typos in these function names will cause them to not be recognized by Next.js, resulting in unexpected behavior where your data fetching logic won't execute.
+
+## Possible Ways to Fix It
+
+Check the spelling of your exported function and make sure it matches one of the Next.js data fetching functions exactly.
+
+**Before:**
+
+```jsx filename="pages/index.js"
+// Typo: "getStaticProp" instead of "getStaticProps"
+export async function getStaticProp() {
+  return {
+    props: {},
+  }
+}
+```
+
+**After:**
+
+```jsx filename="pages/index.js"
+// Correct spelling
+export async function getStaticProps() {
+  return {
+    props: {},
+  }
+}
+```
+
+### Common Typos
+
+- `getStaticProp` → `getStaticProps`
+- `getStaticPath` → `getStaticPaths`
+- `getServerSideProp` → `getServerSideProps`
+- `getServerSideProps` with incorrect casing
+
+## Useful Links
+
+- [getStaticProps Documentation](/docs/pages/building-your-application/data-fetching/get-static-props)
+- [getStaticPaths Documentation](/docs/pages/building-your-application/data-fetching/get-static-paths)
+- [getServerSideProps Documentation](/docs/pages/building-your-application/data-fetching/get-server-side-props)
