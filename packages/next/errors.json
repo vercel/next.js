@@ -989,5 +989,7 @@
   "988": "Invalid \\`deploymentId\\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters",
   "989": "A required parameter (%s) contains a non-string value in the array. All values must be strings, received %s (%s) in getStaticPaths for %s",
   "990": "A path segment must be a string, received %s (%s). This typically happens when a non-string value is passed to getStaticPaths. Make sure all path parameters are strings.",
-  "991": "A required parameter (%s) contains a non-string value in the array. All values must be strings, received %s (%s) in generateStaticParams for %s"
+  "991": "A required parameter (%s) contains a non-string value in the array. All values must be strings, received %s (%s) in generateStaticParams for %s",
+  "992": "A required parameter (%s) contains non-string values in the array. All values must be strings, received: %s in getStaticPaths for %s",
+  "993": "A required parameter (%s) contains non-string values in the array. All values must be strings, received: %s in generateStaticParams for %s"
 }

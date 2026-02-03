@@ -376,13 +376,13 @@ function validateParams(
         }
 
         // Ensure all array elements are strings
-        const invalidElement = paramValue.find(
+        const invalidElements = paramValue.filter(
           (element) => typeof element !== 'string'
         )
-        if (invalidElement !== undefined) {
+        if (invalidElements.length > 0) {
           throw new Error(
-            `A required parameter (${key}) contains a non-string value in the array. ` +
-              `All values must be strings, received ${typeof invalidElement} (${JSON.stringify(invalidElement)}) in generateStaticParams for ${page}`
+            `A required parameter (${key}) contains non-string values in the array. ` +
+              `All values must be strings, received: ${invalidElements.map((el) => `${typeof el} (${JSON.stringify(el)})`).join(', ')} in generateStaticParams for ${page}`
           )
         }
       } else {
