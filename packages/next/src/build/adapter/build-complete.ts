@@ -33,7 +33,7 @@ import type {
 } from '..'
 
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
   NEXT_RESUME_HEADER,
@@ -2012,7 +2012,7 @@ export async function handleBuildComplete({
               // Next.js assets contain a hash or entropy in their filenames, so they
               // are guaranteed to be unique and cacheable indefinitely.
               headers: {
-                'cache-control': `public,max-age=${CACHE_ONE_YEAR},immutable`,
+                'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
               },
             },
           ],

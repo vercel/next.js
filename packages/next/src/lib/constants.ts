@@ -37,7 +37,7 @@ export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
 
 // in seconds
-export const CACHE_ONE_YEAR = 31536000
+export const CACHE_ONE_YEAR_SECONDS = 31536000
 
 // in seconds, represents revalidate=false. I.e. never revaliate.
 // We use this value since it can be represented as a V8 SMI for optimal performance.

@@ -1,6 +1,6 @@
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
-import { CACHE_ONE_YEAR } from '../../../lib/constants'
+import { CACHE_ONE_YEAR_SECONDS } from '../../../lib/constants'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
 import {
   workAsyncStorage,
@@ -45,7 +45,8 @@ async function cacheNewResult<T>(
         status: 200,
         url: '',
       } satisfies CachedFetchData,
-      revalidate: typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate,
+      revalidate:
+        typeof revalidate !== 'number' ? CACHE_ONE_YEAR_SECONDS : revalidate,
     },
     { fetchCache: true, tags, fetchIdx, fetchUrl }
   )

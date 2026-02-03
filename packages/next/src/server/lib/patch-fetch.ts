@@ -6,7 +6,7 @@ import type {
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
   NEXT_CACHE_TAG_MAX_ITEMS,
   NEXT_CACHE_TAG_MAX_LENGTH,
@@ -846,7 +846,7 @@ export function createPatchedFetcher(
               ) {
                 const normalizedRevalidate =
                   finalRevalidate >= INFINITE_CACHE
-                    ? CACHE_ONE_YEAR
+                    ? CACHE_ONE_YEAR_SECONDS
                     : finalRevalidate
 
                 const incrementalCacheConfig:
