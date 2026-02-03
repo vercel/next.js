@@ -278,6 +278,7 @@
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
+      "app-dir action handling should error if server action arguments list is too long",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle action correctly with middleware rewrite",
@@ -412,6 +413,7 @@
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
+      "app-dir action handling should error if server action arguments list is too long",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle action correctly with middleware rewrite",
@@ -1961,6 +1963,7 @@
       "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
       "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
       "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Cache Components Errors Build With --prerender-debug IO accessed in Client Components should error the build if IO is accessed in a Client Component",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes microtasky cache should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes slow cache should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with revalidate: 0 microtasky cache should error the build",
@@ -2007,6 +2010,7 @@
       "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
       "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
       "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Cache Components Errors Build Without --prerender-debug IO accessed in Client Components should error the build if IO is accessed in a Client Component",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes microtasky cache should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes slow cache should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` cacheLife with revalidate: 0 microtasky cache should error the build",
@@ -2305,6 +2309,15 @@
       "esm-client-module-without-exports \"type\": \"commonjs\" in package.json should render without errors: require cjs",
       "esm-client-module-without-exports \"type\": \"module\" in package.json should render without errors: import esm",
       "esm-client-module-without-exports \"type\": \"module\" in package.json should render without errors: require esm"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/client-reference-chunking/client-reference-chunking.test.ts": {
+    "passed": [
+      "client-reference-chunking should use the same chunks for client references across routes"
     ],
     "failed": [],
     "pending": [],
@@ -3079,6 +3092,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/gesture-transitions/gesture-transitions.test.ts": {
+    "passed": [
+      "gesture-transitions shows optimistic state during gesture, then canonical state after"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/global-error/basic/index.test.ts": {
     "passed": [
       "app dir - global-error should catch metadata error in error boundary if presented",
@@ -3536,6 +3558,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/mdx-font-preload/mdx-font-preload.test.ts": {
+    "passed": [
+      "mdx-font-preload should apply font class from layout",
+      "mdx-font-preload should preload font from layout on MDX page",
+      "mdx-font-preload should render MDX page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/mdx-no-mdx-components/mdx.test.ts": {
     "passed": [
       "mdx app directory should allow importing client components",
@@ -3907,6 +3940,7 @@
       "app dir - metadata missing metadataBase should not show warning in vercel deployment output in default build output mode",
       "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
       "app dir - metadata missing metadataBase should not warn metadataBase is missing and a relative URL is used",
+      "app dir - metadata missing metadataBase should warn for deprecated fields in other property",
       "app dir - metadata missing metadataBase should warn for unsupported metadata properties"
     ],
     "failed": [],
@@ -4988,6 +5022,7 @@
       "app dir - next-image image content should render images on /client route",
       "app dir - next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route",
       "app dir - next-image image content should render legacy images under /legacy route",
+      "app dir - next-image ssr content should handle HEAD requests for uncached images",
       "app dir - next-image ssr content should render images nested under page dir on /nested route",
       "app dir - next-image ssr content should render images on / route",
       "app dir - next-image ssr content should render images on /client route"
@@ -5058,6 +5093,15 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/node-worker-threads/node-worker-threads.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "node-worker-threads webpack doesnt support bundling worker-threads"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -5195,6 +5239,22 @@
       "nx-handling should work for pages page",
       "nx-handling should work with app page",
       "nx-handling should work with app route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/optimistic-routing/optimistic-routing.test.ts": {
+    "passed": [
+      "optimistic-routing basic dynamic route prediction: shows loading state instantly for unprefetched route",
+      "optimistic-routing nested dynamic routes: predicts through multiple dynamic segments",
+      "optimistic-routing optional catch-all: predicts between paths with different segment counts",
+      "optimistic-routing optional catch-all: predicts from index to path with segments",
+      "optimistic-routing required catch-all: predicts between paths with different segment counts",
+      "optimistic-routing rewrite detection (search params): does not use cached pattern when search params cause different rewrite",
+      "optimistic-routing rewrite detection: detects dynamic rewrite when URL does not match route structure",
+      "optimistic-routing static sibling detection: does not incorrectly match static route to dynamic pattern"
     ],
     "failed": [],
     "pending": [],
@@ -5929,6 +5989,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/ppr-root-param-fallback/ppr-root-param-fallback.test.ts": {
+    "passed": [
+      "ppr-root-param-fallback should have use-cache content in fallback shells for all pregenerated locales"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr-unstable-cache/ppr-unstable-cache.test.ts": {
     "passed": ["ppr-unstable-cache should not cache inner fetch calls"],
     "failed": [],
@@ -6164,6 +6233,16 @@
       "app-dir revalidate-dynamic should correctly mark a route handler that uses revalidateTag as dynamic",
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-path",
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-tag"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/revalidate-path-with-rewrites/revalidate-path-with-rewrites.test.ts": {
+    "passed": [
+      "revalidatePath with rewrites dynamic page should revalidate a dynamic page that was rewritten",
+      "revalidatePath with rewrites static page should revalidate a static page that was rewritten"
     ],
     "failed": [],
     "pending": [],
@@ -6937,8 +7016,10 @@
   },
   "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
     "passed": [
-      "segment cache (deployment skew) does not crash when prefetching a dynamic, non-PPR page on a different deployment",
-      "segment cache (deployment skew) does not crash when prefetching a static page on a different deployment"
+      "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
+      "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a static page on a different deployment",
+      "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
+      "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a static page on a different deployment"
     ],
     "failed": [],
     "pending": [],
@@ -6967,6 +7048,7 @@
   },
   "test/e2e/app-dir/segment-cache/force-stale/force-stale.test.ts": {
     "passed": [
+      "force stale during a \"full\" prefetch, read from bfcache before issuing new prefetch request",
       "force stale during a navigation, don't request segments that have a pending \"full\" prefetch already in progress"
     ],
     "failed": [],
@@ -7154,6 +7236,23 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/vary-params/vary-params.test.ts": {
+    "passed": [
+      "segment cache - vary params caches head segment when generateMetadata does not access params",
+      "segment cache - vary params does not reuse prefetched segment when page accesses searchParams",
+      "segment cache - vary params renders cached loading state instantly during navigation",
+      "segment cache - vary params reuses page segment when layout varies but page does not",
+      "segment cache - vary params reuses prefetched segment when page does not access searchParams",
+      "segment cache - vary params tracks param access in generateMetadata",
+      "segment cache - vary params tracks root param access via rootParams API"
+    ],
+    "failed": [],
+    "pending": [
+      "segment cache - vary params renders cached loading state instantly with runtime prefetching"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/self-importing-package-monorepo/self-importing-package-monorepo.test.ts": {
     "passed": [
       "self-importing-package-monorepo should resolve self-imports inside a monorepo"
@@ -7166,6 +7265,15 @@
   "test/e2e/app-dir/self-importing-package/self-importing-package.test.ts": {
     "passed": [
       "self-importing-package should resolve self-imports in an external package"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/server-action-logging/server-action-logging.test.ts": {
+    "passed": [
+      "server-action-logging should not log server actions in production mode"
     ],
     "failed": [],
     "pending": [],
@@ -7301,10 +7409,35 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/static-rsc-cache-components/static-rsc-cache-components.test.ts": {
+    "passed": [
+      "static-rsc-cache-components navigates to prerendered route without waiting for dynamic render"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
     "passed": [],
     "failed": [],
     "pending": ["static-shell-debugging should render the full page"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/static-siblings/static-siblings.test.ts": {
+    "passed": [
+      "static-siblings cross-route-group siblings should include static sibling info in the server response",
+      "static-siblings cross-route-group siblings should navigate to static sibling after visiting dynamic route",
+      "static-siblings deeply nested siblings should include static sibling info in the server response",
+      "static-siblings deeply nested siblings should navigate to static sibling after visiting dynamic route",
+      "static-siblings parallel route siblings should include static sibling info in the server response",
+      "static-siblings parallel route siblings should navigate to static sibling after visiting dynamic route",
+      "static-siblings same-directory siblings should include static sibling info in the server response",
+      "static-siblings same-directory siblings should navigate to static sibling after visiting dynamic route"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7410,7 +7543,9 @@
       "app-dir trailingSlash handling should redirect route when clicking link",
       "app-dir trailingSlash handling should redirect route when requesting it directly",
       "app-dir trailingSlash handling should redirect route when requesting it directly by browser",
-      "app-dir trailingSlash handling should render link with trailing slash"
+      "app-dir trailingSlash handling should render link with trailing slash",
+      "app-dir trailingSlash handling should revalidate a page with generated static params (withSlash=false)",
+      "app-dir trailingSlash handling should revalidate a page with generated static params (withSlash=true)"
     ],
     "failed": [],
     "pending": [],
@@ -7422,6 +7557,17 @@
       "transition-indicator displays during any Transition that does not commit a pending state",
       "transition-indicator displays while loading content without fallback",
       "transition-indicator does not display while loading content with fallback"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/turbopack-loader-content-type/turbopack-loader-content-type.test.ts": {
+    "passed": [
+      "turbopack-loader-content-type should apply loader based on contentType for text/javascript",
+      "turbopack-loader-content-type should apply loader based on contentType glob pattern",
+      "turbopack-loader-content-type should apply loader based on contentType regex"
     ],
     "failed": [],
     "pending": [],
@@ -7815,6 +7961,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-module-type/webpack-loader-module-type.test.ts": {
+    "passed": [
+      "webpack-loader-module-type should load svg as asset/resource and return URL"
+    ],
+    "failed": [],
+    "pending": [
+      "webpack-loader-module-type should load data file as bytes and return Uint8Array"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-resolve/webpack-loader-resolve.test.ts": {
     "passed": [
       "webpack-loader-resolve should support resolving absolute path via loader getResolve"
@@ -7824,8 +7981,12 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/webpack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
-    "passed": ["webpack-loader-resource-query should pass query to loader"],
+  "test/e2e/app-dir/webpack-loader-resource-query/webpack-loader-resource-query.test.js": {
+    "passed": [
+      "webpack-loader-resource-query should apply loader based on resourceQuery",
+      "webpack-loader-resource-query should apply loader based on resourceQuery regex",
+      "webpack-loader-resource-query should pass query to loader"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -7870,8 +8031,11 @@
   },
   "test/e2e/app-dir/worker/worker.test.ts": {
     "passed": [
+      "app dir - workers should have access to NEXT_DEPLOYMENT_ID in web worker",
       "app dir - workers should not bundle web workers with string specifiers",
+      "app dir - workers should support loading WASM files in workers",
       "app dir - workers should support module web workers with dynamic imports",
+      "app dir - workers should support shared workers",
       "app dir - workers should support web workers with dynamic imports"
     ],
     "failed": [],
@@ -10304,6 +10468,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/postcss-config-ts/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "postcss-config-ts .postcssrc.ts works with .postcssrc.ts files",
+      "postcss-config-ts postcss.config.cts works with postcss.config.cts files",
+      "postcss-config-ts postcss.config.mts works with postcss.config.mts files",
+      "postcss-config-ts postcss.config.ts works with postcss.config.ts files"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/prerender-crawler.test.ts": {
     "passed": [
       "Prerender crawler handling should block for crawler correctly",
@@ -10951,6 +11127,27 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/url-deployment-id/url-deployment-id.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "URL asset references with deploymentId API route should return import src with dpl query",
+      "URL asset references with deploymentId API route should return new URL with dpl query",
+      "URL asset references with deploymentId dynamic RSC page (headers) should include dpl query in dynamic RSC page",
+      "URL asset references with deploymentId dynamic RSC page (headers) should include dpl query in new URL pattern",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query after hydration",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query in dynamic client page",
+      "URL asset references with deploymentId dynamic client page (headers in layout) should include dpl query in new URL pattern",
+      "URL asset references with deploymentId import src attribute should include dpl query in RSC page",
+      "URL asset references with deploymentId import src attribute should include dpl query in client page",
+      "URL asset references with deploymentId import src attribute should include dpl query in client page (after hydration)",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in RSC page",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in client page",
+      "URL asset references with deploymentId new URL() pattern should include dpl query in client page (after hydration)"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/url-imports/url-imports.test.ts": {
     "passed": [
       "Handle url imports should allow url import in css",
@@ -11165,6 +11362,7 @@
       "404 Page Support production mode should output 404.html during build",
       "404 Page Support production mode should render _error for a 500 error still",
       "404 Page Support production mode should set correct status code with pages/404",
+      "404 Page Support production mode should still output 404.js anyway",
       "404 Page Support production mode should use pages/404",
       "404 Page Support production mode should use pages/404 for .d.ts file",
       "404 Page Support production mode shows error with getInitialProps in pages/404 build",
@@ -11704,6 +11902,7 @@
       "CLI Usage production mode build should not throw UnhandledPromiseRejectionWarning",
       "CLI Usage production mode build should warn when unknown argument provided",
       "CLI Usage production mode start --help",
+      "CLI Usage production mode start --inspect",
       "CLI Usage production mode start --keepAliveTimeout Infinity",
       "CLI Usage production mode start --keepAliveTimeout happy path",
       "CLI Usage production mode start --keepAliveTimeout negative number",
@@ -12002,6 +12201,8 @@
   },
   "test/integration/create-next-app/package-manager/pnpm.test.ts": {
     "passed": [
+      "create-next-app with package manager pnpm should NOT create pnpm-workspace.yaml for pnpm v9",
+      "create-next-app with package manager pnpm should create pnpm-workspace.yaml for pnpm v10+",
       "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag",
       "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag with example",
       "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm",
@@ -19947,12 +20148,15 @@
   },
   "test/integration/ssg-data-404/test/index.test.ts": {
     "passed": [
-      "SSG data 404 production mode should hard navigate when a new deployment occurs"
+      "SSG data 404 - hard navigate when a new deployment occurs development mode gsp to gssp",
+      "SSG data 404 - hard navigate when a new deployment occurs development mode index to gsp",
+      "SSG data 404 - hard navigate when a new deployment occurs production mode with build id gsp to gssp",
+      "SSG data 404 - hard navigate when a new deployment occurs production mode with build id index to gsp",
+      "SSG data 404 - hard navigate when a new deployment occurs production mode with deployment id gsp to gssp",
+      "SSG data 404 - hard navigate when a new deployment occurs production mode with deployment id index to gsp"
     ],
     "failed": [],
-    "pending": [
-      "SSG data 404 development mode should hard navigate when a new deployment occurs"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -20012,8 +20216,6 @@
       "config telemetry production mode emits telemetry for enabled React Compiler",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
       "config telemetry production mode emits telemetry for filesystem cache in dev mode",
-      "config telemetry production mode emits telemetry for isolatedDevBuild disabled",
-      "config telemetry production mode emits telemetry for isolatedDevBuild enabled by default",
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
@@ -20183,11 +20385,12 @@
   },
   "test/integration/typescript-app-type-declarations/test/index.test.ts": {
     "passed": [
-      "TypeScript App Type Declarations should not touch an existing correct next-env.d.ts",
+      "TypeScript App Type Declarations should not touch an existing correct next-env.d.ts"
+    ],
+    "failed": [
       "TypeScript App Type Declarations should overwrite next-env.d.ts if an incorrect one exists",
       "TypeScript App Type Declarations should write a new next-env.d.ts if none exist"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20854,6 +21057,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/metadata-spread-types/metadata-spread-types.test.ts": {
+    "passed": [
+      "metadata spread types should allow spreading entire resolved parent metadata",
+      "metadata spread types should allow spreading resolved parent metadata into child metadata"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/metadata-static-route-cache/metadata-static-route-cache.test.ts": {
     "passed": [
       "app dir - metadata static routes cache should generate different content after replace the static metadata file"
@@ -20983,6 +21196,20 @@
   "test/production/app-dir/revalidate/revalidate.test.ts": {
     "passed": [
       "app-dir revalidate should be able to revalidate the cache via pages/api"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/route-handler-manifest-size/route-handler-manifest-size.test.ts": {
+    "passed": [
+      "route-handler-manifest-size should have significantly smaller manifest for pure route handler compared to page",
+      "route-handler-manifest-size should include page client components in page manifest",
+      "route-handler-manifest-size should not include page client components in pure route handler manifest",
+      "route-handler-manifest-size should not include page components in route handler that imports client module",
+      "route-handler-manifest-size should render page with client components",
+      "route-handler-manifest-size should respond correctly from pure route handler"
     ],
     "failed": [],
     "pending": [],
@@ -21156,6 +21383,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/build-tracing-message/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "build-tracing-message should warn when tracing all files in the project"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/bundle-size/bundle-size.test.ts": {
     "passed": [
       "bundle-size should not load too much: App Router: adding a client component",
@@ -21251,15 +21487,22 @@
   },
   "test/production/debug-build-path/debug-build-paths.test.ts": {
     "passed": [
-      "debug-build-paths explicit path formats should build dynamic route with literal [slug] path",
-      "debug-build-paths explicit path formats should build multiple pages routes",
-      "debug-build-paths explicit path formats should build single page with pages/ prefix",
-      "debug-build-paths glob pattern matching should match app and pages routes with glob patterns",
-      "debug-build-paths glob pattern matching should match hybrid pattern with literal [slug] and glob **",
-      "debug-build-paths glob pattern matching should match multiple app routes with explicit patterns",
-      "debug-build-paths glob pattern matching should match nested routes with app/blog/**/page.tsx pattern",
-      "debug-build-paths typechecking with debug-build-paths should fail typechecking when route with type error is included",
-      "debug-build-paths typechecking with debug-build-paths should skip typechecking for excluded app routes"
+      "debug-build-paths default fixture explicit path formats should build dynamic route with literal [slug] path",
+      "debug-build-paths default fixture explicit path formats should build multiple pages routes",
+      "debug-build-paths default fixture explicit path formats should build single page with pages/ prefix",
+      "debug-build-paths default fixture glob pattern matching should build everything except excluded paths when only negation patterns are provided",
+      "debug-build-paths default fixture glob pattern matching should exclude dynamic route paths with negation",
+      "debug-build-paths default fixture glob pattern matching should exclude paths matching negation patterns",
+      "debug-build-paths default fixture glob pattern matching should match app and pages routes with glob patterns",
+      "debug-build-paths default fixture glob pattern matching should match dynamic routes with glob before brackets like app/**/[slug]/page.tsx",
+      "debug-build-paths default fixture glob pattern matching should match hybrid pattern with literal [slug] and glob **",
+      "debug-build-paths default fixture glob pattern matching should match multiple app routes with explicit patterns",
+      "debug-build-paths default fixture glob pattern matching should match nested routes with app/blog/**/page.tsx pattern",
+      "debug-build-paths default fixture glob pattern matching should support multiple negation patterns",
+      "debug-build-paths default fixture typechecking with debug-build-paths should fail typechecking when route with type error is included",
+      "debug-build-paths default fixture typechecking with debug-build-paths should skip typechecking for excluded app routes",
+      "debug-build-paths with-compile-error fixture should fail compilation when route with compile error is included",
+      "debug-build-paths with-compile-error fixture should skip compilation of excluded routes with compile errors"
     ],
     "failed": [],
     "pending": [],
@@ -21302,6 +21545,13 @@
       "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
       "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should contain deployment id in prefetch request",
       "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should have deployment id env available",
+      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should append dpl query to all assets correctly for /",
+      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should append dpl query to all assets correctly for /from-app",
+      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should append dpl query to all assets correctly for /from-app/edge",
+      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should append dpl query to all assets correctly for /pages-edge",
+      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should contain deployment id in RSC payload request headers",
+      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should contain deployment id in prefetch request",
+      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should have deployment id env available",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
@@ -21325,11 +21575,11 @@
     "runtimeError": false
   },
   "test/production/deterministic-build/no-change.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "deterministic build - no-change build should have same md5 file across build"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -21981,7 +22231,9 @@
   },
   "test/production/standalone-mode/required-server-files/required-server-files-app.test.ts": {
     "passed": [
+      "required server files app router should de-dupe HTML/RSC requests for ISR pages",
       "required server files app router should handle optional catchall",
+      "required server files app router should isolate cache between different ISR request groups",
       "required server files app router should not fail caching",
       "required server files app router should not override params with query params",
       "required server files app router should not send cache tags in minimal mode for SSR",
@@ -22043,7 +22295,6 @@
       "required server files should bubble error correctly for gip page",
       "required server files should bubble error correctly for gsp page",
       "required server files should bubble error correctly for gssp page",
-      "required server files should cap de-dupe previousCacheItem expires time",
       "required server files should correctly handle a mismatch in buildIds when normalizing next data",
       "required server files should de-dupe HTML/data requests",
       "required server files should favor valid route params over routes-matches",
@@ -22127,7 +22378,6 @@
       "required server files should bubble error correctly for gip page",
       "required server files should bubble error correctly for gsp page",
       "required server files should bubble error correctly for gssp page",
-      "required server files should cap de-dupe previousCacheItem expires time",
       "required server files should correctly handle a mismatch in buildIds when normalizing next data",
       "required server files should de-dupe HTML/data requests",
       "required server files should favor valid route params over routes-matches",

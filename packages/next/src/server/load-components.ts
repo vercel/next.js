@@ -146,7 +146,7 @@ async function tryLoadClientReferenceManifest(
   manifestPath: string,
   entryName: string,
   attempts?: number
-) {
+): Promise<DeepReadonly<ClientReferenceManifest> | undefined> {
   try {
     const context = await evalManifestWithRetries<{
       __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }

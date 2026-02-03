@@ -17,7 +17,7 @@ const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.3";
+const nextjsReactPeerVersion = "19.2.4";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -113,13 +113,14 @@ const mockTrace = () => ({
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
+/** @type {Map<string, { output: string, failedCases: string[] }>} */
 const errorsPerTests = new Map()
 
 async function maybeLogSummary() {
   if (process.env.CI && errorsPerTests.size > 0) {
     const outputTemplate = `
 ${Array.from(errorsPerTests.entries())
-  .map(([test, output]) => {
+  .map(([test, { output }]) => {
     return `
 <details>
 <summary>${test}</summary>
@@ -133,20 +134,27 @@ ${output}
   })
   .join('\n')}`
 
+    // Build table rows with one row per failed test case
+    const tableRows = []
+    for (const [test, { failedCases }] of errorsPerTests.entries()) {
+      const testLink = `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`
+      if (failedCases.length === 0) {
+        tableRows.push(['Unknown', testLink])
+      } else {
+        for (const caseName of failedCases) {
+          tableRows.push([caseName, testLink])
+        }
+      }
+    }
+
     await core.summary
       .addHeading('Tests failures')
       .addTable([
         [
-          {
-            data: 'Test suite',
-            header: true,
-          },
+          { data: 'Test Name', header: true },
+          { data: 'Test Path', header: true },
         ],
-        ...Array.from(errorsPerTests.entries()).map(([test]) => {
-          return [
-            `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
-          ]
-        }),
+        ...tableRows,
       ])
       .addRaw(outputTemplate)
       .write()
@@ -608,7 +616,7 @@ ${ENDGROUP}`)
             }
 
             if (process.env.CI) {
-              errorsPerTests.set(test.file, output)
+              errorsPerTests.set(test.file, { output, failedCases: [] })
             }
 
             if (isExpanded) {
@@ -695,14 +703,37 @@ ${ENDGROUP}`)
       console.error(`${test.file} failed to pass within ${numRetries} retries`)
     }
 
-    // Emit test output, parsed by the commenter webhook to notify about failing tests
-    if (!passed && isTestJob) {
+    // Emit test output, parsed by the commenter webhook to notify about failing tests.
+    // Also emit for all tests when NEXT_TEST_EMIT_ALL_OUTPUT is set (for manifest generation).
+    if ((!passed || process.env.NEXT_TEST_EMIT_ALL_OUTPUT) && isTestJob) {
       try {
         const testsOutput = await fsp.readFile(
           `${test.file}${RESULTS_EXT}`,
           'utf8'
         )
         const obj = JSON.parse(testsOutput)
+
+        // Extract failed test case names from Jest JSON output
+        if (!passed && process.env.CI) {
+          const failedCases = []
+          for (const testResult of obj.testResults || []) {
+            for (const assertion of testResult.assertionResults || []) {
+              if (assertion.status === 'failed') {
+                const caseName = [
+                  ...(assertion.ancestorTitles || []),
+                  assertion.title,
+                ].join(' > ')
+                failedCases.push(caseName)
+              }
+            }
+          }
+          // Update errorsPerTests with failed case names
+          const existing = errorsPerTests.get(test.file)
+          if (existing) {
+            existing.failedCases = failedCases
+          }
+        }
+
         obj.processEnv = {
           NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
           HEADLESS: process.env.HEADLESS,

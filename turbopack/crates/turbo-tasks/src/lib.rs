@@ -48,13 +48,13 @@ pub mod debug;
 mod display;
 pub mod duration_span;
 mod effect;
+mod error;
 pub mod event;
 pub mod graph;
 mod id;
 mod id_factory;
 mod invalidation;
 mod join_iter_ext;
-mod key_value_pair;
 pub mod keyed;
 #[doc(hidden)]
 pub mod macro_helpers;
@@ -104,13 +104,13 @@ pub use crate::{
     completion::{Completion, Completions},
     display::ValueToString,
     effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects},
+    error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
     invalidation::{
         InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
         get_invalidator,
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
-    key_value_pair::KeyValuePair,
     magic_any::MagicAny,
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,

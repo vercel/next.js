@@ -53,13 +53,9 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       next = await createNext({
         files: {
           pages: new FileRef(join(__dirname, 'fixtures/pages')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
+          'next.config.js': new FileRef(
+            join(__dirname, 'fixtures/next.config.js')
+          ),
         },
       })
     })
@@ -162,13 +158,9 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       next = await createNext({
         files: {
           app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
+          'next.config.js': new FileRef(
+            join(__dirname, 'fixtures/next.config.js')
+          ),
         },
       })
     })
@@ -226,13 +218,9 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       next = await createNext({
         files: {
           app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
+          'next.config.js': new FileRef(
+            join(__dirname, 'fixtures/next.config.js')
+          ),
         },
       })
     })
@@ -292,13 +280,9 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       next = await createNext({
         files: {
           app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
+          'next.config.js': new FileRef(
+            join(__dirname, 'fixtures/next.config.js')
+          ),
         },
       })
     })
@@ -324,64 +308,6 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       })
 
       await browser.close()
-    })
-  })
-
-  describe('Configuration Options', () => {
-    describe('showSourceLocation disabled', () => {
-      let next: NextInstance
-      let logs: string[] = []
-      let logCapture: ReturnType<typeof setupLogCapture>
-      let browser = null
-
-      beforeAll(async () => {
-        logCapture = setupLogCapture()
-        logs = logCapture.logs
-
-        next = await createNext({
-          files: {
-            pages: new FileRef(join(__dirname, 'fixtures/pages')),
-            'next.config.js': `
-              module.exports = {
-                experimental: {
-                  browserDebugInfoInTerminal: {
-                    showSourceLocation: false
-                  }
-                }
-              }
-            `,
-          },
-        })
-      })
-
-      afterAll(async () => {
-        logCapture.restore()
-        await next.destroy()
-      })
-
-      beforeEach(() => {
-        logCapture.clearLogs()
-      })
-
-      afterEach(async () => {
-        if (browser) {
-          await browser.close()
-          browser = null
-        }
-      })
-
-      it('should omit source location when disabled', async () => {
-        browser = await webdriver(next.url, '/basic-logs')
-
-        await browser.waitForElementByCss('#log-button')
-        await browser.elementByCss('#log-button').click()
-
-        await retry(() => {
-          const logOutput = logs.join('')
-          expect(logOutput).toContain('[browser] Hello from browser')
-          expect(logOutput).not.toMatch(/\([^)]+basic-logs\.[jt]sx?:\d+:\d+\)/)
-        })
-      })
     })
   })
 })

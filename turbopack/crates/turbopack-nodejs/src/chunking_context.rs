@@ -6,9 +6,9 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
-        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets,
+        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -57,6 +57,16 @@ impl NodeJsChunkingContextBuilder {
 
     pub fn client_roots_override(mut self, tag: RcStr, path: FileSystemPath) -> Self {
         self.chunking_context.client_roots.insert(tag, path);
+        self
+    }
+
+    pub fn url_behavior_override(mut self, tag: RcStr, behavior: UrlBehavior) -> Self {
+        self.chunking_context.url_behaviors.insert(tag, behavior);
+        self
+    }
+
+    pub fn default_url_behavior(mut self, behavior: UrlBehavior) -> Self {
+        self.chunking_context.default_url_behavior = Some(behavior);
         self
     }
 
@@ -172,6 +182,11 @@ pub struct NodeJsChunkingContext {
     /// Static assets requested from this url base
     #[bincode(with = "turbo_bincode::indexmap")]
     asset_prefixes: FxIndexMap<RcStr, RcStr>,
+    /// URL behavior overrides for different tags.
+    #[bincode(with = "turbo_bincode::indexmap")]
+    url_behaviors: FxIndexMap<RcStr, UrlBehavior>,
+    /// Default URL behavior when no tag-specific override is found.
+    default_url_behavior: Option<UrlBehavior>,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -228,6 +243,8 @@ impl NodeJsChunkingContext {
                 asset_root_paths: Default::default(),
                 asset_prefix: None,
                 asset_prefixes: Default::default(),
+                url_behaviors: Default::default(),
+                default_url_behavior: None,
                 enable_file_tracing: false,
                 enable_nested_async_availability: false,
                 enable_module_merging: false,
@@ -451,6 +468,18 @@ impl ChunkingContext for NodeJsChunkingContext {
             .unwrap_or(&self.asset_root_path);
 
         Ok(asset_root_path.join(&asset_path)?.cell())
+    }
+
+    #[turbo_tasks::function]
+    fn url_behavior(&self, tag: Option<RcStr>) -> Vc<UrlBehavior> {
+        tag.as_ref()
+            .and_then(|tag| self.url_behaviors.get(tag))
+            .cloned()
+            .or_else(|| self.default_url_behavior.clone())
+            .unwrap_or(UrlBehavior {
+                suffix: AssetSuffix::Inferred,
+            })
+            .cell()
     }
 
     #[turbo_tasks::function]

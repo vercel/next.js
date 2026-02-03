@@ -3,17 +3,19 @@ use std::io::Write;
 use anyhow::{Result, bail};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
+        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegmentRef, DefinableNameSegmentRefs,
+        FreeVarReference,
     },
     context::AssetContext,
     ident::AssetIdent,
@@ -100,14 +102,6 @@ impl Module for RawEcmascriptModule {
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::SideEffectful.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for RawEcmascriptModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
@@ -201,12 +195,7 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
 
             let mut code = CodeBuilder::default();
             if !env_vars.is_empty() {
-                let replacements = module
-                    .compile_time_info
-                    .await?
-                    .free_var_references
-                    .individual()
-                    .await?;
+                let replacements = module.compile_time_info.await?.free_var_references;
                 code += "var process = {env:\n";
                 writeln!(
                     code,
@@ -217,20 +206,14 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
                             .map(async |name| {
                                 Ok((
                                     name,
-                                    if let Some(value) =
-                                        replacements.get(&DefinableNameSegment::Name(name.into()))
-                                        && let Some((_, value)) =
-                                            value.0.iter().find(|(path, _)| {
-                                                matches!(
-                                                    path.as_slice(),
-                                                    [
-                                                        DefinableNameSegment::Name(a),
-                                                        DefinableNameSegment::Name(b)
-                                                    ] if a == "process" && b == "env"
-                                                )
-                                            })
+                                    if let Some(value) = replacements
+                                        .get(&DefinableNameSegmentRefs(smallvec![
+                                            DefinableNameSegmentRef::Name("process"),
+                                            DefinableNameSegmentRef::Name("env"),
+                                            DefinableNameSegmentRef::Name(name),
+                                        ]))
+                                        .await?
                                     {
-                                        let value = value.await?;
                                         let value = match &*value {
                                             FreeVarReference::Value(
                                                 CompileTimeDefineValue::String(value),

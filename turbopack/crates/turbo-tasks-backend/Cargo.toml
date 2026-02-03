@@ -14,7 +14,7 @@ workspace = true
 
 [features]
 default = []
-print_cache_item_size = []
+print_cache_item_size = ["dep:lzzzz"]
 no_fast_stale = []
 verify_serialization = []
 verify_aggregation_graph = []
@@ -25,6 +25,7 @@ trace_aggregation_update = ["trace_aggregation_update_queue"]
 trace_leaf_distance_update = []
 trace_find_and_schedule = ["trace_aggregation_update_queue"]
 trace_task_completion = []
+trace_task_modification = []
 trace_task_dirty = ["trace_aggregation_update_queue"]
 trace_task_output_dependencies = []
 trace_task_details = []
@@ -42,6 +43,7 @@ either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
 lmdb-rkv = { version = "0.14.0", optional = true }
+lzzzz = { version = "1.1.0", optional = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }
@@ -62,6 +64,7 @@ turbo-tasks = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 futures = { workspace = true }
+indoc = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-malloc = { workspace = true }

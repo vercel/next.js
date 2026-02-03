@@ -523,7 +523,7 @@ jobs:
     secrets: inherit
 
   #[NOTE] currently this only checks building wasi target
-  test-next-swc-napi-wasi:
+  test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
     # TODO: Re-enable this when https://github.com/napi-rs/napi-rs/issues/2009 is addressed.
@@ -539,7 +539,7 @@ jobs:
       afterBuild: |
         rustup target add wasm32-wasip1-threads
         pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi
-      stepName: 'test-next-swc-napi-wasi'
+      stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 
   test-unit:
@@ -625,7 +625,7 @@ jobs:
     secrets: inherit
 
   test-new-tests-dev:
-    name: Test new tests for flakes (dev)
+    name: Test new and changed tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -650,7 +650,7 @@ jobs:
     secrets: inherit
 
   test-new-tests-start:
-    name: Test new tests for flakes (prod)
+    name: Test new and changed tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -674,7 +674,7 @@ jobs:
     secrets: inherit
 
   test-new-tests-deploy:
-    name: Test new tests when deployed
+    name: Test new and changed tests when deployed
     needs:
       ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
     # test-new-tests-if
@@ -700,7 +700,7 @@ jobs:
     secrets: inherit
 
   test-new-tests-deploy-cache-components:
-    name: Test new tests when deployed (cache components)
+    name: Test new and changed tests when deployed (cache components)
     needs:
       [
         'optimize-ci',
@@ -722,7 +722,7 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
         node scripts/test-new-tests.mjs \

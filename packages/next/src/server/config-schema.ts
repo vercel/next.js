@@ -130,14 +130,28 @@ const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.union([
     path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
     content: z.instanceof(RegExp).optional(),
     query: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+    contentType: z.union([z.string(), z.instanceof(RegExp)]).optional(),
   }),
+])
+
+const zTurbopackModuleType = z.enum([
+  'asset',
+  'ecmascript',
+  'typescript',
+  'css',
+  'css-module',
+  'wasm',
+  'raw',
+  'node',
+  'bytes',
 ])
 
 const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> =
   z.strictObject({
-    loaders: z.array(zTurbopackLoaderItem),
+    loaders: z.array(zTurbopackLoaderItem).optional(),
     as: z.string().optional(),
     condition: zTurbopackCondition.optional(),
+    type: zTurbopackModuleType.optional(),
   })
 
 const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection> =
@@ -195,6 +209,8 @@ export const experimentalSchema = {
   caseSensitiveRoutes: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
   dynamicOnHover: z.boolean().optional(),
+  optimisticRouting: z.boolean().optional(),
+  varyParams: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
@@ -246,7 +262,6 @@ export const experimentalSchema = {
   prerenderEarlyExit: z.boolean().optional(),
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),
-  isolatedDevBuild: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
@@ -292,6 +307,7 @@ export const experimentalSchema = {
     ])
     .optional(),
   transitionIndicator: z.boolean().optional(),
+  gestureTransition: z.boolean().optional(),
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
@@ -354,6 +370,8 @@ export const experimentalSchema = {
   hideLogsAfterAbort: z.boolean().optional(),
   runtimeServerDeploymentId: z.boolean().optional(),
   devCacheControlNoCache: z.boolean().optional(),
+  deferredEntries: z.array(z.string()).optional(),
+  onBeforeDeferredEntries: z.function().returns(z.promise(z.void())).optional(),
 }
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
@@ -623,6 +641,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
                 ignore: z.array(z.instanceof(RegExp)),
               }),
             ])
+            .optional(),
+          serverFunctions: z.boolean().optional(),
+          browserToTerminal: z
+            .union([z.boolean(), z.enum(['error', 'warn'])])
             .optional(),
         }),
         z.literal(false),

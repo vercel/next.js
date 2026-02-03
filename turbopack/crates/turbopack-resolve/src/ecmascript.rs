@@ -5,7 +5,8 @@ use turbopack_core::{
     issue::IssueSource,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
-        ModuleResolveResult, ResolveResult, handle_resolve_error, handle_resolve_source_error,
+        ModuleResolveResult, ResolveErrorMode, ResolveResult, handle_resolve_error,
+        handle_resolve_source_error,
         options::{
             ConditionValue, ResolutionConditions, ResolveInPackage, ResolveIntoPackage,
             ResolveOptions,
@@ -90,14 +91,14 @@ pub async fn esm_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: EcmaScriptModulesReferenceSubType,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::EcmaScriptModules(ty);
-    let options = apply_esm_specific_options(origin.resolve_options(ty.clone()), &ty)
+    let options = apply_esm_specific_options(origin.resolve_options(), &ty)
         .resolve()
         .await?;
-    specific_resolve(origin, request, options, ty, is_optional, issue_source).await
+    specific_resolve(origin, request, options, ty, error_mode, issue_source).await
 }
 
 #[turbo_tasks::function]
@@ -106,13 +107,13 @@ pub async fn cjs_resolve(
     request: Vc<Request>,
     ty: CommonJsReferenceSubType,
     issue_source: Option<IssueSource>,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
+    let options = apply_cjs_specific_options(origin.resolve_options())
         .resolve()
         .await?;
-    specific_resolve(origin, request, options, ty, is_optional, issue_source).await
+    specific_resolve(origin, request, options, ty, error_mode, issue_source).await
 }
 
 #[turbo_tasks::function]
@@ -121,10 +122,10 @@ pub async fn cjs_resolve_source(
     request: ResolvedVc<Request>,
     ty: CommonJsReferenceSubType,
     issue_source: Option<IssueSource>,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
 ) -> Result<Vc<ResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
+    let options = apply_cjs_specific_options(origin.resolve_options())
         .resolve()
         .await?;
     let result = resolve(
@@ -140,7 +141,7 @@ pub async fn cjs_resolve_source(
         *origin,
         *request,
         options,
-        is_optional,
+        error_mode,
         issue_source,
     )
     .await
@@ -151,7 +152,7 @@ async fn specific_resolve(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     reference_type: ReferenceType,
-    is_optional: bool,
+    error_mode: ResolveErrorMode,
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let result = origin
@@ -164,7 +165,7 @@ async fn specific_resolve(
         origin,
         request,
         options,
-        is_optional,
+        error_mode,
         issue_source,
     )
     .await

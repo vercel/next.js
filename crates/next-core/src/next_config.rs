@@ -14,8 +14,8 @@ use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
-    ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem, WebpackRules,
-    module_options_context::MdxTransformOptions,
+    ConditionContentType, ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem,
+    WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
     chunk::SourceMapsType,
@@ -710,6 +710,42 @@ impl TryFrom<ConfigConditionQuery> for ConditionQuery {
 }
 
 #[derive(
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ConfigConditionContentType {
+    Glob(RcStr),
+    Regex(RegexComponents),
+}
+
+impl TryFrom<ConfigConditionContentType> for ConditionContentType {
+    type Error = anyhow::Error;
+
+    fn try_from(config: ConfigConditionContentType) -> Result<ConditionContentType> {
+        Ok(match config {
+            ConfigConditionContentType::Glob(value) => ConditionContentType::Glob(value),
+            ConfigConditionContentType::Regex(regex) => {
+                ConditionContentType::Regex(EsRegex::try_from(regex)?.resolved_cell())
+            }
+        })
+    }
+}
+
+#[derive(
     Deserialize,
     Clone,
     PartialEq,
@@ -741,6 +777,8 @@ pub enum ConfigConditionItem {
         content: Option<RegexComponents>,
         #[serde(default)]
         query: Option<ConfigConditionQuery>,
+        #[serde(default, rename = "contentType")]
+        content_type: Option<ConfigConditionContentType>,
     },
 }
 
@@ -765,6 +803,7 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
                 path,
                 content,
                 query,
+                content_type,
             } => ConditionItem::Base {
                 path: path.map(ConditionPath::try_from).transpose()?,
                 content: content
@@ -772,6 +811,9 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
                     .transpose()?
                     .map(EsRegex::resolved_cell),
                 query: query.map(ConditionQuery::try_from).transpose()?,
+                content_type: content_type
+                    .map(ConditionContentType::try_from)
+                    .transpose()?,
             },
         })
     }
@@ -791,11 +833,14 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RuleConfigItem {
+    #[serde(default)]
     pub loaders: Vec<LoaderItem>,
     #[serde(default, alias = "as")]
     pub rename_as: Option<RcStr>,
     #[serde(default)]
     pub condition: Option<ConfigConditionItem>,
+    #[serde(default, alias = "type")]
+    pub module_type: Option<RcStr>,
 }
 
 #[derive(
@@ -968,6 +1013,8 @@ pub struct ExperimentalConfig {
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     root_params: Option<bool>,
+    runtime_server_deployment_id: Option<bool>,
+
     // ---
     // UNSUPPORTED
     // ---
@@ -1012,6 +1059,7 @@ pub struct ExperimentalConfig {
     server_source_maps: Option<bool>,
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
+    gesture_transition: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -1518,6 +1566,7 @@ impl NextConfig {
                                 loaders: transform_loaders(&mut [loaders].into_iter()),
                                 rename_as: None,
                                 condition: None,
+                                module_type: None,
                             },
                         ));
                     }
@@ -1525,6 +1574,7 @@ impl NextConfig {
                         loaders,
                         rename_as,
                         condition,
+                        module_type,
                     }) => {
                         // If the extension contains a wildcard, and the rename_as does not,
                         // emit an issue to prevent users from encountering duplicate module
@@ -1573,6 +1623,7 @@ impl NextConfig {
                                 loaders: transform_loaders(&mut loaders.iter()),
                                 rename_as: rename_as.clone(),
                                 condition,
+                                module_type: module_type.clone(),
                             },
                         ));
                     }
@@ -1763,7 +1814,7 @@ impl NextConfig {
 
     /// Returns the suffix to use for chunk loading.
     #[turbo_tasks::function]
-    pub async fn chunk_suffix_path(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
+    pub async fn asset_suffix_path(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
         let this = self.await?;
 
         match &this.deployment_id {
@@ -1780,6 +1831,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_transition_indicator(&self) -> Vc<bool> {
         Vc::cell(self.experimental.transition_indicator.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_gesture_transition(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -1806,6 +1862,15 @@ impl NextConfig {
                 .root_params
                 // rootParams should be enabled implicitly in cacheComponents.
                 .unwrap_or(self.cache_components.unwrap_or(false)),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn runtime_server_deployment_id_available(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .runtime_server_deployment_id
+                .unwrap_or(false),
         )
     }
 
@@ -2089,6 +2154,13 @@ mod tests {
                         "browser",
                         {
                             "path": { "type": "glob", "value": "*.svg"},
+                            "query": {
+                                "type": "regex",
+                                "value": {
+                                    "source": "@someQuery",
+                                    "flags": ""
+                                }
+                            },
                             "content": {
                                 "source": "@someTag",
                                 "flags": ""
@@ -2106,6 +2178,7 @@ mod tests {
             RuleConfigItem {
                 loaders: vec![],
                 rename_as: Some(rcstr!("*.js")),
+                module_type: None,
                 condition: Some(ConfigConditionItem::All(
                     [
                         ConfigConditionItem::Builtin(WebpackLoaderBuiltinCondition::Production),
@@ -2123,7 +2196,11 @@ mod tests {
                                         source: rcstr!("@someTag"),
                                         flags: rcstr!(""),
                                     }),
-                                    query: None,
+                                    query: Some(ConfigConditionQuery::Regex(RegexComponents {
+                                        source: rcstr!("@someQuery"),
+                                        flags: rcstr!(""),
+                                    })),
+                                    content_type: None,
                                 },
                             ]
                             .into(),

@@ -15,7 +15,7 @@ describe('computeChangedPath', () => {
                   '(...)stats',
                   {
                     children: [
-                      ['key', 'github', 'd'],
+                      ['key', 'github', 'd', null],
                       {
                         children: ['__PAGE__', {}],
                       },
@@ -40,7 +40,7 @@ describe('computeChangedPath', () => {
                   '(...)stats',
                   {
                     children: [
-                      ['key', 'github', 'd'],
+                      ['key', 'github', 'd', null],
                       {
                         children: ['__PAGE__', {}],
                       },

@@ -77,6 +77,29 @@ pub enum SourceMapsType {
     None,
 }
 
+/// Suffix to append to asset URLs.
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone)]
+pub enum AssetSuffix {
+    /// No suffix.
+    None,
+    /// A constant suffix to append to URLs.
+    Constant(RcStr),
+    /// Infer the suffix at runtime from the script src attribute.
+    /// Only valid in browser runtime for chunk loading, not for static asset URL generation.
+    Inferred,
+    /// Read the suffix from a global variable at runtime.
+    /// Used for server-side rendering where the suffix is set via `globalThis.{global_name}`.
+    FromGlobal(RcStr),
+}
+
+/// URL behavior configuration for static assets.
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone)]
+pub struct UrlBehavior {
+    pub suffix: AssetSuffix,
+}
+
 #[derive(
     Debug,
     TaskInput,
@@ -329,6 +352,16 @@ pub trait ChunkingContext {
         tag: Option<RcStr>,
     ) -> Vc<FileSystemPath>;
 
+    /// Returns the URL behavior for a given tag.
+    /// This determines how asset URLs are suffixed (e.g., for deployment IDs).
+    #[turbo_tasks::function]
+    fn url_behavior(self: Vc<Self>, _tag: Option<RcStr>) -> Vc<UrlBehavior> {
+        UrlBehavior {
+            suffix: AssetSuffix::Inferred,
+        }
+        .cell()
+    }
+
     #[turbo_tasks::function]
     fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
@@ -444,8 +477,24 @@ pub trait ChunkingContext {
     /// Returns whether debug IDs are enabled for this chunking context.
     #[turbo_tasks::function]
     fn debug_ids_enabled(self: Vc<Self>) -> Vc<bool>;
-}
 
+    /// Returns the list of global variable names to forward to workers.
+    /// These globals are read from globalThis at worker creation time and passed
+    /// to the worker via URL params.
+    #[turbo_tasks::function]
+    fn worker_forwarded_globals(self: Vc<Self>) -> Vc<Vec<RcStr>> {
+        Vc::cell(vec![])
+    }
+
+    /// Returns the worker entrypoint for this chunking context.
+    #[turbo_tasks::function]
+    async fn worker_entrypoint(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
+        bail!(
+            "Worker entrypoint is not supported by {name}",
+            name = self.name().await?
+        );
+    }
+}
 pub trait ChunkingContextExt {
     fn root_chunk_group(
         self: Vc<Self>,

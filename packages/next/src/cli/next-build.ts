@@ -103,8 +103,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   }
 
   // Resolve selective build paths
-  let resolvedAppPaths: string[] | undefined
-  let resolvedPagePaths: string[] | undefined
+  let resolvedBuildPaths: { app: string[]; pages: string[] } | undefined
 
   if (debugBuildPaths) {
     try {
@@ -112,9 +111,10 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
 
       if (patterns.length > 0) {
         const resolved = await resolveBuildPaths(patterns, dir)
-        // Pass empty arrays to indicate "build nothing" vs undefined for "build everything"
-        resolvedAppPaths = resolved.appPaths
-        resolvedPagePaths = resolved.pagePaths
+        resolvedBuildPaths = {
+          app: resolved.appPaths,
+          pages: resolved.pagePaths,
+        }
       }
     } catch (err) {
       printAndExit(
@@ -134,8 +134,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     bundler,
     experimentalBuildMode,
     traceUploadUrl,
-    resolvedAppPaths,
-    resolvedPagePaths
+    resolvedBuildPaths
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {

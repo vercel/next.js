@@ -12,9 +12,10 @@ describe('browser-log-forwarding verbose level', () => {
 
     await retry(() => {
       const output = next.cliOutput.slice(outputIndex)
-      expect(output).toContain('browser error:')
-      expect(output).toContain('browser warn:')
-      expect(output).toContain('browser log:')
+      expect(output).toContain('[browser] browser error:')
+      expect(output).toContain('[browser] browser warn:')
+      expect(output).toContain('[browser] browser log:')
+      expect(output).toContain('[browser] browser debug:')
     })
 
     // Get final output after logs are forwarded

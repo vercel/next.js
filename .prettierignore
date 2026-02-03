@@ -40,9 +40,11 @@ packages/next-codemod/**/*.js
 packages/next-codemod/**/*.d.ts
 
 packages/next-env/**/*.d.ts
+**/next-env.d.ts
 
 test/**/out/**
 test/development/basic/hmr/components/parse-error.js
+test/production/debug-build-path/fixtures/with-compile-error/app/broken/page.tsx
 
 bench/nested-deps/pages/**/*
 bench/nested-deps/components/**/*
@@ -77,6 +79,7 @@ test/integration/typescript-app-type-declarations/next-env.strictRouteTypes.d.ts
 /turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/tsx/lib.tsx
 
 /apps/docs/.source/*
+/apps/*/next-env.d.ts
 
 # Symlink files
 readme.md

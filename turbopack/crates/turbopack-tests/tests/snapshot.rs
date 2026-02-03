@@ -33,14 +33,16 @@ use turbopack_core::{
         EvaluatableAssets, MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
-    compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment},
+    compile_time_info::{
+        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
+    },
     condition::ContextCondition,
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     free_var_references,
     ident::Layer,
-    issue::{CollectibleIssuesExt, IssueFilter},
+    issue::{CollectibleIssuesExt, IssueFilter, IssueSeverity},
     module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
@@ -48,7 +50,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    reference_type::{EntryReferenceSubType, ReferenceType, UrlReferenceSubType},
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -95,6 +97,8 @@ struct SnapshotOptions {
     enable_debug_ids: bool,
     #[serde(default)]
     source_map_source_type: SourceMapSourceType,
+    #[serde(default = "default_chunk_loading_global")]
+    chunk_loading_global: String,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -127,6 +131,7 @@ impl Default for SnapshotOptions {
             production_chunking: false,
             enable_debug_ids: false,
             source_map_source_type: SourceMapSourceType::default(),
+            chunk_loading_global: default_chunk_loading_global(),
         }
     }
 }
@@ -151,6 +156,10 @@ fn default_runtime_type() -> RuntimeType {
 
 fn default_minify_type() -> MinifyType {
     MinifyType::NoMinify
+}
+
+fn default_chunk_loading_global() -> String {
+    "TURBOPACK".to_owned()
 }
 
 fn is_empty_dir_tree(dir_entries: impl IntoIterator<Item = io::Result<fs::DirEntry>>) -> bool {
@@ -321,15 +330,32 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let compile_time_info = CompileTimeInfo::builder(env)
         .defines(defines.clone().resolved_cell())
-        .free_var_references(free_var_references!(..defines.into_iter()).resolved_cell())
+        .free_var_references(
+            free_var_references!(
+                ..defines.into_iter(),
+                WARNED_VALUE = FreeVarReference::ReportUsage {
+                    severity: IssueSeverity::Warning,
+                    message: rcstr!("WARNED_VALUE is deprecated, use REPLACEMENT_VALUE instead"),
+                    inner: Some(Box::new(FreeVarReference::Value(
+                        CompileTimeDefineValue::String(rcstr!("replacement"))
+                    ))),
+                },
+            )
+            .resolved_cell(),
+        )
         .cell()
         .await?;
 
-    let conditions = RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".js".into()),
-        RuleCondition::ResourcePathEndsWith(".jsx".into()),
-        RuleCondition::ResourcePathEndsWith(".ts".into()),
-        RuleCondition::ResourcePathEndsWith(".tsx".into()),
+    let conditions = RuleCondition::All(vec![
+        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
+            UrlReferenceSubType::Undefined,
+        ))),
+        RuleCondition::any(vec![
+            RuleCondition::ResourcePathEndsWith(".js".into()),
+            RuleCondition::ResourcePathEndsWith(".jsx".into()),
+            RuleCondition::ResourcePathEndsWith(".ts".into()),
+            RuleCondition::ResourcePathEndsWith(".tsx".into()),
+        ]),
     ]);
 
     let module_rules = ModuleRule::new(
@@ -356,6 +382,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
+                enable_import_as_bytes: true,
                 enable_jsx: Some(JsxTransformOptions::resolved_cell(JsxTransformOptions {
                     development: true,
                     ..Default::default()
@@ -484,7 +511,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 None
             })
             .debug_ids(options.enable_debug_ids)
-            .source_map_source_type(options.source_map_source_type);
+            .source_map_source_type(options.source_map_source_type)
+            .chunk_loading_global(options.chunk_loading_global.into());
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(

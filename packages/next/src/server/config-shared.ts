@@ -25,8 +25,8 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
   experimental: ExperimentalConfig
-  // The root directory of the distDir. Generally the same as `distDir` but when `isolatedDevBuild`
-  // is true it is the parent directory of `distDir`.  This is used to ensure that the bundler doesn't
+  // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
+  // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
 }
@@ -119,12 +119,48 @@ export type TurbopackRuleCondition =
       path?: string | RegExp
       content?: RegExp
       query?: string | RegExp
+      contentType?: string | RegExp
     }
 
+/**
+ * The module type to use for matched files. This determines how files are
+ * processed without requiring a custom loader.
+ *
+ * - `'asset'` - Emit the file and return its URL (like webpack's `asset/resource`)
+ * - `'ecmascript'` - Process as JavaScript module
+ * - `'typescript'` - Process as TypeScript module
+ * - `'css'` - Process as CSS file
+ * - `'css-module'` - Process as CSS module
+ * - `'wasm'` - Process as WebAssembly module
+ * - `'raw'` - Return raw file contents as a string
+ * - `'node'` - Process as native Node.js addon
+ * - `'bytes'` - Inline file contents as bytes in JavaScript
+ *
+ * @see [Module Types](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#module-types)
+ */
+export type TurbopackModuleType =
+  | 'asset'
+  | 'ecmascript'
+  | 'typescript'
+  | 'css'
+  | 'css-module'
+  | 'wasm'
+  | 'raw'
+  | 'node'
+  | 'bytes'
+
 export type TurbopackRuleConfigItem = {
-  loaders: TurbopackLoaderItem[]
+  /** Loaders to apply to matched files. */
+  loaders?: TurbopackLoaderItem[]
+  /** Rename the file extension for loader output (e.g., `'*.js'`). */
   as?: string
+  /** Additional conditions for when this rule applies. */
   condition?: TurbopackRuleCondition
+  /**
+   * Set the module type directly without using a loader.
+   * @see [Module Types](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#module-types)
+   */
+  type?: TurbopackModuleType
 }
 
 /**
@@ -268,6 +304,21 @@ export interface LoggingConfig {
    * You can specify a pattern to match incoming requests that should not be logged.
    */
   incomingRequests?: boolean | IncomingRequestLoggingConfig
+
+  /**
+   * If false, Server Function invocation logging is disabled.
+   * @default true
+   */
+  serverFunctions?: boolean
+
+  /**
+   * Forward browser console logs to terminal.
+   * - `false`: Disable browser log forwarding
+   * - `true`: Forward all browser console output to terminal
+   * - `'warn'`: Forward warnings and errors to terminal
+   * - `'error'`: Forward only errors to terminal
+   */
+  browserToTerminal?: boolean | 'error' | 'warn'
 }
 
 export interface ExperimentalConfig {
@@ -287,6 +338,8 @@ export interface ExperimentalConfig {
    */
   clientParamParsingOrigins?: string[]
   dynamicOnHover?: boolean
+  optimisticRouting?: boolean
+  varyParams?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -399,6 +452,12 @@ export interface ExperimentalConfig {
    * This includes displaying an indicator on client-side navigations.
    */
   transitionIndicator?: boolean
+
+  /**
+   * Enables experimental gesture transition APIs for optimistic client
+   * navigations. Requires experimental React.
+   */
+  gestureTransition?: boolean
 
   /**
    * A target memory limit for turbo, in bytes.
@@ -766,6 +825,8 @@ export interface ExperimentalConfig {
    * - `true`: Same as 'verbose' - forward all browser console output to terminal
    * - `false`: Disable browser log forwarding to terminal
    * - Object: Enable with custom configuration
+   *
+   * @deprecated Use `logging.browserToTerminal` instead.
    */
   browserDebugInfoInTerminal?:
     | boolean
@@ -800,13 +861,6 @@ export interface ExperimentalConfig {
    * Enable accessing root params via the `next/root-params` module.
    */
   rootParams?: boolean
-
-  /**
-   * Use an isolated directory for development builds to prevent conflicts
-   * with production builds. Development builds will use `{distDir}/dev`
-   * instead of `{distDir}`.
-   */
-  isolatedDevBuild?: boolean
 
   /**
    * Body size limit for request bodies with middleware configured.
@@ -871,6 +925,19 @@ export interface ExperimentalConfig {
    * @default false
    */
   devCacheControlNoCache?: boolean
+
+  /**
+   * An array of paths in app or pages directories that should wait to be processed
+   * until all other entries have been processed. This is useful for deferring
+   * compilation of certain routes during development and build.
+   */
+  deferredEntries?: string[]
+
+  /**
+   * An async function that is called and awaited before processing deferred entries.
+   * This callback runs after all non-deferred entries have been compiled.
+   */
+  onBeforeDeferredEntries?: () => Promise<void>
 }
 
 export type ExportPathMap = {
@@ -1454,7 +1521,9 @@ export const defaultConfig = Object.freeze({
   httpAgentOptions: {
     keepAlive: true,
   },
-  logging: {},
+  logging: {
+    serverFunctions: true,
+  } satisfies LoggingConfig,
   compiler: {},
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined
@@ -1521,6 +1590,7 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
+    varyParams: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1583,13 +1653,13 @@ export const defaultConfig = Object.freeze({
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
+    gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
-    isolatedDevBuild: true,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
@@ -1654,6 +1724,7 @@ export interface NextConfigRuntime {
   skipProxyUrlNormalize: NextConfigComplete['skipProxyUrlNormalize']
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
+  logging?: NextConfigComplete['logging']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1662,6 +1733,7 @@ export interface NextConfigRuntime {
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
+    | 'optimisticRouting'
     | 'inlineCss'
     | 'authInterrupts'
     | 'clientTraceMetadata'
@@ -1705,6 +1777,11 @@ export interface NextConfigRuntime {
 export function getNextConfigRuntime(
   config: NextConfigComplete | NextConfigRuntime
 ): NextConfigRuntime {
+  // This config filter is a breaking change, so only do it if experimental.runtimeServerDeploymentId is enabled
+  if (!config.experimental.runtimeServerDeploymentId) {
+    return config
+  }
+
   let ex = config.experimental
 
   type Requiredish<T> = {
@@ -1718,6 +1795,7 @@ export function getNextConfigRuntime(
         serverActions: ex.serverActions,
         staleTimes: ex.staleTimes,
         dynamicOnHover: ex.dynamicOnHover,
+        optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
@@ -1787,6 +1865,7 @@ export function getNextConfigRuntime(
     skipProxyUrlNormalize: config.skipProxyUrlNormalize,
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
+    logging: config.logging,
 
     experimental,
   }

@@ -30,6 +30,7 @@ use turbopack_core::{
 use crate::{
     references::util::{
         request_to_string, throw_module_not_found_error_expr, throw_module_not_found_expr,
+        throw_module_not_found_expr_async,
     },
     runtime_functions::{
         TURBOPACK_ASYNC_LOADER, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
@@ -152,7 +153,7 @@ impl SinglePatternMapping {
                     ..Default::default()
                 })
             }
-            Self::Unresolvable(_) => self.create_id(key_expr),
+            Self::Unresolvable(request) => throw_module_not_found_expr_async(request),
             Self::External(_, ExternalType::EcmaScriptModule) => {
                 if import_externals {
                     Expr::Call(CallExpr {
@@ -345,6 +346,7 @@ async fn to_single_pattern_mapping(
                 )
                 .resolved_cell(),
                 path: origin.origin_path().owned().await?,
+                source: None,
             }
             .resolved_cell()
             .emit();
@@ -376,6 +378,7 @@ async fn to_single_pattern_mapping(
         ))
         .resolved_cell(),
         path: origin.origin_path().owned().await?,
+        source: None,
     }
     .resolved_cell()
     .emit();

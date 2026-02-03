@@ -14,11 +14,12 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
+    module::Module,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{
-        ModuleResolveResult, ModuleResolveResultItem, handle_resolve_error, origin::ResolveOrigin,
-        parse::Request, pattern::Pattern, resolve_raw, url_resolve,
+        ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode, handle_resolve_error,
+        origin::ResolveOrigin, parse::Request, pattern::Pattern, resolve_raw, url_resolve,
     },
 };
 
@@ -41,7 +42,10 @@ pub struct WorkerAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: WorkerRequest,
     pub issue_source: IssueSource,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
+    /// When true, skip creating WorkerLoaderModule and return the inner module directly.
+    /// This is used when we're only tracing dependencies, not generating code.
+    pub tracing_only: bool,
 }
 
 /// The request type varies between web and Node.js workers
@@ -64,14 +68,21 @@ impl WorkerAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
+        tracing_only: bool,
+        is_shared: bool,
     ) -> Self {
         WorkerAssetReference {
-            worker_type: WorkerType::WebWorker,
+            worker_type: if is_shared {
+                WorkerType::SharedWebWorker
+            } else {
+                WorkerType::WebWorker
+            },
             origin,
             request: WorkerRequest::Url(request),
             issue_source,
-            in_try,
+            error_mode,
+            tracing_only,
         }
     }
 
@@ -81,7 +92,8 @@ impl WorkerAssetReference {
         path: ResolvedVc<Pattern>,
         collect_affecting_sources: bool,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
+        tracing_only: bool,
     ) -> Self {
         WorkerAssetReference {
             worker_type: WorkerType::NodeWorkerThread,
@@ -92,7 +104,8 @@ impl WorkerAssetReference {
                 collect_affecting_sources,
             },
             issue_source,
-            in_try,
+            error_mode,
+            tracing_only,
         }
     }
 }
@@ -101,15 +114,17 @@ impl WorkerAssetReference {
 impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        let asset_context = self.origin.asset_context().to_resolved().await?;
+
         let result = match (&self.worker_type, &self.request) {
-            (WorkerType::WebWorker, WorkerRequest::Url(request)) => {
+            (WorkerType::WebWorker | WorkerType::SharedWebWorker, WorkerRequest::Url(request)) => {
                 // Web worker resolution uses url_resolve
                 url_resolve(
                     *self.origin,
                     **request,
-                    ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
+                    self.worker_type.reference_type(),
                     Some(self.issue_source),
-                    self.in_try,
+                    self.error_mode,
                 )
             }
             (
@@ -120,8 +135,6 @@ impl ModuleReference for WorkerAssetReference {
                     collect_affecting_sources,
                 },
             ) => {
-                let asset_context = self.origin.asset_context();
-
                 // Node.js worker resolution uses resolve_raw
                 let result = resolve_raw(
                     context_dir.clone(),
@@ -138,8 +151,8 @@ impl ModuleReference for WorkerAssetReference {
                     reference_type.clone(),
                     *self.origin,
                     Request::parse(path.owned().await?),
-                    self.origin.resolve_options(reference_type),
-                    self.in_try,
+                    self.origin.resolve_options(),
+                    self.error_mode,
                     Some(self.issue_source),
                 )
                 .await?
@@ -150,23 +163,40 @@ impl ModuleReference for WorkerAssetReference {
             }
         };
 
+        // When tracing only (no code generation), return the resolved modules directly
+        // without wrapping them in WorkerLoaderModule
+        if self.tracing_only {
+            return Ok(result);
+        }
+
         // Wrap each resolved module in a WorkerLoaderModule
         let result_ref = result.await?;
-        let mut primary = Vec::new();
+        let mut primary = Vec::with_capacity(result_ref.primary.len());
 
         for (request_key, resolve_item) in result_ref.primary.iter() {
             match resolve_item {
                 ModuleResolveResultItem::Module(module) => {
+                    let module_ident = module.ident().to_string().await?;
+
                     let Some(chunkable) =
                         ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
                     else {
                         CodeGenerationIssue {
-                            severity: IssueSeverity::Bug,
+                            severity: self.get_module_type_issue_severity().await?,
                             title: StyledString::Text(rcstr!("non-chunkable module"))
                                 .resolved_cell(),
-                            message: StyledString::Text(rcstr!("asset is not chunkable"))
-                                .resolved_cell(),
+                            message: StyledString::Text(
+                                format!(
+                                    "Worker entry point module '{}' is not chunkable and cannot \
+                                     be used as a worker module. This may happen if the module \
+                                     type doesn't support bundling.",
+                                    module_ident
+                                )
+                                .into(),
+                            )
+                            .resolved_cell(),
                             path: self.origin.origin_path().owned().await?,
+                            source: Some(self.issue_source),
                         }
                         .resolved_cell()
                         .emit();
@@ -180,23 +210,32 @@ impl ModuleReference for WorkerAssetReference {
                             .is_none()
                     {
                         CodeGenerationIssue {
-                            severity: IssueSeverity::Bug,
+                            severity: self.get_module_type_issue_severity().await?,
                             title: StyledString::Text(rcstr!("non-evaluatable module"))
                                 .resolved_cell(),
-                            message: StyledString::Text(rcstr!(
-                                "Worker thread module must be evaluatable"
-                            ))
+                            message: StyledString::Text(
+                                format!(
+                                    "Worker thread entry point module '{}' must be evaluatable to \
+                                     serve as an entry point. This module cannot be used as a \
+                                     Node.js worker_threads Worker entry point because it doesn't \
+                                     support direct evaluation.",
+                                    module_ident
+                                )
+                                .into(),
+                            )
                             .resolved_cell(),
                             path: self.origin.origin_path().owned().await?,
+                            source: Some(self.issue_source),
                         }
                         .resolved_cell()
                         .emit();
                         continue;
                     }
 
-                    let loader = WorkerLoaderModule::new(*chunkable, self.worker_type)
-                        .to_resolved()
-                        .await?;
+                    let loader =
+                        WorkerLoaderModule::new(*chunkable, self.worker_type, *asset_context)
+                            .to_resolved()
+                            .await?;
 
                     primary.push((
                         request_key.clone(),
@@ -218,6 +257,21 @@ impl ModuleReference for WorkerAssetReference {
     }
 }
 
+impl WorkerAssetReference {
+    /// Downgrade errors to warnings if we are not in Error mode or if loose errors is enabled
+    async fn get_module_type_issue_severity(&self) -> Result<IssueSeverity> {
+        Ok(
+            if self.error_mode != ResolveErrorMode::Error
+                || self.origin.resolve_options().await?.loose_errors
+            {
+                IssueSeverity::Warning
+            } else {
+                IssueSeverity::Error
+            },
+        )
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl ValueToString for WorkerAssetReference {
     #[turbo_tasks::function]
@@ -227,6 +281,7 @@ impl ValueToString for WorkerAssetReference {
                 "new {}({})",
                 match self.worker_type {
                     WorkerType::WebWorker => "WebWorker",
+                    WorkerType::SharedWebWorker => "SharedWorker",
                     WorkerType::NodeWorkerThread => "NodeWorkerThread",
                 },
                 match &self.request {
@@ -302,9 +357,11 @@ impl WorkerAssetReferenceCodeGen {
                                 require: Expr = pm.create_require(*key_expr.take())
                             );
 
-                            // For web workers, modify the options to set type: undefined
-                            if reference.worker_type == WorkerType::WebWorker
-                                && let Some(opts) = args.get_mut(1)
+                            // For web workers, remove type: "module" if it exists
+                            if matches!(
+                                reference.worker_type,
+                                WorkerType::WebWorker | WorkerType::SharedWebWorker
+                            ) && let Some(opts) = args.get_mut(1)
                                 && opts.spread.is_none()
                             {
                                 *opts.expr = *quote_expr!(

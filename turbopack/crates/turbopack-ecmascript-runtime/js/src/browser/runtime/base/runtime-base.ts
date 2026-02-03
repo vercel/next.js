@@ -11,17 +11,17 @@
 /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime-utils.ts" />
 
-// Used in WebWorkers to tell the runtime about the chunk base path
-declare var TURBOPACK_WORKER_LOCATION: string
 // Used in WebWorkers to tell the runtime about the chunk suffix
-declare var TURBOPACK_CHUNK_SUFFIX: string
-// Used in WebWorkers to tell the runtime about the current chunk url since it can't be detected via document.currentScript
-// Note it's stored in reversed order to use push and pop
+declare var TURBOPACK_ASSET_SUFFIX: string
+// Used in WebWorkers to tell the runtime about the current chunk url since it
+// can't be detected via `document.currentScript`. Note it's stored in reversed
+// order to use `push` and `pop`
 declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
-declare var CHUNK_SUFFIX: string
+declare var ASSET_SUFFIX: string
+declare var WORKER_FORWARDED_GLOBALS: string[]
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -42,13 +42,18 @@ type RuntimeParams = {
   runtimeModuleIds: ModuleId[]
 }
 
+type ChunkRegistrationChunk =
+  | ChunkPath
+  | { getAttribute: (name: string) => string | null }
+  | undefined
+
 type ChunkRegistration = [
-  chunkPath: ChunkScript,
+  chunkPath: ChunkRegistrationChunk,
   ...([RuntimeParams] | CompressedModuleFactories),
 ]
 
 type ChunkList = {
-  script: ChunkListScript
+  script: ChunkRegistrationChunk
   chunks: ChunkData[]
   source: 'entry' | 'dynamic'
 }
@@ -75,7 +80,10 @@ enum SourceType {
 
 type SourceData = ChunkPath | ModuleId | ModuleId[] | undefined
 interface RuntimeBackend {
-  registerChunk: (chunkPath: ChunkPath, params?: RuntimeParams) => void
+  registerChunk: (
+    chunkPath: ChunkPath | ChunkScript,
+    params?: RuntimeParams
+  ) => void
   /**
    * Returns the same Promise for the same chunk URL.
    */
@@ -315,20 +323,52 @@ function resolveAbsolutePath(modulePath?: string): string {
 browserContextPrototype.P = resolveAbsolutePath
 
 /**
- * Returns a blob URL for the worker.
- * @param chunks list of chunks to load
+ * Exports a URL with the static suffix appended.
  */
-function getWorkerBlobURL(chunks: ChunkPath[]): string {
-  // It is important to reverse the array so when bootstrapping we can infer what chunk is being
-  // evaluated by poping urls off of this array.  See `getPathFromScript`
-  let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
-self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
-self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
-importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`
-  let blob = new Blob([bootstrap], { type: 'text/javascript' })
-  return URL.createObjectURL(blob)
+function exportUrl(
+  this: TurbopackBrowserBaseContext<Module>,
+  url: string,
+  id: ModuleId | undefined
+) {
+  exportValue.call(this, `${url}${ASSET_SUFFIX}`, id)
 }
-browserContextPrototype.b = getWorkerBlobURL
+browserContextPrototype.q = exportUrl
+
+/**
+ * Returns a URL for the worker.
+ * The entrypoint is a pre-compiled worker runtime file. The params configure
+ * which module chunks to load and which module to run as the entry point.
+ *
+ * The params are a JSON array of the following structure:
+ * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
+ *
+ * @param entrypoint URL path to the worker entrypoint chunk
+ * @param moduleChunks list of module chunk paths to load
+ * @param shared whether this is a SharedWorker (uses querystring for URL identity)
+ */
+function getWorkerURL(
+  entrypoint: ChunkPath,
+  moduleChunks: ChunkPath[],
+  shared: boolean
+): URL {
+  const chunkUrls = moduleChunks
+    .map((chunk) => getChunkRelativeUrl(chunk))
+    .reverse()
+  const params: unknown[] = [chunkUrls, ASSET_SUFFIX]
+  for (const globalName of WORKER_FORWARDED_GLOBALS) {
+    params.push((globalThis as Record<string, unknown>)[globalName])
+  }
+
+  const url = new URL(getChunkRelativeUrl(entrypoint), location.origin)
+  const paramsJson = JSON.stringify(params)
+  if (shared) {
+    url.searchParams.set('params', paramsJson)
+  } else {
+    url.hash = '#params=' + encodeURIComponent(paramsJson)
+  }
+  return url
+}
+browserContextPrototype.b = getWorkerURL
 
 /**
  * Instantiates a runtime module.
@@ -346,7 +386,7 @@ function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
   return `${CHUNK_BASE_PATH}${chunkPath
     .split('/')
     .map((p) => encodeURIComponent(p))
-    .join('/')}${CHUNK_SUFFIX}` as ChunkUrl
+    .join('/')}${ASSET_SUFFIX}` as ChunkUrl
 }
 
 /**
@@ -362,15 +402,43 @@ function getPathFromScript(
   if (typeof chunkScript === 'string') {
     return chunkScript as ChunkPath | ChunkListPath
   }
-  const chunkUrl =
-    typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined'
-      ? TURBOPACK_NEXT_CHUNK_URLS.pop()!
-      : chunkScript.getAttribute('src')!
+  const chunkUrl = chunkScript.src!
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
   const path = src.startsWith(CHUNK_BASE_PATH)
     ? src.slice(CHUNK_BASE_PATH.length)
     : src
   return path as ChunkPath | ChunkListPath
+}
+
+/**
+ * Return the ChunkUrl from a ChunkScript.
+ */
+function getUrlFromScript(chunk: ChunkPath | ChunkScript): ChunkUrl {
+  if (typeof chunk === 'string') {
+    return getChunkRelativeUrl(chunk)
+  } else {
+    // This is already exactly what we want
+    return chunk.src! as ChunkUrl
+  }
+}
+
+/**
+ * Determine the chunk to register. Note that this function has side-effects!
+ */
+function getChunkFromRegistration(
+  chunk: ChunkRegistrationChunk
+): ChunkPath | CurrentScript {
+  if (typeof chunk === 'string') {
+    return chunk
+  } else if (!chunk) {
+    if (typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined') {
+      return { src: TURBOPACK_NEXT_CHUNK_URLS.pop()! } as CurrentScript
+    } else {
+      throw new Error('chunk path empty but not in a worker')
+    }
+  } else {
+    return { src: chunk.getAttribute('src')! } as CurrentScript
+  }
 }
 
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/

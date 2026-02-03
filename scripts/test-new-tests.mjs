@@ -41,9 +41,15 @@ async function main() {
   /** @type import('execa').Options */
   const EXECA_OPTS_STDIO = { ...EXECA_OPTS, stdio: 'inherit' }
 
-  const { devTests, prodTests, commitSha } = await getChangedTests()
+  const { devTests, prodTests, deployTests, commitSha } =
+    await getChangedTests()
 
-  let currentTests = testMode === 'dev' ? devTests : prodTests
+  let currentTests =
+    testMode === 'dev'
+      ? devTests
+      : testMode === 'deploy'
+        ? deployTests
+        : prodTests
 
   /**
     @type {Array<string[]>}

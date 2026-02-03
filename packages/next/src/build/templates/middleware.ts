@@ -1,5 +1,5 @@
 import type { AdapterOptions, EdgeHandler } from '../../server/web/adapter'
-
+import '../adapter/setup-node-env.external'
 import '../../server/web/globals'
 
 import { adapter } from '../../server/web/adapter'
