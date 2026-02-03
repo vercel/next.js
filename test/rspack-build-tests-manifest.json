@@ -278,6 +278,7 @@
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
+      "app-dir action handling should error if server action arguments list is too long",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle action correctly with middleware rewrite",
@@ -412,6 +413,7 @@
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
+      "app-dir action handling should error if server action arguments list is too long",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle action correctly with middleware rewrite",
@@ -5020,6 +5022,7 @@
       "app dir - next-image image content should render images on /client route",
       "app dir - next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route",
       "app dir - next-image image content should render legacy images under /legacy route",
+      "app dir - next-image ssr content should handle HEAD requests for uncached images",
       "app dir - next-image ssr content should render images nested under page dir on /nested route",
       "app dir - next-image ssr content should render images on / route",
       "app dir - next-image ssr content should render images on /client route"
@@ -5090,6 +5093,15 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/node-worker-threads/node-worker-threads.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "node-worker-threads webpack doesnt support bundling worker-threads"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -5227,6 +5239,22 @@
       "nx-handling should work for pages page",
       "nx-handling should work with app page",
       "nx-handling should work with app route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/optimistic-routing/optimistic-routing.test.ts": {
+    "passed": [
+      "optimistic-routing basic dynamic route prediction: shows loading state instantly for unprefetched route",
+      "optimistic-routing nested dynamic routes: predicts through multiple dynamic segments",
+      "optimistic-routing optional catch-all: predicts between paths with different segment counts",
+      "optimistic-routing optional catch-all: predicts from index to path with segments",
+      "optimistic-routing required catch-all: predicts between paths with different segment counts",
+      "optimistic-routing rewrite detection (search params): does not use cached pattern when search params cause different rewrite",
+      "optimistic-routing rewrite detection: detects dynamic rewrite when URL does not match route structure",
+      "optimistic-routing static sibling detection: does not incorrectly match static route to dynamic pattern"
     ],
     "failed": [],
     "pending": [],
@@ -6988,8 +7016,10 @@
   },
   "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
     "passed": [
-      "segment cache (deployment skew) does not crash when prefetching a dynamic, non-PPR page on a different deployment",
-      "segment cache (deployment skew) does not crash when prefetching a static page on a different deployment"
+      "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
+      "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a static page on a different deployment",
+      "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
+      "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a static page on a different deployment"
     ],
     "failed": [],
     "pending": [],
@@ -7113,6 +7143,7 @@
       "runtime prefetching in a page includes headers, but not dynamic content",
       "runtime prefetching in a page includes root params, but not dynamic content",
       "runtime prefetching in a page includes search params, but not dynamic content",
+      "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a private cache includes cookies, but not dynamic content",
       "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
       "runtime prefetching in a private cache includes headers, but not dynamic content",
@@ -7128,9 +7159,7 @@
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
     ],
-    "failed": [
-      "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7204,6 +7233,23 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/vary-params/vary-params.test.ts": {
+    "passed": [
+      "segment cache - vary params caches head segment when generateMetadata does not access params",
+      "segment cache - vary params does not reuse prefetched segment when page accesses searchParams",
+      "segment cache - vary params renders cached loading state instantly during navigation",
+      "segment cache - vary params reuses page segment when layout varies but page does not",
+      "segment cache - vary params reuses prefetched segment when page does not access searchParams",
+      "segment cache - vary params tracks param access in generateMetadata",
+      "segment cache - vary params tracks root param access via rootParams API"
+    ],
+    "failed": [],
+    "pending": [
+      "segment cache - vary params renders cached loading state instantly with runtime prefetching"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -7363,6 +7409,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/static-rsc-cache-components/static-rsc-cache-components.test.ts": {
+    "passed": [
+      "static-rsc-cache-components navigates to prerendered route without waiting for dynamic render"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
     "passed": [],
     "failed": [],
@@ -7502,6 +7557,17 @@
       "transition-indicator displays during any Transition that does not commit a pending state",
       "transition-indicator displays while loading content without fallback",
       "transition-indicator does not display while loading content with fallback"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/turbopack-loader-content-type/turbopack-loader-content-type.test.ts": {
+    "passed": [
+      "turbopack-loader-content-type should apply loader based on contentType for text/javascript",
+      "turbopack-loader-content-type should apply loader based on contentType glob pattern",
+      "turbopack-loader-content-type should apply loader based on contentType regex"
     ],
     "failed": [],
     "pending": [],
@@ -7892,6 +7958,17 @@
     "passed": ["webpack-loader-fs should allow reading the input FS"],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-module-type/webpack-loader-module-type.test.ts": {
+    "passed": [
+      "webpack-loader-module-type should load svg as asset/resource and return URL"
+    ],
+    "failed": [],
+    "pending": [
+      "webpack-loader-module-type should load data file as bytes and return Uint8Array"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -10391,6 +10468,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/postcss-config-ts/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "postcss-config-ts .postcssrc.ts works with .postcssrc.ts files",
+      "postcss-config-ts postcss.config.cts works with postcss.config.cts files",
+      "postcss-config-ts postcss.config.mts works with postcss.config.mts files",
+      "postcss-config-ts postcss.config.ts works with postcss.config.ts files"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/prerender-crawler.test.ts": {
     "passed": [
       "Prerender crawler handling should block for crawler correctly",
@@ -11273,6 +11362,7 @@
       "404 Page Support production mode should output 404.html during build",
       "404 Page Support production mode should render _error for a 500 error still",
       "404 Page Support production mode should set correct status code with pages/404",
+      "404 Page Support production mode should still output 404.js anyway",
       "404 Page Support production mode should use pages/404",
       "404 Page Support production mode should use pages/404 for .d.ts file",
       "404 Page Support production mode shows error with getInitialProps in pages/404 build",
@@ -20058,12 +20148,15 @@
   },
   "test/integration/ssg-data-404/test/index.test.ts": {
     "passed": [
-      "SSG data 404 production mode should hard navigate when a new deployment occurs"
+      "SSG data 404 - hard navigate when a new deployment occurs development mode gsp to gssp",
+      "SSG data 404 - hard navigate when a new deployment occurs development mode index to gsp",
+      "SSG data 404 - hard navigate when a new deployment occurs production mode with build id gsp to gssp",
+      "SSG data 404 - hard navigate when a new deployment occurs production mode with build id index to gsp",
+      "SSG data 404 - hard navigate when a new deployment occurs production mode with deployment id gsp to gssp",
+      "SSG data 404 - hard navigate when a new deployment occurs production mode with deployment id index to gsp"
     ],
     "failed": [],
-    "pending": [
-      "SSG data 404 development mode should hard navigate when a new deployment occurs"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -20122,8 +20215,7 @@
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
-      "config telemetry production mode emits telemetry for isolatedDevBuild disabled",
-      "config telemetry production mode emits telemetry for isolatedDevBuild enabled by default",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
@@ -20136,9 +20228,7 @@
       "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
-    "failed": [
-      "config telemetry production mode emits telemetry for filesystem cache in dev mode"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21290,6 +21380,15 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/build-tracing-message/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "build-tracing-message should warn when tracing all files in the project"
+    ],
     "flakey": [],
     "runtimeError": false
   },

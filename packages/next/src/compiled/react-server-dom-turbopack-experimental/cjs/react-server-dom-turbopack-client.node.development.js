@@ -11,6 +11,18 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function checkEvalAvailabilityOnceDev() {
+      if (!hasConfirmedEval) {
+        hasConfirmedEval = !0;
+        try {
+          (0, eval)("null");
+        } catch ($jscomp$unused$catch) {
+          console.error(
+            "eval() is not supported in this environment. This can happen if you started the Node.js process with --disallow-code-generation-from-strings, or if `eval` was patched by other means. React requires eval() in development mode for various debugging features like reconstructing callstacks from a different environment.\nReact will never use eval() in production mode"
+          );
+        }
+      }
+    }
     function resolveClientReference(bundlerConfig, metadata) {
       if (bundlerConfig) {
         var moduleExports = bundlerConfig[metadata[0]];
@@ -755,8 +767,9 @@
         pendingParts = 0,
         formData = null,
         writtenObjects = new WeakMap(),
-        modelRoot = root,
-        json = serializeModel(root, 0);
+        modelRoot = root;
+      checkEvalAvailabilityOnceDev();
+      var json = serializeModel(root, 0);
       null === formData
         ? resolve(json)
         : (formData.set(formFieldPrefix + "0", json),
@@ -1146,7 +1159,8 @@
           if (
             "function" === typeof value ||
             ("string" === typeof value && 50 < value.length) ||
-            (0 !== kind && 2 !== kind)
+            (0 !== kind && 2 !== kind) ||
+            "bigint" === typeof value
           )
             return 1;
           kind = 2;
@@ -1339,7 +1353,11 @@
             return;
           }
         case "function":
-          value = "" === value.name ? "() => {}" : value.name + "() {}";
+          value = value.name;
+          value =
+            "" === value || "string" !== typeof value
+              ? "() => {}"
+              : value + "() {}";
           break;
         case "string":
           value =
@@ -2963,6 +2981,39 @@
       replayConsole && markAllTracksInOrder();
       this._fromJSON = createFromJSONCallback(this);
     }
+    function createResponse(
+      bundlerConfig,
+      serverReferenceConfig,
+      moduleLoading,
+      callServer,
+      encodeFormAction,
+      nonce,
+      temporaryReferences,
+      findSourceMapURL,
+      replayConsole,
+      environmentName,
+      debugStartTime,
+      debugEndTime,
+      debugChannel
+    ) {
+      checkEvalAvailabilityOnceDev();
+      bundlerConfig = new ResponseInstance(
+        bundlerConfig,
+        serverReferenceConfig,
+        moduleLoading,
+        callServer,
+        encodeFormAction,
+        nonce,
+        temporaryReferences,
+        findSourceMapURL,
+        replayConsole,
+        environmentName,
+        debugStartTime,
+        debugEndTime,
+        debugChannel
+      )._weakResponse;
+      return bundlerConfig;
+    }
     function createStreamState(weakResponse, streamDebugValue) {
       var streamState = {
         _rowState: 0,
@@ -3458,9 +3509,10 @@
       try {
         var fn = (0, eval)(encodedName)[name];
       } catch (x) {
-        fn = function (_) {
+        (fn = function (_) {
           return _();
-        };
+        }),
+          Object.defineProperty(fn, "name", { value: name });
       }
       return fn;
     }
@@ -4806,7 +4858,7 @@
       );
     }
     function createResponseFromOptions(options) {
-      return new ResponseInstance(
+      return createResponse(
         options.serverConsumerManifest.moduleMap,
         options.serverConsumerManifest.serverModuleMap,
         options.serverConsumerManifest.moduleLoading,
@@ -4827,7 +4879,7 @@
               callback: null
             }
           : void 0
-      )._weakResponse;
+      );
     }
     function startReadingFromStream$1(response, stream, onDone, debugValue) {
       function progress(_ref) {
@@ -4954,6 +5006,7 @@
       React = require("react"),
       decoderOptions = { stream: !0 },
       bind$1 = Function.prototype.bind,
+      hasConfirmedEval = !1,
       hasOwnProperty = Object.prototype.hasOwnProperty,
       instrumentedChunks = new WeakSet(),
       loadedChunks = new WeakSet(),
@@ -5191,7 +5244,7 @@
       serverConsumerManifest,
       options
     ) {
-      var response = new ResponseInstance(
+      var response = createResponse(
         serverConsumerManifest.moduleMap,
         serverConsumerManifest.serverModuleMap,
         serverConsumerManifest.moduleLoading,
@@ -5207,7 +5260,7 @@
         options && void 0 !== options.debugChannel
           ? { hasReadable: !0, callback: null }
           : void 0
-      )._weakResponse;
+      );
       if (options && options.debugChannel) {
         var streamEndedCount = 0;
         serverConsumerManifest = function () {

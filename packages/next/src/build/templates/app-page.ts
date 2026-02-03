@@ -52,9 +52,10 @@ import {
 import { FallbackMode, parseFallbackField } from '../../lib/fallback'
 import RenderResult from '../../server/render-result'
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
@@ -381,8 +382,17 @@ export async function handler(
   // If PPR is enabled, and this is a RSC request (but not a prefetch), then
   // we can use this fact to only generate the flight data for the request
   // because we can't cache the HTML (as it's also dynamic).
+  const staticPrefetchDataRoute =
+    prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+
   let isDynamicRSCRequest =
-    isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
+    isRoutePPREnabled &&
+    isRSCRequest &&
+    !isPrefetchRSCRequest &&
+    // If generated at build time, treat the RSC request as static
+    // so we can serve the prebuilt .rsc without a dynamic render.
+    // Only do this for routes that have a concrete prefetchDataRoute.
+    !staticPrefetchDataRoute
 
   // During a PPR revalidation, the RSC request is not dynamic if we do not have the postponed data.
   // We only attach the postponed data during a resume. If there's no postponed data, then it must be a revalidation.
@@ -675,6 +685,9 @@ export async function handler(
           cacheLifeProfiles: nextConfig.cacheLife,
           basePath: nextConfig.basePath,
           serverActions: nextConfig.experimental.serverActions,
+          logServerFunctions:
+            typeof nextConfig.logging === 'object' &&
+            Boolean(nextConfig.logging.serverFunctions),
 
           ...(isDebugStaticShell ||
           isDebugDynamicAccesses ||
@@ -1133,6 +1146,15 @@ export async function handler(
 
       const didPostpone = typeof cacheEntry.value.postponed === 'string'
 
+      // Set the build ID header for RSC navigation requests when deploymentId is configured. This
+      // corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the build ID
+      // from the RSC payload when deploymentId is set (relying on this header instead). Server
+      // actions are excluded because the client doesn't check the build ID for action responses.
+      // For static prerenders served from CDN, routes-manifest.json adds a header.
+      if (isRSCRequest && !isPossibleServerAction && deploymentId) {
+        res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+      }
+
       if (
         isSSG &&
         // We don't want to send a cache header for requests that contain dynamic
@@ -1205,7 +1227,10 @@ export async function handler(
           // Otherwise if the revalidate value is false, then we should use the
           // cache time of one year.
           else {
-            cacheControl = { revalidate: CACHE_ONE_YEAR, expire: undefined }
+            cacheControl = {
+              revalidate: CACHE_ONE_YEAR_SECONDS,
+              expire: undefined,
+            }
           }
         }
       }

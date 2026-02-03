@@ -11,6 +11,18 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function checkEvalAvailabilityOnceDev() {
+      if (!hasConfirmedEval) {
+        hasConfirmedEval = !0;
+        try {
+          (0, eval)("null");
+        } catch ($jscomp$unused$catch) {
+          console.error(
+            "eval() is not supported in this environment. If this page was served with a `Content-Security-Policy` header, make sure that `unsafe-eval` is included. React requires eval() in development mode for various debugging features like reconstructing callstacks from a different environment.\nReact will never use eval() in production mode"
+          );
+        }
+      }
+    }
     function resolveClientReference(bundlerConfig, metadata) {
       if (bundlerConfig) {
         var moduleExports = bundlerConfig[metadata[0]];
@@ -737,8 +749,9 @@
         pendingParts = 0,
         formData = null,
         writtenObjects = new WeakMap(),
-        modelRoot = root,
-        json = serializeModel(root, 0);
+        modelRoot = root;
+      checkEvalAvailabilityOnceDev();
+      var json = serializeModel(root, 0);
       null === formData
         ? resolve(json)
         : (formData.set(formFieldPrefix + "0", json),
@@ -947,7 +960,8 @@
           if (
             "function" === typeof value ||
             ("string" === typeof value && 50 < value.length) ||
-            (0 !== kind && 2 !== kind)
+            (0 !== kind && 2 !== kind) ||
+            "bigint" === typeof value
           )
             return 1;
           kind = 2;
@@ -1140,7 +1154,11 @@
             return;
           }
         case "function":
-          value = "" === value.name ? "() => {}" : value.name + "() {}";
+          value = value.name;
+          value =
+            "" === value || "string" !== typeof value
+              ? "() => {}"
+              : value + "() {}";
           break;
         case "string":
           value =
@@ -3300,9 +3318,10 @@
       try {
         var fn = (0, eval)(encodedName)[name];
       } catch (x) {
-        fn = function (_) {
+        (fn = function (_) {
           return _();
-        };
+        }),
+          Object.defineProperty(fn, "name", { value: name });
       }
       return fn;
     }
@@ -4655,32 +4674,47 @@
     }
     function createResponseFromOptions(options) {
       var debugChannel =
-        options && void 0 !== options.debugChannel
-          ? {
-              hasReadable: void 0 !== options.debugChannel.readable,
-              callback:
-                void 0 !== options.debugChannel.writable
-                  ? createDebugCallbackFromWritableStream(
-                      options.debugChannel.writable
-                    )
-                  : null
-            }
-          : void 0;
+          options && void 0 !== options.debugChannel
+            ? {
+                hasReadable: void 0 !== options.debugChannel.readable,
+                callback:
+                  void 0 !== options.debugChannel.writable
+                    ? createDebugCallbackFromWritableStream(
+                        options.debugChannel.writable
+                      )
+                    : null
+              }
+            : void 0,
+        callServer =
+          options && options.callServer ? options.callServer : void 0,
+        temporaryReferences =
+          options && options.temporaryReferences
+            ? options.temporaryReferences
+            : void 0,
+        findSourceMapURL =
+          options && options.findSourceMapURL
+            ? options.findSourceMapURL
+            : void 0,
+        replayConsole = options ? !1 !== options.replayConsoleLogs : !0,
+        environmentName =
+          options && options.environmentName ? options.environmentName : void 0,
+        debugStartTime =
+          options && null != options.startTime ? options.startTime : void 0;
+      options = options && null != options.endTime ? options.endTime : void 0;
+      checkEvalAvailabilityOnceDev();
       return new ResponseInstance(
         null,
         null,
         null,
-        options && options.callServer ? options.callServer : void 0,
+        callServer,
         void 0,
         void 0,
-        options && options.temporaryReferences
-          ? options.temporaryReferences
-          : void 0,
-        options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
-        options ? !1 !== options.replayConsoleLogs : !0,
-        options && options.environmentName ? options.environmentName : void 0,
-        options && null != options.startTime ? options.startTime : void 0,
-        options && null != options.endTime ? options.endTime : void 0,
+        temporaryReferences,
+        findSourceMapURL,
+        replayConsole,
+        environmentName,
+        debugStartTime,
+        options,
         debugChannel
       )._weakResponse;
     }
@@ -4819,6 +4853,7 @@
       ReactDOM = require("react-dom"),
       decoderOptions = { stream: !0 },
       bind = Function.prototype.bind,
+      hasConfirmedEval = !1,
       hasOwnProperty = Object.prototype.hasOwnProperty,
       chunkCache = new Map(),
       chunkMap = new Map(),
@@ -5035,10 +5070,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-10680271-20260126",
+      version: "19.3.0-canary-3e00319b-20260203",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-10680271-20260126",
+      reconcilerVersion: "19.3.0-canary-3e00319b-20260203",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

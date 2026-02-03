@@ -3,7 +3,7 @@ resolver = "2"
 
 members = [
   "scripts/send-trace-to-jaeger",
-  "crates/napi",
+  "crates/next-napi-bindings",
   "crates/wasm",
   "crates/next-api",
   "crates/next-build-test",

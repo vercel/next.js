@@ -1,10 +1,13 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use indexmap::Equivalent;
+use rustc_hash::FxHashSet;
+use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
-use crate::environment::Environment;
+use crate::{environment::Environment, issue::IssueSeverity};
 
 #[macro_export]
 macro_rules! definable_name_map_pattern_internal {
@@ -101,8 +104,7 @@ macro_rules! free_var_references {
 
 // TODO: replace with just a `serde_json::Value`
 // https://linear.app/vercel/issue/WEB-1641/compiletimedefinevalue-should-just-use-serde-jsonvalue
-#[turbo_tasks::value]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TraceRawVcs, NonLocalValue, Encode, Decode, PartialEq, Eq)]
 pub enum CompileTimeDefineValue {
     Null,
     Bool(bool),
@@ -154,10 +156,34 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialOrd, Ord)]
 pub enum DefinableNameSegment {
     Name(RcStr),
+    Call(RcStr),
     TypeOf,
+}
+
+// Hash can't be derived because DefinableNameSegmentRef must have a matching
+// Hash implementation for Equivalent lookups, and derived discriminants are
+// not guaranteed to match between different enum types.
+// Also, we must use s.as_str().hash() instead of s.hash() because RcStr's Hash
+// implementation for prehashed strings is not compatible with str's Hash.
+impl std::hash::Hash for DefinableNameSegment {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Name(s) => {
+                0u8.hash(state);
+                s.as_str().hash(state);
+            }
+            Self::Call(s) => {
+                1u8.hash(state);
+                s.as_str().hash(state);
+            }
+            Self::TypeOf => {
+                2u8.hash(state);
+            }
+        }
+    }
 }
 
 impl From<RcStr> for DefinableNameSegment {
@@ -178,18 +204,77 @@ impl From<String> for DefinableNameSegment {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[derive(PartialEq, Eq)]
+pub enum DefinableNameSegmentRef<'a> {
+    Name(&'a str),
+    Call(&'a str),
+    TypeOf,
+}
+
+// Hash can't be derived because it must match DefinableNameSegment's Hash
+// implementation for Equivalent lookups, and derived discriminants are
+// not guaranteed to match between different enum types.
+impl std::hash::Hash for DefinableNameSegmentRef<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Name(s) => {
+                0u8.hash(state);
+                s.hash(state);
+            }
+            Self::Call(s) => {
+                1u8.hash(state);
+                s.hash(state);
+            }
+            Self::TypeOf => {
+                2u8.hash(state);
+            }
+        }
+    }
+}
+
+impl Equivalent<DefinableNameSegment> for DefinableNameSegmentRef<'_> {
+    fn equivalent(&self, key: &DefinableNameSegment) -> bool {
+        match (self, key) {
+            (DefinableNameSegmentRef::Name(a), DefinableNameSegment::Name(b)) => **a == *b.as_str(),
+            (DefinableNameSegmentRef::Call(a), DefinableNameSegment::Call(b)) => **a == *b.as_str(),
+            (DefinableNameSegmentRef::TypeOf, DefinableNameSegment::TypeOf) => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(PartialEq, Eq)]
+pub struct DefinableNameSegmentRefs<'a>(pub SmallVec<[DefinableNameSegmentRef<'a>; 4]>);
+
+// Hash can't be derived because it must match Vec<DefinableNameSegment>'s Hash.
+impl std::hash::Hash for DefinableNameSegmentRefs<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.len().hash(state);
+        for segment in &self.0 {
+            segment.hash(state);
+        }
+    }
+}
+
+impl Equivalent<Vec<DefinableNameSegment>> for DefinableNameSegmentRefs<'_> {
+    fn equivalent(&self, key: &Vec<DefinableNameSegment>) -> bool {
+        if self.0.len() != key.len() {
+            return false;
+        }
+        for (a, b) in self.0.iter().zip(key.iter()) {
+            if !a.equivalent(b) {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
 #[derive(Debug, Clone)]
 pub struct CompileTimeDefines(
     #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<Vec<DefinableNameSegment>, CompileTimeDefineValue>,
-);
-
-#[turbo_tasks::value(transparent)]
-#[derive(Debug, Clone)]
-pub struct CompileTimeDefinesIndividual(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub  FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<CompileTimeDefineValue>>,
 );
 
 impl IntoIterator for CompileTimeDefines {
@@ -207,20 +292,6 @@ impl CompileTimeDefines {
     pub fn empty() -> Vc<Self> {
         Vc::cell(FxIndexMap::default())
     }
-
-    #[turbo_tasks::function]
-    pub fn individual(&self) -> Vc<CompileTimeDefinesIndividual> {
-        let mut map: FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<CompileTimeDefineValue>> =
-            self.0
-                .iter()
-                .map(|(key, value)| (key.clone(), value.clone().resolved_cell()))
-                .collect();
-
-        // Sort keys to make order as deterministic as possible
-        map.sort_keys();
-
-        Vc::cell(map)
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
@@ -231,8 +302,7 @@ pub enum InputRelativeConstant {
     FileName,
 }
 
-#[turbo_tasks::value]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode, PartialEq, Eq)]
 pub enum FreeVarReference {
     EcmaScriptModule {
         request: RcStr,
@@ -243,7 +313,13 @@ pub enum FreeVarReference {
     Member(RcStr, RcStr),
     Value(CompileTimeDefineValue),
     InputRelative(InputRelativeConstant),
-    Error(RcStr),
+    // Report the replacement of this free var with the given severity and message, and
+    // potentially replace with the `inner` value.
+    ReportUsage {
+        message: RcStr,
+        severity: IssueSeverity,
+        inner: Option<Box<FreeVarReference>>,
+    },
 }
 
 impl From<bool> for FreeVarReference {
@@ -275,26 +351,15 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, cell = "keyed")]
 #[derive(Debug, Clone)]
 pub struct FreeVarReferences(
     #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<Vec<DefinableNameSegment>, FreeVarReference>,
 );
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
-pub struct FreeVarReferenceVcs(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub  FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
-);
-
-/// A map from the last element (the member prop) to a map of the rest of the name to the value.
-#[turbo_tasks::value(transparent)]
-#[derive(Debug, Clone)]
-pub struct FreeVarReferencesIndividual(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub  FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs>,
-);
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct FreeVarReferencesMembers(FxHashSet<RcStr>);
 
 #[turbo_tasks::value_impl]
 impl FreeVarReferences {
@@ -304,24 +369,26 @@ impl FreeVarReferences {
     }
 
     #[turbo_tasks::function]
-    pub fn individual(&self) -> Vc<FreeVarReferencesIndividual> {
-        let mut result: FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs> =
-            FxIndexMap::default();
-
-        for (key, value) in &self.0 {
-            let (last_key, key) = key.split_last().unwrap();
-            result
-                .entry(last_key.clone())
-                .or_default()
-                .0
-                .insert(key.to_vec(), value.clone().resolved_cell());
+    pub fn members(&self) -> Vc<FreeVarReferencesMembers> {
+        let mut members = FxHashSet::default();
+        for (key, _) in self.0.iter() {
+            if let Some(name) = key
+                .iter()
+                .rfind(|segment| {
+                    matches!(
+                        segment,
+                        DefinableNameSegment::Name(_) | DefinableNameSegment::Call(_)
+                    )
+                })
+                .and_then(|segment| match segment {
+                    DefinableNameSegment::Name(n) | DefinableNameSegment::Call(n) => Some(n),
+                    _ => None,
+                })
+            {
+                members.insert(name.clone());
+            }
         }
-
-        // Sort keys to make order as deterministic as possible
-        result.sort_keys();
-        result.iter_mut().for_each(|(_, inner)| inner.0.sort_keys());
-
-        Vc::cell(result)
+        Vc::cell(members)
     }
 }
 
@@ -402,10 +469,114 @@ impl CompileTimeInfoBuilder {
 
 #[cfg(test)]
 mod test {
+    use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash, Hasher},
+    };
+
+    use smallvec::smallvec;
     use turbo_rcstr::rcstr;
     use turbo_tasks::FxIndexMap;
 
-    use crate::compile_time_info::{DefinableNameSegment, FreeVarReference, FreeVarReferences};
+    use crate::compile_time_info::{
+        DefinableNameSegment, DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference,
+        FreeVarReferences,
+    };
+
+    fn hash_value<T: Hash>(value: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    #[test]
+    fn hash_segment_name_matches() {
+        let segment = DefinableNameSegment::Name(rcstr!("process"));
+        let segment_ref = DefinableNameSegmentRef::Name("process");
+        assert_eq!(
+            hash_value(&segment),
+            hash_value(&segment_ref),
+            "DefinableNameSegment::Name and DefinableNameSegmentRef::Name must have matching Hash"
+        );
+    }
+
+    #[test]
+    fn hash_segment_call_matches() {
+        let segment = DefinableNameSegment::Call(rcstr!("foo"));
+        let segment_ref = DefinableNameSegmentRef::Call("foo");
+        assert_eq!(
+            hash_value(&segment),
+            hash_value(&segment_ref),
+            "DefinableNameSegment::Call and DefinableNameSegmentRef::Call must have matching Hash"
+        );
+    }
+
+    #[test]
+    fn hash_segment_typeof_matches() {
+        let segment = DefinableNameSegment::TypeOf;
+        let segment_ref = DefinableNameSegmentRef::TypeOf;
+        assert_eq!(
+            hash_value(&segment),
+            hash_value(&segment_ref),
+            "DefinableNameSegment::TypeOf and DefinableNameSegmentRef::TypeOf must have matching \
+             Hash"
+        );
+    }
+
+    #[test]
+    fn hash_segments_vec_matches() {
+        let segments: Vec<DefinableNameSegment> = vec![
+            DefinableNameSegment::Name(rcstr!("process")),
+            DefinableNameSegment::Name(rcstr!("env")),
+            DefinableNameSegment::Name(rcstr!("NODE_ENV")),
+        ];
+        let segments_ref = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::Name("env"),
+            DefinableNameSegmentRef::Name("NODE_ENV"),
+        ]);
+        assert_eq!(
+            hash_value(&segments),
+            hash_value(&segments_ref),
+            "Vec<DefinableNameSegment> and DefinableNameSegmentRefs must have matching Hash"
+        );
+    }
+
+    #[test]
+    fn hash_segments_with_typeof_matches() {
+        let segments: Vec<DefinableNameSegment> = vec![
+            DefinableNameSegment::Name(rcstr!("process")),
+            DefinableNameSegment::TypeOf,
+        ];
+        let segments_ref = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::TypeOf,
+        ]);
+        assert_eq!(
+            hash_value(&segments),
+            hash_value(&segments_ref),
+            "Vec<DefinableNameSegment> with TypeOf and DefinableNameSegmentRefs must have \
+             matching Hash"
+        );
+    }
+
+    #[test]
+    fn hash_segments_with_call_matches() {
+        let segments: Vec<DefinableNameSegment> = vec![
+            DefinableNameSegment::Name(rcstr!("foo")),
+            DefinableNameSegment::Call(rcstr!("bar")),
+        ];
+        let segments_ref = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("foo"),
+            DefinableNameSegmentRef::Call("bar"),
+        ]);
+        assert_eq!(
+            hash_value(&segments),
+            hash_value(&segments_ref),
+            "Vec<DefinableNameSegment> with Call and DefinableNameSegmentRefs must have matching \
+             Hash"
+        );
+    }
 
     #[test]
     fn macro_parser() {
@@ -480,6 +651,91 @@ mod test {
                     FreeVarReference::Value(rcstr!("c").into())
                 )
             ]))
+        );
+    }
+
+    #[test]
+    fn indexmap_lookup_with_equivalent() {
+        // Test that DefinableNameSegmentRefs can be used to look up Vec<DefinableNameSegment>
+        // in an IndexMap using the Equivalent trait
+        let mut map: FxIndexMap<Vec<DefinableNameSegment>, &str> = FxIndexMap::default();
+        map.insert(
+            vec![
+                DefinableNameSegment::Name(rcstr!("process")),
+                DefinableNameSegment::Name(rcstr!("env")),
+                DefinableNameSegment::Name(rcstr!("NODE_ENV")),
+            ],
+            "production",
+        );
+        map.insert(
+            vec![
+                DefinableNameSegment::Name(rcstr!("process")),
+                DefinableNameSegment::Name(rcstr!("turbopack")),
+            ],
+            "true",
+        );
+
+        // Lookup using DefinableNameSegmentRefs
+        let key = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::Name("env"),
+            DefinableNameSegmentRef::Name("NODE_ENV"),
+        ]);
+        assert_eq!(
+            map.get(&key),
+            Some(&"production"),
+            "IndexMap lookup with Equivalent trait should work"
+        );
+
+        let key2 = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::Name("turbopack"),
+        ]);
+        assert_eq!(
+            map.get(&key2),
+            Some(&"true"),
+            "IndexMap lookup with Equivalent trait should work for shorter keys"
+        );
+
+        let key3 = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::Name("nonexistent"),
+        ]);
+        assert_eq!(
+            map.get(&key3),
+            None,
+            "IndexMap lookup should return None for nonexistent keys"
+        );
+    }
+
+    #[test]
+    fn fxhashset_rcstr_lookup_with_str() {
+        // Test that &str can be used to look up RcStr in a FxHashSet
+        // This is used by FreeVarReferencesMembers::contains_key
+        use rustc_hash::FxHashSet;
+
+        let mut set: FxHashSet<turbo_rcstr::RcStr> = FxHashSet::default();
+        set.insert(rcstr!("process"));
+        set.insert(rcstr!("env"));
+        set.insert(rcstr!("NODE_ENV"));
+
+        // This tests whether &str can look up RcStr in the set
+        // It requires RcStr: Borrow<str> AND hash(&str) == hash(&RcStr)
+        assert!(
+            set.contains("process"),
+            "FxHashSet<RcStr> lookup with &str should work for 'process'"
+        );
+        assert!(
+            set.contains("env"),
+            "FxHashSet<RcStr> lookup with &str should work for 'env'"
+        );
+        assert!(
+            set.contains("NODE_ENV"),
+            "FxHashSet<RcStr> lookup with &str should work for 'NODE_ENV'"
+        );
+        assert!(
+            !set.contains("nonexistent"),
+            "FxHashSet<RcStr> lookup with &str should return false for nonexistent keys"
         );
     }
 }

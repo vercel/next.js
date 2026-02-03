@@ -57,6 +57,10 @@ export function serverPatchReducer(
     retryNextUrl,
     shouldScroll,
     navigateType,
+    null,
+    // Server patch (retry) navigations don't use route prediction. This is
+    // typically a retry after a previous mismatch, so the route was already
+    // marked as having a dynamic rewrite when the mismatch was detected.
     null
   )
 }

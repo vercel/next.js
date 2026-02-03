@@ -2,7 +2,10 @@ import { bold, cyan, red, yellow } from './picocolors'
 import path, { join } from 'path'
 
 import { hasNecessaryDependencies } from './has-necessary-dependencies'
-import type { NecessaryDependencies } from './has-necessary-dependencies'
+import type {
+  MissingDependency,
+  NecessaryDependencies,
+} from './has-necessary-dependencies'
 import semver from 'next/dist/compiled/semver'
 import { CompileError } from './compile-error'
 import * as log from '../build/output/log'
@@ -14,13 +17,16 @@ import { writeConfigurationDefaults } from './typescript/writeConfigurationDefau
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../server/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
+import { resolveFrom } from './resolve-from'
 
-const requiredPackages = [
-  {
-    file: 'typescript/lib/typescript.js',
-    pkg: 'typescript',
-    exportsRestrict: true,
-  },
+const typescriptPackage: MissingDependency = {
+  file: 'typescript/lib/typescript.js',
+  pkg: 'typescript',
+  exportsRestrict: true,
+}
+
+const requiredPackages: MissingDependency[] = [
+  typescriptPackage,
   {
     file: '@types/react/index.d.ts',
     pkg: '@types/react',
@@ -33,6 +39,20 @@ const requiredPackages = [
   },
 ]
 
+/**
+ * Check if @typescript/native-preview is installed as an alternative TypeScript compiler.
+ * This is a Go-based native TypeScript compiler that can be used instead of the standard
+ * TypeScript package for faster compilation.
+ */
+function hasNativeTypeScriptPreview(dir: string): boolean {
+  try {
+    resolveFrom(dir, '@typescript/native-preview/package.json')
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function verifyTypeScriptSetup({
   dir,
   distDir,
@@ -44,7 +64,6 @@ export async function verifyTypeScriptSetup({
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
-  isolatedDevBuild,
   appDir,
   pagesDir,
   debugBuildPaths,
@@ -60,7 +79,6 @@ export async function verifyTypeScriptSetup({
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
-  isolatedDevBuild: boolean | undefined
   appDir?: string
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
@@ -78,11 +96,54 @@ export async function verifyTypeScriptSetup({
       return { version: null }
     }
 
+    // Check if @typescript/native-preview is installed as an alternative
+    const hasNativePreview = hasNativeTypeScriptPreview(dir)
+
     // Ensure TypeScript and necessary `@types/*` are installed:
     let deps: NecessaryDependencies = hasNecessaryDependencies(
       dir,
       requiredPackages
     )
+
+    // If @typescript/native-preview is installed and only the typescript package is missing,
+    // we can skip auto-installing typescript since the native preview provides TS compilation.
+    // However, we still need @types/react and @types/node for type checking.
+    if (hasNativePreview && deps.missing?.length > 0) {
+      const missingWithoutTypescript = deps.missing.filter(
+        (dep) => dep.pkg !== 'typescript'
+      )
+      const onlyTypescriptMissing =
+        deps.missing.length === 1 && deps.missing[0].pkg === 'typescript'
+
+      if (onlyTypescriptMissing) {
+        // @typescript/native-preview is installed and only typescript is missing
+        // Skip installation and return early - the project can use the native preview
+        log.info(
+          `Detected ${bold('@typescript/native-preview')} as TypeScript compiler. ` +
+            `Some Next.js TypeScript features (like type checking during build) require the standard ${bold('typescript')} package.`
+        )
+
+        // Still write type declarations since they don't require the typescript package
+        await writeAppTypeDeclarations({
+          baseDir: dir,
+          distDir,
+          distDirRoot,
+          imageImportsEnabled: !disableStaticImages,
+          hasPagesDir,
+          hasAppDir,
+        })
+
+        return { version: null }
+      }
+
+      // If there are other missing deps besides typescript, only install those
+      if (
+        missingWithoutTypescript.length > 0 &&
+        missingWithoutTypescript.length < deps.missing.length
+      ) {
+        deps.missing = missingWithoutTypescript
+      }
+    }
 
     if (deps.missing?.length > 0) {
       if (isCI) {
@@ -141,7 +202,6 @@ export async function verifyTypeScriptSetup({
       hasAppDir,
       distDir,
       hasPagesDir,
-      isolatedDevBuild,
       strictRouteTypes
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
@@ -173,7 +233,6 @@ export async function verifyTypeScriptSetup({
         resolvedTsConfigPath,
         cacheDir,
         hasAppDir,
-        isolatedDevBuild,
         { app: appDir, pages: pagesDir },
         debugBuildPaths
       )

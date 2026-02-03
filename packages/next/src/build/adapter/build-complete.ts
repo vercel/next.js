@@ -33,7 +33,7 @@ import type {
 } from '..'
 
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
   NEXT_RESUME_HEADER,
@@ -49,6 +49,7 @@ import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { defaultOverrides } from '../../server/require-hook'
 import { makeIgnoreFn } from '../collect-build-traces'
 import { generateRoutesManifest } from '../generate-routes-manifest'
+import { Bundler } from '../../lib/bundler'
 
 interface SharedRouteFields {
   /**
@@ -406,6 +407,7 @@ export async function handleBuildComplete({
   configOutDir,
   distDir,
   pageKeys,
+  bundler,
   tracingRoot,
   adapterPath,
   appPageKeys,
@@ -432,6 +434,7 @@ export async function handleBuildComplete({
   nextVersion: string
   hasStatic404: boolean
   hasStatic500: boolean
+  bundler: Bundler
   staticPages: Set<string>
   hasNodeMiddleware: boolean
   config: NextConfigComplete
@@ -520,27 +523,71 @@ export async function handleBuildComplete({
         sharedNodeAssets[fileOutputPath] = filePath
       }
 
-      const moduleTypes = ['app-page', 'pages'] as const
+      // add "next/setup-node-env" stub so it can be required top-level
+      // TODO: should we make this always available without adapters
+      const setupNodeStubPath = path.join(
+        path.dirname(require.resolve('next/package.json')),
+        'setup-node-env.js'
+      )
+      sharedNodeAssets[path.relative(tracingRoot, setupNodeStubPath)] =
+        require.resolve('next/dist/build/adapter/setup-node-env.external')
 
-      for (const type of moduleTypes) {
-        const currentDependencies: string[] = []
-        const modulePath = require.resolve(
-          `next/dist/server/route-modules/${type}/module.compiled`
-        )
-        const contextDir = path.join(
-          path.dirname(modulePath),
-          'vendored',
-          'contexts'
-        )
+      if (bundler !== Bundler.Turbopack) {
+        const moduleTypes = ['app-page', 'pages'] as const
 
-        for (const item of await fs.readdir(contextDir)) {
-          if (item.match(/\.(mjs|cjs|js)$/)) {
-            currentDependencies.push(path.join(contextDir, item))
+        for (const type of moduleTypes) {
+          const currentDependencies: string[] = []
+          const modulePath = require.resolve(
+            `next/dist/server/route-modules/${type}/module.compiled`
+          )
+          const contextDir = path.join(
+            path.dirname(modulePath),
+            'vendored',
+            'contexts'
+          )
+
+          for (const item of await fs.readdir(contextDir)) {
+            if (item.match(/\.(mjs|cjs|js)$/)) {
+              currentDependencies.push(path.join(contextDir, item))
+            }
+          }
+
+          const { fileList, esmFileList } = await nodeFileTrace(
+            currentDependencies,
+            {
+              base: tracingRoot,
+              ignore: sharedIgnoreFn,
+            }
+          )
+          esmFileList.forEach((item) => fileList.add(item))
+
+          for (const rootRelativeFilePath of fileList) {
+            if (type === 'pages') {
+              pagesSharedNodeAssets[rootRelativeFilePath] = path.join(
+                tracingRoot,
+                rootRelativeFilePath
+              )
+            } else {
+              appPagesSharedNodeAssets[rootRelativeFilePath] = path.join(
+                tracingRoot,
+                rootRelativeFilePath
+              )
+            }
           }
         }
 
+        // These are modules that are necessary for bootstrapping node env
+        const necessaryNodeDependencies = [
+          require.resolve('next/dist/server/node-environment'),
+          require.resolve('next/dist/server/require-hook'),
+          require.resolve('next/dist/server/node-polyfill-crypto'),
+          ...Object.values(defaultOverrides).filter((item) =>
+            path.extname(item)
+          ),
+        ]
+
         const { fileList, esmFileList } = await nodeFileTrace(
-          currentDependencies,
+          necessaryNodeDependencies,
           {
             base: tracingRoot,
             ignore: sharedIgnoreFn,
@@ -549,42 +596,11 @@ export async function handleBuildComplete({
         esmFileList.forEach((item) => fileList.add(item))
 
         for (const rootRelativeFilePath of fileList) {
-          if (type === 'pages') {
-            pagesSharedNodeAssets[rootRelativeFilePath] = path.join(
-              tracingRoot,
-              rootRelativeFilePath
-            )
-          } else {
-            appPagesSharedNodeAssets[rootRelativeFilePath] = path.join(
-              tracingRoot,
-              rootRelativeFilePath
-            )
-          }
+          sharedNodeAssets[rootRelativeFilePath] = path.join(
+            tracingRoot,
+            rootRelativeFilePath
+          )
         }
-      }
-
-      // These are modules that are necessary for bootstrapping node env
-      const necessaryNodeDependencies = [
-        require.resolve('next/dist/server/node-environment'),
-        require.resolve('next/dist/server/require-hook'),
-        require.resolve('next/dist/server/node-polyfill-crypto'),
-        ...Object.values(defaultOverrides).filter((item) => path.extname(item)),
-      ]
-
-      const { fileList, esmFileList } = await nodeFileTrace(
-        necessaryNodeDependencies,
-        {
-          base: tracingRoot,
-          ignore: sharedIgnoreFn,
-        }
-      )
-      esmFileList.forEach((item) => fileList.add(item))
-
-      for (const rootRelativeFilePath of fileList) {
-        sharedNodeAssets[rootRelativeFilePath] = path.join(
-          tracingRoot,
-          rootRelativeFilePath
-        )
       }
 
       if (hasInstrumentationHook) {
@@ -1233,6 +1249,7 @@ export async function handleBuildComplete({
           initialHeaders,
           initialStatus,
           dataRoute,
+          prefetchDataRoute,
           renderingMode,
           allowHeader,
           experimentalBypassFor,
@@ -1404,13 +1421,22 @@ export async function handleBuildComplete({
           )
           let postponed = meta.postponed
 
+          const dataRouteToUse =
+            renderingMode === RenderingMode.PARTIALLY_STATIC &&
+            prefetchDataRoute
+              ? prefetchDataRoute
+              : dataRoute
+
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data
             // that should be served as a part of the prerender should
             // be from the prefetch data route. If this isn't enabled
             // for ppr, the only way to get the data is from the data
             // route.
-            dataFilePath = path.join(appDistDir, dataRoute)
+            dataFilePath = path.join(
+              appDistDir,
+              (dataRouteToUse ?? dataRoute)?.replace(/^\//, '')
+            )
           }
 
           if (
@@ -1986,7 +2012,7 @@ export async function handleBuildComplete({
               // Next.js assets contain a hash or entropy in their filenames, so they
               // are guaranteed to be unique and cacheable indefinitely.
               headers: {
-                'cache-control': `public,max-age=${CACHE_ONE_YEAR},immutable`,
+                'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
               },
             },
           ],
