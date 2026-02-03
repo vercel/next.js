@@ -2033,6 +2033,8 @@ var KeyboardEventInterface = assign({}, UIEventInterface, {
     isPrimary: 0
   }),
   SyntheticPointerEvent = createSyntheticEvent(PointerEventInterface),
+  SubmitEventInterface = assign({}, EventInterface, { submitter: 0 }),
+  SyntheticSubmitEvent = createSyntheticEvent(SubmitEventInterface),
   TouchEventInterface = assign({}, UIEventInterface, {
     touches: 0,
     targetTouches: 0,
@@ -12161,7 +12163,12 @@ function recursivelyResetForms(parentFiber) {
     for (parentFiber = parentFiber.child; null !== parentFiber; ) {
       var fiber = parentFiber;
       recursivelyResetForms(fiber);
-      5 === fiber.tag && fiber.flags & 1024 && fiber.stateNode.reset();
+      5 === fiber.tag &&
+        fiber.flags & 1024 &&
+        ((fiber = fiber.stateNode),
+        (_enabled = !0),
+        fiber.reset(),
+        (_enabled = !1));
       parentFiber = parentFiber.sibling;
     }
 }
@@ -17192,6 +17199,9 @@ function dispatchEventForPluginEventSystem(
           case "pointerup":
             SyntheticEventCtor = SyntheticPointerEvent;
             break;
+          case "submit":
+            SyntheticEventCtor = SyntheticSubmitEvent;
+            break;
           case "toggle":
           case "beforetoggle":
             SyntheticEventCtor = SyntheticToggleEvent;
@@ -21931,14 +21941,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2541 = React.version;
 if (
-  "19.3.0-experimental-ed4bd540-20260202" !==
+  "19.3.0-experimental-b1533b03-20260203" !==
   isomorphicReactPackageVersion$jscomp$inline_2541
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2541,
-      "19.3.0-experimental-ed4bd540-20260202"
+      "19.3.0-experimental-b1533b03-20260203"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -21958,24 +21968,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_3261 = {
+var internals$jscomp$inline_3257 = {
   bundleType: 0,
-  version: "19.3.0-experimental-ed4bd540-20260202",
+  version: "19.3.0-experimental-b1533b03-20260203",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-ed4bd540-20260202"
+  reconcilerVersion: "19.3.0-experimental-b1533b03-20260203"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_3262 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_3258 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_3262.isDisabled &&
-    hook$jscomp$inline_3262.supportsFiber
+    !hook$jscomp$inline_3258.isDisabled &&
+    hook$jscomp$inline_3258.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_3262.inject(
-        internals$jscomp$inline_3261
+      (rendererID = hook$jscomp$inline_3258.inject(
+        internals$jscomp$inline_3257
       )),
-        (injectedHook = hook$jscomp$inline_3262);
+        (injectedHook = hook$jscomp$inline_3258);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -22231,7 +22241,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-experimental-ed4bd540-20260202";
+exports.version = "19.3.0-experimental-b1533b03-20260203";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
