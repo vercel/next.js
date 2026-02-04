@@ -129,7 +129,7 @@ fn bench_write(c: &mut Criterion) {
         (64 * 1024, 4),
     ];
     // Entry counts to test
-    let database_sizes = [10 * 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024];
+    let database_sizes = [1024 * 1024, 10 * 1024 * 1024, 100 * 1024 * 1024];
 
     for &(key_size, value_size) in &entry_sizes {
         for &database_size in &database_sizes {
@@ -146,24 +146,31 @@ fn bench_write(c: &mut Criterion) {
                     || {
                         // Setup: create temp directory and RNG
                         let tempdir = tempfile::tempdir().unwrap();
-                        let rng = SmallRng::seed_from_u64(42);
-                        (tempdir, rng)
+                        let mut rng = SmallRng::seed_from_u64(42);
+                        let mut random_data = vec![0u8; entry_count * (key_size + value_size)];
+                        rng.fill(&mut random_data[..]);
+
+                        (tempdir, random_data)
                     },
-                    |(tempdir, mut rng)| {
+                    |(tempdir, random_data)| {
                         // Timed: write entries and commit
                         let db = TurboPersistence::<SerialScheduler, 1>::open(
                             tempdir.path().to_path_buf(),
                         )
                         .unwrap();
-                        let batch = db.write_batch().unwrap();
+                        {
+                            let batch = db.write_batch().unwrap();
+                            let entry_size = key_size + value_size;
 
-                        for _ in 0..entry_count {
-                            let key = random_key(&mut rng, key_size);
-                            let value = random_value(&mut rng, value_size);
-                            batch.put(0, key, value.into()).unwrap();
+                            for i in 0..entry_count {
+                                let key = &random_data[i * entry_size..i * entry_size + key_size];
+                                let value =
+                                    &random_data[i * entry_size + key_size..(i + 1) * entry_size];
+                                batch.put(0, key, value.into()).unwrap();
+                            }
+
+                            db.commit_write_batch(batch).unwrap();
                         }
-
-                        db.commit_write_batch(batch).unwrap();
                         black_box(db.shutdown().unwrap());
                         tempdir
                     },
@@ -245,11 +252,31 @@ fn bench_read_get(c: &mut Criterion) {
             group.bench_function(&id, |b| {
                 let (_, db, keys, rng) = &*db;
                 let mut rng = rng.lock();
-                b.iter(|| {
-                    let idx = rng.random_range(0..keys.len());
-                    let result = db.get(0, &keys[idx]).unwrap();
-                    black_box(result)
-                });
+                b.iter_batched(
+                    || rng.random_range(0..keys.len()),
+                    |idx| {
+                        let result = db.get(0, &keys[idx]).unwrap();
+                        black_box(result)
+                    },
+                    BatchSize::SmallInput,
+                );
+            });
+
+            group.bench_function(&format!("{id}/miss"), |b| {
+                let (_, db, _, rng) = &*db;
+                let mut rng = rng.lock();
+                b.iter_batched(
+                    || random_key(&mut rng, key_size),
+                    |key| {
+                        let result = db.get(0, &key).unwrap();
+                        black_box(result)
+                    },
+                    if key_size > 1024 {
+                        BatchSize::LargeInput
+                    } else {
+                        BatchSize::SmallInput
+                    },
+                );
             });
         }
     }
@@ -275,22 +302,31 @@ fn bench_read_batch_get(c: &mut Criterion) {
 
     for &(key_size, value_size) in &entry_sizes {
         for &(commit_count, compacted) in &commit_configs {
+            let entry_count = BATCH_READ_DATA_AMOUNT / (key_size + value_size);
+
+            let config = DbConfig {
+                key_size,
+                value_size,
+                entry_count,
+                commit_count,
+                compacted,
+            };
+
+            let compacted_str = if compacted {
+                "compacted"
+            } else {
+                "uncompacted"
+            };
+
+            let db = LazyLock::new(|| {
+                let (tempdir, stored_keys) = setup_prefilled_db(&config).unwrap();
+                let db = TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
+                    .unwrap();
+                let rng = Mutex::new(SmallRng::seed_from_u64(456));
+                (tempdir, db, stored_keys, rng)
+            });
+
             for &batch_size in &batch_sizes {
-                let entry_count = BATCH_READ_DATA_AMOUNT / (key_size + value_size);
-
-                let config = DbConfig {
-                    key_size,
-                    value_size,
-                    entry_count,
-                    commit_count,
-                    compacted,
-                };
-
-                let compacted_str = if compacted {
-                    "compacted"
-                } else {
-                    "uncompacted"
-                };
                 let id = format!(
                     "key_{}/value_{}/entries_{}/commits_{}/batch_{}/{}",
                     format_number(key_size),
@@ -301,28 +337,41 @@ fn bench_read_batch_get(c: &mut Criterion) {
                     compacted_str,
                 );
 
-                let db = LazyLock::new(|| {
-                    let (tempdir, stored_keys) = setup_prefilled_db(&config).unwrap();
-                    let db =
-                        TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
-                            .unwrap();
-                    let rng = Mutex::new(SmallRng::seed_from_u64(456));
-                    (tempdir, db, stored_keys, rng)
-                });
-
                 group.bench_function(&id, |b| {
                     let (_, db, stored_keys, rng) = &*db;
                     let mut rng = rng.lock();
-                    b.iter(|| {
-                        let keys: Vec<&[u8]> = (0..batch_size)
-                            .map(|_| {
-                                let idx = rng.random_range(0..stored_keys.len());
-                                stored_keys[idx].as_slice()
-                            })
-                            .collect();
-                        let result = db.batch_get(0, &keys).unwrap();
-                        black_box(result)
-                    });
+                    b.iter_batched(
+                        || {
+                            (0..batch_size)
+                                .map(|_| {
+                                    let idx = rng.random_range(0..stored_keys.len());
+                                    stored_keys[idx].as_slice()
+                                })
+                                .collect::<Vec<_>>()
+                        },
+                        |keys| {
+                            let result = db.batch_get(0, &keys).unwrap();
+                            black_box(result)
+                        },
+                        BatchSize::LargeInput,
+                    );
+                });
+
+                group.bench_function(&format!("{id}/miss"), |b| {
+                    let (_, db, _, rng) = &*db;
+                    let mut rng = rng.lock();
+                    b.iter_batched(
+                        || {
+                            (0..batch_size)
+                                .map(|_| random_key(&mut rng, key_size))
+                                .collect::<Vec<_>>()
+                        },
+                        |keys| {
+                            let result = db.batch_get(0, &keys).unwrap();
+                            black_box(result)
+                        },
+                        BatchSize::LargeInput,
+                    );
                 });
             }
         }

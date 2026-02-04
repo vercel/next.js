@@ -414,9 +414,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// time. The WriteBatch need to be committed with [`TurboPersistence::commit_write_batch`].
     /// Note that the WriteBatch might start writing data to disk while it's filled up with data.
     /// This data will only become visible after the WriteBatch is committed.
-    pub fn write_batch<K: StoreKey + Send + Sync + 'static>(
-        &self,
-    ) -> Result<WriteBatch<K, S, FAMILIES>> {
+    pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<K, S, FAMILIES>> {
         if self.read_only {
             bail!("Cannot write to a read-only database");
         }
@@ -452,7 +450,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Commits a WriteBatch to the database. This will finish writing the data to disk and make it
     /// visible to readers.
-    pub fn commit_write_batch<K: StoreKey + Send + Sync + 'static>(
+    pub fn commit_write_batch<K: StoreKey + Send + Sync>(
         &self,
         mut write_batch: WriteBatch<K, S, FAMILIES>,
     ) -> Result<()> {
