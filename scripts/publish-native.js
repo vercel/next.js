@@ -11,7 +11,7 @@ const cwd = process.cwd()
   try {
     const publishSema = new Sema(2)
 
-    let version = '15.5.7'
+    let version = require('@next/swc/package.json').version
 
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'crates/napi/npm')
@@ -79,7 +79,7 @@ const cwd = process.cwd()
       })
     )
 
-    // // Update name/version of wasm packages and publish
+    // Update name/version of wasm packages and publish
     const pkgDirectory = 'crates/wasm'
     let wasmDir = path.join(cwd, pkgDirectory)
     await Promise.all(
