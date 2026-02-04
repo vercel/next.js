@@ -110,7 +110,7 @@ export type MetadataResolver = (
   dir: string,
   filename: string,
   extensions: readonly string[]
-) => Promise<string | undefined>
+) => Promise<string[]>
 
 export type AppDirModules = {
   readonly [moduleKey in ValueOf<typeof FILE_TYPES>]?: ModuleTuple
@@ -987,21 +987,21 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   ) => {
     const absoluteDir = createAbsolutePath(appDir, dirname)
 
-    let result: string | undefined
+    const results: string[] = []
 
     for (const ext of exts) {
       // Compared to `resolver` above the exts do not have the `.` included already, so it's added here.
       const filenameWithExt = `${filename}.${ext}`
       const absolutePathWithExtension = `${absoluteDir}${path.sep}${filenameWithExt}`
-      if (!result && (await fileExistsInDirectory(dirname, filenameWithExt))) {
-        result = absolutePathWithExtension
+      if (await fileExistsInDirectory(dirname, filenameWithExt)) {
+        results.push(absolutePathWithExtension)
       }
       // Call `addMissingDependency` for all files even if they didn't match,
       // because they might be added or removed during development.
       this.addMissingDependency(absolutePathWithExtension)
     }
 
-    return result
+    return results
   }
 
   if (isAppRouteRoute(name)) {
