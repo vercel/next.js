@@ -43,6 +43,7 @@ describe('getDynamicHTMLPostponedState', () => {
           revalidate: 1,
         },
         hasExplicitRevalidate: true,
+        hasExplicitExpire: true,
       })
     )
 

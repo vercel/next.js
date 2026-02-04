@@ -24,6 +24,7 @@ function createMockedCache() {
         revalidate: 1,
       },
       hasExplicitRevalidate: true,
+      hasExplicitExpire: true,
     })
   )
 
@@ -40,6 +41,7 @@ function createMockedCache() {
         revalidate: 1,
       },
       hasExplicitRevalidate: true,
+      hasExplicitExpire: true,
     })
   )
 
@@ -56,6 +58,7 @@ function createMockedCache() {
         revalidate: 0,
       },
       hasExplicitRevalidate: true,
+      hasExplicitExpire: true,
     })
   )
 
