@@ -26,6 +26,11 @@
  * - Routes with a prefetch cache hit will wait before writing dynamic data
  *   into the UI.
  *
+ * For MPA navigations (page reload, full page load):
+ * - A cookie is set that tells the server to render only the static shell.
+ * - When the lock is released, the cookie is cleared and a refresh is
+ *   triggered to fetch dynamic data.
+ *
  * This allows tests to assert on the prefetched UI state before dynamic
  * content streams in. Network requests are not blocked - they proceed in
  * parallel while the lock is held.
@@ -34,6 +39,8 @@
  * dead code eliminated in production builds.
  */
 
+import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
+
 type NavigationLockState = {
   promise: Promise<void>
   resolve: () => void
@@ -41,9 +48,16 @@ type NavigationLockState = {
 
 let lockState: NavigationLockState | null = null
 
+// Tracks whether the page was loaded while the instant test cookie was set.
+// When true, releasing the lock will trigger a refresh to fetch dynamic data.
+let mpaLockedStateNeedsRefresh = false
+
 /**
  * Acquires the navigation lock. While locked, navigations will wait for
  * prefetch tasks to complete before proceeding.
+ *
+ * Also sets a cookie so that MPA navigations (page reload, full page load)
+ * will render only the static shell.
  *
  * Logs an error if the lock is already acquired (concurrent locks are not
  * allowed).
@@ -65,12 +79,19 @@ export function acquireNavigationLock(): void {
       resolve = r
     })
     lockState = { promise, resolve: resolve! }
+
+    // Set cookie for MPA navigations
+    document.cookie = `${NEXT_INSTANT_TEST_COOKIE}=1;path=/`
   }
 }
 
 /**
  * Releases the navigation lock. Any navigations that were waiting for
  * prefetch completion will now proceed with dynamic data fetching.
+ *
+ * If the page was loaded while locked (MPA navigation), this also triggers
+ * a refresh to fetch the dynamic data that was blocked during the initial
+ * page load.
  *
  * No-op if the lock is not currently acquired.
  *
@@ -81,6 +102,16 @@ export function releaseNavigationLock(): void {
     if (lockState !== null) {
       lockState.resolve()
       lockState = null
+    }
+
+    // Clear the cookie
+    document.cookie = `${NEXT_INSTANT_TEST_COOKIE}=;path=/;max-age=0`
+
+    // If the page was loaded with the cookie set (MPA navigation), trigger a
+    // refresh to fetch the dynamic data that was blocked during SSR.
+    if (mpaLockedStateNeedsRefresh) {
+      mpaLockedStateNeedsRefresh = false
+      triggerRefresh()
     }
   }
 }
@@ -108,5 +139,48 @@ export async function waitForNavigationLockIfActive(): Promise<void> {
     if (lockState !== null) {
       await lockState.promise
     }
+  }
+}
+
+/**
+ * Called during page initialization when the instant test cookie is detected.
+ * Sets up the lock state so that:
+ * 1. Client-side navigations during the instant scope also block dynamic data
+ * 2. When the lock is released, a refresh is triggered to fetch dynamic data
+ *
+ * Dev mode only.
+ */
+export function initializeMpaLockedState(): void {
+  if (process.env.NODE_ENV !== 'production') {
+    // Set the MPA flag so we know to trigger a refresh when the lock is released
+    mpaLockedStateNeedsRefresh = true
+
+    // Also acquire the in-memory lock so client-side navigations during the
+    // instant scope also block dynamic data
+    if (lockState === null) {
+      let resolve: () => void
+      const promise = new Promise<void>((r) => {
+        resolve = r
+      })
+      lockState = { promise, resolve: resolve! }
+    }
+  }
+}
+
+/**
+ * Triggers a router refresh to fetch dynamic data. Used after releasing the
+ * navigation lock following an MPA navigation.
+ */
+function triggerRefresh(): void {
+  if (process.env.NODE_ENV !== 'production') {
+    const { dispatchAppRouterAction } =
+      require('../use-action-queue') as typeof import('../use-action-queue')
+    const { ACTION_REFRESH } =
+      require('../router-reducer/router-reducer-types') as typeof import('../router-reducer/router-reducer-types')
+
+    dispatchAppRouterAction({
+      type: ACTION_REFRESH,
+      devBypassCacheInvalidation: true,
+    })
   }
 }

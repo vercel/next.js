@@ -30,6 +30,12 @@ export type RouterChangeByServerResponse = ({
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
+  /**
+   * Dev-only. Bypass invalidating the segment cache. Used by the Instant
+   * Navigation Testing API to preserve prefetched data when refreshing after
+   * an MPA navigation.
+   */
+  devBypassCacheInvalidation?: boolean
 }
 
 export interface HmrRefreshAction {
