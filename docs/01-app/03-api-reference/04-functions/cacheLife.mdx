@@ -245,6 +245,12 @@ When you call revalidation functions from a Server Action ([`revalidateTag`](/do
 
 > **Good to know**: The `stale` property in `cacheLife` differs from [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes). While `staleTimes` is a global setting affecting all routes, `cacheLife` allows per-function or per-route configuration. Updating `staleTimes.static` also updates the `stale` value of the `default` cache profile.
 
+### Prerendering behavior
+
+Caches with very short lifetimes — zero `revalidate` or `expire` under 5 minutes — are automatically excluded from prerenders and become "dynamic holes" instead. This includes the `seconds` profile.
+
+This behavior allows you to mix static and dynamic content within the same page. Static parts are prerendered, while short-lived caches create boundaries where data is fetched at request time rather than build time. Use a `<Suspense>` boundary around dynamic caches to provide a fallback while content loads.
+
 ## Examples
 
 ### Using preset profiles
@@ -420,7 +426,51 @@ export default async function Dashboard() {
 
 **It is recommended to specify an explicit `cacheLife`.** With explicit lifetime values, you can inspect a cached function or component and immediately know its behavior without tracing through nested caches. Without explicit lifetime values, the behavior becomes dependent on inner cache lifetimes, making it harder to reason about.
 
-> **Note:** If a nested `use cache` has a zero revalidate time (e.g., `cacheLife({ revalidate: 0 })`) and the outer `use cache` does not have an explicit `cacheLife`, Next.js will throw an error during prerendering. This prevents accidental misconfigurations where the outer cache would silently become dynamic. To fix this, add an explicit `cacheLife()` call to the outer cache to choose whether it should be prerendered (with non-zero revalidate) or remain dynamic (with zero revalidate).
+#### Nested short-lived caches
+
+As described in [Prerendering behavior](#prerendering-behavior), short-lived caches (zero `revalidate` or `expire` under 5 minutes) become dynamic holes excluded from prerenders.
+
+When a short-lived cache is nested inside another `use cache` without an explicit `cacheLife`, the outer cache's lifetime would silently become short too via propagation. To prevent this accidental misconfiguration, Next.js throws an error during prerendering.
+
+To fix the error, add an explicit `cacheLife()` to the outer `use cache`:
+
+**If you want the outer cache to remain static (prerendered)**, set a longer cache lifetime:
+
+```tsx filename="app/page.tsx" highlight={6}
+import { cacheLife } from 'next/cache'
+
+export default async function Page() {
+  'use cache'
+  // Explicit cacheLife prevents the error and keeps this prerendered
+  cacheLife('default') // or any profile with sufficient revalidate/expire
+  return <ShortLivedWidget />
+}
+```
+
+**If you want the outer cache to be dynamic**, explicitly set a short cache lifetime to confirm this is intentional. Wrap the component in a `<Suspense>` boundary to provide a fallback while the dynamic content loads:
+
+```tsx filename="app/page.tsx" highlight={6,15}
+import { Suspense } from 'react'
+import { cacheLife } from 'next/cache'
+
+async function DynamicContent() {
+  'use cache'
+  cacheLife({ revalidate: 0 }) // or { expire: 60 } for short expire
+  const data = await fetchRealtimeData()
+  return <div>{data}</div>
+}
+
+export default function Page() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <Suspense fallback={<p>Loading...</p>}>
+        <DynamicContent />
+      </Suspense>
+    </div>
+  )
+}
+```
 
 ### Conditional cache lifetimes
 

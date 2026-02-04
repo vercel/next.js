@@ -43,6 +43,7 @@ export interface UseCacheCacheStoreSerialized {
     revalidate: number
   }
   hasExplicitRevalidate: boolean | undefined
+  hasExplicitExpire: boolean | undefined
 }
 
 /**
@@ -63,10 +64,8 @@ export function parseUseCacheCacheStore(
 
   for (const [
     key,
-    { entry: serializedEntry, hasExplicitRevalidate },
+    { entry, hasExplicitRevalidate, hasExplicitExpire },
   ] of entries) {
-    const { value, tags, stale, timestamp, expire, revalidate } =
-      serializedEntry
     store.set(
       key,
       Promise.resolve({
@@ -75,19 +74,20 @@ export function parseUseCacheCacheStore(
           value: new ReadableStream<Uint8Array>({
             start(controller) {
               // Enqueue the Uint8Array to the stream
-              controller.enqueue(stringToUint8Array(atob(value)))
+              controller.enqueue(stringToUint8Array(atob(entry.value)))
 
               // Close the stream
               controller.close()
             },
           }),
-          tags,
-          stale,
-          timestamp,
-          expire,
-          revalidate,
+          tags: entry.tags,
+          stale: entry.stale,
+          timestamp: entry.timestamp,
+          expire: entry.expire,
+          revalidate: entry.revalidate,
         },
         hasExplicitRevalidate,
+        hasExplicitExpire,
       })
     )
   }
@@ -107,7 +107,7 @@ export async function serializeUseCacheCacheStore(
   return Promise.all(
     Array.from(entries).map(([key, value]) => {
       return value
-        .then(async ({ entry, hasExplicitRevalidate }) => {
+        .then(async ({ entry, hasExplicitRevalidate, hasExplicitExpire }) => {
           if (
             isCacheComponentsEnabled &&
             (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
@@ -142,6 +142,7 @@ export async function serializeUseCacheCacheStore(
                 revalidate: entry.revalidate,
               },
               hasExplicitRevalidate,
+              hasExplicitExpire,
             },
           ] satisfies [string, UseCacheCacheStoreSerialized]
         })

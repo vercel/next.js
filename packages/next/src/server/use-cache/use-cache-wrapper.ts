@@ -131,6 +131,22 @@ const findSourceMapURL =
         .findSourceMapURLDEV
     : undefined
 
+const nestedCacheZeroRevalidateErrorMessage =
+  `A "use cache" with zero \`revalidate\` is nested inside another "use cache" ` +
+  `that has no explicit \`cacheLife\`, which is not allowed during ` +
+  `prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose ` +
+  `whether it should be prerendered (with non-zero \`revalidate\`) or remain ` +
+  `dynamic (with zero \`revalidate\`). Read more: ` +
+  `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
+
+const nestedCacheShortExpireErrorMessage =
+  `A "use cache" with short \`expire\` (under 5 minutes) is nested inside ` +
+  `another "use cache" that has no explicit \`cacheLife\`, which is not ` +
+  `allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` ` +
+  `to choose whether it should be prerendered (with longer \`expire\`) or remain ` +
+  `dynamic (with short \`expire\`). Read more: ` +
+  `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
+
 function generateCacheEntry(
   workStore: WorkStore,
   cacheContext: CacheContext,
@@ -386,10 +402,19 @@ export interface CollectedCacheResult {
   /**
    * Whether the revalidate value was explicitly set via `cacheLife()`.
    * - `true`: explicitly set
-   * - `false`: propagated from a nested cache
+   * - `false`: implicit (propagated from a nested cache or implicitly using the
+   *   default profile)
    * - `undefined`: unknown (e.g. pre-existing entry from a cache handler)
    */
   hasExplicitRevalidate: boolean | undefined
+  /**
+   * Whether the expire value was explicitly set via `cacheLife()`.
+   * - `true`: explicitly set
+   * - `false`: implicit (propagated from a nested cache or implicitly using the
+   *   default profile)
+   * - `undefined`: unknown (e.g. pre-existing entry from a cache handler)
+   */
+  hasExplicitExpire: boolean | undefined
 }
 
 async function collectResult(
@@ -517,6 +542,7 @@ async function collectResult(
   return {
     entry,
     hasExplicitRevalidate: innerCacheStore.explicitRevalidate !== undefined,
+    hasExplicitExpire: innerCacheStore.explicitExpire !== undefined,
   }
 }
 
@@ -786,8 +812,16 @@ function cloneCacheResult(
 ): [CollectedCacheResult, CollectedCacheResult] {
   const [entryA, entryB] = cloneCacheEntry(result.entry)
   return [
-    { entry: entryA, hasExplicitRevalidate: result.hasExplicitRevalidate },
-    { entry: entryB, hasExplicitRevalidate: result.hasExplicitRevalidate },
+    {
+      entry: entryA,
+      hasExplicitRevalidate: result.hasExplicitRevalidate,
+      hasExplicitExpire: result.hasExplicitExpire,
+    },
+    {
+      entry: entryB,
+      hasExplicitRevalidate: result.hasExplicitRevalidate,
+      hasExplicitExpire: result.hasExplicitExpire,
+    },
   ]
 }
 
@@ -1300,13 +1334,7 @@ export async function cache(
               if (existingResult.entry.revalidate === 0) {
                 if (existingResult.hasExplicitRevalidate === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(
-                      `A "use cache" with zero revalidate is nested inside another ` +
-                        `"use cache" that has no explicit \`cacheLife\`, which is not ` +
-                        `allowed during prerendering. Add \`cacheLife()\` to the outer ` +
-                        `to choose whether it should be prerendered (with non-zero ` +
-                        `revalidate) or remain dynamic (with zero revalidate).`
-                    ),
+                    new Error(nestedCacheZeroRevalidateErrorMessage),
                     workStore
                   )
                 }
@@ -1316,6 +1344,12 @@ export async function cache(
                   'from static shell due to revalidate: 0'
                 )
               } else {
+                if (existingResult.hasExplicitExpire === false) {
+                  throw wrapAsInvalidDynamicUsageError(
+                    new Error(nestedCacheShortExpireErrorMessage),
+                    workStore
+                  )
+                }
                 debug?.(
                   'omitting entry',
                   serializedCacheKey,
@@ -1347,13 +1381,16 @@ export async function cache(
                   existingResult.hasExplicitRevalidate === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(
-                      `A "use cache" with zero revalidate is nested inside another ` +
-                        `"use cache" that has no explicit \`cacheLife\`, which is not ` +
-                        `allowed during prerendering. Add \`cacheLife()\` to the outer ` +
-                        `to choose whether it should be prerendered (with non-zero ` +
-                        `revalidate) or remain dynamic (with zero revalidate).`
-                    ),
+                    new Error(nestedCacheZeroRevalidateErrorMessage),
+                    workStore
+                  )
+                }
+                if (
+                  existingResult.entry.expire < DYNAMIC_EXPIRE &&
+                  existingResult.hasExplicitExpire === false
+                ) {
+                  throw wrapAsInvalidDynamicUsageError(
+                    new Error(nestedCacheShortExpireErrorMessage),
                     workStore
                   )
                 }
@@ -1739,12 +1776,13 @@ export async function cache(
           Promise.resolve({
             entry: entryRight,
             // For pre-existing entries from cache handlers we don't know
-            // whether they had an explicit revalidate or not. But we only need
-            // this information during prerendering when we produce new entries,
-            // where the cache life of an inner cache may be propagated to the
-            // outer one. In that case we use the RDC. So it's safe to set this
-            // to undefined here.
+            // whether they had explicit cache life values or not. But we only
+            // need this information during prerendering when we produce new
+            // entries, where the cache life of an inner cache may be propagated
+            // to the outer one. In that case we use the RDC. So it's safe to
+            // set this to undefined here.
             hasExplicitRevalidate: undefined,
+            hasExplicitExpire: undefined,
           })
         )
       } else {

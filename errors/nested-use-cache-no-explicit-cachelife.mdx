@@ -1,0 +1,60 @@
+---
+title: Nested `"use cache"` with short cache lifetime requires explicit `cacheLife` on outer cache
+---
+
+## Why This Error Occurred
+
+A `"use cache"` function or component with a very short cache lifetime (either `revalidate: 0` or `expire` under 5 minutes) is nested inside another `"use cache"` that doesn't have an explicit `cacheLife()` call.
+
+When a nested cache has a very short lifetime, it would normally create a "dynamic hole" - meaning it's excluded from static prerenders. However, when this happens inside another `"use cache"` without an explicit `cacheLife`, the outer cache's lifetime silently becomes very short too (via propagation), which may be unintentional.
+
+To prevent accidental misconfigurations, Next.js requires you to explicitly declare your intent by adding `cacheLife()` to the outer `"use cache"`.
+
+## Possible Ways to Fix It
+
+Add an explicit `cacheLife()` call to the outer `"use cache"` to declare your intent:
+
+### If you want the outer cache to remain static (prerendered)
+
+Set a longer cache lifetime on the outer cache:
+
+```jsx filename="app/page.js" highlight={5}
+import { cacheLife } from 'next/cache'
+
+async function outerCache() {
+  'use cache'
+  cacheLife('default') // or any profile with sufficient revalidate/expire
+  return innerCache()
+}
+```
+
+### If you want the outer cache to be dynamic
+
+Explicitly set a short cache lifetime on the outer cache to confirm this is intentional. Make sure to wrap the component or its consumer in a `<Suspense>` boundary to provide a fallback UI while the dynamic content loads:
+
+```jsx filename="app/page.js" highlight={5,14}
+import { Suspense } from 'react'
+import { cacheLife } from 'next/cache'
+
+async function OuterCache() {
+  'use cache: remote'
+  cacheLife({ revalidate: 0 }) // or { expire: 60 } for short expire
+  const data = await innerCache()
+  return <div>{data}</div>
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <OuterCache />
+    </Suspense>
+  )
+}
+```
+
+## Useful Links
+
+- [`cacheLife` function](/docs/app/api-reference/functions/cacheLife)
+- [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)
+- [Prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior)
+- [Nested short-lived caches](/docs/app/api-reference/functions/cacheLife#nested-short-lived-caches)
