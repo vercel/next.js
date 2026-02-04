@@ -2554,6 +2554,7 @@ function createPrefetchResponseStream(
         }
         // The server stream has closed. Exit, but intentionally do not close
         // the target stream. We do notify the caller, though.
+        reader.releaseLock()
         onStreamClose()
         return
       }
