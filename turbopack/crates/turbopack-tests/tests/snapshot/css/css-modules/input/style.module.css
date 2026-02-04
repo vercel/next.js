@@ -1,0 +1,3 @@
+.module-style {
+  grid-template-areas: 'checkbox avatar content actions menu';
+}

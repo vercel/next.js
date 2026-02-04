@@ -39,9 +39,11 @@ function stringifyCookie(c) {
     "secure" in c && c.secure && "Secure",
     "httpOnly" in c && c.httpOnly && "HttpOnly",
     "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`,
+    "partitioned" in c && c.partitioned && "Partitioned",
     "priority" in c && c.priority && `Priority=${c.priority}`
   ].filter(Boolean);
-  return `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}; ${attrs.join("; ")}`;
+  const stringified = `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}`;
+  return attrs.length === 0 ? stringified : `${stringified}; ${attrs.join("; ")}`;
 }
 function parseCookie(cookie) {
   const map = /* @__PURE__ */ new Map();
@@ -74,9 +76,13 @@ function parseSetCookie(setCookie) {
     path,
     samesite,
     secure,
+    partitioned,
     priority
   } = Object.fromEntries(
-    attributes.map(([key, value2]) => [key.toLowerCase(), value2])
+    attributes.map(([key, value2]) => [
+      key.toLowerCase().replace(/-/g, ""),
+      value2
+    ])
   );
   const cookie = {
     name,
@@ -88,7 +94,8 @@ function parseSetCookie(setCookie) {
     path,
     ...samesite && { sameSite: parseSameSite(samesite) },
     ...secure && { secure: true },
-    ...priority && { priority: parsePriority(priority) }
+    ...priority && { priority: parsePriority(priority) },
+    ...partitioned && { partitioned: true }
   };
   return compact(cookie);
 }
@@ -293,8 +300,8 @@ var ResponseCookies = class {
    * {@link https://wicg.github.io/cookie-store/#CookieStore-delete CookieStore#delete} without the Promise.
    */
   delete(...args) {
-    const [name, path, domain] = typeof args[0] === "string" ? [args[0]] : [args[0].name, args[0].path, args[0].domain];
-    return this.set({ name, path, domain, value: "", expires: /* @__PURE__ */ new Date(0) });
+    const [name, options] = typeof args[0] === "string" ? [args[0]] : [args[0].name, args[0]];
+    return this.set({ ...options, name, value: "", expires: /* @__PURE__ */ new Date(0) });
   }
   [Symbol.for("edge-runtime.inspect.custom")]() {
     return `ResponseCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`;

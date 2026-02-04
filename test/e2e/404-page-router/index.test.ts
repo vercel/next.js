@@ -1,9 +1,7 @@
 import path from 'path'
 import fs from 'fs-extra'
-import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
-import { check } from 'next-test-utils'
-import { type NextInstance } from 'test/lib/next-modes/base'
+import { createNext, FileRef, type NextInstance } from 'e2e-utils'
+import { check, retry } from 'next-test-utils'
 
 const pathnames = {
   '/404': ['/not/a/real/page?with=query', '/not/a/real/page'],
@@ -29,6 +27,13 @@ const table = [
       ]),
 ]
 
+const baseNextConfig = `
+module.exports = {
+  BASE_PATH
+  I18N
+}
+`
+
 describe('404-page-router', () => {
   let next: NextInstance
 
@@ -37,7 +42,7 @@ describe('404-page-router', () => {
       pages: new FileRef(path.join(__dirname, 'app/pages')),
       components: new FileRef(path.join(__dirname, 'app/components')),
     }
-    next = await createNext({ files, skipStart: true })
+    next = await createNext({ files, skipStart: true, patchFileDelay: 500 })
   })
   afterAll(() => next.destroy())
 
@@ -64,18 +69,16 @@ describe('404-page-router', () => {
             )
           )
         }
-        let curNextConfig = await fs.readFile(
-          path.join(__dirname, 'app', 'next.config.js'),
-          'utf8'
-        )
 
-        if (options.basePath) {
-          curNextConfig = curNextConfig.replace('_basePath', 'basePath')
-        }
+        let curNextConfig = baseNextConfig
+          .replace('BASE_PATH', options.basePath ? "basePath: '/docs'," : '')
+          .replace(
+            'I18N',
+            options.i18n
+              ? "i18n: { defaultLocale: 'en-ca', locales: ['en-ca', 'en-fr'] },"
+              : ''
+          )
 
-        if (options.i18n) {
-          curNextConfig = curNextConfig.replace('_i18n', 'i18n')
-        }
         await next.patchFile('next.config.js', curNextConfig)
         await next.start()
       })
@@ -118,34 +121,31 @@ describe('404-page-router', () => {
 
       describe.each(urls)('for $url', ({ url, pathname, asPath }) => {
         it('should have the correct router parameters after it is ready', async () => {
-          const query = url.split('?', 2)[1] ?? ''
-          const browser = await webdriver(next.url, url)
+          const query = url.split('?', 2)[1] ?? '<empty>'
+          const browser = await next.browser(url)
 
-          try {
-            await check(
-              () => browser.eval('next.router.isReady ? "yes" : "no"'),
-              'yes'
-            )
-            expect(await browser.elementById('pathname').text()).toEqual(
-              pathname
-            )
-            expect(await browser.elementById('asPath').text()).toEqual(asPath)
-            expect(await browser.elementById('query').text()).toEqual(query)
-          } finally {
-            await browser.close()
-          }
+          await check(
+            () => browser.eval('next.router.isReady ? "yes" : "no"'),
+            'yes'
+          )
+          expect(await browser.elementById('pathname').text()).toEqual(pathname)
+          expect(await browser.elementById('asPath').text()).toEqual(asPath)
+          expect(await browser.elementById('query').text()).toEqual(query)
         })
       })
 
       // It should not throw any errors when re-fetching the route info:
       // https://github.com/vercel/next.js/issues/44293
       it('should not throw any errors when re-fetching the route info', async () => {
-        const browser = await webdriver(next.url, '/?test=1')
+        const browser = await next.browser('/?test=1')
         await check(
           () => browser.eval('next.router.isReady ? "yes" : "no"'),
           'yes'
         )
-        expect(await browser.elementById('query').text()).toEqual('test=1')
+
+        await retry(async () => {
+          expect(await browser.elementById('query').text()).toEqual('test=1')
+        })
       })
     }
   )

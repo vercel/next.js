@@ -20,7 +20,7 @@ import * as __index from './index';
  * ```
  */
 declare function load(
-  scopedContext: Record<string, unknown>
+  scopedContext: Record<string, unknown>,
 ): typeof __index
 
 export { load };

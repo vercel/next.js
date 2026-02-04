@@ -1,0 +1,11 @@
+computeAsyncValue (const after eval) = (...) => Promise<"async result">
+
+ensureAsyncProcessStarted (const after eval) = (...) => lasyInitAsyncProcess
+
+getLasyInitAsyncValue (const after eval) = (...) => lasyInitAsyncValue
+
+initLasyInitAsyncProcess (const after eval) = (...) => Promise<undefined>
+
+lasyInitAsyncProcess = (null | initLasyInitAsyncProcess())
+
+lasyInitAsyncValue = (null | computeAsyncValue())

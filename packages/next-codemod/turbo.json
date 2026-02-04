@@ -1,0 +1,26 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": [
+        "**/*.js",
+        "**/*.d.ts",
+        "**/*.js.map",
+        "!bin/__testfixtures__/**",
+        "!transforms/__testfixtures__/**",
+        "!transforms/__tests__/**"
+      ]
+    },
+    "dev": {
+      "outputs": [
+        "**/*.js",
+        "**/*.d.ts",
+        "**/*.js.map",
+        "!bin/__testfixtures__/**",
+        "!transforms/__testfixtures__/**",
+        "!transforms/__tests__/**"
+      ]
+    }
+  }
+}

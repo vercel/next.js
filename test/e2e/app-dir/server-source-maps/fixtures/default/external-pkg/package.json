@@ -1,0 +1,13 @@
+{
+  "name": "external-pkg",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./index.js"
+    },
+    "./sourcemapped": {
+      "default": "./sourcemapped.js"
+    }
+  }
+}

@@ -1,0 +1,1 @@
+import 'the-package'

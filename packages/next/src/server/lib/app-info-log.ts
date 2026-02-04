@@ -1,48 +1,111 @@
 import { loadEnvConfig } from '@next/env'
+import * as inspector from 'inspector'
 import * as Log from '../../build/output/log'
-import { bold, purple } from '../../lib/picocolors'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
-import loadConfig, { getEnabledExperimentalFeatures } from '../config'
+import { bold, purple, strikethrough } from '../../lib/picocolors'
+import type { ConfiguredExperimentalFeature } from '../config'
+import { experimentalSchema } from '../config-schema'
 
+// Re-export the type for consumers
+export type { ConfiguredExperimentalFeature }
+
+/**
+ * Logs basic startup info that doesn't require config.
+ * Called before "Ready in X" to show immediate feedback.
+ */
 export function logStartInfo({
   networkUrl,
   appUrl,
   envInfo,
-  expFeatureInfo,
-  maxExperimentalFeatures,
+  logBundler,
 }: {
   networkUrl: string | null
   appUrl: string | null
   envInfo?: string[]
-  expFeatureInfo?: string[]
-  maxExperimentalFeatures?: number
+  logBundler: boolean
 }) {
+  let versionSuffix = ''
+  const parts = []
+
+  if (logBundler) {
+    if (process.env.TURBOPACK) {
+      parts.push('Turbopack')
+    } else if (process.env.NEXT_RSPACK) {
+      parts.push('Rspack')
+    } else {
+      parts.push('webpack')
+    }
+  }
+
+  if (parts.length > 0) {
+    versionSuffix = ` (${parts.join(', ')})`
+  }
+
   Log.bootstrap(
-    bold(
-      purple(
-        ` ${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}${
-          process.env.TURBOPACK ? ' (turbo)' : ''
-        }`
-      )
-    )
+    `${bold(
+      purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`)
+    )}${versionSuffix}`
   )
   if (appUrl) {
-    Log.bootstrap(` - Local:        ${appUrl}`)
+    Log.bootstrap(`- Local:         ${appUrl}`)
   }
   if (networkUrl) {
-    Log.bootstrap(` - Network:      ${networkUrl}`)
+    Log.bootstrap(`- Network:       ${networkUrl}`)
   }
-  if (envInfo?.length) Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+  const inspectorUrl = inspector.url()
+  if (inspectorUrl) {
+    // Could also parse this port from the inspector URL.
+    // process.debugPort will always be defined even if the process is not being inspected.
+    // The full URL seems noisy as far as I can tell.
+    // Node.js will print the full URL anyway.
+    const debugPort = process.debugPort
+    Log.bootstrap(`- Debugger port: ${debugPort}`)
+  }
+  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
+}
 
-  if (expFeatureInfo?.length) {
-    Log.bootstrap(` - Experiments (use at your own risk):`)
-    // only show maximum 3 flags
-    for (const exp of expFeatureInfo.slice(0, maxExperimentalFeatures)) {
-      Log.bootstrap(`   · ${exp}`)
-    }
-    /* ${expFeatureInfo.length - 3} more */
-    if (expFeatureInfo.length > 3 && maxExperimentalFeatures) {
-      Log.bootstrap(`   · ...`)
+/**
+ * Logs experimental features and config-dependent info.
+ * Called after getRequestHandlers completes.
+ */
+export function logExperimentalInfo({
+  experimentalFeatures,
+  cacheComponents,
+}: {
+  experimentalFeatures?: ConfiguredExperimentalFeature[]
+  cacheComponents?: boolean
+}) {
+  if (cacheComponents) {
+    Log.bootstrap(`- Cache Components enabled`)
+  }
+
+  if (experimentalFeatures?.length) {
+    Log.bootstrap(`- Experiments (use with caution):`)
+    for (const exp of experimentalFeatures) {
+      const isValid = Object.prototype.hasOwnProperty.call(
+        experimentalSchema,
+        exp.key
+      )
+      if (isValid) {
+        const symbol =
+          typeof exp.value === 'boolean'
+            ? exp.value === true
+              ? bold('✓')
+              : bold('⨯')
+            : '·'
+
+        const suffix =
+          typeof exp.value === 'number' || typeof exp.value === 'string'
+            ? `: ${JSON.stringify(exp.value)}`
+            : ''
+
+        const reason = exp.reason ? ` (${exp.reason})` : ''
+
+        Log.bootstrap(`  ${symbol} ${exp.key}${suffix}${reason}`)
+      } else {
+        Log.bootstrap(
+          `  ? ${strikethrough(exp.key)} (invalid experimental key)`
+        )
+      }
     }
   }
 
@@ -50,33 +113,10 @@ export function logStartInfo({
   Log.info('')
 }
 
-export async function getStartServerInfo(dir: string): Promise<{
-  envInfo?: string[]
-  expFeatureInfo?: string[]
-}> {
-  let expFeatureInfo: string[] = []
-  await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-    onLoadUserConfig(userConfig) {
-      const userNextConfigExperimental = getEnabledExperimentalFeatures(
-        userConfig.experimental
-      )
-      expFeatureInfo = userNextConfigExperimental.sort(
-        (a, b) => a.length - b.length
-      )
-    },
-  })
-
-  // we need to reset env if we are going to create
-  // the worker process with the esm loader so that the
-  // initial env state is correct
-  let envInfo: string[] = []
+/**
+ * Gets environment info for logging. Fast operation that doesn't require config.
+ */
+export function getEnvInfo(dir: string): string[] {
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
-  if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles.map((f) => f.path)
-  }
-
-  return {
-    envInfo,
-    expFeatureInfo,
-  }
+  return loadedEnvFiles.map((f) => f.path)
 }

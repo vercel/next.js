@@ -1,0 +1,42 @@
+id: no-context
+snapshots:
+  'fn foo(context: ChunkingContext) -> u32 { 5 };':
+    labels:
+      - source: context
+        style: primary
+        start: 7
+        end: 14
+      - source: 'context: ChunkingContext'
+        style: secondary
+        start: 7
+        end: 31
+  foo(|context| context):
+    labels:
+      - source: context
+        style: primary
+        start: 5
+        end: 12
+      - source: '|context|'
+        style: secondary
+        start: 4
+        end: 13
+  let context = ChunkingContext::new();:
+    labels:
+      - source: context
+        style: primary
+        start: 4
+        end: 11
+      - source: let context = ChunkingContext::new();
+        style: secondary
+        start: 0
+        end: 37
+  'struct Foo { context: Context };':
+    labels:
+      - source: context
+        style: primary
+        start: 13
+        end: 20
+      - source: 'context: Context'
+        style: secondary
+        start: 13
+        end: 29

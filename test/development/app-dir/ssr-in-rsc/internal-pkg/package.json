@@ -1,0 +1,16 @@
+{
+  "name": "internal-pkg",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./server": {
+      "edge-light": "./server.edge.js",
+      "browser": "./server.browser.js",
+      "node": "./server.node.js",
+      "default": "./server.node.js"
+    },
+    "./server.browser": "./server.browser.js",
+    "./server.edge": "./server.edge.js",
+    "./server.node": "./server.node.js"
+  }
+}

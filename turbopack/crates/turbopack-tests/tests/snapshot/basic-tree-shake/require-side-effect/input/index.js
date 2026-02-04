@@ -1,0 +1,1 @@
+const { cat } = require('./lib')

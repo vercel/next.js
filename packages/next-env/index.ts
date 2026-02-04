@@ -8,10 +8,12 @@ export type Env = { [key: string]: string | undefined }
 export type LoadedEnvFiles = Array<{
   path: string
   contents: string
+  env: Env
 }>
 
 export let initialEnv: Env | undefined = undefined
 let combinedEnv: Env | undefined = undefined
+let parsedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 let previousLoadedEnvFiles: LoadedEnvFiles = []
 
@@ -55,7 +57,7 @@ export function processEnv(
     !forceReload &&
     (process.env.__NEXT_PROCESSED_ENV || loadedEnvFiles.length === 0)
   ) {
-    return process.env as Env
+    return [process.env as Env]
   }
   // flag that we processed the environment values already.
   process.env.__NEXT_PROCESSED_ENV = 'true'
@@ -90,6 +92,9 @@ export function processEnv(
           parsed[key] = result.parsed?.[key]!
         }
       }
+
+      // Add the parsed env to the loadedEnvFiles
+      envFile.env = result.parsed || {}
     } catch (err) {
       log.error(
         `Failed to load env from ${path.join(dir || '', envFile.path)}`,
@@ -97,7 +102,7 @@ export function processEnv(
       )
     }
   }
-  return Object.assign(process.env, parsed)
+  return [Object.assign(process.env, parsed), parsed]
 }
 
 export function resetEnv() {
@@ -114,6 +119,7 @@ export function loadEnvConfig(
   onReload?: (envFilePath: string) => void
 ): {
   combinedEnv: Env
+  parsedEnv: Env | undefined
   loadedEnvFiles: LoadedEnvFiles
 } {
   if (!initialEnv) {
@@ -121,7 +127,7 @@ export function loadEnvConfig(
   }
   // only reload env when forceReload is specified
   if (combinedEnv && !forceReload) {
-    return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+    return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
   replaceProcessEnv(initialEnv)
   previousLoadedEnvFiles = cachedLoadedEnvFiles
@@ -146,8 +152,8 @@ export function loadEnvConfig(
     try {
       const stats = fs.statSync(dotEnvPath)
 
-      // make sure to only attempt to read files
-      if (!stats.isFile()) {
+      // make sure to only attempt to read files or named pipes
+      if (!stats.isFile() && !stats.isFIFO()) {
         continue
       }
 
@@ -155,6 +161,7 @@ export function loadEnvConfig(
       cachedLoadedEnvFiles.push({
         path: envFile,
         contents,
+        env: {}, // This will be populated in processEnv
       })
     } catch (err: any) {
       if (err.code !== 'ENOENT') {
@@ -162,12 +169,12 @@ export function loadEnvConfig(
       }
     }
   }
-  combinedEnv = processEnv(
+  ;[combinedEnv, parsedEnv] = processEnv(
     cachedLoadedEnvFiles,
     dir,
     log,
     forceReload,
     onReload
   )
-  return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+  return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }

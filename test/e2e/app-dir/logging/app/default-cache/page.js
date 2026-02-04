@@ -1,6 +1,19 @@
+import { updateTag } from 'next/cache'
+
 export const fetchCache = 'default-cache'
 
-export default async function Page() {
+async function AnotherRsc() {
+  const data = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random?another-no-cache',
+    {
+      cache: 'no-cache',
+    }
+  ).then((res) => res.text())
+
+  return <p id="another-no-cache">"another-no-cache" {data}</p>
+}
+
+async function FirstRsc() {
   const dataNoCache = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?no-cache',
     {
@@ -44,12 +57,12 @@ export default async function Page() {
   ).then((res) => res.text())
 
   const dataAutoCache = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?auto-cache'
+    'https://next-data-api-endpoint.vercel.app/api/random?auto-cache',
+    { next: { tags: ['test-tag'] } }
   ).then((res) => res.text())
 
   return (
     <>
-      <p>/force-cache</p>
       <p id="data-no-cache">"cache: no-cache" {dataNoCache}</p>
       <p id="data-force-cache">"cache: force-cache" {dataForceCache}</p>
       <p id="data-revalidate-0">"revalidate: 0" {dataRevalidate0}</p>
@@ -58,6 +71,30 @@ export default async function Page() {
         "revalidate: 3 and cache: force-cache" {dataRevalidateAndFetchCache}
       </p>
       <p id="data-auto-cache">"auto cache" {dataAutoCache}</p>
+    </>
+  )
+}
+
+function RevalidateForm() {
+  return (
+    <form
+      action={async () => {
+        'use server'
+        updateTag('test-tag')
+      }}
+    >
+      <button id="revalidate-button">Revalidate</button>
+    </form>
+  )
+}
+
+export default async function Page() {
+  return (
+    <>
+      <h1>Default Cache</h1>
+      <FirstRsc />
+      <AnotherRsc />
+      <RevalidateForm />
     </>
   )
 }

@@ -1,7 +1,12 @@
 import Link from 'next/link'
 import styles from './styles.module.css'
 
-export default function Page({ params: { num } }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ num: string }>
+}) {
+  const { num } = await params
   return (
     <div>
       {new Array(100).fill(0).map((_, i) => (

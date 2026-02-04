@@ -3,5 +3,5 @@ export default function Header() {
     <header>
       <h1>Hello world!</h1>
     </header>
-  )
+  );
 }

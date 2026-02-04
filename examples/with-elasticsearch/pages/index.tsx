@@ -1,23 +1,23 @@
-import type { InferGetServerSidePropsType } from 'next'
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '@/styles/Home.module.css'
-import { Inter } from 'next/font/google'
-import { connectToElasticsearch } from '@/lib/elasticsearch'
+import type { InferGetServerSidePropsType } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import styles from "@/styles/Home.module.css";
+import { Inter } from "next/font/google";
+import { connectToElasticsearch } from "@/lib/elasticsearch";
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ["latin"] });
 
-type HomePageProps = InferGetServerSidePropsType<typeof getServerSideProps>
+type HomePageProps = InferGetServerSidePropsType<typeof getServerSideProps>;
 
 export default function Home({ isConnected }: HomePageProps) {
   const connectionStatus = isConnected ? (
     <p>You are connected to Elasticsearch</p>
   ) : (
     <p>
-      You are NOT connected to Elasticsearch. Check the{' '}
+      You are NOT connected to Elasticsearch. Check the{" "}
       <code className={styles.code}>README.md</code> for instructions.
     </p>
-  )
+  );
 
   return (
     <>
@@ -39,7 +39,7 @@ export default function Home({ isConnected }: HomePageProps) {
               target="_blank"
               rel="noopener noreferrer"
             >
-              By{' '}
+              By{" "}
               <Image
                 src="/vercel.svg"
                 alt="Vercel Logo"
@@ -143,16 +143,16 @@ export default function Home({ isConnected }: HomePageProps) {
         </div>
       </main>
     </>
-  )
+  );
 }
 
 export const getServerSideProps = async () => {
-  let isConnected: boolean = false
-  const client = await connectToElasticsearch()
-  if (client !== 'ERR_ENV_NOT_DEFINED') {
-    isConnected = true
+  let isConnected: boolean = false;
+  const client = await connectToElasticsearch();
+  if (client !== "ERR_ENV_NOT_DEFINED") {
+    isConnected = true;
   }
   return {
     props: { isConnected },
-  }
-}
+  };
+};

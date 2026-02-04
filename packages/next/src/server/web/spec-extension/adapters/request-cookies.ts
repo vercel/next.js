@@ -1,8 +1,10 @@
-import type { RequestCookies } from '../cookies'
-import type { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage.external'
+import { RequestCookies } from '../cookies'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
+import { workAsyncStorage } from '../../../app-render/work-async-storage.external'
+import type { RequestStore } from '../../../app-render/work-unit-async-storage.external'
+import { ActionDidRevalidateStaticAndDynamic } from '../../../../shared/lib/action-revalidation-kind'
 
 /**
  * @internal
@@ -10,7 +12,7 @@ import { ReflectAdapter } from './reflect'
 export class ReadonlyRequestCookiesError extends Error {
   constructor() {
     super(
-      'Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#cookiessetname-value-options'
+      'Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#options'
     )
   }
 
@@ -18,6 +20,9 @@ export class ReadonlyRequestCookiesError extends Error {
     throw new ReadonlyRequestCookiesError()
   }
 }
+
+// We use this to type some APIs but we don't construct instances directly
+export type { ResponseCookies }
 
 // The `cookies()` API is a mix of request and response cookies. For `.get()` methods,
 // we want to return the request cookie if it exists. For mutative methods like `.set()`,
@@ -60,6 +65,10 @@ export function getModifiedCookieValues(
   return modified
 }
 
+type SetCookieArgs =
+  | [key: string, value: string, cookie?: Partial<ResponseCookie>]
+  | [options: ResponseCookie]
+
 export function appendMutableCookies(
   headers: Headers,
   mutableCookies: ResponseCookies
@@ -97,23 +106,21 @@ export class MutableRequestCookiesAdapter {
     cookies: RequestCookies,
     onUpdateCookies?: (cookies: string[]) => void
   ): ResponseCookies {
-    const responseCookes = new ResponseCookies(new Headers())
+    const responseCookies = new ResponseCookies(new Headers())
     for (const cookie of cookies.getAll()) {
-      responseCookes.set(cookie)
+      responseCookies.set(cookie)
     }
 
     let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
-      // TODO-APP: change method of getting staticGenerationAsyncStore
-      const staticGenerationAsyncStore = (fetch as any)
-        .__nextGetStaticStore?.()
-        ?.getStore() as undefined | StaticGenerationStore
-      if (staticGenerationAsyncStore) {
-        staticGenerationAsyncStore.pathWasRevalidated = true
+      // TODO-APP: change method of getting workStore
+      const workStore = workAsyncStorage.getStore()
+      if (workStore) {
+        workStore.pathWasRevalidated = ActionDidRevalidateStaticAndDynamic
       }
 
-      const allCookies = responseCookes.getAll()
+      const allCookies = responseCookies.getAll()
       modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
       if (onUpdateCookies) {
         const serializedCookies: string[] = []
@@ -127,7 +134,7 @@ export class MutableRequestCookiesAdapter {
       }
     }
 
-    return new Proxy(responseCookes, {
+    const wrappedCookies = new Proxy(responseCookies, {
       get(target, prop, receiver) {
         switch (prop) {
           // A special symbol to get the modified cookie values
@@ -143,29 +150,88 @@ export class MutableRequestCookiesAdapter {
               )
               try {
                 target.delete(...args)
+                return wrappedCookies
               } finally {
                 updateResponseCookies()
               }
             }
           case 'set':
-            return function (
-              ...args:
-                | [key: string, value: string, cookie?: Partial<ResponseCookie>]
-                | [options: ResponseCookie]
-            ) {
+            return function (...args: SetCookieArgs) {
               modifiedCookies.add(
                 typeof args[0] === 'string' ? args[0] : args[0].name
               )
               try {
-                return target.set(...args)
+                target.set(...args)
+                return wrappedCookies
               } finally {
                 updateResponseCookies()
               }
             }
+
           default:
             return ReflectAdapter.get(target, prop, receiver)
         }
       },
     })
+
+    return wrappedCookies
   }
+}
+
+export function createCookiesWithMutableAccessCheck(
+  requestStore: RequestStore
+): ResponseCookies {
+  const wrappedCookies = new Proxy(requestStore.mutableCookies, {
+    get(target, prop, receiver) {
+      switch (prop) {
+        case 'delete':
+          return function (...args: [string] | [ResponseCookie]) {
+            ensureCookiesAreStillMutable(requestStore, 'cookies().delete')
+            target.delete(...args)
+            return wrappedCookies
+          }
+        case 'set':
+          return function (...args: SetCookieArgs) {
+            ensureCookiesAreStillMutable(requestStore, 'cookies().set')
+            target.set(...args)
+            return wrappedCookies
+          }
+
+        default:
+          return ReflectAdapter.get(target, prop, receiver)
+      }
+    },
+  })
+  return wrappedCookies
+}
+
+export function areCookiesMutableInCurrentPhase(requestStore: RequestStore) {
+  return requestStore.phase === 'action'
+}
+
+/** Ensure that cookies() starts throwing on mutation
+ * if we changed phases and can no longer mutate.
+ *
+ * This can happen when going:
+ *   'render' -> 'after'
+ *   'action' -> 'render'
+ * */
+function ensureCookiesAreStillMutable(
+  requestStore: RequestStore,
+  _callingExpression: string
+) {
+  if (!areCookiesMutableInCurrentPhase(requestStore)) {
+    // TODO: maybe we can give a more precise error message based on callingExpression?
+    throw new ReadonlyRequestCookiesError()
+  }
+}
+
+export function responseCookiesToRequestCookies(
+  responseCookies: ResponseCookies
+): RequestCookies {
+  const requestCookies = new RequestCookies(new Headers())
+  for (const cookie of responseCookies.getAll()) {
+    requestCookies.set(cookie)
+  }
+  return requestCookies
 }

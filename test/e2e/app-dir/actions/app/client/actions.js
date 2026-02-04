@@ -6,8 +6,8 @@ import { redirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
 
 export async function getHeaders() {
-  console.log('accept header:', headers().get('accept'))
-  cookies().set('test-cookie', Date.now())
+  console.log('accept header:', (await headers()).get('accept'))
+  ;(await cookies()).set('test-cookie', Date.now())
 }
 
 export async function inc(value) {
@@ -15,7 +15,7 @@ export async function inc(value) {
 }
 
 export async function slowInc(value) {
-  await new Promise((resolve) => setTimeout(resolve, 10000))
+  await new Promise((resolve) => setTimeout(resolve, 2000))
   return value + 1
 }
 

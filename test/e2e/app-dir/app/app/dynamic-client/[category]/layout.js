@@ -1,4 +1,8 @@
-export default function CategoryLayout({ children, params }) {
+export default async function CategoryLayout(props) {
+  const params = await props.params
+
+  const { children } = props
+
   return (
     <>
       <h2>

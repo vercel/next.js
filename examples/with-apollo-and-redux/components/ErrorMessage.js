@@ -1,4 +1,4 @@
-import PropTypes from 'prop-types'
+import PropTypes from "prop-types";
 
 const ErrorMessage = ({ message }) => (
   <aside>
@@ -12,10 +12,10 @@ const ErrorMessage = ({ message }) => (
       }
     `}</style>
   </aside>
-)
+);
 
 ErrorMessage.propTypes = {
   message: PropTypes.string.isRequired,
-}
+};
 
-export default ErrorMessage
+export default ErrorMessage;

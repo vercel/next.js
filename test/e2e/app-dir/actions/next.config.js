@@ -5,8 +5,6 @@ module.exports = {
     fetches: {},
   },
   experimental: {
-    serverActions: {
-      allowedForwardedHosts: ['safe.com'],
-    },
+    serverActions: { bodySizeLimit: '2mb' },
   },
 }

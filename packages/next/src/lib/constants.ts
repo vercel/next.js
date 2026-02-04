@@ -1,29 +1,56 @@
-import type { ServerRuntime } from '../../types'
+import type { ServerRuntime } from '../types'
 
+export const TEXT_PLAIN_CONTENT_TYPE_HEADER = 'text/plain'
+export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
+export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
+export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
+export const MATCHED_PATH_HEADER = 'x-matched-path'
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
-export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed'
+export const RSC_SEGMENTS_DIR_SUFFIX = '.segments'
+export const RSC_SEGMENT_SUFFIX = '.segment.rsc'
+export const RSC_SUFFIX = '.rsc'
+export const ACTION_SUFFIX = '.action'
+export const NEXT_DATA_SUFFIX = '.json'
+export const NEXT_META_SUFFIX = '.meta'
+export const NEXT_BODY_SUFFIX = '.body'
+
+export const NEXT_NAV_DEPLOYMENT_ID_HEADER = 'x-nextjs-deployment-id'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
-export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
 
+export const NEXT_RESUME_HEADER = 'next-resume'
+export const NEXT_RESUME_STATE_LENGTH_HEADER = 'x-next-resume-state-length'
+
+// if these change make sure we update the related
+// documentation as well
+export const NEXT_CACHE_TAG_MAX_ITEMS = 128
 export const NEXT_CACHE_TAG_MAX_LENGTH = 256
 export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
 
 // in seconds
-export const CACHE_ONE_YEAR = 31536000
+export const CACHE_ONE_YEAR_SECONDS = 31536000
+
+// in seconds, represents revalidate=false. I.e. never revaliate.
+// We use this value since it can be represented as a V8 SMI for optimal performance.
+// It can also be serialized as JSON if it ever leaks accidentally as an actual value.
+export const INFINITE_CACHE = 0xfffffffe
 
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
+
+// Patterns to detect proxy files (replacement for middleware)
+export const PROXY_FILENAME = 'proxy'
+export const PROXY_LOCATION_REGEXP = `(?:src/)?${PROXY_FILENAME}`
 
 // Pattern to detect instrumentation hooks file
 export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
@@ -36,7 +63,10 @@ export const ROOT_DIR_ALIAS = 'private-next-root-dir'
 export const APP_DIR_ALIAS = 'private-next-app-dir'
 export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
 export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
-export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-action-proxy'
+export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-server-reference'
+export const RSC_CACHE_WRAPPER_ALIAS = 'private-next-rsc-cache-wrapper'
+export const RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS =
+  'private-next-rsc-track-dynamic-import'
 export const RSC_ACTION_ENCRYPTION_ALIAS = 'private-next-rsc-action-encryption'
 export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
   'private-next-rsc-action-client-wrapper'
@@ -70,31 +100,13 @@ export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`g
 
 export const ESLINT_DEFAULT_DIRS = ['app', 'pages', 'components', 'lib', 'src']
 
-export const ESLINT_PROMPT_VALUES = [
-  {
-    title: 'Strict',
-    recommended: true,
-    config: {
-      extends: 'next/core-web-vitals',
-    },
-  },
-  {
-    title: 'Base',
-    config: {
-      extends: 'next',
-    },
-  },
-  {
-    title: 'Cancel',
-    config: null,
-  },
-]
-
 export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   edge: 'edge',
   experimentalEdge: 'experimental-edge',
   nodejs: 'nodejs',
 }
+
+export const WEB_SOCKET_MAX_RECONNECTIONS = 12
 
 /**
  * The names of the webpack layers. These layers are the primitives for the
@@ -106,7 +118,8 @@ const WEBPACK_LAYERS_NAMES = {
    */
   shared: 'shared',
   /**
-   * React Server Components layer (rsc).
+   * The layer for server-only runtime and picking up `react-server` export conditions.
+   * Including app router RSC pages and app router custom routes and metadata routes.
    */
   reactServerComponents: 'rsc',
   /**
@@ -118,13 +131,21 @@ const WEBPACK_LAYERS_NAMES = {
    */
   actionBrowser: 'action-browser',
   /**
-   * The layer for the API routes.
+   * The Node.js bundle layer for the API routes.
    */
-  api: 'api',
+  apiNode: 'api-node',
+  /**
+   * The Edge Lite bundle layer for the API routes.
+   */
+  apiEdge: 'api-edge',
   /**
    * The layer for the middleware code.
    */
   middleware: 'middleware',
+  /**
+   * The layer for the instrumentation hooks.
+   */
+  instrument: 'instrument',
   /**
    * The layer for assets on the edge.
    */
@@ -134,13 +155,17 @@ const WEBPACK_LAYERS_NAMES = {
    */
   appPagesBrowser: 'app-pages-browser',
   /**
-   * The server bundle layer for metadata routes.
+   * The browser client bundle layer for Pages directory.
    */
-  appMetadataRoute: 'app-metadata-route',
+  pagesDirBrowser: 'pages-dir-browser',
   /**
-   * The layer for the server bundle for App Route handlers.
+   * The Edge Lite bundle layer for Pages directory.
    */
-  appRouteHandler: 'app-route-handler',
+  pagesDirEdge: 'pages-dir-edge',
+  /**
+   * The Node.js bundle layer for Pages directory.
+   */
+  pagesDirNode: 'pages-dir-node',
 } as const
 
 export type WebpackLayerName =
@@ -149,24 +174,40 @@ export type WebpackLayerName =
 const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
-    server: [
+    builtinReact: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
-      WEBPACK_LAYERS_NAMES.appMetadataRoute,
-      WEBPACK_LAYERS_NAMES.appRouteHandler,
     ],
-    nonClientServerTarget: [
-      // plus middleware and pages api
+    serverOnly: [
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.instrument,
       WEBPACK_LAYERS_NAMES.middleware,
-      WEBPACK_LAYERS_NAMES.api,
     ],
-    app: [
-      WEBPACK_LAYERS_NAMES.reactServerComponents,
-      WEBPACK_LAYERS_NAMES.actionBrowser,
-      WEBPACK_LAYERS_NAMES.appMetadataRoute,
-      WEBPACK_LAYERS_NAMES.appRouteHandler,
+    neutralTarget: [
+      // pages api
+      WEBPACK_LAYERS_NAMES.apiNode,
+      WEBPACK_LAYERS_NAMES.apiEdge,
+    ],
+    clientOnly: [
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
+    ],
+    bundled: [
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.serverSideRendering,
+      WEBPACK_LAYERS_NAMES.appPagesBrowser,
+      WEBPACK_LAYERS_NAMES.shared,
+      WEBPACK_LAYERS_NAMES.instrument,
+      WEBPACK_LAYERS_NAMES.middleware,
+    ],
+    appPages: [
+      // app router pages and layouts
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.serverSideRendering,
+      WEBPACK_LAYERS_NAMES.appPagesBrowser,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
     ],
   },
 }

@@ -25,17 +25,23 @@ Using the Deploy Button below, you'll deploy the Next.js project as well as conn
 - [Enterspeed](/examples/cms-enterspeed)
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent-ai)
+- [Kontent.ai](/examples/cms-kontent-ai)
+- [MakeSwift](/examples/cms-makeswift)
+- [Payload](/examples/cms-payload)
+- [Plasmic](/examples/cms-plasmic)
 - [Prepr](/examples/cms-prepr)
 - [Prismic](/examples/cms-prismic)
 - [Sanity](/examples/cms-sanity)
+- [Sitecore XM Cloud](/examples/cms-sitecore-xmcloud)
 - [Sitefinity](/examples/cms-sitefinity)
 - [Storyblok](/examples/cms-storyblok)
 - [TakeShape](/examples/cms-takeshape)
+- [Tina](/examples/cms-tina)
+- [Umbraco](/examples/cms-umbraco)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
-- [Blog Starter](/examples/blog-starter)
 - [WordPress](/examples/cms-wordpress)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
@@ -73,7 +79,7 @@ This project includes a setup script which you can use to set up the content mod
 
 In your Contentful dashboard go to **Settings > General Settings** and copy the **Space ID**.
 
-Next, go to **Settings > API > Content management tokens** and create a new token by clicking **Generate personal token**. This token has the same access rights as the logged in user. **Do not share it publicly**, you will only use it to set up your space and can delete it afterwards.
+Next, go to **Settings > CMA tokens** and create a new token by clicking **Create personal access token**. This token has the same access rights as the logged in user. **Do not share it publicly**, you will only use it to set up your space and can delete it afterwards.
 
 With the space ID and management access token at hand run the following command:
 

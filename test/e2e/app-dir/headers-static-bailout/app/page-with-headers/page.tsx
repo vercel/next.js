@@ -1,8 +1,8 @@
 import { nanoid } from 'nanoid'
 import { headers } from 'next/headers'
 
-export default function Page() {
-  headers()
+export default async function Page() {
+  await headers()
   return (
     <>
       <h1>Dynamic Page</h1>

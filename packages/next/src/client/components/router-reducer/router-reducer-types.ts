@@ -1,67 +1,45 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
-  FlightData,
   FlightSegmentPath,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
+import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
-export const ACTION_PREFETCH = 'prefetch'
-export const ACTION_FAST_REFRESH = 'fast-refresh'
+export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
-export type RouterChangeByServerResponse = (
-  previousTree: FlightRouterState,
-  flightData: FlightData,
-  overrideCanonicalUrl: URL | undefined
-) => void
-
-export type RouterNavigate = (
-  href: string,
-  navigateType: 'push' | 'replace',
-  forceOptimisticNavigation: boolean,
-  shouldScroll: boolean
-) => void
-
-export interface Mutable {
-  mpaNavigation?: boolean
-  previousTree?: FlightRouterState
-  patchedTree?: FlightRouterState
-  canonicalUrl?: string
-  scrollableSegments?: FlightSegmentPath[]
-  pendingPush?: boolean
-  cache?: CacheNode
-  prefetchCache?: AppRouterState['prefetchCache']
-  hashFragment?: string
-  shouldScroll?: boolean
-}
-
-export interface ServerActionMutable extends Mutable {
-  inFlightServerAction?: ThenableRecord<any> | null
-  actionResultResolved?: boolean
-}
+export type RouterChangeByServerResponse = ({
+  navigatedAt,
+  previousTree,
+  serverResponse,
+}: {
+  navigatedAt: number
+  previousTree: FlightRouterState
+  serverResponse: FetchServerResponseResult
+}) => void
 
 /**
  * Refresh triggers a refresh of the full page data.
- * - fetches the Flight data and fills subTreeData at the root of the cache.
+ * - fetches the Flight data and fills rsc at the root of the cache.
  * - The router state is updated at the root.
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
-  cache: CacheNode
-  mutable: Mutable
-  origin: Location['origin']
+  /**
+   * Dev-only. Bypass invalidating the segment cache. Used by the Instant
+   * Navigation Testing API to preserve prefetched data when refreshing after
+   * an MPA navigation.
+   */
+  devBypassCacheInvalidation?: boolean
 }
 
-export interface FastRefreshAction {
-  type: typeof ACTION_FAST_REFRESH
-  cache: CacheNode
-  mutable: Mutable
-  origin: Location['origin']
+export interface HmrRefreshAction {
+  type: typeof ACTION_HMR_REFRESH
 }
 
 export type ServerActionDispatcher = (
@@ -77,8 +55,7 @@ export interface ServerActionAction {
   actionArgs: any[]
   resolve: (value: any) => void
   reject: (reason?: any) => void
-  cache: CacheNode
-  mutable: ServerActionMutable
+  didRevalidate?: boolean
 }
 
 /**
@@ -101,11 +78,6 @@ export interface ServerActionAction {
  *    - The cache is reused
  *    - If any cache nodes are missing they'll be fetched in layout-router and trigger the SERVER_PATCH action
  * - page was not prefetched
- *  - The navigate was called from `next/link` with `prefetch={false}`. This case is called `forceOptimisticNavigation`. It triggers an optimistic navigation so that loading spinners can be shown early if any.
- *    - Creates an optimistic router tree based on the provided url
- *    - Adds a cache node to the cache with a Flight data fetch that was eagerly started in the reducer
- *    - Flight data fetch is suspended in the layout-router
- *    - Triggers SERVER_PATCH action when the data comes back, this will apply the data to the cache and router state, at that point the optimistic router tree is replaced by the actual router tree.
  *  - The navigate was called from `next/router` (`router.push()` / `router.replace()`) / `next/link` without prefetched data available (e.g. the prefetch didn't come back from the server before clicking the link)
  *    - Flight data is fetched in the reducer (suspends the reducer)
  *    - Router state tree is created based on Flight data
@@ -122,50 +94,50 @@ export interface NavigateAction {
   isExternalUrl: boolean
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
-  forceOptimisticNavigation: boolean
   shouldScroll: boolean
-  cache: CacheNode
-  mutable: Mutable
 }
 
 /**
  * Restore applies the provided router state.
- * - Only used for `popstate` (back/forward navigation) where a known router state has to be applied.
- * - Router state is applied as-is from the history state.
+ * - Used for `popstate` (back/forward navigation) where a known router state has to be applied.
+ * - Also used when syncing the router state with `pushState`/`replaceState` calls.
+ * - Router state is applied as-is from the history state, if available.
+ * - If the history state does not contain the router state, the existing router state is used.
  * - If any cache node is missing it will be fetched in layout-router during rendering and the server-patch case.
  * - If existing cache nodes match these are used.
  */
 export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
+  historyState: AppHistoryState | undefined
+}
+
+export type AppHistoryState = {
   tree: FlightRouterState
+  renderedSearch: string
 }
 
 /**
  * Server-patch applies the provided Flight data to the cache and router tree.
- * - Only triggered in layout-router.
- * - Creates a new cache and router state with the Flight data applied.
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
-  flightData: FlightData
   previousTree: FlightRouterState
-  overrideCanonicalUrl: URL | undefined
-  cache: CacheNode
-  mutable: Mutable
+  url: URL
+  nextUrl: string | null
+  seed: NavigationSeed | null
+  mpa: boolean
 }
 
 /**
  * PrefetchKind defines the type of prefetching that should be done.
  * - `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully.
  * - `full` - prefetch the page data fully.
- * - `temporary` - a temporary prefetch entry is added to the cache, this is used when prefetch={false} is used in next/link or when you push a route programmatically.
  */
 
 export enum PrefetchKind {
   AUTO = 'auto',
   FULL = 'full',
-  TEMPORARY = 'temporary',
 }
 
 /**
@@ -174,13 +146,8 @@ export enum PrefetchKind {
  * - Adds the FlightData to the prefetch cache
  * - In ACTION_NAVIGATE the prefetch cache is checked and the router state tree and FlightData are applied.
  */
-export interface PrefetchAction {
-  type: typeof ACTION_PREFETCH
-  url: URL
-  kind: PrefetchKind
-}
 
-interface PushRef {
+export interface PushRef {
   /**
    * If the app-router should push a new history entry in app-router's useEffect()
    */
@@ -189,6 +156,10 @@ interface PushRef {
    * Multi-page navigation through location.href.
    */
   mpaNavigation: boolean
+  /**
+   * Skip applying the router state to the browser history state.
+   */
+  preserveCustomHistoryState: boolean
 }
 
 export type FocusAndScrollRef = {
@@ -210,23 +181,10 @@ export type FocusAndScrollRef = {
   onlyHashChange: boolean
 }
 
-export type PrefetchCacheEntry = {
-  treeAtTimeOfPrefetch: FlightRouterState
-  data: ThenableRecord<FetchServerResponseResult> | null
-  kind: PrefetchKind
-  prefetchTime: number
-  lastUsedTime: number | null
-}
-
 /**
  * Handles keeping the state of app-router.
  */
 export type AppRouterState = {
-  /**
-   * The buildId is used to do a mpaNavigation when the server returns a different buildId.
-   * It is used to avoid issues where an older version of the app is loaded in the browser while the server has a new version.
-   */
-  buildId: string
   /**
    * The router state, this is written into the history state in app-router using replaceState/pushState.
    * - Has to be serializable as it is written into the history state.
@@ -236,13 +194,8 @@ export type AppRouterState = {
   /**
    * The cache holds React nodes for every segment that is shown on screen as well as previously shown segments.
    * It also holds in-progress data requests.
-   * Prefetched data is stored separately in `prefetchCache`, that is applied during ACTION_NAVIGATE.
    */
   cache: CacheNode
-  /**
-   * Cache that holds prefetched Flight responses keyed by url.
-   */
-  prefetchCache: Map<string, PrefetchCacheEntry>
   /**
    * Decides if the update should create a new history entry and if the navigation has to trigger a browser navigation.
    */
@@ -256,54 +209,39 @@ export type AppRouterState = {
    * - This is the url you see in the browser.
    */
   canonicalUrl: string
+
+  /**
+   * The search query observed by the server during rendering. This may be
+   * different from the canonical URL's search query if the server performed
+   * a rewrite. Even though a client component won't observe this (unless it
+   * were passed from a Server component), the client router needs to know this
+   * so it can properly cache segment data; it'ss part of a page segment's
+   * cache key.
+   */
+  renderedSearch: string
+
   /**
    * The underlying "url" representing the UI state, which is used for intercepting routes.
    */
   nextUrl: string | null
+
+  /**
+   * The previous next-url that was used previous to a dynamic navigation.
+   */
+  previousNextUrl: string | null
+
+  debugInfo: Array<unknown> | null
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>
-export type ReducerState = Promise<AppRouterState> | AppRouterState
+export type ReducerState =
+  | (Promise<AppRouterState> & { _debugInfo?: Array<unknown> })
+  | AppRouterState
 export type ReducerActions = Readonly<
   | RefreshAction
   | NavigateAction
   | RestoreAction
   | ServerPatchAction
-  | PrefetchAction
-  | FastRefreshAction
+  | HmrRefreshAction
   | ServerActionAction
 >
-
-export interface PendingThenable<T> extends ThenableImpl<T> {
-  status: 'pending'
-}
-
-export interface FulfilledThenable<T> extends ThenableImpl<T> {
-  status: 'fulfilled'
-  value: T
-}
-
-export interface RejectedThenable<T> extends ThenableImpl<T> {
-  status: 'rejected'
-  reason: unknown
-}
-
-interface ThenableImpl<T> {
-  then<TResult1 = T, TResult2 = never>(
-    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
-    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
-  ): Promise<TResult1 | TResult2>
-}
-
-export type ThenableRecord<T> =
-  | PendingThenable<T>
-  | RejectedThenable<T>
-  | FulfilledThenable<T>
-
-export function isThenable(value: any): value is Promise<AppRouterState> {
-  return (
-    value &&
-    (typeof value === 'object' || typeof value === 'function') &&
-    typeof value.then === 'function'
-  )
-}

@@ -4,7 +4,7 @@
  * @returns {boolean}
  */
 export function isObject(item: unknown): boolean {
-  return Boolean(item && typeof item === 'object' && !Array.isArray(item))
+  return Boolean(item && typeof item === "object" && !Array.isArray(item));
 }
 
 /**
@@ -14,23 +14,23 @@ export function isObject(item: unknown): boolean {
  */
 export default function deepMerge<T extends object, R extends object>(
   target: T,
-  source: R
+  source: R,
 ): T {
-  const output = { ...target }
+  const output = { ...target };
   if (isObject(target) && isObject(source)) {
     Object.keys(source).forEach((key) => {
       if (isObject(source[key])) {
         // @ts-ignore
         if (!(key in target)) {
-          Object.assign(output, { [key]: source[key] })
+          Object.assign(output, { [key]: source[key] });
         } else {
-          output[key] = deepMerge(target[key], source[key])
+          output[key] = deepMerge(target[key], source[key]);
         }
       } else {
-        Object.assign(output, { [key]: source[key] })
+        Object.assign(output, { [key]: source[key] });
       }
-    })
+    });
   }
 
-  return output
+  return output;
 }

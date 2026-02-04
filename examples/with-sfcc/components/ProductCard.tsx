@@ -1,13 +1,13 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import { useState } from 'react'
+import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
 
 function cn(...classes) {
-  return classes.filter(Boolean).join(' ')
+  return classes.filter(Boolean).join(" ");
 }
 
 export default function ProductCard({ product }) {
-  const [isLoading, setLoading] = useState(true)
+  const [isLoading, setLoading] = useState(true);
 
   return (
     <Link href={`/products/${product.id}`} className="group">
@@ -17,10 +17,10 @@ export default function ProductCard({ product }) {
           src={product.imageGroups[0].images[0].link}
           fill
           className={cn(
-            'object-cover duration-700 ease-in-out group-hover:opacity-75	',
+            "object-cover duration-700 ease-in-out group-hover:opacity-75	",
             isLoading
-              ? 'scale-110 blur-2xl grayscale'
-              : 'scale-100 blur-0 grayscale-0'
+              ? "scale-110 blur-2xl grayscale"
+              : "scale-100 blur-0 grayscale-0",
           )}
           onLoad={() => setLoading(false)}
         />
@@ -33,5 +33,5 @@ export default function ProductCard({ product }) {
         {product.shortDescription}
       </p>
     </Link>
-  )
+  );
 }

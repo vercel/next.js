@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-export default function Home() {
-  cookies()
+export default async function Home() {
+  await cookies()
   return null
 }

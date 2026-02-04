@@ -3,7 +3,7 @@ import NodeAttributes from '../utils/node-attributes'
 
 const url = 'https://nextjs.org/docs/messages/google-font-display'
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description: 'Enforce font-display behavior with Google Fonts.',

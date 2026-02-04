@@ -1,36 +1,36 @@
-import * as React from 'react'
-import classNames from 'classnames'
+import * as React from "react";
+import classNames from "classnames";
 
 const renderParagraph = (block) => {
-  const props = { style: {}, className: '' }
+  const props = { style: {}, className: "" };
 
   if (block.data.textAlign) {
-    props.style['textAlign'] = block.data.textAlign
+    props.style["textAlign"] = block.data.textAlign;
   }
   if (block.data.className) {
-    props.className = block.data.className
+    props.className = block.data.className;
   }
   return (
     <p
       {...props}
-      className={classNames('rte-block-paragraph', props.className)}
+      className={classNames("rte-block-paragraph", props.className)}
       dangerouslySetInnerHTML={{ __html: block.data.text }}
     />
-  )
-}
+  );
+};
 
 const renderDelimiter = () => {
-  return <div className="rte-block-delimiter" />
-}
+  return <div className="rte-block-delimiter" />;
+};
 
 const renderHeader = (block) => {
-  const props = { style: {}, className: '' }
+  const props = { style: {}, className: "" };
 
   if (block.data.textAlign) {
-    props.style['textAlign'] = block.data.textAlign
+    props.style["textAlign"] = block.data.textAlign;
   }
   if (block.data.className) {
-    props.className = block.data.className
+    props.className = block.data.className;
   }
 
   switch (block.data.level) {
@@ -40,11 +40,11 @@ const renderHeader = (block) => {
           {...props}
           className={classNames(
             props.className,
-            'rte-block-heading rte-block-heading--h1'
+            "rte-block-heading rte-block-heading--h1",
           )}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
-      )
+      );
 
     case 2:
       return (
@@ -52,11 +52,11 @@ const renderHeader = (block) => {
           {...props}
           className={classNames(
             props.className,
-            'rte-block-heading rte-block-heading--h2'
+            "rte-block-heading rte-block-heading--h2",
           )}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
-      )
+      );
 
     case 3:
       return (
@@ -64,11 +64,11 @@ const renderHeader = (block) => {
           {...props}
           className={classNames(
             props.className,
-            'rte-block-heading rte-block-heading--h3'
+            "rte-block-heading rte-block-heading--h3",
           )}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
-      )
+      );
 
     case 4:
       return (
@@ -76,11 +76,11 @@ const renderHeader = (block) => {
           {...props}
           className={classNames(
             props.className,
-            'rte-block-heading rte-block-heading--h4'
+            "rte-block-heading rte-block-heading--h4",
           )}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
-      )
+      );
 
     case 5:
       return (
@@ -88,11 +88,11 @@ const renderHeader = (block) => {
           {...props}
           className={classNames(
             props.className,
-            'rte-block-heading rte-block-heading--h5'
+            "rte-block-heading rte-block-heading--h5",
           )}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
-      )
+      );
 
     case 6:
       return (
@@ -100,56 +100,56 @@ const renderHeader = (block) => {
           {...props}
           className={classNames(
             props.className,
-            'rte-block-heading rte-block-heading--h6'
+            "rte-block-heading rte-block-heading--h6",
           )}
           dangerouslySetInnerHTML={{ __html: block.data.text }}
         />
-      )
+      );
     default:
-      return null
+      return null;
   }
-}
+};
 
 function renderImage(block) {
   return (
     <img
-      className={'rte-block-image'}
+      className={"rte-block-image"}
       alt={block.data.caption}
       src={block.data.file}
     />
-  )
+  );
 }
 
 function renderList(block) {
   switch (block.data.style) {
-    case 'unordered':
+    case "unordered":
       return (
-        <ul className={'rte-block-list'}>
+        <ul className={"rte-block-list"}>
           {block.data.items.map((text, i) => (
             <li key={i}>{text}</li>
           ))}
         </ul>
-      )
+      );
 
-    case 'ordered':
+    case "ordered":
       return (
-        <ol className={'rte-block-list'}>
+        <ol className={"rte-block-list"}>
           {block.data.items.map((text, i) => (
             <li key={i}>{text}</li>
           ))}
         </ol>
-      )
+      );
     default:
-      return null
+      return null;
   }
 }
 
 function renderQuote(block) {
   return (
-    <blockquote className={'rte-block-blockquote'}>
+    <blockquote className={"rte-block-blockquote"}>
       <p>{block.data.text}</p>
     </blockquote>
-  )
+  );
 }
 
 const defaultRenderers = {
@@ -159,27 +159,27 @@ const defaultRenderers = {
   list: renderList,
   paragraph: renderParagraph,
   quote: renderQuote,
-}
+};
 
 export const RichTextRenderer = (props) => {
   // Combine default renderers with custom renderers
-  const renderers = Object.assign({}, defaultRenderers, props.renderers)
+  const renderers = Object.assign({}, defaultRenderers, props.renderers);
 
   return (
     <React.Fragment>
       {props.data.map((block, index) => {
-        const renderer = renderers[block.type]
+        const renderer = renderers[block.type];
         if (!renderer) {
-          return null
+          return null;
         }
 
-        const node = renderer(block)
+        const node = renderer(block);
         if (React.isValidElement(node)) {
-          return React.cloneElement(node, { key: index })
+          return React.cloneElement(node, { key: index });
         }
 
-        return null
+        return null;
       })}
     </React.Fragment>
-  )
-}
+  );
+};

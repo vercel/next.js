@@ -14,13 +14,12 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "6.1.2",
-    "@testing-library/react": "14.0.0",
-    "@testing-library/user-event": "14.4.3",
-    "@types/jest": "29.5.5",
-    "@types/react": "18.2.8",
-    "jest": "29.6.4",
-    "jest-environment-jsdom": "29.6.4",
-    "typescript": "5.2.2"
+    "@testing-library/jest-dom": "6.1.5",
+    "@testing-library/react": "14.1.2",
+    "@types/jest": "29.5.11",
+    "@types/react": "18.2.45",
+    "jest": "29.7.0",
+    "jest-environment-jsdom": "29.7.0",
+    "typescript": "5.3.3"
   }
 }

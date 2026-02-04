@@ -1,0 +1,8 @@
+x = (1 | ???*0*)
+- *0* updated with update expression
+  ⚠️  This value might have side effects
+
+y = ???*0*
+- *0* 2
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects

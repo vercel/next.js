@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 const delay = 3000
 
@@ -13,7 +13,7 @@ export default async function Page(props) {
   return (
     <>
       <p id="data">
-        {JSON.stringify({ fetchDuration, data, now: Date.now() })}
+        {JSON.stringify({ fetchDuration, data, now: Date.now(), start })}
       </p>
     </>
   )

@@ -1,0 +1,6 @@
+  x next/dynamic requires at least one argument
+   ,-[input.js:3:1]
+ 2 | 
+ 3 | const DynamicComponent = dynamic()
+   :                          ^^^^^^^
+   `----

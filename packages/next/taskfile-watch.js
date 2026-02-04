@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 const path = require('path')
-// eslint-disable-next-line import/no-extraneous-dependencies
 const Watchpack = require('watchpack')
 const toArr = (val) => (Array.isArray(val) ? val : val == null ? [] : [val])
 
@@ -39,7 +38,7 @@ module.exports = function (Taskr, _utils) {
       const wp = new Watchpack({
         aggregateTimeout: 5,
         followSymlinks: true,
-        ignored: '**/.git',
+        ignored: ['**/.git', '**/*.test.*', '**/*.stories.*'],
       })
 
       names = toArr(names)

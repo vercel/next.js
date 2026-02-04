@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <!-- Periodically compress text-heavy directories -->
+	<dict>
+		<key>Label</key>
+		<string>build.turbo.compress</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/build.turbo.compress/log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/build/turbo.compress/error</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PATH</key>
+      <string>/opt/homebrew/bin:/opt/local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/sh</string>
+      <string>-c</string>
+      <string>cd $(defaults read build.turbo.repopath -string) &amp;&amp; ./scripts/macos-compress.sh</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>10800</integer> <!-- 3 hours -->
+	</dict>
+</plist>

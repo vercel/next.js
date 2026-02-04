@@ -1,0 +1,15 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css [test] (css) */
+.style-module__3oVw9q__module-style {
+  cursor: url("../static/image.0ccdd6e3.png");
+  background-image: url("../static/image.0ccdd6e3.png");
+  list-style-image: url("../static/image.0ccdd6e3.png");
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css [test] (css) */
+.style {
+  cursor: url("../static/image.0ccdd6e3.png");
+  background-image: url("../static/image.0ccdd6e3.png");
+  list-style-image: url("../static/image.0ccdd6e3.png");
+}
+
+/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_6213f966._.css.map*/

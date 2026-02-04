@@ -1,12 +1,12 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
-import dynamic from 'next/dynamic'
-import { Avatar, Pagination } from '@nextui-org/react'
+import Head from "next/head";
+import Image from "next/image";
+import styles from "../styles/Home.module.css";
+import dynamic from "next/dynamic";
+import { Avatar, Pagination } from "@nextui-org/react";
 
-const CustomCheckbox = dynamic(() => import('../components/Checkbox'))
-const CustomTable = dynamic(() => import('../components/Table'))
-const CustomCollapse = dynamic(() => import('../components/Collapse'))
+const CustomCheckbox = dynamic(() => import("../components/Checkbox"));
+const CustomTable = dynamic(() => import("../components/Table"));
+const CustomCollapse = dynamic(() => import("../components/Collapse"));
 
 export default function Home() {
   return (
@@ -18,7 +18,7 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
         <h1>
-          <Avatar text="Hi" color="gradient" textColor={'white'} size={'xl'} />
+          <Avatar text="Hi" color="gradient" textColor={"white"} size={"xl"} />
         </h1>
         <h1 className={styles.title}>
           Welcome to use <a href="https://nextui.org/">NextUI!</a>
@@ -42,12 +42,12 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
+          Powered by{" "}
           <span className={styles.logo}>
             <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
           </span>
         </a>
       </footer>
     </div>
-  )
+  );
 }

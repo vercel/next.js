@@ -1,6 +1,7 @@
 import 'server-only'
 import { MetadataRoute } from 'next'
 
+/* without generateSitemaps */
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {

@@ -1,19 +1,22 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Nav() {
-  const { pathname } = useRouter()
+  const { pathname } = useRouter();
 
   return (
     <header>
-      <Link href="/" legacyBehavior>
-        <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
+      <Link href="/" className={pathname === "/" ? "is-active" : ""}>
+        Home
       </Link>
-      <Link href="/apollo" legacyBehavior>
-        <a className={pathname === '/apollo' ? 'is-active' : ''}>Apollo</a>
+      <Link
+        href="/apollo"
+        className={pathname === "/apollo" ? "is-active" : ""}
+      >
+        Apollo
       </Link>
-      <Link href="/redux" legacyBehavior>
-        <a className={pathname === '/redux' ? 'is-active' : ''}>Redux</a>
+      <Link href="/redux" className={pathname === "/redux" ? "is-active" : ""}>
+        Redux
       </Link>
       <style jsx>{`
         header {
@@ -29,5 +32,5 @@ export default function Nav() {
         }
       `}</style>
     </header>
-  )
+  );
 }

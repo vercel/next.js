@@ -1,25 +1,60 @@
 import type { LoadComponentsReturnType } from '../load-components'
-import type { ServerRuntime, SizeLimit } from '../../../types'
-import type { NextConfigComplete } from '../../server/config-shared'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ServerRuntime, SizeLimit } from '../../types'
+import type {
+  ExperimentalConfig,
+  NextConfigComplete,
+} from '../../server/config-shared'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
-import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { AppPageModule } from '../route-modules/app-page/module'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { ImageConfigComplete } from '../../shared/lib/image-config'
+import type { __ApiPreviewProps } from '../api-utils'
 
 import s from 'next/dist/compiled/superstruct'
+import type { RequestLifecycleOpts } from '../base-server'
+import type { InstrumentationOnRequestError } from '../instrumentation/types'
+import type { NextRequestHint } from '../web/adapter'
+import type { BaseNextRequest } from '../base-http'
+import type { IncomingMessage } from 'http'
+import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 
-export type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
-
-const dynamicParamTypesSchema = s.enums(['c', 'oc', 'd'])
-
-export type DynamicParamTypesShort = s.Infer<typeof dynamicParamTypesSchema>
+const dynamicParamTypesSchema = s.enums([
+  'c',
+  'ci(..)(..)',
+  'ci(.)',
+  'ci(..)',
+  'ci(...)',
+  'oc',
+  'd',
+  'di(..)(..)',
+  'di(.)',
+  'di(..)',
+  'di(...)',
+])
 
 const segmentSchema = s.union([
   s.string(),
-  s.tuple([s.string(), s.string(), dynamicParamTypesSchema]),
-])
 
-export type Segment = s.Infer<typeof segmentSchema>
+  s.tuple([
+    // Param name
+    s.string(),
+    // Param cache key (almost the same as the value, but arrays are
+    // concatenated into strings)
+    // TODO: We should change this to just be the value. Currently we convert
+    // it back to a value when passing to useParams. It only needs to be
+    // a string when converted to a a cache key, but that doesn't mean we
+    // need to store it as that representation.
+    s.string(),
+    // Dynamic param type
+    dynamicParamTypesSchema,
+    // Static siblings at the same URL level. Used by the client router to
+    // determine if a prefetch can be reused when navigating to a static
+    // sibling of a dynamic route. null means siblings are unknown.
+    s.nullable(s.array(s.string())),
+  ]),
+])
 
 // unfortunately the tuple is not understood well by Describe so we have to
 // use any here. This does not have any impact on the runtime type since the validation
@@ -30,100 +65,67 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
     s.string(),
     s.lazy(() => flightRouterStateSchema)
   ),
-  s.optional(s.nullable(s.string())),
-  s.optional(s.nullable(s.literal('refetch'))),
+  s.optional(s.nullable(s.tuple([s.string(), s.string()]))),
+  s.optional(
+    s.nullable(
+      s.union([
+        s.literal('refetch'),
+        s.literal('inside-shared-layout'),
+        s.literal('metadata-only'),
+      ])
+    )
+  ),
   s.optional(s.boolean()),
 ])
 
-/**
- * Router state
- */
-export type FlightRouterState = [
-  segment: Segment,
-  parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string | null,
-  refresh?: 'refetch' | null,
-  isRootLayout?: boolean
-]
-
-/**
- * Individual Flight response path
- */
-export type FlightSegmentPath =
-  // Uses `any` as repeating pattern can't be typed.
-  | any[]
-  // Looks somewhat like this
-  | [
-      segment: Segment,
-      parallelRouterKey: string,
-      segment: Segment,
-      parallelRouterKey: string,
-      segment: Segment,
-      parallelRouterKey: string
-    ]
-
-export type FlightDataPath =
-  // Uses `any` as repeating pattern can't be typed.
-  | any[]
-  // Looks somewhat like this
-  | [
-      // Holds full path to the segment.
-      ...FlightSegmentPath[],
-      /* segment of the rendered slice: */ Segment,
-      /* treePatch */ FlightRouterState,
-      /* subTreeData: */ React.ReactNode | null, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null
-    ]
-
-/**
- * The Flight response data
- */
-export type FlightData = Array<FlightDataPath> | string
-
-export type ActionResult = Promise<any>
-
-// Response from `createFromFetch` for normal rendering
-export type NextFlightResponse = [buildId: string, flightData: FlightData]
-
-// Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse =
-  | [ActionResult, [buildId: string, flightData: FlightData | null]]
-  // This case happens when `redirect()` is called in a server action.
-  | NextFlightResponse
-
-/**
- * Property holding the current subTreeData.
- */
-export type ChildProp = {
-  /**
-   * Null indicates that the tree is partial
-   */
-  current: React.ReactNode | null
-  segment: Segment
-}
+export type ServerOnInstrumentationRequestError = (
+  error: unknown,
+  // The request could be middleware, node server or web server request,
+  // we normalized them into an aligned format to `onRequestError` API later.
+  request: NextRequestHint | BaseNextRequest | IncomingMessage,
+  errorContext: Parameters<InstrumentationOnRequestError>[2],
+  silenceLog: boolean
+) => void | Promise<void>
 
 export interface RenderOptsPartial {
+  dir?: string
+  previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   dev?: boolean
-  buildId: string
   basePath: string
-  clientReferenceManifest?: ClientReferenceManifest
-  supportsDynamicHTML: boolean
+  cacheComponents: boolean
+  trailingSlash: boolean
+  images: ImageConfigComplete
+  supportsDynamicResponse: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   enableTainting?: boolean
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
-  nextFontManifest?: NextFontManifest
-  isBot?: boolean
+  nextFontManifest?: DeepReadonly<NextFontManifest>
+  botType?: 'dom' | 'html' | undefined
+  serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
-  isRevalidate?: boolean
-  nextExport?: boolean
+  cacheLifeProfiles?: {
+    [profile: string]: import('../use-cache/cache-life').CacheLife
+  }
+  isOnDemandRevalidate?: boolean
+  isPossibleServerAction?: boolean
+  setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
+  setIsrStatus?: (key: string, value: boolean | undefined) => void
+  setReactDebugChannel?: (
+    debugChannel: { readable: ReadableStream<Uint8Array> },
+    htmlRequestId: string,
+    requestId: string
+  ) => void
+  sendErrorsToBrowser?: (
+    errorsRscStream: ReadableStream<Uint8Array>,
+    htmlRequestId: string
+  ) => void
+  isBuildTimePrerendering?: boolean
   nextConfigOutput?: 'standalone' | 'export'
-  appDirDevErrorLogger?: (err: any) => Promise<void>
-  originalPathname?: string
+  onInstrumentationRequestError?: ServerOnInstrumentationRequestError
   isDraftMode?: boolean
-  deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (
     phase: string,
@@ -134,14 +136,88 @@ export interface RenderOptsPartial {
   ) => Promise<NextConfigComplete>
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
-  allowedForwardedHosts?: string[]
+  logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  ppr: boolean
+  htmlLimitedBots: string | undefined
+  experimental: {
+    /**
+     * When true, it indicates that the current page supports partial
+     * prerendering.
+     */
+    isRoutePPREnabled?: boolean
+    expireTime: number | undefined
+    staleTimes: ExperimentalConfig['staleTimes'] | undefined
+    clientTraceMetadata: string[] | undefined
+
+    /**
+     * The origins that are allowed to write the rewritten headers when
+     * performing a non-relative rewrite. When undefined, no non-relative
+     * rewrites will get the rewrite headers.
+     */
+    clientParamParsingOrigins: string[] | undefined
+    dynamicOnHover: boolean
+    optimisticRouting: boolean
+    inlineCss: boolean
+    authInterrupts: boolean
+
+    /**
+     * The maximum size (in bytes) of the postponed state body for PPR resume
+     * requests. Used to calculate decompression limits (5x this value).
+     */
+    maxPostponedStateSizeBytes: number | undefined
+  }
   postponed?: string
+
+  /**
+   * Should wait for react stream allReady to resolve all suspense boundaries,
+   * in order to perform a full page render.
+   */
+  shouldWaitOnAllReady?: boolean
+
+  /**
+   * A prefilled resume data cache. This was either generated for this page
+   * during dev warmup, or when a page with defined params was previously
+   * prerendered, and now its matching optional fallback shell is prerendered.
+   */
+  renderResumeDataCache?: RenderResumeDataCache
+
+  /**
+   * When true, the page will be rendered using the static rendering to detect
+   * any dynamic API's that would have stopped the page from being fully
+   * statically generated.
+   */
+  isDebugDynamicAccesses?: boolean
+
+  /**
+   * This is true when:
+   * - source maps are generated
+   * - source maps are applied
+   * - minification is disabled
+   */
+  hasReadableErrorStacks?: boolean
+
+  /**
+   * The maximum length of the headers that are emitted by React and added to
+   * the response.
+   */
+  reactMaxHeadersLength: number | undefined
+
+  isStaticGeneration?: boolean
+
+  /**
+   * When true, the page is prerendered as a fallback shell, while allowing any
+   * dynamic accesses to result in an empty shell. This is the case when there
+   * are also routes prerendered with a more complete set of params.
+   * Prerendering those routes would catch any invalid dynamic accesses.
+   */
+  allowEmptyStaticShell?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
-  RenderOptsPartial
+  RenderOptsPartial &
+  RequestLifecycleOpts
+
+export type PreloadCallbacks = (() => void)[]

@@ -67,16 +67,15 @@
   min-height: 135px;
   border: 2px solid #fff;
   border-radius: 0.5em;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .card:empty {
   padding: 2em;
-  background-image: radial-gradient(
-      circle 14px at 46px 46px,
-      #f2f2f2 99%,
-      transparent 0
-    ),
+  background-image:
+    radial-gradient(circle 14px at 46px 46px, #f2f2f2 99%, transparent 0),
     linear-gradient(
       100deg,
       rgba(255, 255, 255, 0),
@@ -89,18 +88,31 @@
 
   background-repeat: repeat-y;
 
-  background-size: 100px 200px, /* circle */ 50px 200px,
-    /* highlight */ 150px 200px, 350px 200px, 200px 200px;
+  background-size:
+    100px 200px,
+    /* circle */ 50px 200px,
+    /* highlight */ 150px 200px,
+    350px 200px,
+    200px 200px;
 
-  background-position: 0 0, /* circle */ 0 0, /* highlight */ 70px 36px,
-    70px 58px, 70px 80px;
+  background-position:
+    0 0,
+    /* circle */ 0 0,
+    /* highlight */ 70px 36px,
+    70px 58px,
+    70px 80px;
 
   animation: shine 1s infinite;
 }
 
 @keyframes shine {
   to {
-    background-position: 0 0, 100% 0, 70px 36px, 70px 58px, 70px 80px;
+    background-position:
+      0 0,
+      100% 0,
+      70px 36px,
+      70px 58px,
+      70px 80px;
   }
 }
 

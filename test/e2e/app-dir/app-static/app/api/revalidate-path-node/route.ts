@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
+export const revalidate = 1
+
 export async function GET(req: NextRequest) {
   const path = req.nextUrl.searchParams.get('path') || '/'
   try {

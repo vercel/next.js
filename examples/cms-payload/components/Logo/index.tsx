@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 
 export const Logo: React.FC = () => {
   return (
@@ -50,5 +50,5 @@ export const Logo: React.FC = () => {
         fill="black"
       />
     </svg>
-  )
-}
+  );
+};

@@ -69,6 +69,13 @@ exports[`next.rs api should detect the correct routes: diagnostics 1`] = `
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
     "payload": {
+      "persistentCaching": "false",
+    },
+  },
+  {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": {
       "platform-triplet": "true",
     },
   },
@@ -76,7 +83,7 @@ exports[`next.rs api should detect the correct routes: diagnostics 1`] = `
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
     "payload": {
-      "skipMiddlewareUrlNormalize": "false",
+      "skipProxyUrlNormalize": "false",
     },
   },
   {
@@ -91,27 +98,6 @@ exports[`next.rs api should detect the correct routes: diagnostics 1`] = `
     "name": "EVENT_BUILD_FEATURE_USAGE",
     "payload": {
       "swcEmotion": "false",
-    },
-  },
-  {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "swcExperimentalDecorators": "false",
-    },
-  },
-  {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "swcImportSource": "false",
-    },
-  },
-  {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "swcMinify": "true",
     },
   },
   {

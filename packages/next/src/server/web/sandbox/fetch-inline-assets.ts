@@ -19,8 +19,13 @@ export async function fetchInlineAsset(options: {
     return
   }
 
-  const hash = inputString.replace('blob:', '')
-  const asset = options.assets?.find((x) => x.name === hash)
+  const name = inputString.replace('blob:', '')
+  const asset = options.assets
+    ? options.assets.find((x) => x.name === name)
+    : {
+        name,
+        filePath: name,
+      }
   if (!asset) {
     return
   }

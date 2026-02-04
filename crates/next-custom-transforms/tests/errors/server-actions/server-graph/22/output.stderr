@@ -1,0 +1,63 @@
+  x "use cache" functions cannot use `this`.
+  | 
+   ,-[input.js:4:1]
+ 3 |   // this is not allowed here
+ 4 |   this.foo()
+   :   ^^^^
+ 5 |   // arguments is not allowed here
+   `----
+  x "use cache" functions cannot use `arguments`.
+  | 
+   ,-[input.js:6:1]
+ 5 |   // arguments is not allowed here
+ 6 |   console.log(arguments)
+   :               ^^^^^^^^^
+   `----
+  x "use cache" functions cannot use `this`.
+  | 
+    ,-[input.js:10:1]
+  9 |     // this is not allowed here
+ 10 |     this.foo()
+    :     ^^^^
+ 11 |     // arguments is not allowed here
+    `----
+  x "use cache" functions cannot use `arguments`.
+  | 
+    ,-[input.js:12:1]
+ 11 |     // arguments is not allowed here
+ 12 |     console.log(arguments)
+    :                 ^^^^^^^^^
+ 13 |   }
+    `----
+  x Server Actions cannot use `this`.
+  | 
+    ,-[input.js:31:1]
+ 30 |       // this is not allowed here
+ 31 |       this.foo()
+    :       ^^^^
+ 32 |       // arguments is not allowed here
+    `----
+  x Server Actions cannot use `arguments`.
+  | 
+    ,-[input.js:33:1]
+ 32 |       // arguments is not allowed here
+ 33 |       console.log(arguments)
+    :                   ^^^^^^^^^
+ 34 |     }
+    `----
+  x "use cache" functions cannot use `this`.
+  | 
+    ,-[input.js:45:1]
+ 44 |       // this is not allowed here
+ 45 |       this.result = await fetch('https://example.com').then((res) => res.json())
+    :       ^^^^
+ 46 |       // arguments is not allowed here
+    `----
+  x "use cache" functions cannot use `arguments`.
+  | 
+    ,-[input.js:47:1]
+ 46 |       // arguments is not allowed here
+ 47 |       console.log(arguments)
+    :                   ^^^^^^^^^
+ 48 |     },
+    `----

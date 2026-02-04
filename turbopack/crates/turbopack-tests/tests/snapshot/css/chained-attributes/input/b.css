@@ -1,0 +1,6 @@
+@import url('./c.css') layer(foo) (orientation: landscape);
+@import url('./c.css') layer(bar) (orientation: portrait);
+
+.imported {
+  color: orange;
+}

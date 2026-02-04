@@ -1,26 +1,26 @@
-import { useState, useEffect } from 'react'
-import userbase from 'userbase-js'
+import { useState, useEffect } from "react";
+import userbase from "userbase-js";
 
 function Todo({ name, done, toggleComplete, deleteTodo }) {
   return (
     <li className="my-4">
       <div className="flex items-center">
-        <span className={done ? 'text-gray-500' : ''}>{name}</span>
+        <span className={done ? "text-gray-500" : ""}>{name}</span>
         <button
           type="button"
           className="mx-4 p-1 rounded bg-purple-400 text-white font-bold"
           onClick={(e) => {
-            e.preventDefault()
-            toggleComplete()
+            e.preventDefault();
+            toggleComplete();
           }}
         >
-          {done ? 'not done' : 'done'}
+          {done ? "not done" : "done"}
         </button>
         <button
           type="button"
           onClick={(e) => {
-            e.preventDefault()
-            deleteTodo()
+            e.preventDefault();
+            deleteTodo();
           }}
           className=" p-1 bg-red-500 text-white rounded font-bold"
         >
@@ -28,76 +28,76 @@ function Todo({ name, done, toggleComplete, deleteTodo }) {
         </button>
       </div>
     </li>
-  )
+  );
 }
 
 function TodoForm() {
-  const [newTodo, setNewTodo] = useState('')
-  const [todos, setTodos] = useState([])
-  const [disabled, setDisabled] = useState()
+  const [newTodo, setNewTodo] = useState("");
+  const [todos, setTodos] = useState([]);
+  const [disabled, setDisabled] = useState();
 
   useEffect(() => {
     async function openDatabase() {
       try {
-        console.log('opening db...')
+        console.log("opening db...");
         await userbase.openDatabase({
-          databaseName: 'next-userbase-todos',
+          databaseName: "next-userbase-todos",
           changeHandler: function (items) {
-            setTodos(items)
+            setTodos(items);
           },
-        })
+        });
       } catch (e) {
-        console.error(e.message)
+        console.error(e.message);
       }
     }
-    openDatabase()
-  }, [])
+    openDatabase();
+  }, []);
 
   async function addTodo(e) {
-    e.preventDefault()
-    setDisabled(true)
+    e.preventDefault();
+    setDisabled(true);
     try {
       await userbase.insertItem({
-        databaseName: 'next-userbase-todos',
+        databaseName: "next-userbase-todos",
         item: { name: newTodo, done: false },
-      })
-      setNewTodo('')
-      setDisabled(false)
+      });
+      setNewTodo("");
+      setDisabled(false);
     } catch (e) {
-      console.error(e.message)
-      setDisabled(false)
+      console.error(e.message);
+      setDisabled(false);
     }
   }
 
   async function toggleComplete(itemId, currentValue) {
     try {
       await userbase.updateItem({
-        databaseName: 'next-userbase-todos',
+        databaseName: "next-userbase-todos",
         item: { ...currentValue, done: !currentValue.done },
         itemId,
-      })
+      });
     } catch (e) {
-      console.error(e.message)
+      console.error(e.message);
     }
   }
 
   function handleNewTodo(e) {
-    e.preventDefault()
-    setNewTodo(e.target.value)
+    e.preventDefault();
+    setNewTodo(e.target.value);
   }
 
   async function deleteTodo(itemId) {
-    setDisabled(true)
+    setDisabled(true);
     try {
       await userbase.deleteItem({
-        databaseName: 'next-userbase-todos',
+        databaseName: "next-userbase-todos",
         itemId,
-      })
-      setNewTodo('')
-      setDisabled(false)
+      });
+      setNewTodo("");
+      setDisabled(false);
     } catch (e) {
-      console.error(e.message)
-      setDisabled(false)
+      console.error(e.message);
+      setDisabled(false);
     }
   }
 
@@ -126,7 +126,7 @@ function TodoForm() {
         </button>
       </div>
     </form>
-  )
+  );
 }
 
-export default TodoForm
+export default TodoForm;

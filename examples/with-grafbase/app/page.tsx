@@ -7,5 +7,5 @@ export default function Page() {
         explore each post by clicking the link in the nav.
       </p>
     </>
-  )
+  );
 }

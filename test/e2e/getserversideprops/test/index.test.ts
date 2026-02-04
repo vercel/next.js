@@ -5,16 +5,18 @@ import { createNext, FileRef } from 'e2e-utils'
 import escapeRegex from 'escape-string-regexp'
 import {
   check,
+  retry,
   fetchViaHTTP,
   getBrowserBodyText,
   getRedboxHeader,
   normalizeRegEx,
   renderViaHTTP,
   waitFor,
+  waitForRedbox,
 } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 const appDir = join(__dirname, '../app')
 
@@ -24,19 +26,19 @@ let next: NextInstance
 const expectedManifestRoutes = () => [
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index\\.json$`
     ),
     page: '/',
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another\\.json$`
     ),
     page: '/another',
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\.json$`
     ),
     page: '/blog',
   },
@@ -81,44 +83,44 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/custom-cache.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/custom-cache\\.json$`
     ),
     page: '/custom-cache',
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate\\.json$`
     ),
     page: '/default-revalidate',
   },
   {
     dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
       buildId
-    )}\\/early-request-end.json$`,
+    )}\\/early-request-end\\.json$`,
     page: '/early-request-end',
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/enoent.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/enoent\\.json$`
     ),
     page: '/enoent',
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/invalid-keys.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/invalid-keys\\.json$`
     ),
     page: '/invalid-keys',
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/non-json.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/non-json\\.json$`
     ),
     page: '/non-json',
   },
   {
     dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
       buildId
-    )}\\/not-found.json$`,
+    )}\\/not-found\\.json$`,
     page: '/not-found',
   },
   {
@@ -135,13 +137,13 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise\\.json$`
     ),
     page: '/promise',
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise\\/mutate-res.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise\\/mutate-res\\.json$`
     ),
     page: '/promise/mutate-res',
   },
@@ -149,7 +151,7 @@ const expectedManifestRoutes = () => [
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
-      )}\\/promise\\/mutate-res-no-streaming.json$`
+      )}\\/promise\\/mutate-res-no-streaming\\.json$`
     ),
     page: '/promise/mutate-res-no-streaming',
   },
@@ -157,25 +159,31 @@ const expectedManifestRoutes = () => [
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
-      )}\\/promise\\/mutate-res-props.json$`
+      )}\\/promise\\/mutate-res-props\\.json$`
     ),
     page: '/promise/mutate-res-props',
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh\\.json$`
     ),
     page: '/refresh',
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/slow.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/rewrite-target\\.json$`
+    ),
+    page: '/rewrite-target',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/slow\\.json$`
     ),
     page: '/slow',
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something\\.json$`
     ),
     page: '/something',
   },
@@ -541,6 +549,13 @@ const runTests = (isDev = false, isDeploy = false) => {
     expect($('#as-path').text()).toBe('/something')
   })
 
+  it('should not include rewrite query params in `asPath` and `req.url`', async () => {
+    const $ = await next.render$('/rewrite-source/foo')
+    expect($('h1').text()).toBe('rewrite-target')
+    expect($('#as-path').text()).toBe('/rewrite-source/foo')
+    expect($('#req-url').text()).toBe('/rewrite-source/foo')
+  })
+
   it('should return data correctly', async () => {
     const data = JSON.parse(
       await renderViaHTTP(next.url, `/_next/data/${buildId}/something.json`)
@@ -583,13 +598,9 @@ const runTests = (isDev = false, isDeploy = false) => {
 
   it('should load a fast refresh page', async () => {
     const browser = await webdriver(next.url, '/refresh')
-    expect(
-      await check(
-        () => browser.elementByCss('p').text(),
-        /client loaded/,
-        false
-      )
-    ).toBe(true)
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toMatch(/client loaded/)
+    })
   })
 
   it('should provide correct query value for dynamic page', async () => {
@@ -627,13 +638,9 @@ const runTests = (isDev = false, isDeploy = false) => {
     await waitFor(500)
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
-    expect(
-      await check(() => browser.eval('window.beforeClick'), {
-        test(v) {
-          return v !== 'abc'
-        },
-      })
-    ).toBe(true)
+    await retry(async () => {
+      expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+    })
   })
 
   it('should always call getServerSideProps without caching', async () => {
@@ -667,6 +674,21 @@ const runTests = (isDev = false, isDeploy = false) => {
 
     const curRandom = await browser.elementByCss('#random').text()
     expect(curRandom).toBe(initialRandom + '')
+  })
+
+  it('should not trigger an error when a data request is cancelled due to another navigation', async () => {
+    const browser = await webdriver(next.url, ' /')
+
+    await browser.elementByCss("[href='/redirect-page']").click()
+
+    // redirect-page will redirect to /normal
+    await retry(async () => {
+      expect(await getBrowserBodyText(browser)).toInclude('a normal page')
+    })
+
+    // there should not be any console errors
+    const logs = await browser.log()
+    expect(logs.filter((log) => log.source === 'error').length).toBe(0)
   })
 
   it('should dedupe server data requests', async () => {
@@ -742,8 +764,8 @@ const runTests = (isDev = false, isDeploy = false) => {
       const browser = await webdriver(next.url, '/')
       await browser.elementByCss('#non-json').click()
 
-      await check(
-        () => getRedboxHeader(browser),
+      await waitForRedbox(browser)
+      await expect(getRedboxHeader(browser)).resolves.toMatch(
         /Error serializing `.time` returned from `getServerSideProps`/
       )
     })
@@ -851,9 +873,11 @@ describe('getServerSideProps', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(appDir, 'pages')),
+        public: new FileRef(join(appDir, 'public')),
         'world.txt': new FileRef(join(appDir, 'world.txt')),
         'next.config.js': new FileRef(join(appDir, 'next.config.js')),
       },
+      patchFileDelay: 500,
     })
     buildId = next.buildId
   })

@@ -1,4 +1,4 @@
-@import 'vars';
+@import "vars";
 
 /* breakpoints */
 
@@ -12,7 +12,7 @@ $break-mobile-large: 992px;
 }
 @mixin clearfix {
   &:after {
-    content: '';
+    content: "";
     display: table;
     clear: both;
   }
@@ -30,13 +30,13 @@ $break-mobile-large: 992px;
 }
 @mixin proxima-font($weight: semibold) {
   @if ($weight==semibold) {
-    font-family: 'ProximaNova-Semibold', arial, helvetica, sans-serif;
+    font-family: "ProximaNova-Semibold", arial, helvetica, sans-serif;
   } @else if($weight==light) {
-    font-family: 'ProximaNova-Light', arial, helvetica, sans-serif;
+    font-family: "ProximaNova-Light", arial, helvetica, sans-serif;
   }
 }
 @mixin opensans-font-stack() {
-  font-family: 'Open Sans', Helvetica, Verdana, Tahoma, sans-serif;
+  font-family: "Open Sans", Helvetica, Verdana, Tahoma, sans-serif;
 }
 @mixin loading-gif() {
   background-image: url(data:image/svg+xml;charset=utf-8;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSJibGFjayI+DQogIDxwYXRoICBvcGFjaXR5PSIuMjUiIGQ9Ik0xNiAwIEExNiAxNiAwIDAgMCAxNiAzMiBBMTYgMTYgMCAwIDAgMTYgMCBNMTYgNCBBMTIgMTIgMCAwIDEgMTYgMjggQTEyIDEyIDAgMCAxIDE2IDQiLz4NCiAgPHBhdGggZmlsbD0nIzFhODBiNicgZD0iTTE2IDAgQTE2IDE2IDAgMCAxIDMyIDE2IEwyOCAxNiBBMTIgMTIgMCAwIDAgMTYgNHoiPg0KICAgIDxhbmltYXRlVHJhbnNmb3JtIGF0dHJpYnV0ZU5hbWU9InRyYW5zZm9ybSIgdHlwZT0icm90YXRlIiBmcm9tPSIwIDE2IDE2IiB0bz0iMzYwIDE2IDE2IiBkdXI9IjAuOHMiIHJlcGVhdENvdW50PSJpbmRlZmluaXRlIiAvPg0KICA8L3BhdGg+DQo8L3N2Zz4NCg==);

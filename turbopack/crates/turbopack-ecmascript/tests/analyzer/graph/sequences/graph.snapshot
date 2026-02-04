@@ -1,0 +1,39 @@
+[
+    (
+        "x",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Unknown {
+                    original_value: None,
+                    reason: "updated with update expression",
+                    has_side_effects: true,
+                },
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "y",
+        Unknown {
+            original_value: Some(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+            ),
+            reason: "sequence with side effects",
+            has_side_effects: true,
+        },
+    ),
+]

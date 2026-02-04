@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -228,7 +228,7 @@ describe('skip-trailing-slash-redirect', () => {
     }
   })
 
-  it('should provide original _next/data URL with skipMiddlewareUrlNormalize', async () => {
+  it('should provide original _next/data URL with skipProxyUrlNormalize', async () => {
     const res = await fetchViaHTTP(
       next.url,
       `/_next/data/${next.buildId}/valid.json`,

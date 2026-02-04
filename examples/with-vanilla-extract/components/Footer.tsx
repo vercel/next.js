@@ -1,11 +1,11 @@
-import * as styles from './Footer.css.ts'
+import * as styles from "./Footer.css.ts";
 
 export default function Footer() {
   return (
     <footer className={styles.footer}>
       <div className={styles.details}>
         <p>
-          Built with{' '}
+          Built with{" "}
           <a
             className={styles.link}
             target="_blank"
@@ -13,8 +13,8 @@ export default function Footer() {
             rel="noreferrer"
           >
             Next.js
-          </a>{' '}
-          and{' '}
+          </a>{" "}
+          and{" "}
           <a
             className={styles.link}
             target="_blank"
@@ -22,9 +22,9 @@ export default function Footer() {
             rel="noreferrer"
           >
             Vanilla Extract
-          </a>{' '}
+          </a>{" "}
         </p>
       </div>
     </footer>
-  )
+  );
 }

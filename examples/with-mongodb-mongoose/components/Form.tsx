@@ -1,37 +1,37 @@
-import { useState } from 'react'
-import { useRouter } from 'next/router'
-import { mutate } from 'swr'
+import { useState } from "react";
+import { useRouter } from "next/router";
+import { mutate } from "swr";
 
 interface FormData {
-  name: string
-  owner_name: string
-  species: string
-  age: number
-  poddy_trained: boolean
-  diet: string[]
-  image_url: string
-  likes: string[]
-  dislikes: string[]
+  name: string;
+  owner_name: string;
+  species: string;
+  age: number;
+  poddy_trained: boolean;
+  diet: string[];
+  image_url: string;
+  likes: string[];
+  dislikes: string[];
 }
 
 interface Error {
-  name?: string
-  owner_name?: string
-  species?: string
-  image_url?: string
+  name?: string;
+  owner_name?: string;
+  species?: string;
+  image_url?: string;
 }
 
 type Props = {
-  formId: string
-  petForm: FormData
-  forNewPet?: boolean
-}
+  formId: string;
+  petForm: FormData;
+  forNewPet?: boolean;
+};
 
 const Form = ({ formId, petForm, forNewPet = true }: Props) => {
-  const router = useRouter()
-  const contentType = 'application/json'
-  const [errors, setErrors] = useState({})
-  const [message, setMessage] = useState('')
+  const router = useRouter();
+  const contentType = "application/json";
+  const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState("");
 
   const [form, setForm] = useState({
     name: petForm.name,
@@ -43,95 +43,95 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
     image_url: petForm.image_url,
     likes: petForm.likes,
     dislikes: petForm.dislikes,
-  })
+  });
 
   /* The PUT method edits an existing entry in the mongodb database. */
   const putData = async (form: FormData) => {
-    const { id } = router.query
+    const { id } = router.query;
 
     try {
       const res = await fetch(`/api/pets/${id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
           Accept: contentType,
-          'Content-Type': contentType,
+          "Content-Type": contentType,
         },
         body: JSON.stringify(form),
-      })
+      });
 
       // Throw error with status code in case Fetch API req failed
       if (!res.ok) {
-        throw new Error(res.status.toString())
+        throw new Error(res.status.toString());
       }
 
-      const { data } = await res.json()
+      const { data } = await res.json();
 
-      mutate(`/api/pets/${id}`, data, false) // Update the local data without a revalidation
-      router.push('/')
+      mutate(`/api/pets/${id}`, data, false); // Update the local data without a revalidation
+      router.push("/");
     } catch (error) {
-      setMessage('Failed to update pet')
+      setMessage("Failed to update pet");
     }
-  }
+  };
 
   /* The POST method adds a new entry in the mongodb database. */
   const postData = async (form: FormData) => {
     try {
-      const res = await fetch('/api/pets', {
-        method: 'POST',
+      const res = await fetch("/api/pets", {
+        method: "POST",
         headers: {
           Accept: contentType,
-          'Content-Type': contentType,
+          "Content-Type": contentType,
         },
         body: JSON.stringify(form),
-      })
+      });
 
       // Throw error with status code in case Fetch API req failed
       if (!res.ok) {
-        throw new Error(res.status.toString())
+        throw new Error(res.status.toString());
       }
 
-      router.push('/')
+      router.push("/");
     } catch (error) {
-      setMessage('Failed to add pet')
+      setMessage("Failed to add pet");
     }
-  }
+  };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
-    const target = e.target
+    const target = e.target;
     const value =
-      target.name === 'poddy_trained'
+      target.name === "poddy_trained"
         ? (target as HTMLInputElement).checked
-        : target.value
-    const name = target.name
+        : target.value;
+    const name = target.name;
 
     setForm({
       ...form,
       [name]: value,
-    })
-  }
+    });
+  };
 
   /* Makes sure pet info is filled for pet name, owner name, species, and image url*/
   const formValidate = () => {
-    let err: Error = {}
-    if (!form.name) err.name = 'Name is required'
-    if (!form.owner_name) err.owner_name = 'Owner is required'
-    if (!form.species) err.species = 'Species is required'
-    if (!form.image_url) err.image_url = 'Image URL is required'
-    return err
-  }
+    let err: Error = {};
+    if (!form.name) err.name = "Name is required";
+    if (!form.owner_name) err.owner_name = "Owner is required";
+    if (!form.species) err.species = "Species is required";
+    if (!form.image_url) err.image_url = "Image URL is required";
+    return err;
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const errs = formValidate()
+    e.preventDefault();
+    const errs = formValidate();
 
     if (Object.keys(errs).length === 0) {
-      forNewPet ? postData(form) : putData(form)
+      forNewPet ? postData(form) : putData(form);
     } else {
-      setErrors({ errs })
+      setErrors({ errs });
     }
-  }
+  };
 
   return (
     <>
@@ -226,7 +226,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
         ))}
       </div>
     </>
-  )
-}
+  );
+};
 
-export default Form
+export default Form;

@@ -2,7 +2,7 @@ import React from 'react'
 import type {
   FlightData,
   FlightRouterState,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import { shouldHardNavigate } from './should-hard-navigate'
 
 describe('shouldHardNavigate', () => {
@@ -35,7 +35,7 @@ describe('shouldHardNavigate', () => {
               children: ['', {}],
             },
           ],
-          <h1>About Page!</h1>,
+          ['about', {}, <h1>About Page!</h1>],
           <>
             <title>About page!</title>
           </>,
@@ -50,7 +50,7 @@ describe('shouldHardNavigate', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const flightSegmentPath = flightDataPath.slice(0, -3)
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const result = shouldHardNavigate(
       ['', ...flightSegmentPath],
@@ -68,7 +68,7 @@ describe('shouldHardNavigate', () => {
           'link-hard-push',
           {
             children: [
-              ['id', '123', 'd'],
+              ['id', '123', 'd', null],
               {
                 children: ['', {}],
               },
@@ -87,14 +87,14 @@ describe('shouldHardNavigate', () => {
           'children',
           'link-hard-push',
           'children',
-          ['id', '123', 'd'],
+          ['id', '123', 'd', null],
           [
-            ['id', '123', 'd'],
+            ['id', '123', 'd', null],
             {
               children: ['', {}],
             },
           ],
-          null,
+          [['id', '123', 'd', null], {}, null],
           null,
         ],
       ]
@@ -107,7 +107,7 @@ describe('shouldHardNavigate', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const flightSegmentPath = flightDataPath.slice(0, -3)
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const result = shouldHardNavigate(
       ['', ...flightSegmentPath],
@@ -125,7 +125,7 @@ describe('shouldHardNavigate', () => {
           'link-hard-push',
           {
             children: [
-              ['id', '456', 'd'],
+              ['id', '456', 'd', null],
               {
                 children: ['', {}],
               },
@@ -144,15 +144,16 @@ describe('shouldHardNavigate', () => {
           'children',
           'link-hard-push',
           'children',
-          ['id', '123', 'd'],
+          ['id', '123', 'd', null],
           [
-            ['id', '123', 'd'],
+            ['id', '123', 'd', null],
             {
               children: ['', {}],
             },
           ],
+          [['id', '123', 'd', null], {}, null],
           null,
-          null,
+          false,
         ],
       ]
     }
@@ -164,7 +165,7 @@ describe('shouldHardNavigate', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const flightSegmentPath = flightDataPath.slice(0, -3)
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const result = shouldHardNavigate(
       ['', ...flightSegmentPath],

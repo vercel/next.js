@@ -1,21 +1,41 @@
-import connect from './error-overlay/hot-dev-client'
-import { sendMessage } from './error-overlay/websocket'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
+import type {
+  NextRouter,
+  PrivateRouteInfo,
+} from '../../shared/lib/router/router'
+import connect from './hot-reloader/pages/hot-reloader-pages'
+import { sendMessage } from './hot-reloader/pages/websocket'
+
+// Define a local type for the window.next object
+interface NextWindow {
+  next?: {
+    router?: NextRouter & {
+      components: { [pathname: string]: PrivateRouteInfo }
+    }
+  }
+  __nextDevClientId?: string
+  location: Location
+}
+
+declare const window: NextWindow
 
 let reloading = false
 
-export default (mode: 'webpack' | 'turbopack') => {
-  const devClient = connect(mode)
+export default () => {
+  const devClient = connect()
 
-  devClient.subscribeToHmrEvent((obj: any) => {
+  devClient.subscribeToHmrEvent((message) => {
     if (reloading) return
-    // if we're on an error/404 page, we can't reliably tell if the newly added/removed page
-    // matches the current path. In that case, assume any added/removed entries should trigger a reload of the current page
-    const isOnErrorPage =
-      window.next.router.pathname === '/404' ||
-      window.next.router.pathname === '/_error'
 
-    switch (obj.action) {
-      case 'reloadPage': {
+    // Retrieve the router if it's available
+    const router = window.next?.router
+
+    // Determine if we're on an error page or the router is not initialized
+    const isOnErrorPage =
+      !router || router.pathname === '/404' || router.pathname === '/_error'
+
+    switch (message.type) {
+      case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE: {
         sendMessage(
           JSON.stringify({
             event: 'client-reload-page',
@@ -25,9 +45,15 @@ export default (mode: 'webpack' | 'turbopack') => {
         reloading = true
         return window.location.reload()
       }
-      case 'removedPage': {
-        const [page] = obj.data
-        if (page === window.next.router.pathname || isOnErrorPage) {
+      case HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE: {
+        const [page] = message.data
+
+        // Check if the removed page is the current page
+        const isCurrentPage = page === router?.pathname
+
+        // We enter here if the removed page is currently being viewed
+        // or if we happen to be on an error page.
+        if (isCurrentPage || isOnErrorPage) {
           sendMessage(
             JSON.stringify({
               event: 'client-removed-page',
@@ -39,13 +65,19 @@ export default (mode: 'webpack' | 'turbopack') => {
         }
         return
       }
-      case 'addedPage': {
-        const [page] = obj.data
-        if (
-          (page === window.next.router.pathname &&
-            typeof window.next.router.components[page] === 'undefined') ||
-          isOnErrorPage
-        ) {
+      case HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE: {
+        const [page] = message.data
+
+        // Check if the added page is the current page
+        const isCurrentPage = page === router?.pathname
+
+        // Check if the page component is not yet loaded
+        const isPageNotLoaded =
+          page !== null && typeof router?.components?.[page] === 'undefined'
+
+        // We enter this block if the newly added page is the one currently being viewed
+        // but hasn't been loaded yet, or if we're on an error page.
+        if ((isCurrentPage && isPageNotLoaded) || isOnErrorPage) {
           sendMessage(
             JSON.stringify({
               event: 'client-added-page',
@@ -57,14 +89,11 @@ export default (mode: 'webpack' | 'turbopack') => {
         }
         return
       }
-      case 'serverError':
-      case 'devPagesManifestUpdate':
-      case 'building':
-      case 'finishBuilding': {
+      case HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
         return
       }
       default: {
-        throw new Error('Unexpected action ' + obj.action)
+        message satisfies never
       }
     }
   })

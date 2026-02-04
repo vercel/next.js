@@ -2,7 +2,6 @@ const os = require('os')
 const path = require('path')
 const execa = require('execa')
 const fsp = require('fs/promises')
-const { copy } = require('fs-extra')
 const prettyBytes = require('pretty-bytes')
 const gzipSize = require('next/dist/compiled/gzip-size')
 const { nodeFileTrace } = require('next/dist/compiled/@vercel/nft')
@@ -25,7 +24,7 @@ async function main() {
   const origTestDir = path.join(origRepoDir, 'test')
   const dotDir = path.join(origRepoDir, './') + '.'
 
-  await copy(origRepoDir, repoDir, {
+  await fsp.cp(origRepoDir, repoDir, {
     filter: (item) => {
       return (
         !item.startsWith(origTestDir) &&
@@ -33,13 +32,18 @@ async function main() {
         !item.includes('node_modules')
       )
     },
+    force: true,
+    recursive: true,
   })
 
   console.log('using workdir', workDir)
   console.log('using repodir', repoDir)
   await fsp.mkdir(workDir, { recursive: true })
 
-  const pkgPaths = await linkPackages({ repoDir: origRepoDir })
+  const pkgPaths = await linkPackages({
+    repoDir: origRepoDir,
+    nextSwcVersion: null,
+  })
 
   await fsp.writeFile(
     path.join(workDir, 'package.json'),
@@ -78,7 +82,6 @@ async function main() {
       'node_modules/next/dist/pages/**/*',
       'node_modules/next/dist/server/image-optimizer.js',
       'node_modules/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-      'node_modules/next/dist/server/lib/squoosh/**/*.wasm',
       'node_modules/next/dist/compiled/webpack/(bundle4|bundle5).js',
       'node_modules/react/**/*.development.js',
       'node_modules/react-dom/**/*.development.js',

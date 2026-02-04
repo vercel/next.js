@@ -4,10 +4,6 @@ import ReactDOMServer from 'react-dom/server'
 import Image from 'next/image'
 import cheerio from 'cheerio'
 
-// Since this unit test doesn't check the result of
-// ReactDOM.preload(), we can turn it into a noop.
-jest.mock('react-dom', () => ({ preload: () => null }))
-
 describe('Image rendering', () => {
   it('should render Image on its own', async () => {
     const element = React.createElement(Image, {

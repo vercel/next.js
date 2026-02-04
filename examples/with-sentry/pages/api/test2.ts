@@ -1,9 +1,9 @@
 function work() {
-  throw new Error('API Test 2')
+  throw new Error("API Test 2");
 }
 
-work()
+work();
 
 export default function handler(req, res) {
-  res.status(200).json({ name: 'John Doe' })
+  res.status(200).json({ name: "John Doe" });
 }

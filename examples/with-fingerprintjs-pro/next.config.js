@@ -4,12 +4,12 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: '/',
-        destination: '/home/memory-cache',
+        source: "/",
+        destination: "/home/memory-cache",
         permanent: true,
       },
-    ]
+    ];
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

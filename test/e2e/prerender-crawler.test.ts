@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 describe('Prerender crawler handling', () => {
   let next: NextInstance

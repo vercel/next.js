@@ -1,18 +1,50 @@
-/* eslint-disable no-redeclare */
 import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
-import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
-import type { RouteMatch } from './future/route-matches/route-match'
+import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import type {
+  ResponseCacheEntry,
+  ServerComponentsHmrCache,
+} from './response-cache'
+import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
+import type { OpaqueFallbackRouteParams } from './request/fallback-params'
+import type { IncrementalCache } from './lib/incremental-cache'
+import type { NextRequest } from './web/exports'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
 
-export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
+export type NextIncomingMessage = (
+  | BaseNextRequest
+  | IncomingMessage
+  | NextRequest
+) & {
   [NEXT_REQUEST_META]?: RequestMeta
 }
+
+/**
+ * The callback function to call when a response cache entry was generated or
+ * looked up in the cache. When it returns true, the server assumes that the
+ * handler has already responded to the request and will not do so itself.
+ */
+export type OnCacheEntryHandler = (
+  /**
+   * The response cache entry that was generated or looked up in the cache.
+   */
+  cacheEntry: ResponseCacheEntry,
+
+  /**
+   * The request metadata.
+   */
+  requestMeta: {
+    /**
+     * The URL that was used to make the request.
+     */
+    url: string | undefined
+  }
+) => Promise<boolean | void> | boolean | void
 
 export interface RequestMeta {
   /**
@@ -49,9 +81,16 @@ export interface RequestMeta {
   didStripLocale?: boolean
 
   /**
-   * If the request had it's URL rewritten, this is the URL it was rewritten to.
+   * If the request had its URL rewritten, this is the pathname it was rewritten
+   * to (not a full URL, just the pathname).
    */
-  rewroteURL?: string
+  rewrittenPathname?: string
+
+  /**
+   * The resolved pathname for the request. Dynamic route params are
+   * interpolated, the pathname is decoded, and the trailing slash is removed.
+   */
+  resolvedPathname?: string
 
   /**
    * The cookies that were added by middleware and were added to the response.
@@ -66,7 +105,44 @@ export interface RequestMeta {
   /**
    * The incremental cache to use for the request.
    */
-  incrementalCache?: any
+  incrementalCache?: IncrementalCache
+
+  /**
+   * The server components HMR cache, only for dev.
+   */
+  serverComponentsHmrCache?: ServerComponentsHmrCache
+
+  /**
+   * Equals the segment path that was used for the prefetch RSC request.
+   */
+  segmentPrefetchRSCRequest?: string
+
+  /**
+   * True when the request is for the prefetch flight data.
+   */
+  isPrefetchRSCRequest?: true
+
+  /**
+   * True when the request is for the flight data.
+   */
+  isRSCRequest?: true
+
+  /**
+   * A search param set by the Next.js client when performing RSC requests.
+   * Because some CDNs do not vary their cache entries on our custom headers,
+   * this search param represents a hash of the header values. For any cached
+   * RSC request, we should verify that the hash matches before responding.
+   * Otherwise this can lead to cache poisoning.
+   * TODO: Consider not using custom request headers at all, and instead encode
+   * everything into the search param.
+   */
+  cacheBustingSearchParam?: string
+
+  /**
+   * True when the request is for the `/_next/data` route using the pages
+   * router.
+   */
+  isNextDataReq?: true
 
   /**
    * Postponed state to use for resumption. If present it's assumed that the
@@ -77,10 +153,156 @@ export interface RequestMeta {
   postponed?: string
 
   /**
+   * The action body extracted from a server action request when the postponed
+   * state was prepended to the body by the proxy. This allows the action
+   * handler to read the action payload without re-reading the consumed stream.
+   */
+  actionBody?: Buffer
+
+  /**
+   * If provided, this will be called when a response cache entry was generated
+   * or looked up in the cache.
+   *
+   * @deprecated Use `onCacheEntryV2` instead.
+   */
+  onCacheEntry?: OnCacheEntryHandler
+
+  /**
    * If provided, this will be called when a response cache entry was generated
    * or looked up in the cache.
    */
-  onCacheEntry?: (cacheEntry: any) => Promise<boolean | void> | boolean | void
+  onCacheEntryV2?: OnCacheEntryHandler
+
+  /**
+   * The previous revalidate before rendering 404 page for notFound: true
+   */
+  notFoundRevalidate?: number | false
+
+  /**
+   * In development, the original source page that returned a 404.
+   */
+  developmentNotFoundSourcePage?: string
+
+  /**
+   * The path we routed to and should be invoked
+   */
+  invokePath?: string
+
+  /**
+   * The specific page output we should be matching
+   */
+  invokeOutput?: string
+
+  /**
+   * The status we are invoking the request with from routing
+   */
+  invokeStatus?: number
+
+  /**
+   * The routing error we are invoking with
+   */
+  invokeError?: Error
+
+  /**
+   * The query parsed for the invocation
+   */
+  invokeQuery?: Record<string, undefined | string | string[]>
+
+  /**
+   * Whether the request is a middleware invocation
+   */
+  middlewareInvoke?: boolean
+
+  /**
+   * Whether the request should render the fallback shell or not.
+   */
+  renderFallbackShell?: boolean
+
+  /**
+   * Whether the request is for the custom error page.
+   */
+  customErrorRender?: true
+
+  /**
+   * Whether to bubble up the NoFallbackError to the caller when a 404 is
+   * returned.
+   */
+  bubbleNoFallback?: true
+
+  /**
+   * True when the request had locale information inferred from the default
+   * locale.
+   */
+  localeInferredFromDefault?: true
+
+  /**
+   * The locale that was inferred or explicitly set for the request.
+   */
+  locale?: string
+
+  /**
+   * The default locale that was inferred or explicitly set for the request.
+   */
+  defaultLocale?: string
+
+  /**
+   * The relative project dir the server is running in from project root
+   */
+  relativeProjectDir?: string
+
+  /**
+   * The dist directory the server is currently using
+   */
+  distDir?: string
+
+  /**
+   * The query after resolving routes
+   */
+  query?: ParsedUrlQuery
+
+  /**
+   * The params after resolving routes
+   */
+  params?: ParsedUrlQuery
+
+  /**
+   * ErrorOverlay component to use in development for pages router
+   */
+  PagesErrorDebug?: PagesDevOverlayBridgeType
+
+  /**
+   * Whether server is in minimal mode (this will be replaced with more
+   * specific flags in future)
+   */
+  minimalMode?: boolean
+
+  /**
+   * DEV only: The fallback params that should be used when validating prerenders during dev
+   */
+  devFallbackParams?: OpaqueFallbackRouteParams
+
+  /**
+   * DEV only: Request timings in process.hrtime.bigint()
+   */
+  devRequestTimingStart?: bigint
+  devRequestTimingMiddlewareStart?: bigint
+  devRequestTimingMiddlewareEnd?: bigint
+  devRequestTimingInternalsEnd?: bigint
+
+  /**
+   * DEV only: The duration of getStaticPaths/generateStaticParams in process.hrtime.bigint()
+   */
+  devGenerateStaticParamsDuration?: bigint
+
+  /**
+   * DEV only: Server action log info to be logged after the request log
+   */
+  devServerActionLog?: {
+    functionName: string
+    args: unknown[]
+    location: string
+    duration: number
+  }
 }
 
 /**
@@ -154,62 +376,35 @@ export function removeRequestMeta<K extends keyof RequestMeta>(
 }
 
 type NextQueryMetadata = {
-  __nextNotFoundSrcPage?: string
-  __nextDefaultLocale?: string
-  __nextFallback?: 'true'
-
   /**
-   * The locale that was inferred or explicitly set for the request.
-   *
-   * When this property is mutated, it's important to also update the request
-   * metadata for `_nextInferredDefaultLocale` to ensure that the correct
-   * behavior is applied.
+   * The `_rsc` query parameter used for cache busting to ensure that the RSC
+   * requests do not get cached by the browser explicitly.
    */
-  __nextLocale?: string
-
-  /**
-   * `1` when the request did not have a locale in the pathname part of the
-   * URL but the default locale was inferred from either the domain or the
-   * configuration.
-   */
-  __nextInferredLocaleFromDefault?: '1'
-
-  __nextSsgPath?: string
-  _nextBubbleNoFallback?: '1'
-  __nextDataReq?: '1'
-  __nextCustomErrorRender?: '1'
   [NEXT_RSC_UNION_QUERY]?: string
 }
 
-export type NextParsedUrlQuery = ParsedUrlQuery &
-  NextQueryMetadata & {
-    amp?: '1'
-  }
+export type NextParsedUrlQuery = ParsedUrlQuery & NextQueryMetadata
 
-export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
-  query: NextParsedUrlQuery
+/**
+ * subset of `url.parse` return value
+ */
+interface LegacyUrl {
+  auth?: string | null
+  hash: string | null
+  hostname: string | null
+  href: string
+  pathname: string | null
+  protocol: string | null
+  search: string | null
+  slashes: boolean | null
+  port: string | null
+  query: string | null | ParsedUrlQuery
+}
+interface LegacyUrlWithParsedQuery extends LegacyUrl {
+  query: ParsedUrlQuery
 }
 
-export function getNextInternalQuery(
+// TODO: Remove in favor of WHATWG URLs
+export interface NextUrlWithParsedQuery extends LegacyUrlWithParsedQuery {
   query: NextParsedUrlQuery
-): NextQueryMetadata {
-  const keysToInclude: (keyof NextQueryMetadata)[] = [
-    '__nextDefaultLocale',
-    '__nextFallback',
-    '__nextLocale',
-    '__nextSsgPath',
-    '_nextBubbleNoFallback',
-    '__nextDataReq',
-    '__nextInferredLocaleFromDefault',
-  ]
-  const nextInternalQuery: NextQueryMetadata = {}
-
-  for (const key of keysToInclude) {
-    if (key in query) {
-      // @ts-ignore this can't be typed correctly
-      nextInternalQuery[key] = query[key]
-    }
-  }
-
-  return nextInternalQuery
 }

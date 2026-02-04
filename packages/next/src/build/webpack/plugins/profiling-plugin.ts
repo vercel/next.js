@@ -1,6 +1,7 @@
 import { NormalModule } from 'next/dist/compiled/webpack/webpack'
 import type { Span } from '../../../trace'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import path from 'path'
 
 const pluginName = 'ProfilingPlugin'
 export const spans = new WeakMap<webpack.Compilation | webpack.Compiler, Span>()
@@ -27,9 +28,17 @@ function inTraceLabelsSeal(label: string) {
 export class ProfilingPlugin {
   compiler: any
   runWebpackSpan: Span
+  rootDir: string
 
-  constructor({ runWebpackSpan }: { runWebpackSpan: Span }) {
+  constructor({
+    runWebpackSpan,
+    rootDir,
+  }: {
+    runWebpackSpan: Span
+    rootDir: string
+  }) {
     this.runWebpackSpan = runWebpackSpan
+    this.rootDir = rootDir
   }
   apply(compiler: any) {
     this.traceTopLevelHooks(compiler)
@@ -105,7 +114,9 @@ export class ProfilingPlugin {
           onStart: (span) => webpackInvalidSpans.set(compiler, span),
           onStop: () => webpackInvalidSpans.delete(compiler),
           attrs: (fileName: any) => ({
-            trigger: fileName || 'manual',
+            trigger: fileName
+              ? path.relative(this.rootDir, fileName).replaceAll(path.sep, '/')
+              : 'manual',
           }),
         }
       )
@@ -140,11 +151,14 @@ export class ProfilingPlugin {
       (compilation: any) => {
         compilation.hooks.buildModule.tap(pluginName, (module: any) => {
           const moduleType = (() => {
-            if (!module.userRequest) {
+            const r = module.userRequest
+            if (!r || r.endsWith('!')) {
               return ''
+            } else {
+              const resource = r.split('!').pop()
+              const match = /^[^?]+\.([^?]+)$/.exec(resource)
+              return match ? match[1] : ''
             }
-
-            return module.userRequest.split('.').pop()
           })()
 
           const issuerModule = compilation?.moduleGraph?.getIssuer(module)
@@ -189,10 +203,7 @@ export class ProfilingPlugin {
           register(tapInfo: any) {
             const fn = tapInfo.fn
             tapInfo.fn = (loaderContext: any, callback: any) => {
-              const moduleSpan =
-                loaderContext.currentTraceSpan.traceChild(`read-resource`)
               fn(loaderContext, (err: any, result: any) => {
-                moduleSpan.stop()
                 callback(err, result)
               })
             }

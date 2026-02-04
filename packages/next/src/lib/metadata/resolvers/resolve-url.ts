@@ -1,56 +1,69 @@
 import path from '../../../shared/lib/isomorphic/path'
-import * as Log from '../../../build/output/log'
+import type { MetadataContext } from '../types/resolvers'
+
+export type MetadataBaseURL = URL | null
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
 }
 
 function createLocalMetadataBase() {
-  return new URL(`http://localhost:${process.env.PORT || 3000}`)
+  // Check if experimental HTTPS is enabled
+  const isExperimentalHttps = Boolean(process.env.__NEXT_EXPERIMENTAL_HTTPS)
+  const protocol = isExperimentalHttps ? 'https' : 'http'
+  return new URL(`${protocol}://localhost:${process.env.PORT || 3000}`)
 }
 
-// For deployment url for metadata routes, prefer to use the deployment url if possible
-// as these routes are unique to the deployments url.
-export function getSocialImageFallbackMetadataBase(
-  metadataBase: URL | null
-): URL | null {
-  const isMetadataBaseMissing = !metadataBase
+function getPreviewDeploymentUrl(): URL | undefined {
+  const origin = process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL
+  return origin ? new URL(`https://${origin}`) : undefined
+}
+
+function getProductionDeploymentUrl(): URL | undefined {
+  const origin = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  return origin ? new URL(`https://${origin}`) : undefined
+}
+
+/**
+ * Given an optional user-provided metadataBase, this determines what the metadataBase should
+ * fallback to. Specifically:
+ * - In dev, it should always be localhost
+ * - In Vercel preview builds, it should be the preview build ID
+ * - In start, it should be the user-provided metadataBase value. Otherwise,
+ * it'll fall back to the Vercel production deployment, and localhost as a last resort.
+ */
+export function getSocialImageMetadataBaseFallback(
+  metadataBase: MetadataBaseURL
+): URL {
   const defaultMetadataBase = createLocalMetadataBase()
-  const deploymentUrl =
-    process.env.VERCEL_URL && new URL(`https://${process.env.VERCEL_URL}`)
+  const previewDeploymentUrl = getPreviewDeploymentUrl()
+  const productionDeploymentUrl = getProductionDeploymentUrl()
 
-  let fallbackMetadata
+  let fallbackMetadataBase
   if (process.env.NODE_ENV === 'development') {
-    fallbackMetadata = defaultMetadataBase
+    fallbackMetadataBase = defaultMetadataBase
   } else {
-    fallbackMetadata =
+    fallbackMetadataBase =
       process.env.NODE_ENV === 'production' &&
-      deploymentUrl &&
+      previewDeploymentUrl &&
       process.env.VERCEL_ENV === 'preview'
-        ? deploymentUrl
-        : metadataBase || deploymentUrl || defaultMetadataBase
+        ? previewDeploymentUrl
+        : metadataBase || productionDeploymentUrl || defaultMetadataBase
   }
 
-  if (isMetadataBaseMissing) {
-    Log.warnOnce('')
-    Log.warnOnce(
-      `metadata.metadataBase is not set for resolving social open graph or twitter images, using "${fallbackMetadata.origin}". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase`
-    )
-  }
-
-  return fallbackMetadata
+  return fallbackMetadataBase
 }
 
-function resolveUrl(url: null | undefined, metadataBase: URL | null): null
-function resolveUrl(url: string | URL, metadataBase: URL | null): URL
+function resolveUrl(url: null | undefined, metadataBase: MetadataBaseURL): null
+function resolveUrl(url: string | URL, metadataBase: MetadataBaseURL): URL
 function resolveUrl(
-  url: string | URL | null | undefined,
-  metadataBase: URL | null
-): URL | null
+  url: string | MetadataBaseURL | undefined,
+  metadataBase: MetadataBaseURL
+): MetadataBaseURL
 function resolveUrl(
-  url: string | URL | null | undefined,
-  metadataBase: URL | null
-): URL | null {
+  url: string | MetadataBaseURL | undefined,
+  metadataBase: MetadataBaseURL
+): MetadataBaseURL {
   if (url instanceof URL) return url
   if (!url) return null
 
@@ -65,8 +78,8 @@ function resolveUrl(
   }
 
   // Handle relative or absolute paths
-  const basePath = metadataBase.pathname || ''
-  const joinedPath = path.posix.join(basePath, url)
+  const pathname = metadataBase.pathname || ''
+  const joinedPath = path.posix.join(pathname, url)
 
   return new URL(joinedPath, metadataBase)
 }
@@ -79,16 +92,66 @@ function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
   return url
 }
 
+// The regex is matching logic from packages/next/src/lib/load-custom-routes.ts
+const FILE_REGEX =
+  /^(?:\/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+))(\/?|$)/i
+function isFilePattern(pathname: string): boolean {
+  return FILE_REGEX.test(pathname)
+}
+
 // Resolve `pathname` if `url` is a relative path the compose with `metadataBase`.
 function resolveAbsoluteUrlWithPathname(
   url: string | URL,
-  metadataBase: URL | null,
-  pathname: string
-) {
+  metadataBase: MetadataBaseURL,
+  pathname: string,
+  { trailingSlash }: MetadataContext
+): string {
+  // Resolve url with pathname that always starts with `/`
   url = resolveRelativeUrl(url, pathname)
 
+  // Convert string url or URL instance to absolute url string,
+  // if there's case needs to be resolved with metadataBase
+  let resolvedUrl = ''
   const result = metadataBase ? resolveUrl(url, metadataBase) : url
-  return result.toString()
+  if (typeof result === 'string') {
+    resolvedUrl = result
+  } else {
+    resolvedUrl =
+      result.pathname === '/' && result.searchParams.size === 0
+        ? result.origin
+        : result.href
+  }
+
+  // Add trailing slash if it's enabled for urls matches the condition
+  // - Not external, same origin with metadataBase
+  // - Doesn't have query
+  if (trailingSlash && !resolvedUrl.endsWith('/')) {
+    let isRelative = resolvedUrl.startsWith('/')
+    let hasQuery = resolvedUrl.includes('?')
+    let isExternal = false
+    let isFileUrl = false
+
+    if (!isRelative) {
+      try {
+        const parsedUrl = new URL(resolvedUrl)
+        isExternal =
+          metadataBase != null && parsedUrl.origin !== metadataBase.origin
+        isFileUrl = isFilePattern(parsedUrl.pathname)
+      } catch {
+        // If it's not a valid URL, treat it as external
+        isExternal = true
+      }
+      if (
+        // Do not apply trailing slash for file like urls, aligning with the behavior with `trailingSlash`
+        !isFileUrl &&
+        !isExternal &&
+        !hasQuery
+      )
+        return `${resolvedUrl}/`
+    }
+  }
+
+  return resolvedUrl
 }
 
 export {

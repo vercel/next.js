@@ -8,7 +8,7 @@ async function getData() {
   }
 }
 
-export default function gsspLayout(props) {
+export default function GsspLayout(props) {
   const data = use(getData())
 
   return (

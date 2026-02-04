@@ -1,5 +1,5 @@
-@import '@sass/abstracts/vars';
-@import '@sass/abstracts/mixins';
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
 
 .promo-shadow {
   max-width: 960px;
@@ -28,7 +28,7 @@
       max-height: 100px;
       max-width: 460px;
       width: 47%;
-      content: '';
+      content: "";
       bottom: 10px;
     }
     &:before {

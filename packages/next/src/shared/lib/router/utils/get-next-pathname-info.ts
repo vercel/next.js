@@ -1,7 +1,7 @@
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removePathPrefix } from './remove-path-prefix'
 import { pathHasPrefix } from './path-has-prefix'
-import type { I18NProvider } from '../../../../server/future/helpers/i18n-provider'
+import type { I18NProvider } from '../../../../server/lib/i18n-provider'
 
 export interface NextPathnameInfo {
   /**
@@ -39,7 +39,7 @@ interface Options {
    */
   nextConfig?: {
     basePath?: string
-    i18n?: { locales?: string[] } | null
+    i18n?: { locales?: readonly string[] } | null
     trailingSlash?: boolean
   }
 

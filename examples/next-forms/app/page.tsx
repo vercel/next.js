@@ -1,13 +1,14 @@
-import { sql } from '@vercel/postgres'
-import { AddForm } from '@/app/add-form'
-import { DeleteForm } from '@/app/delete-form'
+import postgres from "postgres";
 
-export const runtime = 'edge'
-export const preferredRegion = 'home'
+import { AddForm } from "@/app/add-form";
+import { DeleteForm } from "@/app/delete-form";
+
+let sql = postgres(process.env.DATABASE_URL || process.env.POSTGRES_URL!, {
+  ssl: "allow",
+});
 
 export default async function Home() {
-  let data = await sql`SELECT * FROM todos`
-  const { rows: todos } = data
+  let todos = await sql`SELECT * FROM todos`;
 
   return (
     <main>
@@ -22,5 +23,5 @@ export default async function Home() {
         ))}
       </ul>
     </main>
-  )
+  );
 }

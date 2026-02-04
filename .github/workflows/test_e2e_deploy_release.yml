@@ -1,0 +1,320 @@
+name: test-e2e-deploy-release
+
+on:
+  # run on every release/prerelease
+  release:
+    types: [published]
+  # allow triggering manually as well
+  workflow_dispatch:
+    inputs:
+      nextVersion:
+        description: canary or custom tarball URL
+        default: canary
+        type: string
+      vercelCliVersion:
+        description: Version of Vercel CLI to use
+        default: 'vercel@latest'
+        type: string
+      overrideProxyAddress:
+        description: Override the proxy address to use for the test
+        default: ''
+        type: string
+      deployScriptPath:
+        description: Custom deploy script path (NEXT_TEST_DEPLOY_SCRIPT_PATH)
+        default: ''
+        type: string
+      deployLogsScriptPath:
+        description: Custom deploy logs script path (NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH)
+        default: ''
+        type: string
+
+env:
+  DD_ENV: 'ci'
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  VERCEL_ADAPTER_TEST_TEAM: vtest314-next-adapter-e2e-tests
+  VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
+  VERCEL_TURBOPACK_TEST_TEAM: vtest314-next-turbopack-e2e-tests
+  VERCEL_TURBOPACK_TEST_TOKEN: ${{ secrets.VERCEL_TURBOPACK_TEST_TOKEN }}
+
+run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || 'canary' }}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
+    outputs:
+      next-version: ${{ steps.version.outputs.value }}
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Setup pnpm
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+
+      - id: nextPackageInfo
+        name: Get `next` package info
+        run: |
+          cd packages/next 
+          {
+            echo 'value<<EOF'
+            cat package.json
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - id: version
+        name: Extract `next` version
+        run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
+
+  test-deploy:
+    name: Run Deploy Tests
+    needs: setup
+    uses: ./.github/workflows/build_reusable.yml
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 7/8, 8/8]
+    with:
+      afterBuild: |
+        npm i -g vercel@latest && \
+        NEXT_E2E_TEST_TIMEOUT=240000 \
+        NEXT_TEST_MODE=deploy \
+        IS_WEBPACK_TEST=1 \
+        NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
+        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
+        NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
+        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'no'
+      stepName: 'test-deploy-${{ matrix.group }}'
+      timeout_minutes: 180
+      runs_on_labels: '["ubuntu-latest"]'
+      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
+
+  test-deploy-adapter:
+    name: Run Deploy Adapter Tests
+    needs: setup
+    if: ${{ github.event.inputs.deployScriptPath == '' }}
+    uses: ./.github/workflows/build_reusable.yml
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          [
+            1/12,
+            2/12,
+            3/12,
+            4/12,
+            5/12,
+            6/12,
+            7/12,
+            8/12,
+            9/12,
+            10/12,
+            11/12,
+            12/12,
+          ]
+    with:
+      afterBuild: |
+        npm i -g vercel@latest && \
+        NEXT_E2E_TEST_TIMEOUT=240000 \
+        NEXT_TEST_MODE=deploy \
+        IS_WEBPACK_TEST=1 \
+        NEXT_ENABLE_ADAPTER=1 \
+        NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
+        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'no'
+      stepName: 'test-deploy-deploy-${{ matrix.group }}'
+      timeout_minutes: 180
+      runs_on_labels: '["ubuntu-latest"]'
+      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
+
+  report-test-results-to-datadog:
+    needs: test-deploy
+    if: ${{ always() }}
+
+    runs-on: ubuntu-latest
+    name: Report test results to datadog
+    steps:
+      - name: Download test report artifacts
+        id: download-test-reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-reports-*
+          path: test
+          merge-multiple: true
+
+      - name: Upload test report to datadog
+        run: |
+          if [ -d ./test/test-junit-report ]; then
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
+          fi
+
+  create-draft-prs:
+    name: Immediately open draft prs
+    needs: setup
+    if: ${{ github.repository_owner == 'vercel' && github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo: front
+            workflow_id: cron-update-next.yml
+          - repo: v0
+            workflow_id: update-next.yaml
+    steps:
+      - name: Check token
+        run: gh auth status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
+      - uses: actions/github-script@v7
+        name: Check if target workflow is enabled
+        id: check-workflow-enabled
+        with:
+          retries: 3
+          retry-exempt-status-codes: 400,401,403,404,422
+          github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
+          result-encoding: string
+          script: |
+            const response = await github.request(
+              "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}",
+              {
+                owner: "vercel",
+                repo: "${{ matrix.repo }}",
+                workflow_id: "${{ matrix.workflow_id }}",
+              }
+            );
+
+            const isEnabled = response.data.state === 'active';
+            console.info(`Target workflow state: ${response.data.state}`);
+            console.info(`Target workflow enabled: ${isEnabled}`);
+
+            return isEnabled ? 'true' : 'false';
+      - uses: actions/github-script@v7
+        name: Create draft PR for vercel/${{ matrix.repo }}
+        id: create-draft-pr
+        if: steps.check-workflow-enabled.outputs.result == 'true'
+        with:
+          retries: 3
+          retry-exempt-status-codes: 400,401,404
+          github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
+          result-encoding: string
+          script: |
+            const inputs = {
+              version: "${{ needs.setup.outputs.next-version }}"
+            };
+
+            await github.request(
+              "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
+              {
+                owner: "vercel",
+                repo: "${{ matrix.repo }}",
+                workflow_id: "${{ matrix.workflow_id }}",
+                ref: "main",
+                inputs: inputs,
+              }
+            );
+
+            console.info(`Draft PR creation triggered for ${{ matrix.repo }}`);
+            console.info(`Workflow will create draft PR by default`);
+
+  update-prs:
+    name: Update prs as ready for review
+    needs: [test-deploy, create-draft-prs]
+    if: ${{ needs.test-deploy.result == 'success' && github.repository_owner == 'vercel' && github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo: front
+            workflow_id: cron-update-next.yml
+            workflow_url: https://github.com/vercel/front/actions/workflows/cron-update-next.yml?query=event%3Aworkflow_dispatch
+          - repo: v0
+            workflow_id: update-next.yaml
+            workflow_url: https://github.com/vercel/v0/actions/workflows/update-next.yaml?query=event%3Aworkflow_dispatch
+    steps:
+      - name: Check token
+        run: gh auth status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
+      - uses: actions/github-script@v7
+        name: Check if target workflow is enabled
+        id: check-workflow-enabled
+        with:
+          retries: 3
+          retry-exempt-status-codes: 400,401,404
+          github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
+          result-encoding: string
+          script: |
+            try {
+              const response = await github.request(
+                "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}",
+                {
+                  owner: "vercel",
+                  repo: "${{ matrix.repo }}",
+                  workflow_id: "${{ matrix.workflow_id }}",
+                }
+              );
+              
+              const isEnabled = response.data.state === 'active';
+              console.info(`Target workflow state: ${response.data.state}`);
+              console.info(`Target workflow enabled: ${isEnabled}`);
+              
+              return isEnabled ? 'true' : 'false';
+            } catch (error) {
+              console.error('Error checking workflow status:', error);
+              return 'false';
+            }
+      - uses: actions/github-script@v7
+        name: Mark PR ready for review in vercel/${{ matrix.repo }}
+        id: mark-pr-ready
+        if: steps.check-workflow-enabled.outputs.result == 'true'
+        with:
+          retries: 3
+          retry-exempt-status-codes: 400,401,404
+          # Default github token cannot dispatch events to the remote repo, it should be
+          # a PAT with Actions write access (https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28#create-a-workflow-dispatch-event)
+          github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
+          # Note `workflow_id` and `inputs` are contract between vercel/${{ matrix.repo }},
+          # if these need to be changed both side should be updated accordingly.
+          script: |
+            const inputs = {
+              version: "${{ needs.setup.outputs.next-version }}",
+              'make-ready-for-review': 'true',
+              force: 'true'
+            };
+
+            await github.request(
+              "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
+              {
+                owner: "vercel",
+                repo: "${{ matrix.repo }}",
+                workflow_id: "${{ matrix.workflow_id }}",
+                ref: "main",
+                inputs: inputs,
+              }
+            );
+
+            console.info("Tests passed - PR will be marked ready for review");
+            console.info(
+              "PR ready-for-review triggered in ${{ matrix.workflow_url }}"
+            );

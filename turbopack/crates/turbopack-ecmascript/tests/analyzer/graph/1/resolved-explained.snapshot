@@ -1,0 +1,9 @@
+a = (...) => undefined
+
+b = (...) => undefined
+
+c = (...) => undefined
+
+x = (1 | `${("hello" | "world")}.js`)
+
+y = ("hello" | "world")

@@ -1,14 +1,14 @@
-import Alert from './alert'
-import Footer from './footer'
-import Meta from './meta'
-import 'lazysizes'
-import 'lazysizes/plugins/parent-fit/ls.parent-fit'
-import { ReactNode } from 'react'
+import Alert from "./alert";
+import Footer from "./footer";
+import Meta from "./meta";
+import "lazysizes";
+import "lazysizes/plugins/parent-fit/ls.parent-fit";
+import { ReactNode } from "react";
 
 type LayoutProps = {
-  preview: boolean
-  children: ReactNode
-}
+  preview: boolean;
+  children: ReactNode;
+};
 
 const Layout = ({ preview, children }: LayoutProps) => {
   return (
@@ -20,7 +20,7 @@ const Layout = ({ preview, children }: LayoutProps) => {
       </div>
       <Footer />
     </>
-  )
-}
+  );
+};
 
-export default Layout
+export default Layout;

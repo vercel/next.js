@@ -1,8 +1,15 @@
 # build output
 dist
+!.github/actions/*/dist
 .next
 target
 packages/next/wasm/@next
+tarballs/
+packages/**/*.tgz
+.errors/
+
+# rust compiler crashes
+rustc-ice-*.txt
 
 # dependencies
 node_modules
@@ -24,8 +31,9 @@ pids
 coverage
 
 # test output
-test/**/out*
+test/**/out/*
 test/**/next-env.d.ts
+test/**/.next*
 .DS_Store
 /e2e-tests
 test/tmp/**
@@ -38,7 +46,7 @@ test/traces
 .nvmrc
 
 # examples
-examples/**/out
+examples/**/out/*
 examples/**/.env*.local
 
 pr-stats.md
@@ -52,3 +60,19 @@ test-timings.json
 *.tsbuildinfo
 .swc/
 .turbo
+.jest-cache/
+
+# Storybook
+*storybook.log
+
+# Claude Code (local settings and session files)
+.claude/settings.local.json
+.claude/plans/
+.claude/todos.json
+CLAUDE.local.md
+
+# Conductor (worktrees created by Conductor app, but keep scripts/)
+.conductor/*/
+!.conductor/scripts/
+
+index.scip

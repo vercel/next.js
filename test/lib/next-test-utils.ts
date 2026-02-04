@@ -6,17 +6,20 @@ import {
   writeFileSync,
   createReadStream,
 } from 'fs'
-import { promisify } from 'util'
+import { inspect, promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
+import type cheerio from 'cheerio'
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
+import { nanoid } from 'nanoid'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
+import { once } from 'events'
 
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
@@ -24,15 +27,37 @@ import _pkg from 'next/package.json'
 import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
-import type { BrowserInterface } from './browsers/base'
+import { Playwright } from 'next-webdriver'
 
-import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
+import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
+import escapeRegex from 'escape-string-regexp'
 
-export { shouldRunTurboDevTest }
+// TODO: Create dedicated Jest environment that sets up these matchers
+// Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
+import './add-redbox-matchers'
+import { NextInstance } from 'e2e-utils'
+import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+
+export { shouldUseTurbopack }
 
 export const nextServer = server
 export const pkg = _pkg
+
+// This goes straight to Node’s stdout, avoiding Jest's verbose output:
+export const debugPrint = (...args: unknown[]) => {
+  const prettyArgs = args
+    .map((arg) =>
+      typeof arg === 'string'
+        ? arg
+        : inspect(arg, { colors: process.stdout.isTTY })
+    )
+    .join(' ')
+
+  const timestamp = new Date().toISOString().split('T')[1]
+
+  return process.stdout.write(`[${timestamp}] ${prettyArgs}\n`)
+}
 
 export function initNextServerScript(
   scriptPath: string,
@@ -44,6 +69,8 @@ export function initNextServerScript(
     nodeArgs?: string[]
     onStdout?: (data: any) => void
     onStderr?: (data: any) => void
+    // If true, the promise will reject if the process exits with a non-zero code
+    shouldRejectOnError?: boolean
   }
 ): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
@@ -51,7 +78,7 @@ export function initNextServerScript(
       'node',
       [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
       {
-        env,
+        env: { HOSTNAME: '::', ...env },
         cwd: opts && opts.cwd,
       }
     )
@@ -81,12 +108,20 @@ export function initNextServerScript(
       }
     }
 
-    instance.stdout.on('data', handleStdout)
-    instance.stderr.on('data', handleStderr)
+    if (opts?.shouldRejectOnError) {
+      instance.on('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error('exited with code: ' + code))
+        }
+      })
+    }
+
+    instance.stdout!.on('data', handleStdout)
+    instance.stderr!.on('data', handleStderr)
 
     instance.on('close', () => {
-      instance.stdout.removeListener('data', handleStdout)
-      instance.stderr.removeListener('data', handleStderr)
+      instance.stdout!.removeListener('data', handleStdout)
+      instance.stderr!.removeListener('data', handleStderr)
     })
 
     instance.on('error', (err) => {
@@ -146,6 +181,15 @@ export function withQuery(
   return `${pathname}?${querystring}`
 }
 
+export function getFetchUrl(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string | null | undefined
+) {
+  const url = query ? withQuery(pathname, query) : pathname
+  return getFullUrl(appPort, url)
+}
+
 export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
@@ -154,6 +198,37 @@ export function fetchViaHTTP(
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)
+}
+
+/**
+ * Creates request options with a unique x-invocation-id header for testing
+ * cache deduplication in minimal mode. Use this when you need to ensure each
+ * request is treated as independent, or when multiple requests need to share
+ * the same invocation ID.
+ *
+ * @example
+ * // Independent requests (each gets its own invocation ID)
+ * const res1 = await fetchViaHTTP(appPort, '/page', undefined, withInvocationId())
+ * const res2 = await fetchViaHTTP(appPort, '/page', undefined, withInvocationId())
+ *
+ * @example
+ * // Grouped requests (share the same invocation ID for cache testing)
+ * const sharedOpts = withInvocationId()
+ * const res1 = await fetchViaHTTP(appPort, '/page', undefined, sharedOpts)
+ * const res2 = await fetchViaHTTP(appPort, '/_next/data/.../page.json', undefined, sharedOpts)
+ *
+ * @param opts - Optional existing RequestInit to merge with
+ * @returns RequestInit with x-invocation-id header added
+ */
+export function withInvocationId(opts?: RequestInit): RequestInit {
+  const invocationId = `test:${nanoid()}`
+  return {
+    ...opts,
+    headers: {
+      ...opts?.headers,
+      'x-invocation-id': invocationId,
+    },
+  }
 }
 
 export function renderViaHTTP(
@@ -199,8 +274,8 @@ export function runNextCommand(
   argv: string[],
   options: NextOptions = {}
 ): Promise<{
-  code: number
-  signal: NodeJS.Signals
+  code: number | null
+  signal: NodeJS.Signals | null
   stdout: string
   stderr: string
 }> {
@@ -210,13 +285,14 @@ export function runNextCommand(
   // Let Next.js decide the environment
   const env = {
     ...process.env,
-    NODE_ENV: undefined,
+    // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
+    NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
     __NEXT_TEST_MODE: 'true',
     ...options.env,
   }
 
   return new Promise((resolve, reject) => {
-    console.log(`Running command "next ${argv.join(' ')}"`)
+    debugPrint(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
       [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
@@ -236,38 +312,38 @@ export function runNextCommand(
 
     let stderrOutput = ''
     if (options.stderr || options.onStderr) {
-      instance.stderr.on('data', function (chunk) {
+      instance.stderr!.on('data', function (chunk) {
         mergedStdio += chunk
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStderr === 'function') {
           options.onStderr(chunk.toString())
         }
       })
     } else {
-      instance.stderr.on('data', function (chunk) {
+      instance.stderr!.on('data', function (chunk) {
         mergedStdio += chunk
       })
     }
 
     let stdoutOutput = ''
     if (options.stdout || options.onStdout) {
-      instance.stdout.on('data', function (chunk) {
+      instance.stdout!.on('data', function (chunk) {
         mergedStdio += chunk
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStdout === 'function') {
           options.onStdout(chunk.toString())
         }
       })
     } else {
-      instance.stdout.on('data', function (chunk) {
+      instance.stdout!.on('data', function (chunk) {
         mergedStdio += chunk
       })
     }
@@ -332,7 +408,8 @@ export function runNextCommandDev(
   const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
-    NODE_ENV: undefined,
+    // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
+    NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
     __NEXT_TEST_MODE: 'true',
     ...opts.env,
   }
@@ -394,12 +471,12 @@ export function runNextCommandDev(
       }
     }
 
-    instance.stderr.on('data', handleStderr)
-    instance.stdout.on('data', handleStdout)
+    instance.stderr!.on('data', handleStderr)
+    instance.stdout!.on('data', handleStdout)
 
     instance.on('close', () => {
-      instance.stderr.removeListener('data', handleStderr)
-      instance.stdout.removeListener('data', handleStdout)
+      instance.stderr!.removeListener('data', handleStderr)
+      instance.stdout!.removeListener('data', handleStdout)
       if (!didResolve) {
         didResolve = true
         resolve(undefined)
@@ -412,27 +489,26 @@ export function runNextCommandDev(
   })
 }
 
-// Launch the app in dev mode.
+// Launch the app in development mode.
 export function launchApp(
   dir: string,
   port: string | number,
   opts?: NextDevOptions
 ) {
   const options = opts ?? {}
-  const useTurbo = shouldRunTurboDevTest()
+  const useTurbo = shouldUseTurbopack()
 
   return runNextCommandDev(
     [
-      useTurbo ? getTurbopackFlag() : undefined,
+      useTurbo ? '--turbopack' : undefined,
       dir,
       '-p',
       port as string,
-    ].filter(Boolean),
+      '--hostname',
+      '::',
+    ].filter((flag: string | undefined): flag is string => Boolean(flag)),
     undefined,
-    {
-      ...options,
-      turbo: useTurbo,
-    }
+    { ...options, turbo: useTurbo }
   )
 }
 
@@ -444,12 +520,18 @@ export function nextBuild(
   return runNextCommand(['build', dir, ...args], opts)
 }
 
-export function nextLint(
+export function nextTest(
   dir: string,
   args: string[] = [],
   opts: NextOptions = {}
 ) {
-  return runNextCommand(['lint', dir, ...args], opts)
+  return runNextCommand(['experimental-test', dir, ...args], {
+    ...opts,
+    env: {
+      JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
+      ...opts.env,
+    },
+  })
 }
 
 export function nextStart(
@@ -457,10 +539,11 @@ export function nextStart(
   port: string | number,
   opts: NextDevOptions = {}
 ) {
-  return runNextCommandDev(['start', '-p', port as string, dir], undefined, {
-    ...opts,
-    nextStart: true,
-  })
+  return runNextCommandDev(
+    ['start', '-p', port as string, '--hostname', '::', dir],
+    undefined,
+    { ...opts, nextStart: true }
+  )
 }
 
 export function buildTS(
@@ -483,8 +566,8 @@ export function buildTS(
       output += chunk.toString()
     }
 
-    instance.stdout.on('data', handleData)
-    instance.stderr.on('data', handleData)
+    instance.stdout!.on('data', handleData)
+    instance.stderr!.on('data', handleData)
 
     instance.on('exit', (code) => {
       if (code) {
@@ -497,7 +580,7 @@ export function buildTS(
 
 export async function killProcess(
   pid: number,
-  signal: string | number = 'SIGTERM'
+  signal: NodeJS.Signals | number = 'SIGTERM'
 ): Promise<void> {
   return await new Promise((resolve, reject) => {
     treeKill(pid, signal, (err) => {
@@ -524,10 +607,39 @@ export async function killProcess(
 }
 
 // Kill a launched app
-export async function killApp(instance: ChildProcess) {
-  if (instance && instance.pid) {
-    await killProcess(instance.pid)
+export async function killApp(
+  instance?: ChildProcess,
+  signal: NodeJS.Signals | number = 'SIGKILL'
+) {
+  if (!instance) {
+    return
   }
+  if (
+    instance?.pid &&
+    instance.exitCode === null &&
+    instance.signalCode === null
+  ) {
+    const exitPromise = once(instance, 'exit')
+    await killProcess(instance.pid, signal)
+    await exitPromise
+  }
+}
+
+async function startListen(server: http.Server, port?: number) {
+  const listenerPromise = new Promise((resolve) => {
+    server['__socketSet'] = new Set()
+    const listener = server.listen(port, () => {
+      resolve(null)
+    })
+
+    listener.on('connection', function (socket) {
+      server['__socketSet'].add(socket)
+      socket.on('close', () => {
+        server['__socketSet'].delete(socket)
+      })
+    })
+  })
+  await listenerPromise
 }
 
 export async function startApp(app: NextServer) {
@@ -543,20 +655,49 @@ export async function startApp(app: NextServer) {
   const server = http.createServer(handler)
   server['__app'] = app
 
-  await promisify(server.listen).apply(server)
+  await startListen(server)
 
   return server
 }
 
-export async function stopApp(server: http.Server) {
+export async function stopApp(server: http.Server | undefined) {
+  if (!server) {
+    return
+  }
+
   if (server['__app']) {
     await server['__app'].close()
   }
+
+  // Node.js's http::close() prevents new connections from being accepted,
+  // but doesn't close existing connections and if there are any leftover
+  // whole process teardown will wait until it's being closed.
+  // Instead, force close connections since this is teardown fn that we expect
+  // any connections to be closed already.
+  server['__socketSet']?.forEach(function (socket) {
+    if (!socket.closed && !socket.destroyed) {
+      socket.destroy()
+    }
+  })
+
   await promisify(server.close).apply(server)
 }
 
-export function waitFor(millis: number) {
-  return new Promise((resolve) => setTimeout(resolve, millis))
+export async function waitFor(
+  millisOrCondition: number | (() => boolean)
+): Promise<void> {
+  if (typeof millisOrCondition === 'number') {
+    return new Promise((resolve) => setTimeout(resolve, millisOrCondition))
+  }
+
+  return new Promise((resolve) => {
+    const interval = setInterval(() => {
+      if (millisOrCondition()) {
+        clearInterval(interval)
+        resolve()
+      }
+    }, 100)
+  })
 }
 
 export async function startStaticServer(
@@ -574,7 +715,7 @@ export async function startStaticServer(
     })
   }
 
-  await promisify(server.listen).call(server, fixedPort)
+  await startListen(server, fixedPort)
   return server
 }
 
@@ -583,36 +724,29 @@ export async function startCleanStaticServer(dir: string) {
   const server = http.createServer(app)
   app.use(express.static(dir, { extensions: ['html'] }))
 
-  await promisify(server.listen).apply(server)
+  await startListen(server)
   return server
 }
 
 /**
  * Check for content in 1 second intervals timing out after 30 seconds.
- *
- * @param {() => Promise<unknown> | unknown} contentFn
- * @param {RegExp | string | number} regex
- * @param {boolean} hardError
- * @param {number} maxRetries
- * @returns {Promise<boolean>}
+ * @deprecated use retry + expect instead
  */
 export async function check(
-  contentFn: () => any | Promise<any>,
-  regex: any,
-  hardError = true,
-  maxRetries = 30
-) {
-  let content
-  let lastErr
+  contentFn: () => unknown | Promise<unknown>,
+  regex: boolean | number | string | RegExp
+): Promise<boolean> {
+  let content: unknown
+  let lastErr: unknown
 
-  for (let tries = 0; tries < maxRetries; tries++) {
+  for (let tries = 0; tries < 30; tries++) {
     try {
       content = await contentFn()
-      if (typeof regex !== typeof /regex/) {
+      if (typeof regex !== 'object') {
         if (regex === content) {
           return true
         }
-      } else if (regex.test(content)) {
+      } else if (regex.test('' + content)) {
         // found the content
         return true
       }
@@ -623,16 +757,12 @@ export async function check(
     }
   }
   console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
-
-  if (hardError) {
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
-  }
-  return false
+  throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
 }
 
 export class File {
   path: string
-  originalContent: string
+  originalContent: string | null
 
   constructor(path: string) {
     this.path = path
@@ -680,20 +810,7 @@ export class File {
   }
 
   restore() {
-    this.write(this.originalContent)
-  }
-}
-
-export async function evaluate(
-  browser: BrowserInterface,
-  input: string | Function
-) {
-  if (typeof input === 'function') {
-    const result = await browser.eval(input)
-    await new Promise((resolve) => setTimeout(resolve, 30))
-    return result
-  } else {
-    throw new Error(`You must pass a function to be evaluated in the browser.`)
+    this.write(this.originalContent!)
   }
 }
 
@@ -721,101 +838,390 @@ export async function retry<T>(
         )
         throw err
       }
-      console.warn(
+      debugPrint(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
       await waitFor(interval)
     }
   }
+
+  throw new Error('Duration cannot be less than 0.')
 }
 
-export async function hasRedbox(browser: BrowserInterface, expected = true) {
-  for (let i = 0; i < 30; i++) {
-    const result = await evaluate(browser, () => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
-            )
-          )
+export async function waitForRedbox(browser: Playwright) {
+  const redbox = browser.locateRedbox()
+  try {
+    await redbox.waitFor({ timeout: 5000 })
+  } catch (errorCause) {
+    const error = new Error('Expected Redbox but found no visible one.')
+    Error.captureStackTrace(error, waitForRedbox)
+    throw error
+  }
+
+  try {
+    await redbox
+      .locator('[data-nextjs-error-suspended]')
+      .waitFor({ state: 'detached', timeout: 10000 })
+  } catch (cause) {
+    const error = new Error('Redbox still had suspended content after 10s', {
+      cause,
+    })
+    Error.captureStackTrace(error, waitForRedbox)
+    throw error
+  }
+}
+
+export async function waitForNoRedbox(
+  browser: Playwright,
+  { waitInMs = 5000 }: { waitInMs?: number } = {}
+) {
+  await waitFor(waitInMs)
+  const redbox = browser.locateRedbox()
+
+  if (await redbox.isVisible()) {
+    const [redboxHeader, redboxDescription, redboxSource] = await Promise.all([
+      getRedboxHeader(browser).catch(() => '<missing>'),
+      getRedboxDescription(browser).catch(() => '<missing>'),
+      getRedboxSource(browser).catch(() => '<missing>'),
+    ])
+
+    const error = new Error(
+      'Expected no visible Redbox but found one\n' +
+        `header: ${redboxHeader}\n` +
+        `description: ${redboxDescription}\n` +
+        `source: ${redboxSource}`
+    )
+    Error.captureStackTrace(error, waitForNoRedbox)
+    throw error
+  }
+}
+
+export async function waitForNoErrorToast(browser: Playwright): Promise<void> {
+  let didOpenRedbox = false
+
+  try {
+    await browser.waitForElementByCss('[data-issues]').click()
+    didOpenRedbox = true
+  } catch {
+    // We expect this to fail.
+  }
+
+  if (didOpenRedbox) {
+    // If a redbox was opened unexpectedly, we use the `waitForNoRedbox` helper
+    // to print a useful error message containing the redbox contents.
+    await waitForNoRedbox(browser, {
+      // We already know the redbox is open, so we can skip waiting for it.
+      waitInMs: 0,
+    })
+  }
+}
+
+export async function hasErrorToast(browser: Playwright): Promise<boolean> {
+  return Boolean(
+    await browser.eval(() => {
+      const portal = [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) => p.shadowRoot.querySelector('[data-issues]'))
+
+      const root = portal?.shadowRoot
+      const node = root?.querySelector('[data-issues-count]')
+      return !!node
+    })
+  )
+}
+
+export async function getToastErrorCount(browser: Playwright): Promise<number> {
+  return parseInt(
+    (await browser.eval(() => {
+      const portal = [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) => p.shadowRoot.querySelector('[data-issues]'))
+
+      const root = portal?.shadowRoot
+      const node = root?.querySelector('[data-issues-count]')
+      return node?.innerText || '0'
+    })) ?? '0'
+  )
+}
+
+/**
+ * Has retried version of {@link hasErrorToast} built-in.
+ * Success implies {@link waitForRedbox}.
+ */
+export async function openRedbox(browser: Playwright): Promise<void> {
+  const redbox = browser.locateRedbox()
+  if (await redbox.isVisible()) {
+    const error = new Error(
+      'Redbox is already open. Use `waitForRedbox` instead.'
+    )
+    Error.captureStackTrace(error, openRedbox)
+    throw error
+  }
+
+  try {
+    await browser.waitForElementByCss('[data-issues]').click()
+  } catch (cause) {
+    const error = new Error('Redbox did not open.')
+    Error.captureStackTrace(error, openRedbox)
+    throw error
+  }
+  await waitForRedbox(browser)
+}
+
+export async function toggleDevToolsIndicatorPopover(
+  browser: Playwright
+): Promise<void> {
+  const devToolsIndicator = await waitForDevToolsIndicator(browser)
+
+  try {
+    await devToolsIndicator.click()
+  } catch (cause) {
+    const error = new Error('No DevTools Indicator to toggle.', { cause })
+    Error.captureStackTrace(error, toggleDevToolsIndicatorPopover)
+    throw error
+  }
+}
+
+export async function getSegmentExplorerRoute(browser: Playwright) {
+  return await browser
+    .elementByCss('.segment-explorer-page-route-bar-path')
+    .text()
+    .catch(() => '<empty>')
+}
+
+export async function getSegmentExplorerContent(browser: Playwright) {
+  // open the devtool button
+  await toggleDevToolsIndicatorPopover(browser)
+
+  // open the segment explorer
+  await browser.elementByCss('[data-segment-explorer]').click()
+
+  //  wait for the segment explorer to be visible
+  await browser.waitForElementByCss('[data-nextjs-devtool-segment-explorer]')
+
+  const rows = await browser.elementsByCss('.segment-explorer-item')
+  let result: string[] = []
+  for (const row of rows) {
+    // query filename of row: segment-explorer-filename
+    const segment = (
+      (await (await row.$('.segment-explorer-filename--path'))?.innerText()) ||
+      ''
+    ).trim()
+    const files = (
+      (await (await row.$('.segment-explorer-files'))?.innerText()) || ''
+    )
+      .split(/\n+/)
+      .map((file) => file.trim())
+
+    // line format: segment [files]
+    result.push(`${segment} [${files.join(', ')}]`)
+  }
+  return result.join('\n')
+}
+
+export async function hasDevToolsPanel(browser: Playwright) {
+  const result = await browser.eval(() => {
+    const portal = document.querySelector('nextjs-portal')
+    return (
+      portal?.shadowRoot?.querySelector('[data-nextjs-dialog-overlay]') != null
+    )
+  })
+  return result
+}
+
+export async function waitForDevToolsIndicator(browser: Playwright) {
+  const devToolsIndicator = browser.locateDevToolsIndicator()
+  try {
+    await devToolsIndicator.waitFor({ timeout: 5000 })
+  } catch (errorCause) {
+    const error = new Error(
+      'Expected DevTools Indicator but found no visible one.'
+    )
+    Error.captureStackTrace(error, waitForDevToolsIndicator)
+    throw error
+  }
+
+  return devToolsIndicator
+}
+
+export async function assertNoDevToolsIndicator(browser: Playwright) {
+  const devToolsIndicator = browser.locateDevToolsIndicator()
+
+  if (await devToolsIndicator.isVisible()) {
+    const error = new Error(
+      'Expected no visible DevTools Indicator but found one.'
+    )
+    Error.captureStackTrace(error, assertNoDevToolsIndicator)
+    throw error
+  }
+}
+
+export async function waitForStaticIndicator(
+  browser: Playwright,
+  expectedRouteType: 'Static' | 'Dynamic' | undefined
+): Promise<void> {
+  await toggleDevToolsIndicatorPopover(browser)
+
+  await retry(async () => {
+    const routeType = await browser.eval(() => {
+      const portal = [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
+
+      return (
+        portal?.shadowRoot
+          // 'Route\nStatic' || 'Route\nDynamic'
+          ?.querySelector('[data-nextjs-route-type]')
+          ?.innerText.split('\n')
+          .pop()
       )
     })
 
-    if (result === expected) {
-      return result
+    if (routeType !== expectedRouteType) {
+      if (expectedRouteType) {
+        throw new Error(
+          `Expected static indicator with route type ${expectedRouteType}, found ${routeType} instead.`
+        )
+      } else {
+        throw new Error(
+          `Expected no static indicator, found ${routeType} instead.`
+        )
+      }
     }
-    await waitFor(1000)
-  }
-  return false
+  })
 }
 
-export async function getRedboxHeader(browser: BrowserInterface) {
-  return retry(
-    () => {
-      return evaluate(browser, () => {
-        const portal = [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
-          )
-        const root = portal?.shadowRoot
-        return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
-      })
-    },
-    10000,
-    500,
-    'getRedboxHeader'
+export function getRedboxHeader(browser: Playwright): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal?.shadowRoot
+    return root?.querySelector('[data-nextjs-dialog-header]')?.innerText ?? null
+  })
+}
+
+export async function getRedboxTotalErrorCount(
+  browser: Playwright
+): Promise<number> {
+  const text = await browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) =>
+        p.shadowRoot.querySelector('[data-nextjs-dialog-header-total-count]')
+      )
+
+    const root = portal?.shadowRoot
+    return root?.querySelector('[data-nextjs-dialog-header-total-count]')
+      ?.innerText
+  })
+  return parseInt(text || '-1')
+}
+
+export function getRedboxSource(browser: Playwright): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) =>
+        p.shadowRoot.querySelector(
+          '#nextjs__container_errors_label, #nextjs__container_errors_label'
+        )
+      )
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+        ?.innerText ?? null
+    )
+  })
+}
+
+export function getRedboxTitle(browser: Playwright): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root.querySelector(
+        '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+      )?.innerText ?? null
+    )
+  })
+}
+
+export function getRedboxLabel(browser: Playwright): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('#nextjs__container_errors_label')?.innerText ?? null
+    )
+  })
+}
+
+export function getRedboxEnvironmentLabel(
+  browser: Playwright
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('[data-nextjs-environment-name-label]')?.innerText ??
+      null
+    )
+  })
+}
+
+export function getRedboxDescription(
+  browser: Playwright
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('#nextjs__container_errors_desc')?.innerText ?? null
+    )
+  })
+}
+
+export function getRedboxDescriptionWarning(
+  browser: Playwright
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('#nextjs__container_errors__notes')?.innerText ?? null
+    )
+  })
+}
+
+export function getRedboxErrorLink(
+  browser: Playwright
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('#nextjs__container_errors__link')?.innerText ?? null
+    )
+  })
+}
+
+export function getBrowserBodyText(browser: Playwright) {
+  return browser.eval<string>(
+    'document.getElementsByTagName("body")[0].innerText'
   )
-}
-
-export async function getRedboxSource(browser: BrowserInterface) {
-  return retry(
-    () =>
-      evaluate(browser, () => {
-        const portal = [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
-            )
-          )
-        const root = portal.shadowRoot
-        return root.querySelector(
-          '[data-nextjs-codeframe], [data-nextjs-terminal]'
-        ).innerText
-      }),
-    10000,
-    500,
-    'getRedboxSource'
-  )
-}
-
-export async function getRedboxDescription(browser: BrowserInterface) {
-  return retry(
-    () =>
-      evaluate(browser, () => {
-        const portal = [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
-          )
-        const root = portal.shadowRoot
-        const text = root.querySelector(
-          '#nextjs__container_errors_desc'
-        ).innerText
-        if (text === null) throw new Error('No redbox description found')
-        return text
-      }),
-    3000,
-    500,
-    'getRedboxDescription'
-  )
-}
-
-export function getBrowserBodyText(browser: BrowserInterface) {
-  return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }
 
 export function normalizeRegEx(src: string) {
@@ -827,21 +1233,42 @@ function readJson(path: string) {
 }
 
 export function getBuildManifest(dir: string) {
-  return readJson(path.join(dir, '.next/build-manifest.json'))
+  return readJson(path.join(dir, getDistDir(), 'build-manifest.json'))
 }
 
-export function getPageFileFromBuildManifest(dir: string, page: string) {
+export function getImagesManifest(dir: string) {
+  return readJson(path.join(dir, getDistDir(), 'images-manifest.json'))
+}
+
+export function getPageFilesFromBuildManifest(dir: string, page: string) {
   const buildManifest = getBuildManifest(dir)
   const pageFiles = buildManifest.pages[page]
   if (!pageFiles) {
     throw new Error(`No files for page ${page}`)
   }
 
-  const pageFile = pageFiles.find(
-    (file) =>
-      file.endsWith('.js') &&
-      file.includes(`pages${page === '' ? '/index' : page}`)
-  )
+  return pageFiles
+}
+
+export function getContentOfPageFilesFromBuildManifest(
+  dir: string,
+  page: string
+): string {
+  const pageFiles = getPageFilesFromBuildManifest(dir, page)
+
+  return pageFiles
+    .map((file) => readFileSync(path.join(dir, getDistDir(), file), 'utf8'))
+    .join('\n')
+}
+
+export function getPageFileFromBuildManifest(dir: string, page: string) {
+  const pageFiles = getPageFilesFromBuildManifest(dir, page)
+
+  const pageFile = pageFiles[pageFiles.length - 1]
+  expect(pageFile).toEndWith('.js')
+  if (!process.env.IS_TURBOPACK_TEST) {
+    expect(pageFile).toInclude(`pages${page === '' ? '/index' : page}`)
+  }
   if (!pageFile) {
     throw new Error(`No page file for page ${page}`)
   }
@@ -851,17 +1278,17 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
 
 export function readNextBuildClientPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromBuildManifest(appDir, page)
-  return readFileSync(path.join(appDir, '.next', pageFile), 'utf8')
+  return readFileSync(path.join(appDir, getDistDir(), pageFile), 'utf8')
 }
 
 export function getPagesManifest(dir: string) {
-  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
 
   return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir: string, content: any) {
-  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
 
   return writeFile(serverFile, content)
 }
@@ -878,7 +1305,39 @@ export function getPageFileFromPagesManifest(dir: string, page: string) {
 
 export function readNextBuildServerPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
-  return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+  return readFileSync(
+    path.join(appDir, getDistDir(), 'server', pageFile),
+    'utf8'
+  )
+}
+
+export function getClientBuildManifest(dir: string) {
+  let buildId = readFileSync(path.join(dir, getDistDir(), 'BUILD_ID'), 'utf8')
+  let code = readFileSync(
+    path.join(dir, getDistDir(), 'static', buildId, '_buildManifest.js'),
+    'utf8'
+  )
+  // eslint-disable-next-line no-eval
+  let manifest = (0, eval)(`var self = global;${code};self.__BUILD_MANIFEST`)
+  return manifest
+}
+
+export function getClientBuildManifestLoaderChunkUrlPath(
+  dir: string,
+  page: string
+) {
+  let manifest = getClientBuildManifest(dir)
+  let chunk: string[] | undefined = manifest[page]
+  if (chunk == null) {
+    throw new Error(`Couldn't find page "${page}" in _buildManifest.js`)
+  }
+  if (chunk.length !== 1) {
+    throw new Error(
+      `Expected a single chunk, but found ${chunk.length} for "${page}" in _buildManifest.js`
+    )
+  }
+  // Remove leading './' so that this can be used in a `url.contains(chunk)` check.
+  return encodeURI(chunk[0].replace(/^\.\//, ''))
 }
 
 function runSuite(
@@ -887,7 +1346,7 @@ function runSuite(
     stderr: string
     stdout: string
     appPort: number
-    code: number
+    code: number | null
     server: ChildProcess
   }>,
   options: {
@@ -968,9 +1427,12 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    runSuite(suiteName, { appDir, env: 'prod' }, options)
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runSuite(suiteName, { appDir, env: 'prod' }, options)
+    }
+  )
 }
 
 /**
@@ -983,7 +1445,7 @@ export function findAllTelemetryEvents(output: string, eventName: string) {
   const regex = /\[telemetry\] ({.+?^})/gms
   // Pop the last element of each entry to retrieve contents of the capturing group
   const events = [...output.matchAll(regex)].map((entry) =>
-    JSON.parse(entry.pop())
+    JSON.parse(entry.pop()!)
   )
   return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
 }
@@ -1001,7 +1463,7 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
     )
   }
 
-  const shouldRunTurboDev = shouldRunTurboDevTest()
+  const shouldRunTurboDev = shouldUseTurbopack()
   const shouldSkip =
     (runningEnv === 'turbo' && !shouldRunTurboDev) ||
     (runningEnv === 'default' && shouldRunTurboDev)
@@ -1009,42 +1471,529 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
   return shouldSkip ? describe.skip : describe
 }
 
+const nextjsClientComponentNames = [
+  // Pages Router
+  'App',
+  'AppContainer',
+  'Container',
+  'Head',
+  'PagesDevOverlayBridge',
+  'PagesDevOverlayErrorBoundary',
+  'PathnameContextProviderAdapter',
+  // App Router
+  'ClientPageRoot',
+  'ClientSegmentRoot',
+  'HTTPAccessFallbackBoundary',
+  'HTTPAccessFallbackErrorBoundary',
+  'InnerLayoutRouter',
+  'InnerScrollAndFocusHandler',
+  'RedirectBoundary',
+  'RedirectErrorBoundary',
+  'RenderFromTemplateContext',
+  'Root',
+  'ScrollAndFocusHandler',
+  'SegmentViewNode',
+  'SegmentTrieNode',
+  // These are added due to user actions e.g. loading.js -> LoadingBoundary
+  // They may be relevant in some context in the future.
+  // Consider including them in different assertions.
+  'ErrorBoundary',
+  'LoadingBoundary',
+]
+const nextjsClientComponentStackFrame = new RegExp(
+  `^(\\s*)<(${nextjsClientComponentNames.join('|')})(>| )`
+)
+
+/**
+ * @returns `null` if there are no frames
+ */
 export async function getRedboxComponentStack(
-  browser: BrowserInterface
+  browser: Playwright,
+  includeNextjsInternalComponents = false
+): Promise<string | null> {
+  const componentStackTraceElements = await browser.elementsByCss(
+    '[data-nextjs-container-errors-pseudo-html] code'
+  )
+  if (componentStackTraceElements.length === 0) {
+    return null
+  }
+
+  const componentStackTrace = await componentStackTraceElements[0].innerText()
+  const componentStackFrames = componentStackTrace.split('\n')
+
+  return componentStackFrames
+    .map((componentStackFrame) => {
+      if (!includeNextjsInternalComponents) {
+        const componentStackFrameMatch = componentStackFrame.match(
+          nextjsClientComponentStackFrame
+        )
+        // React component stack frames aren't subject to ignore-listing.
+        // They're not relevant for our tests though.
+        // If you need to assert on Next.js internal component frames,
+        // use `getRedboxComponentStack(browser, true)` instead.
+        if (componentStackFrameMatch) {
+          return componentStackFrameMatch[1] + '<Next.js Internal Component>'
+        }
+      }
+
+      return componentStackFrame
+    })
+    .join('\n')
+    .trim()
+}
+
+export async function hasRedboxCallStack(browser: Playwright) {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-body]'))
+    const root = portal?.shadowRoot
+
+    return root?.querySelectorAll('[data-nextjs-call-stack-frame]').length > 0
+  })
+}
+
+export async function getRedboxCallStack(
+  browser: Playwright
+): Promise<string[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-call-stack-frame]'))
+    const root = portal?.shadowRoot
+    const frameElements = root?.querySelectorAll(
+      '[data-nextjs-call-stack-frame]'
+    )
+
+    const stack: string[] = []
+    if (frameElements !== undefined) {
+      let foundInternalFrame = false
+      for (const frameElement of frameElements) {
+        // `innerText` will be "${methodName}\n${location}".
+        // Ideally `innerText` would be "${methodName} ${location}"
+        // so that c&p automatically does the right thing.
+        const frame = frameElement.innerText.replace(/\n+/g, ' ')
+
+        // TODO: Special marker if source-mapping fails.
+
+        // Feel free to adjust this heuristic if it accidentally hides too much.
+        const isInternalFrame =
+          // likely https://linear.app/vercel/issue/NDX-464
+          // location starts with `./dist` e.g. "NotFoundBoundary ./dist/esm/[...]"
+          / .\/dist\//.test(frame)
+
+        if (isInternalFrame) {
+          // We only add one of these frames.
+          // If we'd add all of them, the stack would change during refactorings which is annoying.
+          if (!foundInternalFrame) {
+            stack.push('<FIXME-internal-frame>')
+          }
+          foundInternalFrame = true
+        } else if (frame.includes('file://')) {
+          stack.push('<FIXME-file-protocol>')
+        } else if (frame.includes('.next/')) {
+          stack.push('<FIXME-next-dist-dir>')
+        } else {
+          stack.push(frame)
+        }
+      }
+    }
+
+    return stack
+  })
+}
+
+export async function getRedboxCallStackCollapsed(
+  browser: Playwright
 ): Promise<string> {
-  await browser.waitForElementByCss(
-    '[data-nextjs-component-stack-frame]',
-    30000
+  const callStackFrameElements = await browser.elementsByCss(
+    '.nextjs-container-errors-body > [data-nextjs-codeframe] > :first-child, ' +
+      '.nextjs-container-errors-body > [data-nextjs-call-stack-frame], ' +
+      '.nextjs-container-errors-body > [data-nextjs-collapsed-call-stack-details] > summary'
   )
-  // TODO: the type for elementsByCss is incorrect
-  const componentStackFrameElements: any = await browser.elementsByCss(
-    '[data-nextjs-component-stack-frame]'
-  )
-  const componentStackFrameTexts = await Promise.all(
-    componentStackFrameElements.map((f) => f.innerText())
+  const callStackFrameTexts = await Promise.all(
+    callStackFrameElements.map((f) => f.innerText())
   )
 
-  return componentStackFrameTexts.join('\n')
+  return callStackFrameTexts.join('\n---\n').trim()
+}
+
+export async function getVersionCheckerText(
+  browser: Playwright
+): Promise<string> {
+  await browser.waitForElementByCss('[data-nextjs-version-checker]', 30000)
+  const versionCheckerElement = await browser.elementByCss(
+    '[data-nextjs-version-checker]'
+  )
+  const versionCheckerText = await versionCheckerElement.innerText()
+  return versionCheckerText.trim()
+}
+
+export function colorToRgb(color) {
+  switch (color) {
+    case 'blue':
+      return 'rgb(0, 0, 255)'
+    case 'red':
+      return 'rgb(255, 0, 0)'
+    case 'green':
+      return 'rgb(0, 128, 0)'
+    case 'yellow':
+      return 'rgb(255, 255, 0)'
+    case 'purple':
+      return 'rgb(128, 0, 128)'
+    case 'black':
+      return 'rgb(0, 0, 0)'
+    default:
+      throw new Error('Unknown color')
+  }
+}
+
+export function getUrlFromBackgroundImage(backgroundImage: string) {
+  const matches = backgroundImage.match(/url\("[^)]+"\)/g)!.map((match) => {
+    // Extract the URL part from each match. The match includes 'url("' and '"")', so we remove those.
+    return match.slice(5, -2)
+  })
+
+  return matches
+}
+
+export const getTitle = (browser: Playwright) =>
+  browser.elementByCss('title', { state: 'attached' }).text()
+
+async function checkMeta(
+  browser: Playwright,
+  queryValue: string,
+  expected: RegExp | string | string[] | undefined | null,
+  queryKey: string = 'property',
+  tag: string = 'meta',
+  domAttributeField: string = 'content'
+) {
+  const values = await browser.eval<(string | null)[]>(
+    `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
+  )
+  if (expected instanceof RegExp) {
+    expect(values[0]).toMatch(expected)
+  } else {
+    if (Array.isArray(expected)) {
+      expect(values).toEqual(expected)
+    } else {
+      // If expected is undefined, then it should not exist.
+      // Otherwise, it should exist in the matched values.
+      if (expected === undefined) {
+        expect(values).not.toContain(undefined)
+      } else {
+        expect(values).toContain(expected)
+      }
+    }
+  }
+}
+
+export function createDomMatcher(browser: Playwright) {
+  /**
+   * @param tag - tag name, e.g. 'meta'
+   * @param query - query string, e.g. 'name="description"'
+   * @param expectedObject - expected object, e.g. { content: 'my description' }
+   * @returns {Promise<void>} - promise that resolves when the check is done
+   *
+   * @example
+   * const matchDom = createDomMatcher(browser)
+   * await matchDom('meta', 'name="description"', { content: 'description' })
+   */
+  return async (
+    tag: string,
+    query: string,
+    expectedObject: Record<string, string | null | undefined>
+  ) => {
+    const props = await browser.eval(`
+      const el = document.querySelector('${tag}[${query}]');
+      const res = {}
+      const keys = ${JSON.stringify(Object.keys(expectedObject))}
+      for (const k of keys) {
+        res[k] = el?.getAttribute(k)
+      }
+      res
+    `)
+    expect(props).toEqual(expectedObject)
+  }
+}
+
+export function createMultiHtmlMatcher($: ReturnType<typeof cheerio.load>) {
+  /**
+   * @param tag - tag name, e.g. 'meta'
+   * @param queryKey - query key, e.g. 'property'
+   * @param domAttributeField - dom attribute field, e.g. 'content'
+   * @param expected - expected object, e.g. { description: 'my description' }
+   * @returns {void} - void when the check is done
+   *
+   * @example
+   *
+   * const $ = await next.render$('html')
+   * const matchHtml = createMultiHtmlMatcher($)
+   * matchHtml('meta', 'name', 'property', {
+   *   description: 'description',
+   *   og: 'og:description'
+   * })
+   *
+   */
+  return (
+    tag: string,
+    queryKey: string,
+    domAttributeField: string,
+    expected: Record<string, string | string[] | undefined>
+  ) => {
+    const res = {}
+    for (const key of Object.keys(expected)) {
+      const el = $(`${tag}[${queryKey}="${key}"]`)
+      if (el.length > 1) {
+        res[key] = el.toArray().map((el) => el.attribs[domAttributeField])
+      } else {
+        res[key] = el.attr(domAttributeField)
+      }
+    }
+    expect(res).toEqual(expected)
+  }
+}
+
+export function createMultiDomMatcher(browser: Playwright) {
+  /**
+   * @param tag - tag name, e.g. 'meta'
+   * @param queryKey - query key, e.g. 'property'
+   * @param domAttributeField - dom attribute field, e.g. 'content'
+   * @param expected - expected object, e.g. { description: 'my description' }
+   * @returns {Promise<void>} - promise that resolves when the check is done
+   *
+   * @example
+   * const matchMultiDom = createMultiDomMatcher(browser)
+   * await matchMultiDom('meta', 'property', 'content', {
+   *   description: 'description',
+   *   'og:title': 'title',
+   *   'twitter:title': 'title'
+   * })
+   *
+   */
+  return async (
+    tag: string,
+    queryKey: string,
+    domAttributeField: string,
+    expected: Record<string, string | string[] | undefined | null>
+  ) => {
+    await Promise.all(
+      Object.keys(expected).map(async (key) => {
+        return checkMeta(
+          browser,
+          key,
+          expected[key],
+          queryKey,
+          tag,
+          domAttributeField
+        )
+      })
+    )
+  }
+}
+
+export const checkMetaNameContentPair = (
+  browser: Playwright,
+  name: string,
+  content: string | string[]
+) => checkMeta(browser, name, content, 'name')
+
+export const checkLink = (
+  browser: Playwright,
+  rel: string,
+  content: string | string[]
+) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
+
+export async function getStackFramesContent(browser) {
+  const stackFrameElements = await browser.elementsByCss(
+    '[data-nextjs-call-stack-frame]'
+  )
+  const stackFramesContent = (
+    await Promise.all(
+      stackFrameElements.map(async (frame) => {
+        const functionNameEl = await frame.$('.call-stack-frame-method-name')
+        const fileEl = await frame.$('[data-has-original-code-frame="true"]')
+        const functionName = functionNameEl
+          ? await functionNameEl.innerText()
+          : ''
+        const file = fileEl ? await fileEl.innerText() : ''
+
+        if (!functionName) {
+          return ''
+        }
+        return `at ${functionName} (${file})`
+      })
+    )
+  )
+    .filter(Boolean)
+    .join('\n')
+
+  return stackFramesContent
+}
+
+export async function toggleCollapseCallStackFrames(browser: Playwright) {
+  const button = await browser.elementByCss(
+    '[data-nextjs-call-stack-ignored-list-toggle-button]'
+  )
+  const lastExpanded = await button.getAttribute(
+    'data-nextjs-call-stack-ignored-list-toggle-button'
+  )
+  await button.click()
+
+  await retry(async () => {
+    const currExpanded = await button.getAttribute(
+      'data-nextjs-call-stack-ignored-list-toggle-button'
+    )
+    expect(currExpanded).not.toBe(lastExpanded)
+  })
 }
 
 /**
- * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
+ * Encodes the params into a URLSearchParams object using the format that the
+ * now builder uses for route matches (adding the `nxtP` prefix to the keys).
  *
- * This is necessary if separate snapshots are needed for next.js with webpack vs turbopack.
+ * @param params - The params to encode.
+ * @param extraQueryParams - The extra query params to encode (without the `nxtP` prefix).
+ * @returns The encoded URLSearchParams object.
  */
-export const describeVariants = {
-  each(variants: TestVariants[]) {
-    return (name: string, fn: (variants: TestVariants) => any) => {
-      if (
-        !Array.isArray(variants) ||
-        !variants.every((val) => typeof val === 'string')
-      ) {
-        throw new Error('variants need to be an array of strings')
-      }
+export function createNowRouteMatches(
+  params: Record<string, string>,
+  extraQueryParams: Record<string, string> = {}
+): URLSearchParams {
+  const urlSearchParams = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    urlSearchParams.append(`nxtP${key}`, value)
+  }
+  for (const [key, value] of Object.entries(extraQueryParams)) {
+    urlSearchParams.append(key, value)
+  }
 
-      for (const variant of variants) {
-        getSnapshotTestDescribe(variant).each([variant])(name, fn)
-      }
-    }
-  },
+  return urlSearchParams
 }
+
+export async function assertNoConsoleErrors(browser: Playwright) {
+  const logs = await browser.log()
+  const warningsAndErrors = logs.filter((log) => {
+    return (
+      log.source === 'warning' ||
+      (log.source === 'error' &&
+        // These are expected when we visit 404 pages.
+        !log.message.startsWith(
+          'Failed to load resource: the server responded with a status of 404'
+        ))
+    )
+  })
+
+  expect(warningsAndErrors).toEqual([])
+}
+
+export async function getHighlightedDiffLines(
+  browser: Playwright
+): Promise<[string, string][]> {
+  const lines = await browser.elementsByCss(
+    '[data-nextjs-container-errors-pseudo-html--diff]'
+  )
+  return Promise.all(
+    lines.map(async (line) => [
+      (await line.getAttribute(
+        'data-nextjs-container-errors-pseudo-html--diff'
+      ))!,
+      (await line.innerText())[0],
+    ])
+  )
+}
+
+export function trimEndMultiline(str: string) {
+  return str
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n')
+}
+
+/**
+ * Normalizes the manifest by applying the replacements to the manifest. This
+ * is useful for testing the manifest in a snapshot test.
+ *
+ * @param manifest - The manifest to normalize.
+ * @param replacements - The replacements to perform on the manifest.
+ * @returns The normalized manifest.
+ */
+export function normalizeManifest<T>(
+  manifest: unknown,
+  replacements: [search: string, replace: string][]
+): T {
+  return JSON.parse(
+    replacements.reduce(
+      (acc, [search, replace]) =>
+        acc.replace(
+          new RegExp(
+            // We want to match the literal string, so we need to escape it
+            // again
+            escapeRegex(
+              JSON.stringify(
+                // The output has already been escaped, so we need to escape our
+                // search string.
+                escapeRegex(search)
+              )
+                // Remove the quotes added by the JSON.stringify call.
+                .replace(/^"(.*)"/, '$1')
+            ),
+            'g'
+          ),
+          replace
+        ),
+      // We'll perform the replacements on the JSON stringified manifest.
+      JSON.stringify(manifest)
+    )
+  )
+}
+
+export function getDistDir(): '.next' | '.next/dev' {
+  // global.isNextDev is set in e2e/development/production tests.
+  // NEXT_TEST_MODE is set in CI or local test-* commands.
+  return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
+    ? '.next/dev'
+    : '.next'
+}
+
+/**
+ * Loads and returns the client reference manifest for a given route
+ */
+export function getClientReferenceManifest(
+  next: NextInstance,
+  route: string
+): ClientReferenceManifest {
+  const manifestPath = path.join(
+    next.testDir,
+    next.distDir,
+    `server/app${route}_client-reference-manifest.js`
+  )
+  const modulePath = require.resolve(manifestPath)
+
+  // Clear global
+  delete (globalThis as any).__RSC_MANIFEST
+
+  // Need to use jest.isolateModules because Jest messes with require.cache and `delete
+  // require.cache[modulePath]` doesn't actually work anymore
+  jest.isolateModules(() => {
+    // Load the manifest (it sets globalThis.__RSC_MANIFEST)
+    require(modulePath)
+  })
+
+  const manifest = (globalThis as any).__RSC_MANIFEST[
+    route
+  ] as ClientReferenceManifest
+
+  // Sanity check
+  expect(
+    manifest.clientModules ||
+      manifest.ssrModuleMapping ||
+      manifest.rscModuleMapping
+  ).toBeDefined()
+
+  return manifest
+}
+
+export const getCacheHeader = (curRes: Response) =>
+  // favor generic header
+  curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')

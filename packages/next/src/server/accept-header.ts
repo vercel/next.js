@@ -12,7 +12,7 @@ interface Options {
 
 function parse(
   raw: string,
-  preferences: string[] | undefined,
+  preferences: readonly string[] | undefined,
   options: Options
 ) {
   const lowers = new Map<string, { orig: string; pos: number }>()
@@ -127,7 +127,7 @@ function parse(
   return preferred
 }
 
-export function acceptLanguage(header = '', preferences?: string[]) {
+export function acceptLanguage(header = '', preferences?: readonly string[]) {
   return (
     parse(header, preferences, {
       type: 'accept-language',

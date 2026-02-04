@@ -1,9 +1,9 @@
-import handler from '@payloadcms/next-payload/dist/handlers/graphql'
+import handler from "@payloadcms/next-payload/dist/handlers/graphql";
 
-export default handler
+export default handler;
 
 export const config = {
   api: {
     externalResolver: true,
   },
-}
+};

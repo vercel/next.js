@@ -1,9 +1,9 @@
 import Link from 'next/link'
 
-export default function Page({ searchParams }) {
+export default async function Page({ searchParams }) {
   return (
     <>
-      <h1 id="result">{JSON.stringify(searchParams)}</h1>
+      <h1 id="result">{JSON.stringify(await searchParams)}</h1>
       <div>
         <Link href="/navigation/searchparams?a=a">To A</Link>
       </div>

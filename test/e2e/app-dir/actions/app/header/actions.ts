@@ -4,7 +4,7 @@ import { headers, cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 export async function setCookieWithMaxAge() {
-  cookies().set({
+  ;(await cookies()).set({
     name: 'foo',
     value: 'bar',
     maxAge: 1000,
@@ -12,19 +12,20 @@ export async function setCookieWithMaxAge() {
 }
 
 export async function getCookie(name) {
-  return cookies().get(name)
+  return (await cookies()).get(name)
 }
 
 export async function getHeader(name) {
-  return headers().get(name)
+  return (await headers()).get(name)
 }
 
 export async function setCookie(name, value) {
-  cookies().set(name, value)
-  return cookies().get(name)
+  const localCookies = await cookies()
+  localCookies.set(name, value)
+  return localCookies.get(name)
 }
 
-export async function setCookieAndRedirect(name, value, path) {
-  cookies().set(name, value)
-  redirect(path)
+export async function setCookieAndRedirect(name, value, path, type) {
+  ;(await cookies()).set(name, value)
+  redirect(path, type)
 }

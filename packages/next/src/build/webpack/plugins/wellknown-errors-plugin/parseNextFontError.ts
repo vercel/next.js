@@ -28,7 +28,7 @@ export function getNextFontError(
       // Unknown error thrown by @next/font
       return new SimpleWebpackError(
         file,
-        `An error occured in \`next/font\`.\n\n${err.stack}`
+        `An error occurred in \`next/font\`.\n\n${err.stack}`
       )
     }
   } catch {

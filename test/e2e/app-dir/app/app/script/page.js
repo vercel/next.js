@@ -33,6 +33,22 @@ export default function Page() {
         `,
         }}
       />
+      <Script
+        strategy="beforeInteractive"
+        src="/noop-test.js"
+        id="script-with-src-noop-test"
+        data-extra-prop="script-with-src"
+      />
+      <Script
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+        console.log('noop-test-dangerouslySetInnerHTML')
+        `,
+        }}
+        id="script-without-src-noop-test-dangerouslySetInnerHTML"
+        data-extra-prop="script-without-src"
+      />
     </div>
   )
 }

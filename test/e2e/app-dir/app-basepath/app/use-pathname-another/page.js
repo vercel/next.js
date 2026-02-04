@@ -1,3 +1,3 @@
 'use client'
 
-export { ReadPathName as default } from '../../components/read-path-name'
+export { ReadPathname as default } from '../../components/read-pathname'

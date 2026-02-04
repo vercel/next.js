@@ -51,6 +51,7 @@ class Span implements ISpan {
       state: 'ended',
       endTime: endTime ?? Date.now(),
     }
+
     this.onSpanEnd(this)
   }
 }

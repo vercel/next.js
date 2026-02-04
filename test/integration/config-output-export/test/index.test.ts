@@ -1,12 +1,14 @@
 /* eslint-env jest */
 import {
+  waitForRedbox,
+  waitForNoRedbox,
   fetchViaHTTP,
   File,
   findPort,
   getRedboxHeader,
-  hasRedbox,
   killApp,
   launchApp,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -16,7 +18,7 @@ import type { Response } from 'node-fetch'
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
-const runDev = async (config: any) => {
+const runDev = async (config: any, shouldWaitForReady = true) => {
   await nextConfig.write(`module.exports = ${JSON.stringify(config)}`)
   const port = await findPort()
   const obj = { port, stdout: '', stderr: '' }
@@ -30,6 +32,9 @@ const runDev = async (config: any) => {
       obj.stderr += msg || ''
     },
   })
+  if (shouldWaitForReady) {
+    await fetch(`http://localhost:${port}`)
+  }
   return obj
 }
 
@@ -52,16 +57,22 @@ describe('config-output-export', () => {
   })
 
   it('should error with "i18n" config', async () => {
-    const { stderr } = await runDev({
-      output: 'export',
-      i18n: {
-        locales: ['en'],
-        defaultLocale: 'en',
+    const data = await runDev(
+      {
+        output: 'export',
+        i18n: {
+          locales: ['en'],
+          defaultLocale: 'en',
+        },
       },
-    })
-    expect(stderr).toContain(
-      'Specified "i18n" cannot be used with "output: export".'
+      false
     )
+
+    await retry(() => {
+      expect(data.stderr).toContain(
+        'Specified "i18n" cannot be used with "output: export".'
+      )
+    })
   })
 
   describe('when hasNextSupport = false', () => {
@@ -160,14 +171,14 @@ describe('config-output-export', () => {
         output: 'export',
       })
       response = await fetchViaHTTP(result.port, '/api/wow')
+      expect(response.status).toBe(404)
+      expect(result?.stderr).toContain(
+        'API Routes cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(pagesApi, { recursive: true, force: true })
     }
-    expect(response.status).toBe(404)
-    expect(result?.stderr).toContain(
-      'API Routes cannot be used with "output: export".'
-    )
   })
 
   it('should error with middleware function', async () => {
@@ -183,15 +194,15 @@ describe('config-output-export', () => {
         output: 'export',
       })
       response = await fetchViaHTTP(result.port, '/api/mw')
+      expect(response.status).toBe(404)
+      expect(result?.stdout + result?.stderr).not.toContain('[mw]')
+      expect(result?.stderr).toContain(
+        'Middleware cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(middleware)
     }
-    expect(response.status).toBe(404)
-    expect(result?.stdout + result?.stderr).not.toContain('[mw]')
-    expect(result?.stderr).toContain(
-      'Middleware cannot be used with "output: export".'
-    )
   })
 
   it('should error with getStaticProps and revalidate 10 seconds (ISR)', async () => {
@@ -216,17 +227,18 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'ISR cannot be used with "output: export".'
+      )
+      expect(result?.stderr).toContain(
+        'ISR cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser, true)).toBe(true)
-    expect(await getRedboxHeader(browser)).toContain(
-      'ISR cannot be used with "output: export".'
-    )
-    expect(result?.stderr).toContain(
-      'ISR cannot be used with "output: export".'
-    )
   })
 
   it('should work with getStaticProps and revalidate false', async () => {
@@ -251,11 +263,11 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
+      await waitForNoRedbox(browser)
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser, false)).toBe(false)
   })
 
   it('should work with getStaticProps and without revalidate', async () => {
@@ -279,11 +291,11 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
+      await waitForNoRedbox(browser)
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser, false)).toBe(false)
   })
 
   it('should error with getServerSideProps without fallback', async () => {
@@ -307,17 +319,17 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'getServerSideProps cannot be used with "output: export".'
+      )
+      expect(result?.stderr).toContain(
+        'getServerSideProps cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser, true)).toBe(true)
-    expect(await getRedboxHeader(browser)).toContain(
-      'getServerSideProps cannot be used with "output: export".'
-    )
-    expect(result?.stderr).toContain(
-      'getServerSideProps cannot be used with "output: export".'
-    )
   })
 
   it('should error with getStaticPaths and fallback true', async () => {
@@ -351,19 +363,17 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      expect(await hasRedbox(browser, false)).toBe(false)
-      browser = await webdriver(result.port, '/posts/two')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'getStaticPaths with "fallback: true" cannot be used with "output: export".'
+      )
+      expect(result?.stderr).toContain(
+        'getStaticPaths with "fallback: true" cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(posts, { recursive: true, force: true })
     }
-    expect(await getRedboxHeader(browser)).toContain(
-      'getStaticPaths with "fallback: true" cannot be used with "output: export".'
-    )
-    expect(result?.stderr).toContain(
-      'getStaticPaths with "fallback: true" cannot be used with "output: export".'
-    )
   })
 
   it('should error with getStaticPaths and fallback blocking', async () => {
@@ -397,19 +407,17 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      expect(await hasRedbox(browser, false)).toBe(false)
-      browser = await webdriver(result.port, '/posts/two')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'getStaticPaths with "fallback: blocking" cannot be used with "output: export".'
+      )
+      expect(result?.stderr).toContain(
+        'getStaticPaths with "fallback: blocking" cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(posts, { recursive: true, force: true })
     }
-    expect(await getRedboxHeader(browser)).toContain(
-      'getStaticPaths with "fallback: blocking" cannot be used with "output: export".'
-    )
-    expect(result?.stderr).toContain(
-      'getStaticPaths with "fallback: blocking" cannot be used with "output: export".'
-    )
   })
 
   it('should work with getStaticPaths and fallback false', async () => {
@@ -443,13 +451,13 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
+      const h1 = await browser.elementByCss('h1')
+      expect(await h1.text()).toContain('Hello from one')
+      await waitForNoRedbox(browser)
+      expect(result.stderr).toBeEmpty()
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(posts, { recursive: true, force: true })
     }
-    const h1 = await browser.elementByCss('h1')
-    expect(await h1.text()).toContain('Hello from one')
-    expect(await hasRedbox(browser, false)).toBe(false)
-    expect(result.stderr).toBeEmpty()
   })
 })

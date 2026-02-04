@@ -1,8 +1,8 @@
 import { cookies, headers } from 'next/headers'
 
-export default function Layout({ children }) {
-  const curHeaders = headers()
-  const curCookies = cookies()
+export default async function Layout({ children }) {
+  const curHeaders = await headers()
+  const curCookies = await cookies()
 
   return (
     <>

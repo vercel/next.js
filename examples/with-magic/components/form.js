@@ -51,6 +51,6 @@ const Form = ({ errorMessage, onSubmit }) => (
       }
     `}</style>
   </form>
-)
+);
 
-export default Form
+export default Form;

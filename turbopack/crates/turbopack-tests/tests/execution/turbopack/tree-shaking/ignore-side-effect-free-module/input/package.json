@@ -1,0 +1,7 @@
+{
+  "sideEffects": [
+    "./json.js",
+    "./js.js",
+    "./cjs.js"
+  ]
+}

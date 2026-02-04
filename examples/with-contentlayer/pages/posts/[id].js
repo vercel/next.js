@@ -1,6 +1,6 @@
-import Head from 'next/head'
-import { allPosts } from 'contentlayer/generated'
-import utilStyles from '../../styles/utils.module.css'
+import Head from "next/head";
+import { allPosts } from "contentlayer/generated";
+import utilStyles from "../../styles/utils.module.css";
 
 export default function Post({ post }) {
   return (
@@ -16,18 +16,18 @@ export default function Post({ post }) {
         <div dangerouslySetInnerHTML={{ __html: post.body.html }} />
       </article>
     </>
-  )
+  );
 }
 
 export async function getStaticPaths() {
   return {
     paths: allPosts.map((p) => ({ params: { id: p.slug } })),
     fallback: false,
-  }
+  };
 }
 
 export async function getStaticProps({ params }) {
-  const post = allPosts.find((post) => post.slug === params?.id)
+  const post = allPosts.find((post) => post.slug === params?.id);
 
-  return { props: { post } }
+  return { props: { post } };
 }

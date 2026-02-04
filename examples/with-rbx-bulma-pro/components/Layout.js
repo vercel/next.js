@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 import {
   Generic,
   Container,
@@ -8,7 +8,7 @@ import {
   Hero,
   Title,
   Footer,
-} from 'rbx'
+} from "rbx";
 
 const Layout = ({ children }) => {
   return (
@@ -20,15 +20,15 @@ const Layout = ({ children }) => {
         </Navbar.Brand>
         <Navbar.Menu>
           <Navbar.Segment align="start">
-            <Link href="/" legacyBehavior>
-              <Navbar.Item>Home</Navbar.Item>
-            </Link>
-            <Link href="/about" legacyBehavior>
-              <Navbar.Item>About</Navbar.Item>
-            </Link>
-            <Link href="/contact" legacyBehavior>
-              <Navbar.Item>Contact</Navbar.Item>
-            </Link>
+            <Navbar.Item as={Link} href="/">
+              Home
+            </Navbar.Item>
+            <Navbar.Item as={Link} href="/about">
+              About
+            </Navbar.Item>
+            <Navbar.Item as={Link} href="/contact">
+              Contact
+            </Navbar.Item>
           </Navbar.Segment>
         </Navbar.Menu>
       </Navbar>
@@ -52,7 +52,7 @@ const Layout = ({ children }) => {
         </Content>
       </Footer>
     </Generic>
-  )
-}
+  );
+};
 
-export default Layout
+export default Layout;

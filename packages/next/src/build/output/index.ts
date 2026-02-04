@@ -1,17 +1,10 @@
-import { bold, red, yellow } from '../../lib/picocolors'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
-import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
-import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
+import formatWebpackMessages from '../../shared/lib/format-webpack-messages'
 import { store as consoleStore } from './store'
 import type { OutputState } from './store'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { COMPILER_NAMES } from '../../shared/lib/constants'
 import type { CompilerNameValues } from '../../shared/lib/constants'
-
-export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
-  consoleStore.setState({ appUrl, bindAddr })
-}
 
 type CompilerDiagnostics = {
   totalModulesCount: number
@@ -23,78 +16,12 @@ type WebpackStatus =
   | { loading: true }
   | ({ loading: false } & CompilerDiagnostics)
 
-type AmpStatus = {
-  message: string
-  line: number
-  col: number
-  specUrl: string | null
-  code: string
-}
-
-export type AmpPageStatus = {
-  [page: string]: { errors: AmpStatus[]; warnings: AmpStatus[] }
-}
-
 type BuildStatusStore = {
   client: WebpackStatus
   server: WebpackStatus
   edgeServer: WebpackStatus
   trigger: string | undefined
-  amp: AmpPageStatus
-}
-
-export function formatAmpMessages(amp: AmpPageStatus) {
-  let output = bold('Amp Validation') + '\n\n'
-  let messages: string[][] = []
-
-  const chalkError = red('error')
-  function ampError(page: string, error: AmpStatus) {
-    messages.push([page, chalkError, error.message, error.specUrl || ''])
-  }
-
-  const chalkWarn = yellow('warn')
-  function ampWarn(page: string, warn: AmpStatus) {
-    messages.push([page, chalkWarn, warn.message, warn.specUrl || ''])
-  }
-
-  for (const page in amp) {
-    let { errors, warnings } = amp[page]
-
-    const devOnlyFilter = (err: AmpStatus) => err.code !== 'DEV_MODE_ONLY'
-    errors = errors.filter(devOnlyFilter)
-    warnings = warnings.filter(devOnlyFilter)
-    if (!(errors.length || warnings.length)) {
-      // Skip page with no non-dev warnings
-      continue
-    }
-
-    if (errors.length) {
-      ampError(page, errors[0])
-      for (let index = 1; index < errors.length; ++index) {
-        ampError('', errors[index])
-      }
-    }
-    if (warnings.length) {
-      ampWarn(errors.length ? '' : page, warnings[0])
-      for (let index = 1; index < warnings.length; ++index) {
-        ampWarn('', warnings[index])
-      }
-    }
-    messages.push(['', '', '', ''])
-  }
-
-  if (!messages.length) {
-    return ''
-  }
-
-  output += textTable(messages, {
-    align: ['l', 'l', 'l', 'l'],
-    stringLength(str: string) {
-      return stripAnsi(str).length
-    },
-  })
-
-  return output
+  url: string | undefined
 }
 
 const buildStore = createStore<BuildStatusStore>({
@@ -111,7 +38,7 @@ let serverWasLoading = true
 let edgeServerWasLoading = false
 
 buildStore.subscribe((state) => {
-  const { amp, client, server, edgeServer, trigger } = state
+  const { client, server, edgeServer, trigger, url } = state
 
   const { appUrl } = consoleStore.getState()
 
@@ -123,6 +50,7 @@ buildStore.subscribe((state) => {
         // If it takes more than 3 seconds to compile, mark it as loading status
         loading: true,
         trigger,
+        url,
       } as OutputState,
       true
     )
@@ -181,7 +109,7 @@ buildStore.subscribe((state) => {
       ...(client.warnings || []),
       ...(server.warnings || []),
       ...(edgeServer.warnings || []),
-    ].concat(formatAmpMessages(amp) || [])
+    ]
 
     consoleStore.setState(
       {
@@ -194,32 +122,6 @@ buildStore.subscribe((state) => {
   }
 })
 
-export function ampValidation(
-  page: string,
-  errors: AmpStatus[],
-  warnings: AmpStatus[]
-) {
-  const { amp } = buildStore.getState()
-  if (!(errors.length || warnings.length)) {
-    buildStore.setState({
-      amp: Object.keys(amp)
-        .filter((k) => k !== page)
-        .sort()
-        // eslint-disable-next-line no-sequences
-        .reduce((a, c) => ((a[c] = amp[c]), a), {} as AmpPageStatus),
-    })
-    return
-  }
-
-  const newAmp: AmpPageStatus = { ...amp, [page]: { errors, warnings } }
-  buildStore.setState({
-    amp: Object.keys(newAmp)
-      .sort()
-      // eslint-disable-next-line no-sequences
-      .reduce((a, c) => ((a[c] = newAmp[c]), a), {} as AmpPageStatus),
-  })
-}
-
 export function watchCompilers(
   client: webpack.Compiler,
   server: webpack.Compiler,
@@ -230,6 +132,7 @@ export function watchCompilers(
     server: { loading: true },
     edgeServer: { loading: true },
     trigger: 'initial',
+    url: undefined,
   })
 
   function tapCompiler(
@@ -242,8 +145,6 @@ export function watchCompilers(
     })
 
     compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: webpack.Stats) => {
-      buildStore.setState({ amp: {} })
-
       const { errors, warnings } = formatWebpackMessages(
         stats.toJson({
           preset: 'errors-warnings',
@@ -273,6 +174,7 @@ export function watchCompilers(
       buildStore.setState({
         client: status,
         trigger: undefined,
+        url: undefined,
       })
     } else {
       buildStore.setState({
@@ -290,6 +192,7 @@ export function watchCompilers(
       buildStore.setState({
         server: status,
         trigger: undefined,
+        url: undefined,
       })
     } else {
       buildStore.setState({
@@ -307,6 +210,7 @@ export function watchCompilers(
       buildStore.setState({
         edgeServer: status,
         trigger: undefined,
+        url: undefined,
       })
     } else {
       buildStore.setState({
@@ -316,19 +220,9 @@ export function watchCompilers(
   })
 }
 
-const internalSegments = ['[[...__metadata_id__]]', '[__metadata_id__]']
-export function reportTrigger(trigger: string) {
-  for (const segment of internalSegments) {
-    if (trigger.includes(segment)) {
-      trigger = trigger.replace(segment, '')
-    }
-  }
-
-  if (trigger.length > 1 && trigger.endsWith('/')) {
-    trigger = trigger.slice(0, -1)
-  }
-
+export function reportTrigger(trigger: string, url?: string) {
   buildStore.setState({
     trigger,
+    url,
   })
 }

@@ -4,15 +4,22 @@ import { promises as fs } from 'fs'
 
 export async function writeAppTypeDeclarations({
   baseDir,
+  distDir,
+  distDirRoot,
   imageImportsEnabled,
   hasPagesDir,
-  isAppDirEnabled,
+  hasAppDir,
 }: {
   baseDir: string
+  distDir: string
+  /** The root dist directory without /dev suffix, used for fixed type paths */
+  distDirRoot?: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
-  isAppDirEnabled: boolean
+  hasAppDir: boolean
 }): Promise<void> {
+  // Use distDirRoot for fixed paths in next-env.d.ts, fallback to distDir
+  const typesDistDir = distDirRoot ?? distDir
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
 
@@ -40,29 +47,39 @@ export async function writeAppTypeDeclarations({
    *
    * @see https://www.typescriptlang.org/docs/handbook/triple-slash-directives.html
    */
-  const directives: string[] = [
+  const lines: string[] = [
     // Include the core Next.js typings.
     '/// <reference types="next" />',
   ]
 
   if (imageImportsEnabled) {
-    directives.push('/// <reference types="next/image-types/global" />')
+    lines.push('/// <reference types="next/image-types/global" />')
   }
 
-  if (isAppDirEnabled && hasPagesDir) {
-    directives.push(
+  if (hasAppDir && hasPagesDir) {
+    lines.push(
       '/// <reference types="next/navigation-types/compat/navigation" />'
     )
   }
 
-  // Push the notice in.
-  directives.push(
-    '',
-    '// NOTE: This file should not be edited',
-    '// see https://nextjs.org/docs/basic-features/typescript for more information.'
+  // Use fixed path for the entry type file (always at .next/types/routes.d.ts)
+  // This entry file re-exports from actual type files which may be at different paths
+  const routeTypesPath = path.posix.join(
+    typesDistDir.replaceAll(path.win32.sep, path.posix.sep),
+    'types/routes.d.ts'
   )
 
-  const content = directives.join(eol) + eol
+  // Use ESM import instead of triple-slash reference for better ESLint compatibility
+  lines.push(`import "./${routeTypesPath}";`)
+
+  // Push the notice in.
+  lines.push(
+    '',
+    '// NOTE: This file should not be edited',
+    `// see https://nextjs.org/docs/${hasAppDir ? 'app' : 'pages'}/api-reference/config/typescript for more information.`
+  )
+
+  const content = lines.join(eol) + eol
 
   // Avoids an un-necessary write on read-only fs
   if (currentContent === content) {

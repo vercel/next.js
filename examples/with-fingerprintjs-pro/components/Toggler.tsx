@@ -1,7 +1,7 @@
-import { PropsWithChildren, useState } from 'react'
+import { PropsWithChildren, useState } from "react";
 
 function Toggler({ children }: PropsWithChildren<{}>) {
-  const [showChildren, setShowChildren] = useState(true)
+  const [showChildren, setShowChildren] = useState(true);
 
   return (
     <div className="toggler">
@@ -15,11 +15,11 @@ function Toggler({ children }: PropsWithChildren<{}>) {
         className="toggle-button"
         onClick={() => setShowChildren((show) => !show)}
       >
-        {showChildren ? 'Hide' : 'Show'} visitor data
+        {showChildren ? "Hide" : "Show"} visitor data
       </button>
       {showChildren && children}
     </div>
-  )
+  );
 }
 
-export default Toggler
+export default Toggler;

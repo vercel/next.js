@@ -7,7 +7,9 @@ import React, {
   useContext,
   useMemo,
   useState,
+  type JSX,
 } from 'react'
+import * as ReactDOM from 'react-dom'
 import Head from '../../shared/lib/head'
 import {
   imageConfigDefault,
@@ -21,11 +23,13 @@ import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
+import { findClosestQuality } from '../../shared/lib/find-closest-quality'
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
+const supportsFloat = typeof ReactDOM.preload === 'function'
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -116,6 +120,25 @@ function defaultLoader({
   width,
   quality,
 }: ImageLoaderPropsWithConfig): string {
+  if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
+    // Special case to make svg serve as-is to avoid proxying
+    // through the built-in Image Optimization API.
+    return src
+  }
+
+  if (
+    src.startsWith('/') &&
+    src.includes('?') &&
+    config.localPatterns?.length === 1 &&
+    config.localPatterns[0].pathname === '**' &&
+    config.localPatterns[0].search === ''
+  ) {
+    throw new Error(
+      `Image with src "${src}" is using a query string which is not configured in images.localPatterns.` +
+        `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
+    )
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const missingValues = []
 
@@ -139,6 +162,24 @@ function defaultLoader({
       )
     }
 
+    if (src.startsWith('/') && config.localPatterns) {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        // micromatch isn't compatible with edge runtime
+        process.env.NEXT_RUNTIME !== 'edge'
+      ) {
+        // We use dynamic require because this should only error in development
+        const { hasLocalMatch } =
+          require('../../shared/lib/match-local-pattern') as typeof import('../../shared/lib/match-local-pattern')
+        if (!hasLocalMatch(config.localPatterns, src)) {
+          throw new Error(
+            `Invalid src prop (${src}) on \`next/image\` does not match \`images.localPatterns\` configured in your \`next.config.js\`\n` +
+              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
+          )
+        }
+      }
+    }
+
     if (!src.startsWith('/') && (config.domains || config.remotePatterns)) {
       let parsedSrc: URL
       try {
@@ -156,8 +197,9 @@ function defaultLoader({
         process.env.NEXT_RUNTIME !== 'edge'
       ) {
         // We use dynamic require because this should only error in development
-        const { hasMatch } = require('../../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
+        const { hasRemoteMatch } =
+          require('../../shared/lib/match-remote-pattern') as typeof import('../../shared/lib/match-remote-pattern')
+        if (!hasRemoteMatch(config.domains, config.remotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
@@ -167,15 +209,11 @@ function defaultLoader({
     }
   }
 
-  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
-    // Special case to make svg serve as-is to avoid proxying
-    // through the built-in Image Optimization API.
-    return src
-  }
+  const q = findClosestQuality(quality, config)
 
   return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
     src
-  )}&w=${width}&q=${quality || 75}`
+  )}&w=${width}&q=${q}`
 }
 
 const loaders = new Map<
@@ -258,7 +296,7 @@ export type ImageProps = Omit<
   quality?: SafeNumber
   priority?: boolean
   loading?: LoadingValue
-  lazyRoot?: React.RefObject<HTMLElement> | null
+  lazyRoot?: React.RefObject<HTMLElement | null> | null
   lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string
@@ -591,6 +629,9 @@ const ImageElement = ({
   )
 }
 
+/**
+ * @deprecated The `next/legacy/image` component is deprecated and will be removed in a future version of Next.js. Please use `next/image` instead.
+ */
 export default function Image({
   src,
   sizes,
@@ -616,7 +657,20 @@ export default function Image({
     const c = configEnv || configContext || imageConfigDefault
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    return { ...c, allSizes, deviceSizes }
+    const qualities = c.qualities?.sort((a, b) => a - b)
+    return {
+      ...c,
+      allSizes,
+      deviceSizes,
+      qualities, // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
+      // security sensitive configs like `localPatterns`, which is needed
+      // during the server render to ensure it's validated. Therefore use
+      // configContext, which holds the config from the server for validation.
+      localPatterns:
+        typeof window === 'undefined'
+          ? configContext?.localPatterns
+          : c.localPatterns,
+    }
   }, [configContext])
 
   let rest: Partial<ImageProps> = all
@@ -670,6 +724,10 @@ export default function Image({
     }
   }
   src = typeof src === 'string' ? src : staticSrc
+
+  warnOnce(
+    `Image with src "${src}" is using next/legacy/image which is deprecated and will be removed in a future version of Next.js.`
+  )
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
@@ -818,6 +876,17 @@ export default function Image({
       if ('ref' in rest) {
         warnOnce(
           `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+        )
+      }
+
+      if (
+        qualityInt &&
+        config.qualities &&
+        !config.qualities.includes(qualityInt)
+      ) {
+        warnOnce(
+          `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
         )
       }
 
@@ -978,15 +1047,19 @@ export default function Image({
     }
   }
 
-  const linkProps: React.DetailedHTMLProps<
-    React.LinkHTMLAttributes<HTMLLinkElement>,
-    HTMLLinkElement
-  > = {
-    imageSrcSet: imgAttributes.srcSet,
-    imageSizes: imgAttributes.sizes,
-    crossOrigin: rest.crossOrigin,
-    referrerPolicy: rest.referrerPolicy,
-  }
+  const linkProps:
+    | React.DetailedHTMLProps<
+        React.LinkHTMLAttributes<HTMLLinkElement>,
+        HTMLLinkElement
+      >
+    | undefined = supportsFloat
+    ? undefined
+    : {
+        imageSrcSet: imgAttributes.srcSet,
+        imageSizes: imgAttributes.sizes,
+        crossOrigin: rest.crossOrigin,
+        referrerPolicy: rest.referrerPolicy,
+      }
 
   const useLayoutEffect =
     typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
@@ -1054,7 +1127,7 @@ export default function Image({
         ) : null}
         <ImageElement {...imgElementArgs} />
       </span>
-      {priority ? (
+      {!supportsFloat && priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
         // it would likely cause the incorrect image to be preloaded.

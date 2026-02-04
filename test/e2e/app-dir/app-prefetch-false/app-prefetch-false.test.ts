@@ -1,20 +1,18 @@
-import type { Request } from 'playwright-core'
-
-import { createNextDescribe } from 'e2e-utils'
-import type { BrowserInterface } from '../../../lib/browsers/base'
+import { nextTestSetup } from 'e2e-utils'
+import type { Playwright } from 'next-webdriver'
 
 const getPathname = (url: string) => {
   const urlObj = new URL(url)
   return urlObj.pathname
 }
 
-const createRequestsListener = async (browser: BrowserInterface) => {
+const createRequestsListener = async (browser: Playwright) => {
   // wait for network idle
   await browser.waitForIdleNetwork()
 
   let requests = []
 
-  browser.on('request', (req: Request) => {
+  browser.on('request', (req) => {
     requests.push([req.url(), !!req.headers()['next-router-prefetch']])
   })
 
@@ -28,27 +26,24 @@ const createRequestsListener = async (browser: BrowserInterface) => {
   }
 }
 
-createNextDescribe(
-  'app-prefetch-false',
-  {
+describe('app-prefetch-false', () => {
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next, isNextDev }) => {
-    if (isNextDev) {
-      it.skip('should skip test in dev mode', () => {})
-    } else {
-      it('should avoid double-fetching when optimistic navigation fails', async () => {
-        const browser = await next.browser('/foo')
-        const { getRequests } = await createRequestsListener(browser)
+  })
 
-        await browser.elementByCss('[href="/foo"]').click()
-        await browser.elementByCss('[href="/foo/bar"]').click()
-        console.log('getRequests()', getRequests())
-        expect(
-          getRequests().filter(([req]) => getPathname(req) === '/foo/bar')
-            .length
-        ).toBe(1)
-      })
-    }
+  if (isNextDev) {
+    it.skip('should skip test in development mode', () => {})
+  } else {
+    it('should avoid double-fetching when optimistic navigation fails', async () => {
+      const browser = await next.browser('/foo')
+      const { getRequests } = await createRequestsListener(browser)
+
+      await browser.elementByCss('[href="/foo"]').click()
+      await browser.elementByCss('[href="/foo/bar"]').click()
+      console.log('getRequests()', getRequests())
+      expect(
+        getRequests().filter(([req]) => getPathname(req) === '/foo/bar').length
+      ).toBe(1)
+    })
   }
-)
+})

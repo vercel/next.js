@@ -1,0 +1,5 @@
+name: 'upload-turboyet-data'
+description: 'Uploads data for Are We Turbo Yet? to Vercel KV'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

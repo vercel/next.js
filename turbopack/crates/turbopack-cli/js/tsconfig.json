@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    // type checking
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+
+    // environment
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM"],
+    "target": "esnext",
+
+    // modules
+    "baseUrl": ".",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": [],
+
+    // emit
+    "noEmit": true,
+    "stripInternal": true
+  },
+  "include": ["src"]
+}

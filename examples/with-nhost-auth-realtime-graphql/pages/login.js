@@ -1,25 +1,25 @@
-import { useState } from 'react'
-import { useRouter } from 'next/router'
-import Link from 'next/link'
+import { useState } from "react";
+import { useRouter } from "next/router";
+import Link from "next/link";
 
-import { nhost } from '../utils/nhost'
+import { nhost } from "../utils/nhost";
 
 export default function Login() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   async function handleLogin(e) {
-    e.preventDefault()
+    e.preventDefault();
 
     try {
-      await nhost.auth.login({ email, password })
+      await nhost.auth.login({ email, password });
     } catch (error) {
-      console.error(error)
-      return alert('failed to login')
+      console.error(error);
+      return alert("failed to login");
     }
 
-    router.push('/')
+    router.push("/");
   }
 
   return (
@@ -50,5 +50,5 @@ export default function Login() {
         <Link href="/register">Register</Link>
       </div>
     </div>
-  )
+  );
 }

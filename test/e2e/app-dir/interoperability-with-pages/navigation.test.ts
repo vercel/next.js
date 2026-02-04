@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 
 describe('navigation between pages and app dir', () => {
@@ -9,8 +9,6 @@ describe('navigation between pages and app dir', () => {
     next = await createNext({
       files: new FileRef(__dirname),
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
         typescript: 'latest',
         '@types/react': 'latest',
         '@types/node': 'latest',

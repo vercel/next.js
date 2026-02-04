@@ -1,4 +1,4 @@
-@use '../../../css/common.scss' as *;
+@use "../../../css/common.scss" as *;
 
 .hero {
   padding-top: calc(var(--base) * 3);
@@ -16,7 +16,7 @@
   }
 
   &::after {
-    content: '';
+    content: "";
     display: block;
     position: absolute;
     width: 100vw;

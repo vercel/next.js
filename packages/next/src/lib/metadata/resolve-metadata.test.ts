@@ -12,18 +12,18 @@ function accumulateMetadata(metadataItems: MetadataItems) {
   const fullMetadataItems: FullMetadataItems = metadataItems.map((item) => [
     item[0],
     item[1],
-    null,
   ])
-  return originAccumulateMetadata(fullMetadataItems, {
-    pathname: '/test',
+  const route = '/test'
+  const pathname = Promise.resolve('/test')
+  return originAccumulateMetadata(route, fullMetadataItems, pathname, {
+    trailingSlash: false,
+    isStaticMetadataRouteFile: false,
   })
 }
 
 function accumulateViewport(viewportExports: Viewport[]) {
   // skip the first two arguments (metadata and static metadata)
-  return originAccumulateViewport(
-    viewportExports.map((item) => [null, null, item])
-  )
+  return originAccumulateViewport(viewportExports.map((item) => item))
 }
 
 function mapUrlsToStrings(obj: any) {
@@ -46,9 +46,13 @@ function mapUrlsToStrings(obj: any) {
 describe('accumulateMetadata', () => {
   describe('typing', () => {
     it('should support both sync and async metadata', async () => {
+      const generateMetadata = () => Promise.resolve({ description: 'child' })
       const metadataItems: MetadataItems = [
         [{ description: 'parent' }, null],
-        [() => Promise.resolve({ description: 'child' }), null],
+        [
+          Object.assign(generateMetadata, { $$original: generateMetadata }),
+          null,
+        ],
       ]
 
       const metadata = await accumulateMetadata(metadataItems)
@@ -339,6 +343,42 @@ describe('accumulateMetadata', () => {
       })
     })
 
+    it('should prefer title and description from openGraph rather than metadata for twitter', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            title: 'doc title',
+            openGraph: {
+              title: 'og-title',
+              description: 'og-description',
+              images: 'https://test.com',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        openGraph: {
+          title: {
+            absolute: 'og-title',
+            template: null,
+          },
+          description: 'og-description',
+          images: [{ url: new URL('https://test.com') }],
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: {
+            absolute: 'og-title',
+            template: null,
+          },
+          description: 'og-description',
+          images: [{ url: new URL('https://test.com') }],
+        },
+      })
+    })
+
     it('should fill only the existing props from openGraph to twitter', async () => {
       const metadataItems: MetadataItems = [
         [
@@ -431,16 +471,18 @@ describe('accumulateMetadata', () => {
         },
       })
 
+      function gM2() {
+        return {
+          openGraph: {
+            images: undefined,
+          },
+          // twitter is not specified, supposed to merged with openGraph but images should not be picked up
+        }
+      }
+
       const metadataItems2: MetadataItems = [
         [
-          function gM2() {
-            return {
-              openGraph: {
-                images: undefined,
-              },
-              // twitter is not specified, supposed to merged with openGraph but images should not be picked up
-            }
-          },
+          Object.assign(gM2, { $$original: gM2 }),
           // has static metadata files
           {
             icon: undefined,
@@ -589,6 +631,84 @@ describe('accumulateMetadata', () => {
       })
     })
 
+    it('should support string alternate canonical with search params', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: 'https://localhost:3000/test?foo=bar',
+              languages: {
+                'en-US': 'https://example.com/en-US',
+                'de-DE': 'https://example.com/de-DE',
+              },
+              media: {
+                'only screen and (max-width: 600px)': '/mobile',
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: 'https://localhost:3000/test?foo=bar' },
+          languages: {
+            'en-US': [{ url: 'https://example.com/en-US' }],
+            'de-DE': [{ url: 'https://example.com/de-DE' }],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [{ url: '/mobile' }],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
+      })
+    })
+
+    it('should support URL alternate canonical with search params', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: new URL('https://localhost:3000/test?foo=bar'),
+              languages: {
+                'en-US': 'https://example.com/en-US',
+                'de-DE': 'https://example.com/de-DE',
+              },
+              media: {
+                'only screen and (max-width: 600px)': '/mobile',
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: 'https://localhost:3000/test?foo=bar' },
+          languages: {
+            'en-US': [{ url: 'https://example.com/en-US' }],
+            'de-DE': [{ url: 'https://example.com/de-DE' }],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [{ url: '/mobile' }],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
+      })
+    })
+
     it('should support alternate descriptors', async () => {
       const metadataItems: MetadataItems = [
         [
@@ -662,6 +782,14 @@ describe('accumulateViewport', () => {
         viewportFit: 'cover',
         userScalable: false,
         interactiveWidget: 'overlays-content',
+      })
+    })
+
+    it('should skip viewport.initialScale if it is set undefined explicitly', async () => {
+      const viewport = await accumulateViewport([{ initialScale: undefined }])
+      expect(viewport).toMatchObject({
+        width: 'device-width',
+        initialScale: undefined,
       })
     })
   })

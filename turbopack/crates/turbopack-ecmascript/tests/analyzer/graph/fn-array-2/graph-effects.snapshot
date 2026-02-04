@@ -1,0 +1,92 @@
+[
+    Call {
+        func: Variable(
+            (
+                "c",
+                #2,
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "1",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "2",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 72..83,
+        in_try: false,
+        new: false,
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+        ],
+    },
+]

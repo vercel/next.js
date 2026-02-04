@@ -1,0 +1,130 @@
+{
+  "version": 2,
+  "suites": {
+    "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
+      "failed": [
+        "app dir client cache semantics (default semantics) prefetch={true} should re-use the cache for the full page, only for 5 mins",
+        "app dir client cache semantics (default semantics) prefetch={undefined} - default should refetch the full page after 5 mins"
+      ]
+    },
+    "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
+      "failed": [
+        "app dir client cache semantics (experimental staleTimes) static: 180 prefetch={undefined} - default should re-use the loading boundary for the custom static override time (3 minutes)"
+      ]
+    },
+    "test/e2e/app-dir/segment-cache/prefetch-runtime/prefetch-runtime.test.ts": {
+      "flakey": [
+        "runtime prefetching cache stale time handling includes private caches with cacheLife(\"seconds\")",
+        "runtime prefetching cache stale time handling includes public caches with cacheLife(\"seconds\")",
+        "runtime prefetching cache stale time handling includes short-lived public caches with a long enough staleTime",
+        "runtime prefetching cache stale time handling omits private caches with a short enough staleTime",
+        "runtime prefetching cache stale time handling omits short-lived public caches with a short enough staleTime",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a quickly-expiring public cache",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a private cache",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting cookies()",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting dynamic params",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting headers()",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
+        "runtime prefetching errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
+        "runtime prefetching in a page can completely prefetch a page that uses cookies and no uncached IO",
+        "runtime prefetching in a page includes cookies, but not dynamic content",
+        "runtime prefetching in a page includes dynamic params, but not dynamic content",
+        "runtime prefetching in a page includes headers, but not dynamic content",
+        "runtime prefetching in a page includes root params, but not dynamic content",
+        "runtime prefetching in a page includes search params, but not dynamic content",
+        "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
+        "runtime prefetching in a private cache includes cookies, but not dynamic content",
+        "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
+        "runtime prefetching in a private cache includes headers, but not dynamic content",
+        "runtime prefetching in a private cache includes root params, but not dynamic content",
+        "runtime prefetching in a private cache includes search params, but not dynamic content",
+        "runtime prefetching passed to a public cache can completely prefetch a page that uses cookies and no uncached IO",
+        "runtime prefetching passed to a public cache includes cookies, but not dynamic content",
+        "runtime prefetching passed to a public cache includes dynamic params, but not dynamic content",
+        "runtime prefetching passed to a public cache includes headers, but not dynamic content",
+        "runtime prefetching passed to a public cache includes root params, but not dynamic content",
+        "runtime prefetching passed to a public cache includes search params, but not dynamic content",
+        "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
+        "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
+        "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
+      ]
+    },
+    "test/e2e/app-dir/actions/app-action.test.ts": {
+      "failed": [
+        "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
+        "app-dir action handling fetch actions should handle revalidateTag",
+        "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+        "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation"
+      ]
+    },
+    "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
+      "failed": [
+        "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
+        "app-dir action handling fetch actions should handle revalidateTag",
+        "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+        "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation"
+      ]
+    },
+    "test/e2e/app-dir/app-static/app-static.test.ts": {
+      "failed": [
+        "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache",
+        "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache after revalidateTag is used"
+      ]
+    },
+    "test/e2e/app-dir/metadata/metadata.test.ts": {
+      "failed": [
+        "app dir - metadata react cache should have same title and page value on initial load",
+        "app dir - metadata react cache should have same title and page value when navigating"
+      ]
+    },
+    "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
+      "failed": [
+        "searchparams-reuse-loading With Middleware should correctly return different RSC data for full prefetches with different searchParam values"
+      ]
+    },
+    "test/e2e/middleware-rewrites/test/index.test.ts": {
+      "failed": ["Middleware Rewrite should handle catch-all rewrite correctly"]
+    },
+    "test/e2e/app-dir/resume-data-cache/resume-data-cache.test.ts": {
+      "failed": [
+        "resume-data-cache should have consistent data between static and dynamic renders with fetch cache",
+        "resume-data-cache should have consistent data between static and dynamic renders with use cache"
+      ]
+    }
+  },
+  "rules": {
+    "include": ["test/e2e/**/*.test.{t,j}s{,x}"],
+    "exclude": [
+      "test/e2e/cancel-request/stream-cancel.test.ts",
+      "test/e2e/new-link-behavior/material-ui.test.ts",
+      "test/e2e/react-dnd-compile/react-dnd-compile.test.ts",
+      "test/e2e/skip-trailing-slash-redirect/index.test.ts",
+      "test/e2e/app-dir/app-compilation/index.test.ts",
+      "test/e2e/app-dir/rsc-webpack-loader/rsc-webpack-loader.test.ts",
+      "test/e2e/swc-warnings/index.test.ts",
+      "test/e2e/third-parties/index.test.ts",
+      "test/e2e/app-dir/app-routes/app-custom-route-base-path.test.ts",
+      "test/e2e/app-dir/mdx/mdx.test.ts",
+      "test/e2e/app-dir/modularizeimports/modularizeimports.test.ts",
+      "test/e2e/app-dir/third-parties/basic.test.ts",
+      "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts",
+      "test/e2e/app-dir/options-request/options-request.test.ts",
+      "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts",
+      "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts",
+      "test/e2e/new-link-behavior/stitches.test.ts",
+      "test/e2e/next-image-forward-ref/index.test.ts",
+      "test/e2e/react-compiler/react-compiler.test.ts",
+      "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.ts",
+      "test/e2e/app-dir/metadata/metadata.test.ts",
+      "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts",
+      "test/e2e/basepath/basepath.test.ts",
+      "test/e2e/postcss-config-cjs/index.test.ts",
+      "test/e2e/socket-io/index.test.ts",
+      "test/e2e/middleware-matcher/index.test.ts",
+      "test/e2e/next-script/index.test.ts",
+      "test/production/standalone-mode/**/*"
+    ]
+  }
+}

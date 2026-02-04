@@ -8,12 +8,12 @@ const robotsPlugin = (nextConfig = {}) => {
         ...(await nextConfig.rewrites()),
         // robots route
         {
-          source: '/robots.txt',
-          destination: '/api/robots',
+          source: "/robots.txt",
+          destination: "/api/robots",
         },
-      ]
+      ];
     },
-  })
-}
+  });
+};
 
-module.exports = robotsPlugin
+module.exports = robotsPlugin;

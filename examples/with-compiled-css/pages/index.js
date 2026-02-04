@@ -1,7 +1,7 @@
-import '@compiled/react'
-import { BoxStyles } from '../components/class-names-box'
-import { Button } from '../components/styled-button'
-import { secondary, primary } from '../style/colors'
+import "@compiled/react";
+import { BoxStyles } from "../components/class-names-box";
+import { Button } from "../components/styled-button";
+import { secondary, primary } from "../style/colors";
 
 const IndexPage = () => (
   <BoxStyles>
@@ -13,11 +13,11 @@ const IndexPage = () => (
           css={{
             marginTop: 8,
             flexGrow: 1,
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: 'sans-serif',
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "sans-serif",
             color: primary,
             border: `1px solid ${primary}`,
           }}
@@ -27,6 +27,6 @@ const IndexPage = () => (
       </div>
     )}
   </BoxStyles>
-)
+);
 
-export default IndexPage
+export default IndexPage;

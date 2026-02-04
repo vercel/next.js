@@ -1,18 +1,12 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-head-element'
 import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
-const ruleTester = new RuleTester()
+import { rules } from '@next/eslint-plugin-next'
 
-ruleTester.run('no-head-element', rule, {
+const NextESLintRule = rules['no-head-element']
+
+const message =
+  'Do not use `<head>` element. Use `<Head />` from `next/head` instead. See: https://nextjs.org/docs/messages/no-head-element'
+
+const tests = {
   valid: [
     {
       code: `import Head from 'next/head';
@@ -81,8 +75,7 @@ ruleTester.run('no-head-element', rule, {
       filename: './pages/index.js',
       errors: [
         {
-          message:
-            'Do not use `<head>` element. Use `<Head />` from `next/head` instead. See: https://nextjs.org/docs/messages/no-head-element',
+          message,
           type: 'JSXOpeningElement',
         },
       ],
@@ -107,11 +100,25 @@ ruleTester.run('no-head-element', rule, {
       filename: 'pages/index.ts',
       errors: [
         {
-          message:
-            'Do not use `<head>` element. Use `<Head />` from `next/head` instead. See: https://nextjs.org/docs/messages/no-head-element',
+          message,
           type: 'JSXOpeningElement',
         },
       ],
     },
   ],
+}
+
+describe('no-head-element', () => {
+  new RuleTester({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint', NextESLintRule, tests)
 })

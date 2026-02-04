@@ -3,8 +3,8 @@ import {
   RestDictionaryService,
   GraphQLDictionaryService,
   constants,
-} from '@sitecore-jss/sitecore-jss-nextjs'
-import config from 'temp/config'
+} from "@sitecore-jss/sitecore-jss-nextjs";
+import config from "temp/config";
 
 /**
  * Factory responsible for creating a DictionaryService instance
@@ -31,9 +31,9 @@ export class DictionaryServiceFactory {
           apiHost: config.sitecoreApiHost,
           apiKey: config.sitecoreApiKey,
           siteName,
-        })
+        });
   }
 }
 
 /** DictionaryServiceFactory singleton */
-export const dictionaryServiceFactory = new DictionaryServiceFactory()
+export const dictionaryServiceFactory = new DictionaryServiceFactory();

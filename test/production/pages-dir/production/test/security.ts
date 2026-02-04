@@ -2,7 +2,6 @@
 import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
 import http from 'http'
-import url from 'url'
 import { join } from 'path'
 import { getBrowserBodyText, waitFor, fetchViaHTTP } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
@@ -44,7 +43,6 @@ export default (next: NextInstance) => {
         expect(await invalidRequest()).toBe(400)
         expect(await invalidRequest()).toBe(400)
       } catch (err) {
-        // eslint-disable-next-line
         expect(err.code).toBe('ECONNREFUSED')
       }
     })
@@ -216,9 +214,7 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname } = url.parse(
-        res.headers.get('location') || ''
-      )
+      const { pathname, hostname } = new URL(res.headers.get('location') || '')
       expect(res.status).toBe(307)
       expect(pathname).toBe(encodeURI('/\\google.com/about'))
       expect(hostname).toBeOneOf(['localhost', '127.0.0.1'])
@@ -234,9 +230,7 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname } = url.parse(
-        res.headers.get('location') || ''
-      )
+      const { pathname, hostname } = new URL(res.headers.get('location') || '')
       expect(res.status).toBe(307)
       expect(pathname).toBe('/%25google.com/about')
       expect(hostname).toBeOneOf(['localhost', '127.0.0.1'])
@@ -252,14 +246,14 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname, query } = url.parse(
+      const { pathname, hostname, search } = new URL(
         res.headers.get('location') || ''
       )
       expect(res.status).toBe(308)
       expect(pathname).toBe('/trailing-redirect')
       expect(hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(query).toBe(
-        'url=https%3A%2F%2Fgoogle.com%2Fimage%3Fcrop%3Dfocalpoint%26w%3D24&w=1200&q=100'
+      expect(search).toBe(
+        '?url=https%3A%2F%2Fgoogle.com%2Fimage%3Fcrop%3Dfocalpoint%26w%3D24&w=1200&q=100'
       )
     })
 
@@ -273,9 +267,7 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname } = url.parse(
-        res.headers.get('location') || ''
-      )
+      const { pathname, hostname } = new URL(res.headers.get('location') || '')
       expect(res.status).toBe(307)
       expect(pathname).toBe('/%2fgoogle.com/about')
       expect(hostname).not.toBe('google.com')
@@ -291,12 +283,12 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname, query } = url.parse(
+      const { pathname, hostname, search } = new URL(
         res.headers.get('location') || ''
       )
       expect(res.status).toBe(307)
       expect(pathname).toBe('/about')
-      expect(query).toBe('foo=%2Fgoogle.com')
+      expect(search).toBe('?foo=%2Fgoogle.com')
       expect(hostname).not.toBe('google.com')
       expect(hostname).not.toMatch(/google/)
     })
@@ -309,9 +301,7 @@ export default (next: NextInstance) => {
         { redirect: 'manual' }
       )
 
-      const { pathname, hostname } = url.parse(
-        res.headers.get('location') || ''
-      )
+      const { pathname, hostname } = new URL(res.headers.get('location') || '')
       expect(res.status).toBe(308)
       expect(pathname).toBe('/%2fexample.com')
       expect(hostname).not.toBe('example.com')
@@ -326,10 +316,8 @@ export default (next: NextInstance) => {
           const src = await browser.elementById('img').getAttribute('src')
           expect(src).toMatch(/_next\/image\?.*xss\.svg/)
           expect(await browser.elementById('msg').text()).toBe('safe')
-          browser = await webdriver(
-            next.appPort,
-            '/_next/image?url=%2Fxss.svg&w=256&q=75'
-          )
+          await browser.eval(`document.getElementById("btn").click()`)
+          await browser.waitForIdleNetwork()
           expect(await browser.elementById('msg').text()).toBe('safe')
         } finally {
           if (browser) await browser.close()

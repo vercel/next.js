@@ -1,5 +1,5 @@
 const Scripts = (): JSX.Element | null => {
-  return null
-}
+  return null;
+};
 
-export default Scripts
+export default Scripts;

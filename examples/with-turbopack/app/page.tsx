@@ -1,3 +1,6 @@
+import { foo } from "./foo";
 export default function Page() {
-  return <h1>Hello, Next.js!</h1>
+  /** @ts-ignore */
+  foo();
+  return <h1>Hello, Next.js!</h1>;
 }

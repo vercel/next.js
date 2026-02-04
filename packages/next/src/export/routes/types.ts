@@ -4,4 +4,5 @@ export type RouteMetadata = {
   status: number | undefined
   headers: OutgoingHttpHeaders | undefined
   postponed: string | undefined
+  segmentPaths: Array<string> | undefined
 }

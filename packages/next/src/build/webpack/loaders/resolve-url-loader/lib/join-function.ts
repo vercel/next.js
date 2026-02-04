@@ -1,5 +1,4 @@
-// TODO: Remove use of `any` type. Fix no-use-before-define violations.
-/* eslint-disable @typescript-eslint/no-use-before-define */
+// TODO: Remove use of `any` type.
 /*
 The MIT License (MIT)
 
@@ -49,8 +48,7 @@ export const defaultJoin = createJoinForPredicate(function predicate(
 ) {
   const absolute = simpleJoin(base, uri)
   return fs.existsSync(absolute) ? absolute : next(i === 0 ? absolute : null)
-},
-'defaultJoin')
+}, 'defaultJoin')
 
 function* createIterator(arr: any) {
   for (const i of arr) {

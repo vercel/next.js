@@ -432,6 +432,10 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   public addTrailers(): void {
     throw new Error('Method not implemented.')
   }
+
+  public setHeaders(): this {
+    throw new Error('Method not implemented.')
+  }
 }
 
 interface RequestResponseMockerOptions {

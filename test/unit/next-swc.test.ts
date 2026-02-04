@@ -1,5 +1,8 @@
 /* eslint-env jest */
 import { transform } from 'next/dist/build/swc'
+import { installBindings } from 'next/dist/build/swc/install-bindings'
+import path from 'path'
+import fsp from 'fs/promises'
 
 const swc = async (code) => {
   let output = await transform(code)
@@ -9,6 +12,9 @@ const swc = async (code) => {
 const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
 describe('next/swc', () => {
+  beforeAll(async () => {
+    await installBindings()
+  })
   describe('hook_optimizer', () => {
     it('should leave alone array destructuring of hooks', async () => {
       const output = await swc(
@@ -65,7 +71,7 @@ describe('next/swc', () => {
             if (n === "Map" || n === "Set") return Array.from(n);
             if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _array_like_to_array(o, minLen);
         }
-        import { useState } from "react";
+        import { useState } from 'react';
         var _useState = _sliced_to_array(useState(0), 2), count = _useState[0], setCount = _useState[1];
         "
       `)
@@ -105,10 +111,26 @@ describe('next/swc', () => {
             if (n === "Map" || n === "Set") return Array.from(n);
             if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _array_like_to_array(o, minLen);
         }
-        import { useState } from "react";
+        import { useState } from 'react';
         var _useState = _to_array(useState(0)), copy = _useState.slice(0);
         "
       `)
+    })
+  })
+
+  describe('private env replacement', () => {
+    it('__NEXT_REQUIRED_NODE_VERSION_RANGE is replaced', async () => {
+      const pkgDir = path.dirname(require.resolve('next/package.json'))
+      const nextEntryContent = await fsp.readFile(
+        path.join(pkgDir, 'dist/bin/next'),
+        'utf8'
+      )
+      expect(nextEntryContent).not.toContain(
+        '__NEXT_REQUIRED_NODE_VERSION_RANGE'
+      )
+      expect(nextEntryContent).toMatch(
+        /For Next.js, Node.js version "\$\{">=\d+\.\d+\.\d*"\}" is required./
+      )
     })
   })
 })

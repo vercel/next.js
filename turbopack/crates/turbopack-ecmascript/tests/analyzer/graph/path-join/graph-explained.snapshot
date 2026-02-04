@@ -1,0 +1,23 @@
+a (const after eval) = FreeVar(require)("foo")
+
+p1 (const after eval) = FreeVar(require)("path")
+
+path (const after eval) = FreeVar(require)("path")
+
+path_join1 (const after eval) = p1["join"]
+
+path_join2 (const after eval) = module<path, {}>["default"]["join"]
+
+path_join3 (const after eval) = module<path, {}>["join"]
+
+path_join4 (const after eval) = await(FreeVar(import)("path"))["join"]
+
+z1_joined (const after eval) = path["join"]("foo", "bar")
+
+z2_joined (const after eval) = path["join"]("foo/", "bar")
+
+z3_joined (const after eval) = path["join"]("foo", "/bar")
+
+z4_joined (const after eval) = path["join"]("foo/", "/bar")
+
+z5_joined (const after eval) = path["join"]("foo", "bar", "..", "baz", FreeVar(global), "..", "foo")

@@ -16,8 +16,8 @@ on:
 name: Code Freeze
 
 env:
-  NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.10.9
+  NAPI_CLI_VERSION: 2.18.4
+  TURBO_VERSION: 2.5.5
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -27,11 +27,14 @@ jobs:
     environment: release-${{ github.event.inputs.releaseType }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - run: git clone https://github.com/vercel/next.js.git --depth=1 .
 

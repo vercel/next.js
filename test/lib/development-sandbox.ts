@@ -1,157 +1,192 @@
 import {
+  hasErrorToast,
+  getRedboxComponentStack,
   getRedboxDescription,
   getRedboxHeader,
   getRedboxSource,
-  hasRedbox,
+  getVersionCheckerText,
+  waitForRedbox,
+  waitForNoRedbox,
   waitFor,
+  openRedbox,
+  getRedboxDescriptionWarning,
+  getRedboxErrorLink,
 } from './next-test-utils'
-import webdriver from './next-webdriver'
+import webdriver, { WebdriverOptions } from './next-webdriver'
 import { NextInstance } from './next-modes/base'
-import { BrowserInterface } from './browsers/base'
+import { Playwright } from 'next-webdriver'
 
-export function waitForHydration(browser: BrowserInterface): Promise<void> {
-  return browser.evalAsync(function () {
-    var callback = arguments[arguments.length - 1]
-    if ((window as any).__NEXT_HYDRATED) {
-      callback()
-    } else {
-      var timeout = setTimeout(callback, 30 * 1000)
-      ;(window as any).__NEXT_HYDRATED_CB = function () {
-        clearTimeout(timeout)
-        callback()
+export async function waitForHydration(browser: Playwright) {
+  await browser.eval(() => {
+    return new Promise<void>((resolve) => {
+      if ((window as any).__NEXT_HYDRATED) {
+        resolve()
+      } else {
+        var timeout = setTimeout(resolve, 30 * 1000)
+        ;(window as any).__NEXT_HYDRATED_CB = function () {
+          clearTimeout(timeout)
+          resolve()
+        }
       }
-    }
+    })
   })
 }
 
-export async function sandbox(
+export async function createSandbox(
   next: NextInstance,
-  initialFiles?: Map<string, string>,
+  initialFiles?: Map<string, string | ((contents: string) => string)>,
   initialUrl: string = '/',
-  webDriverOptions: any = undefined
+  webDriverOptions: WebdriverOptions | undefined = undefined
 ) {
-  await next.stop()
-  await next.clean()
+  let unwrappedByTypeScriptUsingKeyword = false
 
-  if (initialFiles) {
-    for (const [k, v] of initialFiles.entries()) {
-      await next.patchFile(k, v)
+  try {
+    await next.stop()
+    await next.clean()
+    if (initialFiles) {
+      for (const [k, v] of initialFiles.entries()) {
+        await next.patchFile(k, v)
+      }
     }
-  }
+    await next.start()
 
-  await next.start()
-  const browser = await webdriver(next.url, initialUrl, webDriverOptions)
-  return {
-    browser,
-    session: {
-      async write(filename, content) {
-        // Update the file on filesystem
-        await next.patchFile(filename, content)
-      },
-      async patch(filename, content) {
-        // Register an event for HMR completion
-        await browser.eval(function () {
-          ;(window as any).__HMR_STATE = 'pending'
+    const browser = await webdriver(next.url, initialUrl, webDriverOptions)
 
-          var timeout = setTimeout(() => {
-            ;(window as any).__HMR_STATE = 'timeout'
-          }, 30 * 1000)
-          ;(window as any).__NEXT_HMR_CB = function () {
-            clearTimeout(timeout)
-            ;(window as any).__HMR_STATE = 'success'
-          }
-        })
-
-        await this.write(filename, content)
-
-        for (;;) {
-          const status = await browser.eval(() => (window as any).__HMR_STATE)
-          if (!status) {
-            await waitFor(750)
-
-            // Wait for application to re-hydrate:
-            await waitForHydration(browser)
-
-            console.log('Application re-loaded.')
-            // Slow down tests a bit:
-            await waitFor(750)
-            return false
-          }
-          if (status === 'success') {
-            console.log('Hot update complete.')
-            break
-          }
-          if (status !== 'pending') {
-            throw new Error(`Application is in inconsistent state: ${status}.`)
-          }
-
-          await waitFor(30)
-        }
-
-        // Slow down tests a bit (we don't know how long re-rendering takes):
-        await waitFor(750)
-        return true
-      },
-      async remove(filename) {
-        await next.deleteFile(filename)
-      },
-      async evaluate(snippet: string | Function) {
-        if (typeof snippet === 'function' || typeof snippet === 'string') {
-          const result = await browser.eval(snippet)
-          await waitFor(30)
-          return result
-        } else {
-          throw new Error(
-            `You must pass a string or function to be evaluated in the browser.`
-          )
-        }
-      },
-      async hasRedbox(expected = false) {
-        return hasRedbox(browser, expected)
-      },
-      async hasErrorToast() {
-        return browser.eval(() => {
-          return Boolean(
-            Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-toast]')
-            )
-          )
-        })
-      },
-      async getRedboxDescription() {
-        return getRedboxDescription(browser)
-      },
-      async getRedboxSource(includeHeader = false) {
-        const header = includeHeader ? await getRedboxHeader(browser) : ''
-        const source = await getRedboxSource(browser)
-
-        if (includeHeader) {
-          return `${header}\n\n${source}`
-        }
-        return source
-      },
-      async getRedboxComponentStack() {
-        await browser.waitForElementByCss(
-          '[data-nextjs-component-stack-frame]',
-          30000
+    async function evaluate<TFn extends (...args: any[]) => any>(
+      fn: TFn,
+      ...args: Parameters<TFn>
+    ): Promise<ReturnType<TFn>>
+    async function evaluate(fn: string): Promise<unknown>
+    async function evaluate(
+      snippet: string | ((...args: any) => any)
+    ): Promise<any> {
+      if (typeof snippet === 'function' || typeof snippet === 'string') {
+        const result = await browser.eval(snippet)
+        await waitFor(30)
+        return result
+      } else {
+        throw new Error(
+          `You must pass a string or function to be evaluated in the browser.`
         )
-        const componentStackFrameElements = await browser.elementsByCss(
-          '[data-nextjs-component-stack-frame]'
-        )
-        const componentStackFrameTexts = await Promise.all(
-          componentStackFrameElements.map((f) => f.innerText())
-        )
+      }
+    }
 
-        return componentStackFrameTexts.join('\n')
+    return {
+      browser,
+      session: {
+        async write(filename, content) {
+          // Update the file on filesystem
+          await next.patchFile(filename, content)
+        },
+        async patch(filename, content) {
+          // Register an event for HMR completion
+          await browser.eval(function () {
+            ;(window as any).__HMR_STATE = 'pending'
+
+            var timeout = setTimeout(() => {
+              ;(window as any).__HMR_STATE = 'timeout'
+            }, 30 * 1000)
+            ;(window as any).__NEXT_HMR_CB = function () {
+              clearTimeout(timeout)
+              ;(window as any).__HMR_STATE = 'success'
+            }
+          })
+
+          await this.write(filename, content)
+
+          for (;;) {
+            const status = await browser.eval(() => (window as any).__HMR_STATE)
+            if (!status) {
+              await waitFor(750)
+
+              // Wait for application to re-hydrate:
+              await waitForHydration(browser)
+
+              console.log('Application re-loaded.')
+              // Slow down tests a bit:
+              await waitFor(750)
+              return false
+            }
+            if (status === 'success') {
+              console.log('Hot update complete.')
+              break
+            }
+            if (status !== 'pending') {
+              throw new Error(
+                `Application is in inconsistent state: ${status}.`
+              )
+            }
+
+            await waitFor(30)
+          }
+
+          // Slow down tests a bit (we don't know how long re-rendering takes):
+          await waitFor(750)
+          return true
+        },
+        async remove(filename) {
+          await next.deleteFile(filename)
+        },
+        async renameFolder(...args: Parameters<(typeof next)['renameFolder']>) {
+          await next.renameFolder(...args)
+        },
+        evaluate,
+        async waitForRedbox() {
+          return waitForRedbox(browser)
+        },
+        async waitForNoRedbox() {
+          return waitForNoRedbox(browser)
+        },
+        async openRedbox() {
+          return openRedbox(browser)
+        },
+        async hasErrorToast() {
+          return Boolean(await hasErrorToast(browser))
+        },
+        async getRedboxDescription() {
+          return getRedboxDescription(browser)
+        },
+        async getRedboxDescriptionWarning() {
+          return getRedboxDescriptionWarning(browser)
+        },
+        async getRedboxErrorLink() {
+          return getRedboxErrorLink(browser)
+        },
+        async getRedboxSource(includeHeader = false) {
+          const header = includeHeader ? await getRedboxHeader(browser) : ''
+          const source = await getRedboxSource(browser)
+
+          if (includeHeader) {
+            return `${header}\n\n${source}`
+          }
+          return source
+        },
+        /**
+         * @returns `null` if there are no frames
+         */
+        getRedboxComponentStack() {
+          return getRedboxComponentStack(browser)
+        },
+        async getVersionCheckerText() {
+          return getVersionCheckerText(browser)
+        },
       },
-      async waitForAndOpenRuntimeError() {
-        return browser.waitForElementByCss('[data-nextjs-toast]').click()
+      get [Symbol.asyncDispose]() {
+        unwrappedByTypeScriptUsingKeyword = true
+        return async () => {
+          await browser.close()
+          await next.stop()
+          await next.clean()
+        }
       },
-    },
-    async cleanup() {
-      await browser.close()
-      await next.stop()
-      await next.clean()
-    },
+    }
+  } finally {
+    setImmediate(() => {
+      if (!unwrappedByTypeScriptUsingKeyword) {
+        throw new Error(
+          'You must use `using` to create a sandbox, i.e., `await using sandbox = await createSandbox(`'
+        )
+      }
+    })
   }
 }

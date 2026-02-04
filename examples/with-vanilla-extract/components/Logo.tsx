@@ -1,5 +1,5 @@
-import Image from 'next/image'
-import * as styles from './Logo.css.ts'
+import Image from "next/image";
+import * as styles from "./Logo.css.ts";
 
 export default function Logo() {
   return (
@@ -12,5 +12,5 @@ export default function Logo() {
         alt="Vanilla Extract logo"
       />
     </div>
-  )
+  );
 }

@@ -1,14 +1,15 @@
-import { createHandler, Get, Param } from 'next-api-decorators'
+import 'reflect-metadata'
+import { container, singleton } from 'tsyringe'
 
-class HelloHandler {
-  @Get('/:myParam')
-  // This fails due to library looking for Reflect.getMetadata("design:paramtypes", ...).
-  // Design:paramtypes is never emitted due to missing SWC flag.
-  async get(@Param('myParam') myParam) {
-    return {
-      myParam,
-    }
+@singleton()
+class HelloService {
+  getHello() {
+    return 'Hello, world!'
   }
 }
 
-export default createHandler(HelloHandler)
+const helloService = container.resolve(HelloService)
+
+export default function handler(req, res) {
+  res.status(200).json({ message: helloService.getHello() })
+}

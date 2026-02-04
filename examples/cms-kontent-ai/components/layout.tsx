@@ -1,11 +1,11 @@
-import Alert from './alert'
-import Footer from './footer'
-import Meta from './meta'
+import Alert from "./alert";
+import Footer from "./footer";
+import Meta from "./meta";
 
 type LayoutProps = {
-  preview: boolean
-  children: JSX.Element | JSX.Element[]
-}
+  preview: boolean;
+  children: JSX.Element | JSX.Element[];
+};
 
 export default function Layout({ preview, children }: LayoutProps) {
   return (
@@ -17,5 +17,5 @@ export default function Layout({ preview, children }: LayoutProps) {
       </div>
       <Footer />
     </>
-  )
+  );
 }

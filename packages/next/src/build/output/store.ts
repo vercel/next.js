@@ -1,21 +1,27 @@
 import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { flushAllTraces } from '../../trace'
-import {
-  teardownCrashReporter,
-  teardownHeapProfiler,
-  teardownTraceSubscriber,
-} from '../swc'
+import { type Span, flushAllTraces, trace } from '../../trace'
+import { teardownTraceSubscriber } from '../swc'
 import * as Log from './log'
 
-const MAX_LOG_SKIP_DURATION = 500 // 500ms
+const MAX_LOG_SKIP_DURATION_MS = 3000
 
 export type OutputState =
-  | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
-  | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
+  | {
+      bootstrap: true
+      appUrl: string | null
+      bindAddr: string | null
+      logging: boolean
+    }
+  | ({
+      bootstrap: false
+      appUrl: string | null
+      bindAddr: string | null
+      logging: boolean
+    } & (
       | {
           loading: true
           trigger: string | undefined
+          url: string | undefined
         }
       | {
           loading: false
@@ -27,13 +33,32 @@ export type OutputState =
         }
     ))
 
+export function formatTrigger(trigger: string) {
+  // Format dynamic sitemap routes to simpler file path
+  // e.g., /sitemap.xml[] -> /sitemap.xml
+  if (trigger.includes('[__metadata_id__]')) {
+    trigger = trigger.replace('/[__metadata_id__]', '/[id]')
+  }
+
+  if (trigger.length > 1 && trigger.endsWith('/')) {
+    trigger = trigger.slice(0, -1)
+  }
+  return trigger
+}
+
 export const store = createStore<OutputState>({
   appUrl: null,
   bindAddr: null,
   bootstrap: true,
+  logging: true,
 })
 
-let lastStore: OutputState = { appUrl: null, bindAddr: null, bootstrap: true }
+let lastStore: OutputState = {
+  appUrl: null,
+  bindAddr: null,
+  bootstrap: true,
+  logging: true,
+}
 function hasStoreChanged(nextStore: OutputState) {
   if (
     (
@@ -51,9 +76,22 @@ function hasStoreChanged(nextStore: OutputState) {
 
 let startTime = 0
 let trigger = '' // default, use empty string for trigger
+let triggerUrl: string | undefined = undefined
 let loadingLogTimer: NodeJS.Timeout | null = null
+let traceSpan: Span | null = null
+let logging = true
 
 store.subscribe((state) => {
+  // Update persisted logging state
+  if ('logging' in state) {
+    logging = state.logging
+  }
+
+  // If logging is disabled, do not log
+  if (!logging) {
+    return
+  }
+
   if (!hasStoreChanged(state)) {
     return
   }
@@ -64,13 +102,25 @@ store.subscribe((state) => {
 
   if (state.loading) {
     if (state.trigger) {
-      trigger = state.trigger
+      trigger = formatTrigger(state.trigger)
+      triggerUrl = state.url
       if (trigger !== 'initial') {
+        traceSpan = trace('compile-path', undefined, {
+          trigger: trigger,
+        })
         if (!loadingLogTimer) {
-          // Only log compiling if compiled is not finished in 3 seconds
+          // Only log compiling if compiled is not finished quickly
           loadingLogTimer = setTimeout(() => {
-            Log.wait(`Compiling ${trigger} ...`)
-          }, MAX_LOG_SKIP_DURATION)
+            if (
+              triggerUrl &&
+              triggerUrl !== trigger &&
+              process.env.NEXT_TRIGGER_URL
+            ) {
+              Log.wait(`Compiling ${trigger} (${triggerUrl}) ...`)
+            } else {
+              Log.wait(`Compiling ${trigger} ...`)
+            }
+          }, MAX_LOG_SKIP_DURATION_MS)
         }
       }
     }
@@ -81,27 +131,13 @@ store.subscribe((state) => {
   }
 
   if (state.errors) {
+    // Log compilation errors
     Log.error(state.errors[0])
 
-    const cleanError = stripAnsi(state.errors[0])
-    if (cleanError.indexOf('SyntaxError') > -1) {
-      const matches = cleanError.match(/\[.*\]=/)
-      if (matches) {
-        for (const match of matches) {
-          const prop = (match.split(']').shift() || '').slice(1)
-          console.log(
-            `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://nextjs.org/docs/messages/amp-bind-jsx-alt`
-          )
-        }
-        return
-      }
-    }
     startTime = 0
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     teardownTraceSubscriber()
-    teardownHeapProfiler()
-    teardownCrashReporter()
     return
   }
 
@@ -125,8 +161,6 @@ store.subscribe((state) => {
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     teardownTraceSubscriber()
-    teardownHeapProfiler()
-    teardownCrashReporter()
     return
   }
 
@@ -144,15 +178,14 @@ store.subscribe((state) => {
       clearTimeout(loadingLogTimer)
       loadingLogTimer = null
     }
-    Log.event(
-      `Compiled${trigger ? ' ' + trigger : ''}${timeMessage}${modulesMessage}`
-    )
+    if (traceSpan) {
+      traceSpan.stop()
+      traceSpan = null
+    }
     trigger = ''
   }
 
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
   teardownTraceSubscriber()
-  teardownHeapProfiler()
-  teardownCrashReporter()
 })

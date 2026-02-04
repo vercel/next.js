@@ -1,28 +1,27 @@
 import type { ComponentType } from 'react'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
+import type { RequiredServerFilesManifest } from '../build'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { __unsafeCreateTrustedScriptURL } from './trusted-types'
 import { requestIdleCallback } from './request-idle-callback'
-import { getDeploymentIdQueryOrEmptyString } from '../build/deployment-id'
-
-// 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
-// considers as "Good" time-to-interactive. We must assume something went
-// wrong beyond this point, and then fall-back to a full page transition to
-// show the user something of value.
-const MS_MAX_IDLE_DELAY = 3800
+import { getDeploymentIdQueryOrEmptyString } from '../shared/lib/deployment-id'
+import { encodeURIPath } from '../shared/lib/encode-uri-path'
+import { resolvePromiseWithTimeout } from './lib/promise'
 
 declare global {
   interface Window {
     __BUILD_MANIFEST?: Record<string, string[]>
     __BUILD_MANIFEST_CB?: Function
-    __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
-    __MIDDLEWARE_MANIFEST_CB?: Function
-    __PRERENDER_MANIFEST?: string
+    __SERVER_FILES_MANIFEST?: RequiredServerFilesManifest
+    __MIDDLEWARE_MATCHERS?: ProxyMatcher[]
+    __MIDDLEWARE_MATCHERS_CB?: Function
     __REACT_LOADABLE_MANIFEST?: any
+    __DYNAMIC_CSS_MANIFEST?: any
     __RSC_MANIFEST?: any
     __RSC_SERVER_MANIFEST?: any
     __NEXT_FONT_MANIFEST?: any
     __SUBRESOURCE_INTEGRITY_MANIFEST?: string
+    __INTERCEPTION_ROUTE_REWRITE_MANIFEST?: string
   }
 }
 
@@ -68,11 +67,13 @@ function withFuture<T extends object>(
   const prom: Promise<T> = new Promise<T>((resolve) => {
     resolver = resolve
   })
-  map.set(key, (entry = { resolve: resolver!, future: prom }))
+  map.set(key, { resolve: resolver!, future: prom })
   return generator
     ? generator()
-        // eslint-disable-next-line no-sequences
-        .then((value) => (resolver(value), value))
+        .then((value) => {
+          resolver(value)
+          return value
+        })
         .catch((err) => {
           map.delete(key)
           throw err
@@ -177,47 +178,6 @@ function appendScript(
 // timeout to prevent an un-necessary hard navigation in development.
 let devBuildPromise: Promise<void> | undefined
 
-// Resolve a promise that times out after given amount of milliseconds.
-function resolvePromiseWithTimeout<T>(
-  p: Promise<T>,
-  ms: number,
-  err: Error
-): Promise<T> {
-  return new Promise((resolve, reject) => {
-    let cancelled = false
-
-    p.then((r) => {
-      // Resolved, cancel the timeout
-      cancelled = true
-      resolve(r)
-    }).catch(reject)
-
-    // We wrap these checks separately for better dead-code elimination in
-    // production bundles.
-    if (process.env.NODE_ENV === 'development') {
-      ;(devBuildPromise || Promise.resolve()).then(() => {
-        requestIdleCallback(() =>
-          setTimeout(() => {
-            if (!cancelled) {
-              reject(err)
-            }
-          }, ms)
-        )
-      })
-    }
-
-    if (process.env.NODE_ENV !== 'development') {
-      requestIdleCallback(() =>
-        setTimeout(() => {
-          if (!cancelled) {
-            reject(err)
-          }
-        }, ms)
-      )
-    }
-  })
-}
-
 // TODO: stop exporting or cache the failure
 // It'd be best to stop exporting this. It's an implementation detail. We're
 // only exporting it for backwards compatibility with the `page-loader`.
@@ -240,8 +200,8 @@ export function getClientBuildManifest() {
 
   return resolvePromiseWithTimeout(
     onBuildManifest,
-    MS_MAX_IDLE_DELAY,
-    markAssetError(new Error('Failed to load client build manifest'))
+    markAssetError(new Error('Failed to load client build manifest')),
+    devBuildPromise
   )
 }
 
@@ -257,7 +217,7 @@ function getFilesForRoute(
     const scriptUrl =
       assetPrefix +
       '/_next/static/chunks/pages' +
-      encodeURI(getAssetPathFromRoute(route, '.js')) +
+      encodeURIPath(getAssetPathFromRoute(route, '.js')) +
       getAssetQueryString()
     return Promise.resolve({
       scripts: [__unsafeCreateTrustedScriptURL(scriptUrl)],
@@ -270,7 +230,7 @@ function getFilesForRoute(
       throw markAssetError(new Error(`Failed to lookup route: ${route}`))
     }
     const allFiles = manifest[route].map(
-      (entry) => assetPrefix + '/_next/' + encodeURI(entry)
+      (entry) => assetPrefix + '/_next/' + encodeURIPath(entry)
     )
     return {
       scripts: allFiles
@@ -323,7 +283,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
 
     styleSheets.set(
       href,
-      (prom = fetch(href)
+      (prom = fetch(href, { credentials: 'same-origin' })
         .then((res) => {
           if (!res.ok) {
             throw new Error(`Failed to load stylesheet: ${href}`)
@@ -399,8 +359,8 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
                 styles: res[1],
               }))
             }),
-          MS_MAX_IDLE_DELAY,
-          markAssetError(new Error(`Route did not complete loading: ${route}`))
+          markAssetError(new Error(`Route did not complete loading: ${route}`)),
+          devBuildPromise
         )
           .then(({ entrypoint, styles }) => {
             const res: RouteLoaderEntry = Object.assign<

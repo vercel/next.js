@@ -1,21 +1,21 @@
-import { useEffect, useState } from 'react'
-import { useUser } from '@auth0/nextjs-auth0/client'
-import Layout from '../../components/layout'
+import { useEffect, useState } from "react";
+import { useUser } from "@auth0/nextjs-auth0/client";
+import Layout from "../../components/layout";
 
 const ApiProfile = () => {
-  const { user, isLoading } = useUser()
+  const { user, isLoading } = useUser();
 
-  const [data, setData] = useState(null)
+  const [data, setData] = useState(null);
 
   useEffect(() => {
-    ;(async () => {
-      const res = await fetch('/api/protected-api')
+    (async () => {
+      const res = await fetch("/api/protected-api");
 
-      const data = await res.json()
+      const data = await res.json();
 
-      setData(data)
-    })()
-  }, [])
+      setData(data);
+    })();
+  }, []);
 
   return (
     <Layout user={user} loading={isLoading}>
@@ -29,9 +29,9 @@ const ApiProfile = () => {
         <p>{JSON.stringify(data)}</p>
       </div>
     </Layout>
-  )
-}
+  );
+};
 
 // Public route.(CSR) also accessing API from the client-side.
 // data is not cached when redirecting between pages.
-export default ApiProfile
+export default ApiProfile;

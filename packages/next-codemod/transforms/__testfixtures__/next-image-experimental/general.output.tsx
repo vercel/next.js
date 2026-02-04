@@ -10,7 +10,7 @@ import img from "../public/img.jpg";
 export default function Home() {
   const myStyle = { color: 'black' };
   return (
-    <div>
+    (<div>
       <h1>Upgrade</h1>
       <Image
         src="/test.jpg"
@@ -101,6 +101,6 @@ export default function Home() {
           width: "100%",
           height: "auto"
         }} />
-    </div>
+    </div>)
   );
 }

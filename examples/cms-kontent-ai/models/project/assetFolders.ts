@@ -10,9 +10,9 @@ export const assetFolders = {
    * Authors
    */
   authors: {
-    id: 'eaf64b25-4cd1-5d71-ba2f-e02e6556213b',
-    name: 'Authors',
-    externalId: '82274911-5ab9-4881-853e-4f7a97b2caf2',
+    id: "eaf64b25-4cd1-5d71-ba2f-e02e6556213b",
+    name: "Authors",
+    externalId: "82274911-5ab9-4881-853e-4f7a97b2caf2",
     folders: {},
   },
 
@@ -20,9 +20,9 @@ export const assetFolders = {
    * Post images
    */
   postImages: {
-    id: '290176f9-bb83-5d6a-ad07-2843a1dd2208',
-    name: 'Post images',
-    externalId: '499af581-d817-49cc-a548-5b34ba7b2fc6',
+    id: "290176f9-bb83-5d6a-ad07-2843a1dd2208",
+    name: "Post images",
+    externalId: "499af581-d817-49cc-a548-5b34ba7b2fc6",
     folders: {},
   },
-} as const
+} as const;

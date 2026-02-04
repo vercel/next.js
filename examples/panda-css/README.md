@@ -6,18 +6,16 @@ This example contains a simple implementation of [Panda CSS](https://panda-css.c
 
 - [Atomic Recipe (CVA)](https://panda-css.com/docs/concepts/recipes#atomic-recipe-or-cva) Create multi-variant atomic styles with a type-safe runtime API.
 - [Atomic Style](https://panda-css.com/docs/concepts/writing-styles#atomic-styles) Type-safe reusable atoms with small CSS footprint.
-- [Config Recipe](https://panda-css.com/docs/concepts/recipes#config-recipe) Resuable recipes extracted and generated just-in-time.
+- [Config Recipe](https://panda-css.com/docs/concepts/recipes#config-recipe) Reusable recipes extracted and generated just-in-time.
 - [Text Styles](https://panda-css.com/docs/theming/text-styles#defining-text-styles) Global text styles for consistent and legible typography.
+
+## Demo
+
+[https://example-panda-css.vercel.app/](https://example-panda-css.vercel.app/)
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/DIRECTORY_NAME&project-name=DIRECTORY_NAME&repository-name=DIRECTORY_NAME)
-
-## Preview
-
-Preview the example live on [https://example-panda-css.vercel.app/](https://example-panda-css.vercel.app/)
 
 ## How to use
 

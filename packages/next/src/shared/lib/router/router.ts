@@ -1,4 +1,3 @@
-// tslint:disable:no-console
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
@@ -22,7 +21,6 @@ import mitt from '../mitt'
 import { getLocationOrigin, getURL, loadGetInitialProps, ST } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
-import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
@@ -42,7 +40,18 @@ import { isLocalURL } from './utils/is-local-url'
 import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
-import { handleSmoothScroll } from './utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
+import type { Params } from '../../../server/request/params'
+import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+import { getDeploymentId } from '../deployment-id'
+import { isJavaScriptURLString } from '../../../client/lib/javascript-url'
+
+let resolveRewrites: typeof import('./utils/resolve-rewrites').default
+if (process.env.__NEXT_HAS_REWRITES) {
+  resolveRewrites = (
+    require('./utils/resolve-rewrites') as typeof import('./utils/resolve-rewrites')
+  ).default
+}
 
 declare global {
   interface Window {
@@ -173,7 +182,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
   let rewriteTarget =
     rewriteHeader || response.headers.get('x-nextjs-matched-path')
 
-  const matchedPath = response.headers.get('x-matched-path')
+  const matchedPath = response.headers.get(MATCHED_PATH_HEADER)
 
   if (
     matchedPath &&
@@ -323,30 +332,17 @@ async function withMiddlewareEffects<T extends FetchDataOutput>(
     return null
   }
 
-  try {
-    const data = await options.fetchData()
+  const data = await options.fetchData()
 
-    const effect = await getMiddlewareData(
-      data.dataHref,
-      data.response,
-      options
-    )
+  const effect = await getMiddlewareData(data.dataHref, data.response, options)
 
-    return {
-      dataHref: data.dataHref,
-      json: data.json,
-      response: data.response,
-      text: data.text,
-      cacheKey: data.cacheKey,
-      effect,
-    }
-  } catch {
-    /**
-     * TODO: Revisit this in the future.
-     * For now we will not consider middleware data errors to be fatal.
-     * maybe we should revisit in the future.
-     */
-    return null
+  return {
+    dataHref: data.dataHref,
+    json: data.json,
+    response: data.response,
+    text: data.text,
+    cacheKey: data.cacheKey,
+    effect,
   }
 }
 
@@ -359,9 +355,9 @@ export type BaseRouter = {
   asPath: string
   basePath: string
   locale?: string | undefined
-  locales?: string[] | undefined
+  locales?: readonly string[] | undefined
   defaultLocale?: string | undefined
-  domainLocales?: DomainLocale[] | undefined
+  domainLocales?: readonly DomainLocale[] | undefined
   isLocaleDomain: boolean
 }
 
@@ -428,8 +424,7 @@ const manualScrollRestoration =
   !!(function () {
     try {
       let v = '__next'
-      // eslint-disable-next-line no-sequences
-      return sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true
+      return (sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true)
     } catch (n) {}
   })()
 
@@ -504,12 +499,14 @@ function fetchNextData({
   unstable_skipClientCache,
 }: FetchNextDataParams): Promise<FetchDataOutput> {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
+  const deploymentId = getDeploymentId()
   const getData = (params?: { method?: 'HEAD' | 'GET' }) =>
     fetchRetry(dataHref, isServerRender ? 3 : 1, {
       headers: Object.assign(
         {} as HeadersInit,
         isPrefetch ? { purpose: 'prefetch' } : {},
-        isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {}
+        isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {},
+        deploymentId ? { 'x-deployment-id': deploymentId } : {}
       ),
       method: params?.method ?? 'GET',
     })
@@ -601,7 +598,11 @@ function fetchNextData({
   // without blocking navigation when stale data is available
   if (unstable_skipClientCache && persistCache) {
     return getData({}).then((data) => {
-      inflightCache[cacheKey] = Promise.resolve(data)
+      if (data.response.headers.get('x-middleware-cache') !== 'no-cache') {
+        // only update cache if not marked as no-cache
+        inflightCache[cacheKey] = Promise.resolve(data)
+      }
+
       return data
     })
   }
@@ -688,9 +689,9 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   _inFlightRoute?: string | undefined
   _shallow?: boolean | undefined
-  locales?: string[] | undefined
+  locales?: readonly string[] | undefined
   defaultLocale?: string | undefined
-  domainLocales?: DomainLocale[] | undefined
+  domainLocales?: readonly DomainLocale[] | undefined
   isReady: boolean
   isLocaleDomain: boolean
   isFirstPopStateEvent = true
@@ -742,9 +743,9 @@ export default class Router implements BaseRouter {
       err?: Error
       isFallback: boolean
       locale?: string
-      locales?: string[]
+      locales?: readonly string[]
       defaultLocale?: string
-      domainLocales?: DomainLocale[]
+      domainLocales?: readonly DomainLocale[]
       isPreview?: boolean
     }
   ) {
@@ -772,34 +773,6 @@ export default class Router implements BaseRouter {
       styleSheets: [
         /* /_app does not need its stylesheets managed */
       ],
-    }
-
-    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
-      const { BloomFilter } =
-        require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
-
-      const staticFilterData:
-        | ReturnType<import('../../lib/bloom-filter').BloomFilter['export']>
-        | undefined = process.env.__NEXT_CLIENT_ROUTER_S_FILTER as any
-
-      const dynamicFilterData: typeof staticFilterData = process.env
-        .__NEXT_CLIENT_ROUTER_D_FILTER as any
-
-      if (staticFilterData?.numHashes) {
-        this._bfl_s = new BloomFilter(
-          staticFilterData.numItems,
-          staticFilterData.errorRate
-        )
-        this._bfl_s.import(staticFilterData)
-      }
-
-      if (dynamicFilterData?.numHashes) {
-        this._bfl_d = new BloomFilter(
-          dynamicFilterData.numItems,
-          dynamicFilterData.errorRate
-        )
-        this._bfl_d.import(dynamicFilterData)
-      }
     }
 
     // Backwards compat for Router.router.events
@@ -1023,6 +996,14 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as?: Url, options: TransitionOptions = {}) {
+    if (
+      isJavaScriptURLString(url.toString()) ||
+      (as && isJavaScriptURLString(as.toString()))
+    ) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
     if (process.env.__NEXT_SCROLL_RESTORATION) {
       // TODO: remove in the future when we update history before route change
       // is complete, as the popstate event should handle this capture.
@@ -1047,6 +1028,14 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   replace(url: Url, as?: Url, options: TransitionOptions = {}) {
+    if (
+      isJavaScriptURLString(url.toString()) ||
+      (as && isJavaScriptURLString(as.toString()))
+    ) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }
@@ -1058,10 +1047,79 @@ export default class Router implements BaseRouter {
     skipNavigate?: boolean
   ) {
     if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      if (!this._bfl_s && !this._bfl_d) {
+        const { BloomFilter } =
+          require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
+
+        type Filter = ReturnType<
+          import('../../lib/bloom-filter').BloomFilter['export']
+        >
+        let staticFilterData: Filter | undefined
+        let dynamicFilterData: Filter | undefined
+
+        try {
+          ;({
+            __routerFilterStatic: staticFilterData,
+            __routerFilterDynamic: dynamicFilterData,
+          } = (await getClientBuildManifest()) as any as {
+            __routerFilterStatic?: Filter
+            __routerFilterDynamic?: Filter
+          })
+        } catch (err) {
+          // failed to load build manifest hard navigate
+          // to be safe
+          console.error(err)
+          if (skipNavigate) {
+            return true
+          }
+          handleHardNavigation({
+            url: addBasePath(
+              addLocale(as, locale || this.locale, this.defaultLocale)
+            ),
+            router: this,
+          })
+          return new Promise(() => {})
+        }
+
+        const routerFilterSValue: Filter | false = process.env
+          .__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+        if (!staticFilterData && routerFilterSValue) {
+          staticFilterData = routerFilterSValue ? routerFilterSValue : undefined
+        }
+
+        const routerFilterDValue: Filter | false = process.env
+          .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+        if (!dynamicFilterData && routerFilterDValue) {
+          dynamicFilterData = routerFilterDValue
+            ? routerFilterDValue
+            : undefined
+        }
+
+        if (staticFilterData?.numHashes) {
+          this._bfl_s = new BloomFilter(
+            staticFilterData.numItems,
+            staticFilterData.errorRate
+          )
+          this._bfl_s.import(staticFilterData)
+        }
+
+        if (dynamicFilterData?.numHashes) {
+          this._bfl_d = new BloomFilter(
+            dynamicFilterData.numItems,
+            dynamicFilterData.errorRate
+          )
+          this._bfl_d.import(dynamicFilterData)
+        }
+      }
+
       let matchesBflStatic = false
       let matchesBflDynamic = false
+      const pathsToCheck: Array<{ as?: string; allowMatchCurrent?: boolean }> =
+        [{ as }, { as: resolvedAs }]
 
-      for (const curAs of [as, resolvedAs]) {
+      for (const { as: curAs, allowMatchCurrent } of pathsToCheck) {
         if (curAs) {
           const asNoSlash = removeTrailingSlash(
             new URL(curAs, 'http://n').pathname
@@ -1071,8 +1129,9 @@ export default class Router implements BaseRouter {
           )
 
           if (
+            allowMatchCurrent ||
             asNoSlash !==
-            removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
+              removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
           ) {
             matchesBflStatic =
               matchesBflStatic ||
@@ -1319,13 +1378,6 @@ export default class Router implements BaseRouter {
     let parsed = parseRelativeUrl(url)
     let { pathname, query } = parsed
 
-    // if we detected the path as app route during prefetching
-    // trigger hard navigation
-    if ((this.components[pathname] as any)?.__appRouter) {
-      handleHardNavigation({ url: as, router: this })
-      return new Promise(() => {})
-    }
-
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
@@ -1365,6 +1417,13 @@ export default class Router implements BaseRouter {
 
     let route = removeTrailingSlash(pathname)
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
+
+    // if we detected the path as app route during prefetching
+    // trigger hard navigation
+    if ((this.components[pathname] as any)?.__appRouter) {
+      handleHardNavigation({ url: as, router: this })
+      return new Promise(() => {})
+    }
 
     const isMiddlewareRewrite = !!(
       parsedAsPathname &&
@@ -1446,7 +1505,7 @@ export default class Router implements BaseRouter {
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     route = removeTrailingSlash(pathname)
-    let routeMatch: { [paramName: string]: string | string[] } | false = false
+    let routeMatch: Params | false = false
 
     if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
@@ -1852,8 +1911,6 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties,
     loadErrorFail?: boolean
   ): Promise<CompletePrivateRouteInfo> {
-    console.error(err)
-
     if (err.cancelled) {
       // bubble up cancellation errors
       throw err
@@ -1878,11 +1935,12 @@ export default class Router implements BaseRouter {
       throw buildCancellationError()
     }
 
+    console.error(err)
+
     try {
       let props: Record<string, any> | undefined
-      const { page: Component, styleSheets } = await this.fetchComponent(
-        '/_error'
-      )
+      const { page: Component, styleSheets } =
+        await this.fetchComponent('/_error')
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,
@@ -1956,12 +2014,12 @@ export default class Router implements BaseRouter {
     let route = requestedRoute
 
     try {
-      const handleCancelled = getCancelledHandler({ route, router: this })
-
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
+
+      const handleCancelled = getCancelledHandler({ route, router: this })
 
       if (hasMiddleware) {
         existingInfo = undefined
@@ -2088,7 +2146,8 @@ export default class Router implements BaseRouter {
         ))
 
       if (process.env.NODE_ENV !== 'production') {
-        const { isValidElementType } = require('next/dist/compiled/react-is')
+        const { isValidElementType } =
+          require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
         if (!isValidElementType(routeInfo.Component)) {
           throw new Error(
             `The default export is not a React Component in page: "${pathname}"`
@@ -2242,7 +2301,7 @@ export default class Router implements BaseRouter {
   scrollToHash(as: string): void {
     const [, hash = ''] = as.split('#', 2)
 
-    handleSmoothScroll(
+    disableSmoothScrollDuringRouteTransition(
       () => {
         // Scroll to top if the hash is just `#` with no value or `#top`
         // To mirror browsers
@@ -2403,7 +2462,7 @@ export default class Router implements BaseRouter {
                   locale,
                 }),
                 hasMiddleware: true,
-                isServerRender: this.isSsr,
+                isServerRender: false,
                 parseJSON: true,
                 inflightCache: this.sdc,
                 persistCache: !this.isPreview,
@@ -2502,18 +2561,6 @@ export default class Router implements BaseRouter {
 
       return data
     })
-  }
-
-  _getFlightData(dataHref: string) {
-    // Do not cache RSC flight response since it's not a static resource
-    return fetchNextData({
-      dataHref,
-      isServerRender: true,
-      parseJSON: false,
-      inflightCache: this.sdc,
-      persistCache: false,
-      isPrefetch: false,
-    }).then(({ text }) => ({ data: text }))
   }
 
   getInitialProps(

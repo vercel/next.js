@@ -1,5 +1,6 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { Span } from '../trace'
+import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 
 export type CompilerResult = {
   errors: webpack.StatsError[]
@@ -40,10 +41,19 @@ export function runCompiler(
   {
     runWebpackSpan,
     inputFileSystem,
-  }: { runWebpackSpan: Span; inputFileSystem?: any }
-): Promise<[result: CompilerResult, inputFileSystem?: any]> {
+  }: {
+    runWebpackSpan: Span
+    inputFileSystem?: webpack.Compiler['inputFileSystem']
+  }
+): Promise<
+  [
+    result: CompilerResult,
+    inputFileSystem?: webpack.Compiler['inputFileSystem'],
+  ]
+> {
   return new Promise((resolve, reject) => {
-    const compiler = webpack(config) as unknown as webpack.Compiler
+    const compiler = getWebpackBundler()(config)
+
     // Ensure we use the previous inputFileSystem
     if (inputFileSystem) {
       compiler.inputFileSystem = inputFileSystem
@@ -51,7 +61,7 @@ export function runCompiler(
     compiler.fsStartTime = Date.now()
     compiler.run((err, stats) => {
       const webpackCloseSpan = runWebpackSpan.traceChild('webpack-close', {
-        name: config.name,
+        name: config.name || 'unknown',
       })
       webpackCloseSpan
         .traceAsyncFn(() => closeCompiler(compiler))

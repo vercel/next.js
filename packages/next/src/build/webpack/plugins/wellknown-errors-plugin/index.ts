@@ -12,9 +12,9 @@ export class WellKnownErrorsPlugin {
             compilation.warnings.map(async (warn, i) => {
               if (
                 warn.name === 'ModuleDependencyWarning' &&
-                warn.module.context?.includes('node_modules')
+                warn.module?.context?.includes('node_modules')
               ) {
-                delete compilation.warnings[i]
+                compilation.warnings.splice(i, 1)
               }
             })
           )

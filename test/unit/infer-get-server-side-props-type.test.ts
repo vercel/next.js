@@ -6,6 +6,7 @@ import { expectTypeOf } from 'expect-type'
 
 describe('InferGetServerSidePropsType', () => {
   it('should work with sync functions', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     function getServerSideProps(context: GetServerSidePropsContext) {
       if (context.params?.notFound) {
         return {
@@ -26,6 +27,7 @@ describe('InferGetServerSidePropsType', () => {
   })
 
   it('should work with async functions', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async function getServerSideProps(context: GetServerSidePropsContext) {
       if (context.params?.notFound) {
         return {
@@ -54,6 +56,7 @@ describe('InferGetServerSidePropsType', () => {
   })
 
   it('should work with promised props', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async function getServerSideProps() {
       return {
         props: Promise.resolve({

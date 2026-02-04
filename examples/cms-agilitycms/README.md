@@ -11,7 +11,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Deploy your own
 
-Once you have access to [the environment variables you'll need](#step-15-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Once you have access to [the environment variables you'll need](#step-15-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms&project-name=cms-agilitycms&repository-name=cms-agilitycms&env=AGILITY_CMS_GUID,AGILITY_CMS_API_FETCH_KEY,AGILITY_CMS_API_PREVIEW_KEY,AGILITY_CMS_SECURITY_KEY&envDescription=API%20Keys%20required%20by%20Agility%20CMS&envLink=https://vercel.link/agility-cms-env)
 
@@ -28,13 +28,19 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 - [Enterspeed](/examples/cms-enterspeed)
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent-ai)
+- [Kontent.ai](/examples/cms-kontent-ai)
+- [MakeSwift](/examples/cms-makeswift)
+- [Payload](/examples/cms-payload)
+- [Plasmic](/examples/cms-plasmic)
 - [Prepr](/examples/cms-prepr)
 - [Prismic](/examples/cms-prismic)
 - [Sanity](/examples/cms-sanity)
+- [Sitecore XM Cloud](/examples/cms-sitecore-xmcloud)
 - [Sitefinity](/examples/cms-sitefinity)
 - [Storyblok](/examples/cms-storyblok)
 - [TakeShape](/examples/cms-takeshape)
+- [Tina](/examples/cms-tina)
+- [Umbraco](/examples/cms-umbraco)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
 - [WordPress](/examples/cms-wordpress)
@@ -74,18 +80,19 @@ First, [create an account on Agility CMS](https://agilitycms.com).
 
 After creating an account you'll be asked to create a new project. Use any name of your liking as the **Project Name** and select the **Blank (advanced users)** template to create a blank Agility CMS instance.
 
-### Step 2. Create an `Author` Content Definition
+### Step 2: Create an Author Content Definition
 
-From within the Agility CMS Content Manager, navigate to **Settings** > **Content Definitions** and click **New** to create a new **Content Definition**.
+To create an Author Content Definition in the Agility CMS Content Manager, follow these steps:
 
-- The **Title** should be `Author`. This will also pre-populate **Reference Name** for you.
+1. Navigate to **Settings** > **Content Definitions**.
+2. Click on the "New" button to create a new Content Definition.
+3. In the Title field, enter "Author". The Reference Name will be automatically populated for you.
+4. Use the Form Builder tab to add the following fields:
+   - `Name`: Set the Field Label to "Name" and the Field Type to "Text".
+   - `Picture`: Set the Field Label to "Picture" and the Field Type to "Image".
+5. Once you have added these fields, click on "Save & Close" to save your Author content definition.
 
-Next, add these fields via the **Form Builder** tab (you don't have to modify any other settings):
-
-- `Name` - Set **Field Label** to `Name` and **Field Type** to `Text`
-- `Picture` - Set **Field Label** to `Picture` and **Field Type** to `Image`
-
-When you are done, click **Save & Close** to save your `Author` content definition.
+By following these steps, you will be able to define an Author Content Definition in the Agility CMS Content Manager.
 
 ### Step 3. Create a `List` based on your `Author` Content Definition
 

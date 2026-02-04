@@ -2,6 +2,7 @@
 
 import {
   findPort,
+  getImagesManifest,
   killApp,
   launchApp,
   nextBuild,
@@ -17,7 +18,7 @@ let appPort
 let app
 let browser
 
-function runTests() {
+function runTests(mode: 'server' | 'dev') {
   it('should load static unicode image', async () => {
     const src = await browser.elementById('static').getAttribute('src')
     expect(src).toMatch(
@@ -65,36 +66,93 @@ function runTests() {
     const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
   })
+  if (mode === 'server') {
+    it('should build correct images-manifest.json', async () => {
+      const manifest = getImagesManifest(appDir)
+      expect(manifest).toEqual({
+        version: 1,
+        images: {
+          contentDispositionType: 'attachment',
+          contentSecurityPolicy:
+            "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowLocalIP: false,
+          dangerouslyAllowSVG: false,
+          deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+          disableStaticImages: false,
+          domains: [],
+          formats: ['image/webp'],
+          imageSizes: [32, 48, 64, 96, 128, 256, 384],
+          loader: 'default',
+          loaderFile: '',
+          remotePatterns: [
+            {
+              protocol: 'https',
+              hostname:
+                '^(?:^(?:image\\-optimization\\-test\\.vercel\\.app)$)$',
+              port: '',
+              pathname:
+                '^(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?))$',
+              search: '',
+            },
+          ],
+          localPatterns: [
+            {
+              pathname:
+                '^(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)\\/?)$',
+              search: '',
+            },
+          ],
+          maximumRedirects: 3,
+          maximumResponseBody: 50000000,
+          minimumCacheTTL: 14400,
+          path: '/_next/image',
+          qualities: [75],
+          sizes: [
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128,
+            256, 384,
+          ],
+          unoptimized: false,
+          customCacheHandler: false,
+        },
+      })
+    })
+  }
 }
 
 describe('Image Component Unicode Image URL', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      browser = await webdriver(appPort, '/')
-    })
-    afterAll(() => {
-      killApp(app)
-      if (browser) {
-        browser.close()
-      }
-    })
-    runTests()
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      browser = await webdriver(appPort, '/')
-    })
-    afterAll(() => {
-      killApp(app)
-      if (browser) {
-        browser.close()
-      }
-    })
-    runTests()
-  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        browser = await webdriver(appPort, '/')
+      })
+      afterAll(async () => {
+        await killApp(app)
+        if (browser) {
+          browser.close()
+        }
+      })
+      runTests('dev')
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        browser = await webdriver(appPort, '/')
+      })
+      afterAll(async () => {
+        await killApp(app)
+        if (browser) {
+          browser.close()
+        }
+      })
+      runTests('server')
+    }
+  )
 })

@@ -1,7 +1,7 @@
-import { Post } from '@/viewmodels/post'
-import PostPreview from './post-preview'
+import { Post } from "@/viewmodels/post";
+import PostPreview from "./post-preview";
 
-type MoreStoriesProps = { posts: Array<Post> }
+type MoreStoriesProps = { posts: Array<Post> };
 
 export default function MoreStories({ posts }: MoreStoriesProps) {
   return (
@@ -15,5 +15,5 @@ export default function MoreStories({ posts }: MoreStoriesProps) {
         ))}
       </div>
     </section>
-  )
+  );
 }

@@ -3,79 +3,23 @@
 import type {
   FocusAndScrollRef,
   PrefetchKind,
-  ThenableRecord,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
+import type { Params } from '../../server/request/params'
 import type {
   FlightRouterState,
-  FlightData,
-} from '../../server/app-render/types'
+  FlightSegmentPath,
+  CacheNode,
+  LoadingModuleData,
+} from './app-router-types'
 import React from 'react'
 
-export type ChildSegmentMap = Map<string, CacheNode>
-
-// eslint-disable-next-line no-shadow
-export enum CacheStates {
-  LAZY_INITIALIZED = 'LAZYINITIALIZED',
-  DATA_FETCH = 'DATAFETCH',
-  READY = 'READY',
-}
-
-/**
- * Cache node used in app-router / layout-router.
- */
-export type CacheNode =
-  | {
-      status: CacheStates.DATA_FETCH
-      /**
-       * In-flight request for this node.
-       */
-      data: ThenableRecord<FetchServerResponseResult> | null
-      head?: React.ReactNode
-      /**
-       * React Component for this node.
-       */
-      subTreeData: null
-      /**
-       * Child parallel routes.
-       */
-      parallelRoutes: Map<string, ChildSegmentMap>
-    }
-  | {
-      status: CacheStates.READY
-      /**
-       * In-flight request for this node.
-       */
-      data: null
-      head?: React.ReactNode
-      /**
-       * React Component for this node.
-       */
-      subTreeData: React.ReactNode
-      /**
-       * Child parallel routes.
-       */
-      parallelRoutes: Map<string, ChildSegmentMap>
-    }
-  | {
-      status: CacheStates.LAZY_INITIALIZED
-      data: null
-      head?: React.ReactNode
-      subTreeData: null
-      /**
-       * Child parallel routes.
-       */
-      parallelRoutes: Map<string, ChildSegmentMap>
-    }
-
 export interface NavigateOptions {
-  /** @internal */
-  forceOptimisticNavigation?: boolean
   scroll?: boolean
 }
 
 export interface PrefetchOptions {
   kind: PrefetchKind
+  onInvalidate?: () => void
 }
 
 export interface AppRouterInstance {
@@ -92,6 +36,11 @@ export interface AppRouterInstance {
    */
   refresh(): void
   /**
+   * Refresh the current page. Use in development only.
+   * @internal
+   */
+  hmrRefresh(): void
+  /**
    * Navigate to the provided href.
    * Pushes a new history entry.
    */
@@ -105,26 +54,33 @@ export interface AppRouterInstance {
    * Prefetch the provided href.
    */
   prefetch(href: string, options?: PrefetchOptions): void
+  /**
+   * Perform a gesture navigation using prefetched data.
+   * Only available when experimental.gestureTransition is enabled.
+   * @experimental
+   */
+  experimental_gesturePush?(href: string, options?: NavigateOptions): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(
   null
 )
 export const LayoutRouterContext = React.createContext<{
-  childNodes: CacheNode['parallelRoutes']
-  tree: FlightRouterState
+  parentTree: FlightRouterState
+  parentCacheNode: CacheNode
+  parentSegmentPath: FlightSegmentPath | null
+  parentParams: Params
+  parentLoadingData: LoadingModuleData | null
+  debugNameContext: string
   url: string
-}>(null as any)
+  isActive: boolean
+} | null>(null)
+
 export const GlobalLayoutRouterContext = React.createContext<{
-  buildId: string
   tree: FlightRouterState
-  changeByServerResponse: (
-    previousTree: FlightRouterState,
-    flightData: FlightData,
-    overrideCanonicalUrl: URL | undefined
-  ) => void
   focusAndScrollRef: FocusAndScrollRef
   nextUrl: string | null
+  previousNextUrl: string | null
 }>(null as any)
 
 export const TemplateContext = React.createContext<React.ReactNode>(null as any)
@@ -135,3 +91,5 @@ if (process.env.NODE_ENV !== 'production') {
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
   TemplateContext.displayName = 'TemplateContext'
 }
+
+export const MissingSlotContext = React.createContext<Set<string>>(new Set())

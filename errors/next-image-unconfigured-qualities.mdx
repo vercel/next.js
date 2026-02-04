@@ -1,0 +1,24 @@
+---
+title: '`next/image` Un-configured qualities'
+---
+
+## Why This Error Occurred
+
+One of your pages that leverages the `next/image` component, passed a `quality` value that isn't defined in the `images.qualities` property in `next.config.js`.
+
+## Possible Ways to Fix It
+
+Add an entry to `images.qualities` array in `next.config.js` with the expected value. For example:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    qualities: [25, 50, 75],
+  },
+}
+```
+
+## Useful Links
+
+- [Image Optimization Documentation](/docs/pages/api-reference/components/image)
+- [Qualities Config Documentation](/docs/pages/api-reference/components/image#qualities)

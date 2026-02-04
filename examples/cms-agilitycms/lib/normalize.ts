@@ -46,10 +46,10 @@ export function normalizePosts(postsFromAgility) {
           bgColor: null,
         },
       },
-    }
+    };
 
-    return normalizedPost
-  })
+    return normalizedPost;
+  });
 
-  return posts
+  return posts;
 }

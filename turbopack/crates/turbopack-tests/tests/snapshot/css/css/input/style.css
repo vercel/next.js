@@ -1,0 +1,8 @@
+@import url('./imported.css');
+/* De-duplicate similar imports */
+@import url('../input/imported.css');
+/* But not if they have different attributes */
+@import url('./imported.css') layer(layer) print;
+.style {
+  color: yellow;
+}

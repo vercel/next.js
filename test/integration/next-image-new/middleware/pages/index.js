@@ -10,6 +10,8 @@ export default function Page() {
         width={400}
         height={400}
       />
+
+      <Image alt="small-image" src="/small.jpg" width={15} height={15} />
     </>
   )
 }

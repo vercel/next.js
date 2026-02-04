@@ -1,27 +1,27 @@
 import React from 'react'
-import { unstable_getImgProps as getImgProps } from 'next/image'
+import { getImageProps } from 'next/image'
 import testJpg from '../public/test.jpg'
 
 const Page = () => {
-  const { props: img1 } = getImgProps({
+  const { props: img1 } = getImageProps({
     id: 'internal-image',
     src: '/test.png',
     width: 400,
     height: 400,
   })
-  const { props: img2 } = getImgProps({
+  const { props: img2 } = getImageProps({
     id: 'static-image',
     src: testJpg,
     width: 400,
     height: 400,
   })
-  const { props: img3 } = getImgProps({
+  const { props: img3 } = getImageProps({
     id: 'external-image',
     src: 'https://image-optimization-test.vercel.app/test.jpg',
     width: 400,
     height: 400,
   })
-  const { props: img4 } = getImgProps({
+  const { props: img4 } = getImageProps({
     id: 'eager-image',
     src: '/test.webp',
     width: 400,

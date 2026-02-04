@@ -6,8 +6,8 @@ import isDockerFunction from 'next/dist/compiled/is-docker'
 import path from 'path'
 
 import { getAnonymousMeta } from './anonymous-meta'
-import * as ciEnvironment from './ci-info'
-import { _postPayload } from './post-payload'
+import * as ciEnvironment from '../server/ci-info'
+import { postNextTelemetryPayload } from './post-telemetry-payload'
 import { getRawProjectId } from './project-id'
 import { AbortController } from 'next/dist/compiled/@edge-runtime/ponyfill'
 import fs from 'fs'
@@ -30,16 +30,6 @@ const TELEMETRY_KEY_ID = `telemetry.anonymousId`
 const TELEMETRY_KEY_SALT = `telemetry.salt`
 
 export type TelemetryEvent = { eventName: string; payload: object }
-type EventContext = {
-  anonymousId: string
-  projectId: string
-  sessionId: string
-}
-type EventMeta = { [key: string]: unknown }
-type EventBatchShape = {
-  eventName: string
-  fields: object
-}
 
 type RecordObject = {
   isFulfilled: boolean
@@ -226,7 +216,9 @@ export class Telemetry {
     return prom
   }
 
-  flush = async () => Promise.all(this.queue).catch(() => null)
+  flush = async () => {
+    return Promise.all(this.queue).catch(() => null)
+  }
 
   // writes current events to disk and spawns separate
   // detached process to submit the records without blocking
@@ -242,9 +234,17 @@ export class Telemetry {
         // if we fail to abort ignore this event
       }
     })
+
+    if (allEvents.length === 0) {
+      // No events to flush
+      return
+    }
+
     fs.mkdirSync(this.distDir, { recursive: true })
+    // Use unique filename per process to avoid race conditions between parent/child
+    const eventsFile = `_events_${process.pid}.json`
     fs.writeFileSync(
-      path.join(this.distDir, '_events.json'),
+      path.join(this.distDir, eventsFile),
       JSON.stringify(allEvents)
     )
 
@@ -259,16 +259,20 @@ export class Telemetry {
       ? child_process.spawnSync
       : child_process.spawn
 
-    spawn(process.execPath, [require.resolve('./detached-flush'), mode, dir], {
-      detached: !this.NEXT_TELEMETRY_DEBUG,
-      windowsHide: true,
-      shell: false,
-      ...(this.NEXT_TELEMETRY_DEBUG
-        ? {
-            stdio: 'inherit',
-          }
-        : {}),
-    })
+    spawn(
+      process.execPath,
+      [require.resolve('./detached-flush'), mode, dir, eventsFile],
+      {
+        detached: !this.NEXT_TELEMETRY_DEBUG,
+        windowsHide: true,
+        shell: false,
+        ...(this.NEXT_TELEMETRY_DEBUG
+          ? {
+              stdio: 'inherit',
+            }
+          : {}),
+      }
+    )
   }
 
   private submitRecord = async (
@@ -286,15 +290,19 @@ export class Telemetry {
     }
 
     if (this.NEXT_TELEMETRY_DEBUG) {
-      // Print to standard error to simplify selecting the output
-      events.forEach(({ eventName, payload }) =>
-        console.error(
-          `[telemetry] ` + JSON.stringify({ eventName, payload }, null, 2)
-        )
-      )
-      // Do not send the telemetry data if debugging. Users may use this feature
-      // to preview what data would be sent.
-      return Promise.resolve()
+      // Return a promise that resolves after logging to ensure the output
+      // is captured before the process exits (e.g., during flushDetached)
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Print to standard error to simplify selecting the output
+          events.forEach(({ eventName, payload }) =>
+            console.error(
+              `[telemetry] ` + JSON.stringify({ eventName, payload }, null, 2)
+            )
+          )
+          resolve(undefined)
+        }, 100)
+      })
     }
 
     // Skip recording telemetry if the feature is disabled
@@ -302,22 +310,19 @@ export class Telemetry {
       return Promise.resolve()
     }
 
-    const context: EventContext = {
-      anonymousId: this.anonymousId,
-      projectId: await this.getProjectId(),
-      sessionId: this.sessionId,
-    }
-    const meta: EventMeta = getAnonymousMeta()
     const postController = new AbortController()
-    const res = _postPayload(
-      `https://telemetry.nextjs.org/api/v1/record`,
+    const res = postNextTelemetryPayload(
       {
-        context,
-        meta,
+        context: {
+          anonymousId: this.anonymousId,
+          projectId: await this.getProjectId(),
+          sessionId: this.sessionId,
+        },
+        meta: getAnonymousMeta(),
         events: events.map(({ eventName, payload }) => ({
           eventName,
           fields: payload,
-        })) as Array<EventBatchShape>,
+        })),
       },
       postController.signal
     )

@@ -4,4 +4,4 @@ module.exports = {
 reference: https://github.com/expressjs/compression/issues/122
   */
   compress: false,
-}
+};

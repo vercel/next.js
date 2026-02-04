@@ -1,0 +1,39 @@
+use turbo_tasks::{ResolvedVc, Vc};
+
+use crate::{
+    ident::AssetIdent,
+    module::{Module, ModuleSideEffects},
+    source::{OptionSource, Source},
+};
+
+/// A module where source code doesn't need to be parsed but can be used as is.
+/// This module has no references to other modules.
+#[turbo_tasks::value]
+pub struct RawModule {
+    source: ResolvedVc<Box<dyn Source>>,
+}
+
+#[turbo_tasks::value_impl]
+impl Module for RawModule {
+    #[turbo_tasks::function]
+    fn ident(&self) -> Vc<AssetIdent> {
+        self.source.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl RawModule {
+    #[turbo_tasks::function]
+    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<RawModule> {
+        RawModule { source }.cell()
+    }
+}

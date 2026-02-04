@@ -1,7 +1,16 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
-type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
+import { Transform } from 'stream'
+import {
+  formatDebugAddress,
+  formatNodeOptions,
+  getNodeDebugType,
+  getParsedDebugAddress,
+  getParsedNodeOptions,
+  type DebugAddress,
+} from '../server/lib/utils'
+
+type FarmOptions = NonNullable<ConstructorParameters<typeof JestWorker>[1]>
 
 const RESTARTED = Symbol('restarted')
 
@@ -13,20 +22,59 @@ const cleanupWorkers = (worker: JestWorker) => {
   }
 }
 
+export function getNextBuildDebuggerPortOffset(_: {
+  kind: 'export-page'
+}): number {
+  // 0: export worker
+  return 0
+}
+
 export class Worker {
   private _worker: JestWorker | undefined
 
+  private _onActivity: (() => void) | undefined
+  private _onActivityAbort: (() => void) | undefined
+
   constructor(
     workerPath: string,
-    options: FarmOptions & {
+    options: Omit<FarmOptions, 'forkOptions'> & {
+      forkOptions?:
+        | (Omit<NonNullable<FarmOptions['forkOptions']>, 'env'> & {
+            env?: Partial<NodeJS.ProcessEnv> | undefined
+          })
+        | undefined
+      /**
+       * `-1` if not inspectable
+       */
+      debuggerPortOffset: number
+      enableSourceMaps?: boolean
+      /**
+       * True if `--max-old-space-size` should not be forwarded to the worker.
+       */
+      isolatedMemory: boolean
       timeout?: number
+      onActivity?: () => void
+      onActivityAbort?: () => void
       onRestart?: (method: string, args: any[], attempts: number) => void
       logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
       exposedMethods: ReadonlyArray<string>
       enableWorkerThreads?: boolean
     }
   ) {
-    let { timeout, onRestart, logger = console, ...farmOptions } = options
+    let {
+      enableSourceMaps,
+      timeout,
+      onRestart,
+      logger = console,
+      debuggerPortOffset,
+      isolatedMemory,
+      onActivity,
+      onActivityAbort,
+      ...farmOptions
+    } = options
+
+    this._onActivity = onActivity
+    this._onActivityAbort = onActivityAbort
 
     let restartPromise: Promise<typeof RESTARTED>
     let resolveRestartPromise: (arg: typeof RESTARTED) => void
@@ -34,21 +82,75 @@ export class Worker {
 
     this._worker = undefined
 
+    // ensure we end workers if they weren't before exit
+    process.on('exit', () => {
+      this.close()
+    })
+
+    const nodeOptions = getParsedNodeOptions()
+    const originalOptions = { ...nodeOptions }
+    delete nodeOptions.inspect
+    delete nodeOptions['inspect-brk']
+    delete nodeOptions['inspect_brk']
+    if (debuggerPortOffset !== -1) {
+      const nodeDebugType = getNodeDebugType(originalOptions)
+      if (nodeDebugType) {
+        const debuggerAddress = getParsedDebugAddress(
+          originalOptions[nodeDebugType]
+        )
+        const address: DebugAddress = {
+          host: debuggerAddress.host,
+          // current process runs on `address.port`
+          port:
+            debuggerAddress.port === 0
+              ? 0
+              : debuggerAddress.port + 1 + debuggerPortOffset,
+        }
+        nodeOptions[nodeDebugType] = formatDebugAddress(address)
+      }
+    }
+
+    if (enableSourceMaps) {
+      nodeOptions['enable-source-maps'] = true
+    }
+
+    if (isolatedMemory) {
+      delete nodeOptions['max-old-space-size']
+      delete nodeOptions['max_old_space_size']
+    }
+
     const createWorker = () => {
+      const workerEnv: NodeJS.ProcessEnv = {
+        ...process.env,
+        ...((farmOptions.forkOptions?.env || {}) as any),
+        IS_NEXT_WORKER: 'true',
+        NODE_OPTIONS: formatNodeOptions(nodeOptions),
+      }
+
+      if (workerEnv.FORCE_COLOR === undefined) {
+        // Mirror the enablement heuristic from picocolors (see https://github.com/vercel/next.js/blob/6a40da0345939fe4f7b1ae519b296a86dd103432/packages/next/src/lib/picocolors.ts#L21-L24).
+        // Picocolors snapshots `process.env`/`stdout.isTTY` at module load time, so when the worker
+        // process bootstraps with piped stdio its own check would disable colors. Re-evaluating the
+        // same conditions here lets us opt the worker into color output only when the parent would
+        // have seen colors, while still respecting explicit opt-outs like NO_COLOR.
+        const supportsColors =
+          !workerEnv.NO_COLOR &&
+          !workerEnv.CI &&
+          workerEnv.TERM !== 'dumb' &&
+          (process.stdout.isTTY || process.stderr?.isTTY)
+
+        if (supportsColors) {
+          workerEnv.FORCE_COLOR = '1'
+        }
+      }
+
       this._worker = new JestWorker(workerPath, {
         ...farmOptions,
         forkOptions: {
           ...farmOptions.forkOptions,
-          env: {
-            ...((farmOptions.forkOptions?.env || {}) as any),
-            ...process.env,
-            // we don't pass down NODE_OPTIONS as it can
-            // extra memory usage
-            NODE_OPTIONS: getNodeOptionsWithoutInspect()
-              .replace(/--max-old-space-size=[\d]{1,}/, '')
-              .trim(),
-          } as any,
+          env: workerEnv,
         },
+        maxRetries: 0,
       }) as JestWorker
       restartPromise = new Promise(
         (resolve) => (resolveRestartPromise = resolve)
@@ -71,13 +173,49 @@ export class Worker {
           worker._child?.on('exit', (code, signal) => {
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
               logger.error(
-                `Static worker exited with code: ${code} and signal: ${signal}`
+                `Next.js build worker exited with code: ${code} and signal: ${signal}`
               )
+
+              // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
+              process.exit(code ?? 1)
+            }
+          })
+
+          // if a child process emits a particular message, we track that as activity
+          // so the parent process can keep track of progress
+          worker._child?.on('message', ([, data]: [number, unknown]) => {
+            if (
+              data &&
+              typeof data === 'object' &&
+              'type' in data &&
+              data.type === 'activity'
+            ) {
+              onActivityImpl()
             }
           })
         }
       }
 
+      let aborted = false
+      const onActivityAbortImpl = () => {
+        if (!aborted) {
+          this._onActivityAbort?.()
+          aborted = true
+        }
+      }
+
+      // Listen to the worker's stdout and stderr, if there's any thing logged, abort the activity first
+      const abortActivityStreamOnLog = new Transform({
+        transform(_chunk, _encoding, callback) {
+          onActivityAbortImpl()
+          callback()
+        },
+      })
+      // Stop the activity if there's any output from the worker
+      this._worker.getStdout().pipe(abortActivityStreamOnLog)
+      this._worker.getStderr().pipe(abortActivityStreamOnLog)
+
+      // Pipe the worker's stdout and stderr to the parent process
       this._worker.getStdout().pipe(process.stdout)
       this._worker.getStderr().pipe(process.stderr)
     }
@@ -100,8 +238,10 @@ export class Worker {
 
     let hangingTimer: NodeJS.Timeout | false = false
 
-    const onActivity = () => {
+    const onActivityImpl = () => {
       if (hangingTimer) clearTimeout(hangingTimer)
+      if (this._onActivity) this._onActivity()
+
       hangingTimer = activeTasks > 0 && setTimeout(onHanging, timeout)
     }
 
@@ -114,7 +254,7 @@ export class Worker {
             try {
               let attempts = 0
               for (;;) {
-                onActivity()
+                onActivityImpl()
                 const result = await Promise.race([
                   (this._worker as any)[method](...args),
                   restartPromise,
@@ -124,11 +264,18 @@ export class Worker {
               }
             } finally {
               activeTasks--
-              onActivity()
+              onActivityImpl()
             }
           }
         : (this._worker as any)[method].bind(this._worker)
     }
+  }
+
+  setOnActivity(onActivity: (() => void) | undefined): void {
+    this._onActivity = onActivity
+  }
+  setOnActivityAbort(onActivityAbort: (() => void) | undefined): void {
+    this._onActivityAbort = onActivityAbort
   }
 
   end(): ReturnType<JestWorker['end']> {

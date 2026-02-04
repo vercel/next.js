@@ -1,0 +1,8 @@
+Redis = (???*0* ? module<ioredis, {}> : module<@upstash/redis, {}>["Redis"])
+- *0* (???*1* === "undefined")
+  ⚠️  nested operation
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* FreeVar(EdgeRuntime)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

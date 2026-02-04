@@ -1,0 +1,4 @@
+!/node_modules
+# include everything in the snapshots dir
+!snapshot/**
+.DS_Store

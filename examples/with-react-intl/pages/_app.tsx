@@ -1,13 +1,13 @@
-import type { AppProps } from 'next/app'
-import type { MessageConfig } from '../helper/loadIntlMessages'
-import { IntlProvider } from 'react-intl'
-import { useRouter } from 'next/router'
+import type { AppProps } from "next/app";
+import type { MessageConfig } from "../helper/loadIntlMessages";
+import { IntlProvider } from "react-intl";
+import { useRouter } from "next/router";
 
 export default function MyApp({
   Component,
   pageProps,
 }: AppProps<{ intlMessages: MessageConfig }>) {
-  const { locale, defaultLocale } = useRouter()
+  const { locale, defaultLocale } = useRouter();
   return (
     <IntlProvider
       locale={locale as string}
@@ -16,5 +16,5 @@ export default function MyApp({
     >
       <Component {...pageProps} />
     </IntlProvider>
-  )
+  );
 }

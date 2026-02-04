@@ -2,11 +2,12 @@ import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import * as Log from '../output/log'
 import { NextBuildContext } from '../build-context'
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from '../../lib/worker'
 import origDebug from 'next/dist/compiled/debug'
-import type { ChildProcess } from 'child_process'
 import path from 'path'
 import { exportTraceState, recordTraceEvents } from '../../trace'
+import { mergeUseCacheTrackers } from '../webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
+import { durationToString } from '../duration-to-string'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -24,54 +25,19 @@ function deepMerge(target: any, source: any) {
     result[key] = Array.isArray(target[key])
       ? (target[key] = [...target[key], ...(source[key] || [])])
       : typeof target[key] == 'object' && typeof source[key] == 'object'
-      ? deepMerge(target[key], source[key])
-      : result[key]
+        ? deepMerge(target[key], source[key])
+        : result[key]
   }
   return result
 }
 
 async function webpackBuildWithWorker(
-  compilerNames: typeof ORDERED_COMPILER_NAMES = ORDERED_COMPILER_NAMES
+  compilerNamesArg: typeof ORDERED_COMPILER_NAMES | null
 ) {
-  const {
-    config,
-    telemetryPlugin,
-    buildSpinner,
-    nextBuildSpan,
-    ...prunedBuildContext
-  } = NextBuildContext
+  const compilerNames = compilerNamesArg || ORDERED_COMPILER_NAMES
+  const { nextBuildSpan, ...prunedBuildContext } = NextBuildContext
 
   prunedBuildContext.pluginState = pluginState
-
-  const getWorker = (compilerName: string) => {
-    const _worker = new Worker(path.join(__dirname, 'impl.js'), {
-      exposedMethods: ['workerMain'],
-      numWorkers: 1,
-      maxRetries: 0,
-      forkOptions: {
-        env: {
-          ...process.env,
-          NEXT_PRIVATE_BUILD_WORKER: '1',
-        },
-      },
-    }) as Worker & typeof import('./impl')
-    _worker.getStderr().pipe(process.stderr)
-    _worker.getStdout().pipe(process.stdout)
-
-    for (const worker of ((_worker as any)._workerPool?._workers || []) as {
-      _child: ChildProcess
-    }[]) {
-      worker._child.on('exit', (code, signal) => {
-        if (code || (signal && signal !== 'SIGINT')) {
-          console.error(
-            `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
-          )
-        }
-      })
-    }
-
-    return _worker
-  }
 
   const combinedResult = {
     duration: 0,
@@ -79,14 +45,32 @@ async function webpackBuildWithWorker(
   }
 
   for (const compilerName of compilerNames) {
-    const worker = getWorker(compilerName)
+    const worker = new Worker(path.join(__dirname, 'impl.js'), {
+      exposedMethods: ['workerMain'],
+      debuggerPortOffset: -1,
+      isolatedMemory: false,
+      numWorkers: 1,
+      maxRetries: 0,
+      forkOptions: {
+        env: {
+          NEXT_PRIVATE_BUILD_WORKER: '1',
+          ...(process.env.NEXT_CPU_PROF
+            ? {
+                NEXT_CPU_PROF: '1',
+                NEXT_CPU_PROF_DIR: process.env.NEXT_CPU_PROF_DIR,
+                __NEXT_PRIVATE_CPU_PROFILE: `build-webpack-${compilerName}`,
+              }
+            : undefined),
+        },
+      },
+    }) as Worker & typeof import('./impl')
 
     const curResult = await worker.workerMain({
       buildContext: prunedBuildContext,
       compilerName,
       traceState: {
         ...exportTraceState(),
-        defaultParentSpanId: nextBuildSpan?.id,
+        defaultParentSpanId: nextBuildSpan?.getId(),
         shouldSaveTraceEvents: true,
       },
     })
@@ -99,6 +83,16 @@ async function webpackBuildWithWorker(
     // Update plugin state
     pluginState = deepMerge(pluginState, curResult.pluginState)
     prunedBuildContext.pluginState = pluginState
+
+    if (curResult.telemetryState) {
+      NextBuildContext.telemetryState = {
+        ...curResult.telemetryState,
+        useCacheTracker: mergeUseCacheTrackers(
+          NextBuildContext.telemetryState?.useCacheTracker,
+          curResult.telemetryState.useCacheTracker
+        ),
+      }
+    }
 
     combinedResult.duration += curResult.duration
 
@@ -127,24 +121,43 @@ async function webpackBuildWithWorker(
   }
 
   if (compilerNames.length === 3) {
-    buildSpinner?.stopAndPersist()
-    Log.event('Compiled successfully')
+    const durationString = durationToString(combinedResult.duration)
+    Log.event(`Compiled successfully in ${durationString}`)
   }
 
   return combinedResult
 }
 
 export async function webpackBuild(
-  compilerNames?: typeof ORDERED_COMPILER_NAMES
-) {
-  const config = NextBuildContext.config!
+  withWorker: boolean,
+  compilerNames: typeof ORDERED_COMPILER_NAMES | null
+): Promise<
+  | Awaited<ReturnType<typeof webpackBuildWithWorker>>
+  | Awaited<ReturnType<typeof import('./impl').webpackBuildImpl>>
+> {
+  const nextBuildSpan = NextBuildContext.nextBuildSpan!
+  return nextBuildSpan.traceChild('run-webpack').traceAsyncFn(async () => {
+    if (withWorker) {
+      debug('using separate compiler workers')
+      return await webpackBuildWithWorker(compilerNames)
+    } else {
+      debug('building all compilers in same process')
+      const webpackBuildImpl = (require('./impl') as typeof import('./impl'))
+        .webpackBuildImpl
+      const curResult = await webpackBuildImpl(null)
 
-  if (config.experimental.webpackBuildWorker) {
-    debug('using separate compiler workers')
-    return await webpackBuildWithWorker(compilerNames)
-  } else {
-    debug('building all compilers in same process')
-    const webpackBuildImpl = require('./impl').webpackBuildImpl
-    return await webpackBuildImpl()
-  }
+      // Mirror what happens in webpackBuildWithWorker
+      if (curResult.telemetryState) {
+        NextBuildContext.telemetryState = {
+          ...curResult.telemetryState,
+          useCacheTracker: mergeUseCacheTrackers(
+            NextBuildContext.telemetryState?.useCacheTracker,
+            curResult.telemetryState.useCacheTracker
+          ),
+        }
+      }
+
+      return curResult
+    }
+  })
 }

@@ -1,6 +1,6 @@
 /* global location */
+// imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
-
 import type Router from '../shared/lib/router/router'
 import type {
   AppComponent,
@@ -8,26 +8,24 @@ import type {
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 
-import React from 'react'
+import React, { type JSX } from 'react'
 import ReactDOM from 'react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import mitt from '../shared/lib/mitt'
 import type { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
-import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from '../shared/lib/router/utils/disable-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
   assign,
 } from '../shared/lib/router/utils/querystring'
-import { setConfig } from '../shared/lib/runtime-config.external'
 import { getURL, loadGetInitialProps, ST } from '../shared/lib/utils'
 import type { NextWebVitalsMetric, NEXT_DATA } from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
 import type { StyleSheetTuple } from './page-loader'
-import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
@@ -46,9 +44,9 @@ import {
   SearchParamsContext,
   PathParamsContext,
 } from '../shared/lib/hooks-client-context.shared-runtime'
-import onRecoverableError from './on-recoverable-error'
+import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import tracer from './tracing/tracer'
-import reportToSocket from './tracing/report-to-socket'
+import { isNextRouterError } from './components/is-next-router-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -56,6 +54,7 @@ declare global {
   interface Window {
     /* test fns */
     __NEXT_HYDRATED?: boolean
+    __NEXT_HYDRATED_AT?: number
     __NEXT_HYDRATED_CB?: () => void
 
     /* prod */
@@ -66,6 +65,7 @@ declare global {
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
+  isHydratePass?: boolean
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 type RegisterFn = (input: [string, () => void]) => void
@@ -178,10 +178,11 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const {
-        ReactDevOverlay,
-      } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
-      return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
+      const { PagesDevOverlayBridge } =
+        require('../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../next-devtools/userspace/pages/pages-dev-overlay-setup')
+      return (
+        <PagesDevOverlayBridge>{this.props.children}</PagesDevOverlayBridge>
+      )
     }
   }
 }
@@ -189,10 +190,13 @@ class Container extends React.Component<{
 export async function initialize(opts: { devClient?: any } = {}): Promise<{
   assetPrefix: string
 }> {
-  tracer.onSpanEnd(reportToSocket)
-
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
+    tracer.onSpanEnd(
+      (
+        require('./tracing/report-to-socket') as typeof import('./tracing/report-to-socket')
+      ).default
+    )
     devClient = opts.devClient
   }
 
@@ -205,13 +209,7 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   const prefix: string = initialData.assetPrefix || ''
   // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
   // So, this is how we do it in the client side at runtime
-  ;(self as any).__next_set_public_path__(`${prefix}/_next/`) //eslint-disable-line
-
-  // Initialize next/config with the environment configuration
-  setConfig({
-    serverRuntimeConfig: {},
-    publicRuntimeConfig: initialData.runtimeConfig || {},
-  })
+  ;(self as any).__next_set_public_path__(`${prefix}/_next/`)
 
   asPath = getURL()
 
@@ -265,7 +263,8 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   }
 
   if (initialData.scriptLoader) {
-    const { initScriptLoader } = require('./script')
+    const { initScriptLoader } =
+      require('./script') as typeof import('./script')
     initScriptLoader(initialData.scriptLoader)
   }
 
@@ -304,8 +303,6 @@ function AppContainer({
   return (
     <Container
       fn={(error) =>
-        // TODO: Fix disabled eslint rule
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         renderError({ App: CachedApp, err: error }).catch((err) =>
           console.error('Error rendering page: ', err)
         )
@@ -365,8 +362,6 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
     // We need to render an empty <App> so that the `<ReactDevOverlay>` can
     // render itself.
-    // TODO: Fix disabled eslint rule
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     return doRender({
       App: () => null,
       props: {},
@@ -421,8 +416,6 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
           ? renderErrorProps.props
           : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>
-        // TODO: Fix disabled eslint rule
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         doRender({
           ...renderErrorProps,
           err,
@@ -496,8 +489,8 @@ function markHydrateComplete(): void {
     if (
       process.env.NODE_ENV === 'development' &&
       // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
-      beforeHydrationMeasure !== undefined &&
-      hydrationMeasure !== undefined
+      beforeHydrationMeasure &&
+      hydrationMeasure
     ) {
       tracer
         .startSpan('navigation-to-hydration', {
@@ -604,16 +597,12 @@ function Root({
     () => callbacks.forEach((callback) => callback()),
     [callbacks]
   )
-  // We should ask to measure the Web Vitals after rendering completes so we
-  // don't cause any hydration delay:
-  React.useEffect(() => {
-    measureWebVitals(onPerfEntry)
-  }, [])
 
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
       window.__NEXT_HYDRATED = true
+      window.__NEXT_HYDRATED_AT = performance.now()
 
       if (window.__NEXT_HYDRATED_CB) {
         window.__NEXT_HYDRATED_CB()
@@ -704,6 +693,8 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
   function onHeadCommit(): void {
     if (
+      // Turbopack has it's own css injection handling, this code ends up removing the CSS.
+      !process.env.TURBOPACK &&
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
       process.env.NODE_ENV === 'production' &&
@@ -766,7 +757,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
     if (input.scroll) {
       const { x, y } = input.scroll
-      handleSmoothScroll(() => {
+      disableSmoothScrollDuringRouteTransition(() => {
         window.scrollTo(x, y)
       })
     }
@@ -805,7 +796,16 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 }
 
 async function render(renderingProps: RenderRouteInfo): Promise<void> {
-  if (renderingProps.err) {
+  // if an error occurs in a server-side page (e.g. in getInitialProps),
+  // skip re-rendering the error page client-side as data-fetching operations
+  // will already have been done on the server and NEXT_DATA contains the correct
+  // data for straight-forward hydration of the error page
+  if (
+    renderingProps.err &&
+    // renderingProps.Component might be undefined if there is a top/module-level error
+    (typeof renderingProps.Component === 'undefined' ||
+      !renderingProps.isHydratePass)
+  ) {
     await renderError(renderingProps)
     return
   }
@@ -890,7 +890,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('next/dist/compiled/react-is')
+      const { isValidElementType } =
+        require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
       if (!isValidElementType(CachedComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${initialData.page}"`
@@ -903,9 +904,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const {
-      getServerError,
-    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+    const getServerError = (
+      require('../server/dev/node-stack-frames') as typeof import('../server/dev/node-stack-frames')
+    ).getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -923,7 +924,16 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-          throw getServerError(error, initialErr!.source)
+          const errSource = initialErr.source!
+
+          // In development, error the navigation API usage in runtime,
+          // since it's not allowed to be used in pages router as it doesn't contain error boundary like app router.
+          if (isNextRouterError(initialErr)) {
+            error.message =
+              'Next.js navigation API is not allowed to be used in Pages Router.'
+          }
+
+          throw getServerError(error, errSource)
         })
       }
       // We replaced the server-side error with a client-side error, and should
@@ -974,6 +984,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     Component: CachedComponent,
     props: initialData.props,
     err: initialErr,
+    isHydratePass: true,
   }
 
   if (opts?.beforeRender) {

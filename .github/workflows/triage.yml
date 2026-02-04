@@ -1,0 +1,47 @@
+name: Triage issues
+
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  issues: write
+
+jobs:
+  triage:
+    name: Nissuer
+    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        (github.event_name != 'issue_comment' ||
+        (github.event_name == 'issue_comment' && !contains(github.event.issue.labels.*.name, 'stale'))) &&
+        github.event.issue.type.name != 'Documentation'
+      }}
+    steps:
+      - uses: balazsorban44/nissuer@1.10.0
+        with:
+          label-area-prefix: ''
+          label-area-match: 'name'
+          label-area-section: 'Which area\(s\) are affected\? \(Select all that apply\)(.*)### Additional context'
+          label-comments: |
+            {
+              "good first issue": ".github/comments/good-first-issue.md",
+              "please add a complete reproduction": ".github/comments/invalid-reproduction.md",
+              "please simplify reproduction": ".github/comments/simplify-reproduction.md",
+              "please verify canary": ".github/comments/verify-canary.md",
+              "resolved": ".github/comments/resolved.md"
+            }
+          reproduction-comment: '.github/comments/invalid-link.md'
+          reproduction-hosts: 'github.com,bitbucket.org,gitlab.com,codesandbox.io,stackblitz.com'
+          reproduction-blocklist: 'github.com/vercel/next.js.*,github.com/\\w*/?$,github.com$'
+          reproduction-link-section: '### Link to the code that reproduces this issue(.*)### To Reproduce'
+          reproduction-invalid-label: 'invalid link'
+          reproduction-issue-labels: 'bug,'
+          comment-unhelpful-weight: 0.5
+          webhook-url: ${{ secrets.NISSUER_WEBHOOK_URL }}
+          webhook-secret: ${{ secrets.NISSUER_WEBHOOK_SECRET }}

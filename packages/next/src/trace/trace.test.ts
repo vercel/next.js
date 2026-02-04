@@ -86,14 +86,14 @@ describe('Trace', () => {
   describe('Worker', () => {
     it('exports and initializes trace state', () => {
       const root = trace('root-span')
-      expect(root.id).toEqual(1)
+      expect(root.getId()).toEqual(1)
       const traceState = exportTraceState()
       expect(traceState.lastId).toEqual(1)
       initializeTraceState({
         lastId: 101,
       })
       const span = trace('another-span')
-      expect(span.id).toEqual(102)
+      expect(span.getId()).toEqual(102)
     })
 
     it('trace data is serializable to a worker', async () => {

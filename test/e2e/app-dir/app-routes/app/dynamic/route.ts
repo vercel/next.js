@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-static'
 
-export function GET(req: Request) {
+export async function GET(req: Request) {
   return NextResponse.json({
     nextUrl: {
       href: (req as any).nextUrl.href,
@@ -15,7 +15,7 @@ export function GET(req: Request) {
       url: req.url,
       headers: req.headers.get('accept'),
     },
-    headers: headers().get('accept'),
-    cookies: cookies().get('session')?.value ?? null,
+    headers: (await headers()).get('accept'),
+    cookies: (await cookies()).get('session')?.value ?? null,
   })
 }

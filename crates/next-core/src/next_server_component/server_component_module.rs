@@ -1,0 +1,195 @@
+use std::collections::BTreeMap;
+
+use anyhow::Result;
+use indoc::formatdoc;
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::{
+    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
+    ident::AssetIdent,
+    module::{Module, ModuleSideEffects},
+    module_graph::ModuleGraph,
+    output::OutputAssetsReference,
+    reference::ModuleReferences,
+    source::OptionSource,
+};
+use turbopack_ecmascript::{
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
+    },
+    references::esm::{EsmExport, EsmExports},
+    runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
+    utils::StringifyJs,
+};
+
+use super::server_component_reference::NextServerComponentModuleReference;
+
+#[turbo_tasks::value(shared)]
+pub struct NextServerComponentModule {
+    pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    /// The original source path before any transformations (e.g., page.mdx before it becomes
+    /// page.mdx.tsx). This is used to generate consistent manifest keys that match what the
+    /// LoaderTree stores.
+    source_path: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl NextServerComponentModule {
+    #[turbo_tasks::function]
+    pub fn new(
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        source_path: FileSystemPath,
+    ) -> Vc<Self> {
+        NextServerComponentModule {
+            module,
+            source_path,
+        }
+        .cell()
+    }
+
+    /// Returns the original source path (before transformations like MDX -> MDX.tsx).
+    /// Use this for manifest key generation to match the LoaderTree paths.
+    #[turbo_tasks::function]
+    pub fn source_path(&self) -> Vc<FileSystemPath> {
+        self.source_path.clone().cell()
+    }
+
+    /// Returns the transformed module path (e.g., page.mdx.tsx for MDX files).
+    /// This is the path of the actual compiled module.
+    #[turbo_tasks::function]
+    pub fn server_path(&self) -> Vc<FileSystemPath> {
+        self.module.ident().path()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Module for NextServerComponentModule {
+    #[turbo_tasks::function]
+    fn ident(&self) -> Vc<AssetIdent> {
+        self.module
+            .ident()
+            .with_modifier(rcstr!("Next.js Server Component"))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        )]))
+    }
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // This just exports another import
+        ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for NextServerComponentModule {
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
+            NextServerComponentChunkItem {
+                module_graph,
+                chunking_context,
+                inner: self,
+            }
+            .cell(),
+        )
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkPlaceable for NextServerComponentModule {
+    #[turbo_tasks::function]
+    async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
+        let module_reference = ResolvedVc::upcast(
+            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        );
+
+        let mut exports = BTreeMap::new();
+        let default = rcstr!("default");
+        exports.insert(
+            default.clone(),
+            EsmExport::ImportedBinding(module_reference, default, false),
+        );
+
+        Ok(EcmascriptExports::EsmExports(
+            EsmExports {
+                exports,
+                star_exports: vec![module_reference],
+            }
+            .resolved_cell(),
+        )
+        .cell())
+    }
+}
+
+#[turbo_tasks::value]
+struct NextServerComponentChunkItem {
+    module_graph: ResolvedVc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    inner: ResolvedVc<NextServerComponentModule>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for NextServerComponentChunkItem {}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for NextServerComponentChunkItem {
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let inner = self.inner.await?;
+
+        let module_id = inner.module.chunk_item_id(*self.chunking_context).await?;
+        Ok(EcmascriptChunkItemContent {
+            inner_code: formatdoc!(
+                r#"
+                    {TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));
+                "#,
+                StringifyJs(&module_id),
+            )
+            .into(),
+            ..Default::default()
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkItem for NextServerComponentChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.inner.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *self.chunking_context
+    }
+
+    #[turbo_tasks::function]
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(*self.inner)
+    }
+}

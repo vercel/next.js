@@ -1,16 +1,16 @@
-import Image from 'next/image'
-import AuthorType from '../types/authorType'
+import Image from "next/image";
+import AuthorType from "../types/authorType";
 
 type Props = {
-  author: AuthorType
-}
+  author: AuthorType;
+};
 
 export default function Avatar({ author }: Props) {
   const name: string = author
     ? author.firstName && author.lastName
       ? `${author.firstName} ${author.lastName}`
       : author.name
-    : null
+    : null;
 
   return (
     <div className="flex items-center">
@@ -24,5 +24,5 @@ export default function Avatar({ author }: Props) {
       </div>
       <div className="text-xl font-bold">{name}</div>
     </div>
-  )
+  );
 }

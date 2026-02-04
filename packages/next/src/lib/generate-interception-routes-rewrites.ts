@@ -1,50 +1,15 @@
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { NEXT_URL } from '../client/components/app-router-headers'
 import {
-  INTERCEPTION_ROUTE_MARKERS,
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
-} from '../server/future/helpers/interception-routes'
+} from '../shared/lib/router/utils/interception-routes'
 import type { Rewrite } from './load-custom-routes'
-
-// a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
-function toPathToRegexpPath(path: string): string {
-  return path.replace(/\[\[?([^\]]+)\]\]?/g, (_, capture) => {
-    // handle catch-all segments (e.g. /foo/bar/[...baz] or /foo/bar/[[...baz]])
-    if (capture.startsWith('...')) {
-      return `:${capture.slice(3)}*`
-    }
-    return ':' + capture
-  })
-}
-
-// for interception routes we don't have access to the dynamic segments from the
-// referrer route so we mark them as noop for the app renderer so that it
-// can retrieve them from the router state later on. This also allows us to
-// compile the route properly with path-to-regexp, otherwise it will throw
-function voidParamsBeforeInterceptionMarker(path: string): string {
-  let newPath = []
-
-  let foundInterceptionMarker = false
-  for (const segment of path.split('/')) {
-    if (
-      INTERCEPTION_ROUTE_MARKERS.find((marker) => segment.startsWith(marker))
-    ) {
-      foundInterceptionMarker = true
-    }
-
-    if (segment.startsWith(':') && !foundInterceptionMarker) {
-      newPath.push('__NEXT_EMPTY_PARAM__')
-    } else {
-      newPath.push(segment)
-    }
-  }
-
-  return newPath.join('/')
-}
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 export function generateInterceptionRoutesRewrites(
-  appPaths: string[]
+  appPaths: string[],
+  basePath = ''
 ): Rewrite[] {
   const rewrites: Rewrite[] = []
 
@@ -53,35 +18,49 @@ export function generateInterceptionRoutesRewrites(
       const { interceptingRoute, interceptedRoute } =
         extractInterceptionRouteInformation(appPath)
 
-      const normalizedInterceptingRoute = `${
-        interceptingRoute !== '/' ? toPathToRegexpPath(interceptingRoute) : ''
-      }/(.*)?`
+      const destination = getNamedRouteRegex(basePath + appPath, {
+        prefixRouteKeys: true,
+      })
 
-      const normalizedInterceptedRoute = toPathToRegexpPath(interceptedRoute)
-      const normalizedAppPath = voidParamsBeforeInterceptionMarker(
-        toPathToRegexpPath(appPath)
-      )
+      const header = getNamedRouteRegex(interceptingRoute, {
+        prefixRouteKeys: true,
+        reference: destination.reference,
+      })
 
-      // pathToRegexp returns a regex that matches the path, but we need to
-      // convert it to a string that can be used in a header value
-      // to the format that Next/the proxy expects
-      let interceptingRouteRegex = pathToRegexp(normalizedInterceptingRoute)
-        .toString()
-        .slice(2, -3)
+      const source = getNamedRouteRegex(basePath + interceptedRoute, {
+        prefixRouteKeys: true,
+        reference: header.reference,
+      })
+
+      const headerRegex = header.namedRegex
+        // Strip ^ and $ anchors since matchHas() will add them automatically
+        .replace(/^\^/, '')
+        .replace(/\$$/, '')
+        // Replace matching the `/` with matching any route segment.
+        .replace(/^\/\(\?:\/\)\?$/, '/.*')
+        // Replace the optional trailing with slash capture group with one that
+        // will match any descendants.
+        .replace(/\(\?:\/\)\?$/, '(?:/.*)?')
 
       rewrites.push({
-        source: normalizedInterceptedRoute,
-        destination: normalizedAppPath,
+        source: source.pathToRegexpPattern,
+        destination: destination.pathToRegexpPattern,
         has: [
           {
             type: 'header',
             key: NEXT_URL,
-            value: interceptingRouteRegex,
+            value: headerRegex,
           },
         ],
+        regex: source.namedRegex,
       })
     }
   }
 
   return rewrites
+}
+
+export function isInterceptionRouteRewrite(route: DeepReadonly<Rewrite>) {
+  // When we generate interception rewrites in the above implementation, we always do so with only a single `has` condition.
+  return route.has?.[0]?.key === NEXT_URL
 }

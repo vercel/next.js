@@ -1,0 +1,147 @@
+  x You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:1:1]
+ 1 | import { useState } from 'react'
+   :          ^^^^^^^^
+   `----
+  x You're importing a component that needs `createContext`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:3:1]
+ 2 | 
+ 3 | import { createContext } from 'react'
+   :          ^^^^^^^^^^^^^
+   `----
+  x You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:5:1]
+ 4 | 
+ 5 | import { useEffect, useImperativeHandle } from 'react'
+   :          ^^^^^^^^^
+   `----
+  x You're importing a component that needs `useImperativeHandle`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:5:1]
+ 4 | 
+ 5 | import { useEffect, useImperativeHandle } from 'react'
+   :                     ^^^^^^^^^^^^^^^^^^^
+   `----
+  x You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  | 
+  | 
+   ,-[input.js:8:1]
+ 7 | import {
+ 8 |   Component,
+   :   ^^^^^^^^^
+ 9 |   createFactory,
+   `----
+  x You're importing a component that needs `createFactory`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+    ,-[input.js:9:1]
+  8 |   Component,
+  9 |   createFactory,
+    :   ^^^^^^^^^^^^^
+ 10 |   PureComponent,
+    `----
+  x You're importing a component that needs `PureComponent`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+    ,-[input.js:10:1]
+  9 |   createFactory,
+ 10 |   PureComponent,
+    :   ^^^^^^^^^^^^^
+ 11 |   useDeferredValue,
+    `----
+  x You're importing a component that needs `useDeferredValue`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+    ,-[input.js:11:1]
+ 10 |   PureComponent,
+ 11 |   useDeferredValue,
+    :   ^^^^^^^^^^^^^^^^
+ 12 |   useInsertionEffect,
+    `----
+  x You're importing a component that needs `useInsertionEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+    ,-[input.js:12:1]
+ 11 |   useDeferredValue,
+ 12 |   useInsertionEffect,
+    :   ^^^^^^^^^^^^^^^^^^
+ 13 |   useLayoutEffect,
+    `----
+  x You're importing a component that needs `useLayoutEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+    ,-[input.js:13:1]
+ 12 |   useInsertionEffect,
+ 13 |   useLayoutEffect,
+    :   ^^^^^^^^^^^^^^^
+ 14 |   useReducer,
+    `----
+  x You're importing a component that needs `useReducer`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+    ,-[input.js:14:1]
+ 13 |   useLayoutEffect,
+ 14 |   useReducer,
+    :   ^^^^^^^^^^
+ 15 |   useRef,
+    `----
+  x You're importing a component that needs `useRef`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+    ,-[input.js:15:1]
+ 14 |   useReducer,
+ 15 |   useRef,
+    :   ^^^^^^
+ 16 |   useSyncExternalStore,
+    `----
+  x You're importing a component that needs `useSyncExternalStore`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+    ,-[input.js:16:1]
+ 15 |   useRef,
+ 16 |   useSyncExternalStore,
+    :   ^^^^^^^^^^^^^^^^^^^^
+ 17 | } from 'react'
+    `----
+  x You're importing a component that needs `experimental_useOptimistic`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+    ,-[input.js:19:1]
+ 18 | 
+ 19 | import { experimental_useOptimistic as useOptimistic } from 'react'
+    :          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    `----

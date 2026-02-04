@@ -1,18 +1,9 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-title-in-document-head'
 import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
-const ruleTester = new RuleTester()
+import { rules } from '@next/eslint-plugin-next'
 
-ruleTester.run('no-title-in-document-head', rule, {
+const NextESLintRule = rules['no-title-in-document-head']
+
+const tests = {
   valid: [
     `import Head from "next/head";
 
@@ -66,4 +57,19 @@ ruleTester.run('no-title-in-document-head', rule, {
       ],
     },
   ],
+}
+
+describe('no-title-in-document-head', () => {
+  new RuleTester({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint', NextESLintRule, tests)
 })

@@ -1,0 +1,15 @@
+{
+  "name": "subpath-imports",
+  "imports": {
+    "#foo": "./foo.js",
+    "#dep": "dep",
+    "#conditional": {
+      "import": "./import.mjs",
+      "require": "./require.cjs"
+    },
+    "#pattern/*.js": "./*.js"
+  },
+  "dependencies": {
+    "dep": "./dep"
+  }
+}

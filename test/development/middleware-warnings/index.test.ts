@@ -1,5 +1,5 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -13,9 +13,6 @@ describe('middlewares', () => {
     ),
     skipStart: true,
   })
-
-  let cleanup
-  afterEach(() => cleanup?.())
 
   it.each([
     {
@@ -71,7 +68,10 @@ describe('middlewares', () => {
       `,
     },
   ])('does not warn when $title', async ({ code }) => {
-    ;({ cleanup } = await sandbox(next, new Map([[middlewarePath, code]])))
+    await using _sandbox = await createSandbox(
+      next,
+      new Map([[middlewarePath, code]])
+    )
     expect(next.cliOutput).not.toMatch(middlewareWarning)
   })
 
@@ -93,7 +93,10 @@ describe('middlewares', () => {
       `,
     },
   ])('does not warn when $title', async ({ code }) => {
-    ;({ cleanup } = await sandbox(next, new Map([[middlewarePath, code]])))
+    await using _sandbox = await createSandbox(
+      next,
+      new Map([[middlewarePath, code]])
+    )
     expect(next.cliOutput).not.toMatch(middlewareWarning)
   })
 })

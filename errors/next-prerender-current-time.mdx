@@ -1,0 +1,234 @@
+---
+title: Cannot access `Date.now()`, `Date()`, or `new Date()` before other uncached data or Request data in a Server Component
+---
+
+## Why This Error Occurred
+
+`Date.now()`, `Date()`, or `new Date()` was used in a Server Component before accessing other uncached data through APIs like `fetch()` and native database drivers, or Request data through built-in APIs like `cookies()`, `headers()`, `connection()` and `searchParams`. Accessing the current time in this way interferes with the prerendering and prefetching capabilities of Next.js.
+
+## Possible Ways to Fix It
+
+If the current time is being used for diagnostic purposes such as logging or performance tracking consider using `performance.now()` instead.
+
+If the current time is appropriate to be prerendered and prefetched consider moving it into a Cache Component or Cache Function with the `"use cache"` directive.
+
+If the current time is intended to be accessed dynamically on every user request first consider whether it is more appropriate to access it in a Client Component, which can often be the case when reading the time for display purposes. If a Client Component isn't the right choice then consider whether you can move the current time access later, behind other existing uncached data or Request data access. If there is no way to do this you can always precede the current time access with Request data access by using `await connection()`.
+
+> **Note**: Sometimes the place that accesses the current time is inside 3rd party code. While you can't easily convert the time access to `performance.now()` the other strategies can be applied in your own project code regardless of how deeply the time is read.
+
+### Performance use case
+
+If you are using the current time for performance tracking with elapsed time use `performance.now()`.
+
+Before:
+
+```jsx filename="app/page.js"
+export default async function Page() {
+  const start = Date.now();
+  const data = computeDataSlowly(...);
+  const end = Date.now();
+  console.log(`somethingSlow took ${end - start} milliseconds to complete`)
+
+  return ...
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+export default async function Page() {
+  const start = performance.now();
+  const data = computeDataSlowly(...);
+  const end = performance.now();
+  console.log(`somethingSlow took ${end - start} milliseconds to complete`)
+  return ...
+}
+```
+
+> **Note**: If you need report an absolute time to an observability tool you can also use `performance.timeOrigin + performance.now()`.
+> **Note**: It is essential that the values provided by `performance.now()` do not influence the rendered output of your Component and should never be passed into Cache Functions as arguments or props.
+
+### Cacheable use cases
+
+If you want to read the time when some cache entry is created (such as when a Next.js page is rendered at build-time or when revalidating a static page), move the current time read inside a cached function using `"use cache"`.
+
+Before:
+
+```jsx filename="app/page.js"
+async function InformationTable() {
+  const data = await fetch(...)
+  return (
+    <section>
+      <h1>Latest Info...</h1>
+      <table>{renderData(data)}</table>
+    </section>
+  )
+}
+
+export default async function Page() {
+  return (
+    <main>
+      <InformationTable />
+      Last Refresh: {new Date().toString()}
+    </main>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+async function InformationTable() {
+  "use cache"
+  const data = await fetch(...)
+  return (
+    <>
+      <section>
+        <h1>Latest Info...</h1>
+        <table>{renderData(data)}</table>
+      </section>
+      Last Refresh: {new Date().toString()}
+    </>
+  )
+}
+
+export default async function Page() {
+  return (
+    <main>
+      <InformationTable />
+    </main>
+  )
+}
+```
+
+### Request-time use case
+
+#### Moving time to the client
+
+If the current time must be evaluated on each user Request consider moving the current time read into a Client Component. You might also find that this is more convenient when you want to do things like update the time independent of a page navigation. For instance imagine you have a relative time component. Instead of rendering the relative time in a Server Component on each Request you can render the relative time when the Client Component renders and then update it periodically.
+
+If you go with this approach you will need to ensure the Client Component which reads the time during render has a Suspense boundary above it. You may be able to improve the loading experience by adopting a more narrowly scoped Suspense boundary. Use your judgement about what kind of UI loading sequence you want your users to experience to guide your decision here.
+
+Before:
+
+```jsx filename="app/page.js"
+function RelativeTime({ when }) {
+  return computeTimeAgo(new Date(), when)
+}
+
+export default async function Page() {
+  const data = await ...
+  return (
+    <main>
+      ...
+      <Suspense>
+        <RelativeTime when={data.createdAt} />
+      </Suspense>
+    </main>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/relative-time.js"
+'use client'
+
+import { useReducer } from 'react'
+
+export function RelativeTime({ when }) {
+  const [_, update] = useReducer(() => ({}), {})
+  const timeAgo = computeTimeAgo(new Date(), when)
+
+  // Whenever the timeAgo value changes a new timeout is
+  // scheduled to update the component. Now the time can
+  // rerender without having the Server Component render again.
+  useEffect(() => {
+    const updateAfter = computeTimeUntilNextUpdate(timeAgo)
+    let timeout = setTimeout(() => {
+      update()
+    }, updateAfter)
+    return () => {
+      clearTimeout(timeout)
+    }
+  })
+
+  return timeAgo
+}
+```
+
+```jsx filename="app/page.js"
+import { RelativeTime } from './relative-time'
+
+export default async function Page() {
+  const data = await ...
+  return (
+    <main>
+      ...
+      <Suspense>
+        <RelativeTime when={data.createdAt} />
+      </Suspense>
+    </main>
+  )
+}
+```
+
+> **Note**: Accessing the current time in a Client Component will still cause it to be excluded from prerendered server HTML but Next.js allows this within Client Components because it can either compute the time dynamically when the user requests the HTML page or in the browser.
+
+#### Guarding the time with `await connection()`
+
+It may be that you want to make some rendering determination using the current time on the server and thus cannot move the time read into a Client Component. In this case you must instruct Next.js that the time read is meant to be evaluated at request time by preceding it with `await connection()`.
+
+Next.js enforces that it can always produce at least a partially static initial HTML page so you will also need to ensure that there is a Suspense boundary somewhere above this component that informs Next.js about the intended fallback UI to use while prerendering this page.
+
+Before:
+
+```jsx filename="app/page.js"
+export default async function Page() {
+  const currentTime = Date.now()
+  if (currentTime > someTriggerDate) {
+    return <SpecialBanner />
+  } else {
+    return <NormalBanner />
+  }
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+import { Suspense } from 'react'
+import { connection } from 'next/server'
+
+async function BannerSkeleton() {
+  ...
+}
+
+export default async function Page() {
+  return <Suspense fallback={<BannerSkeleton />}>
+    <DynamicBanner />
+  </Suspense>
+}
+
+async function DynamicBanner() {
+  await connection();
+  const currentTime = Date.now();
+  if (currentTime > someTriggerDate) {
+    return <SpecialBanner />
+  } else {
+    return <NormalBanner />
+  }
+}
+```
+
+> **Note**: This example illustrates using `await connection()`, but you could alternatively move where a uncached fetch happens or read cookies before as well.
+
+## Useful Links
+
+- [`Date.now` API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)
+- [`Date constructor` API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/Date)
+- [`connection` function](/docs/app/api-reference/functions/connection)
+- [`performance` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Performance)
+- [`Suspense` React API](https://react.dev/reference/react/Suspense)
+- [`useLayoutEffect` React Hook](https://react.dev/reference/react/useLayoutEffect)
+- [`useEffect` React Hook](https://react.dev/reference/react/useEffect)

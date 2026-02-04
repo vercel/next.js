@@ -1,0 +1,20 @@
+a = Promise<module<a, {}>>
+
+b = (???*0* | Promise<module<a, {}>> | Promise<module<b, {}>>)
+- *0* b
+  ⚠️  pattern without value
+
+c = ???*0*
+- *0* import*1*(
+        (???*2* ? "next/dist/compiled/@vercel/og/index.edge.js" : "next/dist/compiled/@vercel/og/index.node.js")
+    )
+  ⚠️  import() non constant
+  ⚠️  This value might have side effects
+- *1* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
+- *2* (process.env*3*["NEXT_RUNTIME"] === "edge")
+  ⚠️  nested operation
+- *3* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
+
+earlyExit = (...) => (hoisted | undefined)
+
+hoisted = (...) => undefined

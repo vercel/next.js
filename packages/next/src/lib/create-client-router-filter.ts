@@ -4,6 +4,10 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import type { Redirect } from './load-custom-routes'
 import { tryToParsePath } from './try-to-parse-path'
+import {
+  extractInterceptionRouteInformation,
+  isInterceptionRouteAppPath,
+} from '../shared/lib/router/utils/interception-routes'
 
 export function createClientRouterFilter(
   paths: string[],
@@ -16,14 +20,18 @@ export function createClientRouterFilter(
   const staticPaths = new Set<string>()
   const dynamicPaths = new Set<string>()
 
-  for (const path of paths) {
+  for (let path of paths) {
     if (isDynamicRoute(path)) {
+      if (isInterceptionRouteAppPath(path)) {
+        path = extractInterceptionRouteInformation(path).interceptedRoute
+      }
+
       let subPath = ''
       const pathParts = path.split('/')
 
       // start at 1 since we split on '/' and the path starts
       // with this so the first entry is an empty string
-      for (let i = 1; i < pathParts.length + 1; i++) {
+      for (let i = 1; i < pathParts.length; i++) {
         const curPart = pathParts[i]
 
         if (curPart.startsWith('[')) {

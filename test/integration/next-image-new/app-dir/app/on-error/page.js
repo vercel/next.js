@@ -9,7 +9,7 @@ const Page = () => {
     <div>
       <h1>Test onError</h1>
       <p>
-        If error occured while loading image, native onError should be called.
+        If error occurred while loading image, native onError should be called.
       </p>
       <button id="toggle" onClick={() => setClicked(!clicked)}>
         Toggle
@@ -28,7 +28,7 @@ const Page = () => {
 }
 
 function ImageWithMessage({ id, ...props }) {
-  const [msg, setMsg] = useState(`no error occured for img${id}`)
+  const [msg, setMsg] = useState(`no error occurred for img${id}`)
 
   return (
     <>
@@ -36,7 +36,7 @@ function ImageWithMessage({ id, ...props }) {
         <Image
           id={`img${id}`}
           onError={(e) => {
-            setMsg(`error occured while loading ${e.target.id}`)
+            setMsg(`error occurred while loading ${e.target.id}`)
           }}
           {...props}
         />

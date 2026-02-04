@@ -1,0 +1,4 @@
+{
+  "scopeHoisting": true,
+  "productionChunking": true
+}

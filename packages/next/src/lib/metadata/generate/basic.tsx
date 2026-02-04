@@ -5,9 +5,9 @@ import type {
 } from '../types/metadata-interface'
 import type { ViewportLayout } from '../types/extra-types'
 
-import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
 import { ViewportMetaKeys } from '../constants'
+import { getOrigin } from './utils'
 
 // convert viewport object to string for viewport meta tag
 function resolveViewportLayout(viewport: Viewport) {
@@ -19,9 +19,15 @@ function resolveViewportLayout(viewport: Viewport) {
       const viewportKey = viewportKey_ as keyof ViewportLayout
       if (viewportKey in viewport) {
         let value = viewport[viewportKey]
-        if (typeof value === 'boolean') value = value ? 'yes' : 'no'
-        if (resolved) resolved += ', '
-        resolved += `${ViewportMetaKeys[viewportKey]}=${value}`
+        if (typeof value === 'boolean') {
+          value = value ? 'yes' : 'no'
+        } else if (!value && viewportKey === 'initialScale') {
+          value = undefined
+        }
+        if (value) {
+          if (resolved) resolved += ', '
+          resolved += `${ViewportMetaKeys[viewportKey]}=${value}`
+        }
       }
     }
   }
@@ -30,6 +36,7 @@ function resolveViewportLayout(viewport: Viewport) {
 
 export function ViewportMeta({ viewport }: { viewport: ResolvedViewport }) {
   return MetaFilter([
+    <meta charSet="utf-8" />,
     Meta({ name: 'viewport', content: resolveViewportLayout(viewport) }),
     ...(viewport.themeColor
       ? viewport.themeColor.map((themeColor) =>
@@ -45,8 +52,11 @@ export function ViewportMeta({ viewport }: { viewport: ResolvedViewport }) {
 }
 
 export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
+  const manifestOrigin = metadata.manifest
+    ? getOrigin(metadata.manifest)
+    : undefined
+
   return MetaFilter([
-    <meta charSet="utf-8" />,
     metadata.title !== null && metadata.title.absolute ? (
       <title>{metadata.title.absolute}</title>
     ) : null,
@@ -61,7 +71,17 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
         ])
       : []),
     metadata.manifest ? (
-      <link rel="manifest" href={metadata.manifest.toString()} />
+      <link
+        rel="manifest"
+        href={metadata.manifest.toString()}
+        // If it's same origin, and it's a preview deployment,
+        // including credentials for manifest request.
+        crossOrigin={
+          !manifestOrigin && process.env.VERCEL_ENV === 'preview'
+            ? 'use-credentials'
+            : undefined
+        }
+      />
     ) : null,
     Meta({ name: 'generator', content: metadata.generator }),
     Meta({ name: 'keywords', content: metadata.keywords?.join(',') }),
@@ -84,15 +104,28 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
           <link rel="bookmarks" href={bookmark} />
         ))
       : []),
+    ...(metadata.pagination
+      ? [
+          metadata.pagination.previous ? (
+            <link rel="prev" href={metadata.pagination.previous} />
+          ) : null,
+          metadata.pagination.next ? (
+            <link rel="next" href={metadata.pagination.next} />
+          ) : null,
+        ]
+      : []),
     Meta({ name: 'category', content: metadata.category }),
     Meta({ name: 'classification', content: metadata.classification }),
     ...(metadata.other
-      ? Object.entries(metadata.other).map(([name, content]) =>
-          Meta({
-            name,
-            content: Array.isArray(content) ? content.join(',') : content,
-          })
-        )
+      ? Object.entries(metadata.other).map(([name, content]) => {
+          if (Array.isArray(content)) {
+            return content.map((contentItem) =>
+              Meta({ name, content: contentItem })
+            )
+          } else {
+            return Meta({ name, content })
+          }
+        })
       : []),
   ])
 }
@@ -105,6 +138,35 @@ export function ItunesMeta({ itunes }: { itunes: ResolvedMetadata['itunes'] }) {
     content += `, app-argument=${appArgument}`
   }
   return <meta name="apple-itunes-app" content={content} />
+}
+
+export function FacebookMeta({
+  facebook,
+}: {
+  facebook: ResolvedMetadata['facebook']
+}) {
+  if (!facebook) return null
+
+  const { appId, admins } = facebook
+
+  return MetaFilter([
+    appId ? <meta property="fb:app_id" content={appId} /> : null,
+    ...(admins
+      ? admins.map((admin) => <meta property="fb:admins" content={admin} />)
+      : []),
+  ])
+}
+
+export function PinterestMeta({
+  pinterest,
+}: {
+  pinterest: ResolvedMetadata['pinterest']
+}) {
+  if (!pinterest || pinterest.richPin === undefined) return null
+
+  const { richPin } = pinterest
+
+  return <meta property="pinterest-rich-pin" content={richPin.toString()} />
 }
 
 const formatDetectionKeys = [
@@ -122,12 +184,12 @@ export function FormatDetectionMeta({
   if (!formatDetection) return null
   let content = ''
   for (const key of formatDetectionKeys) {
-    if (key in formatDetection) {
+    if (formatDetection[key] === false) {
       if (content) content += ', '
       content += `${key}=no`
     }
   }
-  return <meta name="format-detection" content={content} />
+  return content ? <meta name="format-detection" content={content} /> : null
 }
 
 export function AppleWebAppMeta({
@@ -140,9 +202,7 @@ export function AppleWebAppMeta({
   const { capable, title, startupImage, statusBarStyle } = appleWebApp
 
   return MetaFilter([
-    capable
-      ? Meta({ name: 'apple-mobile-web-app-capable', content: 'yes' })
-      : null,
+    capable ? Meta({ name: 'mobile-web-app-capable', content: 'yes' }) : null,
     Meta({ name: 'apple-mobile-web-app-title', content: title }),
     startupImage
       ? startupImage.map((image) => (

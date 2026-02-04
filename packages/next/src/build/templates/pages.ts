@@ -1,13 +1,15 @@
-import { PagesRouteModule } from '../../server/future/route-modules/pages/module.compiled'
-import { RouteKind } from '../../server/future/route-kind'
+import { PagesRouteModule } from '../../server/route-modules/pages/module.compiled'
+import { RouteKind } from '../../server/route-kind'
+
 import { hoist } from './helpers'
 
 // Import the app and document modules.
-import Document from 'VAR_MODULE_DOCUMENT'
-import App from 'VAR_MODULE_APP'
+import * as document from 'VAR_MODULE_DOCUMENT'
+import * as app from 'VAR_MODULE_APP'
 
 // Import the userland code.
 import * as userland from 'VAR_USERLAND'
+import { getHandler } from '../../server/route-modules/pages/pages-handler'
 
 // Re-export the component (should be the default export).
 export default hoist(userland, 'default')
@@ -51,9 +53,22 @@ export const routeModule = new PagesRouteModule({
     bundlePath: '',
     filename: '',
   },
+  distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+  relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   components: {
-    App,
-    Document,
+    // default export might not exist when optimized for data only
+    App: app.default,
+    Document: document.default,
   },
   userland,
+})
+
+export const handler = getHandler({
+  srcPage: 'VAR_DEFINITION_PAGE',
+  config,
+  userland,
+  routeModule,
+  getStaticPaths,
+  getStaticProps,
+  getServerSideProps,
 })

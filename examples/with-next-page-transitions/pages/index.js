@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const Index = () => (
   <div className="container bg-primary page">
@@ -7,6 +7,6 @@ const Index = () => (
       About us
     </Link>
   </div>
-)
+);
 
-export default Index
+export default Index;

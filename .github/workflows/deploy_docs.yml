@@ -1,0 +1,54 @@
+name: docs-deploy
+
+on:
+  pull_request:
+    paths:
+      - 'apps/docs/**'
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  NODE_LTS_VERSION: 20
+
+jobs:
+  deploy:
+    name: Deploy docs to Vercel
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 25
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Deploy docs
+        id: deploy
+        run: |
+          URL=$(bash scripts/deploy-docs.sh)
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "Deployed to $URL"
+        env:
+          DEPLOY_ENVIRONMENT: preview
+
+      # - name: Comment on PR with deployment URL
+      #   if: ${{ github.event_name == 'pull_request' }}
+      #   uses: actions/github-script@v7
+      #   with:
+      #     script: |
+      #       const pr = github.context.payload.pull_request?.number
+      #       const url = '${{ steps.deploy.outputs.url }}'
+      #       if (!pr || !url) return
+      #       await github.rest.issues.createComment({
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         issue_number: pr,
+      #         body: `Docs deployed: ${url}`
+      #       })

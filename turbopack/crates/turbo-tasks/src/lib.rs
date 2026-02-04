@@ -1,0 +1,331 @@
+//! A task scheduling and caching system that is focused on incremental
+//! execution.
+//!
+//! It defines 4 primitives:
+//! - **[Functions][macro@crate::function]:** Units of execution, invalidation, and reexecution.
+//! - **[Values][macro@crate::value]:** Data created, stored, and returned by functions.
+//! - **[Traits][macro@crate::value_trait]:** Traits that define a set of functions on values.
+//! - **[Collectibles][crate::TurboTasks::emit_collectible]:** Values emitted in functions that
+//!   bubble up the call graph and can be collected in parent functions.
+//!
+//! It also defines some derived elements from that:
+//! - **[Tasks][book-tasks]:** An instance of a function together with its arguments.
+//! - **[Cells][book-cells]:** The locations associated with tasks where values are stored. The
+//!   contents of a cell can change after the reexecution of a function.
+//! - **[`Vc`s ("Value Cells")][Vc]:** A reference to a cell or a return value of a function.
+//!
+//! A [`Vc`] can be read to get [a read-only reference][ReadRef] to the stored data, representing a
+//! snapshot of that cell at that point in time.
+//!
+//! On execution of functions, `turbo-tasks` will track which [`Vc`]s are read. Once any of these
+//! change, `turbo-tasks` will invalidate the task created from the function's execution and it will
+//! eventually be scheduled and reexecuted.
+//!
+//! Collectibles go through a similar process.
+//!
+//! [book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
+//! [book-tasks]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html
+
+#![feature(trivial_bounds)]
+#![feature(min_specialization)]
+#![feature(try_trait_v2)]
+#![deny(unsafe_op_in_unsafe_fn)]
+#![feature(error_generic_member_access)]
+#![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![feature(never_type)]
+#![feature(downcast_unchecked)]
+#![feature(ptr_metadata)]
+#![feature(sync_unsafe_cell)]
+#![feature(async_fn_traits)]
+#![feature(impl_trait_in_assoc_type)]
+
+pub mod backend;
+mod capture_future;
+mod collectibles;
+mod completion;
+pub mod debug;
+mod display;
+pub mod duration_span;
+mod effect;
+mod error;
+pub mod event;
+pub mod graph;
+mod id;
+mod id_factory;
+mod invalidation;
+mod join_iter_ext;
+pub mod keyed;
+#[doc(hidden)]
+pub mod macro_helpers;
+mod magic_any;
+mod manager;
+pub mod mapped_read_ref;
+mod marker_trait;
+pub mod message_queue;
+mod native_function;
+mod once_map;
+mod output;
+pub mod panic_hooks;
+pub mod parallel;
+pub mod primitives;
+mod priority_runner;
+mod raw_vc;
+mod read_options;
+mod read_ref;
+pub mod registry;
+pub mod scope;
+mod serialization_invalidation;
+pub mod small_duration;
+mod spawn;
+mod state;
+pub mod task;
+mod task_execution_reason;
+pub mod task_statistics;
+pub mod trace;
+mod trait_ref;
+mod triomphe_utils;
+pub mod util;
+mod value;
+mod value_type;
+mod vc;
+
+use std::hash::BuildHasherDefault;
+
+pub use anyhow::{Error, Result};
+use auto_hash_map::AutoSet;
+use rustc_hash::FxHasher;
+pub use shrink_to_fit::ShrinkToFit;
+pub use turbo_tasks_macros::{TaskInput, function, value_impl};
+
+pub use crate::{
+    capture_future::TurboTasksPanic,
+    collectibles::CollectiblesSource,
+    completion::{Completion, Completions},
+    display::ValueToString,
+    effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects},
+    error::PrettyPrintError,
+    id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
+    invalidation::{
+        InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
+        get_invalidator,
+    },
+    join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
+    magic_any::MagicAny,
+    manager::{
+        CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
+        TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
+        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_root,
+        mark_session_dependent, prevent_gc, run, run_once, run_once_with_reason, trait_call,
+        turbo_tasks, turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
+    },
+    mapped_read_ref::MappedReadRef,
+    output::OutputContent,
+    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError},
+    read_options::{ReadCellOptions, ReadOutputOptions},
+    read_ref::ReadRef,
+    serialization_invalidation::SerializationInvalidator,
+    spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
+    state::{State, TransientState},
+    task::{
+        SharedReference, TypedSharedReference,
+        task_input::{EitherTaskInput, TaskInput},
+    },
+    task_execution_reason::TaskExecutionReason,
+    trait_ref::{IntoTraitRef, TraitRef},
+    value::{TransientInstance, TransientValue},
+    value_type::{TraitMethod, TraitType, ValueType},
+    vc::{
+        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
+        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode,
+        VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast,
+        VcValueType, VcValueTypeCast,
+    },
+};
+
+pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
+pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
+pub type FxDashMap<K, V> = dashmap::DashMap<K, V, BuildHasherDefault<FxHasher>>;
+
+// Copied from indexmap! and indexset!
+#[macro_export]
+macro_rules! fxindexmap {
+    (@single $($x:tt)*) => (());
+    (@count $($rest:expr),*) => (<[()]>::len(&[$($crate::fxindexmap!(@single $rest)),*]));
+
+    ($($key:expr => $value:expr,)+) => { $crate::fxindexmap!($($key => $value),+) };
+    ($($key:expr => $value:expr),*) => {
+        {
+            let _cap = $crate::fxindexmap!(@count $($key),*);
+            let mut _map = $crate::FxIndexMap::with_capacity_and_hasher(_cap, Default::default());
+            $(
+                _map.insert($key, $value);
+            )*
+            _map
+        }
+    };
+}
+#[macro_export]
+macro_rules! fxindexset {
+    (@single $($x:tt)*) => (());
+    (@count $($rest:expr),*) => (<[()]>::len(&[$($crate::fxindexset!(@single $rest)),*]));
+
+    ($($value:expr,)+) => { $crate::fxindexset!($($value),+) };
+    ($($value:expr),*) => {
+        {
+            let _cap = $crate::fxindexset!(@count $($value),*);
+            let mut _set = $crate::FxIndexSet::with_capacity_and_hasher(_cap, Default::default());
+            $(
+                _set.insert($value);
+            )*
+            _set
+        }
+    };
+}
+
+/// Implements [`VcValueType`] for the given `struct` or `enum`. These value types can be used
+/// inside of a "value cell" as [`Vc<...>`][Vc].
+///
+/// A [`Vc`] represents a (potentially lazy) memoized computation. Each [`Vc`]'s value is placed
+/// into a cell associated with the current [`TaskId`]. That [`Vc`] object can be `await`ed to get
+/// [a read-only reference to the value contained in the cell][ReadRef].
+///
+/// This macro accepts multiple comma-separated arguments. For example:
+///
+/// ```
+/// # #![feature(arbitrary_self_types)]
+//  # #![feature(arbitrary_self_types_pointers)]
+/// #[turbo_tasks::value(transparent, shared)]
+/// struct Foo(Vec<u32>);
+/// ```
+///
+/// ## `cell = "..."`
+///
+/// Controls when a cell is invalidated upon recomputation of a task. Internally, this is performed
+/// by setting the [`VcValueType::CellMode`] associated type.
+///
+/// - **`"new"`:** Always overrides the value in the cell, invalidating all dependent tasks.
+/// - **`"compare"` *(default)*:** Compares with the existing value in the cell, before overriding it.
+///   Requires the value to implement [`Eq`].
+///
+/// Avoiding unnecessary invalidation is important to reduce downstream recomputation of tasks that
+/// depend on this cell's value.
+///
+/// Use `"new"` only if a correct implementation of [`Eq`] is not possible, would be expensive (e.g.
+/// would require comparing a large collection), or if you're implementing a low-level primitive
+/// that intentionally forces recomputation.
+///
+/// ## `eq = "..."`
+///
+/// By default, we `#[derive(PartialEq, Eq)]`. [`Eq`] is required by `cell = "compare"`. This
+/// argument allows overriding that default implementation behavior.
+///
+/// - **`"manual"`:** Prevents deriving [`Eq`] and [`PartialEq`] so you can do it manually.
+///
+/// ## `serialization = "..."`
+///
+/// Affects serialization via [`serde::Serialize`] and [`serde::Deserialize`]. Serialization is
+/// required for filesystem cache of tasks.
+///
+/// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
+/// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
+///   (you must manually implement [`serde::Serialize`] and [`serde::Deserialize`]).
+/// - **`"none"`:** Disables serialization and prevents deriving the traits.
+///
+/// ## `shared`
+///
+/// Makes the `cell()` method public so everyone can use it.
+///
+/// ## `transparent`
+///
+/// This attribute is only valid on single-element unit structs. When this value is set:
+///
+/// 1. The struct will use [`#[repr(transparent)]`][repr-transparent].
+/// 1. Read operations (`vc.await?`) return a [`ReadRef`] containing the inner type, rather than the
+///    outer struct. Internally, this is accomplished using [`VcTransparentRead`] for the
+///    [`VcValueType::Read`] associated type.
+/// 1. Construction of the type must be performed using [`Vc::cell(inner)`][Vc::cell], rather than
+///    using the `.cell()` method on the outer type (`outer.cell()`).
+/// 1. The [`ValueDebug`][crate::debug::ValueDebug] implementation will defer to the inner type.
+///
+/// This is commonly used to create [`VcValueType`] wrappers for foreign or generic types, such as
+/// [`Vec`] or [`Option`].
+///
+/// [repr-transparent]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprtransparent
+///
+/// ## `local`
+///
+/// Skip the implementation of [`NonLocalValue`] for this type.
+///
+/// If not specified, we apply the [`#[derive(NonLocalValue)]`][macro@NonLocalValue] macro, which
+/// asserts that this struct has no fields containing [`Vc`] by implementing the [`NonLocalValue`]
+/// marker trait. Compile-time assertions are generated on every field, checking that they are also
+/// [`NonLocalValue`]s.
+#[rustfmt::skip]
+pub use turbo_tasks_macros::value;
+
+/// Allows this trait to be used as part of a trait object inside of a value
+/// cell, in the form of `Vc<dyn MyTrait>`.
+///
+/// ## Arguments
+///
+/// Example: `#[turbo_tasks::value_trait(no_debug, resolved)]`
+///
+/// ### 'no_debug`
+///
+/// Disables the automatic implementation of [`ValueDebug`][crate::debug::ValueDebug].
+///
+/// Example: `#[turbo_tasks::value_trait(no_debug)]`
+///
+/// ### 'resolved`
+///
+/// Adds [`NonLocalValue`] as a supertrait of this trait.
+///
+/// Example: `#[turbo_tasks::value_trait(resolved)]`
+#[rustfmt::skip]
+pub use turbo_tasks_macros::value_trait;
+
+/// Derives the TaskStorage struct and generates optimized storage structures.
+///
+/// This macro analyzes `field` annotations and generates:
+/// 1. A unified TaskStorage struct
+/// 2. LazyField enum for lazy_vec fields
+/// 3. Typed accessor methods on TaskStorage
+/// 4. TaskStorageAccessors trait with accessor methods
+/// 5. TaskFlags bitfield for boolean flags
+///
+/// # Field Attributes
+///
+/// All fields require two attributes:
+///
+/// ## `storage = "..."` (required)
+///
+/// Specifies how the field is stored:
+/// - `direct` - Direct field access (e.g., `Option<OutputValue>`)
+/// - `auto_set` - Uses AutoSet for small collections
+/// - `auto_map` - Uses AutoMap for key-value pairs
+/// - `counter_map` - Uses CounterMap for reference counting
+/// - `flag` - Boolean flag stored in a compact TaskFlags bitfield (field type must be `bool`)
+///
+/// ## `category = "..."` (required)
+///
+/// Specifies the data category for persistence and access:
+/// - `data` - Frequently changed, bulk I/O
+/// - `meta` - Rarely changed, small I/O
+/// - `transient` - Field is not serialized (in-memory only)
+///
+/// ## Optional Modifiers
+///
+/// - `inline` - Field is stored inline on TaskStorage (default is lazy). Only use for hot-path
+///   fields that are frequently accessed.
+/// - `default` - Use `Default::default()` semantics instead of `Option` for inline direct fields.
+/// - `filter_transient` - Filter out transient values during serialization.
+/// - Serialization methods
+#[rustfmt::skip]
+pub use turbo_tasks_macros::task_storage;
+
+pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
+
+pub mod test_helpers {
+    pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
+}

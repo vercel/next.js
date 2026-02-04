@@ -1,0 +1,33 @@
+{
+  "name": "my-esm-package",
+  "version": "0.0.0",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "exports": {
+    "./exports": {
+      "next-js": {
+        "react-server": "./src/exports.next.server.mjs",
+        "default": "./src/exports.next.default.mjs"
+      },
+      "default": {
+        "react-server": "./src/exports.default.server.mjs",
+        "default": "./src/exports.default.default.mjs"
+      }
+    },
+    "./imports": "./src/imports.mjs"
+  },
+  "imports": {
+    "#imports": {
+      "next-js": {
+        "react-server": "./src/imports/imports.next.server.mjs",
+        "default": "./src/imports/imports.next.default.mjs"
+      },
+      "default": {
+        "react-server": "./src/imports/imports.default.server.mjs",
+        "default": "./src/imports/imports.default.default.mjs"
+      }
+    }
+  }
+}

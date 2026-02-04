@@ -3,7 +3,7 @@ import * as path from 'path'
 
 const url = 'https://nextjs.org/docs/messages/no-head-import-in-document'
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description: 'Prevent usage of `next/head` in `pages/_document.js`.',
@@ -20,7 +20,7 @@ export = defineRule({
           return
         }
 
-        const document = context.getFilename().split('pages', 2)[1]
+        const document = context.filename.split('pages', 2)[1]
         if (!document) {
           return
         }

@@ -1,17 +1,17 @@
-import { PropsWithChildren } from 'react'
-import { useRouter } from 'next/router'
-import Link from 'next/link'
-import { RouterProps } from './types'
+import { PropsWithChildren } from "react";
+import { useRouter } from "next/router";
+import Link from "next/link";
+import { RouterProps } from "./types";
 
 const CustomLink: React.FC<PropsWithChildren<{ to: string }>> = ({
   to,
   children,
 }) => {
-  const router = useRouter()
-  const { pathname } = router
-  const { cacheStrategy } = router.query as RouterProps
-  const linkPathname = `/${to}/[cacheStrategy]`
-  const className = `nav-link${pathname === linkPathname ? ' active' : ''}`
+  const router = useRouter();
+  const { pathname } = router;
+  const { cacheStrategy } = router.query as RouterProps;
+  const linkPathname = `/${to}/[cacheStrategy]`;
+  const className = `nav-link${pathname === linkPathname ? " active" : ""}`;
   return (
     <div>
       <Link
@@ -25,8 +25,8 @@ const CustomLink: React.FC<PropsWithChildren<{ to: string }>> = ({
         {children}
       </Link>
     </div>
-  )
-}
+  );
+};
 
 export const Nav: React.FC = () => {
   return (
@@ -34,5 +34,5 @@ export const Nav: React.FC = () => {
       <CustomLink to="home">Home</CustomLink>
       <CustomLink to="signin">Sign in</CustomLink>
     </nav>
-  )
-}
+  );
+};

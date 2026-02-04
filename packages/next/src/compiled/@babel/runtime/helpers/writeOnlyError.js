@@ -1,4 +1,4 @@
-function _writeOnlyError(name) {
-  throw new TypeError("\"" + name + "\" is write-only");
+function _writeOnlyError(r) {
+  throw new TypeError('"' + r + '" is write-only');
 }
 module.exports = _writeOnlyError, module.exports.__esModule = true, module.exports["default"] = module.exports;

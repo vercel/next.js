@@ -1,6 +1,7 @@
 const invalidServerComponentReactHooks = [
   'useDeferredValue',
   'useEffect',
+  'useEffectEvent',
   'useImperativeHandle',
   'useInsertionEffect',
   'useLayoutEffect',
@@ -20,6 +21,22 @@ function setMessage(error: Error, message: string): void {
     lines[0] = message
     error.stack = lines.join('\n')
   }
+}
+
+/**
+ * Input:
+ * Error: Something went wrong
+    at funcName (/path/to/file.js:10:5)
+    at anotherFunc (/path/to/file.js:15:10)
+ 
+ * Output:
+    at funcName (/path/to/file.js:10:5)
+    at anotherFunc (/path/to/file.js:15:10) 
+ */
+export function getStackWithoutErrorMessage(error: Error): string {
+  const stack = error.stack
+  if (!stack) return ''
+  return stack.replace(/^[^\n]*\n/, '')
 }
 
 export function formatServerError(error: Error): void {

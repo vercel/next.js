@@ -3,9 +3,16 @@ module.exports = {
   logging: {
     fetches: {},
   },
-  experimental: {
-    incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER,
+  cacheLife: {
+    expireNow: {
+      stale: 0,
+      expire: 0,
+      revalidate: 0,
+    },
   },
+  cacheHandler: process.env.CUSTOM_CACHE_HANDLER
+    ? require.resolve('./cache-handler.js')
+    : undefined,
 
   rewrites: async () => {
     return {
@@ -13,7 +20,7 @@ module.exports = {
       afterFiles: [
         {
           source: '/rewritten-use-search-params',
-          destination: '/hooks/use-search-params',
+          destination: '/hooks/use-search-params/with-suspense',
         },
         {
           source: '/rewritten-use-pathname',

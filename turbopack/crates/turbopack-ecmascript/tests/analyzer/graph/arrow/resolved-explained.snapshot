@@ -1,0 +1,49 @@
+*anonymous function 116* = (...) => 3
+
+*anonymous function 339* = (...) => 3
+
+*arrow function 11* = (...) => 1
+
+*arrow function 214* = (...) => 1
+
+*arrow function 236* = (...) => 2
+
+*arrow function 259* = (...) => 1
+
+*arrow function 299* = (...) => 2
+
+*arrow function 30* = (...) => 2
+
+*arrow function 50* = (...) => 1
+
+*arrow function 83* = (...) => 2
+
+a = (...) => 1
+
+b = (...) => 2
+
+c = (...) => 1
+
+d = (...) => 2
+
+e#2 = (...) => 3
+
+e#6 = (...) => 4
+
+f = (...) => 4
+
+x = (...) => undefined
+
+xa = (...) => 1
+
+xb = (...) => 2
+
+xc = (...) => 1
+
+xd = (...) => 2
+
+xe#12 = (...) => 4
+
+xe#8 = (...) => 3
+
+xf = (...) => 4

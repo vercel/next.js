@@ -88,7 +88,7 @@ import type webpack from 'webpack'
 
 import path from 'path'
 import { transform } from '../../swc'
-import { WEBPACK_LAYERS } from '../../../lib/constants'
+import { installBindings } from '../../swc/install-bindings'
 
 // This is a in-memory cache for the mapping of barrel exports. This only applies
 // to the packages that we optimize. It will never change (e.g. upgrading packages)
@@ -97,14 +97,13 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 const barrelTransformMappingCache = new Map<
   string,
   {
-    prefix: string
     exportList: [string, string, string][]
     wildcardExports: string[]
+    isClientEntry: boolean
   } | null
 >()
 
 async function getBarrelMapping(
-  layer: string | null | undefined,
   resourcePath: string,
   swcCacheDir: string,
   resolve: (context: string, request: string) => Promise<string>,
@@ -135,9 +134,6 @@ async function getBarrelMapping(
         optimizeBarrelExports: {
           wildcard: isWildcard,
         },
-        serverComponents: {
-          isReactServerLayer: layer === WEBPACK_LAYERS.reactServerComponents,
-        },
         jsc: {
           parser: {
             syntax: isTypeScript ? 'typescript' : 'ecmascript',
@@ -155,7 +151,11 @@ async function getBarrelMapping(
 
   // Avoid circular `export *` dependencies
   const visited = new Set<string>()
-  async function getMatches(file: string, isWildcard: boolean) {
+  async function getMatches(
+    file: string,
+    isWildcard: boolean,
+    isClientEntry: boolean
+  ) {
     if (visited.has(file)) {
       return null
     }
@@ -180,11 +180,19 @@ async function getBarrelMapping(
       return null
     }
 
-    const prefix = matches[1]
+    const matchedDirectives = output.match(
+      /^([^]*)export (const|var) __next_private_directive_list__ = '([^']+)'/
+    )
+    const directiveList = matchedDirectives
+      ? JSON.parse(matchedDirectives[3])
+      : []
+    // "use client" in barrel files has to be transferred to the target file.
+    isClientEntry = directiveList.includes('use client')
+
     let exportList = JSON.parse(matches[3].slice(1, -1)) as [
       string,
       string,
-      string
+      string,
     ][]
     const wildcardExports = [
       ...output.matchAll(/export \* from "([^"]+)"/g),
@@ -209,7 +217,12 @@ async function getBarrelMapping(
             req.replace('__barrel_optimize__?names=__PLACEHOLDER__!=!', '')
           )
 
-          const targetMatches = await getMatches(targetPath, true)
+          const targetMatches = await getMatches(
+            targetPath,
+            true,
+            isClientEntry
+          )
+
           if (targetMatches) {
             // Merge the export list
             exportList = exportList.concat(targetMatches.exportList)
@@ -219,13 +232,13 @@ async function getBarrelMapping(
     }
 
     return {
-      prefix,
       exportList,
       wildcardExports,
+      isClientEntry,
     }
   }
 
-  const res = await getMatches(resourcePath, false)
+  const res = await getMatches(resourcePath, false, false)
   barrelTransformMappingCache.set(resourcePath, res)
 
   return res
@@ -239,6 +252,10 @@ const NextBarrelLoader = async function (
 ) {
   this.async()
   this.cacheable(true)
+  // Install bindings early so they are definitely available.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  await installBindings()
 
   const { names, swcCacheDir } = this.getOptions()
 
@@ -249,7 +266,6 @@ const NextBarrelLoader = async function (
   })
 
   const mapping = await getBarrelMapping(
-    this._module?.layer,
     this.resourcePath,
     swcCacheDir,
     resolve,
@@ -271,15 +287,14 @@ const NextBarrelLoader = async function (
     return
   }
 
-  // It needs to keep the prefix for comments and directives like "use client".
-  const prefix = mapping.prefix
   const exportList = mapping.exportList
+  const isClientEntry = mapping.isClientEntry
   const exportMap = new Map<string, [string, string]>()
   for (const [name, filePath, orig] of exportList) {
     exportMap.set(name, [filePath, orig])
   }
 
-  let output = prefix
+  let output = ''
   let missedNames: string[] = []
   for (const name of names) {
     // If the name matches
@@ -311,6 +326,12 @@ const NextBarrelLoader = async function (
         req.replace('__PLACEHOLDER__', missedNames.join(',') + '&wildcard')
       )}`
     }
+  }
+
+  // When it has `"use client"` inherited from its barrel files, we need to
+  // prefix it to this target file as well.
+  if (isClientEntry) {
+    output = `"use client";\n${output}`
   }
 
   this.callback(null, output)

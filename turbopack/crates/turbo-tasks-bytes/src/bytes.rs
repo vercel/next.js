@@ -1,0 +1,131 @@
+use std::{
+    ops::Deref,
+    str::{Utf8Error, from_utf8},
+};
+
+use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
+use bytes::Bytes as CBytes;
+
+/// Bytes is a thin wrapper around [bytes::Bytes], implementing easy
+/// conversion to/from, bincode support, and Vc containers.
+#[derive(Clone, Debug, Default)]
+#[turbo_tasks::value(transparent, serialization = "custom")]
+pub struct Bytes(#[turbo_tasks(trace_ignore)] CBytes);
+
+impl Bytes {
+    pub fn to_str(&self) -> Result<&'_ str, Utf8Error> {
+        from_utf8(&self.0)
+    }
+}
+
+impl Encode for Bytes {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self[..].encode(encoder)
+    }
+}
+
+impl<Context> Decode<Context> for Bytes {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        // bincode uses the same encoding for slices and vecs
+        // https://docs.rs/bincode/latest/bincode/spec/index.html#linear-collections-vec-arrays-etc
+        Ok(Bytes(CBytes::from(Vec::<u8>::decode(decoder)?)))
+    }
+}
+
+impl_borrow_decode!(Bytes);
+
+impl Deref for Bytes {
+    type Target = CBytes;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Types that implement From<X> for Bytes {}
+/// Unfortunately, we cannot just use the more generic `Into<Bytes>` without
+/// running afoul of the `From<X> for X` base case, causing conflicting impls.
+pub trait IntoBytes: Into<CBytes> {}
+impl IntoBytes for &'static [u8] {}
+impl IntoBytes for &'static str {}
+impl IntoBytes for Vec<u8> {}
+impl IntoBytes for Box<[u8]> {}
+impl IntoBytes for String {}
+
+impl<T: IntoBytes> From<T> for Bytes {
+    fn from(value: T) -> Self {
+        Bytes(value.into())
+    }
+}
+
+impl From<CBytes> for Bytes {
+    fn from(value: CBytes) -> Self {
+        Bytes(value)
+    }
+}
+
+impl From<Bytes> for CBytes {
+    fn from(value: Bytes) -> Self {
+        value.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl PartialEq<&str> for Bytes {
+        fn eq(&self, other: &&str) -> bool {
+            self.0 == other
+        }
+    }
+
+    #[test]
+    fn into_bytes() {
+        let s = "foo".to_string();
+        assert_eq!(Bytes::from(b"foo" as &'static [u8]), "foo");
+        assert_eq!(Bytes::from("foo"), "foo");
+        assert_eq!(Bytes::from(s.as_bytes().to_vec()), "foo");
+        assert_eq!(Bytes::from(s.as_bytes().to_vec().into_boxed_slice()), "foo");
+        assert_eq!(Bytes::from(s), "foo");
+    }
+
+    #[test]
+    fn bincode() {
+        let s = Bytes::from("test");
+        let c = bincode::config::standard();
+        let decoded: Bytes = bincode::decode_from_slice(&bincode::encode_to_vec(&s, c).unwrap(), c)
+            .unwrap()
+            .0;
+        assert_eq!(decoded, s);
+    }
+
+    #[test]
+    fn from_into() {
+        let b = Bytes::from("foo");
+        let cb = CBytes::from("foo");
+        assert_eq!(Bytes::from(cb), "foo");
+        assert_eq!(CBytes::from(b), "foo");
+    }
+
+    #[test]
+    fn deref() {
+        let b = Bytes::from("foo");
+        assert_eq!(*b, CBytes::from("foo"));
+    }
+
+    #[test]
+    fn to_str() {
+        let cb = Bytes::from("foo");
+        assert_eq!(cb.to_str(), Ok("foo"));
+
+        let b = Bytes::from("💩".as_bytes()[0..3].to_vec());
+        assert!(b.to_str().is_err());
+    }
+}

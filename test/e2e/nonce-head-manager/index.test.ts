@@ -1,7 +1,7 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 
 describe('nonce head manager', () => {
@@ -13,7 +13,6 @@ describe('nonce head manager', () => {
         pages: new FileRef(join(__dirname, 'app/pages')),
         public: new FileRef(join(__dirname, 'app/public')),
       },
-      nextConfig: new FileRef(join(__dirname, 'app/next.config.js')),
     })
   })
   afterAll(() => next.destroy())
@@ -43,6 +42,13 @@ describe('nonce head manager', () => {
       async () =>
         await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
       '["src-1.js","src-2.js"]'
+    )
+
+    await browser.elementByCss('#change-script').click()
+    await check(
+      async () =>
+        await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
+      '["src-1.js","src-2.js","src-1.js"]'
     )
   }
 

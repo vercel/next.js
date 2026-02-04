@@ -1,93 +1,67 @@
 import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
-import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import type {
-  ServerPatchAction,
-  ReducerState,
-  ReadonlyReducerState,
+import {
+  ACTION_REFRESH,
+  type ServerPatchAction,
+  type ReducerState,
+  type ReadonlyReducerState,
 } from '../router-reducer-types'
-import { handleExternalUrl } from './navigate-reducer'
-import { applyFlightData } from '../apply-flight-data'
-import { handleMutable } from '../handle-mutable'
+import {
+  completeHardNavigation,
+  navigateToKnownRoute,
+} from '../../segment-cache/navigation'
+import { refreshReducer } from './refresh-reducer'
+import { FreshnessPolicy } from '../ppr-navigations'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { flightData, previousTree, overrideCanonicalUrl, cache, mutable } =
-    action
-
-  const isForCurrentTree =
-    JSON.stringify(previousTree) === JSON.stringify(state.tree)
-
-  // When a fetch is slow to resolve it could be that you navigated away while the request was happening or before the reducer runs.
-  // In that case opt-out of applying the patch given that the data could be stale.
-  if (!isForCurrentTree) {
-    // TODO-APP: Handle tree mismatch
-    console.log('TREE MISMATCH')
-    // Keep everything as-is.
-    return state
+  // A "retry" is a navigation that happens due to a route mismatch. It's
+  // similar to a refresh, because we will omit any existing dynamic data on
+  // the page. But we seed the retry navigation with the exact tree that the
+  // server just responded with.
+  const retryMpa = action.mpa
+  const retryUrl = new URL(action.url, location.origin)
+  const retrySeed = action.seed
+  // A retry should not create a new history entry.
+  const navigateType = 'replace'
+  if (retryMpa || retrySeed === null) {
+    // If the server did not send back data during the mismatch, fall back to
+    // an MPA navigation.
+    return completeHardNavigation(state, retryUrl, navigateType)
   }
-
-  if (mutable.previousTree) {
-    return handleMutable(state, mutable)
+  const currentUrl = new URL(state.canonicalUrl, location.origin)
+  const currentRenderedSearch = state.renderedSearch
+  if (action.previousTree !== state.tree) {
+    // There was another, more recent navigation since the once that
+    // mismatched. We can abort the retry, but we still need to refresh the
+    // page to evict any stale dynamic data.
+    return refreshReducer(state, { type: ACTION_REFRESH })
   }
-
-  // Handle case when navigating to page in `pages` from `app`
-  if (typeof flightData === 'string') {
-    return handleExternalUrl(
-      state,
-      mutable,
-      flightData,
-      state.pushRef.pendingPush
-    )
-  }
-
-  let currentTree = state.tree
-  let currentCache = state.cache
-
-  for (const flightDataPath of flightData) {
-    // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
-    const flightSegmentPath = flightDataPath.slice(0, -4)
-
-    const [treePatch] = flightDataPath.slice(-3, -2)
-    const newTree = applyRouterStatePatchToTree(
-      // TODO-APP: remove ''
-      ['', ...flightSegmentPath],
-      currentTree,
-      treePatch
-    )
-
-    if (newTree === null) {
-      throw new Error('SEGMENT MISMATCH')
-    }
-
-    if (isNavigatingToNewRootLayout(currentTree, newTree)) {
-      return handleExternalUrl(
-        state,
-        mutable,
-        state.canonicalUrl,
-        state.pushRef.pendingPush
-      )
-    }
-
-    const canonicalUrlOverrideHref = overrideCanonicalUrl
-      ? createHrefFromUrl(overrideCanonicalUrl)
-      : undefined
-
-    if (canonicalUrlOverrideHref) {
-      mutable.canonicalUrl = canonicalUrlOverrideHref
-    }
-
-    applyFlightData(currentCache, cache, flightDataPath)
-
-    mutable.previousTree = currentTree
-    mutable.patchedTree = newTree
-    mutable.cache = cache
-
-    currentCache = cache
-    currentTree = newTree
-  }
-
-  return handleMutable(state, mutable)
+  // There have been no new navigations since the mismatched one. Refresh,
+  // using the tree we just received from the server.
+  const retryCanonicalUrl = createHrefFromUrl(retryUrl)
+  const retryNextUrl = action.nextUrl
+  const shouldScroll = true
+  const now = Date.now()
+  return navigateToKnownRoute(
+    now,
+    state,
+    retryUrl,
+    retryCanonicalUrl,
+    retrySeed,
+    currentUrl,
+    currentRenderedSearch,
+    state.cache,
+    state.tree,
+    FreshnessPolicy.RefreshAll,
+    retryNextUrl,
+    shouldScroll,
+    navigateType,
+    null,
+    // Server patch (retry) navigations don't use route prediction. This is
+    // typically a retry after a previous mismatch, so the route was already
+    // marked as having a dynamic rewrite when the mismatch was detected.
+    null
+  )
 }

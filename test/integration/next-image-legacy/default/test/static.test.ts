@@ -7,6 +7,7 @@ import {
   File,
   waitFor,
 } from 'next-test-utils'
+import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -65,14 +66,33 @@ const runTests = () => {
     expect(html).not.toContain('width:400px;height:400px')
   })
   it('Should add a blur placeholder to statically imported jpg', async () => {
-    expect(html).toContain(
-      `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(&quot;data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAoKCgoKCgsMDAsPEA4QDxYUExMUFiIYGhgaGCIzICUgICUgMy03LCksNy1RQDg4QFFeT0pPXnFlZXGPiI+7u/sBCgoKCgoKCwwMCw8QDhAPFhQTExQWIhgaGBoYIjMgJSAgJSAzLTcsKSw3LVFAODhAUV5PSk9ecWVlcY+Ij7u7+//CABEIAAYACAMBIgACEQEDEQH/xAAnAAEBAAAAAAAAAAAAAAAAAAAABwEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEAMQAAAAmgP/xAAcEAACAQUBAAAAAAAAAAAAAAASFBMAAQMFERX/2gAIAQEAAT8AZ1HjrKZX55JysIc4Ff/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Af//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Af//Z&quot;)"`
-    )
+    const $ = cheerio.load(html)
+    // The base64 snapshot is not necessarily stable across OSs and Architectures
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect(
+        replaceDataUrl($('#basic-static').attr('style'))
+      ).toMatchInlineSnapshot(
+        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:<REPLACED>")"`
+      )
+    } else {
+      expect(
+        replaceDataUrl($('#basic-static').attr('style'))
+      ).toMatchInlineSnapshot(
+        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:<REPLACED>")"`
+      )
+    }
   })
   it('Should add a blur placeholder to statically imported png', async () => {
-    expect(html).toContain(
-      `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAAAAADhZOFXAAAAOklEQVR42iWGsQkAIBDE0iuIdiLOJjiGIzjiL/Meb4okiNYIlLjK3hJMzCQG1/0qmXXOUkjAV+m9wAMe3QiV6Ne8VgAAAABJRU5ErkJggg==&quot;)`
-    )
+    const $ = cheerio.load(html)
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect($('#basic-static')[2].attribs.style).toMatchInlineSnapshot(
+        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAICAYAAAA870V8AAAARUlEQVR42l3MoQ0AQQhE0XG7xWwIJSBIKBRJOZRBEXOWnPjimQ8AXC3ce+nuPOcQEcHuppkRVcWZYWYSIkJV5XvvN9j4AFZHJTnjDHb/AAAAAElFTkSuQmCC")"`
+      )
+    } else {
+      expect($('#basic-static')[2].attribs.style).toMatchInlineSnapshot(
+        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAICAMAAAALMbVOAAAAGFBMVEUBAQFCQkIHBwcuLi79/f0rKyu1tbWurq7lN1wyAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAHElEQVR4nGNggAImRiYGRhZGBjYWdgZmVmaYMAACVQAo1/LzagAAAABJRU5ErkJggg==")"`
+      )
+    }
   })
 
   it('should load direct imported image', async () => {
@@ -99,38 +119,53 @@ const runTests = () => {
 }
 
 describe('Build Error Tests', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('should throw build error when import statement is used with missing file', async () => {
-      await indexPage.replace(
-        '../public/foo/test-rect.jpg',
-        '../public/foo/test-rect-broken.jpg'
-      )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it('should throw build error when import statement is used with missing file', async () => {
+        await indexPage.replace(
+          '../public/foo/test-rect.jpg',
+          '../public/foo/test-rect-broken.jpg'
+        )
 
-      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      await indexPage.restore()
+        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+        await indexPage.restore()
 
-      expect(stderr).toContain(
-        "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
-      )
-      // should contain the importing module
-      expect(stderr).toContain('./pages/static-img.js')
-      // should contain a import trace
-      expect(stderr).not.toContain('Import trace for requested module')
-    })
-  })
+        expect(stderr).toContain(
+          "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
+        )
+        // should contain the importing module
+        if (process.env.IS_TURBOPACK_TEST) {
+          // For this test with Turbopack the root of the project is the root of the Next.js repository because it's not isolated.
+          expect(stderr).toContain('pages/static-img.js')
+        } else {
+          expect(stderr).toContain('./pages/static-img.js')
+        }
+        // should contain a import trace
+        expect(stderr).not.toContain('Import trace for requested module')
+      })
+    }
+  )
 })
 describe('Static Image Component Tests', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      html = await renderViaHTTP(appPort, '/static-img')
-      browser = await webdriver(appPort, '/static-img')
-    })
-    afterAll(() => {
-      killApp(app)
-    })
-    runTests()
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        html = await renderViaHTTP(appPort, '/static-img')
+        browser = await webdriver(appPort, '/static-img')
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+      runTests()
+    }
+  )
 })
+
+function replaceDataUrl(styles) {
+  return styles.replace(/url\("data:[^"]+"\)/g, 'url("data:<REPLACED>")')
+}

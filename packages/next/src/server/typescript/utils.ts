@@ -8,7 +8,7 @@ let info: tsModule.server.PluginCreateInfo
 let appDirRegExp: RegExp
 
 export function log(message: string) {
-  info.project.projectService.logger.info(message)
+  info.project.projectService.logger.info('[next] ' + message)
 }
 
 // This function has to be called initially.
@@ -16,13 +16,14 @@ export function init(opts: {
   ts: TypeScript
   info: tsModule.server.PluginCreateInfo
 }) {
+  const projectDir = opts.info.project.getCurrentDirectory()
   ts = opts.ts
   info = opts.info
-  const projectDir = info.project.getCurrentDirectory()
   appDirRegExp = new RegExp(
     '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
   )
-  log('Starting Next.js TypeScript plugin: ' + projectDir)
+
+  log('Initialized Next.js TypeScript plugin: ' + projectDir)
 }
 
 export function getTs() {
@@ -34,11 +35,33 @@ export function getInfo() {
 }
 
 export function getTypeChecker() {
-  return info.languageService.getProgram()?.getTypeChecker()
+  const program = info.languageService.getProgram()
+  if (!program) {
+    log('Failed to get program while while running getTypeChecker.')
+    return
+  }
+  const typeChecker = program.getTypeChecker()
+  if (!typeChecker) {
+    log('Failed to get type checker while running getTypeChecker.')
+    return
+  }
+  return typeChecker
 }
 
 export function getSource(fileName: string) {
-  return info.languageService.getProgram()?.getSourceFile(fileName)
+  const program = info.languageService.getProgram()
+  if (!program) {
+    log('Failed to get program while running getSource for: ' + fileName)
+    return
+  }
+
+  const sourceFile = program.getSourceFile(fileName)
+  if (!sourceFile) {
+    log('Failed to get source file while running getSource for: ' + fileName)
+    return
+  }
+
+  return sourceFile
 }
 
 export function removeStringQuotes(str: string): string {
@@ -92,14 +115,15 @@ export const isPageFile = (filePath: string) => {
 }
 
 // Check if a module is a client entry.
-export function getIsClientEntry(
+export function getEntryInfo(
   fileName: string,
   throwOnInvalidDirective?: boolean
 ) {
   const source = getSource(fileName)
   if (source) {
-    let isClientEntry = false
     let isDirective = true
+    let isClientEntry = false
+    let isServerEntry = false
 
     ts.forEachChild(source!, (node) => {
       if (
@@ -120,13 +144,38 @@ export function getIsClientEntry(
               throw e
             }
           }
+        } else if (node.expression.text === 'use server') {
+          if (isDirective) {
+            isServerEntry = true
+          } else {
+            if (throwOnInvalidDirective) {
+              const e = {
+                messageText:
+                  'The `"use server"` directive must be put at the top of the file.',
+                start: node.expression.getStart(),
+                length: node.expression.getWidth(),
+              }
+              throw e
+            }
+          }
+        }
+
+        if (isClientEntry && isServerEntry) {
+          const e = {
+            messageText:
+              'Cannot use both "use client" and "use server" directives in the same file.',
+            start: node.expression.getStart(),
+            length: node.expression.getWidth(),
+          }
+          throw e
         }
       } else {
         isDirective = false
       }
     })
 
-    return isClientEntry
+    return { client: isClientEntry, server: isServerEntry }
   }
-  return false
+
+  return { client: false, server: false }
 }

@@ -4,18 +4,16 @@ import type { NextConfigComplete } from '../config-shared'
 import type {
   DynamicParamTypesShort,
   FlightRouterState,
-} from '../app-render/types'
+  FlightSegmentPath,
+} from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import type HotReloader from './hot-reloader-webpack'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import {
-  getStaticInfoIncludingLayouts,
-  runDependingOnPageType,
-} from '../../build/entries'
+import { runDependingOnPageType, isDeferredEntry } from '../../build/entries'
+import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -34,12 +32,22 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
+  type NextJsHotReloaderInterface,
+} from './hot-reloader-types'
+import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { PAGE_TYPES } from '../../lib/page-types'
+import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
+import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -51,7 +59,7 @@ const keys = Object.keys as <T>(o: T) => Extract<keyof T, string>[]
 const COMPILER_KEYS = keys(COMPILER_INDEXES)
 
 function treePathToEntrypoint(
-  segmentPath: string[],
+  segmentPath: FlightSegmentPath,
   parentPath?: string
 ): string {
   const [parallelRouteKey, segment] = segmentPath
@@ -69,7 +77,7 @@ function treePathToEntrypoint(
     return path
   }
 
-  const childSegmentPath = segmentPath.slice(2)
+  const childSegmentPath = getNextFlightSegmentPath(segmentPath)
   return treePathToEntrypoint(childSegmentPath, path)
 }
 
@@ -79,10 +87,18 @@ function convertDynamicParamTypeToSyntax(
 ) {
   switch (dynamicParamTypeShort) {
     case 'c':
+    case 'ci(..)(..)':
+    case 'ci(.)':
+    case 'ci(..)':
+    case 'ci(...)':
       return `[...${param}]`
     case 'oc':
       return `[[...${param}]]`
     case 'd':
+    case 'di(..)(..)':
+    case 'di(.)':
+    case 'di(..)':
+    case 'di(...)':
       return `[${param}]`
     default:
       throw new Error('Unknown dynamic param type')
@@ -99,7 +115,7 @@ function convertDynamicParamTypeToSyntax(
 
 export function getEntryKey(
   compilerType: CompilerNameValues,
-  pageBundleType: 'app' | 'pages' | 'root',
+  pageBundleType: PAGE_TYPES,
   page: string
 ) {
   // TODO: handle the /children slot better
@@ -108,15 +124,15 @@ export function getEntryKey(
   return `${compilerType}@${pageBundleType}@${pageKey}`
 }
 
-function getPageBundleType(pageBundlePath: string) {
+function getPageBundleType(pageBundlePath: string): PAGE_TYPES {
   // Handle special case for /_error
-  if (pageBundlePath === '/_error') return 'pages'
-  if (isMiddlewareFilename(pageBundlePath)) return 'root'
+  if (pageBundlePath === '/_error') return PAGE_TYPES.PAGES
+  if (isMiddlewareFilename(pageBundlePath)) return PAGE_TYPES.ROOT
   return pageBundlePath.startsWith('pages/')
-    ? 'pages'
+    ? PAGE_TYPES.PAGES
     : pageBundlePath.startsWith('app/')
-    ? 'app'
-    : 'root'
+      ? PAGE_TYPES.APP
+      : PAGE_TYPES.ROOT
 }
 
 function getEntrypointsFromTree(
@@ -130,7 +146,7 @@ function getEntrypointsFromTree(
     ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
     : segment
 
-  const isPageSegment = currentSegment.startsWith('__PAGE__')
+  const isPageSegment = currentSegment.startsWith(PAGE_SEGMENT_KEY)
 
   const currentPath = [...parentPath, isPageSegment ? '' : currentSegment]
 
@@ -183,7 +199,6 @@ interface EntryType {
 }
 
 // Shadowing check in ESLint does not account for enum
-// eslint-disable-next-line no-shadow
 export const enum EntryTypes {
   ENTRY,
   CHILD_ENTRY,
@@ -299,7 +314,10 @@ class Invalidator {
         this.rebuildAgain.delete(key)
       }
     }
-    this.invalidate(rebuild)
+
+    if (rebuild.length > 0) {
+      this.invalidate(rebuild)
+    }
   }
 
   public willRebuild(compilerKey: keyof typeof COMPILER_INDEXES) {
@@ -374,16 +392,18 @@ interface PagePathData {
  * error. It defaults the `/_error` page to Next.js internal error page.
  *
  * @param rootDir Absolute path to the project root.
+ * @param page The page normalized (it will be denormalized).
+ * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
- * @param normalizedPagePath The page normalized (it will be denormalized).
- * @param pageExtensions Array of page extensions.
+ * @param appDir Absolute path to the app folder with trailing `/app`.
  */
-async function findPagePathData(
+export async function findPagePathData(
   rootDir: string,
   page: string,
   extensions: string[],
-  pagesDir?: string,
-  appDir?: string
+  pagesDir: string | undefined,
+  appDir: string | undefined,
+  isGlobalNotFoundEnabled: boolean
 ): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
@@ -410,7 +430,7 @@ async function findPagePathData(
     let bundlePath = normalizedPagePath
     let pageKey = posix.normalize(pageUrl)
 
-    if (isInstrumentation) {
+    if (isInstrumentation || isMiddlewareFile(normalizedPagePath)) {
       bundlePath = bundlePath.replace('/src', '')
       pageKey = page.replace('/src', '')
     }
@@ -424,6 +444,49 @@ async function findPagePathData(
 
   // Check appDir first falling back to pagesDir
   if (appDir) {
+    if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
+      // Load `global-not-found` when global-not-found is enabled.
+      // Prefer to load it when both `global-not-found` and root `not-found` present.
+      if (isGlobalNotFoundEnabled) {
+        const globalNotFoundPath = await findPageFile(
+          appDir,
+          'global-not-found',
+          extensions,
+          true
+        )
+        if (globalNotFoundPath) {
+          return {
+            filename: join(appDir, globalNotFoundPath),
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+          }
+        }
+      } else {
+        // Then if global-not-found.js doesn't exist then load not-found.js
+        const notFoundPath = await findPageFile(
+          appDir,
+          'not-found',
+          extensions,
+          true
+        )
+        if (notFoundPath) {
+          return {
+            filename: join(appDir, notFoundPath),
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+          }
+        }
+      }
+
+      // If they're not presented, then fallback to global-not-found
+      return {
+        filename: require.resolve(
+          'next/dist/client/components/builtin/global-not-found'
+        ),
+        bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+        page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+      }
+    }
     pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
@@ -464,14 +527,6 @@ async function findPagePathData(
     }
   }
 
-  if (page === '/not-found' && appDir) {
-    return {
-      filename: require.resolve('next/dist/client/components/not-found-error'),
-      bundlePath: 'app/not-found',
-      page: '/not-found',
-    }
-  }
-
   if (page === '/_error') {
     return {
       filename: require.resolve('next/dist/pages/_error'),
@@ -493,7 +548,7 @@ export function onDemandEntryHandler({
   rootDir,
   appDir,
 }: {
-  hotReloader: HotReloader
+  hotReloader: NextJsHotReloaderInterface
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
@@ -502,6 +557,7 @@ export function onDemandEntryHandler({
   rootDir: string
   appDir?: string
 }) {
+  const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
   ) as any
@@ -512,9 +568,83 @@ export function onDemandEntryHandler({
     invalidators.set(multiCompiler.outputPath, curInvalidator)
   }
 
+  // Deferred entries state management
+  const deferredEntriesConfig = nextConfig.experimental.deferredEntries
+  const hasDeferredEntriesConfig =
+    deferredEntriesConfig && deferredEntriesConfig.length > 0
+  let onBeforeDeferredEntriesCalled = false
+  let onBeforeDeferredEntriesPromise: Promise<void> | null = null
+
+  // Function to wait for all non-deferred entries to be built
+  async function waitForNonDeferredEntries(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const checkEntries = () => {
+        // Check if there are any non-deferred entries that are still building or added
+        const hasNonDeferredEntriesBuilding = Object.entries(curEntries).some(
+          ([, entry]) => {
+            const entryData = entry as Entry | ChildEntry
+            if (entryData.type !== EntryTypes.ENTRY) return false
+
+            const isDeferred = isDeferredEntry(
+              (entryData as Entry).absolutePagePath
+                .replace(appDir || '', '')
+                .replace(pagesDir || '', '')
+                .replace(rootDir, ''),
+              deferredEntriesConfig
+            )
+
+            return (
+              !isDeferred &&
+              (entryData.status === ADDED || entryData.status === BUILDING)
+            )
+          }
+        )
+
+        if (!hasNonDeferredEntriesBuilding) {
+          resolve()
+        } else {
+          // Check again after a short delay
+          setTimeout(checkEntries, 100)
+        }
+      }
+
+      checkEntries()
+    })
+  }
+
+  // Function to handle deferred entry processing
+  async function processDeferredEntry(): Promise<void> {
+    if (!hasDeferredEntriesConfig) return
+
+    // Wait for all non-deferred entries to be built
+    await waitForNonDeferredEntries()
+
+    // Call the onBeforeDeferredEntries callback once
+    if (!onBeforeDeferredEntriesCalled) {
+      onBeforeDeferredEntriesCalled = true
+
+      if (nextConfig.experimental.onBeforeDeferredEntries) {
+        debug('calling onBeforeDeferredEntries callback')
+        if (!onBeforeDeferredEntriesPromise) {
+          onBeforeDeferredEntriesPromise =
+            nextConfig.experimental.onBeforeDeferredEntries()
+        }
+        await onBeforeDeferredEntriesPromise
+        debug('onBeforeDeferredEntries callback completed')
+      }
+    } else if (onBeforeDeferredEntriesPromise) {
+      // Wait for any in-progress callback
+      await onBeforeDeferredEntriesPromise
+    }
+  }
+
   const startBuilding = (compilation: webpack.Compilation) => {
     const compilationName = compilation.name as any as CompilerNameValues
     curInvalidator.startBuilding(compilationName)
+    // Reset deferred entries state for this compilation cycle
+    // This ensures onBeforeDeferredEntries will be called again during HMR
+    onBeforeDeferredEntriesCalled = false
+    onBeforeDeferredEntriesPromise = null
   }
   for (const compiler of multiCompiler.compilers) {
     compiler.hooks.make.tap('NextJsOnDemandEntries', startBuilding)
@@ -522,24 +652,24 @@ export function onDemandEntryHandler({
 
   function getPagePathsFromEntrypoints(
     type: CompilerNameValues,
-    entrypoints: Map<string, { name?: string }>,
-    root?: boolean
+    entrypoints: Map<string, { name?: string | null }>
   ) {
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
-      const page = getRouteFromEntrypoint(entrypoint.name!, root)
+      const page = getRouteFromEntrypoint(entrypoint.name!, hasAppDir)
 
       if (page) {
         const pageBundleType = entrypoint.name?.startsWith('app/')
-          ? 'app'
-          : 'pages'
+          ? PAGE_TYPES.APP
+          : PAGE_TYPES.PAGES
         pagePaths.push(getEntryKey(type, pageBundleType, page))
       } else if (
-        (root && entrypoint.name === 'root') ||
         isMiddlewareFilename(entrypoint.name) ||
         isInstrumentationHookFilename(entrypoint.name)
       ) {
-        pagePaths.push(getEntryKey(type, 'root', `/${entrypoint.name}`))
+        pagePaths.push(
+          getEntryKey(type, PAGE_TYPES.ROOT, `/${entrypoint.name}`)
+        )
       }
     }
     return pagePaths
@@ -555,23 +685,19 @@ export function onDemandEntryHandler({
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
-    const root = !!appDir
     const entryNames = [
       ...getPagePathsFromEntrypoints(
         COMPILER_NAMES.client,
-        clientStats.compilation.entrypoints,
-        root
+        clientStats.compilation.entrypoints
       ),
       ...getPagePathsFromEntrypoints(
         COMPILER_NAMES.server,
-        serverStats.compilation.entrypoints,
-        root
+        serverStats.compilation.entrypoints
       ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
             COMPILER_NAMES.edgeServer,
-            edgeServerStats.compilation.entrypoints,
-            root
+            edgeServerStats.compilation.entrypoints
           )
         : []),
     ]
@@ -591,6 +717,17 @@ export function onDemandEntryHandler({
     }
 
     getInvalidator(multiCompiler.outputPath)?.doneBuilding([...COMPILER_KEYS])
+
+    // Call onBeforeDeferredEntries after compilation completes during HMR
+    // This ensures the callback is invoked even when non-deferred entries change
+    if (hasDeferredEntriesConfig && !onBeforeDeferredEntriesCalled) {
+      onBeforeDeferredEntriesCalled = true
+      if (nextConfig.experimental.onBeforeDeferredEntries) {
+        debug('calling onBeforeDeferredEntries callback after HMR')
+        onBeforeDeferredEntriesPromise =
+          nextConfig.experimental.onBeforeDeferredEntries()
+      }
+    }
   })
 
   const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
@@ -608,7 +745,7 @@ export function onDemandEntryHandler({
         COMPILER_NAMES.server,
         COMPILER_NAMES.edgeServer,
       ]) {
-        const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
+        const entryKey = getEntryKey(compilerType, PAGE_TYPES.APP, `/${page}`)
         const entryInfo = curEntries[entryKey]
 
         // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -643,7 +780,7 @@ export function onDemandEntryHandler({
       COMPILER_NAMES.server,
       COMPILER_NAMES.edgeServer,
     ]) {
-      const entryKey = getEntryKey(compilerType, 'pages', page)
+      const entryKey = getEntryKey(compilerType, PAGE_TYPES.PAGES, page)
       const entryInfo = curEntries[entryKey]
 
       // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -678,11 +815,13 @@ export function onDemandEntryHandler({
     appPaths,
     definition,
     isApp,
+    url,
   }: {
     page: string
     appPaths: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
     isApp: boolean | undefined
+    url?: string
   }): Promise<void> {
     const stalledTime = 60
     const stalledEnsureTimeout = setTimeout(() => {
@@ -701,11 +840,22 @@ export function onDemandEntryHandler({
           page,
           nextConfig.pageExtensions,
           pagesDir,
-          appDir
+          appDir,
+          !!nextConfig.experimental.globalNotFound
         )
       }
 
       const isInsideAppDir = !!appDir && route.filename.startsWith(appDir)
+
+      // Check if this is a deferred entry and wait for non-deferred entries first
+      if (hasDeferredEntriesConfig) {
+        const isDeferred = isDeferredEntry(route.page, deferredEntriesConfig)
+        if (isDeferred) {
+          debug(`Page ${page} is a deferred entry, waiting for other entries`)
+          await processDeferredEntry()
+          debug(`Deferred entry ${page} can now be processed`)
+        }
+      }
 
       if (typeof isApp === 'boolean' && isApp !== isInsideAppDir) {
         Error.stackTraceLimit = 15
@@ -780,9 +930,11 @@ export function onDemandEntryHandler({
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
+      let pageRuntime = staticInfo.runtime
+
       runDependingOnPageType({
         page: route.page,
-        pageRuntime: staticInfo.runtime,
+        pageRuntime,
         pageType: pageBundleType,
         onClient: () => {
           // Skip adding the client entry for app / Server Components.
@@ -834,7 +986,11 @@ export function onDemandEntryHandler({
 
       if (hasNewEntry) {
         const routePage = isApp ? route.page : normalizeAppPath(route.page)
-        reportTrigger(routePage)
+        // If proxy file, remove the leading slash from "/proxy" to "proxy".
+        reportTrigger(
+          isMiddlewareFile(routePage) ? routePage.slice(1) : routePage,
+          url
+        )
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -877,6 +1033,7 @@ export function onDemandEntryHandler({
     appPaths?: ReadonlyArray<string> | null
     definition?: RouteDefinition
     isApp?: boolean
+    url?: string
   }
 
   // Make sure that we won't have multiple invalidations ongoing concurrently.
@@ -900,6 +1057,7 @@ export function onDemandEntryHandler({
       appPaths = null,
       definition,
       isApp,
+      url,
     }: EnsurePageOptions) {
       // If the route is actually an app page route, then we should have access
       // to the app route definition, and therefore, the appPaths from it.
@@ -916,6 +1074,7 @@ export function onDemandEntryHandler({
           appPaths,
           definition,
           isApp,
+          url,
         })
       })
     },
@@ -932,7 +1091,7 @@ export function onDemandEntryHandler({
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
             hotReloader.send({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
+              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR,
               errorJSON: stringifyError(error),
             })
             bufferedHmrServerError = null
@@ -942,12 +1101,30 @@ export function onDemandEntryHandler({
             typeof data !== 'string' ? data.toString() : data
           )
 
-          if (parsedData.event === 'ping') {
+          if (parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.PING) {
             if (parsedData.appDirRoute) {
               handleAppDirPing(parsedData.tree)
             } else {
               handlePing(parsedData.page)
             }
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE
+          ) {
+            handleErrorStateResponse(
+              parsedData.requestId,
+              parsedData.errorState,
+              parsedData.url
+            )
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE
+          ) {
+            handlePageMetadataResponse(
+              parsedData.requestId,
+              parsedData.segmentTrieData,
+              parsedData.url
+            )
           }
         } catch {}
       })

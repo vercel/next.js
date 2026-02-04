@@ -1,0 +1,7 @@
+.innerWrapper {
+  max-width: var(--maxWidth);
+  margin: 0 auto;
+  position: relative;
+  padding-left: 30px;
+  padding-right: 30px;
+}

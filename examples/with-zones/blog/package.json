@@ -1,4 +1,5 @@
 {
+  "name": "blog",
   "private": true,
   "scripts": {
     "dev": "next dev -p 4000",

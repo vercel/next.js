@@ -1,9 +1,9 @@
-import type { AppProps } from 'next/app'
-import { Inter } from 'next/font/google'
-import Header from '@/components/header'
-import Analytics from '@/components/analytics'
+import type { AppProps } from "next/app";
+import { Inter } from "next/font/google";
+import Header from "@/components/header";
+import Analytics from "@/components/analytics";
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ["latin"] });
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   return (
@@ -12,5 +12,5 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       <Component {...pageProps} />
       <Analytics />
     </main>
-  )
+  );
 }
