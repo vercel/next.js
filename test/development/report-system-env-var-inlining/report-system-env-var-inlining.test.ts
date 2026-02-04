@@ -16,12 +16,14 @@ import { getRedboxSource, waitForRedbox } from 'next-test-utils'
       const error = await getRedboxSource(browser)
       expect(error).toMatchInlineSnapshot(`
        "./app/foo.tsx (2:14)
-       error TP1202 A system environment variable is being inlined. This variable changes on every deployment, causing slower deploy times and worse browser client-side caching. For server-side code, replace with \`process.env.VERCEL_GIT_COMMIT_SHA\` and for browser code, try to remove it.
+       TP1202 The commit hash is being inlined.
          1 | export function Foo() {
        > 2 |   return <p>{process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA}</p>
            |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
          3 | }
          4 |
+
+       This variable changes frequently, causing slower deploy times and worse browser client-side caching. Consider using \`process.env.NEXT_DEPLOYMENT_ID\` to identify a deployment. Alternatively, use \`process.env.VERCEL_GIT_COMMIT_SHA\` in server side code and for browser code, remove it.
 
        Import trace:
          Server Component:
