@@ -13,6 +13,7 @@ import {
   logStringify,
   safeStringifyWithDepth,
 } from './forward-logs-utils'
+import { getOwnerStack } from './errors/stitched-error'
 
 // Client-side file logger for browser logs
 class ClientFileLogger {
@@ -324,7 +325,10 @@ const stringifyUserArg = (
 }
 
 const createErrorArg = (error: Error) => {
-  const stack = getErrorStack(error)
+  const errorStack = getErrorStack(error)
+  const ownerStack = getOwnerStack(error)
+  // Append owner stack to error stack for source mapping on the server
+  const stack = ownerStack ? `${errorStack}\n${ownerStack}` : errorStack
   return {
     kind: 'formatted-error-arg' as const,
     prefix: error.message ? `${error.name}: ${error.message}` : `${error.name}`,
@@ -540,7 +544,11 @@ export function forwardUnhandledError(error: Error) {
     return
   }
 
-  createUncaughtErrorEntry(error.name, error.message, getErrorStack(error))
+  const errorStack = getErrorStack(error)
+  const ownerStack = getOwnerStack(error)
+  // Append owner stack to error stack for source mapping on the server
+  const fullStack = ownerStack ? `${errorStack}\n${ownerStack}` : errorStack
+  createUncaughtErrorEntry(error.name, error.message, fullStack)
 }
 
 // TODO: this router check is brittle, we need to update based on the current router the user is using

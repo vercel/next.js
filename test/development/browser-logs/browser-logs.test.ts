@@ -268,6 +268,58 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
   })
 
+  describe('App Router - Hydration Errors', () => {
+    let next: NextInstance
+    let logs: string[] = []
+    let logCapture: ReturnType<typeof setupLogCapture>
+
+    beforeAll(async () => {
+      logCapture = setupLogCapture()
+      logs = logCapture.logs
+
+      next = await createNext({
+        files: {
+          app: new FileRef(join(__dirname, 'fixtures/app')),
+          'next.config.js': new FileRef(
+            join(__dirname, 'fixtures/next.config.js')
+          ),
+        },
+      })
+    })
+
+    afterAll(async () => {
+      logCapture.restore()
+      await next.destroy()
+    })
+
+    beforeEach(() => {
+      logCapture.clearLogs()
+    })
+
+    it('should show hydration errors with owner stack trace', async () => {
+      const browser = await webdriver(next.url, '/hydration-error')
+
+      let hydrationErrorLog = ''
+      await retry(() => {
+        const logOutput = logs.join('\n')
+        // Find the hydration error log entry
+        const hydrationMatch = logOutput.match(
+          /\[browser\].*Hydration[\s\S]*?(?=\n\[browser\]|\n *○|\n *⨯|$)/
+        )
+        expect(hydrationMatch).not.toBeNull()
+        hydrationErrorLog = hydrationMatch![0]
+        // Verify the Page component is in the forwarded stack trace with source location
+        expect(hydrationErrorLog).toMatch(/Page/)
+        expect(hydrationErrorLog).toMatch(/app\/hydration-error\/page/)
+      })
+
+      // Assert the entire hydration error message including owner stack trace
+      expect(hydrationErrorLog).toMatchInlineSnapshot(``)
+
+      await browser.close()
+    })
+  })
+
   describe('App Router - Edge Runtime', () => {
     let next: NextInstance
     let logs: string[] = []
