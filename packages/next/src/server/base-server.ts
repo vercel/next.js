@@ -2197,13 +2197,17 @@ export default abstract class Server<
       typeof query.__nextppronly !== 'undefined' &&
       couldSupportPPR
 
-    // Dev-only: Check for the instant test cookie for MPA navigations (page
-    // reload, full page load) in the Instant Navigation Testing API. Only
-    // applies to document requests (no RSC header) - RSC requests should
-    // proceed normally even during a locked scope, with blocking happening
-    // on the client side.
+    // Whether the testing API is exposed (dev mode or explicit flag)
+    const exposeTestingApi =
+      this.renderOpts.dev === true ||
+      this.nextConfig.experimental.exposeTestingApiInProductionBuild === true
+
+    // Check for the instant test cookie for MPA navigations (page reload, full
+    // page load) in the Instant Navigation Testing API. Only applies to
+    // document requests (no RSC header) - RSC requests should proceed normally
+    // even during a locked scope, with blocking happening on the client side.
     const hasInstantTestCookie =
-      this.renderOpts.dev === true &&
+      exposeTestingApi &&
       req.headers[RSC_HEADER] === undefined &&
       typeof req.headers.cookie === 'string' &&
       req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
@@ -2220,10 +2224,9 @@ export default abstract class Server<
         // Ideally we'd want to check the appConfig to see if this page has PPR
         // enabled or not, but that would require plumbing the appConfig through
         // to the server during development. We assume that the page supports it
-        // but only during development.
+        // but only during development or when the testing API is exposed.
         ((hasDebugStaticShellQuery || hasInstantTestCookie) &&
-          (this.renderOpts.dev === true ||
-            this.experimentalTestProxy === true)))
+          (exposeTestingApi || this.experimentalTestProxy === true)))
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed

@@ -7,10 +7,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Expose a testing API that allows e2e tests to assert on the prefetched UI
-// state before dynamic data streams in. Dev-only, browser-only.
-if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+// state before dynamic data streams in. Browser-only.
+if (process.env.__NEXT_EXPOSE_TESTING_API && typeof window !== 'undefined') {
   const { acquireNavigationLock, releaseNavigationLock } =
-    require('./components/segment-cache/dev-navigation-lock') as typeof import('./components/segment-cache/dev-navigation-lock')
+    require('./components/segment-cache/navigation-testing-lock') as typeof import('./components/segment-cache/navigation-testing-lock')
 
   window.__EXPERIMENTAL_NEXT_TESTING__ = {
     navigation: {

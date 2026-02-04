@@ -152,9 +152,9 @@ export type PrefetchTask = {
   _heapIndex: number
 
   /**
-   * Dev-only. Called when the prefetch task finishes (either completed or
-   * canceled). Used by the Instant Navigation Testing API to await prefetch
-   * completion.
+   * Called when the prefetch task finishes (either completed or canceled).
+   * Used by the Instant Navigation Testing API to await prefetch completion.
+   * Not exposed in production builds by default.
    *
    * Note: "Complete" means the scheduler has no more work to do for this task
    * — all network requests have been spawned. It does not mean all data has
@@ -254,7 +254,7 @@ export type IncludeDynamicData = null | 'full' | 'dynamic'
  * @param treeAtTimeOfPrefetch The app's current FlightRouterState
  * @param fetchStrategy Whether to prefetch dynamic data, in addition to
  * static data. This is used by `<Link prefetch={true}>`.
- * @param _onComplete Dev-only. Called when the prefetch task finishes.
+ * @param _onComplete Called when the prefetch task finishes. Testing API only.
  */
 export function schedulePrefetchTask(
   key: RouteCacheKey,
@@ -280,7 +280,7 @@ export function schedulePrefetchTask(
     onInvalidate,
     _heapIndex: -1,
   }
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     task._onComplete = _onComplete
   }
 
@@ -308,7 +308,7 @@ export function cancelPrefetchTask(task: PrefetchTask): void {
   // does not get added back to the queue when it's pinged by the network.
   task.isCanceled = true
   heapDelete(taskHeap, task)
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     // Call completion callback. In practice this shouldn't be reached for
     // test-initiated prefetches since cancellation is only used by the Link
     // component when elements scroll out of viewport.
@@ -548,7 +548,7 @@ function processQueueInMicrotask() {
           heapResift(taskHeap, task)
         } else {
           // The prefetch is complete. Continue to the next task.
-          if (process.env.NODE_ENV !== 'production') {
+          if (process.env.__NEXT_EXPOSE_TESTING_API) {
             // Notify the Instant Navigation Testing API that the prefetch has
             // completed, so it can proceed with navigation.
             const onComplete = task._onComplete

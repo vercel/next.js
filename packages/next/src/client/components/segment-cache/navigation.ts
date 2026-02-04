@@ -300,10 +300,10 @@ async function navigateToUnknownRoute(
   shouldScroll: boolean,
   navigateType: 'push' | 'replace'
 ): Promise<AppRouterState> {
-  // Dev-only: If the Instant Navigation Testing API lock is active, try to
-  // prefetch the route first. If the prefetch succeeds, navigate using the
-  // prefetched route tree. If it fails, fall through to the normal path.
-  if (process.env.NODE_ENV !== 'production') {
+  // If the Instant Navigation Testing API lock is active, try to prefetch the
+  // route first. If the prefetch succeeds, navigate using the prefetched route
+  // tree. If it fails, fall through to the normal path.
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const prefetchResult = await tryNavigateUsingTestingAPIPrefetch(
       state,
       url,
@@ -775,13 +775,15 @@ function convertServerPatchToFullTreeImpl(
 }
 
 /**
- * Dev-only helper for the Instant Navigation Testing API. If the navigation
- * lock is active, schedules a prefetch task, waits for it to complete, and
- * navigates using the prefetched route tree.
+ * Helper for the Instant Navigation Testing API. If the navigation lock is
+ * active, schedules a prefetch task, waits for it to complete, and navigates
+ * using the prefetched route tree.
  *
  * Returns the new router state if navigation succeeded via prefetch, or null
  * if the lock isn't active or the prefetch failed (caller should fall through
  * to the normal unknown route path).
+ *
+ * Not exposed in production builds by default.
  */
 async function tryNavigateUsingTestingAPIPrefetch(
   state: AppRouterState,
@@ -795,10 +797,10 @@ async function tryNavigateUsingTestingAPIPrefetch(
   shouldScroll: boolean,
   navigateType: 'push' | 'replace'
 ): Promise<AppRouterState | null> {
-  if (process.env.NODE_ENV !== 'production') {
-    // Lazy require to ensure dead code elimination in production
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    // Lazy require to ensure dead code elimination
     const { isNavigationLocked } =
-      require('./dev-navigation-lock') as typeof import('./dev-navigation-lock')
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
     if (!isNavigationLocked()) {
       return null
     }

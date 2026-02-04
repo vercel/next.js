@@ -17,27 +17,21 @@
  *   // After exiting instant(), dynamic content streams in
  *   await expect(page.locator('[data-testid="price"]')).toBeVisible()
  *
- * NOTE: This API is dev-mode only. The tests bail out in production mode.
+ * NOTE: This API is not exposed in production builds by default. These tests
+ * use the experimental.exposeTestingApiInProductionBuild flag to enable the
+ * API in production mode for testing purposes.
  */
 
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 
 describe('instant-navigation-testing-api', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
+    // Skip deployment tests because the exposeTestingApiInProductionBuild flag
+    // doesn't exist in the production version of Next.js yet
+    skipDeployment: true,
   })
-
-  if (!isNextDev) {
-    it('should not expose __EXPERIMENTAL_NEXT_TESTING__ API in production mode', async () => {
-      const browser = await next.browser('/')
-      const hasTestingAPI = await browser.eval(
-        'typeof window.__EXPERIMENTAL_NEXT_TESTING__ !== "undefined"'
-      )
-      expect(hasTestingAPI).toBe(false)
-    })
-    return
-  }
 
   /**
    * Opens a browser and returns the underlying Playwright Page instance.

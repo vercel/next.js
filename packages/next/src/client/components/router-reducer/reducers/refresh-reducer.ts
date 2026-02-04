@@ -21,11 +21,11 @@ export function refreshReducer(
   // given URL) which doesn't change during a refresh. The segment cache
   // contains the actual RSC data which needs to be re-fetched.
   //
-  // Dev-only: The Instant Navigation Testing API can bypass cache invalidation
-  // to preserve prefetched data when refreshing after an MPA navigation. This
-  // is only used for testing and is not exposed in production builds.
+  // The Instant Navigation Testing API can bypass cache invalidation to
+  // preserve prefetched data when refreshing after an MPA navigation. This is
+  // only used for testing and is not exposed in production builds by default.
   const bypassCacheInvalidation =
-    process.env.NODE_ENV !== 'production' && action.devBypassCacheInvalidation
+    process.env.__NEXT_EXPOSE_TESTING_API && action.devBypassCacheInvalidation
   if (!bypassCacheInvalidation) {
     const currentNextUrl = state.nextUrl
     const currentRouterState = state.tree

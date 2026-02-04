@@ -367,6 +367,18 @@ export interface ExperimentalConfig {
    */
   externalMiddlewareRewritesResolve?: boolean
   externalProxyRewritesResolve?: boolean
+  /**
+   * Exposes the experimental testing API (`__EXPERIMENTAL_NEXT_TESTING__`) in
+   * production builds. This API is always available in development mode.
+   *
+   * The testing API allows e2e tests to control navigation timing, enabling
+   * deterministic assertions on prefetched/cached UI before dynamic data
+   * streams in.
+   *
+   * WARNING: This flag is intended for profiling and testing purposes only.
+   * Do not enable in user-facing production deployments.
+   */
+  exposeTestingApiInProductionBuild?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -1771,6 +1783,7 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
+    | 'exposeTestingApiInProductionBuild'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1834,6 +1847,7 @@ export function getNextConfigRuntime(
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
+        exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,
