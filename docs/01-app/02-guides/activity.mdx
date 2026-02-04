@@ -1,7 +1,7 @@
 ---
-title: How to work with the Activity component
+title: How to use the Activity component
 nav_title: Activity
-description: Learn how Activity preserves React and DOM state across hide/show cycles, and how to handle patterns that behave differently when components stay mounted.
+description: Learn how Activity preserves React and DOM state across hide/show cycles, enabling patterns like tabs, collapsible panels, and prerendering.
 related:
   title: Related
   description: Activity works with Cache Components to enable instant navigation with preserved state.
@@ -9,6 +9,11 @@ related:
     - app/getting-started/cache-components
     - app/api-reference/config/next-config-js/cacheComponents
 ---
+
+You can find the resources used in this guide here:
+
+- [Demo](https://react-activity-patterns.vercel.app/)
+- [Code](https://github.com/vercel-labs/react-activity-patterns)
 
 ## Background
 
@@ -222,6 +227,8 @@ A common pattern is offering multiple views of the same data - for example, a li
 
 import { Activity, useState } from 'react'
 
+type DataItem = { id: number; name: string }
+
 function DataViewer({ data }: { data: DataItem[] }) {
   const [view, setView] = useState<'list' | 'table'>('list')
 
@@ -251,7 +258,7 @@ Both views render and stay up to date with `data`. When you switch views:
 
 Without Activity, switching views would unmount one and mount the other, losing all that state. For expensive component trees, this also means re-running all that rendering work on every switch - rebuilding memoized values, re-triggering data fetches, etc. With Activity, the component stays mounted and only re-renders when props or context actually change, not on every toggle.
 
-This pattern extends naturally to route-level navigation. With Cache Components, Next.js uses Activity to preserve route states - when you navigate away and back, the previous route's ephemeral state (scroll position, form inputs, expanded sections) can be restored rather than reset. See [Working with Cache Components](#working-with-cache-components) for more details.
+This pattern extends naturally to route-level navigation. With Cache Components, Next.js uses Activity to preserve route states - when you navigate away and back, the previous route's ephemeral state (scroll position, form inputs, expanded sections) can be restored rather than reset.
 
 ### Prerendering hidden content
 
@@ -295,7 +302,9 @@ export function ExpandableComments({
 
   return (
     <>
-      <button onClick={() => setExpanded(true)}>Show Comments</button>
+      <button onClick={() => setExpanded((e) => !e)}>
+        {expanded ? 'Hide Comments' : 'Show Comments'}
+      </button>
 
       <Activity mode={expanded ? 'visible' : 'hidden'}>
         <Suspense fallback={<CommentsSkeleton />}>
@@ -312,7 +321,17 @@ function Comments({
   commentsPromise: Promise<Comment[]>
 }) {
   const comments = use(commentsPromise)
-  return <CommentsList comments={comments} />
+  return (
+    <ul>
+      {comments.map((c) => (
+        <li key={c.id}>{c.text}</li>
+      ))}
+    </ul>
+  )
+}
+
+function CommentsSkeleton() {
+  return <div>Loading comments...</div>
 }
 ```
 
@@ -330,6 +349,10 @@ The simplest approach - reset state directly in an event handler:
 'use client'
 
 import { useState } from 'react'
+
+async function sendMessage(formData: FormData) {
+  // Your send logic
+}
 
 function ContactForm() {
   const [message, setMessage] = useState('')
@@ -361,6 +384,10 @@ Use Effect cleanup to reset state when Activity hides the component. This lets y
 
 import { useState, useRef, useLayoutEffect, useTransition } from 'react'
 
+async function signUp(formData: FormData) {
+  // Your signup logic
+}
+
 function NewsletterForm() {
   const [didSubmit, setDidSubmit] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -370,6 +397,7 @@ function NewsletterForm() {
     return () => {
       if (shouldResetRef.current) {
         setDidSubmit(false)
+        shouldResetRef.current = false
       }
     }
   }, [])
@@ -429,177 +457,7 @@ function ResettableForm() {
 
 When `formKey` changes, React discards the entire `ContactForm` subtree - all React state, DOM state, and child components are reset.
 
-Use this sparingly while adopting proper cleanup patterns (Options 1 and 2). Key-based resets defeat Activity's preservation benefits and should be a temporary measure, not a general-purpose solution.
-
-### Patterns that behave differently with Activity
-
-Some UI patterns rely on component unmounting to reset state. With Activity, components stay mounted when hidden - whether that's tabs switching, panels collapsing, or routes changing. These patterns need adjustment. Here are common cases and how to handle them.
-
-#### Dropdown stays open when panel is hidden
-
-Consider a dashboard with collapsible panels, each wrapped in Activity:
-
-```tsx
-'use client'
-
-import { Activity, useState } from 'react'
-
-export default function Dashboard() {
-  const [showSettings, setShowSettings] = useState(true)
-
-  return (
-    <>
-      <button onClick={() => setShowSettings((s) => !s)}>
-        Toggle Settings
-      </button>
-      <Activity mode={showSettings ? 'visible' : 'hidden'}>
-        <SettingsPanel />
-      </Activity>
-    </>
-  )
-}
-```
-
-Inside `SettingsPanel`, there is a dropdown menu component. If a user opens the dropdown, collapses the panel, then expands it again, the dropdown remains open. Activity preserved the component state, including `isOpen: true`.
-
-**Solution: Reset state when hidden**
-
-Use Effect cleanup to close the dropdown when Activity hides the component:
-
-```tsx highlight={8-13}
-'use client'
-
-import { useState, useLayoutEffect } from 'react'
-
-function SettingsDropdown() {
-  const [isOpen, setIsOpen] = useState(false)
-
-  // Close dropdown when this component becomes hidden
-  useLayoutEffect(() => {
-    return () => {
-      setIsOpen(false)
-    }
-  }, [])
-
-  return (
-    <div>
-      <button onClick={() => setIsOpen((o) => !o)}>Options</button>
-      {isOpen && (
-        <ul>
-          <li>
-            <button>Edit Profile</button>
-          </li>
-          <li>
-            <button>Change Password</button>
-          </li>
-        </ul>
-      )}
-    </div>
-  )
-}
-```
-
-When Activity hides this component, the cleanup function runs and resets `isOpen`. When the panel becomes visible again, the dropdown is closed. Using `useLayoutEffect` ensures the cleanup runs synchronously before the component is hidden, avoiding any flash of stale state.
-
-This same pattern applies to navigation with [Cache Components](#working-with-cache-components) - routes are wrapped in Activity, so dropdowns on a page persist when you navigate away and back. You can also use `Link`'s `onNavigate` callback to close dropdowns immediately when a navigation link is clicked.
-
-#### Dialog doesn't re-run initialization logic
-
-Consider a tabbed interface where each tab's content is wrapped in Activity. One tab contains a dialog that focuses its first input when opened:
-
-```tsx
-'use client'
-
-import { useState, useRef, useEffect } from 'react'
-
-function ProductTab() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (isDialogOpen) {
-      inputRef.current?.focus()
-    }
-  }, [isDialogOpen])
-
-  // ...
-}
-```
-
-A user opens the dialog (input gets focused), closes it, switches to another tab, switches back, and opens the dialog again. This time the input doesn't get focused.
-
-The issue is subtle: if the dialog was closed before switching tabs, the state is `false`. Returning and opening it sets `isDialogOpen` to `true`, triggering the Effect as expected. However, if the user switched tabs _while the dialog was open_, Activity preserved `isDialogOpen: true`. Opening the dialog again sets it to `true` when it's already `true`. No state change means the Effect doesn't re-run.
-
-**Solution: Derive dialog state from something that resets**
-
-Make the open/closed state derive from something outside the preserved component state - like a search param:
-
-```tsx highlight={3,7-9,20,25}
-'use client'
-
-import { useSearchParams, useRouter } from 'next/navigation'
-import { useEffect, useRef } from 'react'
-
-function ProductTab() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const isDialogOpen = searchParams.get('edit') === 'true'
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (isDialogOpen) {
-      inputRef.current?.focus()
-    }
-  }, [isDialogOpen])
-
-  return (
-    <div>
-      <button onClick={() => router.push('?edit=true')}>Edit Product</button>
-
-      {isDialogOpen && (
-        <dialog open>
-          <input ref={inputRef} placeholder="Product name" />
-          <button onClick={() => router.replace('?', { scroll: false })}>
-            Close
-          </button>
-        </dialog>
-      )}
-    </div>
-  )
-}
-```
-
-With this approach, `isDialogOpen` derives from the URL rather than component state. When switching tabs and returning, the search param is cleared (the URL changed), so `isDialogOpen` becomes `false`. Opening the dialog sets the param, which changes `isDialogOpen` and triggers the Effect.
-
-### Working with Cache Components
-
-When [Cache Components](/docs/app/getting-started/cache-components) is enabled, Next.js wraps route content in Activity boundaries. When you navigate away from a route, Next.js sets its Activity to `"hidden"` rather than unmounting it - preserving React state and DOM state.
-
-> **Good to know:** Cache Components is an opt-in feature. Enable it by setting `cacheComponents: true` in your `next.config.ts`. See the [Cache Components guide](/docs/app/getting-started/cache-components#enabling-cache-components) for details.
-
-With Cache Components, there are two mechanisms for managing state lifetime:
-
-| Mechanism            | Lifetime                           | Example                |
-| -------------------- | ---------------------------------- | ---------------------- |
-| **Cache Components** | Explicit stale time (configurable) | Server-fetched data    |
-| **Activity**         | Until evicted or hard refresh      | React state, DOM state |
-
-Cache Components give you explicit control over server data freshness. Activity preserves what would otherwise be ephemeral state (React state, DOM state) - instead of being lost on navigation, it persists across route changes.
-
-Next.js uses a **3 entries heuristic** - it preserves up to 3 routes. When you navigate beyond that, the oldest route's DOM and React state are dropped.
-
-This means if a user navigates through many pages and then goes back, very old states may have been evicted and will re-render fresh.
-
-#### Why Activity ships with Cache Components
-
-Cache Components and Activity work together to enable SPA-like navigation—instant route transitions without sacrificing server rendering.
-
-- **Server Components**: `"use cache"` extends their lifetime so routes can be prefetched and served instantly from cache
-- **Client Components**: Activity preserves their state and DOM across navigations. Without it, form inputs, scroll positions, and component state would reset on every navigation—even with cached server data.
-
-This foundation enables full route prefetching, instant back/forward navigation, and upcoming features like View Transitions and Gesture APIs.
-
-> **Good to know:** Opt-out strategies are being considered for gradual migration.
+Use this sparingly while adopting proper cleanup patterns (Options 1 and 2). Key-based resets defeat Activity's preservation benefits and should be a temporary measure, not a general-purpose solution. See the React documentation on [resetting state with a key](https://react.dev/learn/preserving-and-resetting-state#option-2-resetting-state-with-a-key) and [resetting a form with a key](https://react.dev/learn/preserving-and-resetting-state#resetting-a-form-with-a-key) for more details.
 
 ## Caveats
 
@@ -701,54 +559,6 @@ function VideoPlayer({ src }: { src: string }) {
 
 If an Activity's children return only text (no DOM elements), nothing renders since there is no element to apply `display: none` to.
 
-### Hidden content exists in the DOM
+## Activity with Cache Components
 
-Hidden Activity content has `display: none` but remains in the document. This affects end-to-end testing with tools like Playwright, Cypress, or Puppeteer:
-
-- **DOM queries find hidden elements** - Selectors match elements regardless of visibility
-- **Interactions with hidden elements fail or timeout** - Most tools wait for elements to become visible before interacting
-- **Assertions may match hidden content** - Be explicit about visibility when asserting element presence
-
-Filter by visibility in your tests. A best practice in Playwright is to use `getByRole` queries, which automatically filter by visibility:
-
-```ts
-// Good - getByRole filters by visibility automatically
-await page.getByRole('textbox', { name: 'Email' }).fill(email)
-await page.getByRole('button', { name: 'Submit' }).click()
-
-// Fallback - use .filter({ visible: true }) when getByRole isn't suitable
-await page.locator('input[name="email"]').filter({ visible: true }).fill(email)
-
-// Avoid - may match hidden elements in Activity boundaries
-await page.locator('input[name="email"]').fill(email)
-```
-
-`getByRole` is robust to Activity, tabbed navigation, accordions, and any other pattern that keeps hidden content in the DOM. It queries the accessibility tree, which excludes hidden elements. For other testing tools, check their documentation for visibility-aware selectors - Cypress uses `.should('be.visible')` or `{ visible: true }` options.
-
-### State lifetime and authentication
-
-Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior - props changing (such as receiving a new user) triggers a re-render but does not reset existing state. If your application needs fresh state when users change, you can handle this explicitly.
-
-For logout flows, using `window.location.href` instead of `router.push` triggers a full page reload, clearing all client-side state. For finer control, reset state when the user identity changes:
-
-```tsx
-'use client'
-
-import { useState, useEffect, useRef } from 'react'
-
-function UserScopedForm({ userId }: { userId: string | null }) {
-  const [draft, setDraft] = useState('')
-  const lastUserIdRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (lastUserIdRef.current !== null && lastUserIdRef.current !== userId) {
-      setDraft('') // Reset on user change
-    }
-    lastUserIdRef.current = userId
-  }, [userId])
-
-  return <textarea value={draft} onChange={(e) => setDraft(e.target.value)} />
-}
-```
-
-Alternatively, key components by user ID to let React handle the reset: `<Form key={userId} />`. See [Resetting state](#resetting-state) for more patterns.
+When using Activity with [Cache Components](/docs/app/getting-started/cache-components) navigation, some patterns that relied on component unmounting may behave differently. See [Activity with Cache Components](/docs/app/guides/activity-cache-components) for handling common patterns like dropdowns, dialogs, and testing.
