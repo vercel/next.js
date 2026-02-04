@@ -90,6 +90,7 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_INSTANT_TEST_COOKIE,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -2196,6 +2197,18 @@ export default abstract class Server<
       typeof query.__nextppronly !== 'undefined' &&
       couldSupportPPR
 
+    // Dev-only: Check for the instant test cookie for MPA navigations (page
+    // reload, full page load) in the Instant Navigation Testing API. Only
+    // applies to document requests (no RSC header) - RSC requests should
+    // proceed normally even during a locked scope, with blocking happening
+    // on the client side.
+    const hasInstantTestCookie =
+      this.renderOpts.dev === true &&
+      req.headers[RSC_HEADER] === undefined &&
+      typeof req.headers.cookie === 'string' &&
+      req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
+      couldSupportPPR
+
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
@@ -2208,7 +2221,7 @@ export default abstract class Server<
         // enabled or not, but that would require plumbing the appConfig through
         // to the server during development. We assume that the page supports it
         // but only during development.
-        (hasDebugStaticShellQuery &&
+        ((hasDebugStaticShellQuery || hasInstantTestCookie) &&
           (this.renderOpts.dev === true ||
             this.experimentalTestProxy === true)))
 

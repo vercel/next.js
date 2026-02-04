@@ -37,6 +37,7 @@ import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_INSTANT_PREFETCH_HEADER,
+  NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
@@ -350,10 +351,18 @@ export async function handler(
   // Dev-only: Enable the Instant Navigation Testing API. Renders only the
   // prefetched portion of the page, excluding dynamic content. This allows
   // tests to assert on the prefetched UI state deterministically.
-  const hasInstantPrefetchHeader =
+  // - Header: Used for client-side navigations where we can set request headers
+  // - Cookie: Used for MPA navigations (page reload, full page load) where we
+  //   can't set request headers. Only applies to document requests (no RSC
+  //   header) - RSC requests should proceed normally even during a locked scope,
+  //   with blocking happening on the client side.
+  const isInstantNavigationTest =
     routeModule.isDev === true &&
-    req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' &&
-    couldSupportPPR
+    couldSupportPPR &&
+    (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
+      (req.headers[RSC_HEADER] === undefined &&
+        typeof req.headers.cookie === 'string' &&
+        req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')))
 
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
@@ -367,12 +376,12 @@ export async function handler(
       // enabled or not, but that would require plumbing the appConfig through
       // to the server during development. We assume that the page supports it
       // but only during development.
-      ((hasDebugStaticShellQuery || hasInstantPrefetchHeader) &&
+      ((hasDebugStaticShellQuery || isInstantNavigationTest) &&
         (routeModule.isDev === true ||
           routerServerContext?.experimentalTestProxy === true)))
 
   const isDebugStaticShell: boolean =
-    (hasDebugStaticShellQuery || hasInstantPrefetchHeader) && isRoutePPREnabled
+    (hasDebugStaticShellQuery || isInstantNavigationTest) && isRoutePPREnabled
 
   // We should enable debugging dynamic accesses when the static shell
   // debugging has been enabled and we're also in development mode.

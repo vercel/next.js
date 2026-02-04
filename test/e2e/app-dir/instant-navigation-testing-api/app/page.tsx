@@ -3,7 +3,7 @@ import Link from 'next/link'
 export default function HomePage() {
   return (
     <div>
-      <h1>Instant Navigation API Test</h1>
+      <h1 data-testid="home-title">Instant Navigation API Test</h1>
       <Link href="/target-page" id="link-to-target">
         Go to target page
       </Link>
@@ -20,6 +20,10 @@ export default function HomePage() {
       >
         Go to full prefetch target
       </Link>
+      {/* Plain anchor for MPA navigation testing (bypasses client-side routing) */}
+      <a href="/target-page" id="plain-link-to-target">
+        Go to target page (MPA)
+      </a>
     </div>
   )
 }

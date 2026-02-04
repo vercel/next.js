@@ -18,10 +18,6 @@
  *   await expect(page.locator('[data-testid="price"]')).toBeVisible()
  *
  * NOTE: This API is dev-mode only. The tests bail out in production mode.
- *
- * TODO: Add tests for initial page loads (SSR) and MPA navigations. These
- * require a cookie-based approach since we can't set request headers for
- * browser-native navigations like page.goto() or refresh.
  */
 
 import { nextTestSetup } from 'e2e-utils'
@@ -79,6 +75,13 @@ describe('instant-navigation-testing-api', () => {
     try {
       return await fn()
     } finally {
+      // Wait for the page to be ready before unlocking. This is only necessary
+      // when fn() triggers a full page navigation (e.g. page.reload() or
+      // clicking a plain anchor), since the new page needs time to initialize.
+      await page.waitForFunction(
+        () =>
+          typeof (window as any).__EXPERIMENTAL_NEXT_TESTING__ !== 'undefined'
+      )
       await page.evaluate(() =>
         (window as any).__EXPERIMENTAL_NEXT_TESTING__?.navigation.unlock()
       )
@@ -183,5 +186,164 @@ describe('instant-navigation-testing-api', () => {
     })
 
     expect(errors.some((e) => e.includes('already acquired'))).toBe(true)
+  })
+
+  it('renders static shell on page reload', async () => {
+    const page = await openPage('/target-page')
+
+    // Wait for the page to fully load with dynamic content
+    const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+    await dynamicContent.waitFor({ state: 'visible' })
+
+    await instant(page, async () => {
+      // Reload the page while in instant mode
+      await page.reload()
+
+      // The loading shell appears, but dynamic content is blocked
+      const loadingShell = page.locator('[data-testid="loading-shell"]')
+      await loadingShell.waitFor({ state: 'visible' })
+      expect(await loadingShell.textContent()).toContain(
+        'Loading target page...'
+      )
+
+      // Dynamic content has not streamed in yet
+      expect(await dynamicContent.count()).toBe(0)
+    })
+
+    // After exiting the instant scope, dynamic content streams in
+    await dynamicContent.waitFor({ state: 'visible' })
+    expect(await dynamicContent.textContent()).toContain(
+      'Dynamic content loaded'
+    )
+  })
+
+  it('renders static shell on MPA navigation via plain anchor', async () => {
+    const page = await openPage('/')
+
+    await instant(page, async () => {
+      // Navigate using a plain anchor (triggers full page load)
+      await page.click('#plain-link-to-target')
+
+      // The loading shell appears, but dynamic content is blocked
+      const loadingShell = page.locator('[data-testid="loading-shell"]')
+      await loadingShell.waitFor({ state: 'visible' })
+      expect(await loadingShell.textContent()).toContain(
+        'Loading target page...'
+      )
+
+      // Dynamic content has not streamed in yet
+      const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+      expect(await dynamicContent.count()).toBe(0)
+    })
+
+    // After exiting the instant scope, dynamic content streams in
+    const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+    await dynamicContent.waitFor({ state: 'visible', timeout: 10000 })
+    expect(await dynamicContent.textContent()).toContain(
+      'Dynamic content loaded'
+    )
+  })
+
+  it('reload followed by MPA navigation, both block dynamic data', async () => {
+    const page = await openPage('/')
+
+    await instant(page, async () => {
+      // Reload the page while in instant mode
+      await page.reload()
+
+      // Home page should be visible (static content)
+      const homeTitle = page.locator('[data-testid="home-title"]')
+      await homeTitle.waitFor({ state: 'visible' })
+
+      // Navigate via plain anchor (MPA navigation)
+      await page.click('#plain-link-to-target')
+
+      // The loading shell appears, but dynamic content is blocked
+      const loadingShell = page.locator('[data-testid="loading-shell"]')
+      await loadingShell.waitFor({ state: 'visible' })
+
+      // Dynamic content has not streamed in yet
+      const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+      expect(await dynamicContent.count()).toBe(0)
+    })
+
+    // After exiting the instant scope, dynamic content streams in
+    const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+    await dynamicContent.waitFor({ state: 'visible' })
+    expect(await dynamicContent.textContent()).toContain(
+      'Dynamic content loaded'
+    )
+  })
+
+  it('successive MPA navigations within instant scope', async () => {
+    const page = await openPage('/')
+
+    await instant(page, async () => {
+      // First MPA navigation: reload
+      await page.reload()
+      const homeTitle = page.locator('[data-testid="home-title"]')
+      await homeTitle.waitFor({ state: 'visible' })
+
+      // Second MPA navigation: go to target page
+      await page.click('#plain-link-to-target')
+
+      // Static shell is visible
+      const loadingShell = page.locator('[data-testid="loading-shell"]')
+      await loadingShell.waitFor({ state: 'visible' })
+
+      // Dynamic content is blocked
+      const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+      expect(await dynamicContent.count()).toBe(0)
+
+      // Third MPA navigation: go back to home
+      await page.goBack()
+      await homeTitle.waitFor({ state: 'visible' })
+
+      // Fourth MPA navigation: go to target page again
+      await page.click('#plain-link-to-target')
+
+      // Still shows static shell, dynamic content still blocked
+      await loadingShell.waitFor({ state: 'visible' })
+      expect(await dynamicContent.count()).toBe(0)
+    })
+
+    // After exiting instant scope, dynamic content streams in
+    const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+    await dynamicContent.waitFor({ state: 'visible' })
+    expect(await dynamicContent.textContent()).toContain(
+      'Dynamic content loaded'
+    )
+  })
+
+  it('subsequent navigations after instant scope are not locked', async () => {
+    const page = await openPage('/')
+
+    // First, do an MPA navigation within an instant scope
+    await instant(page, async () => {
+      await page.reload()
+      const homeTitle = page.locator('[data-testid="home-title"]')
+      await homeTitle.waitFor({ state: 'visible' })
+    })
+
+    // After exiting the instant scope, navigations work normally again
+    // Client-side navigation should load dynamic content
+    await page.click('#link-to-target')
+    const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+    await dynamicContent.waitFor({ state: 'visible' })
+    expect(await dynamicContent.textContent()).toContain(
+      'Dynamic content loaded'
+    )
+
+    // Navigate back to home
+    await page.goBack()
+    const homeTitle = page.locator('[data-testid="home-title"]')
+    await homeTitle.waitFor({ state: 'visible' })
+
+    // Another MPA navigation (reload) should also work normally
+    await page.goto(page.url().replace(/\/$/, '') + '/target-page')
+    await dynamicContent.waitFor({ state: 'visible' })
+    expect(await dynamicContent.textContent()).toContain(
+      'Dynamic content loaded'
+    )
   })
 })
