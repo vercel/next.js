@@ -4,7 +4,13 @@ title: Prerender Error
 
 ## Why This Error Occurred
 
-While prerendering a page an error occurred. This can occur for many reasons from adding non-pages e.g. `components` to your `pages` folder or expecting props to be populated which are not.
+While prerendering a page during `next build`, an error occurred. This can happen for various reasons, including:
+
+- Incorrect file structure or non-page files in the `pages` directory
+- Expecting props to be populated which are not available during prerendering
+- Using browser-only APIs in components without proper checks
+- Incorrect configuration in `getStaticProps` or `getStaticPaths`
+- Working inside a monorepo where module resolution resolves different React versions
 
 ## Possible Ways to Fix It
 
