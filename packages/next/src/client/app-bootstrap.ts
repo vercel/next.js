@@ -81,8 +81,8 @@ export function appBootstrap(hydrate: (assetPrefix: string) => void) {
     // and set up a minimal testing API. Hydration would fail because the
     // static shell response doesn't include the full Flight data stream.
     // When unlock() is called, we clear the cookie and reload the page.
-    if (process.env.NODE_ENV !== 'production') {
-      const NEXT_INSTANT_TEST_COOKIE = 'next-dev-only-instant-test'
+    if (process.env.__NEXT_EXPOSE_TESTING_API) {
+      const NEXT_INSTANT_TEST_COOKIE = 'next-instant-navigation-testing'
       if (document.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')) {
         // Set up minimal testing API for the static shell
         window.__EXPERIMENTAL_NEXT_TESTING__ = {

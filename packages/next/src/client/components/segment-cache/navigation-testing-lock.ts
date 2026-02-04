@@ -1,5 +1,5 @@
 /**
- * Dev-only navigation lock for the Instant Navigation Testing API.
+ * Navigation lock for the Instant Navigation Testing API.
  *
  * This module is not meant to be used directly. It's exposed on the window
  * object and intended to be called via a wrapper API integrated into an
@@ -35,8 +35,9 @@
  * content streams in. Network requests are not blocked - they proceed in
  * parallel while the lock is held.
  *
- * All functions in this module are wrapped in dev-mode checks so they get
- * dead code eliminated in production builds.
+ * All functions in this module are wrapped in checks for the testing API,
+ * which is not exposed in production builds by default. This ensures the code
+ * is dead code eliminated unless explicitly enabled.
  */
 
 import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
@@ -62,10 +63,10 @@ let mpaLockedStateNeedsRefresh = false
  * Logs an error if the lock is already acquired (concurrent locks are not
  * allowed).
  *
- * Dev mode only.
+ * Not exposed in production builds by default.
  */
 export function acquireNavigationLock(): void {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     if (lockState !== null) {
       console.error(
         'Navigation lock already acquired. Concurrent locks are not allowed. ' +
@@ -95,10 +96,10 @@ export function acquireNavigationLock(): void {
  *
  * No-op if the lock is not currently acquired.
  *
- * Dev mode only.
+ * Not exposed in production builds by default.
  */
 export function releaseNavigationLock(): void {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     if (lockState !== null) {
       lockState.resolve()
       lockState = null
@@ -119,10 +120,11 @@ export function releaseNavigationLock(): void {
 /**
  * Returns true if the navigation lock is currently acquired.
  *
- * Dev mode only. Always returns false in production.
+ * Not exposed in production builds by default. Always returns false when the
+ * testing API is not available.
  */
 export function isNavigationLocked(): boolean {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     return lockState !== null
   }
   return false
@@ -132,10 +134,10 @@ export function isNavigationLocked(): boolean {
  * Waits for the navigation lock to be released, if it's currently held.
  * No-op if the lock is not acquired.
  *
- * Dev mode only.
+ * Not exposed in production builds by default.
  */
 export async function waitForNavigationLockIfActive(): Promise<void> {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     if (lockState !== null) {
       await lockState.promise
     }
@@ -148,10 +150,10 @@ export async function waitForNavigationLockIfActive(): Promise<void> {
  * 1. Client-side navigations during the instant scope also block dynamic data
  * 2. When the lock is released, a refresh is triggered to fetch dynamic data
  *
- * Dev mode only.
+ * Not exposed in production builds by default.
  */
 export function initializeMpaLockedState(): void {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     // Set the MPA flag so we know to trigger a refresh when the lock is released
     mpaLockedStateNeedsRefresh = true
 
@@ -172,7 +174,7 @@ export function initializeMpaLockedState(): void {
  * navigation lock following an MPA navigation.
  */
 function triggerRefresh(): void {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { dispatchAppRouterAction } =
       require('../use-action-queue') as typeof import('../use-action-queue')
     const { ACTION_REFRESH } =
