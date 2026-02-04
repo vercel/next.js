@@ -1,5 +1,5 @@
 // @ts-ignore isDisturbed exists on node:stream. Exclude
-import { isDisturbed, isErrored } from 'node:stream'
+import { isDisturbed, isErrored } from 'stream'
 
 const noop = () => {}
 
