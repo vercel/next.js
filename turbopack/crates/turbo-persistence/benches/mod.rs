@@ -27,7 +27,7 @@ fn format_number(n: usize) -> String {
     } else if n >= 1_024 * 1_024 {
         format!("{:.2}Mi", n as f32 / (1_024 * 1_024) as f32)
     } else if n >= 1_024 {
-        format!("{:.2}Ki", n as f32 / 1_024 as f32)
+        format!("{:.2}Ki", n as f32 / 1_024_f32)
     } else {
         n.to_string()
     }
@@ -164,7 +164,7 @@ fn bench_write(c: &mut Criterion) {
 
                             db.commit_write_batch(batch).unwrap();
                         }
-                        black_box(db.shutdown().unwrap());
+                        db.shutdown().unwrap();
                         tempdir
                     },
                     BatchSize::PerIteration,
@@ -256,7 +256,7 @@ fn bench_read_get(c: &mut Criterion) {
                 );
             });
 
-            group.bench_function(&format!("{id}/miss"), |b| {
+            group.bench_function(format!("{id}/miss"), |b| {
                 let (_, db, _, rng) = &*db;
                 let mut rng = rng.lock();
                 b.iter_batched(
@@ -352,7 +352,7 @@ fn bench_read_batch_get(c: &mut Criterion) {
                     );
                 });
 
-                group.bench_function(&format!("{id}/miss"), |b| {
+                group.bench_function(format!("{id}/miss"), |b| {
                     let (_, db, _, rng) = &*db;
                     let mut rng = rng.lock();
                     b.iter_batched(
