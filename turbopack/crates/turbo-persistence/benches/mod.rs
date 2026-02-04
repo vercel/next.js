@@ -3,6 +3,8 @@ use std::{path::Path, sync::LazyLock, time::Duration};
 use anyhow::Result;
 use criterion::{BatchSize, Criterion, SamplingMode, black_box, criterion_group, criterion_main};
 use parking_lot::Mutex;
+// Re-export qfilter for benchmarking the filter used in AMQF
+use qfilter;
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use tempfile::TempDir;
 use turbo_persistence::{CompactConfig, SerialScheduler, TurboPersistence};
@@ -477,12 +479,85 @@ fn bench_compaction(c: &mut Criterion) {
 }
 
 // =============================================================================
+// QFilter Benchmarks
+// =============================================================================
+
+fn bench_qfilter(c: &mut Criterion) {
+    let mut group = c.benchmark_group("qfilter");
+    group.warm_up_time(Duration::from_secs(5));
+    group.measurement_time(Duration::from_secs(10));
+
+    // Filter sizes to test: 1ki, 10ki, 100ki, 1000ki fingerprints
+    let filter_sizes = [1024, 10 * 1024, 100 * 1024, 1000 * 1024];
+    // False positive rate matching AMQF_FALSE_POSITIVE_RATE in static_sorted_file_builder.rs
+    const FALSE_POSITIVE_RATE: f64 = 0.01;
+
+    for &size in &filter_sizes {
+        // Pre-build filter with random fingerprints
+        let filter = LazyLock::new(|| {
+            let mut rng = SmallRng::seed_from_u64(42);
+            let mut filter = qfilter::Filter::new(size as u64, FALSE_POSITIVE_RATE)
+                .expect("Filter construction failed");
+
+            // Store fingerprints for hit testing
+            let mut fingerprints = Vec::with_capacity(size);
+            for _ in 0..size {
+                let fp: u64 = rng.random();
+                filter.insert_fingerprint(false, fp).expect("Insert failed");
+                fingerprints.push(fp);
+            }
+
+            let rng = Mutex::new(SmallRng::seed_from_u64(123));
+            (filter, fingerprints, rng)
+        });
+
+        let id = format!("entries_{}", format_number(size));
+
+        // Benchmark hit case (query fingerprints that exist)
+        group.bench_function(format!("{id}/hit"), |b| {
+            let (filter, fingerprints, rng) = &*filter;
+            let mut rng = rng.lock();
+            b.iter_batched(
+                || {
+                    let idx = rng.random_range(0..fingerprints.len());
+                    fingerprints[idx]
+                },
+                |fp| {
+                    let result = filter.contains_fingerprint(fp);
+                    black_box(result)
+                },
+                BatchSize::SmallInput,
+            );
+        });
+
+        // Benchmark miss case (query random fingerprints not in filter)
+        group.bench_function(format!("{id}/miss"), |b| {
+            let (filter, _, rng) = &*filter;
+            let mut rng = rng.lock();
+            b.iter_batched(
+                || {
+                    // Generate random fingerprint (very unlikely to be in filter)
+                    rng.random::<u64>()
+                },
+                |fp| {
+                    let result = filter.contains_fingerprint(fp);
+                    black_box(result)
+                },
+                BatchSize::SmallInput,
+            );
+        });
+    }
+
+    group.finish();
+}
+
+// =============================================================================
 // Criterion Setup
 // =============================================================================
 
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_read_get, bench_read_batch_get, bench_compaction
+    targets = bench_write, bench_read_get, bench_read_batch_get, bench_compaction, bench_qfilter
 );
 criterion_main!(benches);
