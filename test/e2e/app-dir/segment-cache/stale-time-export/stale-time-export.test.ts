@@ -22,6 +22,7 @@ import { createRouterAct } from 'router-act'
       })
       const act = createRouterAct(page)
       await page.clock.install()
+      const pageContent = 'Page with unstable_staleTime = 300'
 
       // Prefetch page with unstable_staleTime=300 (5 minutes)
       const toggleLink = await browser.elementByCss(
@@ -32,7 +33,7 @@ import { createRouterAct } from 'router-act'
           await toggleLink.click()
           await browser.elementByCss('a[href="/stale-5-minutes"]')
         },
-        { includes: 'Page with unstable_staleTime = 300' }
+        { includes: pageContent }
       )
 
       // Hide link
@@ -41,11 +42,19 @@ import { createRouterAct } from 'router-act'
       // Advance 31 seconds - past global staleTimes (30s), within page unstable_staleTime (300s)
       await page.clock.fastForward(31 * 1000)
 
-      // Should NOT refetch - page's unstable_staleTime=300 hasn't elapsed
-      await act(async () => {
-        await toggleLink.click()
-        await browser.elementByCss('a[href="/stale-5-minutes"]')
-      }, 'no-requests')
+      /*
+        Should NOT refetch the content - page's unstable_staleTime=300 hasn't elapsed.
+
+        Note there may be another tree prefetch, since that's controlled separately. So
+        we just assert that the actual content of the page is not refetched. 
+      */
+      await act(
+        async () => {
+          await toggleLink.click()
+          await browser.elementByCss('a[href="/stale-5-minutes"]')
+        },
+        { includes: pageContent, block: 'reject' }
+      )
 
       // Hide link
       await toggleLink.click()
@@ -59,7 +68,7 @@ import { createRouterAct } from 'router-act'
           await toggleLink.click()
           await browser.elementByCss('a[href="/stale-5-minutes"]')
         },
-        { includes: 'Page with unstable_staleTime = 300' }
+        { includes: pageContent }
       )
     })
 
@@ -72,6 +81,7 @@ import { createRouterAct } from 'router-act'
       })
       const act = createRouterAct(page)
       await page.clock.install()
+      const pageContent = 'Page inheriting unstable_staleTime from inner layout'
 
       // Prefetch page with nested layouts (outer=100, inner=200)
       const toggleLink = await browser.elementByCss(
@@ -82,7 +92,7 @@ import { createRouterAct } from 'router-act'
           await toggleLink.click()
           await browser.elementByCss('a[href="/nested/inner"]')
         },
-        { includes: 'Page inheriting unstable_staleTime from inner layout' }
+        { includes: pageContent }
       )
 
       // Hide link
@@ -91,11 +101,22 @@ import { createRouterAct } from 'router-act'
       // Advance 101 seconds - past outer (100), within inner (200)
       await page.clock.fastForward(101 * 1000)
 
-      // Should NOT refetch - inner layout's unstable_staleTime=200 wins
-      await act(async () => {
-        await toggleLink.click()
-        await browser.elementByCss('a[href="/nested/inner"]')
-      }, 'no-requests')
+      /*
+        Should NOT refetch the content - inner layout's unstable_staleTime=200 wins
+
+        Note there may be another tree prefetch, since that's controlled separately. So
+        we just assert that the actual content of the page is not refetched. 
+      */
+      await act(
+        async () => {
+          await toggleLink.click()
+          await browser.elementByCss('a[href="/nested/inner"]')
+        },
+        {
+          includes: pageContent,
+          block: 'reject',
+        }
+      )
 
       // Hide link
       await toggleLink.click()
@@ -109,7 +130,7 @@ import { createRouterAct } from 'router-act'
           await toggleLink.click()
           await browser.elementByCss('a[href="/nested/inner"]')
         },
-        { includes: 'Page inheriting unstable_staleTime from inner layout' }
+        { includes: pageContent }
       )
     })
 
@@ -122,6 +143,7 @@ import { createRouterAct } from 'router-act'
       })
       const act = createRouterAct(page)
       await page.clock.install()
+      const pageContent = 'Page inheriting unstable_staleTime from layout'
 
       // Prefetch page that inherits unstable_staleTime=120 from layout
       const toggleLink = await browser.elementByCss(
@@ -132,7 +154,7 @@ import { createRouterAct } from 'router-act'
           await toggleLink.click()
           await browser.elementByCss('a[href="/inherit"]')
         },
-        { includes: 'Page inheriting unstable_staleTime from layout' }
+        { includes: pageContent }
       )
 
       // Hide link
@@ -141,11 +163,22 @@ import { createRouterAct } from 'router-act'
       // Advance 119 seconds - within layout's unstable_staleTime (120)
       await page.clock.fastForward(119 * 1000)
 
-      // Should NOT refetch - still within unstable_staleTime
-      await act(async () => {
-        await toggleLink.click()
-        await browser.elementByCss('a[href="/inherit"]')
-      }, 'no-requests')
+      /*
+        Should NOT refetch - still within unstable_staleTime
+
+        Note there may be another tree prefetch, since that's controlled separately. So
+        we just assert that the actual content of the page is not refetched. 
+      */
+      await act(
+        async () => {
+          await toggleLink.click()
+          await browser.elementByCss('a[href="/inherit"]')
+        },
+        {
+          includes: pageContent,
+          block: 'reject',
+        }
+      )
 
       // Hide link
       await toggleLink.click()
@@ -159,7 +192,7 @@ import { createRouterAct } from 'router-act'
           await toggleLink.click()
           await browser.elementByCss('a[href="/inherit"]')
         },
-        { includes: 'Page inheriting unstable_staleTime from layout' }
+        { includes: pageContent }
       )
     })
 
