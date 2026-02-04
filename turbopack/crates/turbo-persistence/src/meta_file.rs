@@ -495,6 +495,10 @@ impl MetaFile {
             }
             let amqf = entry.amqf(self, amqf_cache)?;
             for (hash, index, result) in &mut cells[start_index..=end_index] {
+                debug_assert!(
+                    *hash >= entry.min_hash && *hash <= entry.max_hash,
+                    "Key hash out of range"
+                );
                 if result.is_some() {
                     continue;
                 }
