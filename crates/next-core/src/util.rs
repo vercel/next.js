@@ -116,22 +116,32 @@ pub fn free_var_references_with_vercel_system_env_warnings(
         let message = match public_env_var {
             "NEXT_PUBLIC_NEXT_DEPLOYMENT_ID" | "NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID" => {
                 rcstr!(
-                    "The deployment id is being inlined. Use `process.env.NEXT_DEPLOYMENT_ID` \
-                     instead to access the same value without inlining, for faster deploy times \
-                     and better browser client-side caching."
+                    "The deployment id is being inlined.\nThis variable changes frequently, \
+                     causing slower deploy times and worse browser client-side caching. Use \
+                     `process.env.NEXT_DEPLOYMENT_ID` instead to access the same value without \
+                     inlining, for faster deploy times and better browser client-side caching."
+                )
+            }
+            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA" => {
+                rcstr!(
+                    "The commit hash is being inlined.\nThis variable changes frequently, causing \
+                     slower deploy times and worse browser client-side caching. Consider using \
+                     `process.env.NEXT_DEPLOYMENT_ID` to identify a deployment. Alternatively, \
+                     use `process.env.VERCEL_GIT_COMMIT_SHA` in server side code and for browser \
+                     code, remove it."
                 )
             }
             "NEXT_PUBLIC_VERCEL_BRANCH_URL" | "NEXT_PUBLIC_VERCEL_URL" => format!(
-                "The deployment url system environment variable is being inlined. This variable \
+                "The deployment url system environment variable is being inlined.\nThis variable \
                  changes frequently, causing slower deploy times and worse browser client-side \
                  caching. For server-side code, replace with `process.env.{}` and for browser \
-                 code, read `location.origin` instead.",
+                 code, read `location.host` instead.",
                 public_env_var.strip_prefix("NEXT_PUBLIC_").unwrap(),
             )
             .into(),
             _ => format!(
-                "A system environment variable is being inlined. This variable changes on every \
-                 deployment, causing slower deploy times and worse browser client-side caching. \
+                "A system environment variable is being inlined.\nThis variable changes \
+                 frequently, causing slower deploy times and worse browser client-side caching. \
                  For server-side code, replace with `process.env.{}` and for browser code, try to \
                  remove it.",
                 public_env_var.strip_prefix("NEXT_PUBLIC_").unwrap(),

@@ -12,6 +12,6 @@
       11 | 
       12 | import(unknown)
   
-      "node",
+  "node",
       [FreeVar(Math)["random"](), FreeVar(Math)["random"]()]
   ) is very dynamic
