@@ -36,6 +36,7 @@ import { getIsPossibleServerAction } from '../../server/lib/server-action-reques
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
@@ -346,6 +347,14 @@ export async function handler(
   const hasDebugFallbackShellQuery =
     hasDebugStaticShellQuery && query.__nextppronly === 'fallback'
 
+  // Dev-only: Enable the Instant Navigation Testing API. Renders only the
+  // prefetched portion of the page, excluding dynamic content. This allows
+  // tests to assert on the prefetched UI state deterministically.
+  const hasInstantPrefetchHeader =
+    routeModule.isDev === true &&
+    req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' &&
+    couldSupportPPR
+
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
   const isRoutePPREnabled: boolean =
@@ -358,12 +367,12 @@ export async function handler(
       // enabled or not, but that would require plumbing the appConfig through
       // to the server during development. We assume that the page supports it
       // but only during development.
-      (hasDebugStaticShellQuery &&
+      ((hasDebugStaticShellQuery || hasInstantPrefetchHeader) &&
         (routeModule.isDev === true ||
           routerServerContext?.experimentalTestProxy === true)))
 
   const isDebugStaticShell: boolean =
-    hasDebugStaticShellQuery && isRoutePPREnabled
+    (hasDebugStaticShellQuery || hasInstantPrefetchHeader) && isRoutePPREnabled
 
   // We should enable debugging dynamic accesses when the static shell
   // debugging has been enabled and we're also in development mode.

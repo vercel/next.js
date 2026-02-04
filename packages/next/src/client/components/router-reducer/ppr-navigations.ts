@@ -1531,6 +1531,14 @@ async function fetchMissingDynamicData(
       result.flightData,
       result.renderedSearch
     )
+
+    // Dev-only: If the navigation lock is active, wait for it to be released
+    // before writing the dynamic data. This allows tests to assert on the
+    // prefetched UI state.
+    if (process.env.NODE_ENV !== 'production') {
+      await waitForNavigationLock()
+    }
+
     const didReceiveUnknownParallelRoute = writeDynamicDataIntoNavigationTask(
       task,
       seed.routeTree,
@@ -1869,4 +1877,18 @@ function createDeferredRsc<
   pendingRsc._debugInfo = debugInfo
 
   return pendingRsc
+}
+
+/**
+ * Dev-only helper for the Instant Navigation Testing API. Waits for the
+ * navigation lock to be released before returning. The network request has
+ * already completed by the time this is called, so this only delays writing
+ * the dynamic data.
+ */
+async function waitForNavigationLock(): Promise<void> {
+  if (process.env.NODE_ENV !== 'production') {
+    const { waitForNavigationLockIfActive } =
+      require('../segment-cache/dev-navigation-lock') as typeof import('../segment-cache/dev-navigation-lock')
+    await waitForNavigationLockIfActive()
+  }
 }
