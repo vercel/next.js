@@ -5,16 +5,17 @@ use criterion::{BatchSize, Criterion, SamplingMode, black_box, criterion_group, 
 use parking_lot::Mutex;
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use tempfile::TempDir;
-use turbo_persistence::{SerialScheduler, TurboPersistence};
+use turbo_persistence::{CompactConfig, SerialScheduler, TurboPersistence};
 
 // =============================================================================
 // Constants
 // =============================================================================
 
+const MB: u64 = 1024 * 1024;
 /// Data amount for batch read benchmarks (1 GiB)
-const BATCH_READ_DATA_AMOUNT: usize = 1024 * 1024 * 1024;
+const BATCH_READ_DATA_AMOUNT: usize = 1024 * MB as usize;
 /// Maximum memory to use for storing keys during prefill (8 GiB)
-const MAX_KEY_MEMORY: usize = 8 * 1024 * 1024 * 1024;
+const MAX_KEY_MEMORY: usize = 8 * 1024 * MB as usize;
 
 // =============================================================================
 // Helper Types and Functions
@@ -423,24 +424,44 @@ fn bench_compaction(c: &mut Criterion) {
                 commit_count
             );
 
+            let setup = || {
+                // Setup: create and prefill database (not compacted)
+                let config = DbConfig {
+                    key_size,
+                    value_size,
+                    entry_count,
+                    commit_count,
+                    compacted: false,
+                };
+                let (tempdir, _keys) = setup_prefilled_db(&config).unwrap();
+                let db = TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
+                    .unwrap();
+                (tempdir, db)
+            };
+
             group.bench_function(&id, |b| {
                 b.iter_batched(
-                    || {
-                        // Setup: create and prefill database (not compacted)
-                        let config = DbConfig {
-                            key_size,
-                            value_size,
-                            entry_count,
-                            commit_count,
-                            compacted: false,
-                        };
-                        let (tempdir, _keys) = setup_prefilled_db(&config).unwrap();
-                        let db = TurboPersistence::<SerialScheduler, 1>::open(
-                            tempdir.path().to_path_buf(),
-                        )
+                    setup,
+                    |(_tempdir, db)| {
+                        // Timed: run normal compaction
+                        db.compact(&CompactConfig {
+                            min_merge_count: 3,
+                            optimal_merge_count: 8,
+                            max_merge_count: 64,
+                            max_merge_bytes: 512 * MB,
+                            min_merge_duplication_bytes: 50 * MB,
+                            optimal_merge_duplication_bytes: 100 * MB,
+                            max_merge_segment_count: 16,
+                        })
                         .unwrap();
-                        (tempdir, db)
+                        black_box(db)
                     },
+                    BatchSize::PerIteration,
+                );
+            });
+            group.bench_function(format!("{id}/full"), |b| {
+                b.iter_batched(
+                    setup,
                     |(_tempdir, db)| {
                         // Timed: run full compaction
                         db.full_compact().unwrap();
