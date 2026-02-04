@@ -306,7 +306,8 @@ export interface LoggingConfig {
   incomingRequests?: boolean | IncomingRequestLoggingConfig
 
   /**
-   * If true, Server Function invocations will be logged.
+   * If false, Server Function invocation logging is disabled.
+   * @default true
    */
   serverFunctions?: boolean
 
@@ -924,6 +925,25 @@ export interface ExperimentalConfig {
    * @default false
    */
   devCacheControlNoCache?: boolean
+
+  /**
+   * An array of paths in app or pages directories that should wait to be processed
+   * until all other entries have been processed. This is useful for deferring
+   * compilation of certain routes during development and build.
+   */
+  deferredEntries?: string[]
+
+  /**
+   * An async function that is called and awaited before processing deferred entries.
+   * This callback runs after all non-deferred entries have been compiled.
+   */
+  onBeforeDeferredEntries?: () => Promise<void>
+
+  /**
+   * Whether to report inlined system environment variables as warnings or errors.
+   * Only supported for Turbopack.
+   */
+  reportSystemEnvInlining?: 'error' | 'warn'
 }
 
 export type ExportPathMap = {
@@ -1507,7 +1527,9 @@ export const defaultConfig = Object.freeze({
   httpAgentOptions: {
     keepAlive: true,
   },
-  logging: {},
+  logging: {
+    serverFunctions: true,
+  } satisfies LoggingConfig,
   compiler: {},
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined

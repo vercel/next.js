@@ -1089,6 +1089,7 @@
       onFatalError,
       identifierPrefix,
       temporaryReferences,
+      debugStartTime,
       environmentName,
       filterStackFrame,
       keepDebugAlive
@@ -1153,7 +1154,10 @@
       this.deferredDebugObjects = keepDebugAlive
         ? { retained: new Map(), existing: new Map() }
         : null;
-      type = this.timeOrigin = performance.now();
+      type =
+        "number" === typeof debugStartTime
+          ? (this.timeOrigin = debugStartTime - performance.timeOrigin)
+          : (this.timeOrigin = performance.now());
       emitTimeOriginChunk(this, type + performance.timeOrigin);
       this.abortTime = -0;
       model = createTask(
@@ -1176,6 +1180,7 @@
       onError,
       identifierPrefix,
       temporaryReferences,
+      debugStartTime,
       environmentName,
       filterStackFrame,
       keepDebugAlive
@@ -1190,6 +1195,7 @@
         noop,
         identifierPrefix,
         temporaryReferences,
+        debugStartTime,
         environmentName,
         filterStackFrame,
         keepDebugAlive
@@ -1203,6 +1209,7 @@
       onError,
       identifierPrefix,
       temporaryReferences,
+      debugStartTime,
       environmentName,
       filterStackFrame,
       keepDebugAlive
@@ -1217,6 +1224,7 @@
         onFatalError,
         identifierPrefix,
         temporaryReferences,
+        debugStartTime,
         environmentName,
         filterStackFrame,
         keepDebugAlive
@@ -5737,7 +5745,7 @@
       },
       PROMISE_PROTOTYPE = Promise.prototype,
       deepProxyHandlers = {
-        get: function (target, name) {
+        get: function (target, name, receiver) {
           switch (name) {
             case "$$typeof":
               return target.$$typeof;
@@ -5760,9 +5768,7 @@
             case Symbol.toStringTag:
               return Object.prototype[Symbol.toStringTag];
             case "Provider":
-              throw Error(
-                "Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider."
-              );
+              return receiver;
             case "then":
               throw Error(
                 "Cannot await or return from a thenable. You cannot await a client module from a server component."
@@ -5904,7 +5910,7 @@
       componentStorage = new async_hooks.AsyncLocalStorage(),
       TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
       proxyHandlers = {
-        get: function (target, name) {
+        get: function (target, name, receiver) {
           switch (name) {
             case "$$typeof":
               return target.$$typeof;
@@ -5923,9 +5929,7 @@
             case Symbol.toStringTag:
               return Object.prototype[Symbol.toStringTag];
             case "Provider":
-              throw Error(
-                "Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider."
-              );
+              return receiver;
             case "then":
               return;
           }
@@ -6560,6 +6564,7 @@
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
           options ? options.temporaryReferences : void 0,
+          options ? options.startTime : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
           !1
@@ -6596,6 +6601,7 @@
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
           options ? options.temporaryReferences : void 0,
+          options ? options.startTime : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
           !1
@@ -6660,6 +6666,7 @@
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
           options ? options.temporaryReferences : void 0,
+          options ? options.startTime : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
           void 0 !== debugChannelReadable
@@ -6715,6 +6722,7 @@
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
           options ? options.temporaryReferences : void 0,
+          options ? options.startTime : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
           void 0 !== debugChannelReadable

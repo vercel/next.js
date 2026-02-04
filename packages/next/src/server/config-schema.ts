@@ -370,6 +370,9 @@ export const experimentalSchema = {
   hideLogsAfterAbort: z.boolean().optional(),
   runtimeServerDeploymentId: z.boolean().optional(),
   devCacheControlNoCache: z.boolean().optional(),
+  deferredEntries: z.array(z.string()).optional(),
+  onBeforeDeferredEntries: z.function().returns(z.promise(z.void())).optional(),
+  reportSystemEnvInlining: z.enum(['warn', 'error']).optional(),
 }
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>

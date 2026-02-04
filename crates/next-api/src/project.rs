@@ -1098,7 +1098,11 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
-        get_client_compile_time_info(self.browserslist_query.clone(), self.define_env.client())
+        get_client_compile_time_info(
+            self.browserslist_query.clone(),
+            self.define_env.client(),
+            self.next_config.report_system_env_inlining(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -1336,6 +1340,7 @@ impl Project {
             self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
+            this.next_config.report_system_env_inlining(),
         ))
     }
 
@@ -1346,6 +1351,7 @@ impl Project {
             self.project_path().owned().await?,
             this.define_env.edge(),
             self.current_node_js_version(),
+            this.next_config.report_system_env_inlining(),
         ))
     }
 

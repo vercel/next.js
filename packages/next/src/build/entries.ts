@@ -593,6 +593,47 @@ export interface CreateEntrypointsParams {
   appPaths?: MappedPages
   pageExtensions: PageExtensions
   hasInstrumentationHook?: boolean
+  /**
+   * When set to 'exclude', deferred entries are excluded from the result.
+   * When set to 'only', only deferred entries are included in the result.
+   * When undefined, all entries are included.
+   */
+  deferredEntriesFilter?: 'exclude' | 'only'
+}
+
+/**
+ * Checks if a page path matches any of the deferred entry patterns.
+ * @param page - The page path (e.g., '/about', '/api/hello')
+ * @param deferredEntries - Array of path patterns to match against
+ * @returns true if the page matches a deferred entry pattern
+ */
+export function isDeferredEntry(
+  page: string,
+  deferredEntries: string[] | undefined
+): boolean {
+  if (!deferredEntries || deferredEntries.length === 0) {
+    return false
+  }
+
+  // Normalize the page path
+  const normalizedPage = page.startsWith('/') ? page : `/${page}`
+
+  for (const pattern of deferredEntries) {
+    // Normalize the pattern
+    const normalizedPattern = pattern.startsWith('/') ? pattern : `/${pattern}`
+
+    // Check for exact match or prefix match for directories
+    if (normalizedPage === normalizedPattern) {
+      return true
+    }
+
+    // Check if the page is under the deferred directory
+    if (normalizedPage.startsWith(normalizedPattern + '/')) {
+      return true
+    }
+  }
+
+  return false
 }
 
 export function getEdgeServerEntry(opts: {
@@ -838,7 +879,10 @@ export async function createEntrypoints(
     appDir,
     appPaths,
     pageExtensions,
+    deferredEntriesFilter,
   } = params
+
+  const deferredEntries = config.experimental.deferredEntries
   const edgeServer: webpack.EntryObject = {}
   const server: webpack.EntryObject = {}
   const client: webpack.EntryObject = {}
@@ -870,6 +914,19 @@ export async function createEntrypoints(
   const getEntryHandler =
     (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: string) => void) =>
     async (page) => {
+      // Apply deferred entries filter if specified
+      if (deferredEntriesFilter) {
+        const isDeferred = isDeferredEntry(page, deferredEntries)
+        if (deferredEntriesFilter === 'exclude' && isDeferred) {
+          // Skip deferred entries when excluding them
+          return
+        }
+        if (deferredEntriesFilter === 'only' && !isDeferred) {
+          // Skip non-deferred entries when only including deferred ones
+          return
+        }
+      }
+
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join(pagesType, bundleFile)
       const serverBundlePath =

@@ -901,7 +901,7 @@ async function getBuildId(
   config: NextConfigComplete
 ) {
   if (isGenerateMode) {
-    return await fs.readFile(path.join(distDir, 'BUILD_ID'), 'utf8')
+    return await fs.readFile(path.join(distDir, BUILD_ID_FILE), 'utf8')
   }
   return await nextBuildSpan
     .traceChild('generate-buildid')
@@ -4234,6 +4234,7 @@ export default async function build(
               config,
               appType,
               buildId,
+              bundler,
               configOutDir: path.join(dir, configOutDir),
               staticPages,
               serverPropsPages,
