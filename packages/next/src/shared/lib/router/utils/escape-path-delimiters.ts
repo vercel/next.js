@@ -5,10 +5,9 @@ export default function escapePathDelimiters(
 ): string {
   if (typeof segment !== 'string') {
     throw new TypeError(
-      `Expected a string for path segment, but received ${
-        segment === null ? 'null' : typeof segment
+      `Expected a string for path segment, but received ${segment === null ? 'null' : typeof segment
       }. ` +
-        `Ensure all path parameters in getStaticPaths are strings.`
+      `Ensure all path parameters are strings.`
     )
   }
   return segment.replace(
