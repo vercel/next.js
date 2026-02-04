@@ -268,6 +268,104 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
   })
 
+  describe('App Router - Hydration Errors', () => {
+    let next: NextInstance
+    let logs: string[] = []
+    let logCapture: ReturnType<typeof setupLogCapture>
+
+    beforeAll(async () => {
+      logCapture = setupLogCapture()
+      logs = logCapture.logs
+
+      next = await createNext({
+        files: {
+          app: new FileRef(join(__dirname, 'fixtures/app')),
+          'next.config.js': new FileRef(
+            join(__dirname, 'fixtures/next.config.js')
+          ),
+        },
+      })
+    })
+
+    afterAll(async () => {
+      logCapture.restore()
+      await next.destroy()
+    })
+
+    beforeEach(() => {
+      logCapture.clearLogs()
+    })
+
+    it('should show hydration errors with owner stack trace', async () => {
+      const browser = await webdriver(next.url, '/hydration-error')
+
+      let hydrationErrorLog = ''
+      await retry(() => {
+        const logOutput = logs.join('\n')
+        // Find the hydration error log entry
+        const hydrationMatch = logOutput.match(
+          /\[browser\].*Hydration[\s\S]*?(?=\n\[browser\]|\n *○|\n *⨯|$)/
+        )
+        expect(hydrationMatch).not.toBeNull()
+        hydrationErrorLog = hydrationMatch![0]
+        // Verify the Page component is in the forwarded stack trace with source location
+        expect(hydrationErrorLog).toMatch(/Page/)
+        expect(hydrationErrorLog).toMatch(/app\/hydration-error\/page/)
+      })
+
+      // Assert the entire hydration error message including owner stack trace
+      expect(hydrationErrorLog).toMatchInlineSnapshot(`
+       "[browser] Uncaught Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+       - A server/client branch \`if (typeof window !== 'undefined')\`.
+       - Variable input such as \`Date.now()\` or \`Math.random()\` which changes each time it's called.
+       - Date formatting in a user's locale which doesn't match the server.
+       - External changing data without sending a snapshot of it along with the HTML.
+       - Invalid HTML tag nesting.
+
+       It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+       https://react.dev/link/hydration-mismatch
+
+         ...
+           <RenderFromTemplateContext>
+             <ScrollAndFocusHandler segmentPath={[...]}>
+               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                   <LoadingBoundary name="hydration-..." loading={null}>
+                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                       <RedirectBoundary>
+                         <RedirectErrorBoundary router={{...}}>
+                           <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} ...>
+                             <SegmentViewNode type="page" pagePath="hydration-...">
+                               <SegmentTrieNode>
+                               <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
+                                 <Page params={Promise} searchParams={Promise}>
+                                   <div>
+                                     <p>
+       +                               client
+       -                               server
+                             ...
+                           ...
+                 ...
+
+           at <unknown> (https://react.dev/link/hydration-mismatch)
+           at p (<anonymous>)
+           at Page (app/hydration-error/page.js:7:7)
+          5 |   return (
+          6 |     <div>
+       >  7 |       <p>{isClient ? 'client' : 'server'}</p>
+            |       ^
+          8 |     </div>
+          9 |   )
+         10 | }
+       "
+      `)
+
+      await browser.close()
+    })
+  })
+
   describe('App Router - Edge Runtime', () => {
     let next: NextInstance
     let logs: string[] = []
