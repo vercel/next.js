@@ -274,56 +274,6 @@ export default function LikeButton({ initialLikes }: { initialLikes: number }) {
 > updates after the `await` are not part of the transition.
 > See the React documentation for details.
 
-```tsx filename="app/like-button.tsx" switcher
-'use client'
-
-import { incrementLike } from './actions'
-import { useState } from 'react'
-
-export default function LikeButton({ initialLikes }: { initialLikes: number }) {
-  const [likes, setLikes] = useState(initialLikes)
-
-  return (
-    <>
-      <p>Total Likes: {likes}</p>
-      <button
-        onClick={async () => {
-          const updatedLikes = await incrementLike()
-          setLikes(updatedLikes)
-        }}
-      >
-        Like
-      </button>
-    </>
-  )
-}
-```
-
-```jsx filename="app/like-button.js" switcher
-'use client'
-
-import { incrementLike } from './actions'
-import { useState } from 'react'
-
-export default function LikeButton({ initialLikes }) {
-  const [likes, setLikes] = useState(initialLikes)
-
-  return (
-    <>
-      <p>Total Likes: {likes}</p>
-      <button
-        onClick={async () => {
-          const updatedLikes = await incrementLike()
-          setLikes(updatedLikes)
-        }}
-      >
-        Like
-      </button>
-    </>
-  )
-}
-```
-
 ## Examples
 
 ### Showing a pending state
