@@ -121,11 +121,20 @@ pub fn free_var_references_with_vercel_system_env_warnings(
                      and better browser client-side caching."
                 )
             }
+            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA" => {
+                rcstr!(
+                    "The commit hash is being inlined, causing slower deploy times and worse \
+                     browser client-side caching. Consider using `process.env.NEXT_DEPLOYMENT_ID` \
+                     to identify a deployment. Alternatively, use \
+                     `process.env.VERCEL_GIT_COMMIT_SHA` in server side code and for browser \
+                     code, remove it."
+                )
+            }
             "NEXT_PUBLIC_VERCEL_BRANCH_URL" | "NEXT_PUBLIC_VERCEL_URL" => format!(
                 "The deployment url system environment variable is being inlined. This variable \
                  changes frequently, causing slower deploy times and worse browser client-side \
                  caching. For server-side code, replace with `process.env.{}` and for browser \
-                 code, read `location.origin` instead.",
+                 code, read `location.host` instead.",
                 public_env_var.strip_prefix("NEXT_PUBLIC_").unwrap(),
             )
             .into(),
