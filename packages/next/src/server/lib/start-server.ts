@@ -447,8 +447,9 @@ export async function startServer(
                 process.exit(143)
                 break
               default:
-                // Exhaustiveness check
-                signal satisfies never as never
+                // Make sure all handled signals have explicit exit codes.
+                // This is just a fallback to guard against unsound types.
+                signal satisfies never
                 process.exit(128)
             }
           })()
