@@ -2534,10 +2534,11 @@ function createPrefetchResponseStream(
   // While processing the original stream, we also incrementally update the size
   // of the cache entry in the LRU.
   let totalByteLength = 0
+  let closed = false
   const reader = originalFlightStream.getReader()
   return new ReadableStream({
     async pull(controller) {
-      while (true) {
+      while (!closed) {
         const { done, value } = await reader.read()
         if (!done) {
           // Pass to the target stream and keep consuming the Flight response
@@ -2554,6 +2555,7 @@ function createPrefetchResponseStream(
         }
         // The server stream has closed. Exit, but intentionally do not close
         // the target stream. We do notify the caller, though.
+        closed = true
         reader.releaseLock()
         onStreamClose()
         return
