@@ -14,7 +14,6 @@ import {
   removeFromUint8Array,
 } from './uint8array-helpers'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
-import { insertBuildIdComment } from '../../shared/lib/segment-cache/output-export-prefetch-encoding'
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -231,33 +230,6 @@ export function createBufferedTransformStream(
     },
     flush() {
       return pending?.promise
-    },
-  })
-}
-
-function createPrefetchCommentStream(
-  isBuildTimePrerendering: boolean,
-  buildId: string
-): TransformStream<Uint8Array, Uint8Array> {
-  // Insert an extra comment at the beginning of the HTML document. This must
-  // come after the DOCTYPE, which is inserted by React.
-  //
-  // The first chunk sent by React will contain the doctype. After that, we can
-  // pass through the rest of the chunks as-is.
-  let didTransformFirstChunk = false
-  return new TransformStream({
-    transform(chunk, controller) {
-      if (isBuildTimePrerendering && !didTransformFirstChunk) {
-        didTransformFirstChunk = true
-        const decoder = new TextDecoder('utf-8', { fatal: true })
-        const chunkStr = decoder.decode(chunk, {
-          stream: true,
-        })
-        const updatedChunkStr = insertBuildIdComment(chunkStr, buildId)
-        controller.enqueue(encoder.encode(updatedChunkStr))
-        return
-      }
-      controller.enqueue(chunk)
     },
   })
 }
@@ -839,8 +811,6 @@ function chainTransformers<T>(
 export type ContinueStreamOptions = {
   inlinedDataStream: ReadableStream<Uint8Array> | undefined
   isStaticGeneration: boolean
-  isBuildTimePrerendering: boolean
-  buildId: string
   deploymentId: string | undefined
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
@@ -857,8 +827,6 @@ export async function continueFizzStream(
     suffix,
     inlinedDataStream,
     isStaticGeneration,
-    isBuildTimePrerendering,
-    buildId,
     deploymentId,
     getServerInsertedHTML,
     getServerInsertedMetadata,
@@ -880,9 +848,6 @@ export async function continueFizzStream(
   return chainTransformers(renderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
-
-    // Add build id comment to start of the HTML document (in export mode)
-    createPrefetchCommentStream(isBuildTimePrerendering, buildId),
 
     // Insert data-dpl-id attribute on the html tag
     deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
@@ -944,8 +909,6 @@ type ContinueStaticPrerenderOptions = {
   inlinedDataStream: ReadableStream<Uint8Array>
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
-  isBuildTimePrerendering: boolean
-  buildId: string
   deploymentId: string | undefined
 }
 
@@ -955,8 +918,6 @@ export async function continueStaticPrerender(
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
-    isBuildTimePrerendering,
-    buildId,
     deploymentId,
   }: ContinueStaticPrerenderOptions
 ) {
@@ -964,7 +925,6 @@ export async function continueStaticPrerender(
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
     // Add build id comment to start of the HTML document (in export mode)
-    createPrefetchCommentStream(isBuildTimePrerendering, buildId),
     // Insert data-dpl-id attribute on the html tag
     deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
     // Insert generated tags to head
@@ -984,8 +944,6 @@ export async function continueStaticFallbackPrerender(
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
-    isBuildTimePrerendering,
-    buildId,
     deploymentId,
   }: ContinueStaticPrerenderOptions
 ) {
@@ -995,8 +953,6 @@ export async function continueStaticFallbackPrerender(
   return chainTransformers(prerenderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
-    // Add build id comment to start of the HTML document (in export mode)
-    createPrefetchCommentStream(isBuildTimePrerendering, buildId),
     // Insert data-dpl-id attribute on the html tag
     deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
     // Insert generated tags to head
