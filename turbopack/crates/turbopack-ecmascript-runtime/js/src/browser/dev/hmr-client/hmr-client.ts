@@ -1,7 +1,7 @@
-/// <reference path="../../../shared/runtime-types.d.ts" />
-/// <reference path="../../runtime/base/dev-globals.d.ts" />
-/// <reference path="../../runtime/base/dev-protocol.d.ts" />
-/// <reference path="../../runtime/base/dev-extensions.ts" />
+/// <reference path="../../../shared/runtime/runtime-types.d.ts" />
+/// <reference path="../../../shared/runtime/dev-globals.d.ts" />
+/// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
+/// <reference path="../../../shared/runtime/dev-extensions.ts" />
 
 type SendMessage = (msg: any) => void
 export type WebSocketMessage =
@@ -33,10 +33,10 @@ export function connect({
         try {
           if (Array.isArray(msg.data)) {
             for (let i = 0; i < msg.data.length; i++) {
-              handleSocketMessage(msg.data[i] as ServerMessage)
+              handleSocketMessage(msg.data[i] as HMRPayload)
             }
           } else {
-            handleSocketMessage(msg.data as ServerMessage)
+            handleSocketMessage(msg.data as HMRPayload)
           }
           applyAggregatedUpdates()
         } catch (e: unknown) {
@@ -116,10 +116,10 @@ function handleSocketConnected(sendMessage: SendMessage) {
 }
 
 // we aggregate all pending updates until the issues are resolved
-const chunkListsWithPendingUpdates: Map<ResourceKey, PartialServerMessage> =
+const chunkListsWithPendingUpdates: Map<ResourceKey, PartialHMRPayload> =
   new Map()
 
-function aggregateUpdates(msg: PartialServerMessage) {
+function aggregateUpdates(msg: PartialHMRPayload) {
   const key = resourceKey(msg.resource)
   let aggregated = chunkListsWithPendingUpdates.get(key)
 
@@ -450,7 +450,7 @@ function emitIssues() {
   hooks.issues(issues)
 }
 
-function handleIssues(msg: ServerMessage): boolean {
+function handleIssues(msg: HMRPayload): boolean {
   const key = resourceKey(msg.resource)
   let hasCriticalIssues = false
 
@@ -500,7 +500,7 @@ export function setHooks(newHooks: typeof hooks) {
   Object.assign(hooks, newHooks)
 }
 
-function handleSocketMessage(msg: ServerMessage) {
+function handleSocketMessage(msg: HMRPayload) {
   sortIssues(msg.issues)
 
   handleIssues(msg)
@@ -579,7 +579,7 @@ export function subscribeToUpdate(
   }
 }
 
-function triggerUpdate(msg: ServerMessage) {
+function triggerUpdate(msg: HMRPayload) {
   const key = resourceKey(msg.resource)
   const callbackSet = updateCallbackSets.get(key)
   if (!callbackSet) {
