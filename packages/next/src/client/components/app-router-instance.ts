@@ -119,9 +119,19 @@ async function runAction({
         // mark that we need to refresh after all actions complete
         actionQueue.needsRefresh = true
       }
-      // Still need to run remaining actions even for discarded actions
-      // to potentially trigger the refresh
-      runRemainingActions(actionQueue, setState)
+      // IMPORTANT: Only call runRemainingActions if the queue is empty.
+      // When an action is discarded, a new action has already taken over as
+      // actionQueue.pending. If that action is still running, calling
+      // runRemainingActions would corrupt the queue by advancing the pending
+      // pointer prematurely.
+      //
+      // However, if the new action has already completed (pending is null),
+      // we need to call runRemainingActions to check for needsRefresh and
+      // trigger a refresh if needed.
+      if (actionQueue.pending === null) {
+        runRemainingActions(actionQueue, setState)
+      }
+      //
       // Resolve the discarded action's promise with the current state.
       // This is critical to prevent transition deadlocks - even though we
       // discard the state update, we must resolve the promise so that any
@@ -140,7 +150,20 @@ async function runAction({
   // if the action is a promise, set up a callback to resolve it
   if (isThenable(actionResult)) {
     actionResult.then(handleResult, (err) => {
-      runRemainingActions(actionQueue, setState)
+      // Even if the action errored, check if it revalidated data before failing.
+      // If so, we still need to trigger a refresh to pick up the revalidation.
+      if (
+        action.discarded &&
+        action.payload.type === ACTION_SERVER_ACTION &&
+        action.payload.didRevalidate
+      ) {
+        actionQueue.needsRefresh = true
+      }
+      // If the action was discarded, only call runRemainingActions if the
+      // queue is empty (same reasoning as in handleResult for discarded actions)
+      if (!action.discarded || actionQueue.pending === null) {
+        runRemainingActions(actionQueue, setState)
+      }
       action.reject(err)
     })
   } else {
