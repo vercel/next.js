@@ -208,9 +208,9 @@ function runTests(dev = false) {
         expect(res.status).toBe(200)
         expect(await res.json()).toStrictEqual({ hello: 'world' })
 
-        // App finally shuts down
-        expect(await appKilledPromise).toEqual([0, null])
-        expect(app.exitCode).toBe(0)
+        // App finally shuts down with signal-based exit code (128 + 15 for SIGTERM)
+        expect(await appKilledPromise).toEqual([143, null])
+        expect(app.exitCode).toBe(143)
       })
 
       it('should stop accepting new requests when shutting down', async () => {
@@ -225,9 +225,9 @@ function runTests(dev = false) {
           1000
         )
 
-        // App finally shuts down
-        expect(await appKilledPromise).toEqual([0, null])
-        expect(app.exitCode).toBe(0)
+        // App finally shuts down with signal-based exit code (128 + 15 for SIGTERM)
+        expect(await appKilledPromise).toEqual([143, null])
+        expect(app.exitCode).toBe(143)
       })
     })
   }

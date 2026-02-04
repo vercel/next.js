@@ -105,7 +105,8 @@ describe('CLI Usage', () => {
           await testExitSignal(
             'SIGINT',
             ['start', dirBasic, '-p', port],
-            /- Local:/
+            /- Local:/,
+            130 // 128 + 2 (SIGINT)
           )
         })
         test('should exit when SIGTERM is signalled', async () => {
@@ -122,7 +123,8 @@ describe('CLI Usage', () => {
           await testExitSignal(
             'SIGTERM',
             ['start', dirBasic, '-p', port],
-            /- Local:/
+            /- Local:/,
+            143 // 128 + 15 (SIGTERM)
           )
         })
 
