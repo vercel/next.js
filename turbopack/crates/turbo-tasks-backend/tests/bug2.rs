@@ -34,49 +34,57 @@ pub struct TaskSpec {
 struct Iteration(State<usize>);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn graph_bug() {
+async fn test_graph_bug() {
     run_once(&REGISTRATION, move || async move {
-        let spec = vec![
-            TaskSpec {
-                references: vec![TaskReferenceSpec {
-                    task: 1,
-                    chain: 0,
-                    read: false,
-                    read_strongly_consistent: false,
-                }],
-                children: 0,
-                change: Some(Box::new(TaskSpec {
-                    references: vec![TaskReferenceSpec {
-                        task: 1,
-                        chain: 254,
-                        read: false,
-                        read_strongly_consistent: false,
-                    }],
-                    children: 0,
-                    change: None,
-                })),
-            },
-            TaskSpec {
-                references: vec![],
-                children: 0,
-                change: None,
-            },
-        ];
-
-        let it = create_iteration().resolve().await?;
-        it.await?.set(0);
-        println!("🚀 Initial");
-        let task = run_task(Arc::new(spec), it, 0);
-        task.strongly_consistent().await?;
-        println!("🚀 Set iteration to 1");
-        it.await?.set(1);
-        task.strongly_consistent().await?;
-        println!("🚀 Finished strongly consistent wait");
-
+        test_graph_bug_operation()
+            .read_strongly_consistent()
+            .await?;
         anyhow::Ok(())
     })
     .await
     .unwrap()
+}
+
+#[turbo_tasks::function(operation)]
+async fn test_graph_bug_operation() -> Result<Vc<()>> {
+    let spec = vec![
+        TaskSpec {
+            references: vec![TaskReferenceSpec {
+                task: 1,
+                chain: 0,
+                read: false,
+                read_strongly_consistent: false,
+            }],
+            children: 0,
+            change: Some(Box::new(TaskSpec {
+                references: vec![TaskReferenceSpec {
+                    task: 1,
+                    chain: 254,
+                    read: false,
+                    read_strongly_consistent: false,
+                }],
+                children: 0,
+                change: None,
+            })),
+        },
+        TaskSpec {
+            references: vec![],
+            children: 0,
+            change: None,
+        },
+    ];
+
+    let it = create_iteration().resolve().await?;
+    it.await?.set(0);
+    println!("🚀 Initial");
+    let task = run_task(Arc::new(spec), it, 0);
+    task.strongly_consistent().await?;
+    println!("🚀 Set iteration to 1");
+    it.await?.set(1);
+    task.strongly_consistent().await?;
+    println!("🚀 Finished strongly consistent wait");
+
+    Ok(Vc::cell(()))
 }
 
 #[turbo_tasks::function]

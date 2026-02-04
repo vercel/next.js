@@ -14,11 +14,18 @@ struct Wrapper(Vec<u32>);
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_shrink_to_fit() -> Result<()> {
     run_once(&REGISTRATION, || async {
-        // `Vec::shrink_to_fit` is implicitly called when a cell is constructed.
-        let a: Vc<Wrapper> = Vc::cell(Vec::with_capacity(100));
-        assert_eq!(a.await?.capacity(), 0);
-
+        test_shrink_to_fit_operation()
+            .read_strongly_consistent()
+            .await?;
         Ok(())
     })
     .await
+}
+
+#[turbo_tasks::function(operation)]
+async fn test_shrink_to_fit_operation() -> Result<Vc<()>> {
+    // `Vec::shrink_to_fit` is implicitly called when a cell is constructed.
+    let a: Vc<Wrapper> = Vc::cell(Vec::with_capacity(100));
+    assert_eq!(a.await?.capacity(), 0);
+    Ok(Vc::cell(()))
 }

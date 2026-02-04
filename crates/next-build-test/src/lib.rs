@@ -8,6 +8,7 @@ use std::{str::FromStr, time::Instant};
 use anyhow::{Context, Result};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
+    entrypoints::Entrypoints,
     project::{HmrTarget, ProjectContainer, ProjectOptions},
     route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
 };
@@ -37,17 +38,36 @@ pub async fn main_inner(
         options.watch.enable = false;
     }
 
+    #[turbo_tasks::function(operation)]
+    async fn init_project_operation(options: ProjectOptions) -> Result<Vc<ProjectContainer>> {
+        let project = ProjectContainer::new(rcstr!("next-build-test"), options.dev)
+            .to_resolved()
+            .await?;
+        project.initialize(options).await?;
+        Ok(*project)
+    }
+
     let project = tt
         .run(async {
-            let project = ProjectContainer::new(rcstr!("next-build-test"), options.dev);
-            let project = project.to_resolved().await?;
-            project.initialize(options).await?;
-            Ok(project)
+            init_project_operation(options)
+                .resolve_strongly_consistent()
+                .await
         })
         .await?;
 
     tracing::info!("collecting endpoints");
-    let entrypoints = tt.run(async move { project.entrypoints().await }).await?;
+
+    #[turbo_tasks::function(operation)]
+    fn project_entrypoints_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Entrypoints> {
+        project.entrypoints()
+    }
+    let entrypoints = tt
+        .run(async move {
+            project_entrypoints_operation(project)
+                .read_strongly_consistent()
+                .await
+        })
+        .await?;
 
     let mut routes = if let Some(files) = files {
         tracing::info!("building only the files:");
@@ -84,7 +104,7 @@ pub async fn main_inner(
     }
 
     if matches!(strategy, Strategy::Development { .. }) {
-        hmr(tt, *project).await?;
+        hmr(tt, project).await?;
     }
 
     Ok(())
@@ -252,13 +272,24 @@ pub fn endpoint_write_to_disk_operation(
 
 async fn hmr(
     tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
-    project: Vc<ProjectContainer>,
+    project: ResolvedVc<ProjectContainer>,
 ) -> Result<()> {
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
+
+    #[turbo_tasks::function(operation)]
+    fn project_hmr_chunk_names_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Vec<RcStr>> {
+        project.hmr_chunk_names(HmrTarget::Client)
+    }
+
     let idents = tt
-        .run(async move { project.hmr_chunk_names(HmrTarget::Client).await })
+        .run(async move {
+            project_hmr_chunk_names_operation(project)
+                .read_strongly_consistent()
+                .await
+        })
         .await?;
+
     let start = Instant::now();
     for ident in idents {
         if !ident.ends_with(".js") {

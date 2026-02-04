@@ -2,6 +2,7 @@ use std::{
     fmt::{Debug, Display},
     future::Future,
     pin::Pin,
+    sync::Arc,
     task::Poll,
 };
 
@@ -17,7 +18,8 @@ use crate::{
     event::EventListener,
     id::{ExecutionId, LocalTaskId},
     manager::{
-        ReadCellTracking, ReadTracking, read_local_output, read_task_output, with_turbo_tasks,
+        ReadCellTracking, ReadTracking, SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK,
+        TurboTasksApi, read_local_output, read_task_output, with_turbo_tasks,
     },
     registry::{self, get_value_type},
     turbo_tasks,
@@ -158,10 +160,12 @@ impl RawVc {
 
     /// See [`crate::Vc::resolve_strongly_consistent`].
     pub(crate) async fn resolve_strongly_consistent(self) -> Result<RawVc> {
-        self.resolve_inner(ReadOutputOptions {
-            consistency: ReadConsistency::Strong,
-            ..Default::default()
-        })
+        SuppressTopLevelTaskCheckFuture {
+            inner: self.resolve_inner(ReadOutputOptions {
+                consistency: ReadConsistency::Strong,
+                ..Default::default()
+            }),
+        }
         .await
     }
 
@@ -290,11 +294,32 @@ impl CollectiblesSource for RawVc {
     }
 }
 
+/// A future wrapper that suppresses the top-level task eventual consistency check
+/// during each [`poll`][Future::poll] call. The suppression is applied via
+/// [`sync_scope`][tokio::task_local!] so it is only active during the synchronous
+/// execution of the inner future's `poll`, and is never held across await points.
+struct SuppressTopLevelTaskCheckFuture<F> {
+    inner: F,
+}
+
+impl<F: Future> Future for SuppressTopLevelTaskCheckFuture<F> {
+    type Output = F::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: we are only projecting the pin to the inner field, not moving it
+        let inner = unsafe { self.map_unchecked_mut(|this| &mut this.inner) };
+        SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, || inner.poll(cx))
+    }
+}
+
 pub struct ReadRawVcFuture {
     current: RawVc,
     read_output_options: ReadOutputOptions,
     read_cell_options: ReadCellOptions,
     is_serializable_cell_content_unknown: bool,
+    /// This flag redundant with `read_output_options`, but `read_output_options` is mutated during
+    /// the read. This flag indicates that the initial read was strongly consistent.
+    strongly_consistent: bool,
     listener: Option<EventListener>,
 }
 
@@ -308,6 +333,7 @@ impl ReadRawVcFuture {
                 ..Default::default()
             },
             is_serializable_cell_content_unknown: is_serializable_cell_content.is_none(),
+            strongly_consistent: false,
             listener: None,
         }
     }
@@ -315,6 +341,7 @@ impl ReadRawVcFuture {
     /// Make reads strongly consistent.
     pub fn strongly_consistent(mut self) -> Self {
         self.read_output_options.consistency = ReadConsistency::Strong;
+        self.strongly_consistent = true;
         self
     }
 
@@ -347,9 +374,11 @@ impl Future for ReadRawVcFuture {
     type Output = Result<TypedCellContent>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        with_turbo_tasks(|tt| {
-            // SAFETY: we are not moving this
-            let this = unsafe { self.get_unchecked_mut() };
+        // SAFETY: we are not moving self
+        let this = unsafe { self.get_unchecked_mut() };
+
+        // Extract the closure to avoid deep nesting
+        let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
             'outer: loop {
                 if let Some(listener) = &mut this.listener {
                     // SAFETY: listener is from previous pinned this
@@ -417,7 +446,24 @@ impl Future for ReadRawVcFuture {
                     }
                 };
             }
-        })
+        };
+
+        fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() -> R) -> R {
+            if strongly_consistent {
+                // Temporarily suppress the top-level task check
+                SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, f)
+            } else {
+                f()
+            }
+        }
+
+        // HACK: Temporarily suppress top-level task check if doing strongly consistent read.
+        //
+        // This masks a bug: There's an unlikely TOCTOU race condition in `poll_fn`. Because the
+        // strongly consistent read isn't a single atomic operation, any inner `TaskOutput` or
+        // `TaskCell` could get mutated after the strongly consistent read of the outer
+        // `TaskOutput`.
+        suppress_top_level_task_check(this.strongly_consistent, || with_turbo_tasks(poll_fn))
     }
 }
 

@@ -21,20 +21,36 @@ Adder::add_method (read cell of type u64)
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trace_transient() {
     let result = run_once_without_cache_check(&REGISTRATION, async {
-        read_incorrect_task_input_operation(IncorrectTaskInput(
-            Adder::new(Vc::cell(()))
-                .add_method(Vc::cell(2), Vc::cell(3))
-                .to_resolved()
-                .await?,
-        ))
+        // Construct the transient cells in the root task so that they appear as
+        // "unknown transient task" in the debug trace output.
+        test_trace_transient_operation(
+            ResolvedVc::cell(()),
+            ResolvedVc::<u16>::cell(2),
+            ResolvedVc::<u32>::cell(3),
+        )
         .read_strongly_consistent()
-        .await?;
-        anyhow::Ok(())
+        .await
     })
     .await;
 
     let message = format!("{:#}", result.unwrap_err());
     assert!(message.contains(&EXPECTED_TRACE.to_string()));
+}
+
+/// Calls `Adder::new` / `add_method` (which involve eventual reads to resolve
+/// args) and then passes the result to `read_incorrect_task_input_operation`.
+/// This must run outside of the root task.
+#[turbo_tasks::function(operation)]
+async fn test_trace_transient_operation(
+    arg1: ResolvedVc<()>,
+    arg2: ResolvedVc<u16>,
+    arg3: ResolvedVc<u32>,
+) -> Result<Vc<u64>> {
+    let resolved = Adder::new(*arg1)
+        .add_method(*arg2, *arg3)
+        .to_resolved()
+        .await?;
+    Ok(read_incorrect_task_input_operation(IncorrectTaskInput(resolved)).connect())
 }
 
 #[turbo_tasks::value]

@@ -9,152 +9,192 @@ use turbo_tasks_testing::{Registration, register, run_once};
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn filtered_impl_method_args() -> Result<()> {
+async fn test_filtered_impl_method_args() -> Result<()> {
     run_once(&REGISTRATION, || async {
-        let uses_arg = UsesArg(0).cell();
-        assert_eq!(
-            uses_arg.method_with_arg(0).to_resolved().await?,
-            uses_arg.method_with_arg(0).to_resolved().await?,
-        );
-        assert_ne!(
-            uses_arg.method_with_arg(0).to_resolved().await?,
-            uses_arg.method_with_arg(1).to_resolved().await?,
-        );
-
-        let ignores_arg = IgnoresArg(0).cell();
-        assert_eq!(
-            ignores_arg.method_with_arg(0).to_resolved().await?,
-            ignores_arg.method_with_arg(0).to_resolved().await?,
-        );
-        assert_eq!(
-            ignores_arg.method_with_arg(0).to_resolved().await?,
-            ignores_arg.method_with_arg(1).to_resolved().await?,
-        );
-
+        test_filtered_impl_method_args_operation()
+            .read_strongly_consistent()
+            .await?;
         Ok(())
     })
     .await
 }
 
+#[turbo_tasks::function(operation)]
+async fn test_filtered_impl_method_args_operation() -> Result<Vc<()>> {
+    let uses_arg = UsesArg(0).cell();
+    assert_eq!(
+        uses_arg.method_with_arg(0).to_resolved().await?,
+        uses_arg.method_with_arg(0).to_resolved().await?,
+    );
+    assert_ne!(
+        uses_arg.method_with_arg(0).to_resolved().await?,
+        uses_arg.method_with_arg(1).to_resolved().await?,
+    );
+
+    let ignores_arg = IgnoresArg(0).cell();
+    assert_eq!(
+        ignores_arg.method_with_arg(0).to_resolved().await?,
+        ignores_arg.method_with_arg(0).to_resolved().await?,
+    );
+    assert_eq!(
+        ignores_arg.method_with_arg(0).to_resolved().await?,
+        ignores_arg.method_with_arg(1).to_resolved().await?,
+    );
+
+    Ok(Vc::cell(()))
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn filtered_trait_method_args() -> Result<()> {
+async fn test_filtered_trait_method_args() -> Result<()> {
     run_once(&REGISTRATION, || async {
-        let uses_arg = UsesArg(0).cell();
-        assert_eq!(
-            uses_arg.trait_method_with_arg(0).to_resolved().await?,
-            uses_arg.trait_method_with_arg(0).to_resolved().await?,
-        );
-        assert_ne!(
-            uses_arg.trait_method_with_arg(0).to_resolved().await?,
-            uses_arg.trait_method_with_arg(1).to_resolved().await?,
-        );
-
-        let ignores_arg = IgnoresArg(0).cell();
-        assert_eq!(
-            ignores_arg.trait_method_with_arg(0).to_resolved().await?,
-            ignores_arg.trait_method_with_arg(0).to_resolved().await?,
-        );
-        assert_eq!(
-            ignores_arg.trait_method_with_arg(0).to_resolved().await?,
-            ignores_arg.trait_method_with_arg(1).to_resolved().await?,
-        );
-
+        test_filtered_trait_method_args_operation()
+            .read_strongly_consistent()
+            .await?;
         Ok(())
     })
     .await
 }
 
+#[turbo_tasks::function(operation)]
+async fn test_filtered_trait_method_args_operation() -> Result<Vc<()>> {
+    let uses_arg = UsesArg(0).cell();
+    assert_eq!(
+        uses_arg.trait_method_with_arg(0).to_resolved().await?,
+        uses_arg.trait_method_with_arg(0).to_resolved().await?,
+    );
+    assert_ne!(
+        uses_arg.trait_method_with_arg(0).to_resolved().await?,
+        uses_arg.trait_method_with_arg(1).to_resolved().await?,
+    );
+
+    let ignores_arg = IgnoresArg(0).cell();
+    assert_eq!(
+        ignores_arg.trait_method_with_arg(0).to_resolved().await?,
+        ignores_arg.trait_method_with_arg(0).to_resolved().await?,
+    );
+    assert_eq!(
+        ignores_arg.trait_method_with_arg(0).to_resolved().await?,
+        ignores_arg.trait_method_with_arg(1).to_resolved().await?,
+    );
+
+    Ok(Vc::cell(()))
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn filtered_impl_method_self() -> Result<()> {
+async fn test_filtered_impl_method_self() -> Result<()> {
     run_once(&REGISTRATION, || async {
-        let uses_arg = UsesArg(0).cell();
-        let uses_arg2 = UsesArg(1).cell();
-        assert_eq!(
-            uses_arg.method_with_arg(0).to_resolved().await?,
-            uses_arg2.method_with_arg(0).to_resolved().await?,
-        );
-        assert_eq!(
-            uses_arg.method_with_arg(1).to_resolved().await?,
-            uses_arg2.method_with_arg(1).to_resolved().await?,
-        );
-
-        let ignores_arg = IgnoresArg(0).cell();
-        let ignores_arg2 = IgnoresArg(1).cell();
-        assert_eq!(
-            ignores_arg.method_with_arg(0).to_resolved().await?,
-            ignores_arg2.method_with_arg(0).to_resolved().await?,
-        );
-        assert_eq!(
-            ignores_arg.method_with_arg(1).to_resolved().await?,
-            ignores_arg2.method_with_arg(1).to_resolved().await?,
-        );
-        assert_eq!(
-            ignores_arg.method_with_arg(0).to_resolved().await?,
-            ignores_arg2.method_with_arg(1).to_resolved().await?,
-        );
-
+        test_filtered_impl_method_self_operation()
+            .read_strongly_consistent()
+            .await?;
         Ok(())
     })
     .await
 }
 
+#[turbo_tasks::function(operation)]
+async fn test_filtered_impl_method_self_operation() -> Result<Vc<()>> {
+    let uses_arg = UsesArg(0).cell();
+    let uses_arg2 = UsesArg(1).cell();
+    assert_eq!(
+        uses_arg.method_with_arg(0).to_resolved().await?,
+        uses_arg2.method_with_arg(0).to_resolved().await?,
+    );
+    assert_eq!(
+        uses_arg.method_with_arg(1).to_resolved().await?,
+        uses_arg2.method_with_arg(1).to_resolved().await?,
+    );
+
+    let ignores_arg = IgnoresArg(0).cell();
+    let ignores_arg2 = IgnoresArg(1).cell();
+    assert_eq!(
+        ignores_arg.method_with_arg(0).to_resolved().await?,
+        ignores_arg2.method_with_arg(0).to_resolved().await?,
+    );
+    assert_eq!(
+        ignores_arg.method_with_arg(1).to_resolved().await?,
+        ignores_arg2.method_with_arg(1).to_resolved().await?,
+    );
+    assert_eq!(
+        ignores_arg.method_with_arg(0).to_resolved().await?,
+        ignores_arg2.method_with_arg(1).to_resolved().await?,
+    );
+
+    Ok(Vc::cell(()))
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn filtered_trait_method_self() -> Result<()> {
+async fn test_filtered_trait_method_self() -> Result<()> {
     run_once(&REGISTRATION, || async {
-        let uses_arg = UsesArg(0).cell();
-        let uses_arg2 = UsesArg(1).cell();
-        assert_eq!(
-            uses_arg.trait_method_with_arg(0).to_resolved().await?,
-            uses_arg2.trait_method_with_arg(0).to_resolved().await?,
-        );
-        assert_eq!(
-            uses_arg.trait_method_with_arg(1).to_resolved().await?,
-            uses_arg2.trait_method_with_arg(1).to_resolved().await?,
-        );
-
-        let ignores_arg = IgnoresArg(0).cell();
-        let ignores_arg2 = IgnoresArg(1).cell();
-        assert_eq!(
-            ignores_arg.trait_method_with_arg(0).to_resolved().await?,
-            ignores_arg2.trait_method_with_arg(0).to_resolved().await?,
-        );
-        assert_eq!(
-            ignores_arg.trait_method_with_arg(1).to_resolved().await?,
-            ignores_arg2.trait_method_with_arg(1).to_resolved().await?,
-        );
-        assert_eq!(
-            ignores_arg.trait_method_with_arg(0).to_resolved().await?,
-            ignores_arg2.trait_method_with_arg(1).to_resolved().await?,
-        );
-
+        test_filtered_trait_method_self_operation()
+            .read_strongly_consistent()
+            .await?;
         Ok(())
     })
     .await
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn filtered_plain_method_args() -> Result<()> {
-    run_once(&REGISTRATION, || async {
-        assert_eq!(
-            method_with_arg(0).to_resolved().await?,
-            method_with_arg(0).to_resolved().await?,
-        );
-        assert_ne!(
-            method_with_arg(0).to_resolved().await?,
-            method_with_arg(1).to_resolved().await?,
-        );
-        assert_eq!(
-            method_with_ignored_arg(0).to_resolved().await?,
-            method_with_ignored_arg(0).to_resolved().await?,
-        );
-        assert_eq!(
-            method_with_ignored_arg(0).to_resolved().await?,
-            method_with_ignored_arg(1).to_resolved().await?,
-        );
+#[turbo_tasks::function(operation)]
+async fn test_filtered_trait_method_self_operation() -> Result<Vc<()>> {
+    let uses_arg = UsesArg(0).cell();
+    let uses_arg2 = UsesArg(1).cell();
+    assert_eq!(
+        uses_arg.trait_method_with_arg(0).to_resolved().await?,
+        uses_arg2.trait_method_with_arg(0).to_resolved().await?,
+    );
+    assert_eq!(
+        uses_arg.trait_method_with_arg(1).to_resolved().await?,
+        uses_arg2.trait_method_with_arg(1).to_resolved().await?,
+    );
 
+    let ignores_arg = IgnoresArg(0).cell();
+    let ignores_arg2 = IgnoresArg(1).cell();
+    assert_eq!(
+        ignores_arg.trait_method_with_arg(0).to_resolved().await?,
+        ignores_arg2.trait_method_with_arg(0).to_resolved().await?,
+    );
+    assert_eq!(
+        ignores_arg.trait_method_with_arg(1).to_resolved().await?,
+        ignores_arg2.trait_method_with_arg(1).to_resolved().await?,
+    );
+    assert_eq!(
+        ignores_arg.trait_method_with_arg(0).to_resolved().await?,
+        ignores_arg2.trait_method_with_arg(1).to_resolved().await?,
+    );
+
+    Ok(Vc::cell(()))
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_filtered_plain_method_args() -> Result<()> {
+    run_once(&REGISTRATION, || async {
+        test_filtered_plain_method_args_operation()
+            .read_strongly_consistent()
+            .await?;
         Ok(())
     })
     .await
+}
+
+#[turbo_tasks::function(operation)]
+async fn test_filtered_plain_method_args_operation() -> Result<Vc<()>> {
+    assert_eq!(
+        method_with_arg(0).to_resolved().await?,
+        method_with_arg(0).to_resolved().await?,
+    );
+    assert_ne!(
+        method_with_arg(0).to_resolved().await?,
+        method_with_arg(1).to_resolved().await?,
+    );
+    assert_eq!(
+        method_with_ignored_arg(0).to_resolved().await?,
+        method_with_ignored_arg(0).to_resolved().await?,
+    );
+    assert_eq!(
+        method_with_ignored_arg(0).to_resolved().await?,
+        method_with_ignored_arg(1).to_resolved().await?,
+    );
+
+    Ok(Vc::cell(()))
 }
 
 #[turbo_tasks::value_trait]
