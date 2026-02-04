@@ -22,6 +22,7 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import * as Log from '../build/output/log'
+import { openBrowser, buildBrowserUrl } from '../lib/open-browser'
 
 export type NextStartOptions = {
   port: number
@@ -31,6 +32,7 @@ export type NextStartOptions = {
   keepAliveTimeout?: number
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
+  open?: boolean
 }
 
 /**
@@ -88,6 +90,17 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
     port,
     keepAliveTimeout,
   })
+
+  if (options.open) {
+    const url = buildBrowserUrl({
+      protocol: 'http',
+      hostname,
+      port,
+    })
+    openBrowser(url).catch(() => {
+      // Silently fail - opening browser is not critical
+    })
+  }
 }
 
 export { nextStart }

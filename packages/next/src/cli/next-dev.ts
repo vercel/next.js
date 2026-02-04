@@ -38,6 +38,7 @@ import { clearTimeout } from 'timers'
 import { flushAllTraces, trace } from '../trace'
 import { traceId } from '../trace/shared'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
+import { openBrowser, buildBrowserUrl } from '../lib/open-browser'
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
@@ -56,6 +57,7 @@ export type NextDevOptions = {
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
   experimentalServerFastRefresh?: boolean
+  open?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -345,6 +347,19 @@ const nextDev = async (
               distDir = msg.distDir
             }
 
+            // Open browser if requested
+            if (options.open) {
+              const url = buildBrowserUrl({
+                protocol: startServerOptions.selfSignedCertificate
+                  ? 'https'
+                  : 'http',
+                hostname: host,
+                port,
+              })
+              openBrowser(url).catch(() => {
+                // Silently fail - opening browser is not critical
+              })
+            }
             resolved = true
             resolve()
           }

@@ -55,6 +55,7 @@ The following options are available when running `next dev`:
 | `--webpack`                              | Use Webpack instead of the default [Turbopack](/docs/app/api-reference/turbopack) bundler for development.                                           |
 | `-p` or `--port <port>`                  | Specify a port number on which to start the application. Default: 3000, env: PORT                                                                    |
 | `-H`or `--hostname <hostname>`           | Specify a hostname on which to start the application. Useful for making the application available for other devices on the network. Default: 0.0.0.0 |
+| `--open`                                 | Automatically open the application in the browser when the server starts.                                                                            |
 | `--experimental-https`                   | Starts the server with HTTPS and generates a self-signed certificate.                                                                                |
 | `--experimental-https-key <path>`        | Path to a HTTPS key file.                                                                                                                            |
 | `--experimental-https-cert <path>`       | Path to a HTTPS certificate file.                                                                                                                    |
@@ -106,6 +107,7 @@ The following options are available for the `next start` command:
 | `[directory]`                           | A directory on which to start the application. If no directory is provided, the current directory will be used. |
 | `-p` or `--port <port>`                 | Specify a port number on which to start the application. (default: 3000, env: PORT)                             |
 | `-H` or `--hostname <hostname>`         | Specify a hostname on which to start the application (default: 0.0.0.0).                                        |
+| `--open`                                | Automatically open the application in the browser when the server starts.                                       |
 | `--keepAliveTimeout <keepAliveTimeout>` | Specify the maximum amount of milliseconds to wait before closing the inactive connections.                     |
 | `--experimental-cpu-prof`               | Enables CPU profiling using V8's inspector. Profiles are saved to `.next/cpu-profiles/` on exit.                |
 
