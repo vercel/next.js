@@ -98,7 +98,7 @@ describe('stringifyResumeDataCache', () => {
       )
     } else {
       expect(decompressed).toMatchInlineSnapshot(
-        `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"dynamic-expire":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"zero-revalidate":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0}},"encryptedBoundArgs":{}}}"`
+        `"{"store":{"fetch":{},"cache":{"success":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true},"dynamic-expire":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"hasExplicitRevalidate":true},"zero-revalidate":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0},"hasExplicitRevalidate":true}},"encryptedBoundArgs":{}}}"`
       )
     }
   })
@@ -126,7 +126,7 @@ describe('stringifyResumeDataCache', () => {
       )
     } else {
       expect(decompressed).toMatchInlineSnapshot(
-        `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"dynamic-expire":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"zero-revalidate":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0}},"encryptedBoundArgs":{}}}"`
+        `"{"store":{"fetch":{},"cache":{"success":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true},"dynamic-expire":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"hasExplicitRevalidate":true},"zero-revalidate":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0},"hasExplicitRevalidate":true}},"encryptedBoundArgs":{}}}"`
       )
     }
   })
