@@ -469,7 +469,7 @@ async function collectResult(
   if (cacheContext.outerWorkUnitStore) {
     const outerWorkUnitStore = cacheContext.outerWorkUnitStore
 
-    // Propagate cache life & tags to the parent context if appropriate.
+    // Propagate cache life & tags to the outer context if appropriate.
     switch (outerWorkUnitStore.type) {
       case 'prerender':
       case 'prerender-runtime': {
@@ -1299,12 +1299,15 @@ export async function cache(
               // a potentially cached entry.
               if (existingResult.entry.revalidate === 0) {
                 if (existingResult.hasExplicitRevalidate === false) {
-                  throw new Error(
-                    `A "use cache" with zero revalidate is nested inside another ` +
-                      `"use cache" that has no explicit \`cacheLife\`, which is not ` +
-                      `allowed during prerendering. Add \`cacheLife()\` to the parent ` +
-                      `to choose whether it should be prerendered (with non-zero ` +
-                      `revalidate) or remain dynamic (with zero revalidate).`
+                  throw wrapAsInvalidDynamicUsageError(
+                    new Error(
+                      `A "use cache" with zero revalidate is nested inside another ` +
+                        `"use cache" that has no explicit \`cacheLife\`, which is not ` +
+                        `allowed during prerendering. Add \`cacheLife()\` to the outer ` +
+                        `to choose whether it should be prerendered (with non-zero ` +
+                        `revalidate) or remain dynamic (with zero revalidate).`
+                    ),
+                    workStore
                   )
                 }
                 debug?.(
@@ -1343,12 +1346,15 @@ export async function cache(
                   existingResult.entry.revalidate === 0 &&
                   existingResult.hasExplicitRevalidate === false
                 ) {
-                  throw new Error(
-                    `A "use cache" with zero revalidate is nested inside another ` +
-                      `"use cache" that has no explicit \`cacheLife\`, which is not ` +
-                      `allowed during prerendering. Add \`cacheLife()\` to the parent ` +
-                      `to choose whether it should be prerendered (with non-zero ` +
-                      `revalidate) or remain dynamic (with zero revalidate).`
+                  throw wrapAsInvalidDynamicUsageError(
+                    new Error(
+                      `A "use cache" with zero revalidate is nested inside another ` +
+                        `"use cache" that has no explicit \`cacheLife\`, which is not ` +
+                        `allowed during prerendering. Add \`cacheLife()\` to the outer ` +
+                        `to choose whether it should be prerendered (with non-zero ` +
+                        `revalidate) or remain dynamic (with zero revalidate).`
+                    ),
+                    workStore
                   )
                 }
                 // We delay the cache here so that it doesn't resolve in the static task --
