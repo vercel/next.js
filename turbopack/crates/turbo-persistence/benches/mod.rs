@@ -389,12 +389,12 @@ fn bench_compaction(c: &mut Criterion) {
     let entry_sizes = [(8, 4)];
     // Configuration parameters: (entry_count, commit_count)
     let db_configs = [
+        (1024 * 1024 * 4, 8),
         (1024 * 1024 * 8, 8),
         (1024 * 1024 * 16, 8),
-        (1024 * 1024 * 32, 8),
+        (1024 * 1024 * 4, 32),
         (1024 * 1024 * 8, 32),
         (1024 * 1024 * 16, 32),
-        (1024 * 1024 * 32, 32),
     ];
 
     for &(key_size, value_size) in &entry_sizes {
