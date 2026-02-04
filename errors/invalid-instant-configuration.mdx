@@ -12,7 +12,7 @@ You provided an invalid configuration for `export const unstable_instant` in a L
 
 ```tsx filename="app/.../layout.tsx"
 export const unstable_instant = {
-  mode: 'static',
+  prefetch: 'static',
 }
 ```
 
@@ -20,7 +20,7 @@ export const unstable_instant = {
 
 ```tsx filename="app/[slug]/page.tsx"
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [
     {
       cookies: [{ name: 'experiment', value: 'A' }],

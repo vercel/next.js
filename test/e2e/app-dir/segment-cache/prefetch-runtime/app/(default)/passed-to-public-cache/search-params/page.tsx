@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 import { cookies } from 'next/headers'
 
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [{ searchParams: { key: 'value' } }],
 }
 

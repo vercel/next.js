@@ -15,7 +15,7 @@ import { Suspense } from 'react'
  * - Prefetching /target?foo=2 fetches the segment AGAIN (no cache hit)
  */
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [{ searchParams: { foo: '1' } }],
 }
 

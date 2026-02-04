@@ -4,7 +4,7 @@ import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../shared'
 import { connection } from 'next/server'
 
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
 }
 

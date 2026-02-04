@@ -3,7 +3,7 @@ import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { cacheLife } from 'next/cache'
 
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
 

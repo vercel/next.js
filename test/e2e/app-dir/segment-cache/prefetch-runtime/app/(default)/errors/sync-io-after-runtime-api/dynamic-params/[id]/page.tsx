@@ -4,7 +4,7 @@ import { DebugRenderKind } from '../../../../../shared'
 type Params = { id: string }
 
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
 

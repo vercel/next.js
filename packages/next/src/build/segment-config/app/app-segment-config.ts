@@ -23,7 +23,7 @@ const RuntimeSampleSchema = z
 
 const InstantConfigStaticSchema = z
   .object({
-    mode: z.literal('static'),
+    prefetch: z.literal('static'),
     from: z.array(z.string()).optional(),
     expectUnableToVerify: z.boolean().optional(),
   })
@@ -31,14 +31,14 @@ const InstantConfigStaticSchema = z
 
 const InstantConfigRuntimeSchema = z
   .object({
-    mode: z.literal('runtime'),
+    prefetch: z.literal('runtime'),
     samples: z.array(RuntimeSampleSchema).min(1),
     from: z.array(z.string()).optional(),
     expectUnableToVerify: z.boolean().optional(),
   })
   .strict()
 
-const InstantConfigSchema = z.discriminatedUnion('mode', [
+const InstantConfigSchema = z.discriminatedUnion('prefetch', [
   InstantConfigStaticSchema,
   InstantConfigRuntimeSchema,
 ])
@@ -54,20 +54,20 @@ export type InstantConfigForTypeCheckInternal =
 // and thus cannot match the discriminated union type. If we figure out a better way we should
 // delete the __GenericPrefetch member.
 interface __GenericInstantConfig {
-  mode: string
+  prefetch: string
   samples?: Array<WideRuntimeSample>
   from?: string[]
   expectUnableToVerify?: boolean
 }
 
 interface InstantConfigStatic {
-  mode: 'static'
+  prefetch: 'static'
   from?: string[]
   expectUnableToVerify?: boolean
 }
 
 interface InstantConfigRuntime {
-  mode: 'runtime'
+  prefetch: 'runtime'
   samples: Array<RuntimeSample>
   from?: string[]
   expectUnableToVerify?: boolean
@@ -175,7 +175,7 @@ export function parseAppSegmentConfig(
           case 'unstable_instant': {
             return {
               // @TODO replace this link with a link to the docs when they are written
-              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with a mode of "static" or "runtime". Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
             }
           }
           default:

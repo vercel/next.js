@@ -4,7 +4,7 @@ import { DebugRenderKind } from '../../../../shared'
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
 

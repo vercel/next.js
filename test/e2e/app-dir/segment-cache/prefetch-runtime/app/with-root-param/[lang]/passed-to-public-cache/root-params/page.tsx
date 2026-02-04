@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 import { lang } from 'next/root-params'
 
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [{ params: { lang: 'en' } }],
 }
 

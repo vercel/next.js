@@ -4,7 +4,7 @@
 // In the future, this test can be used to check whether we correctly
 // *skip* a runtime prefetch if a page was prerendered as static.
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
 

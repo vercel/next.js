@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 // Technically, no `export const unstable_instant = ...` is needed, because we default to static,
 // this is just to make sure that we excercise the codepaths for it
 export const unstable_instant = {
-  mode: 'static',
+  prefetch: 'static',
 }
 export default function Page() {
   return (

@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../../shared'
 
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
 

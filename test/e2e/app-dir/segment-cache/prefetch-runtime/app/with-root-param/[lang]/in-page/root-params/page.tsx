@@ -5,7 +5,7 @@ import { lang } from 'next/root-params'
 import { cookies } from 'next/headers'
 
 export const unstable_instant = {
-  mode: 'runtime',
+  prefetch: 'runtime',
   samples: [{ params: { lang: 'en' } }],
 }
 
