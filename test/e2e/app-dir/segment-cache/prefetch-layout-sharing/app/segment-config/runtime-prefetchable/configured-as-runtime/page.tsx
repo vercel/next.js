@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
-export const unstable_prefetch = {
-  mode: 'runtime',
+export const unstable_instant = {
+  prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
 

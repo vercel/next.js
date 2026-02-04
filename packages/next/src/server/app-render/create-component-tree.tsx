@@ -225,11 +225,11 @@ async function createComponentTreeInternal(
       })
     : []
 
-  const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
+  const instantConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
     : undefined
   /** Whether this segment should use a runtime prefetch instead of a static prefetch. */
-  const hasRuntimePrefetch = prefetchConfig?.mode === 'runtime'
+  const hasRuntimePrefetch = instantConfig?.prefetch === 'runtime'
 
   const [Forbidden, forbiddenStyles] =
     authInterrupts && forbidden

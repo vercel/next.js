@@ -3,8 +3,8 @@ import { DebugRenderKind } from '../../../../shared'
 
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 
-export const unstable_prefetch = {
-  mode: 'runtime',
+export const unstable_instant = {
+  prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
 

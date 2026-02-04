@@ -3,8 +3,8 @@ import { DebugRenderKind } from '../../../../../shared'
 
 type Params = { id: string }
 
-export const unstable_prefetch = {
-  mode: 'runtime',
+export const unstable_instant = {
+  prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
 

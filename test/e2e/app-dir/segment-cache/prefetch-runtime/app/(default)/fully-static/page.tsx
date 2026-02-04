@@ -3,8 +3,8 @@
 // but it's useful to exercise this codepath.
 // In the future, this test can be used to check whether we correctly
 // *skip* a runtime prefetch if a page was prerendered as static.
-export const unstable_prefetch = {
-  mode: 'runtime',
+export const unstable_instant = {
+  prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
 
