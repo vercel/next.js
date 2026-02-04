@@ -314,7 +314,53 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       })
 
       // Assert the entire hydration error message including owner stack trace
-      expect(hydrationErrorLog).toMatchInlineSnapshot(``)
+      expect(hydrationErrorLog).toMatchInlineSnapshot(`
+       "[browser] Uncaught Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+       - A server/client branch \`if (typeof window !== 'undefined')\`.
+       - Variable input such as \`Date.now()\` or \`Math.random()\` which changes each time it's called.
+       - Date formatting in a user's locale which doesn't match the server.
+       - External changing data without sending a snapshot of it along with the HTML.
+       - Invalid HTML tag nesting.
+
+       It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+       https://react.dev/link/hydration-mismatch
+
+         ...
+           <RenderFromTemplateContext>
+             <ScrollAndFocusHandler segmentPath={[...]}>
+               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                   <LoadingBoundary name="hydration-..." loading={null}>
+                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                       <RedirectBoundary>
+                         <RedirectErrorBoundary router={{...}}>
+                           <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} ...>
+                             <SegmentViewNode type="page" pagePath="hydration-...">
+                               <SegmentTrieNode>
+                               <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
+                                 <Page params={Promise} searchParams={Promise}>
+                                   <div>
+                                     <p>
+       +                               client
+       -                               server
+                             ...
+                           ...
+                 ...
+
+           at <unknown> (https://react.dev/link/hydration-mismatch)
+           at p (<anonymous>)
+           at Page (app/hydration-error/page.js:7:7)
+          5 |   return (
+          6 |     <div>
+       >  7 |       <p>{isClient ? 'client' : 'server'}</p>
+            |       ^
+          8 |     </div>
+          9 |   )
+         10 | }
+       "
+      `)
 
       await browser.close()
     })
