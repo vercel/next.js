@@ -234,6 +234,36 @@ export function createBufferedTransformStream(
   })
 }
 
+// TODO this is currently unused but once we add proper output:export support, it needs to be
+// revisited. See https://github.com/vercel/next.js/pull/89478 for more details
+//
+// function createPrefetchCommentStream(
+//   isBuildTimePrerendering: boolean,
+//   buildId: string
+// ): TransformStream<Uint8Array, Uint8Array> {
+//   // Insert an extra comment at the beginning of the HTML document. This must
+//   // come after the DOCTYPE, which is inserted by React.
+//   //
+//   // The first chunk sent by React will contain the doctype. After that, we can
+//   // pass through the rest of the chunks as-is.
+//   let didTransformFirstChunk = false
+//   return new TransformStream({
+//     transform(chunk, controller) {
+//       if (isBuildTimePrerendering && !didTransformFirstChunk) {
+//         didTransformFirstChunk = true
+//         const decoder = new TextDecoder('utf-8', { fatal: true })
+//         const chunkStr = decoder.decode(chunk, {
+//           stream: true,
+//         })
+//         const updatedChunkStr = insertBuildIdComment(chunkStr, buildId)
+//         controller.enqueue(encoder.encode(updatedChunkStr))
+//         return
+//       }
+//       controller.enqueue(chunk)
+//     },
+//   })
+// }
+
 export function renderToInitialFizzStream({
   ReactDOMServer,
   element,
