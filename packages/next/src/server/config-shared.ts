@@ -938,6 +938,12 @@ export interface ExperimentalConfig {
    * This callback runs after all non-deferred entries have been compiled.
    */
   onBeforeDeferredEntries?: () => Promise<void>
+
+  /**
+   * Whether to report inlined system environment variables as warnings or errors.
+   * Only supported for Turbopack.
+   */
+  reportSystemEnvInlining?: 'error' | 'warn'
 }
 
 export type ExportPathMap = {
