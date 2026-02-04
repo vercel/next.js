@@ -5,10 +5,11 @@ use criterion::{BatchSize, Criterion, SamplingMode, black_box, criterion_group, 
 use parking_lot::Mutex;
 // Re-export qfilter for benchmarking the filter used in AMQF
 use qfilter;
+use quick_cache::sync::GuardResult;
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use tempfile::TempDir;
 use turbo_persistence::{
-    BlockCache, CompactConfig, Entry, EntryValue, MetaEntryFlags, SerialScheduler,
+    ArcSlice, BlockCache, CompactConfig, Entry, EntryValue, MetaEntryFlags, SerialScheduler,
     StaticSortedFile, StaticSortedFileMetaData, TurboPersistence, hash_key,
     write_static_stored_file,
 };
@@ -727,12 +728,142 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
 }
 
 // =============================================================================
+// BlockCache Benchmarks
+// =============================================================================
+
+fn bench_block_cache(c: &mut Criterion) {
+    let mut group = c.benchmark_group("block_cache");
+    group.warm_up_time(Duration::from_secs(5));
+    group.measurement_time(Duration::from_secs(10));
+
+    // Cache sizes to test: 10, 100, 1000 entries
+    let cache_sizes = [10, 100, 1000];
+    // Block size (typical decompressed block)
+    const BLOCK_SIZE: usize = 4096;
+
+    for &size in &cache_sizes {
+        let data = LazyLock::new(|| {
+            let mut rng = SmallRng::seed_from_u64(42);
+
+            let mut block_data = vec![0u8; BLOCK_SIZE];
+            rng.fill(&mut block_data[..]);
+            let block = ArcSlice::from(block_data.into_boxed_slice());
+
+            // Create cache with enough capacity for all entries
+            let cache: BlockCache = BlockCache::with(
+                size * 16,
+                (size * 16 * (BLOCK_SIZE + 8)) as u64,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            );
+
+            // Pre-populate cache with random blocks
+            let mut keys = Vec::with_capacity(size);
+            for i in 0..size {
+                let key = (1u32, i as u16);
+
+                match cache.get_value_or_guard(&key, None) {
+                    GuardResult::Guard(guard) => {
+                        let _ = guard.insert(block.clone());
+                    }
+                    _ => unreachable!(),
+                }
+                keys.push(key);
+            }
+
+            let iteration = Mutex::new(1);
+            let rng = Mutex::new(SmallRng::seed_from_u64(123));
+            (cache, keys, block, iteration, rng)
+        });
+
+        let id = format!("entries_{}", format_number(size));
+
+        // Benchmark cache hit
+        group.bench_function(format!("{id}/hit"), |b| {
+            let (cache, keys, _, _, rng) = &*data;
+            let mut rng = rng.lock();
+            b.iter_batched(
+                || {
+                    let idx = rng.random_range(0..keys.len());
+                    keys[idx]
+                },
+                |key| match cache.get_value_or_guard(&key, None) {
+                    GuardResult::Guard(guard) => {
+                        drop(guard);
+                        None
+                    }
+                    GuardResult::Value(v) => Some(black_box(v)),
+                    GuardResult::Timeout => {
+                        unreachable!()
+                    }
+                },
+                BatchSize::SmallInput,
+            );
+        });
+
+        // Benchmark cache miss (without insert)
+        group.bench_function(format!("{id}/miss"), |b| {
+            let (cache, _, _, iteration, rng) = &*data;
+            let mut rng = rng.lock();
+            let mut iteration = iteration.lock();
+            b.iter_batched(
+                || {
+                    // Generate a key that won't be in the cache (different sequence number)
+                    *iteration += 1;
+                    (*iteration, rng.random::<u16>())
+                },
+                |key| match cache.get_value_or_guard(&key, None) {
+                    GuardResult::Guard(guard) => {
+                        drop(guard);
+                        None
+                    }
+                    GuardResult::Value(v) => Some(black_box(v)),
+                    GuardResult::Timeout => {
+                        unreachable!()
+                    }
+                },
+                BatchSize::SmallInput,
+            );
+        });
+
+        // Benchmark cache miss + insert (uses existing cache, keys will miss)
+        group.bench_function(format!("{id}/miss_insert"), |b| {
+            let (cache, _, block, iteration, rng) = &*data;
+            let mut rng = rng.lock();
+            let mut iteration = iteration.lock();
+            *iteration += 1;
+            b.iter_batched(
+                || {
+                    cache.retain(|(key_prefix, _), _| *key_prefix == 1u32);
+                    // Generate a key that won't be in the cache (different sequence number)
+                    let key = (*iteration, rng.random::<u16>());
+                    (key, block.clone())
+                },
+                |(key, block)| match cache.get_value_or_guard(&key, None) {
+                    GuardResult::Guard(guard) => {
+                        let _ = guard.insert(block);
+                    }
+                    GuardResult::Value(v) => {
+                        black_box(v);
+                    }
+                    GuardResult::Timeout => unreachable!(),
+                },
+                BatchSize::LargeInput,
+            );
+        });
+    }
+
+    group.finish();
+}
+
+// =============================================================================
 // Criterion Setup
 // =============================================================================
 
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_read_get, bench_read_batch_get, bench_compaction, bench_qfilter, bench_static_sorted_file_lookup
+    targets = bench_write, bench_read_get, bench_read_batch_get, bench_compaction, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
 );
 criterion_main!(benches);
