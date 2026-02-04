@@ -174,6 +174,19 @@ export async function buildPagesStaticPaths({
           )
         }
 
+        // For catch-all routes, ensure all array elements are strings
+        if (repeat && Array.isArray(paramValue)) {
+          const invalidElements = paramValue.filter(
+            (element) => typeof element !== 'string'
+          )
+          if (invalidElements.length > 0) {
+            throw new Error(
+              `A required parameter (${validParamKey}) contains non-string values in the array. ` +
+                `All values must be strings, received: ${invalidElements.map((el) => `${typeof el} (${JSON.stringify(el)})`).join(', ')} in getStaticPaths for ${page}`
+            )
+          }
+        }
+
         let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
         if (optional) {
           replaced = `[${replaced}]`
