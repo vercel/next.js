@@ -382,7 +382,7 @@ export async function startServer(
       try {
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
-        const cleanup = (signal: NodeJS.Signals) => {
+        const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
             // interactive shell (i.e. bash, zsh), the shell will recursively
@@ -439,16 +439,26 @@ export async function startServer(
             // Exit with signal-based exit code (128 + signal number) so that
             // Node.js treats this as a signal termination, not a normal exit.
             // This avoids waiting for the debugger to disconnect.
-            // SIGINT = 2 -> 130, SIGTERM = 15 -> 143
-            process.exit(signal === 'SIGINT' ? 130 : 143)
+            switch (signal) {
+              case 'SIGINT':
+                process.exit(130)
+                break
+              case 'SIGTERM':
+                process.exit(143)
+                break
+              default:
+                // Exhaustiveness check
+                signal satisfies never as never
+                process.exit(128)
+            }
           })()
         }
 
         // Make sure commands gracefully respect termination signals (e.g. from Docker)
         // Allow the graceful termination to be manually configurable
         if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
-          process.on('SIGINT', () => cleanup('SIGINT'))
-          process.on('SIGTERM', () => cleanup('SIGTERM'))
+          process.on('SIGINT', cleanup)
+          process.on('SIGTERM', cleanup)
         }
 
         // Now load config via getRequestHandlers (single loadConfig call)
