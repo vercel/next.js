@@ -23,11 +23,11 @@ const MAX_KEY_MEMORY: usize = 8 * 1024 * 1024 * 1024;
 /// Format a number with ki, Mi, Gi suffixes for thousands, millions, billions
 fn format_number(n: usize) -> String {
     if n >= 1_024 * 1_024 * 1_024 {
-        format!("{}Gi", n / (1_024 * 1_024 * 1_024))
+        format!("{:.2}Gi", n as f32 / (1_024 * 1_024 * 1_024) as f32)
     } else if n >= 1_024 * 1_024 {
-        format!("{}Mi", n / (1_024 * 1_024))
+        format!("{:.2}Mi", n as f32 / (1_024 * 1_024) as f32)
     } else if n >= 1_024 {
-        format!("{}Ki", n / 1_024)
+        format!("{:.2}Ki", n as f32 / 1_024 as f32)
     } else {
         n.to_string()
     }
@@ -120,14 +120,7 @@ fn bench_write(c: &mut Criterion) {
     group.sampling_mode(SamplingMode::Flat);
 
     // Key-value sizes to test
-    let entry_sizes = [
-        (4, 4),
-        (4, 1024),
-        (4, 64 * 1024),
-        (256, 4),
-        (1024, 4),
-        (64 * 1024, 4),
-    ];
+    let entry_sizes = [(8, 4), (4, 32 * 1024), (32 * 1024, 4)];
     // Entry counts to test
     let database_sizes = [1024 * 1024, 10 * 1024 * 1024, 100 * 1024 * 1024];
 
@@ -206,8 +199,9 @@ fn bench_read_get(c: &mut Criterion) {
         });
     }
 
+    // Configuration parameters: (key_size, value_size)
+    let entry_sizes = [(8, 4), (4, 32 * 1024), (32 * 1024, 4)];
     // Configuration parameters: (entry_count, commit_count, compacted)
-    let entry_sizes = [(4, 4), (4, 64 * 1024), (64 * 1024, 4)];
     let size_commits_compacted = [
         (100 * 1024 * 1024, 1, true),
         (100 * 1024 * 1024, 1, false),
@@ -295,8 +289,9 @@ fn bench_read_batch_get(c: &mut Criterion) {
     group.sample_size(10);
     group.sampling_mode(SamplingMode::Flat);
 
+    // Configuration parameters: (key_size, value_size)
+    let entry_sizes = [(8, 4), (4, 512), (512, 4)];
     // Configuration parameters: (commit_count, compacted)
-    let entry_sizes = [(4, 4), (4, 512), (512, 4)];
     let commit_configs = [(1, true), (1, false), (10, false)];
     let batch_sizes = [100, 1024, 10 * 1024, 100 * 1024];
 
@@ -390,9 +385,13 @@ fn bench_compaction(c: &mut Criterion) {
     group.sample_size(10);
     group.sampling_mode(SamplingMode::Flat);
 
-    // Configuration parameters
-    let entry_sizes = [(4, 4)];
+    // Configuration parameters: (key_size, value_size)
+    let entry_sizes = [(8, 4)];
+    // Configuration parameters: (entry_count, commit_count)
     let db_configs = [
+        (1024 * 1024 * 8, 8),
+        (1024 * 1024 * 16, 8),
+        (1024 * 1024 * 32, 8),
         (1024 * 1024 * 8, 32),
         (1024 * 1024 * 16, 32),
         (1024 * 1024 * 32, 32),
