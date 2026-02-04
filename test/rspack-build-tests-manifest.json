@@ -7016,6 +7016,7 @@
   },
   "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
     "passed": [
+      "segment cache (deployment skew) header with deployment id header is set on RSC responses",
       "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
       "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a static page on a different deployment",
       "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
@@ -8443,6 +8444,19 @@
       "custom-cache-handler-image should use custom cache handler for image optimization"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/deferred-entries/deferred-entries.test.ts": {
+    "passed": [],
+    "failed": [
+      "deferred-entries webpack should build deferred entry successfully",
+      "deferred-entries webpack should build pages router API routes when using deferred entries",
+      "deferred-entries webpack should build pages router routes when using deferred entries",
+      "deferred-entries webpack should call onBeforeDeferredEntries before building deferred entry",
+      "deferred-entries webpack should call onBeforeDeferredEntries before processing deferred entries during build"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20216,7 +20230,6 @@
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
-      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
@@ -20229,7 +20242,9 @@
       "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
-    "failed": [],
+    "failed": [
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
