@@ -15,12 +15,15 @@ function createMockedCache() {
   cache.cache.set(
     'success',
     Promise.resolve({
-      value: streamFromString('value'),
-      tags: [],
-      stale: 0,
-      timestamp: 0,
-      expire: 300,
-      revalidate: 1,
+      entry: {
+        value: streamFromString('value'),
+        tags: [],
+        stale: 0,
+        timestamp: 0,
+        expire: 300,
+        revalidate: 1,
+      },
+      hasExplicitRevalidate: true,
     })
   )
 
@@ -28,12 +31,15 @@ function createMockedCache() {
   cache.cache.set(
     'dynamic-expire',
     Promise.resolve({
-      value: streamFromString('value'),
-      tags: [],
-      stale: 0,
-      timestamp: 0,
-      expire: 299,
-      revalidate: 1,
+      entry: {
+        value: streamFromString('value'),
+        tags: [],
+        stale: 0,
+        timestamp: 0,
+        expire: 299,
+        revalidate: 1,
+      },
+      hasExplicitRevalidate: true,
     })
   )
 
@@ -41,12 +47,15 @@ function createMockedCache() {
   cache.cache.set(
     'zero-revalidate',
     Promise.resolve({
-      value: streamFromString('value'),
-      tags: [],
-      stale: 0,
-      timestamp: 0,
-      expire: 300,
-      revalidate: 0,
+      entry: {
+        value: streamFromString('value'),
+        tags: [],
+        stale: 0,
+        timestamp: 0,
+        expire: 300,
+        revalidate: 0,
+      },
+      hasExplicitRevalidate: true,
     })
   )
 

@@ -2843,6 +2843,7 @@ describe('Cache Components Errors', () => {
             })
           }
         })
+
         describe('slow cache', () => {
           if (isNextDev) {
             it('should show a redbox error', async () => {
@@ -2969,6 +2970,48 @@ describe('Cache Components Errors', () => {
                    Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
                    Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
                   `)
+                }
+              }
+            })
+          }
+        })
+
+        // TODO: Update snapshots.
+        describe('nested', () => {
+          if (isNextDev) {
+            it('should show a redbox error', async () => {
+              const browser = await next.browser(
+                '/use-cache-revalidate-0/nested'
+              )
+
+              await expect(browser).toDisplayCollapsedRedbox(
+                `"Redbox did not open."`
+              )
+            })
+          } else {
+            it('should error the build', async () => {
+              try {
+                await prerender('/use-cache-revalidate-0/nested')
+              } catch {
+                // we expect the build to fail
+              }
+
+              const output = getPrerenderOutput(
+                next.cliOutput.slice(cliOutputLength),
+                { isMinified: !isDebugPrerender }
+              )
+
+              if (isTurbopack) {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`""`)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`""`)
+                }
+              } else {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`""`)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`""`)
                 }
               }
             })

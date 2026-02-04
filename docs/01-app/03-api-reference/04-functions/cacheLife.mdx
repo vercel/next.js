@@ -420,6 +420,8 @@ export default async function Dashboard() {
 
 **It is recommended to specify an explicit `cacheLife`.** With explicit lifetime values, you can inspect a cached function or component and immediately know its behavior without tracing through nested caches. Without explicit lifetime values, the behavior becomes dependent on inner cache lifetimes, making it harder to reason about.
 
+> **Note:** If a nested `use cache` has a zero revalidate time (e.g., `cacheLife({ revalidate: 0 })`) and the outer `use cache` does not have an explicit `cacheLife`, Next.js will throw an error during prerendering. This prevents accidental misconfigurations where the outer cache would silently become dynamic. To fix this, add an explicit `cacheLife()` call to the outer cache to choose whether it should be prerendered (with non-zero revalidate) or remain dynamic (with zero revalidate).
+
 ### Conditional cache lifetimes
 
 You can call `cacheLife` conditionally in different code paths to set different cache durations based on your application logic:
