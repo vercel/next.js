@@ -30,8 +30,8 @@ export type DocumentType = NextComponentType<
 
 export type AppType<P = {}> = NextComponentType<
   AppContextType,
-  P,
-  AppPropsType<any, P>
+  AppInitialProps & P,
+  AppPropsType<any, any> & P
 >
 
 export type AppTreeType = ComponentType<
@@ -353,7 +353,7 @@ export function normalizeRepeatedSlashes(url: string) {
       // first we replace any non-encoded backslashes with forward
       // then normalize repeated forward slashes
       .replace(/\\/g, '/')
-      .replace(/\/\/+/g, '/') +
+      .replace(/\/\/+ /g, '/') +
     (urlParts[1] ? `?${urlParts.slice(1).join('?')}` : '')
   )
 }
