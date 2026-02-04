@@ -8,6 +8,26 @@ const WORKER_FORWARDED_GLOBALS = [];
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
+/**
+ * Describes why a module was instantiated.
+ * Shared between browser and Node.js runtimes.
+ */ var SourceType = /*#__PURE__*/ function(SourceType) {
+    /**
+   * The module was instantiated because it was included in an evaluated chunk's
+   * runtime.
+   * SourceData is a ChunkPath.
+   */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
+    /**
+   * The module was instantiated because a parent module imported it.
+   * SourceData is a ModuleId.
+   */ SourceType[SourceType["Parent"] = 1] = "Parent";
+    /**
+   * The module was instantiated because it was included in a chunk's hot module
+   * update.
+   * SourceData is an array of ModuleIds or undefined.
+   */ SourceType[SourceType["Update"] = 2] = "Update";
+    return SourceType;
+}(SourceType || {});
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -46,6 +66,16 @@ function getOverwrittenModule(moduleCache, id) {
         error: undefined,
         id,
         namespaceObject: undefined
+    };
+}
+function createModuleWithDirection(id) {
+    return {
+        exports: {},
+        error: undefined,
+        id,
+        namespaceObject: undefined,
+        parents: [],
+        children: []
     };
 }
 const BindingTag_Value = 0;
@@ -341,9 +371,19 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         if (end === chunkModules.length) {
             throw new Error('malformed chunk format, expected a factory function');
         }
-        // Each chunk item has a 'primary id' and optional additional ids. If the primary id is already
-        // present we know all the additional ids are also present, so we don't need to check.
-        if (!moduleFactories.has(moduleId)) {
+        // Check if ANY of the module IDs in this group already have factories (e.g., from HMR updates).
+        // If so, skip installing the old factory from disk to preserve the HMR-updated code.
+        let hasExistingFactory = false;
+        const groupIds = [];
+        for(let j = i; j < end; j++){
+            const id = chunkModules[j];
+            groupIds.push(id);
+            if (moduleFactories.has(id)) {
+                hasExistingFactory = true;
+                break;
+            }
+        }
+        if (!hasExistingFactory) {
             const moduleFactoryFn = chunkModules[end];
             applyModuleFactoryName(moduleFactoryFn);
             newModuleId?.(moduleId);

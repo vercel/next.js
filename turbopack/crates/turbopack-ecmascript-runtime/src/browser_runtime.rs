@@ -38,6 +38,7 @@ pub async fn get_browser_runtime_code(
     match runtime_type {
         RuntimeType::Production => runtime_base_code.push("browser/runtime/base/build-base.ts"),
         RuntimeType::Development => {
+            runtime_base_code.push("shared/runtime/hmr-runtime.ts");
             runtime_base_code.push("browser/runtime/base/dev-base.ts");
         }
         #[cfg(feature = "test")]

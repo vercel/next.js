@@ -11,6 +11,32 @@
 
 type EsmNamespaceObject = Record<string, any>
 
+/**
+ * Describes why a module was instantiated.
+ * Shared between browser and Node.js runtimes.
+ */
+enum SourceType {
+  /**
+   * The module was instantiated because it was included in an evaluated chunk's
+   * runtime.
+   * SourceData is a ChunkPath.
+   */
+  Runtime = 0,
+  /**
+   * The module was instantiated because a parent module imported it.
+   * SourceData is a ModuleId.
+   */
+  Parent = 1,
+  /**
+   * The module was instantiated because it was included in a chunk's hot module
+   * update.
+   * SourceData is an array of ModuleIds or undefined.
+   */
+  Update = 2,
+}
+
+type SourceData = ChunkPath | ModuleId | ModuleId[] | undefined
+
 // @ts-ignore Defined in `dev-base.ts`
 declare function getOrInstantiateModuleFromParent<M>(
   id: ModuleId,
@@ -102,6 +128,17 @@ function createModuleObject(id: ModuleId): Module {
     error: undefined,
     id,
     namespaceObject: undefined,
+  }
+}
+
+function createModuleWithDirection(id: ModuleId): ModuleWithDirection {
+  return {
+    exports: {},
+    error: undefined,
+    id,
+    namespaceObject: undefined,
+    parents: [],
+    children: [],
   }
 }
 
@@ -512,9 +549,21 @@ function installCompressedModuleFactories(
     if (end === chunkModules.length) {
       throw new Error('malformed chunk format, expected a factory function')
     }
-    // Each chunk item has a 'primary id' and optional additional ids. If the primary id is already
-    // present we know all the additional ids are also present, so we don't need to check.
-    if (!moduleFactories.has(moduleId)) {
+
+    // Check if ANY of the module IDs in this group already have factories (e.g., from HMR updates).
+    // If so, skip installing the old factory from disk to preserve the HMR-updated code.
+    let hasExistingFactory = false
+    const groupIds: ModuleId[] = []
+    for (let j = i; j < end; j++) {
+      const id = chunkModules[j] as ModuleId
+      groupIds.push(id)
+      if (moduleFactories.has(id)) {
+        hasExistingFactory = true
+        break
+      }
+    }
+
+    if (!hasExistingFactory) {
       const moduleFactoryFn = chunkModules[end] as Function
       applyModuleFactoryName(moduleFactoryFn)
       newModuleId?.(moduleId)
