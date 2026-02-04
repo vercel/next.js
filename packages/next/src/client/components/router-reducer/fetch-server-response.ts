@@ -15,6 +15,7 @@ import type {
 import {
   type NEXT_ROUTER_PREFETCH_HEADER,
   type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  type NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
@@ -93,6 +94,7 @@ export type RequestHeaders = {
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
   [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
   [NEXT_REQUEST_ID_HEADER]?: string // dev-only
+  [NEXT_INSTANT_PREFETCH_HEADER]?: '1' // dev-only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {

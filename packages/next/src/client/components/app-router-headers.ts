@@ -16,6 +16,12 @@ export const NEXT_HMR_REFRESH_HASH_COOKIE = '__next_hmr_refresh_hash__' as const
 export const NEXT_URL = 'next-url' as const
 export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
 
+// Dev-only header for the Instant Navigation Testing API. In dev mode, static
+// pre-renders normally don't happen. This header tells the server to perform
+// a static pre-render anyway, allowing tests to assert on the prefetched UI.
+export const NEXT_INSTANT_PREFETCH_HEADER =
+  'next-dev-only-instant-prefetch' as const
+
 export const FLIGHT_HEADERS = [
   RSC_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,

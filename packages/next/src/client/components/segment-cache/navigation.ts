@@ -24,6 +24,9 @@ import {
 } from './cache'
 import { discoverKnownRoute } from './optimistic-routes'
 import { createCacheKey, type NormalizedSearch } from './cache-key'
+import { schedulePrefetchTask } from './scheduler'
+import { PrefetchPriority, FetchStrategy } from './types'
+import { getLinkForCurrentNavigation } from '../links'
 import type { PageVaryPath } from './vary-path'
 import type { AppRouterState } from '../router-reducer/router-reducer-types'
 import { computeChangedPath } from '../router-reducer/compute-changed-path'
@@ -112,7 +115,8 @@ export function navigate(
 
   // There's no matching prefetch for this route in the cache. We must lazily
   // fetch it from the server before we can perform the navigation.
-  // TODO: If this is an gesture navigation, instead of performing a
+  //
+  // TODO: If this is a gesture navigation, instead of performing a
   // dynamic request, we should do a runtime prefetch.
   return navigateToUnknownRoute(
     now,
@@ -296,6 +300,27 @@ async function navigateToUnknownRoute(
   shouldScroll: boolean,
   navigateType: 'push' | 'replace'
 ): Promise<AppRouterState> {
+  // Dev-only: If the Instant Navigation Testing API lock is active, try to
+  // prefetch the route first. If the prefetch succeeds, navigate using the
+  // prefetched route tree. If it fails, fall through to the normal path.
+  if (process.env.NODE_ENV !== 'production') {
+    const prefetchResult = await tryNavigateUsingTestingAPIPrefetch(
+      state,
+      url,
+      currentUrl,
+      currentRenderedSearch,
+      nextUrl,
+      currentCacheNode,
+      currentFlightRouterState,
+      freshnessPolicy,
+      shouldScroll,
+      navigateType
+    )
+    if (prefetchResult !== null) {
+      return prefetchResult
+    }
+  }
+
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
   // navigation that contains both static and dynamic data in a single stream.
@@ -747,4 +772,80 @@ function convertServerPatchToFullTreeImpl(
     tree: clonedTree,
     data: clonedSeedData,
   }
+}
+
+/**
+ * Dev-only helper for the Instant Navigation Testing API. If the navigation
+ * lock is active, schedules a prefetch task, waits for it to complete, and
+ * navigates using the prefetched route tree.
+ *
+ * Returns the new router state if navigation succeeded via prefetch, or null
+ * if the lock isn't active or the prefetch failed (caller should fall through
+ * to the normal unknown route path).
+ */
+async function tryNavigateUsingTestingAPIPrefetch(
+  state: AppRouterState,
+  url: URL,
+  currentUrl: URL,
+  currentRenderedSearch: string,
+  nextUrl: string | null,
+  currentCacheNode: CacheNode | null,
+  currentFlightRouterState: FlightRouterState,
+  freshnessPolicy: FreshnessPolicy,
+  shouldScroll: boolean,
+  navigateType: 'push' | 'replace'
+): Promise<AppRouterState | null> {
+  if (process.env.NODE_ENV !== 'production') {
+    // Lazy require to ensure dead code elimination in production
+    const { isNavigationLocked } =
+      require('./dev-navigation-lock') as typeof import('./dev-navigation-lock')
+    if (!isNavigationLocked()) {
+      return null
+    }
+
+    // Use the link's fetch strategy so the test behavior matches what would
+    // happen if the route had been prefetched before navigation
+    const link = getLinkForCurrentNavigation()
+    const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
+
+    const cacheKey = createCacheKey(url.href, nextUrl)
+    const { promise, resolve } = Promise.withResolvers<void>()
+
+    schedulePrefetchTask(
+      cacheKey,
+      currentFlightRouterState,
+      fetchStrategy,
+      PrefetchPriority.Default,
+      null, // onInvalidate
+      resolve // _onComplete callback
+    )
+
+    await promise
+
+    // Re-read from cache (should now be populated)
+    const now = Date.now()
+    const route = readRouteCacheEntry(now, cacheKey)
+    if (route !== null && route.status === EntryStatus.Fulfilled) {
+      return navigateUsingPrefetchedRouteTree(
+        now,
+        state,
+        url,
+        currentUrl,
+        currentRenderedSearch,
+        nextUrl,
+        currentCacheNode,
+        currentFlightRouterState,
+        freshnessPolicy,
+        shouldScroll,
+        navigateType,
+        route
+      )
+    }
+
+    // Prefetch failed - fall through to normal unknown route path. This is fine
+    // because the lock will still be held, and waitForNavigationLockIfActive()
+    // in the dynamic data path will block until the lock is released.
+    return null
+  }
+  return null
 }
