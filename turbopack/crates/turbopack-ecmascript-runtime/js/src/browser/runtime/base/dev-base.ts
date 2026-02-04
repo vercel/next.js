@@ -1,6 +1,5 @@
-/// <reference path="./dev-globals.d.ts" />
-/// <reference path="./dev-protocol.d.ts" />
-/// <reference path="./dev-extensions.ts" />
+/// <reference path="../../../shared/runtime/dev-globals.d.ts" />
+/// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
 
 interface TurbopackDevContext extends TurbopackBrowserBaseContext<HotModule> {
   k: RefreshContext

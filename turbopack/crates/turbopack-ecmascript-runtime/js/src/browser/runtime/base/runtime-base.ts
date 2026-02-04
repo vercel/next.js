@@ -9,7 +9,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../base/globals.d.ts" />
-/// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="../../../shared/runtime/runtime-utils.ts" />
 
 // Used in WebWorkers to tell the runtime about the chunk suffix
 declare var TURBOPACK_ASSET_SUFFIX: string

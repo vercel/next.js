@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="5770f9e6-b0e5-5a25-603c-089a0fc1f085")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="fb146561-85a5-d065-1fad-6e704781120f")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -521,7 +521,7 @@ function applyModuleFactoryName(factory) {
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
-/// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="../../../shared/runtime/runtime-utils.ts" />
 // Used in WebWorkers to tell the runtime about the chunk suffix
 const browserContextPrototype = Context.prototype;
 var SourceType = /*#__PURE__*/ function(SourceType) {
@@ -797,9 +797,8 @@ function loadWebAssemblyModule(chunkPath, edgeModule) {
     return BACKEND.loadWebAssemblyModule(1, this.m.id, chunkPath, edgeModule);
 }
 contextPrototype.u = loadWebAssemblyModule;
-/// <reference path="./dev-globals.d.ts" />
-/// <reference path="./dev-protocol.d.ts" />
-/// <reference path="./dev-extensions.ts" />
+/// <reference path="../../../shared/runtime/dev-globals.d.ts" />
+/// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
 const devContextPrototype = Context.prototype;
 /**
  * This file contains runtime types and functions that are shared between all
@@ -1657,7 +1656,7 @@ globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
  *
  * It will be appended to the base runtime code.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
-/// <reference path="../../../shared/runtime-types.d.ts" />
+/// <reference path="../../../shared/runtime/runtime-types.d.ts" />
 function getAssetSuffixFromScriptSrc() {
     // TURBOPACK_ASSET_SUFFIX is set in web workers
     return (self.TURBOPACK_ASSET_SUFFIX ?? document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
@@ -1920,5 +1919,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=5770f9e6-b0e5-5a25-603c-089a0fc1f085
+//# debugId=fb146561-85a5-d065-1fad-6e704781120f
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map
