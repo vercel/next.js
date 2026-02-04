@@ -7,7 +7,11 @@ use parking_lot::Mutex;
 use qfilter;
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use tempfile::TempDir;
-use turbo_persistence::{CompactConfig, SerialScheduler, TurboPersistence};
+use turbo_persistence::{
+    BlockCache, CompactConfig, Entry, EntryValue, MetaEntryFlags, SerialScheduler,
+    StaticSortedFile, StaticSortedFileMetaData, TurboPersistence, hash_key,
+    write_static_stored_file,
+};
 
 // =============================================================================
 // Constants
@@ -546,6 +550,177 @@ fn bench_qfilter(c: &mut Criterion) {
                 BatchSize::SmallInput,
             );
         });
+
+        // Benchmark insert performance (build filter from scratch)
+        group.bench_function(format!("{id}/insert"), |b| {
+            let (_, fingerprints, _) = &*filter;
+            b.iter_batched(
+                || {
+                    // Setup: create empty filter
+                    qfilter::Filter::new(size as u64, FALSE_POSITIVE_RATE)
+                        .expect("Filter construction failed")
+                },
+                |mut filter| {
+                    // Timed: insert all fingerprints
+                    for &fp in fingerprints {
+                        filter.insert_fingerprint(false, fp).expect("Insert failed");
+                    }
+                    black_box(filter)
+                },
+                BatchSize::LargeInput,
+            );
+        });
+    }
+
+    group.finish();
+}
+
+// =============================================================================
+// StaticSortedFile Lookup Benchmarks
+// =============================================================================
+
+/// Entry implementation for benchmarking StaticSortedFile
+struct BenchEntry {
+    key: [u8; 8],
+    value: [u8; 4],
+    hash: u64,
+}
+
+impl Entry for BenchEntry {
+    fn key_hash(&self) -> u64 {
+        self.hash
+    }
+
+    fn key_len(&self) -> usize {
+        8
+    }
+
+    fn write_key_to(&self, buf: &mut Vec<u8>) {
+        buf.extend_from_slice(&self.key);
+    }
+
+    fn value(&self) -> EntryValue<'_> {
+        EntryValue::Small { value: &self.value }
+    }
+}
+
+fn bench_static_sorted_file_lookup(c: &mut Criterion) {
+    let mut group = c.benchmark_group("static_sorted_file_lookup");
+    group.warm_up_time(Duration::from_secs(5));
+    group.measurement_time(Duration::from_secs(10));
+
+    // Entry counts to test: 1ki, 10ki, 100ki, 1000ki
+    let entry_counts = [1024, 10 * 1024, 100 * 1024, 1000 * 1024];
+
+    for &entry_count in &entry_counts {
+        // Pre-build the SST file and related data structures
+        let data = LazyLock::new(|| {
+            let mut rng = SmallRng::seed_from_u64(42);
+
+            // Generate random entries
+            let mut entries: Vec<BenchEntry> = (0..entry_count)
+                .map(|_| {
+                    let mut key = [0u8; 8];
+                    let mut value = [0u8; 4];
+                    rng.fill(&mut key[..]);
+                    rng.fill(&mut value[..]);
+                    let hash = hash_key(&key);
+                    BenchEntry { key, value, hash }
+                })
+                .collect();
+
+            // Sort by hash (required by write_static_stored_file)
+            entries.sort_by_key(|e| e.hash);
+
+            // Create temp directory and write SST file
+            let tempdir = tempfile::tempdir().unwrap();
+            let sst_path = tempdir.path().join("00000001.sst");
+            let total_key_size = entry_count * 8;
+
+            let (meta, _file) = write_static_stored_file(
+                &entries,
+                total_key_size,
+                &sst_path,
+                MetaEntryFlags::FRESH,
+            )
+            .unwrap();
+
+            // Open the SST file
+            let sst_meta = StaticSortedFileMetaData {
+                sequence_number: 1,
+                key_compression_dictionary_length: meta.key_compression_dictionary_length,
+                block_count: meta.block_count,
+            };
+            let sst = StaticSortedFile::open(tempdir.path(), sst_meta).unwrap();
+
+            // Create block caches
+            let key_block_cache: BlockCache = BlockCache::with(
+                1000,
+                64 * 1024 * 1024,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            );
+            let value_block_cache: BlockCache = BlockCache::with(
+                1000,
+                64 * 1024 * 1024,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            );
+
+            // Store keys and hashes for lookup testing
+            let keys: Vec<([u8; 8], u64)> = entries.iter().map(|e| (e.key, e.hash)).collect();
+
+            let rng = Mutex::new(SmallRng::seed_from_u64(123));
+            (tempdir, sst, key_block_cache, value_block_cache, keys, rng)
+        });
+
+        let id = format!("entries_{}", format_number(entry_count));
+
+        // Benchmark hit case (lookup keys that exist)
+        group.bench_function(format!("{id}/hit"), |b| {
+            let (_, sst, key_block_cache, value_block_cache, keys, rng) = &*data;
+            let mut rng = rng.lock();
+            b.iter_batched(
+                || {
+                    key_block_cache.clear();
+                    value_block_cache.clear();
+                    let idx = rng.random_range(0..keys.len());
+                    keys[idx]
+                },
+                |(key, hash)| {
+                    let result = sst
+                        .lookup(hash, &key, key_block_cache, value_block_cache)
+                        .unwrap();
+                    black_box(result)
+                },
+                BatchSize::SmallInput,
+            );
+        });
+
+        // Benchmark miss case (lookup random keys not in file)
+        group.bench_function(format!("{id}/miss"), |b| {
+            let (_, sst, key_block_cache, value_block_cache, _, rng) = &*data;
+            let mut rng = rng.lock();
+            b.iter_batched(
+                || {
+                    key_block_cache.clear();
+                    value_block_cache.clear();
+                    // Generate random key (very unlikely to be in file)
+                    let key = random_key(&mut rng, 8);
+                    let hash = hash_key(&key);
+                    (key, hash)
+                },
+                |(key, hash)| {
+                    let result = sst
+                        .lookup(hash, &key, key_block_cache, value_block_cache)
+                        .unwrap();
+                    black_box(result)
+                },
+                BatchSize::SmallInput,
+            );
+        });
     }
 
     group.finish();
@@ -558,6 +733,6 @@ fn bench_qfilter(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_read_get, bench_read_batch_get, bench_compaction, bench_qfilter
+    targets = bench_write, bench_read_get, bench_read_batch_get, bench_compaction, bench_qfilter, bench_static_sorted_file_lookup
 );
 criterion_main!(benches);
