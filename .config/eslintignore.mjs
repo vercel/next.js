@@ -17,7 +17,6 @@ export default globalIgnores([
   'examples/with-jest/**/*',
   'examples/with-mobx-state-tree/**/*',
   'examples/with-mobx/**/*',
-  'examples/with-tigris/db/models/todoItems.ts',
   'packages/next/src/bundles/webpack/packages/*.runtime.js',
   'packages/next/src/bundles/webpack/packages/lazy-compilation-*.js',
   'packages/next/src/compiled/**/*',

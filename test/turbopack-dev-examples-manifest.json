@@ -171,7 +171,6 @@
   "with-supabase": true,
   "with-supertokens": true,
   "with-three-js": true,
-  "with-tigris": true,
   "with-turbopack": true,
   "with-turbopack-loaders": true,
   "with-typescript": true,
