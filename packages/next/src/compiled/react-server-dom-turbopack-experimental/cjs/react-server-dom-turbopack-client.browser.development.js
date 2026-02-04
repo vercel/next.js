@@ -995,7 +995,11 @@
             value = "null";
             break;
           } else {
-            if (value.$$typeof === REACT_ELEMENT_TYPE) {
+            if (
+              ("$$typeof" in value && hasOwnProperty.call(value, "$$typeof")
+                ? value.$$typeof
+                : void 0) === REACT_ELEMENT_TYPE
+            ) {
               var typeName = getComponentNameFromType(value.type) || "\u2026",
                 key = value.key;
               value = value.props;
@@ -5054,10 +5058,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-3e00319b-20260203",
+      version: "19.3.0-experimental-c137dd6f-20260204",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-3e00319b-20260203",
+      reconcilerVersion: "19.3.0-experimental-c137dd6f-20260204",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
