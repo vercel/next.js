@@ -2776,10 +2776,11 @@
   },
   "test/e2e/app-dir/actions-navigation/index.test.ts": {
     "passed": [
-      "app-dir action handling should handle actions correctly after following a relative link",
+      "app-dir action handling should handle actions correctly after following a relative link"
+    ],
+    "failed": [
       "app-dir action handling should handle actions correctly after navigation / redirection events"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9207,9 +9208,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
-    "passed": [
-      "segment cache (deployment skew) should not run during dev or deploy test runs"
-    ],
+    "passed": ["segment cache (deployment skew) should not run during dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -9262,10 +9261,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/no-prefetch/no-prefetch.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "navigating without a prefetch can show a loading boundary from the dynamic response"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9472,6 +9471,7 @@
       "shallow-routing pushState should support setting a different pathname reflected on usePathname",
       "shallow-routing pushState should support setting a different searchParam reflected on useSearchParams",
       "shallow-routing pushState should support setting a different url using a string",
+      "shallow-routing pushState should support setting data",
       "shallow-routing pushState should work when given a null state value",
       "shallow-routing replaceState should support setting a different pathname reflected on usePathname",
       "shallow-routing replaceState should support setting a different searchParam reflected on useSearchParams",
@@ -9481,7 +9481,7 @@
       "shallow-routing replaceState should work when given an undefined state value",
       "shallow-routing should work when given an undefined state value"
     ],
-    "failed": ["shallow-routing pushState should support setting data"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10518,6 +10518,19 @@
       "custom-cache-handler-image should evict oldest entries when cache exceeds max size",
       "custom-cache-handler-image should miss cache for evicted entries",
       "custom-cache-handler-image should use custom cache handler for image optimization"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/deferred-entries/deferred-entries.test.ts": {
+    "passed": [
+      "deferred-entries webpack should build deferred entry successfully",
+      "deferred-entries webpack should build pages router API routes when using deferred entries",
+      "deferred-entries webpack should build pages router routes when using deferred entries",
+      "deferred-entries webpack should call onBeforeDeferredEntries before building deferred entry",
+      "deferred-entries webpack should call onBeforeDeferredEntries during HMR even when non-deferred entry changes"
     ],
     "failed": [],
     "pending": [],
