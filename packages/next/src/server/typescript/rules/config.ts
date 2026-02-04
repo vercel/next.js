@@ -158,7 +158,7 @@ const API_DOCS: Record<
   },
   unstable_staleTime: {
     description:
-      'The `unstable_staleTime` option sets the client-side stale time for the router cache in seconds. Can be set in layouts (inherited by pages) or pages (overrides layout).',
+      'The `unstable_staleTime` option sets the client-side stale time for the router cache in seconds. Can only be set on page segments.',
     type: 'number',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#unstable_staletime',
     isValid: (value: string) => {

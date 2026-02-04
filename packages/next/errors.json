@@ -988,5 +988,6 @@
   "987": "Invalid \\`deploymentId\\` configuration: exceeds maximum length of 32 characters. See https://nextjs.org/docs/messages/deploymentid-too-long",
   "988": "Invalid \\`deploymentId\\` configuration: must be a string. See https://nextjs.org/docs/messages/deploymentid-not-a-string",
   "989": "Invalid \\`deploymentId\\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters",
-  "990": "Page \"%s\" cannot use \\`export const unstable_staleTime = ...\\` when \\`cacheComponents\\` is enabled."
+  "990": "Page \"%s\" cannot use \\`export const unstable_staleTime = ...\\` when \\`cacheComponents\\` is enabled.",
+  "991": "Layout \"%s\" cannot use \\`export const unstable_staleTime = ...\\`. This config is only supported on page segments."
 }

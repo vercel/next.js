@@ -205,13 +205,13 @@ export const maxDuration = 5
 
 ### `unstable_staleTime`
 
-Set the client-side router cache staleness time for a layout or page. This controls how long prefetched data remains fresh before the client refetches it.
+Set the client-side router cache staleness time for a page. This controls how long prefetched data remains fresh before the client refetches it. This option is only supported on page segments, not layouts.
 
-```tsx filename="layout.tsx | page.tsx" switcher
+```tsx filename="page.tsx" switcher
 export const unstable_staleTime = 300 // 5 minutes in seconds
 ```
 
-```js filename="layout.js | page.js" switcher
+```js filename="page.js" switcher
 export const unstable_staleTime = 300 // 5 minutes in seconds
 ```
 
@@ -219,7 +219,6 @@ export const unstable_staleTime = 300 // 5 minutes in seconds
 
 > **Good to know:**
 >
-> - Unlike `revalidate` which uses the minimum value across layouts, `unstable_staleTime` uses the nested-most value (page overrides layout).
 > - This overrides the global [`experimental.staleTimes.static`](/docs/app/api-reference/config/next-config-js/staleTimes) or `experimental.staleTimes.dynamic` configuration for the specific route.
 > - Setting `unstable_staleTime = 0` causes the client to refetch on every navigation.
 > - For more granular caching control, consider using [Cache Components](/docs/app/getting-started/cache-components) with [`cacheLife`](/docs/app/api-reference/functions/cacheLife) which provides finer-grained control over cache behavior.

@@ -14,21 +14,6 @@ export default function Page() {
             Page with unstable_staleTime = 300 (5 minutes)
           </LinkAccordion>
         </li>
-        <li>
-          <LinkAccordion href="/nested/inner">
-            Page with nested layouts (outer=100, inner=200)
-          </LinkAccordion>
-        </li>
-        <li>
-          <LinkAccordion href="/inherit">
-            Page inheriting unstable_staleTime from layout (120)
-          </LinkAccordion>
-        </li>
-        <li>
-          <LinkAccordion href="/override">
-            Page overriding layout unstable_staleTime (page=60, layout=180)
-          </LinkAccordion>
-        </li>
       </ul>
     </>
   )

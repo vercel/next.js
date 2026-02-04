@@ -146,7 +146,7 @@ const AppSegmentConfigSchema = z.object({
 
   /**
    * The client-side stale time for the router cache in seconds.
-   * Can be set in layouts (inherited by pages) or pages (overrides layout).
+   * Can only be set on page segments.
    */
   unstable_staleTime: z.number().int().nonnegative().optional(),
 })
@@ -254,7 +254,7 @@ export type AppSegmentConfig = {
 
   /**
    * The client-side stale time for the router cache in seconds.
-   * Can be set in layouts (inherited by pages) or pages (overrides layout).
+   * Can only be set on page segments.
    */
   unstable_staleTime?: number
 }

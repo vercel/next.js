@@ -338,10 +338,8 @@ async function createComponentTreeInternal(
     }
   }
 
-  // unstable_staleTime can be set by layouts or pages
-  // Unlike revalidate which uses minimum, unstable_staleTime uses direct override
-  // (nested-most value wins - page overrides layout)
-  if (typeof layoutOrPageMod?.unstable_staleTime === 'number') {
+  // unstable_staleTime can only be set by pages, not layouts
+  if (isPage && typeof layoutOrPageMod?.unstable_staleTime === 'number') {
     const staleTime = layoutOrPageMod.unstable_staleTime
     const workUnitStore = workUnitAsyncStorage.getStore()
 

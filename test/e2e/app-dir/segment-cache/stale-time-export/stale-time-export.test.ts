@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
+import { retry } from 'next-test-utils'
+
 ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
   'segment cache - export const unstable_staleTime',
   () => {
@@ -46,7 +48,7 @@ import { createRouterAct } from 'router-act'
         Should NOT refetch the content - page's unstable_staleTime=300 hasn't elapsed.
 
         Note there may be another tree prefetch, since that's controlled separately. So
-        we just assert that the actual content of the page is not refetched. 
+        we just assert that the actual content of the page is not refetched.
       */
       await act(
         async () => {
@@ -72,168 +74,6 @@ import { createRouterAct } from 'router-act'
       )
     })
 
-    it('nested layouts - innermost unstable_staleTime wins', async () => {
-      let page: Playwright.Page
-      const browser = await next.browser('/', {
-        beforePageLoad(p: Playwright.Page) {
-          page = p
-        },
-      })
-      const act = createRouterAct(page)
-      await page.clock.install()
-      const pageContent = 'Page inheriting unstable_staleTime from inner layout'
-
-      // Prefetch page with nested layouts (outer=100, inner=200)
-      const toggleLink = await browser.elementByCss(
-        'input[data-link-accordion="/nested/inner"]'
-      )
-      await act(
-        async () => {
-          await toggleLink.click()
-          await browser.elementByCss('a[href="/nested/inner"]')
-        },
-        { includes: pageContent }
-      )
-
-      // Hide link
-      await toggleLink.click()
-
-      // Advance 101 seconds - past outer (100), within inner (200)
-      await page.clock.fastForward(101 * 1000)
-
-      /*
-        Should NOT refetch the content - inner layout's unstable_staleTime=200 wins
-
-        Note there may be another tree prefetch, since that's controlled separately. So
-        we just assert that the actual content of the page is not refetched. 
-      */
-      await act(
-        async () => {
-          await toggleLink.click()
-          await browser.elementByCss('a[href="/nested/inner"]')
-        },
-        {
-          includes: pageContent,
-          block: 'reject',
-        }
-      )
-
-      // Hide link
-      await toggleLink.click()
-
-      // Advance to 201 seconds total - past inner's unstable_staleTime (200)
-      await page.clock.fastForward(100 * 1000)
-
-      // Should refetch - unstable_staleTime has elapsed
-      await act(
-        async () => {
-          await toggleLink.click()
-          await browser.elementByCss('a[href="/nested/inner"]')
-        },
-        { includes: pageContent }
-      )
-    })
-
-    it('page inherits unstable_staleTime from layout', async () => {
-      let page: Playwright.Page
-      const browser = await next.browser('/', {
-        beforePageLoad(p: Playwright.Page) {
-          page = p
-        },
-      })
-      const act = createRouterAct(page)
-      await page.clock.install()
-      const pageContent = 'Page inheriting unstable_staleTime from layout'
-
-      // Prefetch page that inherits unstable_staleTime=120 from layout
-      const toggleLink = await browser.elementByCss(
-        'input[data-link-accordion="/inherit"]'
-      )
-      await act(
-        async () => {
-          await toggleLink.click()
-          await browser.elementByCss('a[href="/inherit"]')
-        },
-        { includes: pageContent }
-      )
-
-      // Hide link
-      await toggleLink.click()
-
-      // Advance 119 seconds - within layout's unstable_staleTime (120)
-      await page.clock.fastForward(119 * 1000)
-
-      /*
-        Should NOT refetch - still within unstable_staleTime
-
-        Note there may be another tree prefetch, since that's controlled separately. So
-        we just assert that the actual content of the page is not refetched. 
-      */
-      await act(
-        async () => {
-          await toggleLink.click()
-          await browser.elementByCss('a[href="/inherit"]')
-        },
-        {
-          includes: pageContent,
-          block: 'reject',
-        }
-      )
-
-      // Hide link
-      await toggleLink.click()
-
-      // Advance past 120 seconds total
-      await page.clock.fastForward(2 * 1000)
-
-      // Should refetch - unstable_staleTime has elapsed
-      await act(
-        async () => {
-          await toggleLink.click()
-          await browser.elementByCss('a[href="/inherit"]')
-        },
-        { includes: pageContent }
-      )
-    })
-
-    it('page unstable_staleTime overrides layout unstable_staleTime', async () => {
-      let page: Playwright.Page
-      const browser = await next.browser('/', {
-        beforePageLoad(p: Playwright.Page) {
-          page = p
-        },
-      })
-      const act = createRouterAct(page)
-      await page.clock.install()
-
-      // Prefetch page where page has unstable_staleTime=60, layout has unstable_staleTime=180
-      const toggleLink = await browser.elementByCss(
-        'input[data-link-accordion="/override"]'
-      )
-      await act(
-        async () => {
-          await toggleLink.click()
-          await browser.elementByCss('a[href="/override"]')
-        },
-        { includes: 'Page with unstable_staleTime = 60' }
-      )
-
-      // Hide link
-      await toggleLink.click()
-
-      // Advance 61 seconds - past page's unstable_staleTime (60), within layout's (180)
-      await page.clock.fastForward(61 * 1000)
-
-      // Should refetch - page's unstable_staleTime=60 wins over layout's unstable_staleTime=180
-      await act(
-        async () => {
-          await toggleLink.click()
-          await browser.elementByCss('a[href="/override"]')
-        },
-        { includes: 'Page with unstable_staleTime = 60' }
-      )
-    })
-
     // TODO: Test for caching unstable_staleTime on navigation without prefetch
     //
     // Currently, navigation responses (without prefetch) cache the route tree
@@ -245,3 +85,53 @@ import { createRouterAct } from 'router-act'
     // The unstable_staleTime segment config works correctly for prefetched routes.
   }
 )
+
+describe('unstable_staleTime - layout build error', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    skipDeployment: true,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  if (isNextDev) {
+    test('skipped in development', () => {})
+    return
+  }
+
+  it('should error when unstable_staleTime is used in a layout', async () => {
+    await next.patchFile(
+      'app/layout.tsx',
+      `export const unstable_staleTime = 60
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+`,
+      async () => {
+        try {
+          await next.start()
+        } catch {
+          // we expect the build to fail
+        }
+
+        await retry(async () => {
+          expect(next.cliOutput).toContain(
+            'cannot use `export const unstable_staleTime = ...`. This config is only supported on page segments.'
+          )
+        })
+      }
+    )
+  })
+})
