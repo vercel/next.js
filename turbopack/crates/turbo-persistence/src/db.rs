@@ -436,6 +436,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         ))
     }
 
+    /// Clears all caches of the database.
+    pub fn clear_cache(&self) {
+        self.amqf_cache.clear();
+        self.key_block_cache.clear();
+        self.value_block_cache.clear();
+        for meta in self.inner.write().meta_files.iter_mut() {
+            meta.clear_cache();
+        }
+    }
+
     fn open_log(&self) -> Result<BufWriter<File>> {
         if self.read_only {
             unreachable!("Only write operations can open the log file");

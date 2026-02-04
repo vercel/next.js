@@ -182,8 +182,8 @@ fn bench_write(c: &mut Criterion) {
 
 fn bench_read_get(c: &mut Criterion) {
     let mut group = c.benchmark_group("read/get");
-    group.warm_up_time(Duration::from_secs(1));
-    group.measurement_time(Duration::from_secs(2));
+    group.warm_up_time(Duration::from_secs(10));
+    group.measurement_time(Duration::from_secs(10));
 
     // Test empty database first
     {
@@ -243,35 +243,45 @@ fn bench_read_get(c: &mut Criterion) {
                 (tempdir, db, keys, rng)
             });
 
-            group.bench_function(&id, |b| {
-                let (_, db, keys, rng) = &*db;
-                let mut rng = rng.lock();
-                b.iter_batched(
-                    || rng.random_range(0..keys.len()),
-                    |idx| {
-                        let result = db.get(0, &keys[idx]).unwrap();
-                        black_box(result)
-                    },
-                    BatchSize::SmallInput,
-                );
-            });
+            for i in 0..=2 {
+                group.bench_function(format!("{id}/{i}"), |b| {
+                    let (_, db, keys, rng) = &*db;
+                    let mut rng = rng.lock();
+                    b.iter_batched(
+                        || {
+                            db.clear_cache();
+                            rng.random_range(0..keys.len())
+                        },
+                        |idx| {
+                            let result = db.get(0, &keys[idx]).unwrap();
+                            black_box(result)
+                        },
+                        BatchSize::SmallInput,
+                    );
+                });
+            }
 
-            group.bench_function(format!("{id}/miss"), |b| {
-                let (_, db, _, rng) = &*db;
-                let mut rng = rng.lock();
-                b.iter_batched(
-                    || random_key(&mut rng, key_size),
-                    |key| {
-                        let result = db.get(0, &key).unwrap();
-                        black_box(result)
-                    },
-                    if key_size > 1024 {
-                        BatchSize::LargeInput
-                    } else {
-                        BatchSize::SmallInput
-                    },
-                );
-            });
+            for i in 0..=2 {
+                group.bench_function(format!("{id}/{i}/miss"), |b| {
+                    let (_, db, _, rng) = &*db;
+                    let mut rng = rng.lock();
+                    b.iter_batched(
+                        || {
+                            db.clear_cache();
+                            random_key(&mut rng, key_size)
+                        },
+                        |key| {
+                            let result = db.get(0, &key).unwrap();
+                            black_box(result)
+                        },
+                        if key_size > 1024 {
+                            BatchSize::LargeInput
+                        } else {
+                            BatchSize::SmallInput
+                        },
+                    );
+                });
+            }
         }
     }
 
@@ -284,9 +294,9 @@ fn bench_read_get(c: &mut Criterion) {
 
 fn bench_read_batch_get(c: &mut Criterion) {
     let mut group = c.benchmark_group("read/batch_get");
-    group.warm_up_time(Duration::from_secs(1));
-    group.measurement_time(Duration::from_secs(2));
-    group.sample_size(10);
+    group.warm_up_time(Duration::from_secs(10));
+    group.measurement_time(Duration::from_secs(10));
+    group.sample_size(20);
     group.sampling_mode(SamplingMode::Flat);
 
     // Configuration parameters: (key_size, value_size)
@@ -332,42 +342,48 @@ fn bench_read_batch_get(c: &mut Criterion) {
                     compacted_str,
                 );
 
-                group.bench_function(&id, |b| {
-                    let (_, db, stored_keys, rng) = &*db;
-                    let mut rng = rng.lock();
-                    b.iter_batched(
-                        || {
-                            (0..batch_size)
-                                .map(|_| {
-                                    let idx = rng.random_range(0..stored_keys.len());
-                                    stored_keys[idx].as_slice()
-                                })
-                                .collect::<Vec<_>>()
-                        },
-                        |keys| {
-                            let result = db.batch_get(0, &keys).unwrap();
-                            black_box(result)
-                        },
-                        BatchSize::LargeInput,
-                    );
-                });
+                for i in 0..=2 {
+                    group.bench_function(format!("{id}/{i}"), |b| {
+                        let (_, db, stored_keys, rng) = &*db;
+                        let mut rng = rng.lock();
+                        b.iter_batched(
+                            || {
+                                db.clear_cache();
+                                (0..batch_size)
+                                    .map(|_| {
+                                        let idx = rng.random_range(0..stored_keys.len());
+                                        stored_keys[idx].as_slice()
+                                    })
+                                    .collect::<Vec<_>>()
+                            },
+                            |keys| {
+                                let result = db.batch_get(0, &keys).unwrap();
+                                black_box(result)
+                            },
+                            BatchSize::LargeInput,
+                        );
+                    });
+                }
 
-                group.bench_function(format!("{id}/miss"), |b| {
-                    let (_, db, _, rng) = &*db;
-                    let mut rng = rng.lock();
-                    b.iter_batched(
-                        || {
-                            (0..batch_size)
-                                .map(|_| random_key(&mut rng, key_size))
-                                .collect::<Vec<_>>()
-                        },
-                        |keys| {
-                            let result = db.batch_get(0, &keys).unwrap();
-                            black_box(result)
-                        },
-                        BatchSize::LargeInput,
-                    );
-                });
+                for i in 0..=2 {
+                    group.bench_function(format!("{id}/{i}/miss"), |b| {
+                        let (_, db, _, rng) = &*db;
+                        let mut rng = rng.lock();
+                        b.iter_batched(
+                            || {
+                                db.clear_cache();
+                                (0..batch_size)
+                                    .map(|_| random_key(&mut rng, key_size))
+                                    .collect::<Vec<_>>()
+                            },
+                            |keys| {
+                                let result = db.batch_get(0, &keys).unwrap();
+                                black_box(result)
+                            },
+                            BatchSize::LargeInput,
+                        );
+                    });
+                }
             }
         }
     }

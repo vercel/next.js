@@ -335,6 +335,13 @@ impl MetaFile {
         Ok(file)
     }
 
+    pub fn clear_cache(&mut self) {
+        for entry in self.entries.iter_mut() {
+            entry.amqf.take();
+            entry.sst.take();
+        }
+    }
+
     pub fn sequence_number(&self) -> u32 {
         self.sequence_number
     }
