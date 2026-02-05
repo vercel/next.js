@@ -739,10 +739,10 @@ impl ProjectContainer {
         self.project().entrypoints()
     }
 
-    /// See [Project::client_hmr_identifiers].
+    /// See [Project::client_hmr_chunk_names].
     #[turbo_tasks::function]
-    pub fn client_hmr_identifiers(self: Vc<Self>) -> Vc<Vec<RcStr>> {
-        self.project().client_hmr_identifiers()
+    pub fn client_hmr_chunk_names(self: Vc<Self>) -> Vc<Vec<RcStr>> {
+        self.project().client_hmr_chunk_names()
     }
 
     /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
@@ -2104,10 +2104,10 @@ impl Project {
         }
     }
 
-    /// Gets a list of all HMR identifiers that can be subscribed to. This is
+    /// Gets a list of all HMR chunk names that can be subscribed to. This is
     /// only needed for testing purposes and isn't used in real apps.
     #[turbo_tasks::function]
-    pub async fn client_hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn client_hmr_chunk_names(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {
             Ok(map.keys_in_path(self.client_relative_path().owned().await?))
         } else {
@@ -2190,11 +2190,11 @@ impl Project {
         }
     }
 
-    /// Gets a list of all server HMR identifiers that can be subscribed to.
+    /// Gets a list of all server HMR chunk names that can be subscribed to.
     /// These are paths relative to node_root (e.g., "server/app/page.js").
-    /// This is the server-side equivalent of `hmr_identifiers`.
+    /// This is the server-side equivalent of `hmr_chunk_names`.
     #[turbo_tasks::function]
-    pub async fn server_hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn server_hmr_chunk_names(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {
             Ok(map.keys_in_path(self.node_root().owned().await?))
         } else {

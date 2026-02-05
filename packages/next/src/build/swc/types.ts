@@ -216,9 +216,9 @@ export interface NodeJsPartialHmrUpdate extends BaseUpdate {
 
 export type NodeJsHmrUpdate = IssuesUpdate | NodeJsPartialHmrUpdate
 
-export interface HmrIdentifiers {
-  /** Paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
-  chunkPaths: string[]
+export interface HmrChunkNames {
+  /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
+  chunkNames: string[]
 }
 
 /** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/crates/next-napi-bindings/src/next_api/project.rs#L824-L833 */
@@ -277,9 +277,9 @@ export interface Project {
     target: import('./index').HmrTarget.Server
   ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
-  hmrIdentifiersSubscribe(
+  hmrChunkNamesSubscribe(
     target: import('./index').HmrTarget
-  ): AsyncIterableIterator<TurbopackResult<HmrIdentifiers>>
+  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
 
   getSourceForAsset(filePath: string): Promise<string | null>
 

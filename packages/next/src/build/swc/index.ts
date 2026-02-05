@@ -27,7 +27,7 @@ import type {
   CompilationEvent,
   DefineEnv,
   Endpoint,
-  HmrIdentifiers,
+  HmrChunkNames,
   Lockfile,
   NodeJsHmrUpdate,
   PartialProjectOptions,
@@ -765,11 +765,11 @@ function bindingToApi(
      * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
      * or "_next/static/chunks/app/page.js" for client.
      */
-    hmrIdentifiersSubscribe(target: HmrTarget) {
-      return subscribe<TurbopackResult<HmrIdentifiers>>(
+    hmrChunkNamesSubscribe(target: HmrTarget) {
+      return subscribe<TurbopackResult<HmrChunkNames>>(
         false,
         async (callback) =>
-          binding.projectHmrIdentifiersSubscribe(
+          binding.projectHmrChunkNamesSubscribe(
             this._nativeProject,
             target,
             callback

@@ -1195,13 +1195,13 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, Encode, Decode, TraceRawVcs)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, Encode, Decode, TraceRawVcs, NonLocalValue,
+)]
 enum HmrTarget {
     Client,
     Server,
 }
-
-unsafe impl turbo_tasks::NonLocalValue for HmrTarget {}
 
 impl std::str::FromStr for HmrTarget {
     type Err = String;
@@ -1373,47 +1373,47 @@ pub fn project_hmr_events(
 }
 
 #[napi(object)]
-struct HmrIdentifiers {
-    pub chunk_paths: Vec<RcStr>,
+struct HmrChunkNames {
+    pub chunk_names: Vec<RcStr>,
 }
 
 #[turbo_tasks::value(serialization = "none")]
-struct HmrIdentifiersWithIssues {
-    chunk_paths: ReadRef<Vec<RcStr>>,
+struct HmrChunkNamesWithIssues {
+    chunk_names: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function(operation)]
-fn project_container_client_hmr_identifiers_operation(
+fn project_container_client_hmr_chunk_names_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Vc<Vec<RcStr>> {
-    container.client_hmr_identifiers()
+    container.client_hmr_chunk_names()
 }
 
 #[turbo_tasks::function(operation)]
-fn project_server_hmr_identifiers_operation(
+fn project_server_hmr_chunk_names_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Vc<Vec<RcStr>> {
-    container.project().server_hmr_identifiers()
+    container.project().server_hmr_chunk_names()
 }
 
 #[turbo_tasks::function(operation)]
-async fn get_hmr_identifiers_with_issues_operation(
+async fn get_hmr_chunk_names_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     target: HmrTarget,
-) -> Result<Vc<HmrIdentifiersWithIssues>> {
-    let hmr_identifiers_op = match target {
-        HmrTarget::Client => project_container_client_hmr_identifiers_operation(container),
-        HmrTarget::Server => project_server_hmr_identifiers_operation(container),
+) -> Result<Vc<HmrChunkNamesWithIssues>> {
+    let hmr_chunk_names_op = match target {
+        HmrTarget::Client => project_container_client_hmr_chunk_names_operation(container),
+        HmrTarget::Server => project_server_hmr_chunk_names_operation(container),
     };
-    let hmr_identifiers = hmr_identifiers_op.read_strongly_consistent().await?;
-    let issues = get_issues(hmr_identifiers_op, NEXT_ISSUE_FILTER).await?;
-    let diagnostics = get_diagnostics(hmr_identifiers_op).await?;
-    let effects = Arc::new(get_effects(hmr_identifiers_op).await?);
-    Ok(HmrIdentifiersWithIssues {
-        chunk_paths: hmr_identifiers,
+    let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
+    let issues = get_issues(hmr_chunk_names_op, NEXT_ISSUE_FILTER).await?;
+    let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
+    let effects = Arc::new(get_effects(hmr_chunk_names_op).await?);
+    Ok(HmrChunkNamesWithIssues {
+        chunk_names: hmr_chunk_names,
         issues,
         diagnostics,
         effects,
@@ -1421,9 +1421,9 @@ async fn get_hmr_identifiers_with_issues_operation(
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get HMR identifiers", skip(project, func), fields(target = %target))]
+#[tracing::instrument(level = "info", name = "get HMR chunk names", skip(project, func), fields(target = %target))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_hmr_identifiers_subscribe(
+pub fn project_hmr_chunk_names_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     target: String,
     func: JsFunction,
@@ -1437,26 +1437,26 @@ pub fn project_hmr_identifiers_subscribe(
         project.turbopack_ctx.clone(),
         func,
         move || async move {
-            let hmr_identifiers_with_issues_op =
-                get_hmr_identifiers_with_issues_operation(container, hmr_target);
-            let HmrIdentifiersWithIssues {
-                chunk_paths,
+            let hmr_chunk_names_with_issues_op =
+                get_hmr_chunk_names_with_issues_operation(container, hmr_target);
+            let HmrChunkNamesWithIssues {
+                chunk_names,
                 issues,
                 diagnostics,
                 effects,
-            } = &*hmr_identifiers_with_issues_op
+            } = &*hmr_chunk_names_with_issues_op
                 .read_strongly_consistent()
                 .await?;
             effects.apply().await?;
 
-            Ok((chunk_paths.clone(), issues.clone(), diagnostics.clone()))
+            Ok((chunk_names.clone(), issues.clone(), diagnostics.clone()))
         },
         move |ctx| {
-            let (chunk_paths, issues, diagnostics) = ctx.value;
+            let (chunk_names, issues, diagnostics) = ctx.value;
 
             Ok(vec![TurbopackResult {
-                result: HmrIdentifiers {
-                    chunk_paths: ReadRef::into_owned(chunk_paths),
+                result: HmrChunkNames {
+                    chunk_names: ReadRef::into_owned(chunk_names),
                 },
                 issues: issues
                     .iter()

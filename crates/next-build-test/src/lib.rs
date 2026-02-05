@@ -257,7 +257,7 @@ async fn hmr(
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
     let idents = tt
-        .run(async move { project.client_hmr_identifiers().await })
+        .run(async move { project.client_hmr_chunk_names().await })
         .await?;
     let start = Instant::now();
     for ident in idents {
