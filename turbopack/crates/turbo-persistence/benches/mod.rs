@@ -336,7 +336,7 @@ fn bench_read_get(c: &mut Criterion) {
                 iter_batched_with_init(
                     b,
                     |_| prepare_db_for_benchmarking(db),
-                    |i| &keys[i as usize],
+                    |i| &keys[i as usize % keys.len()],
                     |key| {
                         let result = db.get(0, key).unwrap();
                         black_box(result)
@@ -474,7 +474,10 @@ fn bench_read_batch_get(c: &mut Criterion) {
                         |_| prepare_db_for_benchmarking(db),
                         |i| {
                             (0..batch_size)
-                                .map(|j| stored_keys[i as usize * batch_size + j].as_slice())
+                                .map(|j| {
+                                    stored_keys[(i as usize * batch_size + j) % stored_keys.len()]
+                                        .as_slice()
+                                })
                                 .collect::<Vec<_>>()
                         },
                         |keys| {
