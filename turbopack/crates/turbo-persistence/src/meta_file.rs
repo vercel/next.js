@@ -342,6 +342,13 @@ impl MetaFile {
         }
     }
 
+    pub fn prepare_sst_cache(&self, amqf_cache: &AmqfCache) {
+        for entry in self.entries.iter() {
+            let _ = entry.sst(self);
+            let _ = entry.amqf(self, amqf_cache);
+        }
+    }
+
     pub fn sequence_number(&self) -> u32 {
         self.sequence_number
     }

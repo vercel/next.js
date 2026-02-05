@@ -446,6 +446,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
     }
 
+    /// Prefetches all SST files which are usually lazy loaded. This can be used to reduce latency
+    /// for the first queries after opening the database.
+    pub fn prepare_all_sst_caches(&self) {
+        for meta in self.inner.write().meta_files.iter_mut() {
+            meta.prepare_sst_cache(&self.amqf_cache);
+        }
+    }
+
     fn open_log(&self) -> Result<BufWriter<File>> {
         if self.read_only {
             unreachable!("Only write operations can open the log file");

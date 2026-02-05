@@ -1,12 +1,15 @@
-use std::{path::Path, sync::LazyLock, time::Duration};
+use std::{cell::UnsafeCell, path::Path, sync::LazyLock, time::Duration};
 
 use anyhow::Result;
-use criterion::{BatchSize, Criterion, SamplingMode, black_box, criterion_group, criterion_main};
+use criterion::{
+    BatchSize, Bencher, Criterion, SamplingMode, black_box, criterion_group, criterion_main,
+    measurement::{Measurement, WallTime},
+};
 use parking_lot::Mutex;
 // Re-export qfilter for benchmarking the filter used in AMQF
 use qfilter;
 use quick_cache::sync::GuardResult;
-use rand::{Rng, SeedableRng, rngs::SmallRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::TempDir;
 use turbo_persistence::{
     ArcSlice, BlockCache, CompactConfig, Entry, EntryValue, MetaEntryFlags, SerialScheduler,
@@ -107,6 +110,7 @@ fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Vec<u8>>> {
     }
 
     db.shutdown()?;
+    keys.shuffle(&mut rng);
     Ok(keys)
 }
 
@@ -115,6 +119,66 @@ fn setup_prefilled_db(config: &DbConfig) -> Result<(TempDir, Vec<Vec<u8>>)> {
     let tempdir = tempfile::tempdir()?;
     let keys = prefill_database(tempdir.path(), config)?;
     Ok((tempdir, keys))
+}
+
+fn prepare_db_for_benchmarking(db: &TurboPersistence<SerialScheduler, 1>) {
+    db.clear_cache();
+    db.prepare_all_sst_caches();
+}
+
+fn iter_batched_with_init<'a, T, O>(
+    b: &mut Bencher<'a, WallTime>,
+    mut init: impl FnMut(u64),
+    mut setup: impl FnMut(u64) -> T,
+    mut iter: impl FnMut(T) -> O,
+    batch_size: BatchSize,
+) {
+    b.iter_custom(|iters| {
+        let batch_size = match batch_size {
+            BatchSize::SmallInput => iters.div_ceil(10),
+            BatchSize::LargeInput => iters.div_ceil(1000),
+            BatchSize::PerIteration => 1,
+            BatchSize::NumBatches(size) => iters.div_ceil(size),
+            BatchSize::NumIterations(size) => size,
+            BatchSize::__NonExhaustive => panic!("__NonExhaustive is not a valid BatchSize."),
+        };
+        assert!(batch_size > 0);
+        let measurement = WallTime;
+        let mut value = measurement.zero();
+        if batch_size == 1 {
+            for _ in 0..iters {
+                init(1);
+                let input = black_box(setup(0));
+
+                let start = measurement.start();
+                let output = iter(input);
+                let end = measurement.end(start);
+
+                value = measurement.add(&value, &end);
+
+                drop(black_box(output));
+            }
+        } else {
+            let mut iteration_counter = 0;
+
+            while iteration_counter < iters {
+                let batch_size = ::std::cmp::min(batch_size, iters - iteration_counter);
+                init(batch_size);
+                let inputs = black_box((0..batch_size).map(|i| setup(i)).collect::<Vec<_>>());
+                let mut outputs = Vec::with_capacity(batch_size as usize);
+
+                let start = measurement.start();
+                outputs.extend(inputs.into_iter().map(&mut iter));
+                let end = measurement.end(start);
+
+                value = measurement.add(&value, &end);
+
+                drop(black_box(outputs));
+                iteration_counter += batch_size;
+            }
+        }
+        value
+    });
 }
 
 // =============================================================================
@@ -190,7 +254,6 @@ fn bench_write(c: &mut Criterion) {
 
 fn bench_read_get(c: &mut Criterion) {
     let mut group = c.benchmark_group("read/get");
-    group.warm_up_time(Duration::from_secs(10));
     group.measurement_time(Duration::from_secs(10));
 
     // Test empty database first
@@ -213,9 +276,10 @@ fn bench_read_get(c: &mut Criterion) {
     let size_commits_compacted = [
         (100 * 1024 * 1024, 1, true),
         (100 * 1024 * 1024, 1, false),
+        (100 * 1024 * 1024, 20, false),
         (4 * 1024 * 1024 * 1024, 1, true),
         (4 * 1024 * 1024 * 1024, 1, false),
-        (4 * 1024 * 1024 * 1024, 10, false),
+        (4 * 1024 * 1024 * 1024, 20, false),
     ];
 
     for &(key_size, value_size) in &entry_sizes {
@@ -251,45 +315,79 @@ fn bench_read_get(c: &mut Criterion) {
                 (tempdir, db, keys, rng)
             });
 
-            for i in 0..=2 {
-                group.bench_function(format!("{id}/{i}"), |b| {
-                    let (_, db, keys, rng) = &*db;
-                    let mut rng = rng.lock();
-                    b.iter_batched(
-                        || {
-                            db.clear_cache();
-                            rng.random_range(0..keys.len())
-                        },
-                        |idx| {
-                            let result = db.get(0, &keys[idx]).unwrap();
-                            black_box(result)
-                        },
-                        BatchSize::SmallInput,
-                    );
-                });
-            }
+            group.bench_function(format!("{id}/hit/uncached"), |b| {
+                let (_, db, keys, rng) = &*db;
+                let mut rng = rng.lock();
+                iter_batched_with_init(
+                    b,
+                    |_| prepare_db_for_benchmarking(&db),
+                    |_| {
+                        let idx = rng.random_range(0..keys.len());
+                        &keys[idx]
+                    },
+                    |key| {
+                        let result = db.get(0, key).unwrap();
+                        black_box(result)
+                    },
+                    BatchSize::PerIteration,
+                );
+            });
 
-            for i in 0..=2 {
-                group.bench_function(format!("{id}/{i}/miss"), |b| {
-                    let (_, db, _, rng) = &*db;
-                    let mut rng = rng.lock();
-                    b.iter_batched(
-                        || {
-                            db.clear_cache();
-                            random_key(&mut rng, key_size)
-                        },
-                        |key| {
-                            let result = db.get(0, &key).unwrap();
-                            black_box(result)
-                        },
-                        if key_size > 1024 {
-                            BatchSize::LargeInput
-                        } else {
-                            BatchSize::SmallInput
-                        },
-                    );
-                });
-            }
+            group.bench_function(format!("{id}/hit/cached"), |b| {
+                let (_, db, keys, _) = &*db;
+                iter_batched_with_init(
+                    b,
+                    |_| prepare_db_for_benchmarking(&db),
+                    |i| &keys[i as usize],
+                    |key| {
+                        let result = db.get(0, key).unwrap();
+                        black_box(result)
+                    },
+                    BatchSize::NumBatches(1),
+                );
+            });
+
+            group.bench_function(format!("{id}/miss/uncached"), |b| {
+                let (_, db, _, rng) = &*db;
+                let mut rng = rng.lock();
+                iter_batched_with_init(
+                    b,
+                    |_| prepare_db_for_benchmarking(&db),
+                    |_| random_key(&mut rng, key_size),
+                    |key| {
+                        let result = db.get(0, &key).unwrap();
+                        black_box(result)
+                    },
+                    BatchSize::PerIteration,
+                );
+            });
+
+            group.bench_function(format!("{id}/miss/cached"), |b| {
+                let (_, db, _, rng) = &*db;
+                let mut rng = rng.lock();
+                let miss_keys = UnsafeCell::new(Vec::new());
+                iter_batched_with_init(
+                    b,
+                    |batch_size| {
+                        prepare_db_for_benchmarking(&db);
+                        // SAFETY: We are the only ones mutating miss_keys during this
+                        // initialization phase
+                        let miss_keys = unsafe { &mut *miss_keys.get() };
+                        while miss_keys.len() < batch_size as usize {
+                            miss_keys.push(random_key(&mut rng, key_size));
+                        }
+                    },
+                    |i| {
+                        let miss_keys = unsafe { &*miss_keys.get() };
+                        &miss_keys[i as usize]
+                    },
+                    |key| {
+                        let result = db.get(0, key).unwrap();
+                        black_box(result)
+                    },
+                    BatchSize::NumBatches(1),
+                );
+            });
         }
     }
 
@@ -302,7 +400,6 @@ fn bench_read_get(c: &mut Criterion) {
 
 fn bench_read_batch_get(c: &mut Criterion) {
     let mut group = c.benchmark_group("read/batch_get");
-    group.warm_up_time(Duration::from_secs(10));
     group.measurement_time(Duration::from_secs(10));
     group.sample_size(20);
     group.sampling_mode(SamplingMode::Flat);
@@ -310,7 +407,7 @@ fn bench_read_batch_get(c: &mut Criterion) {
     // Configuration parameters: (key_size, value_size)
     let entry_sizes = [(8, 4), (4, 512), (512, 4)];
     // Configuration parameters: (commit_count, compacted)
-    let commit_configs = [(1, true), (1, false), (10, false)];
+    let commit_configs = [(1, true), (1, false), (20, false)];
     let batch_sizes = [100, 1024, 10 * 1024, 100 * 1024];
 
     for &(key_size, value_size) in &entry_sizes {
@@ -350,48 +447,94 @@ fn bench_read_batch_get(c: &mut Criterion) {
                     compacted_str,
                 );
 
-                for i in 0..=2 {
-                    group.bench_function(format!("{id}/{i}"), |b| {
-                        let (_, db, stored_keys, rng) = &*db;
-                        let mut rng = rng.lock();
-                        b.iter_batched(
-                            || {
-                                db.clear_cache();
-                                (0..batch_size)
-                                    .map(|_| {
-                                        let idx = rng.random_range(0..stored_keys.len());
-                                        stored_keys[idx].as_slice()
-                                    })
-                                    .collect::<Vec<_>>()
-                            },
-                            |keys| {
-                                let result = db.batch_get(0, &keys).unwrap();
-                                black_box(result)
-                            },
-                            BatchSize::LargeInput,
-                        );
-                    });
-                }
+                group.bench_function(format!("{id}/hit/uncached"), |b| {
+                    let (_, db, stored_keys, rng) = &*db;
+                    let mut rng = rng.lock();
+                    iter_batched_with_init(
+                        b,
+                        |_| prepare_db_for_benchmarking(&db),
+                        |_| {
+                            (0..batch_size)
+                                .map(|_| {
+                                    let idx = rng.random_range(0..stored_keys.len());
+                                    stored_keys[idx].as_slice()
+                                })
+                                .collect::<Vec<_>>()
+                        },
+                        |keys| {
+                            let result = db.batch_get(0, &keys).unwrap();
+                            black_box(result)
+                        },
+                        BatchSize::PerIteration,
+                    );
+                });
 
-                for i in 0..=2 {
-                    group.bench_function(format!("{id}/{i}/miss"), |b| {
-                        let (_, db, _, rng) = &*db;
-                        let mut rng = rng.lock();
-                        b.iter_batched(
-                            || {
-                                db.clear_cache();
-                                (0..batch_size)
-                                    .map(|_| random_key(&mut rng, key_size))
-                                    .collect::<Vec<_>>()
-                            },
-                            |keys| {
-                                let result = db.batch_get(0, &keys).unwrap();
-                                black_box(result)
-                            },
-                            BatchSize::LargeInput,
-                        );
-                    });
-                }
+                group.bench_function(format!("{id}/hit/cached"), |b| {
+                    let (_, db, stored_keys, _) = &*db;
+                    iter_batched_with_init(
+                        b,
+                        |_| prepare_db_for_benchmarking(&db),
+                        |i| {
+                            (0..batch_size)
+                                .map(|j| stored_keys[i as usize * batch_size + j].as_slice())
+                                .collect::<Vec<_>>()
+                        },
+                        |keys| {
+                            let result = db.batch_get(0, &keys).unwrap();
+                            black_box(result)
+                        },
+                        BatchSize::NumBatches(1),
+                    );
+                });
+
+                group.bench_function(format!("{id}/miss/uncached"), |b| {
+                    let (_, db, _, rng) = &*db;
+                    let mut rng = rng.lock();
+                    iter_batched_with_init(
+                        b,
+                        |_| prepare_db_for_benchmarking(&db),
+                        |_| {
+                            (0..batch_size)
+                                .map(|_| random_key(&mut rng, key_size))
+                                .collect::<Vec<_>>()
+                        },
+                        |keys| {
+                            let result = db.batch_get(0, &keys).unwrap();
+                            black_box(result)
+                        },
+                        BatchSize::PerIteration,
+                    );
+                });
+
+                group.bench_function(format!("{id}/miss/cached"), |b| {
+                    let (_, db, _, rng) = &*db;
+                    let mut rng = rng.lock();
+                    let miss_keys = UnsafeCell::new(Vec::new());
+                    iter_batched_with_init(
+                        b,
+                        |iter_batch_size| {
+                            prepare_db_for_benchmarking(&db);
+                            // SAFETY: We are the only ones mutating miss_keys during this
+                            // initialization phase
+                            let miss_keys = unsafe { &mut *miss_keys.get() };
+                            let needed_keys = iter_batch_size as usize * batch_size;
+                            while miss_keys.len() < needed_keys {
+                                miss_keys.push(random_key(&mut rng, key_size));
+                            }
+                        },
+                        |i| {
+                            let miss_keys = unsafe { &*miss_keys.get() };
+                            (0..batch_size)
+                                .map(|j| miss_keys[i as usize * batch_size + j].as_slice())
+                                .collect::<Vec<_>>()
+                        },
+                        |keys| {
+                            let result = db.batch_get(0, &keys).unwrap();
+                            black_box(result)
+                        },
+                        BatchSize::NumBatches(1),
+                    );
+                });
             }
         }
     }
@@ -414,11 +557,11 @@ fn bench_compaction(c: &mut Criterion) {
     // Configuration parameters: (entry_count, commit_count)
     let db_configs = [
         (1024 * 1024 * 4, 8),
-        (1024 * 1024 * 8, 8),
         (1024 * 1024 * 16, 8),
         (1024 * 1024 * 4, 32),
-        (1024 * 1024 * 8, 32),
         (1024 * 1024 * 16, 32),
+        (1024 * 1024 * 4, 128),
+        (1024 * 1024 * 16, 128),
     ];
 
     for &(key_size, value_size) in &entry_sizes {
