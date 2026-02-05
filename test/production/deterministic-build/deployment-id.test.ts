@@ -245,14 +245,17 @@ const FILES = {
       it('should produce identical build outputs even when changing deployment id', async () => {
         let { run1, run2 } = await runTest(next, readFilesBuilder)
 
-        expect(run1).toContain('app-page.func/.vc-config.json')
-        expect(run1).toContain('app-page.rsc.func/.vc-config.json')
-        expect(run1).toContain('app-route.func/.vc-config.json')
-        expect(run1).toContain('app-route.rsc.func/.vc-config.json')
-        expect(run1).toContain('middleware.func/.vc-config.json')
-        expect(run1).toContain('pages-dynamic.func/.vc-config.json')
-        expect(run1).toContain('pages-static-gsp.func/.vc-config.json')
-
+        expect([...run1.keys()]).toIncludeAllMembers([
+          '.vercel/output/functions/app-page.func/.vc-config.json',
+          '.vercel/output/functions/app-page.rsc.func/.vc-config.json',
+          '.vercel/output/functions/app-route.func/.vc-config.json',
+          '.vercel/output/functions/app-route.rsc.func/.vc-config.json',
+          '.vercel/output/functions/pages-dynamic.func/.vc-config.json',
+          '.vercel/output/functions/pages-static-gsp.func/.vc-config.json',
+        ])
+        expect([...run1.keys()]).toSatisfyAny((k) =>
+          k.includes('middleware.func')
+        )
         expect([...run1.keys()]).toEqual([...run2.keys()])
       })
     })
