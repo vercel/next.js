@@ -9311,6 +9311,7 @@ dependencies = [
  "thread_local",
  "tracing",
  "turbo-bincode",
+ "turbo-tasks-malloc",
  "twox-hash 2.1.0",
  "zstd",
 ]

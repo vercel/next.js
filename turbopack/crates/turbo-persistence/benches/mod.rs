@@ -14,6 +14,10 @@ use turbo_persistence::{
     StaticSortedFile, StaticSortedFileMetaData, TurboPersistence, hash_key,
     write_static_stored_file,
 };
+use turbo_tasks_malloc::TurboMalloc;
+
+#[global_allocator]
+static ALLOC: TurboMalloc = TurboMalloc;
 
 // =============================================================================
 // Constants
@@ -22,8 +26,8 @@ use turbo_persistence::{
 const MB: u64 = 1024 * 1024;
 /// Data amount for batch read benchmarks (1 GiB)
 const BATCH_READ_DATA_AMOUNT: usize = 1024 * MB as usize;
-/// Maximum memory to use for storing keys during prefill (8 GiB)
-const MAX_KEY_MEMORY: usize = 8 * 1024 * MB as usize;
+/// Maximum memory to use for storing keys during prefill (4 GiB)
+const MAX_KEY_MEMORY: usize = 4 * 1024 * MB as usize;
 
 // =============================================================================
 // Helper Types and Functions
@@ -53,25 +57,28 @@ struct DbConfig {
 }
 
 /// Generate a random key of the specified size
-fn random_key(rng: &mut SmallRng, size: usize) -> Vec<u8> {
-    let mut key = vec![0u8; size];
+fn random_key(rng: &mut SmallRng, size: usize) -> Box<[u8]> {
+    let mut key = vec![0u8; size].into_boxed_slice();
     rng.fill(&mut key[..]);
     key
 }
 
 /// Generate a random value of the specified size
-fn random_value(rng: &mut SmallRng, size: usize) -> Vec<u8> {
-    let mut value = vec![0u8; size];
+fn random_value(rng: &mut SmallRng, size: usize) -> Box<[u8]> {
+    let mut value = vec![0u8; size].into_boxed_slice();
     rng.fill(&mut value[..]);
     value
 }
 
 /// Prefill a database with the given configuration and return the generated keys
-fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Vec<u8>>> {
+fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Box<[u8]>>> {
     let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
     let mut rng = SmallRng::seed_from_u64(42);
-    let mut keys = Vec::with_capacity(config.entry_count);
-    let mut key_memory = 0;
+    let mut keys = Vec::with_capacity(
+        config
+            .entry_count
+            .min(MAX_KEY_MEMORY / (config.key_size + size_of::<Box<[u8]>>())),
+    );
 
     let entries_per_commit = config.entry_count / config.commit_count;
 
@@ -88,12 +95,10 @@ fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Vec<u8>>> {
             let key = random_key(&mut rng, config.key_size);
             let value = random_value(&mut rng, config.value_size);
             batch.put(0, key.clone(), value.into())?;
-            key_memory += key.len();
-            if key_memory < MAX_KEY_MEMORY {
+            if keys.len() < keys.capacity() {
                 keys.push(key);
             } else {
                 let replace = rng.random_range(0..keys.len());
-                key_memory -= keys[replace].len();
                 keys[replace] = key;
             }
         }
@@ -113,7 +118,7 @@ fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Vec<u8>>> {
 }
 
 /// Create a temporary directory with a prefilled database and return the generated keys
-fn setup_prefilled_db(config: &DbConfig) -> Result<(TempDir, Vec<Vec<u8>>)> {
+fn setup_prefilled_db(config: &DbConfig) -> Result<(TempDir, Vec<Box<[u8]>>)> {
     let tempdir = tempfile::tempdir()?;
     let keys = prefill_database(tempdir.path(), config)?;
     Ok((tempdir, keys))
@@ -455,7 +460,7 @@ fn bench_read_batch_get(c: &mut Criterion) {
                             (0..batch_size)
                                 .map(|_| {
                                     let idx = rng.random_range(0..stored_keys.len());
-                                    stored_keys[idx].as_slice()
+                                    &*stored_keys[idx]
                                 })
                                 .collect::<Vec<_>>()
                         },
@@ -475,8 +480,7 @@ fn bench_read_batch_get(c: &mut Criterion) {
                         |i| {
                             (0..batch_size)
                                 .map(|j| {
-                                    stored_keys[(i as usize * batch_size + j) % stored_keys.len()]
-                                        .as_slice()
+                                    &*stored_keys[(i as usize * batch_size + j) % stored_keys.len()]
                                 })
                                 .collect::<Vec<_>>()
                         },
@@ -526,7 +530,7 @@ fn bench_read_batch_get(c: &mut Criterion) {
                         |i| {
                             let miss_keys = unsafe { &*miss_keys.get() };
                             (0..batch_size)
-                                .map(|j| miss_keys[i as usize * batch_size + j].as_slice())
+                                .map(|j| &*miss_keys[i as usize * batch_size + j])
                                 .collect::<Vec<_>>()
                         },
                         |keys| {
