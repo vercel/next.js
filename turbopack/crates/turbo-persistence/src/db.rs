@@ -446,6 +446,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
     }
 
+    /// Clears block caches of the database.
+    pub fn clear_block_caches(&self) {
+        self.key_block_cache.clear();
+        self.value_block_cache.clear();
+    }
+
     /// Prefetches all SST files which are usually lazy loaded. This can be used to reduce latency
     /// for the first queries after opening the database.
     pub fn prepare_all_sst_caches(&self) {

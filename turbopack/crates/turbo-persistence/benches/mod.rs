@@ -125,7 +125,7 @@ fn setup_prefilled_db(config: &DbConfig) -> Result<(TempDir, Vec<Box<[u8]>>)> {
 }
 
 fn prepare_db_for_benchmarking(db: &TurboPersistence<SerialScheduler, 1>) {
-    db.clear_cache();
+    db.clear_block_caches();
     db.prepare_all_sst_caches();
 }
 
