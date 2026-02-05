@@ -14,7 +14,6 @@ import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import http from 'node:http'
 
 // @ts-expect-error types are in @types/serve-handler
@@ -150,8 +149,8 @@ async function collectRoutesForAnalyze(
   const pageKeys = {
     pages: Object.keys(discovery.mappedPages || {}),
     app: discovery.mappedAppPages
-      ? Object.keys(discovery.mappedAppPages).map((key) =>
-          normalizeAppPath(key)
+      ? [...discovery.appRoutes, ...discovery.appRouteHandlers].map(
+          ({ route }) => route
         )
       : undefined,
   }
