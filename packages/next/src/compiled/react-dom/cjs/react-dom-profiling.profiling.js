@@ -20001,14 +20001,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2339 = React.version;
 if (
-  "19.3.0-canary-3e00319b-20260203" !==
+  "19.3.0-canary-95ffd6cd-20260205" !==
   isomorphicReactPackageVersion$jscomp$inline_2339
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2339,
-      "19.3.0-canary-3e00319b-20260203"
+      "19.3.0-canary-95ffd6cd-20260205"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20030,10 +20030,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2938 = {
   bundleType: 0,
-  version: "19.3.0-canary-3e00319b-20260203",
+  version: "19.3.0-canary-95ffd6cd-20260205",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-3e00319b-20260203"
+  reconcilerVersion: "19.3.0-canary-95ffd6cd-20260205"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2939 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20292,7 +20292,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-3e00319b-20260203";
+exports.version = "19.3.0-canary-95ffd6cd-20260205";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

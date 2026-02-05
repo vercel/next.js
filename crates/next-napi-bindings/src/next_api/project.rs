@@ -190,6 +190,9 @@ pub struct NapiProjectOptions {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<NapiDebugBuildPaths>,
+
+    // Whether persistent caching is enabled
+    pub is_persistent_caching_enabled: bool,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -252,8 +255,6 @@ pub struct NapiDefineEnv {
 
 #[napi(object)]
 pub struct NapiTurboEngineOptions {
-    /// Use the new backend with filesystem cache enabled.
-    pub persistent_caching: Option<bool>,
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
     /// Track dependencies between tasks. If false, any change during build will error.
@@ -296,6 +297,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             write_routes_hashes_manifest,
             current_node_js_version,
             debug_build_paths,
+            is_persistent_caching_enabled,
         } = val;
         ProjectOptions {
             root_path,
@@ -316,6 +318,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 app: p.app,
                 pages: p.pages,
             }),
+            is_persistent_caching_enabled,
         }
     }
 }
@@ -506,13 +509,12 @@ pub fn project_new(
                 .memory_limit
                 .map(|m| m as usize)
                 .unwrap_or(usize::MAX);
-            let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
             let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
             let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
-                persistent_caching,
+                options.is_persistent_caching_enabled,
                 memory_limit,
                 dependency_tracking,
                 is_ci,
