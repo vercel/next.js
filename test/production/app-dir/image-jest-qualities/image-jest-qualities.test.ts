@@ -34,35 +34,45 @@ module.exports = {
 }
         `,
         [`tests/image.test.tsx`]: `
-import { getImageProps } from 'next/image'
+import Image from 'next/image'
+import { render, screen } from '@testing-library/react'
 
 describe('Image quality config', () => {
   it('respects custom qualities from next.config.js', () => {
-    const { props } = getImageProps({
-      alt: 'Test image',
-      src: '/test.jpg',
-      width: 500,
-      height: 500,
-      quality: 100,
-    })
-    
+    render(
+      <Image
+        src="/test.jpg"
+        alt="test"
+        width={500}
+        height={500}
+        quality={100}
+      />
+    )
+
+    const img = screen.getByRole('img')
+
     // Should use quality=100 from our config, not default q=75
-    expect(props.srcSet).toContain('q=100')
-    expect(props.srcSet).not.toContain('q=75')
+    expect(img.getAttribute('src')).toContain('q=100')
+    expect(img.getAttribute('src')).not.toContain('q=75')
   })
 
   it('uses custom qualities for srcset generation', () => {
-    const { props } = getImageProps({
-      alt: 'Test image',
-      src: '/test.jpg',
-      width: 500,
-      height: 500,
-      sizes: '100vw',
-    })
+    render(
+      <Image
+        src="/test.jpg"
+        alt="test"
+        width={500}
+        height={500}
+        sizes="100vw"
+      />
+    )
+
+    const img = screen.getByRole('img')
     
     // Should generate srcset with our custom qualities [90, 100]
     // and not include default quality 75
-    const srcSetEntries = props.srcSet?.split(',') || []
+    const srcSet = img.getAttribute('srcset') || ''
+    const srcSetEntries = srcSet.split(',')
     const hasCustomQualities = srcSetEntries.some(entry => 
       entry.includes('q=90') || entry.includes('q=100')
     )
