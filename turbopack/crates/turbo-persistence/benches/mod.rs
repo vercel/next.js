@@ -6,8 +6,6 @@ use criterion::{
     measurement::{Measurement, WallTime},
 };
 use parking_lot::Mutex;
-// Re-export qfilter for benchmarking the filter used in AMQF
-use qfilter;
 use quick_cache::sync::GuardResult;
 use rand::{Rng, SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::TempDir;
@@ -164,7 +162,7 @@ fn iter_batched_with_init<'a, T, O>(
             while iteration_counter < iters {
                 let batch_size = ::std::cmp::min(batch_size, iters - iteration_counter);
                 init(batch_size);
-                let inputs = black_box((0..batch_size).map(|i| setup(i)).collect::<Vec<_>>());
+                let inputs = black_box((0..batch_size).map(&mut setup).collect::<Vec<_>>());
                 let mut outputs = Vec::with_capacity(batch_size as usize);
 
                 let start = measurement.start();
@@ -320,7 +318,7 @@ fn bench_read_get(c: &mut Criterion) {
                 let mut rng = rng.lock();
                 iter_batched_with_init(
                     b,
-                    |_| prepare_db_for_benchmarking(&db),
+                    |_| prepare_db_for_benchmarking(db),
                     |_| {
                         let idx = rng.random_range(0..keys.len());
                         &keys[idx]
@@ -337,7 +335,7 @@ fn bench_read_get(c: &mut Criterion) {
                 let (_, db, keys, _) = &*db;
                 iter_batched_with_init(
                     b,
-                    |_| prepare_db_for_benchmarking(&db),
+                    |_| prepare_db_for_benchmarking(db),
                     |i| &keys[i as usize],
                     |key| {
                         let result = db.get(0, key).unwrap();
@@ -352,7 +350,7 @@ fn bench_read_get(c: &mut Criterion) {
                 let mut rng = rng.lock();
                 iter_batched_with_init(
                     b,
-                    |_| prepare_db_for_benchmarking(&db),
+                    |_| prepare_db_for_benchmarking(db),
                     |_| random_key(&mut rng, key_size),
                     |key| {
                         let result = db.get(0, &key).unwrap();
@@ -369,7 +367,7 @@ fn bench_read_get(c: &mut Criterion) {
                 iter_batched_with_init(
                     b,
                     |batch_size| {
-                        prepare_db_for_benchmarking(&db);
+                        prepare_db_for_benchmarking(db);
                         // SAFETY: We are the only ones mutating miss_keys during this
                         // initialization phase
                         let miss_keys = unsafe { &mut *miss_keys.get() };
@@ -452,7 +450,7 @@ fn bench_read_batch_get(c: &mut Criterion) {
                     let mut rng = rng.lock();
                     iter_batched_with_init(
                         b,
-                        |_| prepare_db_for_benchmarking(&db),
+                        |_| prepare_db_for_benchmarking(db),
                         |_| {
                             (0..batch_size)
                                 .map(|_| {
@@ -473,7 +471,7 @@ fn bench_read_batch_get(c: &mut Criterion) {
                     let (_, db, stored_keys, _) = &*db;
                     iter_batched_with_init(
                         b,
-                        |_| prepare_db_for_benchmarking(&db),
+                        |_| prepare_db_for_benchmarking(db),
                         |i| {
                             (0..batch_size)
                                 .map(|j| stored_keys[i as usize * batch_size + j].as_slice())
@@ -492,7 +490,7 @@ fn bench_read_batch_get(c: &mut Criterion) {
                     let mut rng = rng.lock();
                     iter_batched_with_init(
                         b,
-                        |_| prepare_db_for_benchmarking(&db),
+                        |_| prepare_db_for_benchmarking(db),
                         |_| {
                             (0..batch_size)
                                 .map(|_| random_key(&mut rng, key_size))
@@ -513,7 +511,7 @@ fn bench_read_batch_get(c: &mut Criterion) {
                     iter_batched_with_init(
                         b,
                         |iter_batch_size| {
-                            prepare_db_for_benchmarking(&db);
+                            prepare_db_for_benchmarking(db);
                             // SAFETY: We are the only ones mutating miss_keys during this
                             // initialization phase
                             let miss_keys = unsafe { &mut *miss_keys.get() };
