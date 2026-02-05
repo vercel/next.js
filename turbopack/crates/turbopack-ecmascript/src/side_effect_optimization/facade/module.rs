@@ -2,9 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset, MergeableModule,
         MergeableModules, MergeableModulesExposed,
@@ -158,8 +156,8 @@ impl Module for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let (part_references, esm_references) = self.await?.specific_references().await?;
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        let (part_references, esm_references) = self.specific_references().await?;
         let references = part_references
             .iter()
             .map(|r| ResolvedVc::upcast(*r))
@@ -190,16 +188,6 @@ impl Module for EcmascriptModuleFacadeModule {
             }
             _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),
         })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptModuleFacadeModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        let f = File::from("");
-
-        AssetContent::file(FileContent::Content(f).cell())
     }
 }
 

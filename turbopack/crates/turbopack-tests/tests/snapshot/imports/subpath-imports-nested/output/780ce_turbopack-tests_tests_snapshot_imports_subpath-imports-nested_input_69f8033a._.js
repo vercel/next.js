@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/780ce_turbopack-tests_tests_snapshot_imports_subpath-imports-nested_input_69f8033a._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/780ce_turbopack-tests_tests_snapshot_imports_subpath-imports-nested_input_69f8033a._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports-nested/input/foo.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 

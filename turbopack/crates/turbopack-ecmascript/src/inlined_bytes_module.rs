@@ -5,7 +5,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, rope::RopeBuilder};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -53,14 +53,6 @@ impl Module for InlinedBytesJsModule {
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::SideEffectFree.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for InlinedBytesJsModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
@@ -125,7 +117,7 @@ impl ChunkItem for InlinedBytesJsChunkItem {
 impl EcmascriptChunkItem for InlinedBytesJsChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let content = self.module.content().file_content().await?;
+        let content = self.module.await?.source.content().file_content().await?;
         match &*content {
             FileContent::Content(data) => {
                 let mut inner_code = RopeBuilder::default();

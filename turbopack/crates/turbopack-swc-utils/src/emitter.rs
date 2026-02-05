@@ -111,14 +111,15 @@ impl Emitter for IssueEmitter {
             .map(|s| s.0.as_ref())
             .collect::<Vec<_>>()
             .join("");
-        let code = db.code.as_ref().map(|d| match d {
-            DiagnosticId::Error(s) => format!("error {s}").into(),
-            DiagnosticId::Lint(s) => format!("lint {s}").into(),
-        });
         let is_lint = db
             .code
             .as_ref()
             .is_some_and(|d| matches!(d, DiagnosticId::Lint(_)));
+
+        let code = db.code.map(|d| match d {
+            DiagnosticId::Error(s) => s.into(),
+            DiagnosticId::Lint(s) => format!("lint {s}").into(),
+        });
 
         let severity = if is_lint {
             IssueSeverity::Suggestion
@@ -140,8 +141,8 @@ impl Emitter for IssueEmitter {
             title = t.clone();
         } else {
             let mut message_split = message.split('\n');
-            title = message_split.next().unwrap().to_string().into();
-            message = message_split.remainder().unwrap_or("").to_string();
+            title = message_split.next().unwrap().trim().to_string().into();
+            message = message_split.remainder().unwrap_or("").trim().to_string();
         }
 
         let source = db.span.primary_span().map(|span| {

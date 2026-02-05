@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: no-map-async-cell
+message: Using `.map(async |...| { ...cell() })` causes non-deterministic cell order
+note: You probably want to first `try_join()` the async computations before wrapping them in a cell.
+severity: error
+language: Rust
+rule:
+  all:
+    - any:
+        - pattern: $_X.cell()
+        - pattern: $_X.resolved_cell()
+        - pattern: ResolvedVc::cell($_X)
+        - pattern: Vc::cell($_X)
+    - inside:
+        stopBy: end
+        all:
+          - any:
+              - pattern: 'async |$$$ARGS| $BODY'
+              - pattern: 'async move |$$$ARGS| $BODY'
+              - pattern: '|$$$ARGS| async { $$$BODY }'
+              - pattern: '|$$$ARGS| async move { $$$BODY }'
+          - inside:
+              stopBy: end
+              field: arguments
+              pattern: $EXPR.map($$$CLOSURE)

@@ -23,6 +23,12 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  createVaryParamsAccumulator,
+  emptyVaryParamsAccumulator,
+  getVaryParamsThenable,
+  type VaryParamsAccumulator,
+} from './vary-params'
 import type {
   UseCacheLayoutProps,
   UseCachePageProps,
@@ -219,11 +225,11 @@ async function createComponentTreeInternal(
       })
     : []
 
-  const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
+  const instantConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
     : undefined
   /** Whether this segment should use a runtime prefetch instead of a static prefetch. */
-  const hasRuntimePrefetch = prefetchConfig?.mode === 'runtime'
+  const hasRuntimePrefetch = instantConfig?.prefetch === 'runtime'
 
   const [Forbidden, forbiddenStyles] =
     authInterrupts && forbidden
@@ -403,7 +409,7 @@ async function createComponentTreeInternal(
   }
 
   // Handle dynamic segment params.
-  const segmentParam = getDynamicParamFromSegment(segment)
+  const segmentParam = getDynamicParamFromSegment(tree)
 
   // Create object holding the parent params and current params
   let currentParams: Params = parentParams
@@ -672,7 +678,8 @@ async function createComponentTreeInternal(
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
-    return [
+    return createSeedData(
+      ctx,
       createElement(
         Fragment,
         {
@@ -685,7 +692,10 @@ async function createComponentTreeInternal(
       loadingData,
       isPossiblyPartialResponse,
       hasRuntimePrefetch,
-    ]
+      // No user-provided component, so no params will be accessed. Use the
+      // pre-resolved empty tracker.
+      emptyVaryParamsAccumulator
+    )
   }
 
   const Component = MaybeComponent
@@ -705,7 +715,8 @@ async function createComponentTreeInternal(
     workStore.forceDynamic &&
     experimental.isRoutePPREnabled
   ) {
-    return [
+    return createSeedData(
+      ctx,
       createElement(
         Fragment,
         {
@@ -721,10 +732,20 @@ async function createComponentTreeInternal(
       loadingData,
       true,
       hasRuntimePrefetch,
-    ]
+      // force-dynamic postpones without rendering the component, so no params
+      // are accessed. The vary params are empty.
+      emptyVaryParamsAccumulator
+    )
   }
 
   const isClientComponent = isClientReference(layoutOrPageMod)
+
+  const varyParamsAccumulator =
+    isClientComponent && cacheComponents
+      ? // Client components with Cache Components enabled don't receive params
+        // from the server, so they have an empty vary params set.
+        emptyVaryParamsAccumulator
+      : createVaryParamsAccumulator()
 
   if (
     process.env.NODE_ENV === 'development' &&
@@ -776,13 +797,18 @@ async function createComponentTreeInternal(
       // their usage in case the current render mode tracks dynamic API usage.
       const params = createServerParamsForServerSegment(
         currentParams,
-        workStore
+        workStore,
+        varyParamsAccumulator
       )
 
       // If we are passing searchParams to a server component Page we need to
       // track their usage in case the current render mode tracks dynamic API
       // usage.
-      let searchParams = createServerSearchParamsForServerPage(query, workStore)
+      let searchParams = createServerSearchParamsForServerPage(
+        query,
+        workStore,
+        varyParamsAccumulator
+      )
 
       if (isUseCacheFunction(PageComponent)) {
         const UseCachePageComponent: ComponentType<UseCachePageProps> =
@@ -819,7 +845,8 @@ async function createComponentTreeInternal(
           )
         : pageElement
 
-    return [
+    return createSeedData(
+      ctx,
       createElement(
         Fragment,
         {
@@ -833,7 +860,8 @@ async function createComponentTreeInternal(
       loadingData,
       isPossiblyPartialResponse,
       hasRuntimePrefetch,
-    ]
+      varyParamsAccumulator
+    )
   } else {
     const SegmentComponent = Component
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
@@ -950,7 +978,8 @@ async function createComponentTreeInternal(
     } else {
       const params = createServerParamsForServerSegment(
         currentParams,
-        workStore
+        workStore,
+        varyParamsAccumulator
       )
 
       let serverSegment: React.ReactNode
@@ -1039,13 +1068,15 @@ async function createComponentTreeInternal(
         : segmentNode
 
     // For layouts we just render the component
-    return [
+    return createSeedData(
+      ctx,
       wrappedSegmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
       hasRuntimePrefetch,
-    ]
+      varyParamsAccumulator
+    )
   }
 }
 
@@ -1100,12 +1131,11 @@ function getRootParamsImpl(
   getDynamicParamFromSegment: GetDynamicParamFromSegment
 ): Params {
   const {
-    segment,
     modules: { layout },
     parallelRoutes,
   } = parseLoaderTree(loaderTree)
 
-  const segmentParam = getDynamicParamFromSegment(segment)
+  const segmentParam = getDynamicParamFromSegment(loaderTree)
 
   let currentParams: Params = parentParams
   if (segmentParam && segmentParam.value !== null) {
@@ -1188,4 +1218,36 @@ async function createBoundaryConventionElement({
       : element
 
   return [wrappedElement, pagePath] as const
+}
+
+function createSeedData(
+  ctx: AppRenderContext,
+  rsc: React.ReactNode,
+  parallelRoutes: Record<string, CacheNodeSeedData | null>,
+  loading: LoadingModuleData | null,
+  isPossiblyPartialResponse: boolean,
+  hasRuntimePrefetch: boolean,
+  varyParamsAccumulator: VaryParamsAccumulator | null
+): CacheNodeSeedData {
+  if (loading !== null) {
+    // If a loading.tsx boundary is present, wrap the component data in an
+    // additional context provider to pass the loading data to the next
+    // set of children.
+    // NOTE: The reason this is a separate wrapper from LayoutRouter is because
+    // not all segments render a LayoutRouter component, e.g. the root segment.
+    const LoadingBoundaryProvider = ctx.componentMod.LoadingBoundaryProvider
+    const createElement = ctx.componentMod.createElement
+    rsc = createElement(LoadingBoundaryProvider, {
+      loading: loading,
+      children: rsc,
+    })
+  }
+  return [
+    rsc,
+    parallelRoutes,
+    null,
+    isPossiblyPartialResponse,
+    hasRuntimePrefetch,
+    varyParamsAccumulator ? getVaryParamsThenable(varyParamsAccumulator) : null,
+  ]
 }

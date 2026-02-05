@@ -65,7 +65,10 @@ import {
   isMetadataRouteFile,
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
-import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
+import {
+  fillMetadataSegment,
+  normalizeMetadataPageToRoute,
+} from '../../../lib/metadata/get-metadata-route'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
@@ -85,11 +88,12 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
+  writeRouteTypesEntryFile,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
-import { Lockfile } from '../../../build/lockfile'
+import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 
 export type SetupOpts = {
@@ -143,12 +147,13 @@ async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
+    distDirRoot: opts.nextConfig.distDirRoot,
+    strictRouteTypes: Boolean(opts.nextConfig.experimental.strictRouteTypes),
     typeCheckPreflight: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
-    isolatedDevBuild: opts.nextConfig.experimental.isolatedDevBuild,
     appDir: opts.appDir,
     pagesDir: opts.pagesDir,
   })
@@ -183,9 +188,25 @@ async function startWatcher(
   let lockfile
   if (opts.nextConfig.experimental.lockDistDir) {
     fs.mkdirSync(distDir, { recursive: true })
+
+    // Create server info to store in the lockfile itself
+    // This allows other processes to discover the running server
+    const appUrl = `http://localhost:${opts.port}`
+    const serverInfo: DevServerInfo = {
+      pid: process.pid,
+      port: opts.port,
+      hostname: 'localhost',
+      appUrl,
+      startedAt: Date.now(),
+    }
+
     lockfile = await Lockfile.acquireWithRetriesOrExit(
       path.join(distDir, 'lock'),
-      'next dev'
+      'next dev',
+      true,
+      JSON.stringify(serverInfo),
+      opts.dir,
+      opts.nextConfig.distDir
     )
   }
 
@@ -244,8 +265,6 @@ async function startWatcher(
 
   await hotReloader.start()
 
-  // have to write this after starting hot-reloader since that
-  // cleans the dist dir
   const distTypesDir = path.join(distDir, 'types')
   await writeRouteTypesManifest(
     {
@@ -262,9 +281,21 @@ async function startWatcher(
       pageApiRoutes: new Set(),
       filePathToRoute: new Map(),
     },
-    path.join(distTypesDir, 'routes.d.ts'),
+    path.join(distTypesDir, 'route-types.d.ts'),
     opts.nextConfig
   )
+
+  // Write the entry file at {distDirRoot}/types/routes.d.ts for initial state
+  const initialEntryFilePath = path.join(
+    opts.dir,
+    opts.nextConfig.distDirRoot,
+    'types',
+    'routes.d.ts'
+  )
+  await writeRouteTypesEntryFile(initialEntryFilePath, distTypesDir, {
+    strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
+    typedRoutes: Boolean(nextConfig.typedRoutes),
+  })
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
@@ -374,7 +405,9 @@ async function startWatcher(
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
-    const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+    // Actual type files go to route-types.d.ts (not routes.d.ts)
+    // routes.d.ts is reserved for the entry file
+    const routeTypesFilePath = path.join(distDir, 'types', 'route-types.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
@@ -678,7 +711,16 @@ async function startWatcher(
           if (useFileSystemPublicRoutes) {
             // Static metadata files will be served from filesystem.
             if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
-              staticMetadataFiles.set(pageName, fileName)
+              // Use "-" placeholder for dynamic segments since static files have consistent content
+              const segment = path.posix.dirname(pageName)
+              const lastSegment = path.posix.basename(pageName)
+              const normalizedPath = fillMetadataSegment(
+                segment,
+                {},
+                lastSegment,
+                true
+              )
+              staticMetadataFiles.set(normalizedPath, fileName)
             } else {
               appFiles.add(pageName)
             }
@@ -1188,6 +1230,19 @@ async function startWatcher(
           // Generate cache-life types if cacheLife config exists
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
           writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
+
+          // Write the entry file at {distDirRoot}/types/routes.d.ts
+          // This ensures next-env.d.ts has a consistent import path
+          const entryFilePath = path.join(
+            opts.dir,
+            opts.nextConfig.distDirRoot,
+            'types',
+            'routes.d.ts'
+          )
+          await writeRouteTypesEntryFile(entryFilePath, distTypesDir, {
+            strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
+            typedRoutes: Boolean(nextConfig.typedRoutes),
+          })
         }
 
         if (!resolved) {
