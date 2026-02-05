@@ -211,7 +211,6 @@ export interface NapiPartialProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling?: boolean
-  isPersistentCachingEnabled?: boolean
 }
 export interface NapiDefineEnv {
   client: Array<NapiOptionEnvVar>

@@ -243,9 +243,6 @@ pub struct NapiPartialProjectOptions {
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
     pub no_mangling: Option<bool>,
-
-    // Whether persistent caching is enabled
-    pub is_persistent_caching_enabled: Option<bool>,
 }
 
 #[napi(object)]
@@ -342,7 +339,6 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             browserslist_query,
             no_mangling,
             write_routes_hashes_manifest,
-            is_persistent_caching_enabled,
         } = val;
         PartialProjectOptions {
             root_path,
@@ -359,7 +355,6 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             no_mangling,
             write_routes_hashes_manifest,
             debug_build_paths: None,
-            is_persistent_caching_enabled,
         }
     }
 }

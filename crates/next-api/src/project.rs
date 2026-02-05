@@ -327,9 +327,6 @@ pub struct PartialProjectOptions {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
-
-    /// Whether to enable persistent caching
-    pub is_persistent_caching_enabled: Option<bool>,
 }
 
 #[derive(
@@ -563,7 +560,6 @@ impl ProjectContainer {
             no_mangling,
             write_routes_hashes_manifest,
             debug_build_paths,
-            is_persistent_caching_enabled,
         } = options;
 
         let resolved_self = self.to_resolved().await?;
@@ -616,9 +612,6 @@ impl ProjectContainer {
         }
         if let Some(debug_build_paths) = debug_build_paths {
             new_options.debug_build_paths = Some(debug_build_paths);
-        }
-        if let Some(is_persistent_caching_enabled) = is_persistent_caching_enabled {
-            new_options.is_persistent_caching_enabled = is_persistent_caching_enabled;
         }
 
         // TODO: Handle mode switch, should prevent mode being switched.
