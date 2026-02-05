@@ -50,11 +50,12 @@ impl SourceTransform for BytesSourceTransform {
 
         let encoded = data_encoding::BASE64_NOPAD.encode(&bytes);
 
-        // Generate ES module that decodes base64 to Uint8Array
-        // Uses Uint8Array.fromBase64 (ES2024+) with atob fallback for older environments
-        // The /*#__PURE__*/ annotation marks the decode call as side-effect free for tree shaking
+        // Generate ES module that decodes base64 to Uint8Array.
+        // Uses Uint8Array.fromBase64 (ES2024+) with atob fallback for older environments.
+        // The /*#__PURE__*/ annotation marks the decode call as side-effect free for tree shaking.
         let code = format!(
-            r#"const decode = /*#__PURE__*/ Uint8Array.fromBase64 || function Uint8Array_fromBase64(base64) {{
+            r#"
+const decode = Uint8Array.fromBase64 || function(base64) {{
   const binaryString = atob(base64);
   const buffer = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {{
