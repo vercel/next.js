@@ -1555,8 +1555,8 @@ export async function fetchRouteOnCacheMiss(
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
   }
-  // Dev-only: Tell the server to perform a static pre-render for the Instant
-  // Navigation Testing API. In dev mode, static pre-renders don't normally happen.
+  // Tell the server to perform a static pre-render for the Instant Navigation
+  // Testing API. Static pre-renders don't normally happen during development.
   addInstantPrefetchHeaderIfLocked(headers)
 
   try {
@@ -1864,8 +1864,8 @@ export async function fetchSegmentOnCacheMiss(
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
   }
-  // Dev-only: Tell the server to perform a static pre-render for the Instant
-  // Navigation Testing API. In dev mode, static pre-renders don't normally happen.
+  // Tell the server to perform a static pre-render for the Instant Navigation
+  // Testing API. Static pre-renders don't normally happen during development.
   addInstantPrefetchHeaderIfLocked(headers)
 
   const requestUrl = isOutputExportMode
@@ -2616,15 +2616,15 @@ export function canNewFetchStrategyProvideMoreContent(
 }
 
 /**
- * Dev-only: Adds the instant prefetch header if the navigation lock is active.
- * Uses a lazy require to ensure dead code elimination in production.
+ * Adds the instant prefetch header if the navigation lock is active.
+ * Uses a lazy require to ensure dead code elimination.
  */
 function addInstantPrefetchHeaderIfLocked(
   headers: Record<string, string>
 ): void {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { isNavigationLocked } =
-      require('./dev-navigation-lock') as typeof import('./dev-navigation-lock')
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
     if (isNavigationLocked()) {
       headers[NEXT_INSTANT_PREFETCH_HEADER] = '1'
     }

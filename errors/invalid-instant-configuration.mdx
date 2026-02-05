@@ -1,26 +1,26 @@
 ---
-title: Invalid Prefetch Configuration
+title: Invalid Instant Configuration
 ---
 
 ## Why This Message Occurred
 
-You provided an invalid configuration for `export const unstable_prefetch` in a Layout or Page file.
+You provided an invalid configuration for `export const unstable_instant` in a Layout or Page file.
 
 ### Example of Correct Usage
 
 #### Static Prefetching
 
 ```tsx filename="app/.../layout.tsx"
-export const unstable_prefetch = {
-  mode: 'static',
+export const unstable_instant = {
+  prefetch: 'static',
 }
 ```
 
 #### Runtime Prefetching
 
 ```tsx filename="app/[slug]/page.tsx"
-export const unstable_prefetch = {
-  mode: 'runtime',
+export const unstable_instant = {
+  prefetch: 'runtime',
   samples: [
     {
       cookies: [{ name: 'experiment', value: 'A' }],

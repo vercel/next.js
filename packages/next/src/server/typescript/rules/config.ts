@@ -146,7 +146,7 @@ const API_DOCS: Record<
       '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
   },
-  unstable_prefetch: {
+  unstable_instant: {
     description: `Specifies the default prefetching behavior for this segment. This configuration is currently under development and will change.`,
     link: '(docs coming soon)',
     type: 'object',
@@ -154,7 +154,7 @@ const API_DOCS: Record<
     // with the way this plugin is currently structured.
     // For now, since we don't provide an `options` here, we won't do any validation in
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
-    insertText: 'unstable_prefetch = { mode: "static" };',
+    insertText: 'unstable_instant = { mode: "static" };',
   },
 }
 
