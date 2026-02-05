@@ -747,7 +747,7 @@ export async function handleBuildComplete({
               }
             })
           output.pathname = '/_middleware'
-          output.id = page.name
+          output.id = '/_middleware'
           outputs.middleware = output
         } else {
           currentOutputs.push(output)
