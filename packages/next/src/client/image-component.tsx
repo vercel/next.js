@@ -34,7 +34,14 @@ import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
 
 // This is replaced by webpack define plugin
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+const globalImageConfig =
+  typeof globalThis !== 'undefined'
+    ? ((globalThis as any).__NEXT_IMAGE_OPTS as ImageConfigComplete | undefined)
+    : undefined
+
+const configEnv =
+  (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete | undefined) ??
+  globalImageConfig
 
 if (typeof window === 'undefined') {
   ;(globalThis as any).__NEXT_IMAGE_IMPORTED = true
