@@ -86,6 +86,12 @@ describe('Image quality config', () => {
 })
         `,
       },
+      dependencies: {
+        jest: '29.7.0',
+        'jest-environment-jsdom': '29.7.0',
+        '@testing-library/react': '15.0.2',
+        '@testing-library/jest-dom': '5.17.0',
+      },
     })
   })
 
