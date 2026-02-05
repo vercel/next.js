@@ -30,7 +30,15 @@ function normalizeSrc(src: string): string {
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+// This is replaced by webpack define plugin
+const globalImageConfig =
+  typeof globalThis !== 'undefined'
+    ? ((globalThis as any).__NEXT_IMAGE_OPTS as ImageConfigComplete | undefined)
+    : undefined
+
+const configEnv =
+  (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete | undefined) ??
+  globalImageConfig
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,
