@@ -25,7 +25,7 @@ const InstantConfigStaticSchema = z
   .object({
     prefetch: z.literal('static'),
     from: z.array(z.string()).optional(),
-    expectUnableToVerify: z.boolean().optional(),
+    unstable_disableValidation: z.boolean().optional(),
   })
   .strict()
 
@@ -34,16 +34,19 @@ const InstantConfigRuntimeSchema = z
     prefetch: z.literal('runtime'),
     samples: z.array(RuntimeSampleSchema).min(1),
     from: z.array(z.string()).optional(),
-    expectUnableToVerify: z.boolean().optional(),
+    unstable_disableValidation: z.boolean().optional(),
   })
   .strict()
 
-const InstantConfigSchema = z.discriminatedUnion('prefetch', [
-  InstantConfigStaticSchema,
-  InstantConfigRuntimeSchema,
+const InstantConfigSchema = z.union([
+  z.discriminatedUnion('prefetch', [
+    InstantConfigStaticSchema,
+    InstantConfigRuntimeSchema,
+  ]),
+  z.literal(false),
 ])
 
-export type InstantConfig = InstantConfigStatic | InstantConfigRuntime
+export type InstantConfig = InstantConfigStatic | InstantConfigRuntime | false
 export type InstantConfigForTypeCheckInternal =
   | __GenericInstantConfig
   | InstantConfig
@@ -57,20 +60,20 @@ interface __GenericInstantConfig {
   prefetch: string
   samples?: Array<WideRuntimeSample>
   from?: string[]
-  expectUnableToVerify?: boolean
+  unstable_disableValidation?: boolean
 }
 
 interface InstantConfigStatic {
   prefetch: 'static'
   from?: string[]
-  expectUnableToVerify?: boolean
+  unstable_disableValidation?: boolean
 }
 
 interface InstantConfigRuntime {
   prefetch: 'runtime'
   samples: Array<RuntimeSample>
   from?: string[]
-  expectUnableToVerify?: boolean
+  unstable_disableValidation?: boolean
 }
 
 type WideRuntimeSample = {
@@ -175,7 +178,7 @@ export function parseAppSegmentConfig(
           case 'unstable_instant': {
             return {
               // @TODO replace this link with a link to the docs when they are written
-              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`, or \`false\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
             }
           }
           default:

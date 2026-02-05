@@ -42,6 +42,11 @@ export { Postpone } from './rsc/postpone'
 export { taintObjectReference } from './rsc/taint'
 export { collectSegmentData } from './collect-segment-data'
 
+export const InstantValidation =
+  process.env.NODE_ENV === 'development' && process.env.NEXT_RUNTIME !== 'edge'
+    ? (require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation'))
+    : undefined
+
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
