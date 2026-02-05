@@ -1,4 +1,5 @@
 import path from 'path'
+import crypto from 'crypto'
 import fs from 'fs/promises'
 import { pathToFileURL } from 'url'
 import * as Log from '../output/log'
@@ -75,18 +76,22 @@ interface SharedRouteFields {
    * runtime is which runtime the entrypoint is built for
    */
   runtime: 'nodejs' | 'edge'
+
   /**
    * assets are all necessary traced assets that could be
    * loaded by the output to handle a request e.g. traced
    * node_modules or necessary manifests for Next.js.
-   * The key is the relative path from the repo root and the value
-   * is the absolute path to the file
+   * The key is the relative path from the repo root
    */
   assets: Record<string, string>
 
   /**
-   * wasmAssets are bundled wasm files with mapping of name
-   * to filePath on disk
+   * Hashes of the contents of each `assets` entry (not including the output path!)
+   */
+  assetsHashes: Record<string, string>
+
+  /**
+   * wasmAssets are bundled wasm files. The key is the (opaque) name of asset
    */
   wasmAssets?: Record<string, string>
 
@@ -558,158 +563,42 @@ export async function handleBuildComplete({
         })
       }
 
-      const sharedNodeAssets: Record<string, string> = {}
-      const pagesSharedNodeAssets: Record<string, string> = {}
-      const appPagesSharedNodeAssets: Record<string, string> = {}
-
-      for (const file of requiredServerFiles) {
-        // add to shared node assets
-        const filePath = path.join(dir, file)
-        const fileOutputPath = path.relative(tracingRoot, filePath)
-        sharedNodeAssets[fileOutputPath] = filePath
-      }
-
-      // add "next/setup-node-env" stub so it can be required top-level
-      // TODO: should we make this always available without adapters
-      const setupNodeStubPath = path.join(
-        path.dirname(require.resolve('next/package.json')),
-        'setup-node-env.js'
-      )
-      sharedNodeAssets[path.relative(tracingRoot, setupNodeStubPath)] =
-        require.resolve('next/dist/build/adapter/setup-node-env.external')
-
-      const moduleTypes = ['app-page', 'pages'] as const
-
-      for (const type of moduleTypes) {
-        const currentDependencies: string[] = []
-        const modulePath = require.resolve(
-          `next/dist/server/route-modules/${type}/module.compiled`
-        )
-        currentDependencies.push(modulePath)
-
-        const contextDir = path.join(
-          path.dirname(modulePath),
-          'vendored',
-          'contexts'
-        )
-
-        for (const item of await fs.readdir(contextDir)) {
-          if (item.match(/\.(mjs|cjs|js)$/)) {
-            currentDependencies.push(path.join(contextDir, item))
-          }
-        }
-
-        for (const dependencyPath of currentDependencies) {
-          const rootRelativeFilePath = path.relative(
-            tracingRoot,
-            dependencyPath
-          )
-
-          if (type === 'pages') {
-            pagesSharedNodeAssets[rootRelativeFilePath] = path.join(
-              tracingRoot,
-              rootRelativeFilePath
-            )
-          } else {
-            appPagesSharedNodeAssets[rootRelativeFilePath] = path.join(
-              tracingRoot,
-              rootRelativeFilePath
-            )
-          }
-        }
-      }
-
-      if (bundler !== Bundler.Turbopack) {
-        const { nodeFileTrace } =
-          require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
-        const { makeIgnoreFn } =
-          require('../collect-build-traces') as typeof import('../collect-build-traces')
-
-        const sharedTraceIgnores = [
-          '**/next/dist/compiled/next-server/**/*.dev.js',
-          '**/next/dist/compiled/webpack/*',
-          '**/node_modules/webpack5/**/*',
-          '**/next/dist/server/lib/route-resolver*',
-          'next/dist/compiled/semver/semver/**/*.js',
-          '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
-          '**/*.d.ts',
-          '**/*.map',
-          '**/next/dist/pages/**/*',
-          '**/node_modules/sharp/**/*',
-          '**/@img/sharp-libvips*/**/*',
-          '**/next/dist/compiled/edge-runtime/**/*',
-          '**/next/dist/server/web/sandbox/**/*',
-          '**/next/dist/server/post-process.js',
-        ]
-        const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
-
-        // These are modules that are necessary for bootstrapping node env
-        const necessaryNodeDependencies = [
-          require.resolve('next/dist/server/node-environment'),
-          require.resolve('next/dist/server/require-hook'),
-          require.resolve('next/dist/server/node-polyfill-crypto'),
-          ...Object.values(defaultOverrides).filter((item) =>
-            path.extname(item)
-          ),
-        ]
-
-        const { fileList, esmFileList } = await nodeFileTrace(
-          necessaryNodeDependencies,
-          {
-            base: tracingRoot,
-            ignore: sharedIgnoreFn,
-          }
-        )
-        esmFileList.forEach((item) => fileList.add(item))
-
-        for (const rootRelativeFilePath of fileList) {
-          sharedNodeAssets[rootRelativeFilePath] = path.join(
-            tracingRoot,
-            rootRelativeFilePath
-          )
-        }
-      }
-
-      if (hasInstrumentationHook) {
-        const assets = await handleTraceFiles(
-          path.join(distDir, 'server', 'instrumentation.js.nft.json'),
-          'neutral'
-        )
-        const fileOutputPath = path.relative(
-          tracingRoot,
-          path.join(distDir, 'server', 'instrumentation.js')
-        )
-        sharedNodeAssets[fileOutputPath] = path.join(
-          distDir,
-          'server',
-          'instrumentation.js'
-        )
-        Object.assign(sharedNodeAssets, assets)
-      }
+      const {
+        sharedNodeAssets,
+        sharedNodeAssetsHashes,
+        pagesSharedNodeAssets,
+        pagesSharedNodeAssetsHashes,
+        appPagesSharedNodeAssets,
+        appPagesSharedNodeAssetsHashes,
+      } = await getSharedNodeAssets({
+        distDir,
+        requiredServerFiles,
+        dir,
+        tracingRoot,
+        bundler,
+        hasInstrumentationHook,
+      })
 
       async function handleTraceFiles(
         traceFilePath: string,
         type: 'pages' | 'app' | 'neutral'
-      ): Promise<Record<string, string>> {
-        const assets: Record<string, string> = Object.assign(
-          {},
+      ) {
+        const assets = {}
+        const assetsHashes = {}
+        await loadNFT(assets, assetsHashes, tracingRoot, traceFilePath)
+        Object.assign(
+          assets,
           sharedNodeAssets,
           type === 'pages' ? pagesSharedNodeAssets : {},
           type === 'app' ? appPagesSharedNodeAssets : {}
         )
-        const traceData = JSON.parse(
-          await fs.readFile(traceFilePath, 'utf8')
-        ) as {
-          files: string[]
-        }
-        const traceFileDir = path.dirname(traceFilePath)
-
-        for (const relativeFile of traceData.files) {
-          const tracedFilePath = path.join(traceFileDir, relativeFile)
-          const fileOutputPath = path.relative(tracingRoot, tracedFilePath)
-          assets[fileOutputPath] = tracedFilePath
-        }
-        return assets
+        Object.assign(
+          assetsHashes,
+          sharedNodeAssetsHashes,
+          type === 'pages' ? pagesSharedNodeAssetsHashes : {},
+          type === 'app' ? appPagesSharedNodeAssetsHashes : {}
+        )
+        return { assets, assetsHashes }
       }
 
       async function handleEdgeFunction(
@@ -767,30 +656,23 @@ export async function handleBuildComplete({
             handlerExport: 'handler',
           },
           assets: {},
+          assetsHashes: {},
+          // Computing assetsHash for edge functions isn't implemented for now
           wasmAssets: {},
           config: {
             env: page.env,
           },
         }
 
-        function handleFile(file: string) {
+        for (const file of page.files) {
           const originalPath = path.join(distDir, file)
           const fileOutputPath = path.relative(
             config.distDir,
             path.join(path.relative(tracingRoot, distDir), file)
           )
-          if (!output.assets) {
-            output.assets = {}
-          }
           output.assets[fileOutputPath] = originalPath
         }
-        for (const file of page.files) {
-          handleFile(file)
-        }
         for (const item of [...(page.assets || [])]) {
-          if (!output.assets) {
-            output.assets = {}
-          }
           output.assets[item.name] = path.join(distDir, item.filePath)
         }
         for (const item of page.wasm || []) {
@@ -941,14 +823,15 @@ export async function handleBuildComplete({
         }
 
         const pageTraceFile = `${pageFile}.nft.json`
-        const assets = await handleTraceFiles(pageTraceFile, 'pages').catch(
-          (err) => {
-            if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
-              Log.warn(`Failed to locate traced assets for ${pageFile}`, err)
-            }
-            return {} as Record<string, string>
+        const { assets, assetsHashes } = await handleTraceFiles(
+          pageTraceFile,
+          'pages'
+        ).catch((err) => {
+          if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
+            Log.warn(`Failed to locate traced assets for ${pageFile}`, err)
           }
-        )
+          return { assets: {}, assetsHashes: {} }
+        })
         const functionConfig = functionsConfigManifest.functions[route] || {}
         let sourcePage = route.replace(/^\//, '')
 
@@ -963,6 +846,7 @@ export async function handleBuildComplete({
           pathname: route,
           sourcePage,
           assets,
+          assetsHashes,
           runtime: 'nodejs',
           config: {
             maxDuration: functionConfig.maxDuration,
@@ -1040,7 +924,10 @@ export async function handleBuildComplete({
       if (hasNodeMiddleware) {
         const middlewareFile = path.join(distDir, 'server', 'middleware.js')
         const middlewareTrace = `${middlewareFile}.nft.json`
-        const assets = await handleTraceFiles(middlewareTrace, 'neutral')
+        const { assets, assetsHashes } = await handleTraceFiles(
+          middlewareTrace,
+          'neutral'
+        )
         const functionConfig =
           functionsConfigManifest.functions['/_middleware'] || {}
 
@@ -1049,6 +936,7 @@ export async function handleBuildComplete({
           id: '/_middleware',
           sourcePage: 'middleware',
           assets,
+          assetsHashes,
           type: AdapterOutputType.MIDDLEWARE,
           runtime: 'nodejs',
           filePath: middlewareFile,
@@ -1110,21 +998,26 @@ export async function handleBuildComplete({
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
           const pageTraceFile = `${pageFile}.nft.json`
-          const assets = await handleTraceFiles(pageTraceFile, 'app').catch(
-            (err) => {
-              Log.warn(`Failed to copy traced files for ${pageFile}`, err)
-              return {} as Record<string, string>
-            }
-          )
+          let { assets, assetsHashes } = await handleTraceFiles(
+            pageTraceFile,
+            'app'
+          ).catch((err) => {
+            Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+            return { assets: {}, assetsHashes: {} }
+          })
 
           // If this is a parallel route we just need to merge
           // the assets as they share the same pathname
           const existingOutput = appOutputMap[normalizedPage]
           if (existingOutput) {
             Object.assign(existingOutput.assets, assets)
-            existingOutput.assets[path.relative(tracingRoot, pageFile)] =
+            Object.assign(existingOutput.assetsHashes, assetsHashes)
+            await pushAsset(
+              existingOutput.assets,
+              existingOutput.assetsHashes,
+              path.relative(tracingRoot, pageFile),
               pageFile
-
+            )
             continue
           }
 
@@ -1137,6 +1030,7 @@ export async function handleBuildComplete({
               id: normalizedPage,
               sourcePage: page,
               assets,
+              assetsHashes,
               type: page.endsWith('/route')
                 ? AdapterOutputType.APP_ROUTE
                 : AdapterOutputType.APP_PAGE,
@@ -2212,4 +2106,217 @@ export async function handleBuildComplete({
       throw err
     }
   }
+}
+
+async function getSharedNodeAssets({
+  dir,
+  bundler,
+  distDir,
+  tracingRoot,
+  requiredServerFiles,
+  hasInstrumentationHook,
+}: {
+  dir: string
+  bundler: Bundler
+  distDir: string
+  tracingRoot: string
+  requiredServerFiles: string[]
+  hasInstrumentationHook: boolean
+}) {
+  const sharedNodeAssets = {}
+  const sharedNodeAssetsHashes = {}
+  const pagesSharedNodeAssets = {}
+  const pagesSharedNodeAssetsHashes = {}
+  const appPagesSharedNodeAssets = {}
+  const appPagesSharedNodeAssetsHashes = {}
+
+  for (const file of requiredServerFiles) {
+    // add to shared node assets
+    const filePath = path.join(dir, file)
+    const fileOutputPath = path.relative(tracingRoot, filePath)
+    await pushAsset(
+      sharedNodeAssets,
+      sharedNodeAssetsHashes,
+      fileOutputPath,
+      filePath
+    )
+  }
+
+  const moduleTypes = ['app-page', 'pages'] as const
+
+  for (const type of moduleTypes) {
+    const currentDependencies: string[] = []
+    const modulePath = require.resolve(
+      `next/dist/server/route-modules/${type}/module.compiled`
+    )
+    currentDependencies.push(modulePath)
+
+    const contextDir = path.join(
+      path.dirname(modulePath),
+      'vendored',
+      'contexts'
+    )
+
+    for (const item of await fs.readdir(contextDir)) {
+      if (item.match(/\.(mjs|cjs|js)$/)) {
+        currentDependencies.push(path.join(contextDir, item))
+      }
+    }
+
+    for (const dependencyPath of currentDependencies) {
+      const rootRelativeFilePath = path.relative(tracingRoot, dependencyPath)
+
+      if (type === 'pages') {
+        await pushAsset(
+          sharedNodeAssets,
+          sharedNodeAssetsHashes,
+          rootRelativeFilePath,
+          path.join(tracingRoot, rootRelativeFilePath)
+        )
+      } else {
+        await pushAsset(
+          appPagesSharedNodeAssets,
+          appPagesSharedNodeAssetsHashes,
+          rootRelativeFilePath,
+          path.join(tracingRoot, rootRelativeFilePath)
+        )
+      }
+    }
+  }
+
+  // add "next/setup-node-env" stub so it can be required top-level
+  // TODO: should we make this always available without adapters
+  const setupNodeStubPath = path.join(
+    path.dirname(require.resolve('next/package.json')),
+    'setup-node-env.js'
+  )
+  await pushAsset(
+    sharedNodeAssets,
+    sharedNodeAssetsHashes,
+    path.relative(tracingRoot, setupNodeStubPath),
+    require.resolve('next/dist/build/adapter/setup-node-env.external')
+  )
+
+  if (bundler !== Bundler.Turbopack) {
+    const { nodeFileTrace } =
+      require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+    const { makeIgnoreFn } =
+      require('../collect-build-traces') as typeof import('../collect-build-traces')
+
+    const sharedTraceIgnores = [
+      '**/next/dist/compiled/next-server/**/*.dev.js',
+      '**/next/dist/compiled/webpack/*',
+      '**/node_modules/webpack5/**/*',
+      '**/next/dist/server/lib/route-resolver*',
+      'next/dist/compiled/semver/semver/**/*.js',
+      '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
+      '**/*.d.ts',
+      '**/*.map',
+      '**/next/dist/pages/**/*',
+      '**/node_modules/sharp/**/*',
+      '**/@img/sharp-libvips*/**/*',
+      '**/next/dist/compiled/edge-runtime/**/*',
+      '**/next/dist/server/web/sandbox/**/*',
+      '**/next/dist/server/post-process.js',
+    ]
+    const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
+
+    // These are modules that are necessary for bootstrapping node env
+    const necessaryNodeDependencies = [
+      require.resolve('next/dist/server/node-environment'),
+      require.resolve('next/dist/server/require-hook'),
+      require.resolve('next/dist/server/node-polyfill-crypto'),
+      ...Object.values(defaultOverrides).filter((item) => path.extname(item)),
+    ]
+
+    const { fileList, esmFileList } = await nodeFileTrace(
+      necessaryNodeDependencies,
+      {
+        base: tracingRoot,
+        ignore: sharedIgnoreFn,
+      }
+    )
+    esmFileList.forEach((item) => fileList.add(item))
+
+    for (const rootRelativeFilePath of fileList) {
+      await pushAsset(
+        sharedNodeAssets,
+        sharedNodeAssetsHashes,
+        rootRelativeFilePath,
+        path.join(tracingRoot, rootRelativeFilePath)
+      )
+    }
+  }
+
+  if (hasInstrumentationHook) {
+    await loadNFT(
+      sharedNodeAssets,
+      sharedNodeAssetsHashes,
+      tracingRoot,
+      path.join(distDir, 'server', 'instrumentation.js.nft.json')
+    )
+
+    const fileOutputPath = path.relative(
+      tracingRoot,
+      path.join(distDir, 'server', 'instrumentation.js')
+    )
+    await pushAsset(
+      sharedNodeAssets,
+      sharedNodeAssetsHashes,
+      fileOutputPath,
+      path.join(distDir, 'server', 'instrumentation.js')
+    )
+  }
+
+  return {
+    sharedNodeAssets,
+    sharedNodeAssetsHashes,
+    pagesSharedNodeAssets,
+    pagesSharedNodeAssetsHashes,
+    appPagesSharedNodeAssets,
+    appPagesSharedNodeAssetsHashes,
+  }
+}
+
+async function pushAsset(
+  assets: Record<string, string>,
+  assetsHashes: Record<string, string>,
+  targetFilePath: string,
+  sourceFilePath: string
+) {
+  if (!(targetFilePath in assets)) {
+    assets[targetFilePath] = sourceFilePath
+    assetsHashes[targetFilePath] = await hashFile(sourceFilePath)
+  }
+}
+
+async function loadNFT(
+  assets: Record<string, string>,
+  assetsHashes: Record<string, string>,
+  tracingRoot: string,
+  traceFilePath: string
+) {
+  const { files, fileHashes } = (await JSON.parse(
+    await fs.readFile(traceFilePath, 'utf8')
+  )) as {
+    files: string[]
+    fileHashes: string[]
+  }
+
+  const traceFileDir = path.dirname(traceFilePath)
+  for (let i = 0; i < files.length; i++) {
+    const relativeFile = files[i]
+    const contentHash = fileHashes[i]
+    const tracedFilePath = path.join(traceFileDir, relativeFile)
+    const fileOutputPath = path.relative(tracingRoot, tracedFilePath)
+    assets[fileOutputPath] = tracedFilePath
+    assetsHashes[fileOutputPath] = contentHash
+  }
+}
+
+async function hashFile(filePath: string): Promise<string> {
+  return crypto
+    .createHash('sha256')
+    .update(await fs.readFile(filePath))
+    .digest('hex')
 }
