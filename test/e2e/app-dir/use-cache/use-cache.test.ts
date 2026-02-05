@@ -486,6 +486,7 @@ describe('use-cache', () => {
           '/directive-in-node-modules/without-handler',
           '/draft-mode/with-cookies',
           '/draft-mode/without-cookies',
+          '/fetch-revalidate',
           '/form',
           '/imported-from-client',
           '/logs',
@@ -639,9 +640,15 @@ describe('use-cache', () => {
     const browser = await next.browser('/fetch-revalidate')
 
     const initialValue = await browser.elementByCss('#random').text()
-    await browser.refresh()
 
-    expect(await browser.elementByCss('#random').text()).not.toBe(initialValue)
+    // Revalidate is set to 1 second, so after waiting the value should change.
+    await retry(async () => {
+      await browser.refresh()
+
+      expect(await browser.elementByCss('#random').text()).not.toBe(
+        initialValue
+      )
+    })
   })
 
   it('should cache fetch without no-store', async () => {
@@ -1435,6 +1442,49 @@ describe('use-cache', () => {
       })
     })
   }
+
+  it('should allow nested short-lived caches after connection()', async () => {
+    // Check the prerendered shell (no JS).
+    let browser = await next.browser('/short-lived-caches', {
+      disableJavaScript: true,
+    })
+
+    // Static content should be in the shell.
+    expect(await browser.elementById('static').text()).toBe('Static content')
+
+    // Explicit long cacheLife should be in the shell despite short-lived inner
+    // caches.
+    expect(
+      await browser.elementById('explicit-long-revalidate-zero').text()
+    ).toBeDateString()
+    expect(
+      await browser.elementById('explicit-long-low-expire').text()
+    ).toBeDateString()
+
+    // Now check with JS enabled to verify dynamic content loads.
+    browser = await next.browser('/short-lived-caches', {
+      pushErrorAsConsoleLog: true,
+    })
+
+    // Dynamic content should eventually render.
+    await retry(async () => {
+      // No explicit outer cacheLife (after connection()).
+      expect(
+        await browser.elementById('revalidate-zero').text()
+      ).toBeDateString()
+      expect(await browser.elementById('low-expire').text()).toBeDateString()
+
+      // Explicit short cacheLife - excluded from prerender.
+      expect(
+        await browser.elementById('explicit-revalidate-zero').text()
+      ).toBeDateString()
+      expect(
+        await browser.elementById('explicit-low-expire').text()
+      ).toBeDateString()
+    })
+
+    await assertNoConsoleErrors(browser)
+  })
 })
 
 async function getSanitizedLogs(browser: Playwright): Promise<string[]> {

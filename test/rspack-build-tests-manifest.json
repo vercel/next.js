@@ -7273,7 +7273,8 @@
   },
   "test/e2e/app-dir/server-action-logging/server-action-logging.test.ts": {
     "passed": [
-      "server-action-logging should not log server actions in production mode"
+      "server-action-logging should not log server actions in production mode",
+      "server-action-logging when logging.serverFunctions is disabled should not log server actions"
     ],
     "failed": [],
     "pending": [],

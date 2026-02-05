@@ -23,8 +23,8 @@ If your random value is cacheable, move the `Math.random()` call to a `"use cach
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
-  mode: 'runtime',
+export const unstable_instant = {
+  prefetch: 'runtime',
   samples: [...],
 }
 
@@ -40,8 +40,8 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
-  mode: 'runtime',
+export const unstable_instant = {
+  prefetch: 'runtime',
   samples: [...],
 }
 
@@ -68,8 +68,8 @@ If you want the random value to be evaluated on each Request precede it with `aw
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
-  mode: 'runtime',
+export const unstable_instant = {
+  prefetch: 'runtime',
   samples: [...],
 }
 
@@ -85,8 +85,8 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = {
-  mode: 'runtime',
+export const unstable_instant = {
+  prefetch: 'runtime',
   samples: [...],
 }
 
