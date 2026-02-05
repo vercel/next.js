@@ -824,13 +824,16 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
         let id = format!("entries_{}", format_number(entry_count));
 
         // Benchmark hit case (lookup keys that exist)
-        group.bench_function(format!("{id}/hit"), |b| {
+        group.bench_function(format!("{id}/hit/uncached"), |b| {
             let (_, sst, key_block_cache, value_block_cache, keys, rng) = &*data;
             let mut rng = rng.lock();
-            b.iter_batched(
-                || {
+            iter_batched_with_init(
+                b,
+                |_| {
                     key_block_cache.clear();
                     value_block_cache.clear();
+                },
+                |_| {
                     let idx = rng.random_range(0..keys.len());
                     keys[idx]
                 },
@@ -840,18 +843,40 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                         .unwrap();
                     black_box(result)
                 },
-                BatchSize::SmallInput,
+                BatchSize::PerIteration,
+            );
+        });
+
+        group.bench_function(format!("{id}/hit/cached"), |b| {
+            let (_, sst, key_block_cache, value_block_cache, keys, _) = &*data;
+            iter_batched_with_init(
+                b,
+                |_| {
+                    key_block_cache.clear();
+                    value_block_cache.clear();
+                },
+                |i| keys[i as usize % keys.len()],
+                |(key, hash)| {
+                    let result = sst
+                        .lookup(hash, &key, key_block_cache, value_block_cache)
+                        .unwrap();
+                    black_box(result)
+                },
+                BatchSize::NumBatches(1),
             );
         });
 
         // Benchmark miss case (lookup random keys not in file)
-        group.bench_function(format!("{id}/miss"), |b| {
+        group.bench_function(format!("{id}/miss/uncached"), |b| {
             let (_, sst, key_block_cache, value_block_cache, _, rng) = &*data;
             let mut rng = rng.lock();
-            b.iter_batched(
-                || {
+            iter_batched_with_init(
+                b,
+                |_| {
                     key_block_cache.clear();
                     value_block_cache.clear();
+                },
+                |_| {
                     // Generate random key (very unlikely to be in file)
                     let key = random_key(&mut rng, 8);
                     let hash = hash_key(&key);
@@ -863,7 +888,40 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                         .unwrap();
                     black_box(result)
                 },
-                BatchSize::SmallInput,
+                BatchSize::PerIteration,
+            );
+        });
+
+        group.bench_function(format!("{id}/miss/cached"), |b| {
+            let (_, sst, key_block_cache, value_block_cache, _, rng) = &*data;
+            let mut rng = rng.lock();
+            let miss_keys = UnsafeCell::new(Vec::new());
+            iter_batched_with_init(
+                b,
+                |batch_size| {
+                    key_block_cache.clear();
+                    value_block_cache.clear();
+
+                    // SAFETY: We are the only ones mutating miss_keys during this initialization
+                    // phase
+                    let miss_keys = unsafe { &mut *miss_keys.get() };
+                    while miss_keys.len() < batch_size as usize {
+                        let key = random_key(&mut rng, 8);
+                        let hash = hash_key(&key);
+                        miss_keys.push((key, hash));
+                    }
+                },
+                |i| {
+                    let miss_keys = unsafe { &*miss_keys.get() };
+                    &miss_keys[i as usize]
+                },
+                |(key, hash)| {
+                    let result = sst
+                        .lookup(*hash, &key, key_block_cache, value_block_cache)
+                        .unwrap();
+                    black_box(result)
+                },
+                BatchSize::NumBatches(1),
             );
         });
     }
@@ -977,9 +1035,12 @@ fn bench_block_cache(c: &mut Criterion) {
             let mut rng = rng.lock();
             let mut iteration = iteration.lock();
             *iteration += 1;
-            b.iter_batched(
-                || {
+            iter_batched_with_init(
+                b,
+                |_| {
                     cache.retain(|(key_prefix, _), _| *key_prefix == 1u32);
+                },
+                |_| {
                     // Generate a key that won't be in the cache (different sequence number)
                     let key = (*iteration, rng.random::<u16>());
                     (key, block.clone())
@@ -993,7 +1054,7 @@ fn bench_block_cache(c: &mut Criterion) {
                     }
                     GuardResult::Timeout => unreachable!(),
                 },
-                BatchSize::LargeInput,
+                BatchSize::PerIteration,
             );
         });
     }
