@@ -714,8 +714,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/dev-output/dev-output.test.ts": {
-    "passed": ["dev-output shows Cache Components indicator when enabled"],
-    "failed": [],
+    "passed": [],
+    "failed": ["dev-output shows Cache Components indicator when enabled"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2776,11 +2776,10 @@
   },
   "test/e2e/app-dir/actions-navigation/index.test.ts": {
     "passed": [
-      "app-dir action handling should handle actions correctly after following a relative link"
-    ],
-    "failed": [
+      "app-dir action handling should handle actions correctly after following a relative link",
       "app-dir action handling should handle actions correctly after navigation / redirection events"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5778,10 +5777,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/interception-routes-output-export/interception-routes-output-export.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "interception-routes-output-export should error when using interception routes with static export"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8337,10 +8336,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/proxy-with-middleware/proxy-with-middleware.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "proxy-with-middleware should error when both middleware and proxy files are detected"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9263,10 +9262,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/no-prefetch/no-prefetch.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "navigating without a prefetch can show a loading boundary from the dynamic response"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9380,7 +9379,8 @@
       "server-action-logging should log server action with object argument",
       "server-action-logging should log server action with promise argument",
       "server-action-logging should log successful server action",
-      "server-action-logging should show relative file path in log"
+      "server-action-logging should show relative file path in log",
+      "server-action-logging when logging.serverFunctions is disabled should not log server actions"
     ],
     "failed": [],
     "pending": [],
@@ -9691,9 +9691,10 @@
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
       "typed-routes should generate RouteContext type for route handlers",
+      "typed-routes should generate route types correctly",
       "typed-routes should update route types file when routes change"
     ],
-    "failed": ["typed-routes should generate route types correctly"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9932,6 +9933,7 @@
       "use-cache should dedupe cached data in the RSC payload",
       "use-cache should dedupe with react cache inside \"use cache\"",
       "use-cache should not have unhandled rejection of Request data promises when use cache is enabled without cacheComponents",
+      "use-cache should not log \"use cache\" functions called from client",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled, with cookies",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled, without cookies",
       "use-cache should not read nor write cached data when draft mode is enabled js enabled, with cookies",

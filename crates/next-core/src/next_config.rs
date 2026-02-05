@@ -19,7 +19,7 @@ use turbopack::module_options::{
 };
 use turbopack_core::{
     chunk::SourceMapsType,
-    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
@@ -1097,6 +1097,8 @@ pub struct ExperimentalConfig {
     turbopack_infer_module_side_effects: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
+    /// Whether to report inlined system environment variables as warnings or errors.
+    report_system_env_inlining: Option<String>,
 }
 
 #[derive(
@@ -2107,6 +2109,18 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn fetch_client(&self) -> Vc<FetchClientConfig> {
         FetchClientConfig::default().cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn report_system_env_inlining(&self) -> Result<Vc<IssueSeverity>> {
+        match self.experimental.report_system_env_inlining.as_deref() {
+            None => Ok(IssueSeverity::Suggestion.cell()),
+            Some("warn") => Ok(IssueSeverity::Warning.cell()),
+            Some("error") => Ok(IssueSeverity::Error.cell()),
+            _ => bail!(
+                "`experimental.reportSystemEnvInlining` must be undefined, \"error\", or \"warn\""
+            ),
+        }
     }
 }
 
