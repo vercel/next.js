@@ -955,12 +955,13 @@ async fn get_entrypoints_with_issues_operation(
 }
 
 #[turbo_tasks::function(operation)]
-fn project_container_entrypoints_operation(
+async fn project_container_entrypoints_operation(
     // the container is a long-lived object with internally mutable state, there's no risk of it
     // becoming stale
     container: ResolvedVc<ProjectContainer>,
-) -> Vc<Entrypoints> {
-    container.entrypoints()
+) -> Result<Vc<Entrypoints>> {
+    turbo_tasks::mark_root();
+    container.entrypoints().resolve().await
 }
 
 #[turbo_tasks::value(serialization = "none")]
