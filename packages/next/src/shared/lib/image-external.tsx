@@ -7,6 +7,12 @@ import { Image } from '../../client/image-component'
 // This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 
+// This is replaced by webpack define plugin
+const globalImageConfig =
+  typeof globalThis !== 'undefined'
+    ? ((globalThis as any).__NEXT_IMAGE_OPTS as ImageConfigComplete | undefined)
+    : undefined
+
 /**
  * For more advanced use cases, you can call `getImageProps()`
  * to get the props that would be passed to the underlying `<img>` element,
@@ -18,7 +24,9 @@ export function getImageProps(imgProps: ImageProps) {
   const { props } = getImgProps(imgProps, {
     defaultLoader,
     // This is replaced by webpack define plugin
-    imgConf: process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete,
+    imgConf: ((process.env.__NEXT_IMAGE_OPTS as any as
+      | ImageConfigComplete
+      | undefined) ?? globalImageConfig) as ImageConfigComplete,
   })
   // Normally we don't care about undefined props because we pass to JSX,
   // but this exported function could be used by the end user for anything
