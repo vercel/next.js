@@ -438,7 +438,7 @@ Note that the nested cache may not be obvious — it could be in an imported mod
 import { cacheLife } from 'next/cache'
 
 export async function ShortLivedWidget() {
-  'use cache: remote'
+  'use cache'
   cacheLife('seconds')
   const data = await fetchRealtimeData()
   return <div>{data}</div>
@@ -513,6 +513,8 @@ export default function Page() {
   )
 }
 ```
+
+> **Note:** This example uses `"use cache: remote"` because runtime caching in serverless deployments doesn't persist across requests with the default in-memory cache. For self-hosted environments, `"use cache"` may be sufficient. See [Runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for more details.
 
 ### Conditional cache lifetimes
 
