@@ -245,6 +245,12 @@ When you call revalidation functions from a Server Action ([`revalidateTag`](/do
 
 > **Good to know**: The `stale` property in `cacheLife` differs from [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes). While `staleTimes` is a global setting affecting all routes, `cacheLife` allows per-function or per-route configuration. Updating `staleTimes.static` also updates the `stale` value of the `default` cache profile.
 
+### Prerendering behavior
+
+Caches with very short lifetimes — zero `revalidate` or `expire` under 5 minutes — are automatically excluded from prerenders and become "dynamic holes" instead. This includes the `seconds` profile.
+
+This behavior allows you to mix static and dynamic content within the same page. Static parts are prerendered, while short-lived caches create boundaries where data is fetched at request time rather than build time. Use a `<Suspense>` boundary around dynamic caches to provide a fallback while content loads.
+
 ## Examples
 
 ### Using preset profiles
@@ -419,6 +425,96 @@ export default async function Dashboard() {
 ```
 
 **It is recommended to specify an explicit `cacheLife`.** With explicit lifetime values, you can inspect a cached function or component and immediately know its behavior without tracing through nested caches. Without explicit lifetime values, the behavior becomes dependent on inner cache lifetimes, making it harder to reason about.
+
+#### Nested short-lived caches
+
+As described in [Prerendering behavior](#prerendering-behavior), short-lived caches (zero `revalidate` or `expire` under 5 minutes) become dynamic holes excluded from prerenders.
+
+When a short-lived cache is nested inside another `use cache` without an explicit `cacheLife`, the outer cache's lifetime would silently become short too via propagation. To prevent this accidental misconfiguration, Next.js throws an error during prerendering.
+
+Note that the nested cache may not be obvious — it could be in an imported module or even a third-party dependency:
+
+```tsx filename="components/short-lived-widget.tsx" highlight={5}
+import { cacheLife } from 'next/cache'
+
+export async function ShortLivedWidget() {
+  'use cache'
+  cacheLife('seconds')
+  const data = await fetchRealtimeData()
+  return <div>{data}</div>
+}
+```
+
+Using this component from another `use cache` without an explicit `cacheLife` will error during prerendering:
+
+```tsx filename="app/page.tsx"
+import { ShortLivedWidget } from '@/components/short-lived-widget'
+
+export default async function Page() {
+  'use cache'
+  // Error: no explicit cacheLife on outer cache
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Last updated: {new Date().toISOString()}</p>
+      <ShortLivedWidget />
+    </div>
+  )
+}
+```
+
+To fix the error, add an explicit `cacheLife()` to the outer `use cache`:
+
+**If you want the outer cache to remain static (prerendered)**, set a longer cache lifetime:
+
+```tsx filename="app/page.tsx" highlight={6}
+import { cacheLife } from 'next/cache'
+import { ShortLivedWidget } from '@/components/short-lived-widget'
+
+export default async function Page() {
+  'use cache'
+  cacheLife('default') // Explicit cacheLife prevents the error
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Last updated: {new Date().toISOString()}</p>
+      <ShortLivedWidget />
+    </div>
+  )
+}
+```
+
+**If you want the outer cache to also be short-lived**, explicitly set a short cache lifetime to confirm this is intentional. Wrap the component in a `<Suspense>` boundary to provide a fallback while content loads:
+
+```tsx filename="app/page.tsx" highlight={7,17-19}
+import { Suspense } from 'react'
+import { cacheLife } from 'next/cache'
+import { ShortLivedWidget } from '@/components/short-lived-widget'
+
+async function Content() {
+  'use cache: remote'
+  cacheLife('seconds') // Explicit cacheLife confirms this is intentionally short-lived
+  return (
+    <>
+      <p>Last updated: {new Date().toISOString()}</p>
+      <ShortLivedWidget />
+    </>
+  )
+}
+
+export default function Page() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <Suspense fallback={<p>Loading...</p>}>
+        <Content />
+      </Suspense>
+    </div>
+  )
+}
+```
+
+> **Note:** This example uses `"use cache: remote"` because runtime caching in serverless deployments doesn't persist across requests with the default in-memory cache. For self-hosted environments, `"use cache"` may be sufficient. See [Runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for more details.
 
 ### Conditional cache lifetimes
 

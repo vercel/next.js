@@ -131,6 +131,22 @@ const findSourceMapURL =
         .findSourceMapURLDEV
     : undefined
 
+const nestedCacheZeroRevalidateErrorMessage =
+  `A "use cache" with zero \`revalidate\` is nested inside another "use cache" ` +
+  `that has no explicit \`cacheLife\`, which is not allowed during ` +
+  `prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose ` +
+  `whether it should be prerendered (with non-zero \`revalidate\`) or remain ` +
+  `dynamic (with zero \`revalidate\`). Read more: ` +
+  `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
+
+const nestedCacheShortExpireErrorMessage =
+  `A "use cache" with short \`expire\` (under 5 minutes) is nested inside ` +
+  `another "use cache" that has no explicit \`cacheLife\`, which is not ` +
+  `allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` ` +
+  `to choose whether it should be prerendered (with longer \`expire\`) or remain ` +
+  `dynamic (with short \`expire\`). Read more: ` +
+  `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
+
 function generateCacheEntry(
   workStore: WorkStore,
   cacheContext: CacheContext,
@@ -381,6 +397,26 @@ function propagateCacheLifeAndTags(
   }
 }
 
+export interface CollectedCacheResult {
+  entry: CacheEntry
+  /**
+   * Whether the revalidate value was explicitly set via `cacheLife()`.
+   * - `true`: explicitly set
+   * - `false`: implicit (propagated from a nested cache or implicitly using the
+   *   default profile)
+   * - `undefined`: unknown (e.g. pre-existing entry from a cache handler)
+   */
+  hasExplicitRevalidate: boolean | undefined
+  /**
+   * Whether the expire value was explicitly set via `cacheLife()`.
+   * - `true`: explicitly set
+   * - `false`: implicit (propagated from a nested cache or implicitly using the
+   *   default profile)
+   * - `undefined`: unknown (e.g. pre-existing entry from a cache handler)
+   */
+  hasExplicitExpire: boolean | undefined
+}
+
 async function collectResult(
   savedStream: ReadableStream<Uint8Array>,
   workStore: WorkStore,
@@ -388,7 +424,7 @@ async function collectResult(
   innerCacheStore: UseCacheStore,
   startTime: number,
   errors: Array<unknown> // This is a live array that gets pushed into.
-): Promise<CacheEntry> {
+): Promise<CollectedCacheResult> {
   // We create a buffered stream that collects all chunks until the end to
   // ensure that RSC has finished rendering and therefore we have collected
   // all tags. In the future the RSC API might allow for the equivalent of
@@ -458,7 +494,7 @@ async function collectResult(
   if (cacheContext.outerWorkUnitStore) {
     const outerWorkUnitStore = cacheContext.outerWorkUnitStore
 
-    // Propagate cache life & tags to the parent context if appropriate.
+    // Propagate cache life & tags to the outer context if appropriate.
     switch (outerWorkUnitStore.type) {
       case 'prerender':
       case 'prerender-runtime': {
@@ -503,14 +539,18 @@ async function collectResult(
     }
   }
 
-  return entry
+  return {
+    entry,
+    hasExplicitRevalidate: innerCacheStore.explicitRevalidate !== undefined,
+    hasExplicitExpire: innerCacheStore.explicitExpire !== undefined,
+  }
 }
 
 type GenerateCacheEntryResult =
   | {
       readonly type: 'cached'
       readonly stream: ReadableStream
-      readonly pendingCacheEntry: Promise<CacheEntry>
+      readonly pendingCacheResult: Promise<CollectedCacheResult>
     }
   | {
       readonly type: 'prerender-dynamic'
@@ -728,7 +768,7 @@ async function generateCacheEntryImpl(
 
   const [returnStream, savedStream] = stream.tee()
 
-  const pendingCacheEntry = collectResult(
+  const pendingCacheResult = collectResult(
     savedStream,
     workStore,
     cacheContext,
@@ -749,7 +789,7 @@ async function generateCacheEntryImpl(
     // erroring we cannot return a stale-if-error version but it allows
     // streaming back the result earlier.
     stream: returnStream,
-    pendingCacheEntry,
+    pendingCacheResult,
   }
 }
 
@@ -767,17 +807,35 @@ function cloneCacheEntry(entry: CacheEntry): [CacheEntry, CacheEntry] {
   return [entry, clonedEntry]
 }
 
-async function clonePendingCacheEntry(
-  pendingCacheEntry: Promise<CacheEntry>
-): Promise<[CacheEntry, CacheEntry]> {
-  const entry = await pendingCacheEntry
-  return cloneCacheEntry(entry)
+function cloneCacheResult(
+  result: CollectedCacheResult
+): [CollectedCacheResult, CollectedCacheResult] {
+  const [entryA, entryB] = cloneCacheEntry(result.entry)
+  return [
+    {
+      entry: entryA,
+      hasExplicitRevalidate: result.hasExplicitRevalidate,
+      hasExplicitExpire: result.hasExplicitExpire,
+    },
+    {
+      entry: entryB,
+      hasExplicitRevalidate: result.hasExplicitRevalidate,
+      hasExplicitExpire: result.hasExplicitExpire,
+    },
+  ]
 }
 
-async function getNthCacheEntry(
-  split: Promise<[CacheEntry, CacheEntry]>,
+async function clonePendingCacheResult(
+  pendingCacheResult: Promise<CollectedCacheResult>
+): Promise<[CollectedCacheResult, CollectedCacheResult]> {
+  const result = await pendingCacheResult
+  return cloneCacheResult(result)
+}
+
+async function getNthCacheResult(
+  split: Promise<[CollectedCacheResult, CollectedCacheResult]>,
   i: number
-): Promise<CacheEntry> {
+): Promise<CollectedCacheResult> {
   return (await split)[i]
 }
 
@@ -1237,17 +1295,17 @@ export async function cache(
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
-    const cachedEntry = renderResumeDataCache.cache.get(serializedCacheKey)
-    if (cachedEntry !== undefined) {
-      let existingEntry: CacheEntry | undefined = await cachedEntry
+    const cachedResult = renderResumeDataCache.cache.get(serializedCacheKey)
+    if (cachedResult !== undefined) {
+      let existingResult: CollectedCacheResult | undefined = await cachedResult
 
       // Check if the RDC entry should be discarded due to recently revalidated tags.
       // When a server action calls updateTag(), the re-render should see fresh data
       // instead of stale RDC data.
-      if (existingEntry !== undefined) {
+      if (existingResult !== undefined) {
         const implicitTags = workUnitStore?.implicitTags?.tags ?? []
         if (
-          existingEntry.tags.some((tag) =>
+          existingResult.entry.tags.some((tag) =>
             isRecentlyRevalidatedTag(tag, workStore)
           ) ||
           implicitTags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))
@@ -1256,14 +1314,14 @@ export async function cache(
             'discarding RDC entry due to recently revalidated tags',
             serializedCacheKey
           )
-          existingEntry = undefined
+          existingResult = undefined
         }
       }
 
-      if (workUnitStore !== undefined && existingEntry !== undefined) {
+      if (workUnitStore !== undefined && existingResult !== undefined) {
         if (
-          existingEntry.revalidate === 0 ||
-          existingEntry.expire < DYNAMIC_EXPIRE
+          existingResult.entry.revalidate === 0 ||
+          existingResult.entry.expire < DYNAMIC_EXPIRE
         ) {
           switch (workUnitStore.type) {
             case 'prerender':
@@ -1273,18 +1331,30 @@ export async function cache(
               // generating static pages for such data. It's better to leave
               // a dynamic hole that can be filled in during the resume with
               // a potentially cached entry.
-              if (existingEntry.revalidate === 0) {
+              if (existingResult.entry.revalidate === 0) {
+                if (existingResult.hasExplicitRevalidate === false) {
+                  throw wrapAsInvalidDynamicUsageError(
+                    new Error(nestedCacheZeroRevalidateErrorMessage),
+                    workStore
+                  )
+                }
                 debug?.(
                   'omitting entry',
                   serializedCacheKey,
                   'from static shell due to revalidate: 0'
                 )
               } else {
+                if (existingResult.hasExplicitExpire === false) {
+                  throw wrapAsInvalidDynamicUsageError(
+                    new Error(nestedCacheShortExpireErrorMessage),
+                    workStore
+                  )
+                }
                 debug?.(
                   'omitting entry',
                   serializedCacheKey,
                   'from static shell due to short expire value:',
-                  existingEntry.expire
+                  existingResult.entry.expire
                 )
               }
               if (cacheSignal) {
@@ -1306,6 +1376,24 @@ export async function cache(
             }
             case 'request': {
               if (process.env.NODE_ENV === 'development') {
+                if (
+                  existingResult.entry.revalidate === 0 &&
+                  existingResult.hasExplicitRevalidate === false
+                ) {
+                  throw wrapAsInvalidDynamicUsageError(
+                    new Error(nestedCacheZeroRevalidateErrorMessage),
+                    workStore
+                  )
+                }
+                if (
+                  existingResult.entry.expire < DYNAMIC_EXPIRE &&
+                  existingResult.hasExplicitExpire === false
+                ) {
+                  throw wrapAsInvalidDynamicUsageError(
+                    new Error(nestedCacheShortExpireErrorMessage),
+                    workStore
+                  )
+                }
                 // We delay the cache here so that it doesn't resolve in the static task --
                 // in a regular static prerender, it'd be a hanging promise, and we need to reflect that,
                 // so it has to resolve later.
@@ -1331,7 +1419,7 @@ export async function cache(
           }
         }
 
-        if (existingEntry.stale < RUNTIME_PREFETCH_DYNAMIC_STALE) {
+        if (existingResult.entry.stale < RUNTIME_PREFETCH_DYNAMIC_STALE) {
           switch (workUnitStore.type) {
             case 'prerender-runtime':
               // In a runtime prerender, if the cache entry will become
@@ -1342,7 +1430,7 @@ export async function cache(
                 'omitting entry',
                 serializedCacheKey,
                 'from runtime shell due to short stale value:',
-                existingEntry.stale
+                existingResult.entry.stale
               )
               if (cacheSignal) {
                 cacheSignal.endRead()
@@ -1381,20 +1469,20 @@ export async function cache(
         }
       }
 
-      if (existingEntry !== undefined) {
+      if (existingResult !== undefined) {
         debug?.('Resume Data Cache entry found', serializedCacheKey)
 
         if (prerenderResumeDataCache) {
-          prerenderResumeDataCache.cache.set(serializedCacheKey, cachedEntry)
+          prerenderResumeDataCache.cache.set(serializedCacheKey, cachedResult)
         }
 
         // We want to make sure we only propagate cache life & tags if the
         // entry was *not* omitted from the prerender. So we only do this
         // after the above early returns.
-        propagateCacheLifeAndTags(cacheContext, existingEntry)
+        propagateCacheLifeAndTags(cacheContext, existingResult.entry)
 
-        const [streamA, streamB] = existingEntry.value.tee()
-        existingEntry.value = streamB
+        const [streamA, streamB] = existingResult.entry.value.tee()
+        existingResult.entry.value = streamB
 
         if (cacheSignal) {
           // When we have a cacheSignal we need to block on reading the cache
@@ -1629,26 +1717,29 @@ export async function cache(
         return result.hangingPromise
       }
 
-      const { stream: newStream, pendingCacheEntry } = result
+      const { stream: newStream, pendingCacheResult } = result
 
       // When draft mode is enabled, we must not save the cache entry.
       if (!workStore.isDraftMode) {
-        let savedCacheEntry
+        let savedCacheResult
 
         if (prerenderResumeDataCache) {
           // Create a clone that goes into the cache scope memory cache.
-          const split = clonePendingCacheEntry(pendingCacheEntry)
-          savedCacheEntry = getNthCacheEntry(split, 0)
+          const split = clonePendingCacheResult(pendingCacheResult)
+          savedCacheResult = getNthCacheResult(split, 0)
           prerenderResumeDataCache.cache.set(
             serializedCacheKey,
-            getNthCacheEntry(split, 1)
+            getNthCacheResult(split, 1)
           )
         } else {
-          savedCacheEntry = pendingCacheEntry
+          savedCacheResult = pendingCacheResult
         }
 
         if (cacheHandler) {
-          const promise = cacheHandler.set(serializedCacheKey, savedCacheEntry)
+          const promise = cacheHandler.set(
+            serializedCacheKey,
+            savedCacheResult.then((r) => r.entry)
+          )
 
           workStore.pendingRevalidateWrites ??= []
           workStore.pendingRevalidateWrites.push(promise)
@@ -1682,7 +1773,17 @@ export async function cache(
 
         prerenderResumeDataCache.cache.set(
           serializedCacheKey,
-          Promise.resolve(entryRight)
+          Promise.resolve({
+            entry: entryRight,
+            // For pre-existing entries from cache handlers we don't know
+            // whether they had explicit cache life values or not. But we only
+            // need this information during prerendering when we produce new
+            // entries, where the cache life of an inner cache may be propagated
+            // to the outer one. In that case we use the RDC. So it's safe to
+            // set this to undefined here.
+            hasExplicitRevalidate: undefined,
+            hasExplicitExpire: undefined,
+          })
         )
       } else {
         // If we're not regenerating we need to signal that we've finished
@@ -1706,24 +1807,24 @@ export async function cache(
         )
 
         if (result.type === 'cached') {
-          const { stream: ignoredStream, pendingCacheEntry } = result
-          let savedCacheEntry: Promise<CacheEntry>
+          const { stream: ignoredStream, pendingCacheResult } = result
+          let savedCacheResult: Promise<CollectedCacheResult>
 
           if (prerenderResumeDataCache) {
-            const split = clonePendingCacheEntry(pendingCacheEntry)
-            savedCacheEntry = getNthCacheEntry(split, 0)
+            const split = clonePendingCacheResult(pendingCacheResult)
+            savedCacheResult = getNthCacheResult(split, 0)
             prerenderResumeDataCache.cache.set(
               serializedCacheKey,
-              getNthCacheEntry(split, 1)
+              getNthCacheResult(split, 1)
             )
           } else {
-            savedCacheEntry = pendingCacheEntry
+            savedCacheResult = pendingCacheResult
           }
 
           if (cacheHandler) {
             const promise = cacheHandler.set(
               serializedCacheKey,
-              savedCacheEntry
+              savedCacheResult.then((r) => r.entry)
             )
 
             workStore.pendingRevalidateWrites ??= []

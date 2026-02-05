@@ -2578,6 +2578,7 @@ describe('Cache Components Errors', () => {
             })
           }
         })
+
         describe('slow cache', () => {
           if (isNextDev) {
             it('should show a redbox error', async () => {
@@ -2703,6 +2704,108 @@ describe('Cache Components Errors', () => {
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
                    Export encountered an error on /use-cache-low-expire/slow/page: /use-cache-low-expire/slow, exiting the build."
+                  `)
+                }
+              }
+            })
+          }
+        })
+
+        describe('nested', () => {
+          if (isNextDev) {
+            it('should show a redbox error', async () => {
+              const browser = await next.browser('/use-cache-low-expire/nested')
+
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": "A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-low-expire/nested/page.tsx (20:14) @ async Page
+               > 20 |     result = await outerCache()
+                    |              ^",
+                 "stack": [
+                   "async Page app/use-cache-low-expire/nested/page.tsx (20:14)",
+                 ],
+               }
+              `)
+            })
+          } else {
+            it('should error the build', async () => {
+              try {
+                await prerender('/use-cache-low-expire/nested')
+              } catch {
+                // we expect the build to fail
+              }
+
+              const output = getPrerenderOutput(
+                next.cliOutput.slice(cliOutputLength),
+                { isMinified: !isDebugPrerender }
+              )
+
+              if (isTurbopack) {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-low-expire/nested/page: /use-cache-low-expire/nested"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-low-expire/nested/page: /use-cache-low-expire/nested, exiting the build."
+                  `)
+                }
+              } else {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async Page (webpack:///app/use-cache-low-expire/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-low-expire/nested/page: /use-cache-low-expire/nested"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at a (<next-dist-dir>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-low-expire/nested/page: /use-cache-low-expire/nested, exiting the build."
                   `)
                 }
               }
@@ -2843,6 +2946,7 @@ describe('Cache Components Errors', () => {
             })
           }
         })
+
         describe('slow cache', () => {
           if (isNextDev) {
             it('should show a redbox error', async () => {
@@ -2968,6 +3072,110 @@ describe('Cache Components Errors', () => {
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
                    Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
+                  `)
+                }
+              }
+            })
+          }
+        })
+
+        describe('nested', () => {
+          if (isNextDev) {
+            it('should show a redbox error', async () => {
+              const browser = await next.browser(
+                '/use-cache-revalidate-0/nested'
+              )
+
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": "A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-revalidate-0/nested/page.tsx (20:14) @ async Page
+               > 20 |     result = await outerCache()
+                    |              ^",
+                 "stack": [
+                   "async Page app/use-cache-revalidate-0/nested/page.tsx (20:14)",
+                 ],
+               }
+              `)
+            })
+          } else {
+            it('should error the build', async () => {
+              try {
+                await prerender('/use-cache-revalidate-0/nested')
+              } catch {
+                // we expect the build to fail
+              }
+
+              const output = getPrerenderOutput(
+                next.cliOutput.slice(cliOutputLength),
+                { isMinified: !isDebugPrerender }
+              )
+
+              if (isTurbopack) {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested, exiting the build."
+                  `)
+                }
+              } else {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async Page (webpack:///app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at a (<next-dist-dir>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested, exiting the build."
                   `)
                 }
               }
