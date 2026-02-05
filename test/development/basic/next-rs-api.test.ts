@@ -231,6 +231,7 @@ async function main() {
     noMangling: false,
     writeRoutesHashesManifest: false,
     currentNodeJsVersion: '18.0.0',
+    isPersistentCachingEnabled: false,
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
