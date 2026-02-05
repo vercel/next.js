@@ -1204,7 +1204,11 @@
             value = "null";
             break;
           } else {
-            if (value.$$typeof === REACT_ELEMENT_TYPE) {
+            if (
+              ("$$typeof" in value && hasOwnProperty.call(value, "$$typeof")
+                ? value.$$typeof
+                : void 0) === REACT_ELEMENT_TYPE
+            ) {
               var typeName = getComponentNameFromType(value.type) || "\u2026",
                 key = value.key;
               value = value.props;
