@@ -8,6 +8,10 @@ This app will be the new home for the Next.js documentation, currently in active
 - The design is not yet final
 - Internal tooling and structure may change
 
+### Tech Stack
+
+This documentation site is built using the Next.js App Router and [Fumadocs](https://fumadocs.vercel.app).
+
 ### Contributing
 
 We'll open this app to contributions once the initial migration is complete. In the meantime, feel free to follow along or open an issue with the `documentation` tag.
