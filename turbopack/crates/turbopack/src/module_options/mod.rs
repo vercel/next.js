@@ -27,6 +27,7 @@ use turbopack_core::{
 use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions, SpecifiedModuleType,
+    bytes_source_transform::BytesSourceTransform, text_source_transform::TextSourceTransform,
 };
 use turbopack_mdx::MdxTransform;
 use turbopack_node::{
@@ -237,6 +238,7 @@ impl ModuleOptions {
                     enable_typeof_window_inlining,
                     enable_exports_info_inlining,
                     enable_import_as_bytes,
+                    enable_import_as_text,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
@@ -528,11 +530,46 @@ impl ModuleOptions {
         ]);
 
         if enable_import_as_bytes {
+            // Rule to apply the source transform when importing with type:"bytes"
             rules.push(ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
                 )),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::InlinedBytesJs)],
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(BytesSourceTransform::new().to_resolved().await?),
+                ]))],
+            ));
+            // Rule to set the module type after the transform adds the "bytes_module" modifier
+            rules.push(ModuleRule::new(
+                RuleCondition::ResourceHasModifier("bytes_module".into()),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
+                    preprocess: ecma_preprocess,
+                    main,
+                    postprocess,
+                    options: ecmascript_options_vc,
+                })],
+            ));
+        }
+
+        if enable_import_as_text {
+            // Rule to apply the source transform when importing with type:"text"
+            rules.push(ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
+                )),
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
+                ]))],
+            ));
+            // Rule to set the module type after the transform adds the "text_module" modifier
+            rules.push(ModuleRule::new(
+                RuleCondition::ResourceHasModifier("text_module".into()),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
+                    preprocess: ecma_preprocess,
+                    main,
+                    postprocess,
+                    options: ecmascript_options_vc,
+                })],
             ));
         }
 
