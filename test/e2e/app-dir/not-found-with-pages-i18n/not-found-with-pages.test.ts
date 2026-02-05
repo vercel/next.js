@@ -27,6 +27,10 @@ describe('not-found-with-pages-i18n', () => {
     expect(await browser.elementByCss('h1').text()).toBe(
       'APP ROUTER - 404 PAGE'
     )
+
+    const ssr = await next.fetch('/app-dir/foo')
+    expect(ssr.status).toEqual(404)
+    expect(await ssr.text()).toContain('APP ROUTER - 404 PAGE')
   })
 
   it('should prefer the app router 404 over the pages router 404 when both are present - pages', async () => {
@@ -39,5 +43,9 @@ describe('not-found-with-pages-i18n', () => {
     expect(await browser.elementByCss('h1').text()).toBe(
       'APP ROUTER - 404 PAGE'
     )
+
+    const ssr = await next.fetch('/foo')
+    expect(ssr.status).toEqual(404)
+    expect(await ssr.text()).toContain('APP ROUTER - 404 PAGE')
   })
 })
