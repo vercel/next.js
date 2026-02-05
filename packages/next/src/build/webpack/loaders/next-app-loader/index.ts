@@ -996,7 +996,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       })
     )
 
-    return checks.filter((result): result is string => result !== undefined)
+    return checks.filter((result) => result !== undefined)
   }
 
   if (isAppRouteRoute(name)) {
