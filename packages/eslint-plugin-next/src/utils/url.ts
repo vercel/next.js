@@ -9,13 +9,17 @@ const fsReadDirSyncCache = {}
 const DEFAULT_PAGE_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx']
 
 /**
+ * Escape special regex characters in a string
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
  * Build a regex pattern to match files with the given extensions.
  */
 function buildExtensionRegex(extensions: string[]): RegExp {
-  // Escape special regex characters in extensions
-  const escapedExtensions = extensions.map((ext) =>
-    ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  )
+  const escapedExtensions = extensions.map(escapeRegex)
   return new RegExp(`\\.(${escapedExtensions.join('|')})$`)
 }
 
@@ -32,17 +36,18 @@ function parseUrlForPages(
   })
   const res = []
   const extensionRegex = buildExtensionRegex(pageExtensions)
+  const indexRegex = new RegExp(
+    `^index\\.(${pageExtensions.map(escapeRegex).join('|')})$`
+  )
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extensionRegex.test(dirent.name)) {
       // Check if it's an index file
-      const indexRegex = new RegExp(
-        `^index\\.(${pageExtensions.map((ext) => ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})$`
-      )
       if (indexRegex.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(indexRegex, '')}`)
+        res.push(urlprefix)
+      } else {
+        res.push(`${urlprefix}${dirent.name.replace(extensionRegex, '')}`)
       }
-      res.push(`${urlprefix}${dirent.name.replace(extensionRegex, '')}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
@@ -72,24 +77,22 @@ function parseUrlForAppDir(
   })
   const res = []
   const extensionRegex = buildExtensionRegex(pageExtensions)
-  const escapedExtensions = pageExtensions
-    .map((ext) => ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('|')
+  const escapedExtensions = pageExtensions.map(escapeRegex).join('|')
   const pageRegex = new RegExp(`^page\\.(${escapedExtensions})$`)
   const layoutRegex = new RegExp(`^layout\\.(${escapedExtensions})$`)
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extensionRegex.test(dirent.name)) {
       if (pageRegex.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(pageRegex, '')}`)
+        res.push(urlprefix)
       } else if (!layoutRegex.test(dirent.name)) {
         res.push(`${urlprefix}${dirent.name.replace(extensionRegex, '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
         res.push(
-          ...parseUrlForPages(
+          ...parseUrlForAppDir(
             urlprefix + dirent.name + '/',
             dirPath,
             pageExtensions

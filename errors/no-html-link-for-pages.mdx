@@ -60,6 +60,24 @@ In some cases, you may also need to configure this rule directly by providing a 
 }
 ```
 
+#### `pageExtensions`
+
+If you're using custom `pageExtensions` in your `next.config.js`, you need to configure the ESLint rule to recognize these extensions.
+
+Configure the `pageExtensions` setting in your ESLint config:
+
+```json filename="eslint.config.json"
+{
+  "settings": {
+    "next": {
+      "pageExtensions": ["page.tsx", "page.ts", "page.jsx", "page.js"]
+    }
+  }
+}
+```
+
+This ensures the rule correctly identifies pages using custom extensions like `index.page.tsx` or `about.page.tsx`.
+
 ## Useful Links
 
 - [next/link API Reference](/docs/pages/api-reference/components/link)
