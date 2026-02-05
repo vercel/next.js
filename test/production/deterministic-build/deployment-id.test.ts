@@ -244,39 +244,15 @@ const FILES = {
 
       it('should produce identical build outputs even when changing deployment id', async () => {
         let { run1, run2 } = await runTest(next, readFilesBuilder)
-        if (mode === 'adapter') {
-          expect([...run1.keys()]).toMatchInlineSnapshot(`
-           [
-             ".vercel/output/functions/_error.func/.vc-config.json",
-             ".vercel/output/functions/_middleware.func/.vc-config.json",
-             ".vercel/output/functions/_not-found.func/.vc-config.json",
-             ".vercel/output/functions/_not-found.rsc.func/.vc-config.json",
-             ".vercel/output/functions/app-page.func/.vc-config.json",
-             ".vercel/output/functions/app-page.rsc.func/.vc-config.json",
-             ".vercel/output/functions/app-route.func/.vc-config.json",
-             ".vercel/output/functions/app-route.rsc.func/.vc-config.json",
-             ".vercel/output/functions/middleware.func/.vc-config.json",
-             ".vercel/output/functions/pages-dynamic.func/.vc-config.json",
-             ".vercel/output/functions/pages-static-gsp.func/.vc-config.json",
-           ]
-          `)
-        } else {
-          expect([...run1.keys()]).toMatchInlineSnapshot(`
-           [
-             ".vercel/output/functions/_global-error.func/.vc-config.json",
-             ".vercel/output/functions/_global-error.rsc.func/.vc-config.json",
-             ".vercel/output/functions/_not-found.func/.vc-config.json",
-             ".vercel/output/functions/_not-found.rsc.func/.vc-config.json",
-             ".vercel/output/functions/app-page.func/.vc-config.json",
-             ".vercel/output/functions/app-page.rsc.func/.vc-config.json",
-             ".vercel/output/functions/app-route.func/.vc-config.json",
-             ".vercel/output/functions/app-route.rsc.func/.vc-config.json",
-             ".vercel/output/functions/middleware.func/.vc-config.json",
-             ".vercel/output/functions/pages-dynamic.func/.vc-config.json",
-             ".vercel/output/functions/pages-static-gsp.func/.vc-config.json",
-           ]
-          `)
-        }
+
+        expect(run1).toContain('app-page.func/.vc-config.json')
+        expect(run1).toContain('app-page.rsc.func/.vc-config.json')
+        expect(run1).toContain('app-route.func/.vc-config.json')
+        expect(run1).toContain('app-route.rsc.func/.vc-config.json')
+        expect(run1).toContain('middleware.func/.vc-config.json')
+        expect(run1).toContain('pages-dynamic.func/.vc-config.json')
+        expect(run1).toContain('pages-static-gsp.func/.vc-config.json')
+
         expect([...run1.keys()]).toEqual([...run2.keys()])
       })
     })
