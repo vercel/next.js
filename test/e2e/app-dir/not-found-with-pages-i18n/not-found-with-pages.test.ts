@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('not-found-with-pages', () => {
+describe('not-found-with-pages-i18n', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
@@ -17,8 +17,20 @@ describe('not-found-with-pages', () => {
     })
   }
 
-  it('should prefer the app router 404 over the pages router 404 when both are present', async () => {
+  it('should prefer the app router 404 over the pages router 404 when both are present - app', async () => {
     const browser = await next.browser('/app-dir/foo')
+    expect(await browser.elementByCss('h1').text()).toBe(
+      'APP ROUTER - 404 PAGE'
+    )
+
+    await browser.loadPage(next.url)
+    expect(await browser.elementByCss('h1').text()).toBe(
+      'APP ROUTER - 404 PAGE'
+    )
+  })
+
+  it('should prefer the app router 404 over the pages router 404 when both are present - pages', async () => {
+    const browser = await next.browser('/foo')
     expect(await browser.elementByCss('h1').text()).toBe(
       'APP ROUTER - 404 PAGE'
     )
