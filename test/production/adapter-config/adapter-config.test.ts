@@ -173,6 +173,35 @@ describe('adapter-config', () => {
       }
     }
 
+    // Verify vendored context files are traced in assets for app-page and pages outputs
+    const appPageOutput = outputs.appPages.find(
+      (output) =>
+        output.pathname === '/docs/node-app' && output.runtime === 'nodejs'
+    )
+    const pagesOutput = outputs.pages.find(
+      (output) =>
+        output.pathname === '/docs/node-pages' && output.runtime === 'nodejs'
+    )
+
+    expect(appPageOutput).toBeDefined()
+    expect(pagesOutput).toBeDefined()
+
+    // Check that vendored context files are included in assets
+    const appPageAssets = Object.values(appPageOutput!.assets)
+    const pagesAssets = Object.values(pagesOutput!.assets)
+
+    const appPageVendoredContexts = appPageAssets.filter((asset) =>
+      asset.includes('vendored/contexts/')
+    )
+    const pagesVendoredContexts = pagesAssets.filter((asset) =>
+      asset.includes('vendored/contexts/')
+    )
+
+    // app-page should have vendored context files traced
+    expect(appPageVendoredContexts.length).toBeGreaterThan(0)
+    // pages should have vendored context files traced
+    expect(pagesVendoredContexts.length).toBeGreaterThan(0)
+
     for (const route of edgeOutputs) {
       try {
         expect(route.id).toBeString()
