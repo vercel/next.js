@@ -2998,8 +2998,6 @@ async function renderToStream(
           formState
         ),
         isStaticGeneration: generateStaticHTML,
-        isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
-        buildId: ctx.workStore.buildId,
         deploymentId: ctx.sharedContext.deploymentId,
         getServerInsertedHTML,
         getServerInsertedMetadata,
@@ -3167,9 +3165,6 @@ async function renderToStream(
             formState
           ),
           isStaticGeneration: generateStaticHTML,
-          isBuildTimePrerendering:
-            ctx.workStore.isBuildTimePrerendering === true,
-          buildId: ctx.workStore.buildId,
           deploymentId: ctx.sharedContext.deploymentId,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
@@ -5000,9 +4995,6 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            isBuildTimePrerendering:
-              ctx.workStore.isBuildTimePrerendering === true,
-            buildId: ctx.workStore.buildId,
             deploymentId: ctx.sharedContext.deploymentId,
           })
         } else {
@@ -5015,9 +5007,6 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            isBuildTimePrerendering:
-              ctx.workStore.isBuildTimePrerendering === true,
-            buildId: ctx.workStore.buildId,
             deploymentId: ctx.sharedContext.deploymentId,
           })
         }
@@ -5278,9 +5267,6 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            isBuildTimePrerendering:
-              ctx.workStore.isBuildTimePrerendering === true,
-            buildId: ctx.workStore.buildId,
             deploymentId: ctx.sharedContext.deploymentId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
@@ -5377,9 +5363,6 @@ async function prerenderToStream(
             formState
           ),
           isStaticGeneration: true,
-          isBuildTimePrerendering:
-            ctx.workStore.isBuildTimePrerendering === true,
-          buildId: ctx.workStore.buildId,
           getServerInsertedHTML,
           getServerInsertedMetadata,
           deploymentId: ctx.sharedContext.deploymentId,
@@ -5556,9 +5539,6 @@ async function prerenderToStream(
             formState
           ),
           isStaticGeneration: true,
-          isBuildTimePrerendering:
-            ctx.workStore.isBuildTimePrerendering === true,
-          buildId: ctx.workStore.buildId,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
             renderServerInsertedHTML,
