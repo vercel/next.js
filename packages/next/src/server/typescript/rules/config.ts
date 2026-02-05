@@ -149,7 +149,7 @@ const API_DOCS: Record<
   unstable_instant: {
     description: `Specifies the default prefetching behavior for this segment. This configuration is currently under development and will change.`,
     link: '(docs coming soon)',
-    type: 'object',
+    type: 'object | false',
     // TODO: ideally, we'd validate the config object somehow, but this is difficult to do
     // with the way this plugin is currently structured.
     // For now, since we don't provide an `options` here, we won't do any validation in
