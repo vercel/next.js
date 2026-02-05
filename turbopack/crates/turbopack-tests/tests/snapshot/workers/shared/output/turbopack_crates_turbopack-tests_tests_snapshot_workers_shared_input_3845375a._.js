@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_workers_shared_input_3845375a._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_workers_shared_input_3845375a._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js (static in ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.q("/static/worker.35b5336b.js");}),

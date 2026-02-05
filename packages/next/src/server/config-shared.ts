@@ -367,6 +367,18 @@ export interface ExperimentalConfig {
    */
   externalMiddlewareRewritesResolve?: boolean
   externalProxyRewritesResolve?: boolean
+  /**
+   * Exposes the experimental testing API (`__EXPERIMENTAL_NEXT_TESTING__`) in
+   * production builds. This API is always available in development mode.
+   *
+   * The testing API allows e2e tests to control navigation timing, enabling
+   * deterministic assertions on prefetched/cached UI before dynamic data
+   * streams in.
+   *
+   * WARNING: This flag is intended for profiling and testing purposes only.
+   * Do not enable in user-facing production deployments.
+   */
+  exposeTestingApiInProductionBuild?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -925,6 +937,25 @@ export interface ExperimentalConfig {
    * @default false
    */
   devCacheControlNoCache?: boolean
+
+  /**
+   * An array of paths in app or pages directories that should wait to be processed
+   * until all other entries have been processed. This is useful for deferring
+   * compilation of certain routes during development and build.
+   */
+  deferredEntries?: string[]
+
+  /**
+   * An async function that is called and awaited before processing deferred entries.
+   * This callback runs after all non-deferred entries have been compiled.
+   */
+  onBeforeDeferredEntries?: () => Promise<void>
+
+  /**
+   * Whether to report inlined system environment variables as warnings or errors.
+   * Only supported for Turbopack.
+   */
+  reportSystemEnvInlining?: 'error' | 'warn'
 }
 
 export type ExportPathMap = {
@@ -1752,6 +1783,7 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
+    | 'exposeTestingApiInProductionBuild'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1815,6 +1847,7 @@ export function getNextConfigRuntime(
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
+        exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

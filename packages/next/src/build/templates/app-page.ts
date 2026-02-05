@@ -36,6 +36,8 @@ import { getIsPossibleServerAction } from '../../server/lib/server-action-reques
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_INSTANT_PREFETCH_HEADER,
+  NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
@@ -52,7 +54,7 @@ import {
 import { FallbackMode, parseFallbackField } from '../../lib/fallback'
 import RenderResult from '../../server/render-result'
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
@@ -346,6 +348,27 @@ export async function handler(
   const hasDebugFallbackShellQuery =
     hasDebugStaticShellQuery && query.__nextppronly === 'fallback'
 
+  // Whether the testing API is exposed (dev mode or explicit flag)
+  const exposeTestingApi =
+    routeModule.isDev === true ||
+    nextConfig.experimental.exposeTestingApiInProductionBuild === true
+
+  // Enable the Instant Navigation Testing API. Renders only the prefetched
+  // portion of the page, excluding dynamic content. This allows tests to
+  // assert on the prefetched UI state deterministically.
+  // - Header: Used for client-side navigations where we can set request headers
+  // - Cookie: Used for MPA navigations (page reload, full page load) where we
+  //   can't set request headers. Only applies to document requests (no RSC
+  //   header) - RSC requests should proceed normally even during a locked scope,
+  //   with blocking happening on the client side.
+  const isInstantNavigationTest =
+    exposeTestingApi &&
+    couldSupportPPR &&
+    (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
+      (req.headers[RSC_HEADER] === undefined &&
+        typeof req.headers.cookie === 'string' &&
+        req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')))
+
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
   const isRoutePPREnabled: boolean =
@@ -357,13 +380,13 @@ export async function handler(
       // Ideally we'd want to check the appConfig to see if this page has PPR
       // enabled or not, but that would require plumbing the appConfig through
       // to the server during development. We assume that the page supports it
-      // but only during development.
-      (hasDebugStaticShellQuery &&
-        (routeModule.isDev === true ||
+      // but only during development or when the testing API is exposed.
+      ((hasDebugStaticShellQuery || isInstantNavigationTest) &&
+        (exposeTestingApi ||
           routerServerContext?.experimentalTestProxy === true)))
 
   const isDebugStaticShell: boolean =
-    hasDebugStaticShellQuery && isRoutePPREnabled
+    (hasDebugStaticShellQuery || isInstantNavigationTest) && isRoutePPREnabled
 
   // We should enable debugging dynamic accesses when the static shell
   // debugging has been enabled and we're also in development mode.
@@ -1227,7 +1250,10 @@ export async function handler(
           // Otherwise if the revalidate value is false, then we should use the
           // cache time of one year.
           else {
-            cacheControl = { revalidate: CACHE_ONE_YEAR, expire: undefined }
+            cacheControl = {
+              revalidate: CACHE_ONE_YEAR_SECONDS,
+              expire: undefined,
+            }
           }
         }
       }

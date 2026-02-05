@@ -21,7 +21,105 @@ import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
-import type { RawEntrypoints, TurbopackResult } from '../swc/types'
+import { collectPagesFiles } from '../entries'
+import { createValidFileMatcher } from '../../server/lib/find-page-file'
+import type {
+  ProjectOptions,
+  RawEntrypoints,
+  TurbopackResult,
+} from '../swc/types'
+
+/**
+ * Convert deferred entry routes to debugBuildPaths format.
+ * Routes like '/deferred' become '/deferred/page' for the filter.
+ * @param pagesPaths - All pages routes to include (deferred entries only affects app routes)
+ */
+function getDeferredBuildPaths(
+  deferredEntries: string[],
+  pagesPaths: string[]
+): {
+  app: string[]
+  pages: string[]
+} {
+  return {
+    app: deferredEntries.map((route) => {
+      const routePath = route.startsWith('/') ? route : `/${route}`
+      return `${routePath}/page`
+    }),
+    // Include all pages routes so they are not filtered out
+    pages: pagesPaths,
+  }
+}
+
+/**
+ * Scan the app directory to find all page routes, then filter out deferred entries.
+ * Returns debugBuildPaths for non-deferred routes only.
+ * @param pagesPaths - All pages routes to include (deferred entries only affects app routes)
+ */
+async function getNonDeferredBuildPaths(
+  appDir: string | undefined,
+  deferredEntries: string[],
+  pageExtensions: string[],
+  pagesPaths: string[]
+): Promise<{ app: string[]; pages: string[] } | null> {
+  if (!appDir || deferredEntries.length === 0) {
+    return null
+  }
+
+  const deferredSet = new Set(
+    deferredEntries.map((route) =>
+      route.startsWith('/') ? route : `/${route}`
+    )
+  )
+
+  const appRoutes: string[] = []
+
+  // Recursively scan for page files
+  async function scanDir(dir: string, routePath: string): Promise<void> {
+    let entries: string[]
+    try {
+      entries = await fs.readdir(dir)
+    } catch {
+      return
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry)
+      let stat
+      try {
+        stat = await fs.stat(fullPath)
+      } catch {
+        continue
+      }
+
+      if (stat.isDirectory()) {
+        // Recurse into subdirectory
+        const subRoute =
+          routePath === '/' ? `/${entry}` : `${routePath}/${entry}`
+        await scanDir(fullPath, subRoute)
+      } else if (stat.isFile()) {
+        // Check if this is a page file
+        for (const ext of pageExtensions) {
+          if (entry === `page.${ext}`) {
+            // Found a page file, add to routes if not deferred
+            if (!deferredSet.has(routePath)) {
+              appRoutes.push(`${routePath}/page`)
+            }
+            break
+          }
+        }
+      }
+    }
+  }
+
+  await scanDir(appDir, '/')
+
+  return {
+    app: appRoutes,
+    // Include all pages routes so they are not filtered out
+    pages: pagesPaths,
+  }
+}
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -50,49 +148,92 @@ export async function turbopackBuild(): Promise<{
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
+  // Handle deferred entries configuration
+  const deferredEntries = config.experimental.deferredEntries || []
+  const hasDeferredEntries = deferredEntries.length > 0
+  const onBeforeDeferredEntries = config.experimental.onBeforeDeferredEntries
+
+  // Collect all pages paths when using deferred entries to ensure pages routes
+  // are not filtered out (deferred entries only affects app routes)
+  let pagesPaths: string[] = []
+  if (hasDeferredEntries && NextBuildContext.pagesDir) {
+    const validFileMatcher = createValidFileMatcher(
+      config.pageExtensions!,
+      NextBuildContext.appDir
+    )
+    pagesPaths = await collectPagesFiles(
+      NextBuildContext.pagesDir,
+      validFileMatcher
+    )
+  }
+
+  // For deferred entries, we use debugBuildPaths to control which routes are built
+  // First build excludes deferred entries, second build includes only deferred entries
+  const nonDeferredBuildPaths = hasDeferredEntries
+    ? await getNonDeferredBuildPaths(
+        NextBuildContext.appDir,
+        deferredEntries,
+        config.pageExtensions!,
+        pagesPaths
+      )
+    : null
+  const deferredBuildPaths = hasDeferredEntries
+    ? getDeferredBuildPaths(deferredEntries, pagesPaths)
+    : null
+
   const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
+
+  // Shared options for createProject calls
+  const sharedProjectOptions: Omit<ProjectOptions, 'debugBuildPaths'> = {
+    rootPath,
+    projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
+    distDir,
+    nextConfig: config,
+    watch: {
+      enable: false,
+    },
+    dev,
+    env: process.env as Record<string, string>,
+    defineEnv: createDefineEnv({
+      isTurbopack: true,
+      clientRouterFilters: NextBuildContext.clientRouterFilters!,
+      config,
+      dev,
+      distDir,
+      projectPath: dir,
+      fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+      hasRewrites,
+      // Implemented separately in Turbopack, doesn't have to be passed here.
+      middlewareMatchers: undefined,
+      rewrites,
+    }),
+    buildId,
+    encryptionKey,
+    previewProps,
+    browserslistQuery: supportedBrowsers.join(', '),
+    noMangling,
+    writeRoutesHashesManifest:
+      !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
+    currentNodeJsVersion,
+  }
+
+  const sharedTurboOptions = {
+    persistentCaching,
+    memoryLimit: config.experimental?.turbopackMemoryLimit,
+    dependencyTracking: persistentCaching,
+    isCi: isCI,
+    isShortSession: true,
+  }
+
   const project = await bindings.turbo.createProject(
     {
-      rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
-      projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
-      distDir,
-      nextConfig: config,
-      watch: {
-        enable: false,
-      },
-      dev,
-      env: process.env as Record<string, string>,
-      defineEnv: createDefineEnv({
-        isTurbopack: true,
-        clientRouterFilters: NextBuildContext.clientRouterFilters!,
-        config,
-        dev,
-        distDir,
-        projectPath: dir,
-        fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-        hasRewrites,
-        // Implemented separately in Turbopack, doesn't have to be passed here.
-        middlewareMatchers: undefined,
-        rewrites,
-      }),
-      buildId,
-      encryptionKey,
-      previewProps,
-      browserslistQuery: supportedBrowsers.join(', '),
-      noMangling,
-      writeRoutesHashesManifest:
-        !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
-      currentNodeJsVersion,
-      debugBuildPaths: NextBuildContext.debugBuildPaths,
+      ...sharedProjectOptions,
+      // For deferred entries, first build only non-deferred routes
+      debugBuildPaths:
+        nonDeferredBuildPaths ?? NextBuildContext.debugBuildPaths,
     },
-    {
-      persistentCaching,
-      memoryLimit: config.experimental?.turbopackMemoryLimit,
-      dependencyTracking: persistentCaching,
-      isCi: isCI,
-      isShortSession: true,
-    }
+    sharedTurboOptions
   )
   try {
     backgroundLogCompilationEvents(project)
@@ -112,7 +253,9 @@ export async function turbopackBuild(): Promise<{
     )
 
     let appDirOnly = NextBuildContext.appDirOnly!
-    const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+
+    // First build: without deferred entries (they're renamed to .deferred)
+    let entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
     printBuildErrors(entrypoints, dev)
 
     let routes = entrypoints.routes
@@ -120,6 +263,53 @@ export async function turbopackBuild(): Promise<{
       // This should never ever happen, there should be an error issue, or the bindings call should
       // have thrown.
       throw new Error(`Turbopack build failed`)
+    }
+
+    // Track which project to shutdown at the end
+    let activeProject = project
+
+    // Handle deferred entries: call callback and do second build
+    if (deferredBuildPaths) {
+      // Call onBeforeDeferredEntries callback after first build completes
+      if (onBeforeDeferredEntries) {
+        await onBeforeDeferredEntries()
+      }
+
+      // Shutdown the first project instance
+      await project.shutdown()
+
+      // Create a new project instance with debugBuildPaths for only deferred routes
+      // A new project is needed because turbo_tasks caches entrypoints discovery
+      activeProject = await bindings.turbo.createProject(
+        {
+          ...sharedProjectOptions,
+          debugBuildPaths: deferredBuildPaths,
+        },
+        sharedTurboOptions
+      )
+
+      backgroundLogCompilationEvents(activeProject)
+
+      // Second build: only build deferred entries
+      const deferredEntrypoints =
+        await activeProject.writeAllEntrypointsToDisk(appDirOnly)
+      printBuildErrors(deferredEntrypoints, dev)
+
+      const deferredRoutes = deferredEntrypoints.routes
+      if (!deferredRoutes) {
+        throw new Error(`Turbopack build failed`)
+      }
+
+      // Merge deferred routes into the main routes
+      for (const [key, value] of deferredRoutes) {
+        routes.set(key, value)
+      }
+
+      // Update entrypoints to include merged routes for manifest processing
+      entrypoints = {
+        ...entrypoints,
+        routes,
+      }
     }
 
     const hasPagesEntries = Array.from(routes.values()).some((route) => {
@@ -204,10 +394,10 @@ export async function turbopackBuild(): Promise<{
     })
 
     if (NextBuildContext.analyze) {
-      await project.writeAnalyzeData(appDirOnly)
+      await activeProject.writeAnalyzeData(appDirOnly)
     }
 
-    const shutdownPromise = project.shutdown()
+    const shutdownPromise = activeProject.shutdown()
 
     const time = process.hrtime(startTime)
     return {
