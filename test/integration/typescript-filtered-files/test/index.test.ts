@@ -15,7 +15,7 @@ describe('TypeScript filtered files', () => {
         })
         expect(output.stdout).not.toMatch(/Compiled successfully/)
         expect(output.code).toBe(1)
-        expect(output.stderr).toMatch(/Failed to compile/)
+        expect(output.stderr).toMatch(/Failed to type check/)
         expect(output.stderr).toMatch(/is not assignable to type 'boolean'/)
       })
     }

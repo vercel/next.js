@@ -241,7 +241,7 @@ export async function verifyTypeScriptSetup({
   } catch (err) {
     // These are special errors that should not show a stack trace:
     if (err instanceof CompileError) {
-      console.error(red('Failed to compile.\n'))
+      console.error(red('Failed to type check.\n'))
       console.error(err.message)
       process.exit(1)
     }
