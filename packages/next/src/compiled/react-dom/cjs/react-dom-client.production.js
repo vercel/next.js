@@ -673,7 +673,7 @@ function getHighestPriorityLanes(lanes) {
     case 32768:
     case 65536:
     case 131072:
-      return lanes & 261888;
+      return lanes & -lanes;
     case 262144:
     case 524288:
     case 1048576:
@@ -745,6 +745,22 @@ function checkIfRootIsPrerendering(root, renderLanes) {
       ~(root.suspendedLanes & ~root.pingedLanes) &
       renderLanes)
   );
+}
+function getEntangledLanes(root, renderLanes) {
+  0 !== (renderLanes & 8) && (renderLanes |= renderLanes & 32);
+  var allEntangledLanes = root.entangledLanes;
+  if (0 !== allEntangledLanes)
+    for (
+      root = root.entanglements, allEntangledLanes &= renderLanes;
+      0 < allEntangledLanes;
+
+    ) {
+      var index$4 = 31 - clz32(allEntangledLanes),
+        lane = 1 << index$4;
+      renderLanes |= root[index$4];
+      allEntangledLanes &= ~lane;
+    }
+  return renderLanes;
 }
 function computeExpirationTime(lane, currentTime) {
   switch (lane) {
@@ -12167,6 +12183,7 @@ function markRootSuspended(
   spawnedLane,
   didAttemptEntireTree
 ) {
+  suspendedLanes = getEntangledLanes(root, suspendedLanes);
   suspendedLanes &= ~workInProgressRootPingedLanes;
   suspendedLanes &= ~workInProgressRootInterleavedUpdatedLanes;
   root.suspendedLanes |= suspendedLanes;
@@ -12231,20 +12248,7 @@ function prepareFreshStack(root, lanes) {
   workInProgressRootRecoverableErrors = workInProgressRootConcurrentErrors =
     null;
   workInProgressRootDidIncludeRecursiveRenderUpdate = !1;
-  0 !== (lanes & 8) && (lanes |= lanes & 32);
-  var allEntangledLanes = root.entangledLanes;
-  if (0 !== allEntangledLanes)
-    for (
-      root = root.entanglements, allEntangledLanes &= lanes;
-      0 < allEntangledLanes;
-
-    ) {
-      var index$4 = 31 - clz32(allEntangledLanes),
-        lane = 1 << index$4;
-      lanes |= root[index$4];
-      allEntangledLanes &= ~lane;
-    }
-  entangledRenderLanes = lanes;
+  entangledRenderLanes = getEntangledLanes(root, lanes);
   finishQueueingConcurrentUpdates();
   return timeoutHandle;
 }
@@ -13472,20 +13476,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1686 = 0;
-  i$jscomp$inline_1686 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1686++
+  var i$jscomp$inline_1677 = 0;
+  i$jscomp$inline_1677 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1677++
 ) {
-  var eventName$jscomp$inline_1687 =
-      simpleEventPluginEvents[i$jscomp$inline_1686],
-    domEventName$jscomp$inline_1688 =
-      eventName$jscomp$inline_1687.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1689 =
-      eventName$jscomp$inline_1687[0].toUpperCase() +
-      eventName$jscomp$inline_1687.slice(1);
+  var eventName$jscomp$inline_1678 =
+      simpleEventPluginEvents[i$jscomp$inline_1677],
+    domEventName$jscomp$inline_1679 =
+      eventName$jscomp$inline_1678.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1680 =
+      eventName$jscomp$inline_1678[0].toUpperCase() +
+      eventName$jscomp$inline_1678.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1688,
-    "on" + capitalizedEvent$jscomp$inline_1689
+    domEventName$jscomp$inline_1679,
+    "on" + capitalizedEvent$jscomp$inline_1680
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -18070,16 +18074,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2035 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2026 = React.version;
 if (
-  "19.3.0-canary-3e00319b-20260203" !==
-  isomorphicReactPackageVersion$jscomp$inline_2035
+  "19.3.0-canary-bb533877-20260205" !==
+  isomorphicReactPackageVersion$jscomp$inline_2026
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2035,
-      "19.3.0-canary-3e00319b-20260203"
+      isomorphicReactPackageVersion$jscomp$inline_2026,
+      "19.3.0-canary-bb533877-20260205"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18099,24 +18103,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2621 = {
+var internals$jscomp$inline_2612 = {
   bundleType: 0,
-  version: "19.3.0-canary-3e00319b-20260203",
+  version: "19.3.0-canary-bb533877-20260205",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-3e00319b-20260203"
+  reconcilerVersion: "19.3.0-canary-bb533877-20260205"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2622 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2613 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2622.isDisabled &&
-    hook$jscomp$inline_2622.supportsFiber
+    !hook$jscomp$inline_2613.isDisabled &&
+    hook$jscomp$inline_2613.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2622.inject(
-        internals$jscomp$inline_2621
+      (rendererID = hook$jscomp$inline_2613.inject(
+        internals$jscomp$inline_2612
       )),
-        (injectedHook = hook$jscomp$inline_2622);
+        (injectedHook = hook$jscomp$inline_2613);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18202,4 +18206,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-3e00319b-20260203";
+exports.version = "19.3.0-canary-bb533877-20260205";
