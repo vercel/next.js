@@ -79,9 +79,9 @@ export async function turbopackAnalyze(
       noMangling,
       writeRoutesHashesManifest: false,
       currentNodeJsVersion,
+      isPersistentCachingEnabled: persistentCaching,
     },
     {
-      persistentCaching,
       memoryLimit: config.experimental?.turbopackMemoryLimit,
       dependencyTracking: persistentCaching,
       isCi: isCI,

@@ -166,6 +166,7 @@ export interface NapiProjectOptions {
    * When set, only routes matching these paths will be included in the build.
    */
   debugBuildPaths?: NapiDebugBuildPaths
+  isPersistentCachingEnabled: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -217,8 +218,6 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** Use the new backend with filesystem cache enabled. */
-  persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
