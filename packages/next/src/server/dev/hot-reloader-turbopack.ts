@@ -204,14 +204,12 @@ function setupServerHmr(project: Project) {
 
   // Listen to the Rust bindings update us on changing server HMR chunk paths
   ;(async () => {
-    const serverHmrChunkPaths = project.hmrIdentifiersSubscribe(
-      HmrTarget.Server
-    )
+    const serverHmrChunkPaths = project.hmrChunkNamesSubscribe(HmrTarget.Server)
 
     // Process chunk paths (both initial and subsequent updates)
     for await (const data of serverHmrChunkPaths) {
       const currentChunkPaths = new Set(
-        data.chunkPaths.filter((path) => path.endsWith('.js'))
+        data.chunkNames.filter((path) => path.endsWith('.js'))
       )
 
       // Clean up subscriptions for removed chunk paths (like when pages are deleted)

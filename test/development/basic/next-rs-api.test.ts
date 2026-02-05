@@ -668,14 +668,14 @@ describe('next.rs api', () => {
         }
 
         const result = await project
-          .hmrIdentifiersSubscribe(HmrTarget.Client)
+          .hmrChunkNamesSubscribe(HmrTarget.Client)
           .next()
         expect(result.done).toBe(false)
-        const chunkPaths = result.value.chunk_paths
-        expect(chunkPaths).toHaveProperty('length', expect.toBePositive())
+        const chunkNames = result.value.chunkNames
+        expect(chunkNames).toHaveProperty('length', expect.toBePositive())
 
-        const subscriptions = chunkPaths.map((chunkPath) =>
-          project.hmrEvents(chunkPath, HmrTarget.Client)
+        const subscriptions = chunkNames.map((chunkName) =>
+          project.hmrEvents(chunkName, HmrTarget.Client)
         )
         await Promise.all(
           subscriptions.map(async (subscription) => {
@@ -797,14 +797,12 @@ describe('next.rs api', () => {
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()
 
-    const result = await project
-      .hmrIdentifiersSubscribe(HmrTarget.Client)
-      .next()
+    const result = await project.hmrChunkNamesSubscribe(HmrTarget.Client).next()
     expect(result.done).toBe(false)
-    const identifiers = result.value.identifiers
+    const chunkNames = result.value.chunkNames
 
-    const subscriptions = identifiers.map((identifier) =>
-      project.hmrEvents(identifier, HmrTarget.Client)
+    const subscriptions = chunkNames.map((chunkName) =>
+      project.hmrEvents(chunkName, HmrTarget.Client)
     )
     await Promise.all(
       subscriptions.map(async (subscription) => {
