@@ -3345,6 +3345,23 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts": {
+    "passed": [
+      "instant-navigation-testing-api logs an error when attempting to nest instant scopes",
+      "instant-navigation-testing-api reload followed by MPA navigation, both block dynamic data",
+      "instant-navigation-testing-api renders full prefetch content instantly when prefetch={true}",
+      "instant-navigation-testing-api renders prefetched loading shell instantly during navigation",
+      "instant-navigation-testing-api renders runtime-prefetched content instantly during navigation",
+      "instant-navigation-testing-api renders static shell on MPA navigation via plain anchor",
+      "instant-navigation-testing-api renders static shell on page reload",
+      "instant-navigation-testing-api subsequent navigations after instant scope are not locked",
+      "instant-navigation-testing-api successive MPA navigations within instant scope"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/instrumentation-order/instrumentation-order.test.ts": {
     "passed": ["instrumentation-order should work"],
     "failed": [],
@@ -7016,6 +7033,7 @@
   },
   "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
     "passed": [
+      "segment cache (deployment skew) header with deployment id header is set on RSC responses",
       "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
       "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a static page on a different deployment",
       "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
@@ -8443,6 +8461,19 @@
       "custom-cache-handler-image should use custom cache handler for image optimization"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/deferred-entries/deferred-entries.test.ts": {
+    "passed": [],
+    "failed": [
+      "deferred-entries webpack should build deferred entry successfully",
+      "deferred-entries webpack should build pages router API routes when using deferred entries",
+      "deferred-entries webpack should build pages router routes when using deferred entries",
+      "deferred-entries webpack should call onBeforeDeferredEntries before building deferred entry",
+      "deferred-entries webpack should call onBeforeDeferredEntries before processing deferred entries during build"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10436,6 +10467,21 @@
   "test/e2e/pages-performance-mark/index.test.ts": {
     "passed": [
       "pages performance mark should render the page correctly without crashing with performance mark"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/pages-ssg-data-deployment-skew/pages-ssg-data-deployment-skew.test.ts": {
+    "passed": [
+      "pages ssg data deployment skew - hard navigate when a new deployment occurs header with deployment id header is set on data routes",
+      "pages ssg data deployment skew - hard navigate when a new deployment occurs production mode with build id (output export) gsp to gssp",
+      "pages ssg data deployment skew - hard navigate when a new deployment occurs production mode with build id (output export) index to gsp",
+      "pages ssg data deployment skew - hard navigate when a new deployment occurs production mode with build id gsp to gssp",
+      "pages ssg data deployment skew - hard navigate when a new deployment occurs production mode with build id index to gsp",
+      "pages ssg data deployment skew - hard navigate when a new deployment occurs production mode with deployment id gsp to gssp",
+      "pages ssg data deployment skew - hard navigate when a new deployment occurs production mode with deployment id index to gsp"
     ],
     "failed": [],
     "pending": [],
@@ -20144,20 +20190,6 @@
       "Dynamic Routing development mode should render nested dynamic page",
       "Dynamic Routing development mode should render normal route"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/ssg-data-404/test/index.test.ts": {
-    "passed": [
-      "SSG data 404 - hard navigate when a new deployment occurs development mode gsp to gssp",
-      "SSG data 404 - hard navigate when a new deployment occurs development mode index to gsp",
-      "SSG data 404 - hard navigate when a new deployment occurs production mode with build id gsp to gssp",
-      "SSG data 404 - hard navigate when a new deployment occurs production mode with build id index to gsp",
-      "SSG data 404 - hard navigate when a new deployment occurs production mode with deployment id gsp to gssp",
-      "SSG data 404 - hard navigate when a new deployment occurs production mode with deployment id index to gsp"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
