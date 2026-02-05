@@ -33,7 +33,7 @@ import type {
 } from '..'
 
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
   NEXT_RESUME_HEADER,
@@ -532,50 +532,48 @@ export async function handleBuildComplete({
       sharedNodeAssets[path.relative(tracingRoot, setupNodeStubPath)] =
         require.resolve('next/dist/build/adapter/setup-node-env.external')
 
-      if (bundler !== Bundler.Turbopack) {
-        const moduleTypes = ['app-page', 'pages'] as const
+      const moduleTypes = ['app-page', 'pages'] as const
 
-        for (const type of moduleTypes) {
-          const currentDependencies: string[] = []
-          const modulePath = require.resolve(
-            `next/dist/server/route-modules/${type}/module.compiled`
-          )
-          const contextDir = path.join(
-            path.dirname(modulePath),
-            'vendored',
-            'contexts'
-          )
+      for (const type of moduleTypes) {
+        const currentDependencies: string[] = []
+        const modulePath = require.resolve(
+          `next/dist/server/route-modules/${type}/module.compiled`
+        )
+        currentDependencies.push(modulePath)
 
-          for (const item of await fs.readdir(contextDir)) {
-            if (item.match(/\.(mjs|cjs|js)$/)) {
-              currentDependencies.push(path.join(contextDir, item))
-            }
-          }
+        const contextDir = path.join(
+          path.dirname(modulePath),
+          'vendored',
+          'contexts'
+        )
 
-          const { fileList, esmFileList } = await nodeFileTrace(
-            currentDependencies,
-            {
-              base: tracingRoot,
-              ignore: sharedIgnoreFn,
-            }
-          )
-          esmFileList.forEach((item) => fileList.add(item))
-
-          for (const rootRelativeFilePath of fileList) {
-            if (type === 'pages') {
-              pagesSharedNodeAssets[rootRelativeFilePath] = path.join(
-                tracingRoot,
-                rootRelativeFilePath
-              )
-            } else {
-              appPagesSharedNodeAssets[rootRelativeFilePath] = path.join(
-                tracingRoot,
-                rootRelativeFilePath
-              )
-            }
+        for (const item of await fs.readdir(contextDir)) {
+          if (item.match(/\.(mjs|cjs|js)$/)) {
+            currentDependencies.push(path.join(contextDir, item))
           }
         }
 
+        for (const dependencyPath of currentDependencies) {
+          const rootRelativeFilePath = path.relative(
+            tracingRoot,
+            dependencyPath
+          )
+
+          if (type === 'pages') {
+            pagesSharedNodeAssets[rootRelativeFilePath] = path.join(
+              tracingRoot,
+              rootRelativeFilePath
+            )
+          } else {
+            appPagesSharedNodeAssets[rootRelativeFilePath] = path.join(
+              tracingRoot,
+              rootRelativeFilePath
+            )
+          }
+        }
+      }
+
+      if (bundler !== Bundler.Turbopack) {
         // These are modules that are necessary for bootstrapping node env
         const necessaryNodeDependencies = [
           require.resolve('next/dist/server/node-environment'),
@@ -2012,7 +2010,7 @@ export async function handleBuildComplete({
               // Next.js assets contain a hash or entropy in their filenames, so they
               // are guaranteed to be unique and cacheable indefinitely.
               headers: {
-                'cache-control': `public,max-age=${CACHE_ONE_YEAR},immutable`,
+                'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
               },
             },
           ],

@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { DebugLinkAccordion } from '../../../components/link-accordion'
 import { Suspense } from 'react'
 
-// No `export const unstable_prefetch = ...` is needed, we default to static
+// No `export const unstable_instant = ...` is needed, we default to static
 // (but see page description for more on the actual behavior)
 
 export default function Page() {

@@ -24,6 +24,7 @@ pub async fn get_browser_runtime_code(
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
+    chunk_loading_global: Vc<RcStr>,
 ) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(*environment).resolve().await?;
 
@@ -83,12 +84,14 @@ pub async fn get_browser_runtime_code(
     let chunk_base_path = chunk_base_path.await?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
     let asset_suffix = asset_suffix.await?;
+    let chunk_loading_global = chunk_loading_global.await?;
+    let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
 
     writedoc!(
         code,
         r#"
             (() => {{
-            if (!Array.isArray(globalThis.TURBOPACK)) {{
+            if (!Array.isArray(globalThis[{}])) {{
                 return;
             }}
 
@@ -96,6 +99,7 @@ pub async fn get_browser_runtime_code(
             const RELATIVE_ROOT_PATH = {};
             const RUNTIME_PUBLIC_PATH = {};
         "#,
+        StringifyJs(&chunk_loading_global),
         StringifyJs(chunk_base_path),
         StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
@@ -200,19 +204,21 @@ pub async fn get_browser_runtime_code(
     writedoc!(
         code,
         r#"
-            const chunksToRegister = globalThis.TURBOPACK;
-            globalThis.TURBOPACK = {{ push: registerChunk }};
+            const chunksToRegister = globalThis[{chunk_loading_global}];
+            globalThis[{chunk_loading_global}] = {{ push: registerChunk }};
             chunksToRegister.forEach(registerChunk);
-        "#
+        "#,
+        chunk_loading_global = StringifyJs(&chunk_loading_global),
     )?;
     if matches!(runtime_type, RuntimeType::Development) {
         writedoc!(
             code,
             r#"
-            const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
-            globalThis.TURBOPACK_CHUNK_LISTS = {{ push: registerChunkList }};
+            const chunkListsToRegister = globalThis[{chunk_lists_global}] || [];
+            globalThis[{chunk_lists_global}] = {{ push: registerChunkList }};
             chunkListsToRegister.forEach(registerChunkList);
-        "#
+        "#,
+            chunk_lists_global = StringifyJs(&chunk_lists_global),
         )?;
     }
     writedoc!(

@@ -220,14 +220,19 @@ export class NextDeployInstance extends NextInstance {
 
     const vercelFlags: string[] = []
     const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER
+    const IS_TURBOPACK_TEST = process.env.IS_TURBOPACK_TEST
 
     const TEST_TEAM_NAME = NEXT_ENABLE_ADAPTER
       ? projectEnv.ADAPTER_TEST_TEAM_NAME
-      : projectEnv.TEST_TEAM_NAME
+      : IS_TURBOPACK_TEST
+        ? projectEnv.TURBOPACK_TEST_TEAM_NAME
+        : projectEnv.TEST_TEAM_NAME
 
     const TEST_TOKEN = NEXT_ENABLE_ADAPTER
       ? projectEnv.ADAPTER_TEST_TOKEN
-      : projectEnv.TEST_TOKEN
+      : IS_TURBOPACK_TEST
+        ? projectEnv.TURBOPACK_TEST_TOKEN
+        : projectEnv.TEST_TOKEN
 
     // If the team name is available in the environment, use it as the scope.
     if (TEST_TEAM_NAME) {

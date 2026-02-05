@@ -684,9 +684,9 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  if ('unstable_prefetch' in config && !nextConfig.cacheComponents) {
+  if ('unstable_instant' in config && !nextConfig.cacheComponents) {
     throw new Error(
-      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\`.`
+      `Page "${page}" cannot use \`export const unstable_instant = ...\` without enabling \`cacheComponents\`.`
     )
   }
 

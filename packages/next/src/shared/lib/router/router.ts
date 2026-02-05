@@ -42,7 +42,10 @@ import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
 import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
 import type { Params } from '../../../server/request/params'
-import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+import {
+  MATCHED_PATH_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
+} from '../../../lib/constants'
 import { getDeploymentId } from '../deployment-id'
 import { isJavaScriptURLString } from '../../../client/lib/javascript-url'
 
@@ -553,6 +556,25 @@ function fetchNextData({
               markAssetError(error)
             }
 
+            throw error
+          }
+
+          let dplResponseHeader = response.headers.get(
+            NEXT_NAV_DEPLOYMENT_ID_HEADER
+          )
+          if (dplResponseHeader != null && dplResponseHeader !== deploymentId) {
+            // When not found, or we want to force a MPA navigation because of Skew Protection
+            const error = new Error(
+              `Loaded static props were from an outdated deployment, forcing a hard reload`
+            )
+            /**
+             * We should only trigger a server-side transition if this was
+             * caused on a client-side transition. Otherwise, we'd get into
+             * an infinite loop.
+             */
+            if (!isServerRender) {
+              markAssetError(error)
+            }
             throw error
           }
 

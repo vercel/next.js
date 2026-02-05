@@ -382,7 +382,7 @@ export async function startServer(
       try {
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
-        const cleanup = () => {
+        const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
             // interactive shell (i.e. bash, zsh), the shell will recursively
@@ -435,7 +435,23 @@ export async function startServer(
             }
 
             debug('start-server process cleanup finished')
-            process.exit(0)
+
+            // Exit with signal-based exit code (128 + signal number) so that
+            // Node.js treats this as a signal termination, not a normal exit.
+            // This avoids waiting for the debugger to disconnect.
+            switch (signal) {
+              case 'SIGINT':
+                process.exit(130)
+                break
+              case 'SIGTERM':
+                process.exit(143)
+                break
+              default:
+                // Make sure all handled signals have explicit exit codes.
+                // This is just a fallback to guard against unsound types.
+                signal satisfies never
+                process.exit(128)
+            }
           })()
         }
 

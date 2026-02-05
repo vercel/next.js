@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import { DebugRenderKind } from '../../../shared'
 
-// No `export const unstable_prefetch = ...` is needed, we default to static
+// No `export const unstable_instant = ...` is needed, we default to static
 
 export default async function SubLayout({ children }) {
   return (
