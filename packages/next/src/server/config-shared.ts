@@ -470,7 +470,7 @@ export interface ExperimentalConfig {
   turbopackMinify?: boolean
 
   /**
-   * Enable support for `with {type: "module"}` for ESM imports.
+   * Enable support for `with {type: "bytes"}` for ESM imports.
    */
   turbopackImportTypeBytes?: boolean
 
