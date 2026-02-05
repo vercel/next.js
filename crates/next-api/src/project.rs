@@ -275,6 +275,9 @@ pub struct ProjectOptions {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
+
+    /// Whether to enable persistent caching
+    pub is_persistent_caching_enabled: bool,
 }
 
 pub struct PartialProjectOptions {
@@ -677,6 +680,7 @@ impl ProjectContainer {
         let write_routes_hashes_manifest;
         let current_node_js_version;
         let debug_build_paths;
+        let is_persistent_caching_enabled;
         {
             let options = self.options_state.get();
             let options = options
@@ -702,6 +706,7 @@ impl ProjectContainer {
             write_routes_hashes_manifest = options.write_routes_hashes_manifest;
             current_node_js_version = options.current_node_js_version.clone();
             debug_build_paths = options.debug_build_paths.clone();
+            is_persistent_caching_enabled = options.is_persistent_caching_enabled;
         }
 
         let dist_dir = next_config.dist_dir().owned().await?;
@@ -729,6 +734,7 @@ impl ProjectContainer {
             write_routes_hashes_manifest,
             current_node_js_version,
             debug_build_paths,
+            is_persistent_caching_enabled,
         }
         .cell())
     }
@@ -823,6 +829,9 @@ pub struct Project {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     debug_build_paths: Option<DebugBuildPaths>,
+
+    /// Whether to enable persistent caching
+    is_persistent_caching_enabled: bool,
 }
 
 #[turbo_tasks::value]
@@ -1030,6 +1039,11 @@ impl Project {
     #[turbo_tasks::function]
     pub fn next_config(&self) -> Vc<NextConfig> {
         *self.next_config
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn is_persistent_caching_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.is_persistent_caching_enabled)
     }
 
     #[turbo_tasks::function]
@@ -1499,7 +1513,7 @@ impl Project {
         );
         emit_event(
             "persistentCaching",
-            *config.persistent_caching_enabled().await?,
+            *self.is_persistent_caching_enabled().await?,
         );
 
         emit_event(

@@ -216,10 +216,10 @@ export async function turbopackBuild(): Promise<{
     writeRoutesHashesManifest:
       !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
     currentNodeJsVersion,
+    isPersistentCachingEnabled: persistentCaching,
   }
 
   const sharedTurboOptions = {
-    persistentCaching,
     memoryLimit: config.experimental?.turbopackMemoryLimit,
     dependencyTracking: persistentCaching,
     isCi: isCI,

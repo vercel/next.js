@@ -282,9 +282,11 @@ export async function createHotReloaderTurbopack(
       noMangling: false,
       writeRoutesHashesManifest: false,
       currentNodeJsVersion,
+      isPersistentCachingEnabled: isFileSystemCacheEnabledForDev(
+        opts.nextConfig
+      ),
     },
     {
-      persistentCaching: isFileSystemCacheEnabledForDev(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
       isShortSession: false,
     }
