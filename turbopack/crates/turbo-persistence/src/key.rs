@@ -182,66 +182,40 @@ impl<T: QueryKey> QueryKey for &'_ T {
 
 /// A trait for keys that can be stored in the database. They need to allow hashing and comparison.
 pub trait StoreKey: KeyBase + Ord {
-    fn memory_usage(&self) -> usize;
     fn write_to(&self, buf: &mut Vec<u8>);
 }
 
 impl<const N: usize> StoreKey for [u8; N] {
-    fn memory_usage(&self) -> usize {
-        std::mem::size_of::<[u8; N]>()
-    }
-
     fn write_to(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(&self[..]);
     }
 }
 
 impl StoreKey for Vec<u8> {
-    fn memory_usage(&self) -> usize {
-        std::mem::size_of::<Vec<u8>>() + self.capacity()
-    }
-
     fn write_to(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(self);
     }
 }
 
 impl StoreKey for Box<[u8]> {
-    fn memory_usage(&self) -> usize {
-        std::mem::size_of::<Box<[u8]>>() + self.len()
-    }
-
     fn write_to(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(self);
     }
 }
 
 impl StoreKey for &'_ [u8] {
-    fn memory_usage(&self) -> usize {
-        std::mem::size_of::<&[u8]>()
-    }
-
     fn write_to(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(self);
     }
 }
 
 impl StoreKey for u8 {
-    fn memory_usage(&self) -> usize {
-        std::mem::size_of::<u8>()
-    }
-
     fn write_to(&self, buf: &mut Vec<u8>) {
         buf.push(*self);
     }
 }
 
 impl<A: StoreKey, B: StoreKey> StoreKey for (A, B) {
-    fn memory_usage(&self) -> usize {
-        let (a, b) = self;
-        a.memory_usage() + b.memory_usage()
-    }
-
     fn write_to(&self, buf: &mut Vec<u8>) {
         self.0.write_to(buf);
         self.1.write_to(buf);
@@ -249,10 +223,6 @@ impl<A: StoreKey, B: StoreKey> StoreKey for (A, B) {
 }
 
 impl<T: StoreKey> StoreKey for &'_ T {
-    fn memory_usage(&self) -> usize {
-        std::mem::size_of::<&T>()
-    }
-
     fn write_to(&self, buf: &mut Vec<u8>) {
         (*self).write_to(buf);
     }
