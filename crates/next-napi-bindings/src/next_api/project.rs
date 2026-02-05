@@ -1057,6 +1057,7 @@ pub async fn all_entrypoints_write_to_disk_operation(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
 ) -> Result<Vc<Entrypoints>> {
+    turbo_tasks::mark_root();
     let output_assets_operation = output_assets_operation(project, app_dir_only);
     project
         .project()
@@ -1064,7 +1065,7 @@ pub async fn all_entrypoints_write_to_disk_operation(
         .as_side_effect()
         .await?;
 
-    Ok(project.entrypoints())
+    Ok(project.entrypoints().resolve().await?)
 }
 
 #[turbo_tasks::function(operation)]
