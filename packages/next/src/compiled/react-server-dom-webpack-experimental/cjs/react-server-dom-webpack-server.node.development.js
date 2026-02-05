@@ -2080,147 +2080,161 @@
       task = task.implicitSlot && null !== key ? [request] : request;
       return task;
     }
-    function visitAsyncNode(request, task, node, visited, cutOff) {
-      if (visited.has(node)) return visited.get(node);
-      visited.set(node, null);
-      a: if (0 <= node.end && node.end <= request.timeOrigin) request = null;
-      else {
-        var previousIONode = null;
-        if (
-          null !== node.previous &&
-          ((previousIONode = visitAsyncNode(
-            request,
-            task,
-            node.previous,
-            visited,
-            cutOff
-          )),
-          void 0 === previousIONode)
-        ) {
-          request = void 0;
-          break a;
-        }
-        switch (node.tag) {
-          case 0:
-            request = node;
-            break;
-          case 3:
-            request = previousIONode;
-            break;
-          case 1:
-            var awaited = node.awaited,
-              promise = node.promise.deref();
-            if (null !== awaited)
-              if (
-                ((cutOff = visitAsyncNode(
-                  request,
-                  task,
-                  awaited,
-                  visited,
-                  cutOff
-                )),
-                void 0 === cutOff)
-              ) {
-                request = void 0;
-                break;
-              } else
-                null !== cutOff
-                  ? (previousIONode =
-                      1 === cutOff.tag
-                        ? cutOff
-                        : (null !== node.stack &&
-                              hasUnfilteredFrame(request, node.stack)) ||
-                            (void 0 !== promise &&
-                              "string" === typeof promise.displayName &&
-                              (null === cutOff.stack ||
-                                !hasUnfilteredFrame(request, cutOff.stack)))
-                          ? node
-                          : cutOff)
-                  : request.status === ABORTING &&
-                    node.start < request.abortTime &&
-                    node.end > request.abortTime &&
-                    ((null !== node.stack &&
-                      hasUnfilteredFrame(request, node.stack)) ||
-                      (void 0 !== promise &&
-                        "string" === typeof promise.displayName)) &&
-                    (previousIONode = node);
-            void 0 !== promise &&
-              ((cutOff = promise._debugInfo),
-              null == cutOff ||
-                visited.has(cutOff) ||
-                (visited.set(cutOff, null),
-                forwardDebugInfo(request, task, cutOff)));
-            request = previousIONode;
-            break;
-          case 4:
-            request = previousIONode;
-            break;
-          case 2:
-            awaited = node.awaited;
-            if (null !== awaited)
-              if (
-                ((promise = visitAsyncNode(
-                  request,
-                  task,
-                  awaited,
-                  visited,
-                  cutOff
-                )),
-                void 0 === promise)
-              ) {
-                request = void 0;
-                break;
-              } else if (null !== promise) {
-                var startTime = node.start,
-                  endTime = node.end;
-                startTime < cutOff
-                  ? ((previousIONode = promise),
-                    null !== node.stack &&
-                      isAwaitInUserspace(request, node.stack) &&
-                      void 0 !==
-                        (null === awaited.promise
-                          ? void 0
-                          : awaited.promise.deref()) &&
-                      serializeIONode(request, promise, awaited.promise))
-                  : null !== node.stack &&
-                      isAwaitInUserspace(request, node.stack)
-                    ? (request.status === ABORTING &&
-                        startTime > request.abortTime) ||
-                      (serializeIONode(request, promise, awaited.promise),
-                      visited.set(promise, null),
-                      null != node.owner &&
-                        outlineComponentInfo(request, node.owner),
-                      (cutOff = (0, request.environmentName)()),
-                      advanceTaskTime(request, task, startTime),
-                      request.pendingChunks++,
-                      emitDebugChunk(request, task.id, {
-                        awaited: promise,
-                        env: cutOff,
-                        owner: node.owner,
-                        stack:
-                          null === node.stack
-                            ? null
-                            : filterStackTrace(request, node.stack)
-                      }),
-                      markOperationEndTime(request, task, endTime),
-                      request.status === ABORTING && (previousIONode = void 0))
-                    : (previousIONode = promise);
-              }
-            cutOff = node.promise.deref();
-            void 0 !== cutOff &&
-              ((cutOff = cutOff._debugInfo),
-              null == cutOff ||
-                visited.has(cutOff) ||
-                (visited.set(cutOff, null),
-                forwardDebugInfo(request, task, cutOff)));
-            request = previousIONode;
-            break;
-          default:
-            throw Error("Unknown AsyncSequence tag. This is a bug in React.");
-        }
+    function visitAsyncNode(
+      request,
+      task$jscomp$0,
+      node$jscomp$0,
+      visited,
+      cutOff
+    ) {
+      for (
+        var chain = [];
+        null !== node$jscomp$0 && !visited.has(node$jscomp$0);
+
+      )
+        chain.push(node$jscomp$0), (node$jscomp$0 = node$jscomp$0.previous);
+      var previousIONode =
+        null !== node$jscomp$0 ? visited.get(node$jscomp$0) : null;
+      for (
+        node$jscomp$0 = chain.length - 1;
+        0 <= node$jscomp$0;
+        node$jscomp$0--
+      ) {
+        var n = chain[node$jscomp$0];
+        visited.set(n, null);
+        var result = request;
+        var task = task$jscomp$0,
+          node = n,
+          visited$jscomp$0 = visited,
+          cutOff$jscomp$0 = cutOff;
+        if (0 <= node.end && node.end <= result.timeOrigin) result = null;
+        else
+          switch (node.tag) {
+            case 0:
+              result = node;
+              break;
+            case 3:
+              result = previousIONode;
+              break;
+            case 1:
+              var awaited = node.awaited,
+                promise = node.promise.deref();
+              if (null !== awaited)
+                if (
+                  ((cutOff$jscomp$0 = visitAsyncNode(
+                    result,
+                    task,
+                    awaited,
+                    visited$jscomp$0,
+                    cutOff$jscomp$0
+                  )),
+                  void 0 === cutOff$jscomp$0)
+                ) {
+                  result = void 0;
+                  break;
+                } else
+                  null !== cutOff$jscomp$0
+                    ? (previousIONode =
+                        1 === cutOff$jscomp$0.tag
+                          ? cutOff$jscomp$0
+                          : (null !== node.stack &&
+                                hasUnfilteredFrame(result, node.stack)) ||
+                              (void 0 !== promise &&
+                                "string" === typeof promise.displayName &&
+                                (null === cutOff$jscomp$0.stack ||
+                                  !hasUnfilteredFrame(
+                                    result,
+                                    cutOff$jscomp$0.stack
+                                  )))
+                            ? node
+                            : cutOff$jscomp$0)
+                    : result.status === ABORTING &&
+                      node.start < result.abortTime &&
+                      node.end > result.abortTime &&
+                      ((null !== node.stack &&
+                        hasUnfilteredFrame(result, node.stack)) ||
+                        (void 0 !== promise &&
+                          "string" === typeof promise.displayName)) &&
+                      (previousIONode = node);
+              void 0 !== promise &&
+                ((node = promise._debugInfo),
+                null == node ||
+                  visited$jscomp$0.has(node) ||
+                  (visited$jscomp$0.set(node, null),
+                  forwardDebugInfo(result, task, node)));
+              result = previousIONode;
+              break;
+            case 4:
+              result = previousIONode;
+              break;
+            case 2:
+              awaited = node.awaited;
+              if (null !== awaited)
+                if (
+                  ((promise = visitAsyncNode(
+                    result,
+                    task,
+                    awaited,
+                    visited$jscomp$0,
+                    cutOff$jscomp$0
+                  )),
+                  void 0 === promise)
+                ) {
+                  result = void 0;
+                  break;
+                } else if (null !== promise) {
+                  var startTime = node.start,
+                    endTime = node.end;
+                  startTime < cutOff$jscomp$0
+                    ? ((previousIONode = promise),
+                      null !== node.stack &&
+                        isAwaitInUserspace(result, node.stack) &&
+                        void 0 !==
+                          (null === awaited.promise
+                            ? void 0
+                            : awaited.promise.deref()) &&
+                        serializeIONode(result, promise, awaited.promise))
+                    : null !== node.stack &&
+                        isAwaitInUserspace(result, node.stack)
+                      ? (result.status === ABORTING &&
+                          startTime > result.abortTime) ||
+                        (serializeIONode(result, promise, awaited.promise),
+                        visited$jscomp$0.set(promise, null),
+                        null != node.owner &&
+                          outlineComponentInfo(result, node.owner),
+                        (cutOff$jscomp$0 = (0, result.environmentName)()),
+                        advanceTaskTime(result, task, startTime),
+                        result.pendingChunks++,
+                        emitDebugChunk(result, task.id, {
+                          awaited: promise,
+                          env: cutOff$jscomp$0,
+                          owner: node.owner,
+                          stack:
+                            null === node.stack
+                              ? null
+                              : filterStackTrace(result, node.stack)
+                        }),
+                        markOperationEndTime(result, task, endTime),
+                        result.status === ABORTING && (previousIONode = void 0))
+                      : (previousIONode = promise);
+                }
+              node = node.promise.deref();
+              void 0 !== node &&
+                ((node = node._debugInfo),
+                null == node ||
+                  visited$jscomp$0.has(node) ||
+                  (visited$jscomp$0.set(node, null),
+                  forwardDebugInfo(result, task, node)));
+              result = previousIONode;
+              break;
+            default:
+              throw Error("Unknown AsyncSequence tag. This is a bug in React.");
+          }
+        null !== result && visited.set(n, result);
+        if (void 0 === result) return;
+        previousIONode = result;
       }
-      null !== request && visited.set(node, request);
-      return request;
+      return previousIONode;
     }
     function emitAsyncSequence(
       request,
