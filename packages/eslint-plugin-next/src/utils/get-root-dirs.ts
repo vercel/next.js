@@ -1,4 +1,4 @@
-import { globSync } from 'fast-glob'
+import { globSync } from 'tinyglobby'
 import type { Rule } from 'eslint'
 
 /**
@@ -7,6 +7,7 @@ import type { Rule } from 'eslint'
 const processRootDir = (rootDir: string): string[] => {
   return globSync(rootDir.replace(/\\/g, '/'), {
     onlyDirectories: true,
+    expandDirectories: false,
   })
 }
 
