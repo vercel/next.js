@@ -103,7 +103,7 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath,
   moduleId: ModuleId
 ): HotModule {
-  const module = devModuleCache[moduleId]
+  const module = devModuleCache.get(moduleId)
 
   if (module) {
     if (module.error) {
@@ -125,9 +125,9 @@ function getOrInstantiateModuleFromParent(
   sourceModule: HotModule
 ): HotModule {
   // Track parent-child relationship
-  trackModuleImport(sourceModule, id, devModuleCache[id])
+  trackModuleImport(sourceModule, id, devModuleCache.get(id))
 
-  const module = devModuleCache[id]
+  const module = devModuleCache.get(id)
 
   if (module) {
     if (module.error) {

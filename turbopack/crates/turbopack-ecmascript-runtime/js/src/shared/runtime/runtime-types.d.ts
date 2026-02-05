@@ -73,7 +73,7 @@ type LoadWebAssemblyModule = (
   edgeModule: () => WebAssembly.Module
 ) => WebAssembly.Module
 
-type ModuleCache<M> = Record<ModuleId, M>
+type ModuleCache<M> = Map<ModuleId, M>
 // TODO properly type values here
 type ModuleFactories = Map<ModuleId, Function>
 /**

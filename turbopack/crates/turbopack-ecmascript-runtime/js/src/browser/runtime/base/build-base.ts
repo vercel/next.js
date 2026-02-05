@@ -1,7 +1,7 @@
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
 
-const moduleCache: ModuleCache<Module> = {}
+const moduleCache: ModuleCache<Module> = new Map()
 contextPrototype.c = moduleCache
 
 /**
@@ -13,7 +13,7 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath,
   moduleId: ModuleId
 ): Module {
-  const module = moduleCache[moduleId]
+  const module = moduleCache.get(moduleId)
   if (module) {
     if (module.error) {
       throw module.error
@@ -33,7 +33,7 @@ function getOrInstantiateRuntimeModule(
 const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   Module
 > = (id, sourceModule) => {
-  const module = moduleCache[id]
+  const module = moduleCache.get(id)
 
   if (module) {
     if (module.error) {
@@ -61,7 +61,7 @@ function instantiateModule(
   const module: Module = createModuleObject(id)
   const exports = module.exports
 
-  moduleCache[id] = module
+  moduleCache.set(id, module)
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   const context = new (Context as any as ContextConstructor<Module>)(

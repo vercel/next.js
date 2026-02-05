@@ -109,12 +109,12 @@ function getOverwrittenModule(
   moduleCache: ModuleCache<Module>,
   id: ModuleId
 ): Module {
-  let module = moduleCache[id]
+  let module = moduleCache.get(id)
   if (!module) {
     // This is invoked when a module is merged into another module, thus it wasn't invoked via
     // instantiateModule and the cache entry wasn't created yet.
     module = createModuleObject(id)
-    moduleCache[id] = module
+    moduleCache.set(id, module)
   }
   return module
 }

@@ -7,7 +7,7 @@
 
 declare global {
   var __turbopack_module_factories__: ModuleFactories
-  var __turbopack_module_cache__: Record<ModuleId, any>
+  var __turbopack_module_cache__: ModuleCache<ModuleId>
   var __turbopack_runtime_modules__: Set<ModuleId>
 }
 

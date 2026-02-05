@@ -22,7 +22,7 @@ if (!globalThis.__turbopack_module_factories__) {
   globalThis.__turbopack_module_factories__ = new Map()
 }
 if (!globalThis.__turbopack_module_cache__) {
-  globalThis.__turbopack_module_cache__ = Object.create(null)
+  globalThis.__turbopack_module_cache__ = new Map()
 }
 
 const moduleFactories: ModuleFactories =
@@ -82,9 +82,7 @@ function clearChunkCache() {
   chunkCache.clear()
   loadedChunks.clear()
   moduleFactories.clear()
-  for (const key in moduleCache) {
-    delete moduleCache[key]
-  }
+  moduleCache.clear()
 }
 
 function loadRuntimeChunkPath(
