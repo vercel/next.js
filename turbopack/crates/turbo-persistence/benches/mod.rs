@@ -277,12 +277,12 @@ fn bench_read_get(c: &mut Criterion) {
     let entry_sizes = [(8, 4), (4, 32 * 1024), (32 * 1024, 4)];
     // Configuration parameters: (entry_count, commit_count, compacted)
     let size_commits_compacted = [
-        (100 * 1024 * 1024, 1, true),
-        (100 * 1024 * 1024, 1, false),
-        (100 * 1024 * 1024, 20, false),
-        (4 * 1024 * 1024 * 1024, 1, true),
-        (4 * 1024 * 1024 * 1024, 1, false),
-        (4 * 1024 * 1024 * 1024, 20, false),
+        (128 * 1024 * 1024, 1, true),
+        (128 * 1024 * 1024, 1, false),
+        (128 * 1024 * 1024, 20, false),
+        (1 * 1024 * 1024 * 1024, 1, true),
+        (1 * 1024 * 1024 * 1024, 1, false),
+        (1 * 1024 * 1024 * 1024, 20, false),
     ];
 
     for &(key_size, value_size) in &entry_sizes {
