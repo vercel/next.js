@@ -5,6 +5,7 @@ type IpcIncomingMessage =
   | {
       type: 'evaluate'
       args: string[]
+      compilationMarker?: number
     }
   | {
       type: 'result'
@@ -33,10 +34,11 @@ export type Ipc<IM, RM> = {
   sendInfo(message: IM): Promise<void>
   sendRequest(message: RM): Promise<unknown>
   sendError(error: Error): Promise<never>
+  compilationMarker?: number
 }
 const ipc = IPC as GenericIpc<IpcIncomingMessage, IpcOutgoingMessage>
 
-const queue: string[][] = []
+const queue: Array<{ args: string[]; compilationMarker?: number }> = []
 
 export const run = async (
   moduleFactory: () => Promise<{
@@ -46,7 +48,7 @@ export const run = async (
 ) => {
   let nextId = 1
   const requests = new Map()
-  const internalIpc = {
+  const internalIpc: Ipc<any, any> = {
     sendInfo: (message: any) =>
       ipc.send({
         type: 'info',
@@ -87,9 +89,10 @@ export const run = async (
   let isRunning = false
   const run = async () => {
     while (queue.length > 0) {
-      const args = queue.shift()!
+      const item = queue.shift()!
+      internalIpc.compilationMarker = item.compilationMarker
       try {
-        const value = await getValue(internalIpc, ...args)
+        const value = await getValue(internalIpc, ...item.args)
         await ipc.send({
           type: 'end',
           data:
@@ -109,7 +112,7 @@ export const run = async (
 
     switch (msg.type) {
       case 'evaluate': {
-        queue.push(msg.args)
+        queue.push({ args: msg.args, compilationMarker: msg.compilationMarker })
         if (!isRunning) {
           isRunning = true
           run()

@@ -695,6 +695,8 @@ impl DiskWatcher {
             };
             let _guard = fs_inner.tokio_handle.enter();
 
+            fs_inner.increment_compilation_id();
+
             let _lock = fs_inner.invalidation_lock.blocking_write();
             {
                 let mut invalidator_map = fs_inner.invalidator_map.lock().unwrap();
