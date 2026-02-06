@@ -3,12 +3,20 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
 /**
- * Tests for the "vary params" optimization. Segments that don't access params
- * on the server can have their prefetched data reused across different param
- * values. This includes:
+ * Tests for the "vary params" optimization.
  *
- * 1. Segments without a user-provided layout (only loading.tsx or nothing)
- * 2. Segments with a 'use client' layout (client components don't run on server)
+ * Background: During prerendering, Next.js tracks which params each segment
+ * actually accesses on the server. This enables the client cache to share
+ * entries: when a segment doesn't access a param, different values of that
+ * param can reuse the same cached segment.
+ *
+ * Core behavior under test:
+ * - When a segment accesses a param, changing that param requires a new prefetch
+ * - When a segment does NOT access a param, changing that param reuses the cache
+ *
+ * The first test (instant loading state) is the canonical demonstration of
+ * the feature's user-facing benefit. Subsequent tests exercise various
+ * combinations of features and edge cases.
  */
 describe('segment cache - vary params', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -20,99 +28,345 @@ describe('segment cache - vary params', () => {
     return
   }
 
-  it('reuses prefetched segment when there is no user-provided layout', async () => {
+  it('renders cached loading state instantly during navigation', async () => {
+    // Setup: All links share category='electronics' but different itemId values.
+    // Layout only accesses 'category', page renders itemId dynamically.
     let act: ReturnType<typeof createRouterAct>
-    const browser = await next.browser('/static', {
+    const browser = await next.browser('/instant-loading', {
       beforePageLoad(p: Playwright.Page) {
         act = createRouterAct(p)
       },
     })
 
-    // Prefetch the first link (/static/aaa). This will populate the segment
-    // cache with the [param] segment's loading boundary.
-    await act(async () => {
-      const toggle = await browser.elementByCss(
-        'input[data-link-accordion="/static/aaa"]'
-      )
-      await toggle.click()
-    })
-
-    // Now prefetch the second link (/static/bbb). Because the [param] segment
-    // has no user-provided layout (only loading.tsx), its varyParams is an
-    // empty set. This means the segment data from /static/aaa is re-keyed with
-    // Fallback and should be reused for /static/bbb.
-    //
-    // We should NOT see a new prefetch request for the [param] segment's
-    // loading boundary - only the page content should be fetched.
+    // Prefetch the first link - layout is fetched
     await act(
       async () => {
         const toggle = await browser.elementByCss(
-          'input[data-link-accordion="/static/bbb"]'
+          'input[data-link-accordion="/instant-loading/electronics/phone"]'
         )
         await toggle.click()
       },
-      // The loading boundary content should NOT be re-fetched because the
-      // segment shell is reused from the /static/aaa prefetch.
-      { includes: 'Loading [param]', block: 'reject' }
+      { includes: 'Category: electronics' }
     )
 
-    // Navigate to /static/bbb and verify it works. Since all the data is
-    // prefetched, there should be no additional requests during navigation.
+    // Prefetch remaining links - all cache hits (same category, layout cached)
     await act(async () => {
-      const link = await browser.elementByCss('a[href="/static/bbb"]')
-      await link.click()
+      const tablet = await browser.elementByCss(
+        'input[data-link-accordion="/instant-loading/electronics/tablet"]'
+      )
+      await tablet.click()
+      const laptop = await browser.elementByCss(
+        'input[data-link-accordion="/instant-loading/electronics/laptop"]'
+      )
+      await laptop.click()
+      const headphones = await browser.elementByCss(
+        'input[data-link-accordion="/instant-loading/electronics/headphones"]'
+      )
+      await headphones.click()
     }, 'no-requests')
 
-    // Verify the final page content
-    const paramPage = await browser.elementById('param-page')
-    expect(await paramPage.text()).toContain('Param value: bbb')
+    // Navigate to headphones. The loading state renders synchronously from
+    // the cached layout, before the dynamic request resolves. The assertion
+    // runs inside act() during navigation, verifying it appears instantly.
+    await act(async () => {
+      const link = await browser.elementByCss(
+        'a[href="/instant-loading/electronics/headphones"]'
+      )
+      await link.click()
+
+      const loading = await browser.elementByCss('[data-loading="true"]')
+      expect(await loading.text()).toContain('Loading item')
+    })
+
+    // Dynamic content eventually loads
+    const page = await browser.elementById('instant-loading-page')
+    expect(await page.text()).toContain('Item: headphones')
   })
 
-  it("reuses prefetched segment when layout is marked with 'use client'", async () => {
+  // TODO: Re-enable once vary params tracking is implemented for runtime
+  // prefetch abort paths. The abort timing needs to resolve vary params before
+  // the abort signal fires. See static-siblings-infrastructure branch.
+  it.skip('renders cached loading state instantly with runtime prefetching', async () => {
+    // Setup: Page accesses `category` in static portion (tracked in varyParams),
+    // but accesses `itemId` only after connection() (not tracked).
     let act: ReturnType<typeof createRouterAct>
-    const browser = await next.browser('/client-layout', {
+    const browser = await next.browser('/runtime-prefetch', {
       beforePageLoad(p: Playwright.Page) {
         act = createRouterAct(p)
       },
     })
 
-    // Prefetch the first link (/client-layout/aaa). This will populate the
-    // segment cache with the [param] segment's client layout.
-    await act(async () => {
-      const toggle = await browser.elementByCss(
-        'input[data-link-accordion="/client-layout/aaa"]'
-      )
-      await toggle.click()
-    })
-
-    // Now prefetch the second link (/client-layout/bbb). Because the [param]
-    // segment has a 'use client' layout, it doesn't access params on the
-    // server, so its varyParams is an empty set. The segment data from
-    // /client-layout/aaa should be reused for /client-layout/bbb.
-    //
-    // We should NOT see a new prefetch request for the [param] segment's
-    // layout - only the page content should be fetched.
+    // Prefetch first link - static content fetched
     await act(
       async () => {
         const toggle = await browser.elementByCss(
-          'input[data-link-accordion="/client-layout/bbb"]'
+          'input[data-link-accordion="/runtime-prefetch/electronics/phone"]'
         )
         await toggle.click()
       },
-      // The client layout content should NOT be re-fetched because the segment
-      // is reused from the /client-layout/aaa prefetch.
-      { includes: 'Client Layout (use client)', block: 'reject' }
+      { includes: 'Static content - Category: electronics' }
     )
 
-    // Navigate to /client-layout/bbb and verify it works. Since all the data
-    // is prefetched, there should be no additional requests during navigation.
+    // Prefetch remaining links with same category - all cache hits
     await act(async () => {
-      const link = await browser.elementByCss('a[href="/client-layout/bbb"]')
-      await link.click()
+      const tablet = await browser.elementByCss(
+        'input[data-link-accordion="/runtime-prefetch/electronics/tablet"]'
+      )
+      await tablet.click()
+      const laptop = await browser.elementByCss(
+        'input[data-link-accordion="/runtime-prefetch/electronics/laptop"]'
+      )
+      await laptop.click()
+      const headphones = await browser.elementByCss(
+        'input[data-link-accordion="/runtime-prefetch/electronics/headphones"]'
+      )
+      await headphones.click()
     }, 'no-requests')
 
-    // Verify the final page content
-    const paramPage = await browser.elementById('client-layout-param-page')
-    expect(await paramPage.text()).toContain('Param value: bbb')
+    // Prefetch link with different category - triggers new prefetch
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch/clothing/shirt"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Static content - Category: clothing' }
+    )
+
+    // Navigate to headphones. Loading state renders synchronously from cache.
+    await act(async () => {
+      const link = await browser.elementByCss(
+        'a[href="/runtime-prefetch/electronics/headphones"]'
+      )
+      await link.click()
+
+      const loading = await browser.elementByCss('[data-loading="true"]')
+      expect(await loading.text()).toContain('Loading item details')
+    })
+
+    // Dynamic content eventually loads
+    const dynamicContent = await browser.elementByCss('[data-dynamic-content]')
+    expect(await dynamicContent.text()).toContain('Item: headphones')
+  })
+
+  it('does not reuse prefetched segment when page accesses searchParams', async () => {
+    // When a page awaits searchParams, the cache key includes the search
+    // params, so different values require separate prefetches.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/search-params', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Each prefetch triggers a new request (not cached)
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/search-params/target-page?foo=1"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Search params target - foo: 1' }
+    )
+
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/search-params/target-page?foo=2"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Search params target - foo: 2' }
+    )
+
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/search-params/target-page?foo=3"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Search params target - foo: 3' }
+    )
+  })
+
+  it('reuses prefetched segment when page does not access searchParams', async () => {
+    // When a page does NOT await searchParams, the cache key does NOT include
+    // search params, so different values share cached prefetch data.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/search-params', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // First prefetch fetches the segment
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/search-params/static-target?foo=1"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Static target content - no searchParams access' }
+    )
+
+    // Subsequent prefetches are cache hits
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/search-params/static-target?foo=2"]'
+      )
+      await toggle.click()
+    }, 'no-requests')
+
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/search-params/static-target?foo=3"]'
+      )
+      await toggle.click()
+    }, 'no-requests')
+  })
+
+  it('tracks param access in generateMetadata', async () => {
+    // Setup: generateMetadata accesses params, but the page body does NOT.
+    // This tests that metadata param access is tracked separately.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/metadata', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // First prefetch fetches both head and body
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/metadata/aaa"]'
+      )
+      await toggle.click()
+    }, [{ includes: 'Page: aaa' }, { includes: 'Static page body' }])
+
+    // Second prefetch: head re-fetched (metadata varies on slug),
+    // but body is cached (body doesn't access slug)
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/metadata/bbb"]'
+      )
+      await toggle.click()
+    }, [
+      { includes: 'Page: bbb' },
+      { includes: 'Static page body', block: 'reject' },
+    ])
+  })
+
+  it('caches head segment when generateMetadata does not access params', async () => {
+    // When neither generateMetadata nor the page body access params,
+    // both head and body are cached across different param values.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/metadata-no-params', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // First prefetch fetches content
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/metadata-no-params/aaa"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Page content' }
+    )
+
+    // Second prefetch is a cache hit
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/metadata-no-params/bbb"]'
+      )
+      await toggle.click()
+    }, 'no-requests')
+  })
+
+  it('reuses page segment when layout varies but page does not', async () => {
+    // Setup: Layout accesses both `category` and `item`, page only accesses
+    // `category`. When item changes but category stays the same, the layout
+    // must be re-fetched but the page is cached.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/page-reuse', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // First prefetch fetches both layout and page
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/page-reuse/electronics/phone"]'
+      )
+      await toggle.click()
+    }, [
+      { includes: 'Layout: electronics/phone' },
+      { includes: 'Page category:' },
+    ])
+
+    // Second prefetch: layout re-fetched (varies on item),
+    // page is cached (only varies on category)
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/page-reuse/electronics/tablet"]'
+      )
+      await toggle.click()
+    }, [
+      { includes: 'Layout: electronics/tablet' },
+      { includes: 'Page category:', block: 'reject' },
+    ])
+
+    // Navigate to verify cached page content renders correctly
+    const link = await browser.elementByCss(
+      'a[href="/page-reuse/electronics/tablet"]'
+    )
+    await link.click()
+
+    const layout = await browser.elementByCss('[data-page-reuse-layout]')
+    expect(await layout.text()).toContain('Layout: electronics/tablet')
+
+    const page = await browser.elementById('page-reuse-page')
+    expect(await page.text()).toContain('Page category: electronics')
+  })
+
+  it('tracks root param access via rootParams API', async () => {
+    // Root params accessed via rootParams() are tracked in varyParams.
+    // Different param values require separate prefetches.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/root-params', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // First prefetch fetches content
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/aaa"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Root param page content - param: aaa' }
+    )
+
+    // Second prefetch triggers new fetch (not cached)
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/bbb"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Root param page content - param: bbb' }
+    )
   })
 })

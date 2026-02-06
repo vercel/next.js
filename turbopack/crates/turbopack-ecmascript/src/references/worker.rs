@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     common::util::take::Take,
-    ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
+    ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -341,34 +341,38 @@ impl WorkerAssetReferenceCodeGen {
         )
         .await?;
 
+        // Transform `new Worker(url, opts)` into `require(id)(Worker, opts)`
+        // The loader module exports a function that creates the worker with all necessary
+        // configuration (entrypoint, chunks, forwarded globals, etc.)
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
-            let message = if let Expr::New(NewExpr { args, .. }) = expr {
-                if let Some(args) = args {
+            let message = if let Expr::New(new_expr) = expr {
+                if let Some(args) = &mut new_expr.args {
                     match args.first_mut() {
                         Some(ExprOrSpread {
                             spread: None,
-                            expr: key_expr,
+                            expr: url_expr,
                         }) => {
-                            // Replace the first argument (the URL/path) with a turbopack_require
-                            // call that uses the pattern mapping to resolve to the correct loader
-                            // module
-                            *key_expr = quote_expr!(
-                                "$require",
-                                require: Expr = pm.create_require(*key_expr.take())
-                            );
+                            // Get the Worker constructor (callee)
+                            let constructor = new_expr.callee.take();
 
-                            // For web workers, remove type: "module" if it exists
-                            if matches!(
-                                reference.worker_type,
-                                WorkerType::WebWorker | WorkerType::SharedWebWorker
-                            ) && let Some(opts) = args.get_mut(1)
-                                && opts.spread.is_none()
-                            {
-                                *opts.expr = *quote_expr!(
-                                    "{...$opts, type: undefined}",
-                                    opts: Expr = (*opts.expr).take()
-                                );
-                            }
+                            // Build the require call for the loader module
+                            let require_call = pm.create_require(*url_expr.take());
+
+                            // Build the arguments: (WorkerConstructor, ...rest_args)
+                            let mut call_args = vec![ExprOrSpread {
+                                spread: None,
+                                expr: constructor,
+                            }];
+                            // Add any remaining arguments (e.g., worker options)
+                            call_args.extend(args.drain(1..));
+
+                            // Transform to: require(id)(Worker, opts)
+                            *expr = Expr::Call(CallExpr {
+                                span: new_expr.span,
+                                callee: Callee::Expr(Box::new(require_call)),
+                                args: call_args,
+                                ..Default::default()
+                            });
                             return;
                         }
                         // These are SWC bugs: https://github.com/swc-project/swc/issues/5394

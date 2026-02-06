@@ -567,19 +567,6 @@ impl GroupedFields {
     // Flag field iterators
     // =========================================================================
 
-    /// Returns an iterator over all flag fields (persisted first, then transient).
-    /// This ordering is important for bitfield generation.
-    fn all_flags(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.persisted_flags().chain(self.transient_flags())
-    }
-
-    /// Returns an iterator over persisted (non-transient) flag fields.
-    fn persisted_flags(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.fields
-            .iter()
-            .filter(|f| f.is_flag() && !f.is_transient())
-    }
-
     /// Returns an iterator over transient flag fields.
     fn transient_flags(&self) -> impl Iterator<Item = &FieldInfo> {
         self.fields
@@ -587,14 +574,33 @@ impl GroupedFields {
             .filter(|f| f.is_flag() && f.is_transient())
     }
 
-    /// Returns the count of persisted flag fields.
-    fn persisted_flags_count(&self) -> usize {
-        self.persisted_flags().count()
-    }
-
     /// Returns true if there are any flag fields.
     fn has_flags(&self) -> bool {
         self.fields.iter().any(|f| f.is_flag())
+    }
+
+    /// Returns an iterator over persisted meta category flag fields.
+    fn persisted_meta_flags(&self) -> impl Iterator<Item = &FieldInfo> {
+        self.fields
+            .iter()
+            .filter(|f| f.is_flag() && !f.is_transient() && f.category == Category::Meta)
+    }
+
+    /// Returns an iterator over persisted data category flag fields.
+    fn persisted_data_flags(&self) -> impl Iterator<Item = &FieldInfo> {
+        self.fields
+            .iter()
+            .filter(|f| f.is_flag() && !f.is_transient() && f.category == Category::Data)
+    }
+
+    /// Returns the count of persisted meta flag fields.
+    fn persisted_meta_flags_count(&self) -> usize {
+        self.persisted_meta_flags().count()
+    }
+
+    /// Returns the count of persisted data flag fields.
+    fn persisted_data_flags_count(&self) -> usize {
+        self.persisted_data_flags().count()
     }
 
     // =========================================================================
@@ -742,17 +748,42 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
 
 /// Generate the TaskFlags bitfield using the bitfield crate.
 ///
-/// Persisted flags come first (bits 0-N), then transient flags (bits N+1-M).
-/// This allows serializing only the persisted portion.
+/// Flags are ordered as: persisted meta, persisted data, transient.
+/// This allows separate masks for meta and data category serialization.
+///
+/// Bit layout: [meta flags: 0..M] [data flags: M..M+D] [transient: M+D..]
 fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
-    let all_flags: Vec<_> = grouped_fields.all_flags().collect();
+    let all_flags: Vec<_> = grouped_fields
+        .persisted_meta_flags()
+        .chain(grouped_fields.persisted_data_flags())
+        .chain(grouped_fields.transient_flags())
+        .collect();
 
     // If no flags, don't generate the bitfield
     if all_flags.is_empty() {
         return quote! {};
     }
 
-    let persisted_count = grouped_fields.persisted_flags_count();
+    let meta_count = grouped_fields.persisted_meta_flags_count();
+    let data_count = grouped_fields.persisted_data_flags_count();
+    let persisted_count = meta_count + data_count;
+
+    // Ensure counts fit within u16 bitfield (and u8 for individual categories)
+    assert!(
+        meta_count <= 8,
+        "Too many persisted meta flags ({meta_count}), maximum is 8 (though this could be \
+         expanded)"
+    );
+    assert!(
+        data_count <= 8,
+        "Too many persisted data flags ({data_count}), maximum is 8 (though this could be \
+         expanded)"
+    );
+    assert!(
+        all_flags.len() <= 16,
+        "Too many total flags ({}), maximum is 16 (though this could be expanded)",
+        all_flags.len()
+    );
 
     // Generate bitfield accessors
     // Format: pub field_name, set_field_name: bit_index;
@@ -770,14 +801,32 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
         })
         .collect();
 
-    // Generate the persisted bits mask
-    let persisted_mask = (1u16 << persisted_count) - 1;
+    // Generate masks for each category
+    // Meta flags are in bits 0..meta_count
+    // Data flags are in bits meta_count..meta_count+data_count
+    // Combined persisted mask covers both
+    let meta_mask = if meta_count > 0 {
+        (1u16 << meta_count) - 1
+    } else {
+        0
+    };
+    let data_mask = if data_count > 0 {
+        ((1u16 << data_count) - 1) << meta_count
+    } else {
+        0
+    };
+    let persisted_mask = if persisted_count > 0 {
+        (1u16 << persisted_count) - 1
+    } else {
+        0
+    };
 
     quote! {
         bitfield::bitfield! {
             #[doc = "Combined bitfield for task flags."]
-            #[doc = "Persisted flags are in the lower bits (0 to N-1)."]
-            #[doc = "Transient flags are in the higher bits (N and above)."]
+            #[doc = ""]
+            #[doc = "Bit layout: [meta flags: 0..M] [data flags: M..M+D] [transient: M+D..]"]
+            #[doc = "This ordering allows separate masks for per-category serialization."]
             #[derive(Clone, Default, PartialEq, Eq)]
             pub struct TaskFlags(u16);
             impl Debug;
@@ -787,7 +836,13 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
 
         #[automatically_derived]
         impl TaskFlags {
-            #[doc = "Mask for persisted flags (lower bits only)"]
+            #[doc = "Mask for persisted meta flags"]
+            pub const META_MASK: u16 = #meta_mask;
+
+            #[doc = "Mask for persisted data flags"]
+            pub const DATA_MASK: u16 = #data_mask;
+
+            #[doc = "Mask for all persisted flags (meta + data)"]
             pub const PERSISTED_MASK: u16 = #persisted_mask;
 
             #[doc = "Get the raw bits value"]
@@ -795,12 +850,40 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
                 self.0
             }
 
-            #[doc = "Get only the persisted bits (for serialization)"]
+            #[doc = "Get only the persisted meta bits (for meta serialization)"]
+            pub fn persisted_meta_bits(&self) -> u8 {
+                // Meta bits are in the lowest positions (bits 0..meta_count),
+                // and we assert meta_count <= 8, so this fits in a u8
+                (self.0 & Self::META_MASK) as u8
+            }
+
+            #[doc = "Get only the persisted data bits (for data serialization)"]
+            pub fn persisted_data_bits(&self) -> u8 {
+                // Data bits are in positions meta_count..meta_count+data_count,
+                // so we shift right to get them into the low bits.
+                // We assert data_count <= 8, so this fits in a u8
+                ((self.0 & Self::DATA_MASK) >> #meta_count) as u8
+            }
+
+            #[doc = "Get all persisted bits (for serialization)"]
             pub fn persisted_bits(&self) -> u16 {
                 self.0 & Self::PERSISTED_MASK
             }
 
-            #[doc = "Set bits from a raw value, preserving transient flags"]
+            #[doc = "Set meta bits from a raw value, preserving other flags"]
+            pub fn set_persisted_meta_bits(&mut self, bits: u8) {
+                // Meta bits go in the lowest positions (bits 0..meta_count)
+                self.0 = (self.0 & !Self::META_MASK) | (bits as u16 & Self::META_MASK);
+            }
+
+            #[doc = "Set data bits from a raw value, preserving other flags"]
+            pub fn set_persisted_data_bits(&mut self, bits: u8) {
+                // Data bits go in positions meta_count..meta_count+data_count,
+                // so we shift left to place them correctly
+                self.0 = (self.0 & !Self::DATA_MASK) | (((bits as u16) << #meta_count) & Self::DATA_MASK);
+            }
+
+            #[doc = "Set all persisted bits from a raw value, preserving transient flags"]
             pub fn set_persisted_bits(&mut self, bits: u16) {
                 self.0 = (self.0 & !Self::PERSISTED_MASK) | (bits & Self::PERSISTED_MASK);
             }
@@ -1193,14 +1276,9 @@ fn generate_collection_field_accessors(
 fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> TokenStream {
     let mut trait_methods = TokenStream::new();
 
-    // Generate accessor methods for all non-flag fields (inline and lazy)
-    for field in grouped_fields.all_fields() {
+    // Generate accessor methods for all fields (including flags)
+    for field in &grouped_fields.fields {
         trait_methods.extend(generate_trait_accessor_methods(field));
-    }
-
-    // Generate accessor methods for flag fields
-    for field in grouped_fields.all_flags() {
-        trait_methods.extend(generate_flag_trait_accessor_methods(field));
     }
 
     // Generate cleanup_after_execution method
@@ -1379,8 +1457,30 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             }
         }
         StorageType::Flag => {
-            // Flag fields have accessors generated on TaskFlags, not TaskStorageAccessors
-            unreachable!("Flag fields should not reach generate_trait_accessor_methods")
+            // Flag fields are stored in the TaskFlags bitfield
+            let field_name = &field.field_name;
+            let set_name = field.set_ident();
+            let track_modification = field.track_modification_call();
+
+            quote! {
+                #[doc = "Get the flag value"]
+                fn #field_name(&self) -> bool {
+                    #check_access
+                    self.typed().flags.#field_name()
+                }
+
+                #[doc = "Set the flag value"]
+                #[doc = ""]
+                #[doc = "Only tracks modification if the value actually changes."]
+                fn #set_name(&mut self, value: bool) {
+                    #check_access
+                    let current = self.typed().flags.#field_name();
+                    if current != value {
+                        self.typed_mut().flags.#set_name(value);
+                        #track_modification
+                    }
+                }
+            }
         }
     }
 }
@@ -2270,36 +2370,6 @@ fn to_pascal_case(s: &str) -> String {
     s.split('_').map(capitalize).collect::<String>()
 }
 
-/// Generates trait accessor methods for a flag field (stored in TaskFlags bitfield)
-fn generate_flag_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
-    let field_name = &field.field_name;
-    let set_name = field.set_ident();
-
-    // Flags use check_access_call() which handles transient vs non-transient
-    let check_access = field.check_access_call();
-    let track_modification = field.track_modification_call();
-
-    quote! {
-        #[doc = "Get the flag value"]
-        fn #field_name(&self) -> bool {
-            #check_access
-            self.typed().flags.#field_name()
-        }
-
-        #[doc = "Set the flag value"]
-        #[doc = ""]
-        #[doc = "Only tracks modification if the value actually changes."]
-        fn #set_name(&mut self, value: bool) {
-            #check_access
-            let current = self.typed().flags.#field_name();
-            if current != value {
-                self.typed_mut().flags.#set_name(value);
-                #track_modification
-            }
-        }
-    }
-}
-
 /// Generate encode body for a category (inline fields + lazy fields).
 fn gen_encode_body(grouped_fields: &GroupedFields, category: Category) -> TokenStream {
     let inline: Vec<_> = grouped_fields
@@ -2344,29 +2414,49 @@ fn gen_decode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
 /// - `decode_data<D>(&mut self, decoder: &mut D)` - Decode data category fields
 ///
 /// Only persistent (non-transient) fields are encoded/decoded.
+/// Flags are encoded/decoded per-category using separate masks.
 fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream {
-    let has_flags = grouped_fields.persisted_flags().next().is_some();
+    let has_meta_flags = grouped_fields.persisted_meta_flags().next().is_some();
+    let has_data_flags = grouped_fields.persisted_data_flags().next().is_some();
 
     let encode_meta_body = gen_encode_body(grouped_fields, Category::Meta);
     let encode_data_body = gen_encode_body(grouped_fields, Category::Data);
     let decode_meta_body = gen_decode_body(grouped_fields, Category::Meta);
     let decode_data_body = gen_decode_body(grouped_fields, Category::Data);
 
-    let encode_flags = if has_flags {
+    let encode_meta_flags = if has_meta_flags {
         quote! {
-            // Encode only the persisted flag bits
-            let persisted_flags = self.flags.persisted_bits();
-            bincode::Encode::encode(&persisted_flags, encoder)?;
+            // Encode only the persisted meta flag bits
+            let meta_flags = self.flags.persisted_meta_bits();
+            bincode::Encode::encode(&meta_flags, encoder)?;
         }
     } else {
         quote! {}
     };
 
-    let decode_flags = if has_flags {
+    let encode_data_flags = if has_data_flags {
         quote! {
-            // Decode only the persisted flag bits, preserving transient bits
-            let persisted_flags: u16 = bincode::Decode::decode(decoder)?;
-            self.flags.set_persisted_bits(persisted_flags);
+            // Encode only the persisted data flag bits
+            let data_flags = self.flags.persisted_data_bits();
+            bincode::Encode::encode(&data_flags, encoder)?;
+        }
+    } else {
+        quote! {}
+    };
+
+    let decode_meta_flags = if has_meta_flags {
+        quote! {
+            // Decode only the persisted meta flag bits, preserving other flags
+            self.flags.set_persisted_meta_bits(bincode::Decode::decode(decoder)?);
+        }
+    } else {
+        quote! {}
+    };
+
+    let decode_data_flags = if has_data_flags {
+        quote! {
+            // Decode only the persisted data flag bits, preserving other flags
+            self.flags.set_persisted_data_bits(bincode::Decode::decode(decoder)?);
         }
     } else {
         quote! {}
@@ -2382,7 +2472,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 encoder: &mut E,
             ) -> Result<(), bincode::error::EncodeError> {
                 #encode_meta_body
-                #encode_flags
+                #encode_meta_flags
                 Ok(())
             }
 
@@ -2393,6 +2483,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 encoder: &mut E,
             ) -> Result<(), bincode::error::EncodeError> {
                 #encode_data_body
+                #encode_data_flags
                 Ok(())
             }
 
@@ -2403,7 +2494,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 decoder: &mut D,
             ) -> Result<(), bincode::error::DecodeError> {
                 #decode_meta_body
-                #decode_flags
+                #decode_meta_flags
                 Ok(())
             }
 
@@ -2414,6 +2505,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 decoder: &mut D,
             ) -> Result<(), bincode::error::DecodeError> {
                 #decode_data_body
+                #decode_data_flags
                 Ok(())
             }
         }
@@ -2713,7 +2805,9 @@ fn gen_restore_inline_for_category(
 /// - `restore_data_from(&mut self, source)` - Restore data fields from source
 /// - `restore_all_from(&mut self, source)` - Restore all fields from source
 fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStream {
-    let has_flags = grouped_fields.persisted_flags().next().is_some();
+    let has_meta_flags = grouped_fields.persisted_meta_flags().next().is_some();
+    let has_data_flags = grouped_fields.persisted_data_flags().next().is_some();
+    let has_any_flags = has_meta_flags || has_data_flags;
 
     // Generate field operations by category
     let clone_meta_inline = gen_clone_inline_for_category(grouped_fields, Category::Meta);
@@ -2724,21 +2818,57 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
     let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
 
-    // Generate flags handling for clone/merge
-    let clone_meta_flags = if has_flags {
+    // Generate flags handling for clone - per category
+    let clone_meta_flags = if has_meta_flags {
         quote! {
-            // Clone persisted flags
+            // Clone persisted meta flags
+            snapshot.flags.set_persisted_meta_bits(self.flags.persisted_meta_bits());
+        }
+    } else {
+        quote! {}
+    };
+
+    let clone_data_flags = if has_data_flags {
+        quote! {
+            // Clone persisted data flags
+            snapshot.flags.set_persisted_data_bits(self.flags.persisted_data_bits());
+        }
+    } else {
+        quote! {}
+    };
+
+    let clone_all_flags = if has_any_flags {
+        quote! {
+            // Clone all persisted flags
             snapshot.flags.set_persisted_bits(self.flags.persisted_bits());
         }
     } else {
         quote! {}
     };
 
-    let restore_flags = if has_flags {
+    // Generate flags handling for restore - per category
+    let restore_meta_flags = if has_meta_flags {
         quote! {
-            // Restore persisted flags (preserve transient flags)
-            let persisted_bits = source.flags.persisted_bits();
-            self.flags.set_persisted_bits(persisted_bits);
+            // Restore persisted meta flags (preserve other flags)
+            self.flags.set_persisted_meta_bits(source.flags.persisted_meta_bits());
+        }
+    } else {
+        quote! {}
+    };
+
+    let restore_data_flags = if has_data_flags {
+        quote! {
+            // Restore persisted data flags (preserve other flags)
+            self.flags.set_persisted_data_bits(source.flags.persisted_data_bits());
+        }
+    } else {
+        quote! {}
+    };
+
+    let restore_all_flags = if has_any_flags {
+        quote! {
+            // Restore all persisted flags (preserve transient flags)
+            self.flags.set_persisted_bits(source.flags.persisted_bits());
         }
     } else {
         quote! {}
@@ -2761,7 +2891,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 // Clone inline data fields
                 #(#clone_data_inline)*
 
-                #clone_meta_flags
+                #clone_all_flags
 
                 // Clone all persistent lazy fields (both meta and data)
                 for field in &self.lazy {
@@ -2809,6 +2939,8 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
                 // Clone inline data fields
                 #(#clone_data_inline)*
+
+                #clone_data_flags
 
                 // Clone lazy data fields (only persistent ones)
                 for field in &self.lazy {
@@ -2865,7 +2997,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 // Inline meta fields - direct assignment
                 #(#restore_meta_inline)*
 
-                #restore_flags
+                #restore_meta_flags
 
                 // Extend lazy vec with persistent meta fields from source
                 self.lazy.extend(
@@ -2886,6 +3018,8 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
                 // Inline data fields - direct assignment
                 #(#restore_data_inline)*
+
+                #restore_data_flags
 
                 // Extend lazy vec with persistent data fields from source
                 self.lazy.extend(
@@ -2910,7 +3044,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 // Inline data fields - direct assignment
                 #(#restore_data_inline)*
 
-                #restore_flags
+                #restore_all_flags
 
                 // Extend lazy vec with all persistent fields from source
                 self.lazy.extend(

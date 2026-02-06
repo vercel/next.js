@@ -30,6 +30,7 @@ pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
     pub condition: Option<ConditionItem>,
+    pub module_type: Option<RcStr>,
 }
 
 /// This is a list of instructions for the rule engine to process. The first element in each tuple
@@ -259,6 +260,9 @@ pub struct EcmascriptOptionsContext {
 
     /// Whether to allow accessing exports info via `__webpack_exports_info__`.
     pub enable_exports_info_inlining: bool,
+
+    /// Whether to enable `import bytes from 'module' as { type: "bytes }` syntax.
+    pub enable_import_as_bytes: bool,
 
     // TODO should this be a part of Environment instead?
     pub inline_helpers: bool,

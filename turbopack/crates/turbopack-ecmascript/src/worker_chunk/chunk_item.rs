@@ -20,7 +20,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
         data::EcmascriptChunkData,
     },
-    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_WORKER_URL},
+    runtime_functions::{TURBOPACK_CREATE_WORKER, TURBOPACK_EXPORT_VALUE},
     utils::StringifyJs,
 };
 
@@ -117,10 +117,30 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
 
+        if estimated {
+            // In estimation mode we cannot call into chunking context APIs
+            // otherwise we will induce a turbo tasks cycle. But we only need an
+            // approximate solution. We'll use the same estimate for both web
+            // and Node.js workers.
+            return Ok(EcmascriptChunkItemContent {
+                inner_code: formatdoc! {
+                    r#"
+                        {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
+                            return {TURBOPACK_CREATE_WORKER}(Ctor, __dirname + "/" + {worker_path:#}, opts);
+                        }});
+                    "#,
+                    worker_path = StringifyJs(&"a_fake_path_for_size_estimation"),
+                }.into(),
+                ..Default::default()
+            }
+            .cell());
+        }
+
         let code = match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
-                // For web workers, generate code that creates a worker URL using the real
-                // entrypoint
+                // For web workers, generate code that exports a function to create the worker.
+                // The function takes (WorkerConstructor, workerOptions) and calls createWorker
+                // with the entrypoint and chunks baked in.
                 let entrypoint_full_path = this.chunking_context.worker_entrypoint().path().await?;
 
                 // Get the entrypoint path relative to output root
@@ -138,55 +158,46 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
                     .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
                     .collect();
 
-                // Determine if this is a SharedWorker
-                let is_shared = matches!(this.worker_type, WorkerType::SharedWebWorker);
-
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_WORKER_URL}({entrypoint}, {chunks}, {shared}));
+                        {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
+                            return {TURBOPACK_CREATE_WORKER}(Ctor, {entrypoint}, {chunks}, opts);
+                        }});
                     "#,
                     entrypoint = StringifyJs(&entrypoint_path),
                     chunks = StringifyJs(&chunks_data),
-                    shared = is_shared,
                 }
             }
             WorkerType::NodeWorkerThread => {
-                // For Node.js workers, export the path to the worker entry chunk
-                if estimated {
-                    // In estimation mode we cannot call into chunking context APIs otherwise we
-                    // will induce a turbo tasks cycle. But we only need an approximate solution.
-                    formatdoc! {
-                        r#"
-                            {TURBOPACK_EXPORT_VALUE}(__dirname + "/" + {worker_path:#});
-                        "#,
-                        worker_path = StringifyJs(&"a_fake_path_for_size_estimation"),
-                    }
-                } else {
-                    let chunk_group = self.chunk_group().await?;
-                    let assets = chunk_group.assets.await?;
+                // For Node.js workers, export a function to create the worker.
+                // The function takes (WorkerConstructor, workerOptions) and calls createWorker
+                // with the worker path baked in.
+                let chunk_group = self.chunk_group().await?;
+                let assets = chunk_group.assets.await?;
 
-                    // The last asset is the evaluate chunk (entry point) for the worker.
-                    // The evaluated_chunk_group adds regular chunks first, then pushes the
-                    // evaluate chunk last. The evaluate chunk contains the bootstrap code that
-                    // loads the runtime and other chunks. For Node.js workers, we need a single
-                    // file path (not a blob URL like browser workers), so we use the evaluate
-                    // chunk which serves as the entry point.
-                    let Some(entry_asset) = assets.last() else {
-                        bail!("cannot find worker entry point asset");
-                    };
-                    let entry_path = entry_asset.path().await?;
+                // The last asset is the evaluate chunk (entry point) for the worker.
+                // The evaluated_chunk_group adds regular chunks first, then pushes the
+                // evaluate chunk last. The evaluate chunk contains the bootstrap code that
+                // loads the runtime and other chunks. For Node.js workers, we need a single
+                // file path (not a blob URL like browser workers), so we use the evaluate
+                // chunk which serves as the entry point.
+                let Some(entry_asset) = assets.last() else {
+                    bail!("cannot find worker entry point asset");
+                };
+                let entry_path = entry_asset.path().await?;
 
-                    // Get the filename of the worker entry chunk
-                    // We use just the filename because both the loader module and the worker
-                    // entry chunk are in the same directory (typically server/chunks/), so we
-                    // don't need a relative path - __dirname will already point to the correct
-                    // directory
-                    formatdoc! {
-                        r#"
-                            {TURBOPACK_EXPORT_VALUE}(__dirname + "/" + {worker_path:#});
-                        "#,
-                        worker_path = StringifyJs(entry_path.file_name()),
-                    }
+                // Get the filename of the worker entry chunk
+                // We use just the filename because both the loader module and the worker
+                // entry chunk are in the same directory (typically server/chunks/), so we
+                // don't need a relative path - __dirname will already point to the correct
+                // directory
+                formatdoc! {
+                    r#"
+                        {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
+                            return {TURBOPACK_CREATE_WORKER}(Ctor, __dirname + "/" + {worker_path:#}, opts);
+                        }});
+                    "#,
+                    worker_path = StringifyJs(entry_path.file_name()),
                 }
             }
         };

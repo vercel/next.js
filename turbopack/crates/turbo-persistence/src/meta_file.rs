@@ -335,6 +335,20 @@ impl MetaFile {
         Ok(file)
     }
 
+    pub fn clear_cache(&mut self) {
+        for entry in self.entries.iter_mut() {
+            entry.amqf.take();
+            entry.sst.take();
+        }
+    }
+
+    pub fn prepare_sst_cache(&self, amqf_cache: &AmqfCache) {
+        for entry in self.entries.iter() {
+            let _ = entry.sst(self);
+            let _ = entry.amqf(self, amqf_cache);
+        }
+    }
+
     pub fn sequence_number(&self) -> u32 {
         self.sequence_number
     }
@@ -488,6 +502,10 @@ impl MetaFile {
             }
             let amqf = entry.amqf(self, amqf_cache)?;
             for (hash, index, result) in &mut cells[start_index..=end_index] {
+                debug_assert!(
+                    *hash >= entry.min_hash && *hash <= entry.max_hash,
+                    "Key hash out of range"
+                );
                 if result.is_some() {
                     continue;
                 }

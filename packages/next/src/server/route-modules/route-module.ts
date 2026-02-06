@@ -1,3 +1,4 @@
+import '../../build/adapter/setup-node-env.external'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
   InstrumentationOnRequestError,
@@ -227,6 +228,7 @@ export abstract class RouteModule<
           },
           redirects: [],
           headers: [],
+          onMatchHeaders: [],
           i18n:
             (process.env.__NEXT_I18N_CONFIG as any as I18NConfig) || undefined,
           skipProxyUrlNormalize: Boolean(

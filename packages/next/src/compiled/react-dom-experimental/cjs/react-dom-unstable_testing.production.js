@@ -2024,6 +2024,8 @@ var KeyboardEventInterface = assign({}, UIEventInterface, {
     isPrimary: 0
   }),
   SyntheticPointerEvent = createSyntheticEvent(PointerEventInterface),
+  SubmitEventInterface = assign({}, EventInterface, { submitter: 0 }),
+  SyntheticSubmitEvent = createSyntheticEvent(SubmitEventInterface),
   TouchEventInterface = assign({}, UIEventInterface, {
     touches: 0,
     targetTouches: 0,
@@ -7873,6 +7875,12 @@ function updateSuspenseListComponent(current, workInProgress, renderLanes) {
   }
   return workInProgress.child;
 }
+function updateContextProvider(current, workInProgress, renderLanes) {
+  var newProps = workInProgress.pendingProps;
+  pushProvider(workInProgress, workInProgress.type, newProps.value);
+  reconcileChildren(current, workInProgress, newProps.children, renderLanes);
+  return workInProgress.child;
+}
 function bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes) {
   null !== current && (workInProgress.dependencies = current.dependencies);
   workInProgressRootSkippedLanes |= workInProgress.lanes;
@@ -8082,6 +8090,15 @@ function beginWork(current, workInProgress, renderLanes) {
                 workInProgress,
                 current,
                 props,
+                renderLanes
+              );
+              break a;
+            } else if ($$typeof === REACT_CONTEXT_TYPE) {
+              workInProgress.tag = 10;
+              workInProgress.type = current;
+              workInProgress = updateContextProvider(
+                null,
+                workInProgress,
                 renderLanes
               );
               break a;
@@ -8383,12 +8400,7 @@ function beginWork(current, workInProgress, renderLanes) {
         workInProgress.child
       );
     case 10:
-      return (
-        (props = workInProgress.pendingProps),
-        pushProvider(workInProgress, workInProgress.type, props.value),
-        reconcileChildren(current, workInProgress, props.children, renderLanes),
-        workInProgress.child
-      );
+      return updateContextProvider(current, workInProgress, renderLanes);
     case 9:
       return (
         ($$typeof = workInProgress.type._context),
@@ -11313,7 +11325,12 @@ function recursivelyResetForms(parentFiber) {
     for (parentFiber = parentFiber.child; null !== parentFiber; ) {
       var fiber = parentFiber;
       recursivelyResetForms(fiber);
-      5 === fiber.tag && fiber.flags & 1024 && fiber.stateNode.reset();
+      5 === fiber.tag &&
+        fiber.flags & 1024 &&
+        ((fiber = fiber.stateNode),
+        (_enabled = !0),
+        fiber.reset(),
+        (_enabled = !1));
       parentFiber = parentFiber.sibling;
     }
 }
@@ -15092,20 +15109,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1848 = 0;
-  i$jscomp$inline_1848 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1848++
+  var i$jscomp$inline_1839 = 0;
+  i$jscomp$inline_1839 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1839++
 ) {
-  var eventName$jscomp$inline_1849 =
-      simpleEventPluginEvents[i$jscomp$inline_1848],
-    domEventName$jscomp$inline_1850 =
-      eventName$jscomp$inline_1849.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1851 =
-      eventName$jscomp$inline_1849[0].toUpperCase() +
-      eventName$jscomp$inline_1849.slice(1);
+  var eventName$jscomp$inline_1840 =
+      simpleEventPluginEvents[i$jscomp$inline_1839],
+    domEventName$jscomp$inline_1841 =
+      eventName$jscomp$inline_1840.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1842 =
+      eventName$jscomp$inline_1840[0].toUpperCase() +
+      eventName$jscomp$inline_1840.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1850,
-    "on" + capitalizedEvent$jscomp$inline_1851
+    domEventName$jscomp$inline_1841,
+    "on" + capitalizedEvent$jscomp$inline_1842
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15433,6 +15450,9 @@ function dispatchEventForPluginEventSystem(
           case "pointerover":
           case "pointerup":
             SyntheticEventCtor = SyntheticPointerEvent;
+            break;
+          case "submit":
+            SyntheticEventCtor = SyntheticSubmitEvent;
             break;
           case "toggle":
           case "beforetoggle":
@@ -20163,16 +20183,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2266 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2257 = React.version;
 if (
-  "19.3.0-experimental-230772f9-20260128" !==
-  isomorphicReactPackageVersion$jscomp$inline_2266
+  "19.3.0-experimental-95ffd6cd-20260205" !==
+  isomorphicReactPackageVersion$jscomp$inline_2257
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2266,
-      "19.3.0-experimental-230772f9-20260128"
+      isomorphicReactPackageVersion$jscomp$inline_2257,
+      "19.3.0-experimental-95ffd6cd-20260205"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20192,24 +20212,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2974 = {
+var internals$jscomp$inline_2961 = {
   bundleType: 0,
-  version: "19.3.0-experimental-230772f9-20260128",
+  version: "19.3.0-experimental-95ffd6cd-20260205",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-230772f9-20260128"
+  reconcilerVersion: "19.3.0-experimental-95ffd6cd-20260205"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2975 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2962 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2975.isDisabled &&
-    hook$jscomp$inline_2975.supportsFiber
+    !hook$jscomp$inline_2962.isDisabled &&
+    hook$jscomp$inline_2962.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2975.inject(
-        internals$jscomp$inline_2974
+      (rendererID = hook$jscomp$inline_2962.inject(
+        internals$jscomp$inline_2961
       )),
-        (injectedHook = hook$jscomp$inline_2975);
+        (injectedHook = hook$jscomp$inline_2962);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -20455,4 +20475,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.3.0-experimental-230772f9-20260128";
+exports.version = "19.3.0-experimental-95ffd6cd-20260205";
