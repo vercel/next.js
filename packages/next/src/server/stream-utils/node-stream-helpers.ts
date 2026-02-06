@@ -7,7 +7,11 @@ function getNodeStream(): typeof import('node:stream') {
   return require('node:stream') as typeof import('node:stream')
 }
 import { DetachedPromise } from '../../lib/detached-promise'
-import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
+import {
+  scheduleImmediate,
+  atLeastOneTask,
+  waitAtLeastOneReactRenderTask,
+} from '../../lib/scheduler'
 import { ENCODED_TAGS } from './encoded-tags'
 import {
   indexOfUint8Array,
@@ -699,6 +703,10 @@ export async function continueFizzStreamNode(
 
   if (isStaticGeneration && allReady) {
     await allReady
+  } else {
+    // Wait for React to finish microtask work before consuming the stream,
+    // matching the web streams behavior in continueFizzStream.
+    await waitAtLeastOneReactRenderTask()
   }
 
   return chainNodeTransforms(renderStream, [

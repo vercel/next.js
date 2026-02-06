@@ -297,23 +297,56 @@ export function createInlinedDataNodeStream(
     throw new Error(
       'createInlinedDataNodeStream is not supported in edge runtime'
     )
-  }
+  } else {
+    const startScriptTag = nonce
+      ? `<script nonce=${JSON.stringify(nonce)}>`
+      : '<script>'
 
-  const startScriptTag = nonce
-    ? `<script nonce=${JSON.stringify(nonce)}>`
-    : '<script>'
+    const decoder = new TextDecoder('utf-8', { fatal: true })
+    let bootstrapWritten = false
 
-  const decoder = new TextDecoder('utf-8', { fatal: true })
-  let bootstrapWritten = false
+    const { Transform: NodeTransform } =
+      require('node:stream') as typeof import('node:stream')
 
-  const { Transform: NodeTransform } =
-    require('node:stream') as typeof import('node:stream')
+    return new NodeTransform({
+      transform(
+        chunk: Uint8Array,
+        _encoding: string,
+        callback: (error?: Error) => void
+      ) {
+        try {
+          if (!bootstrapWritten) {
+            bootstrapWritten = true
+            let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+              JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+            )})`
 
-  return new NodeTransform({
-    transform(chunk: Uint8Array, _encoding, callback) {
-      try {
+            if (formState != null) {
+              scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+                JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+              )})`
+            }
+
+            this.push(
+              encoder.encode(`${startScriptTag}${scriptContents}</script>`)
+            )
+          }
+
+          try {
+            const decodedString = decoder.decode(chunk, { stream: true })
+            this.push(encodeFlightDataChunk(startScriptTag, decodedString))
+          } catch {
+            this.push(encodeFlightDataChunk(startScriptTag, chunk))
+          }
+
+          callback()
+        } catch (error) {
+          callback(error as Error)
+        }
+      },
+      flush(callback: (error?: Error) => void) {
+        // If no data was ever received, still write the bootstrap
         if (!bootstrapWritten) {
-          bootstrapWritten = true
           let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
             JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
           )})`
@@ -328,35 +361,8 @@ export function createInlinedDataNodeStream(
             encoder.encode(`${startScriptTag}${scriptContents}</script>`)
           )
         }
-
-        try {
-          const decodedString = decoder.decode(chunk, { stream: true })
-          this.push(encodeFlightDataChunk(startScriptTag, decodedString))
-        } catch {
-          this.push(encodeFlightDataChunk(startScriptTag, chunk))
-        }
-
         callback()
-      } catch (error) {
-        callback(error as Error)
-      }
-    },
-    flush(callback) {
-      // If no data was ever received, still write the bootstrap
-      if (!bootstrapWritten) {
-        let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-        )})`
-
-        if (formState != null) {
-          scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-            JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-          )})`
-        }
-
-        this.push(encoder.encode(`${startScriptTag}${scriptContents}</script>`))
-      }
-      callback()
-    },
-  })
+      },
+    })
+  }
 }

@@ -1377,101 +1377,102 @@ function createRuntimePrefetchNodeTransform(
     throw new Error(
       'createRuntimePrefetchNodeTransform is not supported in edge runtime'
     )
-  }
-  const { Transform: NodeTransform } =
-    require('node:stream') as typeof import('node:stream')
-  const encoder = new TextEncoder()
+  } else {
+    const { Transform: NodeTransform } =
+      require('node:stream') as typeof import('node:stream')
+    const encoder = new TextEncoder()
 
-  const search = encoder.encode(`[${sentinel}]`)
-  const first = search[0]
-  const replace = encoder.encode(`[${isPartial},${staleTime}]`)
-  const searchLen = search.length
+    const search = encoder.encode(`[${sentinel}]`)
+    const first = search[0]
+    const replace = encoder.encode(`[${isPartial},${staleTime}]`)
+    const searchLen = search.length
 
-  let currentChunk: Uint8Array | null = null
-  let found = false
+    let currentChunk: Uint8Array | null = null
+    let found = false
 
-  function processChunk(
-    transform: InstanceType<typeof NodeTransform>,
-    nextChunk: null | Uint8Array
-  ) {
-    if (found) {
-      if (nextChunk) {
-        transform.push(nextChunk)
-      }
-      return
-    }
-
-    if (currentChunk) {
-      let exclusiveUpperBound = currentChunk.length - (searchLen - 1)
-      if (nextChunk) {
-        exclusiveUpperBound += Math.min(nextChunk.length, searchLen - 1)
-      }
-      if (exclusiveUpperBound < 1) {
-        transform.push(currentChunk)
-        currentChunk = nextChunk
-        return
-      }
-
-      let currentIndex = currentChunk.indexOf(first)
-
-      candidateLoop: while (
-        -1 < currentIndex &&
-        currentIndex < exclusiveUpperBound
-      ) {
-        let matchIndex = 1
-        while (matchIndex < searchLen) {
-          const candidateIndex = currentIndex + matchIndex
-          const candidateValue =
-            candidateIndex < currentChunk.length
-              ? currentChunk[candidateIndex]
-              : nextChunk![candidateIndex - currentChunk.length]
-          if (candidateValue !== search[matchIndex]) {
-            currentIndex = currentChunk.indexOf(first, currentIndex + 1)
-            continue candidateLoop
-          }
-          matchIndex++
-        }
-        found = true
-        transform.push(currentChunk.subarray(0, currentIndex))
-        transform.push(replace)
-        if (currentIndex + searchLen < currentChunk.length) {
-          transform.push(currentChunk.slice(currentIndex + searchLen))
-        }
+    function processChunk(
+      transform: InstanceType<typeof NodeTransform>,
+      nextChunk: null | Uint8Array
+    ) {
+      if (found) {
         if (nextChunk) {
-          const overflowBytes = currentIndex + searchLen - currentChunk.length
-          const truncatedChunk =
-            overflowBytes > 0 ? nextChunk!.subarray(overflowBytes) : nextChunk
-          transform.push(truncatedChunk)
+          transform.push(nextChunk)
         }
-        currentChunk = null
         return
       }
-      transform.push(currentChunk)
+
+      if (currentChunk) {
+        let exclusiveUpperBound = currentChunk.length - (searchLen - 1)
+        if (nextChunk) {
+          exclusiveUpperBound += Math.min(nextChunk.length, searchLen - 1)
+        }
+        if (exclusiveUpperBound < 1) {
+          transform.push(currentChunk)
+          currentChunk = nextChunk
+          return
+        }
+
+        let currentIndex = currentChunk.indexOf(first)
+
+        candidateLoop: while (
+          -1 < currentIndex &&
+          currentIndex < exclusiveUpperBound
+        ) {
+          let matchIndex = 1
+          while (matchIndex < searchLen) {
+            const candidateIndex = currentIndex + matchIndex
+            const candidateValue =
+              candidateIndex < currentChunk.length
+                ? currentChunk[candidateIndex]
+                : nextChunk![candidateIndex - currentChunk.length]
+            if (candidateValue !== search[matchIndex]) {
+              currentIndex = currentChunk.indexOf(first, currentIndex + 1)
+              continue candidateLoop
+            }
+            matchIndex++
+          }
+          found = true
+          transform.push(currentChunk.subarray(0, currentIndex))
+          transform.push(replace)
+          if (currentIndex + searchLen < currentChunk.length) {
+            transform.push(currentChunk.slice(currentIndex + searchLen))
+          }
+          if (nextChunk) {
+            const overflowBytes = currentIndex + searchLen - currentChunk.length
+            const truncatedChunk =
+              overflowBytes > 0 ? nextChunk!.subarray(overflowBytes) : nextChunk
+            transform.push(truncatedChunk)
+          }
+          currentChunk = null
+          return
+        }
+        transform.push(currentChunk)
+      }
+
+      currentChunk = nextChunk
     }
 
-    currentChunk = nextChunk
-  }
-
-  return new NodeTransform({
-    transform(chunk: Uint8Array, _encoding, callback) {
-      try {
-        processChunk(this, chunk)
-        callback()
-        // eslint-disable-next-line @typescript-eslint/no-shadow
-      } catch (error) {
-        callback(error as Error)
-      }
-    },
-    flush(callback) {
-      try {
-        processChunk(this, null)
-        callback()
-        // eslint-disable-next-line @typescript-eslint/no-shadow
-      } catch (error) {
-        callback(error as Error)
-      }
-    },
-  })
+    return new NodeTransform({
+      transform(chunk: Uint8Array, _encoding, callback) {
+        try {
+          processChunk(this, chunk)
+          callback()
+          // eslint-disable-next-line @typescript-eslint/no-shadow
+        } catch (error) {
+          callback(error as Error)
+        }
+      },
+      flush(callback) {
+        try {
+          processChunk(this, null)
+          callback()
+          // eslint-disable-next-line @typescript-eslint/no-shadow
+        } catch (error) {
+          callback(error as Error)
+        }
+      },
+    })
+  } // end else (NEXT_RUNTIME !== 'edge')
 }
 
 async function finalRuntimeServerPrerender(
@@ -3802,7 +3803,10 @@ async function renderWithRestartOnCacheMissInDev(
           initialStageController.advanceStage(RenderStage.Static)
           startTime = performance.now() + performance.timeOrigin
 
-          if (process.env.__NEXT_USE_NODE_STREAMS) {
+          if (
+            process.env.NEXT_RUNTIME !== 'edge' &&
+            process.env.__NEXT_USE_NODE_STREAMS
+          ) {
             const { PassThrough } =
               require('node:stream') as typeof import('node:stream')
             const { renderToFlightPipeableStream } =
@@ -4002,7 +4006,10 @@ async function renderWithRestartOnCacheMissInDev(
         finalStageController.advanceStage(RenderStage.Static)
         startTime = performance.now() + performance.timeOrigin
 
-        if (process.env.__NEXT_USE_NODE_STREAMS) {
+        if (
+          process.env.NEXT_RUNTIME !== 'edge' &&
+          process.env.__NEXT_USE_NODE_STREAMS
+        ) {
           const { PassThrough } =
             require('node:stream') as typeof import('node:stream')
           const { renderToFlightPipeableStream } =

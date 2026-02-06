@@ -114,7 +114,7 @@ export class ReactServerResult {
       const tee = this._stream.tee()
       this._stream = tee[0]
       return tee[1]
-    } else {
+    } else if (process.env.NEXT_RUNTIME !== 'edge') {
       // Node.js Readable: pipe to two PassThrough streams
       const { PassThrough } =
         require('node:stream') as typeof import('node:stream')
@@ -135,6 +135,8 @@ export class ReactServerResult {
       source.pipe(pt2)
       this._stream = pt1
       return pt2
+    } else {
+      throw new Error('Cannot tee a Node.js stream in the edge runtime')
     }
   }
 
@@ -355,23 +357,35 @@ function createClosingStream(
 }
 
 function createClosingNodeStream(chunks: Array<Uint8Array>): NodeReadable {
-  const { PassThrough } = require('node:stream') as typeof import('node:stream')
-  const pt = new PassThrough()
-  for (const chunk of chunks) {
-    pt.write(chunk)
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new Error('createClosingNodeStream is not supported in edge runtime')
+  } else {
+    const { PassThrough } =
+      require('node:stream') as typeof import('node:stream')
+    const pt = new PassThrough()
+    for (const chunk of chunks) {
+      pt.write(chunk)
+    }
+    pt.end()
+    return pt
   }
-  pt.end()
-  return pt
 }
 
 function createUnclosingNodeStream(chunks: Array<Uint8Array>): NodeReadable {
-  const { PassThrough } = require('node:stream') as typeof import('node:stream')
-  const pt = new PassThrough()
-  for (const chunk of chunks) {
-    pt.write(chunk)
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new Error(
+      'createUnclosingNodeStream is not supported in edge runtime'
+    )
+  } else {
+    const { PassThrough } =
+      require('node:stream') as typeof import('node:stream')
+    const pt = new PassThrough()
+    for (const chunk of chunks) {
+      pt.write(chunk)
+    }
+    // intentionally do not end the stream
+    return pt
   }
-  // intentionally do not end the stream
-  return pt
 }
 
 export async function processPrelude(
@@ -389,43 +403,50 @@ export async function processPrelude(
 }
 
 export async function processNodePrelude(unprocessedPrelude: NodeReadable) {
-  const { PassThrough } = require('node:stream') as typeof import('node:stream')
-  const pt1 = new PassThrough()
-  const pt2 = new PassThrough()
-  // Forward errors from source to both destinations since
-  // Node.js .pipe() does not propagate errors automatically.
-  // Unpipe before destroying to prevent ERR_STREAM_DESTROYED
-  // from propagating back to the shared source.
-  unprocessedPrelude.on('error', (err) => {
-    unprocessedPrelude.unpipe(pt1)
-    unprocessedPrelude.unpipe(pt2)
-    if (!pt1.destroyed) pt1.destroy(err)
-    if (!pt2.destroyed) pt2.destroy(err)
-  })
-  unprocessedPrelude.pipe(pt1)
-  unprocessedPrelude.pipe(pt2)
-
-  // Read the first chunk from the peek stream to check if it's empty
-  const firstChunk = await new Promise<Uint8Array | null>((resolve, reject) => {
-    pt2.once('data', (chunk) => {
-      // Unpipe before destroying to avoid ERR_STREAM_DESTROYED
-      // propagating back to the shared source.
-      unprocessedPrelude.unpipe(pt2)
-      pt2.destroy()
-      resolve(chunk)
-    })
-    pt2.once('end', () => {
-      resolve(null)
-    })
-    pt2.once('error', (err) => {
-      // Clean up pt1 as well since the source errored
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new Error('processNodePrelude is not supported in edge runtime')
+  } else {
+    const { PassThrough } =
+      require('node:stream') as typeof import('node:stream')
+    const pt1 = new PassThrough()
+    const pt2 = new PassThrough()
+    // Forward errors from source to both destinations since
+    // Node.js .pipe() does not propagate errors automatically.
+    // Unpipe before destroying to prevent ERR_STREAM_DESTROYED
+    // from propagating back to the shared source.
+    unprocessedPrelude.on('error', (err) => {
       unprocessedPrelude.unpipe(pt1)
+      unprocessedPrelude.unpipe(pt2)
       if (!pt1.destroyed) pt1.destroy(err)
-      reject(err)
+      if (!pt2.destroyed) pt2.destroy(err)
     })
-  })
+    unprocessedPrelude.pipe(pt1)
+    unprocessedPrelude.pipe(pt2)
 
-  const preludeIsEmpty = firstChunk === null
+    // Read the first chunk from the peek stream to check if it's empty
+    const firstChunk = await new Promise<Uint8Array | null>(
+      (resolve, reject) => {
+        pt2.once('data', (chunk) => {
+          // Unpipe before destroying to avoid ERR_STREAM_DESTROYED
+          // propagating back to the shared source.
+          unprocessedPrelude.unpipe(pt2)
+          pt2.destroy()
+          resolve(chunk)
+        })
+        pt2.once('end', () => {
+          resolve(null)
+        })
+        pt2.once('error', (err) => {
+          // Clean up pt1 as well since the source errored
+          unprocessedPrelude.unpipe(pt1)
+          if (!pt1.destroyed) pt1.destroy(err)
+          reject(err)
+        })
+      }
+    )
 
-  return { prelude: pt1, preludeIsEmpty }
+    const preludeIsEmpty = firstChunk === null
+
+    return { prelude: pt1, preludeIsEmpty }
+  }
 }
