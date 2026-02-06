@@ -165,30 +165,6 @@ Use a callback ref to reset form fields when Activity hides the component:
 
 This resets the form whenever the user navigates away. See [Resetting state](/docs/app/guides/activity#resetting-state) in the Activity guide for more patterns, including key-based resets for React state.
 
-## Use visibility-aware test selectors
-
-Hidden Activity content has `display: none` but remains in the document. This affects end-to-end testing with tools like Playwright, Cypress, or Puppeteer:
-
-- **DOM queries find hidden elements** - Selectors match elements regardless of visibility
-- **Interactions with hidden elements fail or timeout** - Most tools wait for elements to become visible before interacting
-- **Assertions may match hidden content** - Be explicit about visibility when asserting element presence
-
-Filter by visibility in your tests. A best practice in Playwright is to use `getByRole` queries, which automatically filter by visibility:
-
-```ts
-// Good - getByRole filters by visibility automatically
-await page.getByRole('textbox', { name: 'Email' }).fill(email)
-await page.getByRole('button', { name: 'Submit' }).click()
-
-// Fallback - use .filter({ visible: true }) when getByRole isn't suitable
-await page.locator('input[name="email"]').filter({ visible: true }).fill(email)
-
-// Avoid - may match hidden elements in Activity boundaries
-await page.locator('input[name="email"]').fill(email)
-```
-
-`getByRole` is robust to Activity, tabbed navigation, accordions, and any other pattern that keeps hidden content in the DOM. It queries the accessibility tree, which excludes hidden elements. For other testing tools, check their documentation for visibility-aware selectors - Cypress uses `.should('be.visible')` or `{ visible: true }` options.
-
 ## State and authentication
 
 Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior - props changing (such as receiving a new user) triggers a re-render but does not reset existing state. If your application needs fresh state when users change, you can handle this explicitly.

@@ -559,6 +559,46 @@ function VideoPlayer({ src }: { src: string }) {
 
 If an Activity's children return only text (no DOM elements), nothing renders since there is no element to apply `display: none` to.
 
+## Testing with Activity
+
+Hidden Activity content has `display: none` but remains in the document. This affects end-to-end testing with tools like Playwright, Cypress, or Puppeteer:
+
+- **DOM queries can find hidden elements** - Selectors may match elements regardless of visibility
+- **Interactions with hidden elements fail or timeout** - Most tools wait for elements to become visible before interacting
+- **Assertions may match hidden content** - Be explicit about visibility when asserting element presence
+
+For example, with a tabs component using Activity, both the visible and hidden tab panels exist in the DOM. A query like `page.getByText('Product Name')` could match elements in both panels.
+
+### Use visibility-aware selectors
+
+In Playwright, `getByRole` queries automatically filter by visibility:
+
+```ts
+// Good - getByRole filters by visibility automatically
+await page.getByRole('button', { name: 'Submit' }).click()
+await page.getByRole('textbox', { name: 'Email' }).fill('test@example.com')
+
+// Also good - getByLabel, getByPlaceholder filter by visibility
+await page.getByLabel('Email').fill('test@example.com')
+await page.getByPlaceholder('Search...').fill('query')
+```
+
+When `getByRole` isn't suitable, use `.locator()` with visibility filtering:
+
+```ts
+// Fallback - filter by visibility explicitly
+await page.locator('.product-card').filter({ visible: true }).first().click()
+await page
+  .locator('[data-testid="timer"]')
+  .filter({ visible: true })
+  .textContent()
+
+// Avoid - may match hidden elements in Activity boundaries
+await page.locator('.product-card').first().click()
+```
+
+`getByRole` is robust to Activity, tabbed navigation, accordions, and any other pattern that keeps hidden content in the DOM. It queries the accessibility tree, which excludes hidden elements. For other testing tools, check their documentation for visibility-aware selectors - Cypress uses `.should('be.visible')` or `{ visible: true }` options.
+
 ## Activity with Cache Components
 
 When using Activity with [Cache Components](/docs/app/getting-started/cache-components) navigation, some patterns that relied on component unmounting may behave differently. See [Activity with Cache Components](/docs/app/guides/activity-cache-components) for handling common patterns like dropdowns, dialogs, and testing.
