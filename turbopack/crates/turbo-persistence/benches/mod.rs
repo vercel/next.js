@@ -280,9 +280,9 @@ fn bench_read_get(c: &mut Criterion) {
         (128 * 1024 * 1024, 1, true),
         (128 * 1024 * 1024, 1, false),
         (128 * 1024 * 1024, 20, false),
-        (1 * 1024 * 1024 * 1024, 1, true),
-        (1 * 1024 * 1024 * 1024, 1, false),
-        (1 * 1024 * 1024 * 1024, 20, false),
+        (1024 * 1024 * 1024, 1, true),
+        (1024 * 1024 * 1024, 1, false),
+        (1024 * 1024 * 1024, 20, false),
     ];
 
     for &(key_size, value_size) in &entry_sizes {
