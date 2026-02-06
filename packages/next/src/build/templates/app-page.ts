@@ -1514,7 +1514,7 @@ export async function handler(
         streams.push(bridge)
 
         const { chainNodeStreams } =
-          require('../../server/stream-utils/node-stream-helpers') as typeof import('../../server/stream-utils/node-stream-helpers')
+          (require('../../server/stream-utils/node-stream-helpers') as typeof import('../../server/stream-utils/node-stream-helpers'))
         const combined = chainNodeStreams(...streams)
 
         const result = new RenderResult(combined, {
