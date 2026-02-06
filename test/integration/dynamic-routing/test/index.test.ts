@@ -26,7 +26,7 @@ let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests({ dev }) {
+function runTests({ dev, withMiddleware }: { dev: boolean; withMiddleware: boolean }) {
   if (!dev) {
     it('should have correct cache entries on prefetch', async () => {
       const browser = await webdriver(appPort, '/')
@@ -46,7 +46,7 @@ function runTests({ dev }) {
 
       const cacheKeys = await getCacheKeys()
       expect(cacheKeys).toEqual(
-        process.env.__MIDDLEWARE_TEST
+        withMiddleware
           ? [
               '/_next/data/BUILD_ID/[name].json?another=value&name=%5Bname%5D',
               '/_next/data/BUILD_ID/added-later/first.json?name=added-later&comment=first',
@@ -117,7 +117,7 @@ function runTests({ dev }) {
       const newCacheKeys = await getCacheKeys()
       expect(newCacheKeys).toEqual(
         [
-          ...(process.env.__MIDDLEWARE_TEST
+          ...(withMiddleware
             ? // data route is fetched with middleware due to query hydration
               // since middleware matches the index route
               ['/_next/data/BUILD_ID/index.json']
@@ -1205,7 +1205,7 @@ function runTests({ dev }) {
       expect(text).toBe('slug: first')
     })
 
-    if (!process.env.__MIDDLEWARE_TEST) {
+    if (!withMiddleware) {
       it('should show error when interpolating fails for href', async () => {
         const browser = await webdriver(appPort, '/')
         await browser
@@ -1583,54 +1583,62 @@ function runTests({ dev }) {
 
 const nextConfig = join(appDir, 'next.config.js')
 
-describe('Dynamic Routing', () => {
-  if (process.env.__MIDDLEWARE_TEST) {
+describe.each([{ withMiddleware: false }, { withMiddleware: true }])(
+  'Dynamic Routing (withMiddleware: $withMiddleware)',
+  ({ withMiddleware }) => {
     const middlewarePath = join(__dirname, '../middleware.js')
 
     beforeAll(async () => {
-      await fs.writeFile(
-        middlewarePath,
-        `
+      if (withMiddleware) {
+        await fs.writeFile(
+          middlewarePath,
+          `
         import { NextResponse } from 'next/server'
         export default function middleware() {
           return NextResponse.next()
         }
       `
-      )
+        )
+      }
     })
-    afterAll(() => fs.remove(middlewarePath))
+
+    afterAll(async () => {
+      if (withMiddleware) {
+        await fs.remove(middlewarePath)
+      }
+    })
+
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        beforeAll(async () => {
+          await fs.remove(nextConfig)
+
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort)
+          buildId = 'development'
+        })
+        afterAll(() => killApp(app))
+
+        runTests({ dev: true, withMiddleware })
+      }
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await fs.remove(nextConfig)
+
+          await nextBuild(appDir)
+          buildId = await fs.readFile(buildIdPath, 'utf8')
+
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        })
+        afterAll(() => killApp(app))
+
+        runTests({ dev: false, withMiddleware })
+      }
+    )
   }
-
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        await fs.remove(nextConfig)
-
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-        buildId = 'development'
-      })
-      afterAll(() => killApp(app))
-
-      runTests({ dev: true })
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await fs.remove(nextConfig)
-
-        await nextBuild(appDir)
-        buildId = await fs.readFile(buildIdPath, 'utf8')
-
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-
-      runTests({ dev: false })
-    }
-  )
-})
+)
