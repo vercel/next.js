@@ -444,6 +444,7 @@ export type RoutesManifest = {
     fallback: Array<ManifestRewriteRoute>
   }
   headers: Array<ManifestHeaderRoute>
+  onMatchHeaders: Array<ManifestHeaderRoute>
   staticRoutes: Array<ManifestRoute>
   dynamicRoutes: ReadonlyArray<DynamicManifestRoute>
   dataRoutes: Array<ManifestDataRoute>
@@ -1053,7 +1054,7 @@ export default async function build(
         .traceChild('load-custom-routes')
         .traceAsyncFn(() => loadCustomRoutes(config))
 
-      const { headers, rewrites, redirects } = customRoutes
+      const { headers, onMatchHeaders, rewrites, redirects } = customRoutes
       const combinedRewrites: Rewrite[] = [
         ...rewrites.beforeFiles,
         ...rewrites.afterFiles,
@@ -1662,6 +1663,7 @@ export default async function build(
             config,
             redirects,
             headers,
+            onMatchHeaders,
             rewrites,
             restrictedRedirectPaths,
             isAppPPREnabled,
@@ -4298,7 +4300,9 @@ export default async function build(
       if (debugOutput) {
         nextBuildSpan
           .traceChild('print-custom-routes')
-          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
+          .traceFn(() =>
+            printCustomRoutes({ redirects, onMatchHeaders, rewrites, headers })
+          )
       }
 
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
