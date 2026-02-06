@@ -4,7 +4,7 @@ async function getData() {
   'use cache'
 
   return fetch('https://next-data-api-endpoint.vercel.app/api/random', {
-    next: { revalidate: 0 },
+    next: { revalidate: 1 },
   }).then((res) => res.text())
 }
 

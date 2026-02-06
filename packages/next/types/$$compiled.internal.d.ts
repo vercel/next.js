@@ -169,6 +169,7 @@ declare module 'react-server-dom-webpack/server.edge' {
       onError?: (error: unknown) => void
       signal?: AbortSignal
       debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+      startTime?: number
     }
   ): ReadableStream<Uint8Array>
 

@@ -988,5 +988,12 @@
   "987": "Invalid \\`deploymentId\\` configuration: must be a string. See https://nextjs.org/docs/messages/deploymentid-not-a-string",
   "988": "Invalid \\`deploymentId\\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters",
   "989": "Loaded static props were from an outdated deployment, forcing a hard reload",
-  "990": "Page \"%s\" cannot use \\`export const unstable_instant = ...\\` without enabling \\`cacheComponents\\`."
+  "990": "Page \"%s\" cannot use \\`export const unstable_instant = ...\\` without enabling \\`cacheComponents\\`.",
+  "991": "A page must have a root layout",
+  "992": "Got unexpected empty seed data during instant validation",
+  "993": "createNodeStreamWithLateRelease cannot be used in the edge runtime",
+  "994": "InitialRSCPayload does not match the expected shape during instant validation.",
+  "995": "Missing segment data: %s",
+  "996": "Unexpected state while traversing route tree: %s",
+  "997": "%s: \\`unstable_instant\\` with mode 'runtime' is not supported in root layouts."
 }
