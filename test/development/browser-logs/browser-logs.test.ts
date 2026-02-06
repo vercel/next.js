@@ -303,8 +303,10 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       await retry(() => {
         const logOutput = logs.join('\n')
         // Find the hydration error log entry
+        // Stop at: another [browser] log, status indicators (○ ⨯),
+        // or timestamp-prefixed logs (e.g. "[12:34:56.789Z] Browser Log: ...")
         const hydrationMatch = logOutput.match(
-          /\[browser\].*Hydration[\s\S]*?(?=\n\[browser\]|\n *○|\n *⨯|$)/
+          /\[browser\].*Hydration[\s\S]*?(?=\n\[browser\]|\n *○|\n *⨯|\n *\[\d|$)/
         )
         expect(hydrationMatch).not.toBeNull()
         hydrationErrorLog = hydrationMatch![0]
