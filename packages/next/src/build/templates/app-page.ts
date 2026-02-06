@@ -1495,10 +1495,7 @@ export async function handler(
         })
       }
 
-      if (
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_USE_NODE_STREAMS
-      ) {
+      if (process.env.__NEXT_USE_NODE_STREAMS) {
         // Node streams path: construct the response as a single Node Readable
         // chain (cached HTML + optional sentinel + resume render) to avoid
         // web stream interop issues with Readable.toWeb().
@@ -1517,7 +1514,7 @@ export async function handler(
         streams.push(bridge)
 
         const { chainNodeStreams } =
-          (require('../../server/stream-utils/node-stream-helpers') as typeof import('../../server/stream-utils/node-stream-helpers'))
+          require('../../server/stream-utils/node-stream-helpers') as typeof import('../../server/stream-utils/node-stream-helpers')
         const combined = chainNodeStreams(...streams)
 
         const result = new RenderResult(combined, {

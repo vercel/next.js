@@ -814,10 +814,7 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
   const { clientModules } = getClientReferenceManifest()
   const rscPayload = await getPayload(requestStore)
 
-  if (
-    process.env.NEXT_RUNTIME !== 'edge' &&
-    process.env.__NEXT_USE_NODE_STREAMS
-  ) {
+  if (process.env.__NEXT_USE_NODE_STREAMS) {
     const { renderToFlightPipeableStream } =
       require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
     return await workUnitAsyncStorage.run(
@@ -3056,10 +3053,7 @@ async function renderToStream(
           )
         }
 
-        if (
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          process.env.__NEXT_USE_NODE_STREAMS
-        ) {
+        if (process.env.__NEXT_USE_NODE_STREAMS) {
           const flightRenderToPipeableStream = (renderOpts.ComponentMod as any)
             .renderToPipeableStream
           if (flightRenderToPipeableStream) {
@@ -3129,7 +3123,6 @@ async function renderToStream(
           const teed = reactServerResult.tee()
 
           if (
-            process.env.NEXT_RUNTIME !== 'edge' &&
             process.env.__NEXT_USE_NODE_STREAMS &&
             !(teed instanceof ReadableStream)
           ) {
@@ -3191,10 +3184,7 @@ async function renderToStream(
           })
 
           // Use Node.js pipeable stream resume when available
-          if (
-            process.env.NEXT_RUNTIME !== 'edge' &&
-            process.env.__NEXT_USE_NODE_STREAMS
-          ) {
+          if (process.env.__NEXT_USE_NODE_STREAMS) {
             const reactDomServer =
               require('react-dom/server') as typeof import('react-dom/server')
             if ('resumeToPipeableStream' in reactDomServer) {
@@ -3322,10 +3312,7 @@ async function renderToStream(
       }
 
       // Use Node.js pipeable stream rendering when available
-      if (
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_USE_NODE_STREAMS
-      ) {
+      if (process.env.__NEXT_USE_NODE_STREAMS) {
         const reactDomServer =
           require('react-dom/server') as typeof import('react-dom/server')
         if ('renderToPipeableStream' in reactDomServer) {
@@ -3493,10 +3480,7 @@ async function renderToStream(
           errorType
         )
 
-        if (
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          process.env.__NEXT_USE_NODE_STREAMS
-        ) {
+        if (process.env.__NEXT_USE_NODE_STREAMS) {
           const flightRenderToPipeableStream = (renderOpts.ComponentMod as any)
             .renderToPipeableStream
           if (flightRenderToPipeableStream) {
@@ -3557,10 +3541,7 @@ async function renderToStream(
           supportsDynamicResponse !== true || !!shouldWaitOnAllReady
 
         // Use Node.js pipeable stream rendering for error path when available
-        if (
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          process.env.__NEXT_USE_NODE_STREAMS
-        ) {
+        if (process.env.__NEXT_USE_NODE_STREAMS) {
           const reactDomServer =
             require('react-dom/server') as typeof import('react-dom/server')
           if ('renderToPipeableStream' in reactDomServer) {
@@ -3803,10 +3784,7 @@ async function renderWithRestartOnCacheMissInDev(
           initialStageController.advanceStage(RenderStage.Static)
           startTime = performance.now() + performance.timeOrigin
 
-          if (
-            process.env.NEXT_RUNTIME !== 'edge' &&
-            process.env.__NEXT_USE_NODE_STREAMS
-          ) {
+          if (process.env.__NEXT_USE_NODE_STREAMS) {
             const { PassThrough } =
               require('node:stream') as typeof import('node:stream')
             const { renderToFlightPipeableStream } =
@@ -4006,10 +3984,7 @@ async function renderWithRestartOnCacheMissInDev(
         finalStageController.advanceStage(RenderStage.Static)
         startTime = performance.now() + performance.timeOrigin
 
-        if (
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          process.env.__NEXT_USE_NODE_STREAMS
-        ) {
+        if (process.env.__NEXT_USE_NODE_STREAMS) {
           const { PassThrough } =
             require('node:stream') as typeof import('node:stream')
           const { renderToFlightPipeableStream } =
@@ -6485,10 +6460,7 @@ async function prerenderToStream(
       errorType
     )
 
-    if (
-      process.env.NEXT_RUNTIME !== 'edge' &&
-      process.env.__NEXT_USE_NODE_STREAMS
-    ) {
+    if (process.env.__NEXT_USE_NODE_STREAMS) {
       const { renderToFlightPipeableStream } =
         require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
       const { renderToFizzPipeableStream } =

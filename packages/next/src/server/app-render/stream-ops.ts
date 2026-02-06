@@ -160,10 +160,7 @@ export function createInlinedDataStream(
  * Creates a stream that never emits data (used for resume-and-abort patterns).
  */
 export function createPendingStream(): ReadableStream<Uint8Array> | Readable {
-  if (
-    process.env.NEXT_RUNTIME !== 'edge' &&
-    process.env.__NEXT_USE_NODE_STREAMS
-  ) {
+  if (process.env.__NEXT_USE_NODE_STREAMS) {
     const { Readable: NodeReadable } =
       require('node:stream') as typeof import('node:stream')
     return new NodeReadable({ read() {} })
