@@ -140,7 +140,9 @@ export const NextVanillaSpanAllowlist = new Set([
   NextNodeServerSpan.createComponentTree,
   NextNodeServerSpan.findPageComponents,
   NextNodeServerSpan.getLayoutOrPageModule,
-  NextNodeServerSpan.startResponse,
+  // startResponse removed: it wraps a no-op `() => undefined` in pipe-readable.ts,
+  // so the span has no meaningful duration or children. Removing it avoids
+  // context.with(), startActiveSpan(), and rootSpanAttributesStore overhead per request.
   NextNodeServerSpan.clientComponentLoading,
 ])
 

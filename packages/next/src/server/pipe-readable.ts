@@ -9,6 +9,10 @@ import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
 
+// Cache env var at module level to avoid per-request process.env lookups
+const NEXT_OTEL_PERFORMANCE_PREFIX =
+  process.env.NEXT_OTEL_PERFORMANCE_PREFIX || ''
+
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
 }
@@ -50,14 +54,11 @@ function createWriterFromResponse(
       if (!started) {
         started = true
 
-        if (
-          'performance' in globalThis &&
-          process.env.NEXT_OTEL_PERFORMANCE_PREFIX
-        ) {
+        if (NEXT_OTEL_PERFORMANCE_PREFIX) {
           const metrics = getClientComponentLoaderMetrics()
           if (metrics) {
             performance.measure(
-              `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
+              `${NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
               {
                 start: metrics.clientComponentLoadStart,
                 end:

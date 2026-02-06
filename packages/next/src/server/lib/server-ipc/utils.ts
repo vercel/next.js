@@ -1,4 +1,5 @@
-export const ipcForbiddenHeaders = [
+// Use Sets for O(1) header lookups instead of O(n) Array.includes()
+export const ipcForbiddenHeaders = new Set([
   'accept-encoding',
   'keepalive',
   'keep-alive',
@@ -8,17 +9,17 @@ export const ipcForbiddenHeaders = [
   'connection',
   // marked as unsupported by undici: https://github.com/nodejs/undici/blob/c83b084879fa0bb8e0469d31ec61428ac68160d5/lib/core/request.js#L354
   'expect',
-]
+])
 
-export const actionsForbiddenHeaders = [
+export const actionsForbiddenHeaders = new Set([
   ...ipcForbiddenHeaders,
   'content-length',
   'set-cookie',
-]
+])
 
 export const filterReqHeaders = (
   headers: Record<string, undefined | string | number | string[]>,
-  forbiddenHeaders: string[]
+  forbiddenHeaders: Set<string>
 ) => {
   // Some browsers are not matching spec and sending Content-Length: 0. This causes issues in undici
   // https://github.com/nodejs/undici/issues/2046
@@ -28,7 +29,7 @@ export const filterReqHeaders = (
 
   for (const [key, value] of Object.entries(headers)) {
     if (
-      forbiddenHeaders.includes(key) ||
+      forbiddenHeaders.has(key) ||
       !(Array.isArray(value) || typeof value === 'string')
     ) {
       delete headers[key]
@@ -39,7 +40,7 @@ export const filterReqHeaders = (
 
 // These are headers that are only used internally and should
 // not be honored from the external request
-const INTERNAL_HEADERS = [
+const INTERNAL_HEADERS = new Set([
   'x-middleware-rewrite',
   'x-middleware-redirect',
   'x-middleware-set-cookie',
@@ -49,13 +50,13 @@ const INTERNAL_HEADERS = [
   'x-now-route-matches',
   'x-matched-path',
   'x-next-resume-state-length',
-]
+])
 
 export const filterInternalHeaders = (
   headers: Record<string, undefined | string | string[]>
 ) => {
   for (const header in headers) {
-    if (INTERNAL_HEADERS.includes(header)) {
+    if (INTERNAL_HEADERS.has(header)) {
       delete headers[header]
     }
   }

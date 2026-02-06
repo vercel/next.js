@@ -271,7 +271,7 @@ async function createForwardedActionResponse(
     ) {
       // copy the headers from the redirect response to the response we're sending
       for (const [key, value] of response.headers) {
-        if (!actionsForbiddenHeaders.includes(key)) {
+        if (!actionsForbiddenHeaders.has(key)) {
           res.setHeader(key, value)
         }
       }
@@ -430,7 +430,7 @@ async function createRedirectRenderResult(
       ) {
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
-          if (!actionsForbiddenHeaders.includes(key)) {
+          if (!actionsForbiddenHeaders.has(key)) {
             res.setHeader(key, value)
           }
         }

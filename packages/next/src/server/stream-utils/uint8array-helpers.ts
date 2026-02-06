@@ -1,25 +1,34 @@
 /**
  * Find the starting index of Uint8Array `b` within Uint8Array `a`.
+ * Uses first-byte indexOf to skip non-matching positions quickly,
+ * then verifies the full pattern match.
  */
 export function indexOfUint8Array(a: Uint8Array, b: Uint8Array) {
   if (b.length === 0) return 0
   if (a.length === 0 || b.length > a.length) return -1
 
-  // start iterating through `a`
-  for (let i = 0; i <= a.length - b.length; i++) {
-    let completeMatch = true
-    // from index `i`, iterate through `b` and check for mismatch
-    for (let j = 0; j < b.length; j++) {
-      // if the values do not match, then this isn't a complete match, exit `b` iteration early and iterate to next index of `a`.
-      if (a[i + j] !== b[j]) {
-        completeMatch = false
+  const firstByte = b[0]
+  const bLen = b.length
+  const limit = a.length - bLen
+
+  let i = 0
+  while (i <= limit) {
+    // Use native indexOf to jump to next candidate position.
+    // TypedArray.indexOf is V8-optimized and much faster than a JS byte-by-byte scan.
+    const idx = a.indexOf(firstByte, i)
+    if (idx === -1 || idx > limit) return -1
+
+    // Verify the full pattern at this position
+    let match = true
+    for (let j = 1; j < bLen; j++) {
+      if (a[idx + j] !== b[j]) {
+        match = false
         break
       }
     }
 
-    if (completeMatch) {
-      return i
-    }
+    if (match) return idx
+    i = idx + 1
   }
 
   return -1

@@ -156,6 +156,10 @@ import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
 
+// Pre-computed Vary header strings to avoid string concatenation per request
+const BASE_VARY_HEADER = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
+const BASE_VARY_HEADER_WITH_NEXT_URL = `${BASE_VARY_HEADER}, ${NEXT_URL}`
+
 export type FindComponentsResult<
   NextModule extends GenericComponentMod = GenericComponentMod,
 > = {
@@ -959,7 +963,10 @@ export default abstract class Server<
       // hello/world or backslashes to forward slashes, this does not
       // handle trailing slash as that is handled the same as a next.config.js
       // redirect
-      if (urlNoQuery?.match(/(\\|\/\/)/)) {
+      if (
+        urlNoQuery &&
+        (urlNoQuery.includes('//') || urlNoQuery.includes('\\'))
+      ) {
         const cleanUrl = normalizeRepeatedSlashes(req.url!)
         res.redirect(cleanUrl, 308).body(cleanUrl).send()
         return
@@ -1768,15 +1775,17 @@ export default abstract class Server<
 
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
-      renderOpts: {
-        ...this.renderOpts,
+      // Use Object.create to avoid copying all ~30+ properties of renderOpts
+      // per request. The per-request overrides become own properties on a
+      // prototypal child, while base properties are inherited via prototype.
+      renderOpts: Object.assign(Object.create(this.renderOpts), {
         // `renderOpts.botType` is accumulated in `this.renderImpl()`
         supportsDynamicResponse: !this.renderOpts.botType,
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
           this.nextConfig.htmlLimitedBots
         ),
-      },
+      }),
     }
 
     const payload = await fn(ctx)
@@ -1826,10 +1835,10 @@ export default abstract class Server<
   ): Promise<string | null> {
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
-      renderOpts: {
-        ...this.renderOpts,
+      // Prototypal inheritance avoids copying all renderOpts properties per call
+      renderOpts: Object.assign(Object.create(this.renderOpts), {
         supportsDynamicResponse: false,
-      },
+      }),
     }
     const payload = await fn(ctx)
     if (payload === null) {
@@ -1989,7 +1998,6 @@ export default abstract class Server<
     isAppPath: boolean,
     resolvedPathname: string
   ): void {
-    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
     const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     let addedNextUrlToVary = false
@@ -1997,12 +2005,12 @@ export default abstract class Server<
     if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
+      res.appendHeader('vary', BASE_VARY_HEADER_WITH_NEXT_URL)
       addedNextUrlToVary = true
     } else if (isAppPath || isRSCRequest) {
       // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
       // We also set this header for pages to avoid caching issues when navigating between pages and app.
-      res.appendHeader('vary', baseVaryHeader)
+      res.appendHeader('vary', BASE_VARY_HEADER)
     }
 
     if (!addedNextUrlToVary) {
@@ -2612,10 +2620,10 @@ export default abstract class Server<
           {
             ...ctx,
             pathname: match.definition.pathname,
-            renderOpts: {
-              ...ctx.renderOpts,
+            // Prototypal inheritance avoids copying all renderOpts per match
+            renderOpts: Object.assign(Object.create(ctx.renderOpts), {
               params: match.params,
-            },
+            }),
           },
           bubbleNoFallback
         )
