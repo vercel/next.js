@@ -7,7 +7,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    reference::{ModuleReferences, SingleChunkableModuleReference},
+    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
     resolve::ExportUsage,
     source::OptionSource,
 };

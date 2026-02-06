@@ -830,25 +830,42 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
         .instrument(span)
         .await
     }
+}
 
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleAsset {
+    /// Returns the locals module if the module should be split (has re-exports), otherwise self.
+    ///
+    /// The locals module contains only the local bindings and evaluation side effects,
+    /// while re-exports are handled separately by the facade module.
     #[turbo_tasks::function]
-    async fn get_split(
+    pub async fn get_locals_if_split(
         self: Vc<Self>,
-        part: ModulePart,
     ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        // Only split if the module has re-exports that need to be separated
         let should_split = *self.get_exports().split_locals_and_reexports().await?;
+        Ok(if should_split {
+            Vc::upcast(EcmascriptModuleLocalsModule::new(self))
+        } else {
+            Vc::upcast(self)
+        })
+    }
 
-        // Create the facade/locals if needed. turbo_tasks caching ensures
-        // we get the same module instances.
-        Ok(match part {
-            ModulePart::Locals if should_split => {
-                Vc::upcast(EcmascriptModuleLocalsModule::new(self))
-            }
-            _ if should_split => {
-                Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(self), part))
-            }
-            _ => Vc::upcast(self),
+    /// Returns the facade module if the module should be split (has re-exports), otherwise self.
+    ///
+    /// The facade module re-exports all exports from the original module, including
+    /// both local bindings (via the locals module) and re-exports from other modules.
+    #[turbo_tasks::function]
+    pub async fn get_facade_if_split(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
+        let should_split = *self.get_exports().split_locals_and_reexports().await?;
+        Ok(if should_split {
+            Vc::upcast(EcmascriptModuleFacadeModule::new(
+                Vc::upcast(self),
+                ModulePart::Facade,
+            ))
+        } else {
+            Vc::upcast(self)
         })
     }
 }

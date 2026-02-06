@@ -8,7 +8,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    reference::ModuleReferences,
+    reference::{ModuleReference, ModuleReferences},
     source::OptionSource,
 };
 use turbopack_ecmascript::{

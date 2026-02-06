@@ -28,9 +28,7 @@ use crate::{
         async_module::{AsyncModule, OptionAsyncModule},
         esm::{EsmExport, EsmExports, base::EsmAssetReferences},
     },
-    side_effect_optimization::{
-        locals::module::EcmascriptModuleLocalsModule, reference::EcmascriptModulePartReference,
-    },
+    side_effect_optimization::reference::EcmascriptModulePartReference,
 };
 
 /// A module derived from an original ecmascript module that only contains all
@@ -366,31 +364,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
             chunking_context,
             async_module_options,
         ))
-    }
-
-    #[turbo_tasks::function]
-    async fn get_split(
-        self: Vc<Self>,
-        part: ModulePart,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let this = self.await?;
-        match part {
-            ModulePart::Locals => {
-                if let Some(esm_module) =
-                    Vc::try_resolve_downcast_type::<crate::EcmascriptModuleAsset>(*this.module)
-                        .await?
-                {
-                    Ok(Vc::upcast(EcmascriptModuleLocalsModule::new(esm_module)))
-                } else {
-                    bail!("Unexpected module type in get_split: {:?}", this.module)
-                }
-            }
-            part if part == this.part => Ok(Vc::upcast(self)),
-            _ => Ok(Vc::upcast(EcmascriptModuleFacadeModule::new(
-                *this.module,
-                part,
-            ))),
-        }
     }
 }
 
