@@ -83,6 +83,17 @@ git checkout <branch>
 pnpm build   # Required before running tests (Turborepo dedupes if unchanged)
 ```
 
+## Bundler Selection
+
+Turbopack is the default bundler for both `next dev` and `next build`. To force webpack:
+
+```bash
+next build --webpack        # Production build with webpack
+next dev --webpack          # Dev server with webpack
+```
+
+There is no `--no-turbopack` flag.
+
 ## Testing
 
 ```bash
@@ -259,6 +270,21 @@ When running Next.js integration tests, you must rebuild if source files have ch
 
 ## Development Anti-Patterns
 
+### Adding Experimental Flags
+
+All flags need: `config-shared.ts` (type) → `config-schema.ts` (zod) → `define-env.ts` (build-time injection).
+
+Beyond that, it depends on where the flag is consumed:
+
+**Client/bundled code only** (e.g. `__NEXT_PPR` in client components): `define-env.ts` is sufficient. Webpack/Turbopack replaces `process.env.X` at the user's build time.
+
+**Pre-compiled runtime bundles** (e.g. code in `app-render.tsx`): The flag must also be set as a real `process.env` var at runtime, because `app-render.tsx` runs from pre-compiled bundles where `define-env.ts` doesn't reach. Two approaches:
+
+- **Runtime env var**: Set in `next-server.ts` + `export/worker.ts`. Both code paths stay in one bundle. Simple but increases bundle size.
+- **Separate bundle variant**: Add DefinePlugin entry in `next-runtime.webpack-config.js` (scoped to `bundleType === 'app'`), new taskfile tasks, update `module.compiled.js` selector, and still set env var in `next-server.ts` + `export/worker.ts` for bundle selection. Eliminates dead code but adds build complexity.
+
+For runtime flags, also add the field to the `NextConfigRuntime` Pick type in `config-shared.ts`.
+
 ### Test Gotchas
 
 - Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
@@ -274,6 +300,21 @@ When running Next.js integration tests, you must rebuild if source files have ch
 - `findSourceMap()` needs `--enable-source-maps` flag or returns undefined
 - Source map paths vary (webpack: `./src/`, tsc: `src/`) - try multiple formats
 - `process.cwd()` in stack trace formatting produces different paths in tests vs production
+
+### Pre-compiled Runtime Bundles
+
+Server rendering code (`app-render.tsx`, route modules) is NOT bundled during the user's `next build`. It runs from pre-compiled runtime bundles at `dist/compiled/next-server/app-page*.runtime.*.js`.
+
+- **Built by**: `next-runtime.webpack-config.js` (rspack) via `taskfile.js` bundle tasks
+- **Selected at runtime by**: `src/server/route-modules/app-page/module.compiled.js` based on `process.env` vars
+- **Variants**: `{turbo/webpack} × {experimental/stable} × {dev/prod}` = 8 bundles per route type
+- **Key implication**: `process.env.X` checks in `app-render.tsx` are either replaced by DefinePlugin at runtime-bundle-build time, or read as actual env vars at server startup. They are NOT affected by the user's webpack/Turbopack defines from `define-env.ts`.
+- **Adding a new feature flag**: Either leave it as a runtime env var (both code paths in bundle), or create new bundle variants (separate DefinePlugin value per variant, new taskfile tasks, updated `module.compiled.js` selector)
+- **Gotcha**: DefinePlugin entries in `next-runtime.webpack-config.js` must be scoped to the correct `bundleType` (e.g. `app` only, not `server`) to avoid replacing assignment targets in `next-server.ts`
+
+### Stale Native Binary
+
+If Turbopack produces unexpected errors after switching branches or pulling, check if `packages/next-swc/native/*.node` is stale. Delete it and run `pnpm install` to get the npm-published binary instead of a locally-built one.
 
 ### Documentation Code Blocks
 
