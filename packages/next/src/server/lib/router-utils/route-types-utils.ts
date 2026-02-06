@@ -23,21 +23,23 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../../shared/lib/entry-constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import type { RouteInfo, SlotInfo } from '../../../build/file-classifier'
 
-interface RouteInfo {
+// Internal route info with extracted params for the manifest
+interface ManifestRouteInfo {
   path: string
   groups: { [groupName: string]: Group }
 }
 
 export interface RouteTypesManifest {
-  appRoutes: Record<string, RouteInfo>
-  pageRoutes: Record<string, RouteInfo>
-  layoutRoutes: Record<string, RouteInfo & { slots: string[] }>
-  appRouteHandlerRoutes: Record<string, RouteInfo>
-  /** Map of redirect source => RouteInfo */
-  redirectRoutes: Record<string, RouteInfo>
-  /** Map of rewrite source => RouteInfo */
-  rewriteRoutes: Record<string, RouteInfo>
+  appRoutes: Record<string, ManifestRouteInfo>
+  pageRoutes: Record<string, ManifestRouteInfo>
+  layoutRoutes: Record<string, ManifestRouteInfo & { slots: string[] }>
+  appRouteHandlerRoutes: Record<string, ManifestRouteInfo>
+  /** Map of redirect source => ManifestRouteInfo */
+  redirectRoutes: Record<string, ManifestRouteInfo>
+  /** Map of rewrite source => ManifestRouteInfo */
+  rewriteRoutes: Record<string, ManifestRouteInfo>
   /** File paths for validation */
   appPagePaths: Set<string>
   pagesRouterPagePaths: Set<string>
@@ -159,12 +161,12 @@ export async function createRouteTypesManifest({
   validatorFilePath,
 }: {
   dir: string
-  pageRoutes: Array<{ route: string; filePath: string }>
-  appRoutes: Array<{ route: string; filePath: string }>
-  appRouteHandlers: Array<{ route: string; filePath: string }>
-  pageApiRoutes: Array<{ route: string; filePath: string }>
-  layoutRoutes: Array<{ route: string; filePath: string }>
-  slots: Array<{ name: string; parent: string }>
+  pageRoutes: RouteInfo[]
+  appRoutes: RouteInfo[]
+  appRouteHandlers: RouteInfo[]
+  pageApiRoutes: RouteInfo[]
+  layoutRoutes: RouteInfo[]
+  slots: SlotInfo[]
   redirects?: NextConfigComplete['redirects']
   rewrites?: NextConfigComplete['rewrites']
   validatorFilePath?: string
