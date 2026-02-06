@@ -2951,6 +2951,56 @@ export async function next_bundle_app_dev_experimental(task, opts) {
   })
 }
 
+// Node streams variants
+export async function next_bundle_app_prod_turbo_nodestreams(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      turbo: true,
+      bundleType: 'app',
+      nodeStreams: true,
+    }),
+    name: 'next-bundle-app-prod-turbo-nodestreams',
+  })
+}
+
+export async function next_bundle_app_prod_nodestreams(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: false,
+      bundleType: 'app',
+      nodeStreams: true,
+    }),
+    name: 'next-bundle-app-prod-nodestreams',
+  })
+}
+
+export async function next_bundle_app_dev_turbo_nodestreams(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: true,
+      turbo: true,
+      bundleType: 'app',
+      nodeStreams: true,
+    }),
+    name: 'next-bundle-app-dev-turbo-nodestreams',
+  })
+}
+
+export async function next_bundle_app_dev_nodestreams(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: true,
+      bundleType: 'app',
+      nodeStreams: true,
+    }),
+    name: 'next-bundle-app-dev-nodestreams',
+  })
+}
+
 export async function next_bundle_pages_prod(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -3030,6 +3080,11 @@ export async function next_bundle(task, opts) {
       'next_bundle_app_prod_experimental',
       'next_bundle_app_dev_turbo_experimental',
       'next_bundle_app_dev_experimental',
+      // builds the app (route/page) bundles with node streams
+      'next_bundle_app_prod_turbo_nodestreams',
+      'next_bundle_app_prod_nodestreams',
+      'next_bundle_app_dev_turbo_nodestreams',
+      'next_bundle_app_dev_nodestreams',
       // builds the pages (page/api) bundles
       'next_bundle_pages_prod',
       'next_bundle_pages_dev',

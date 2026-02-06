@@ -7,8 +7,28 @@ export {
   decodeFormState,
 } from 'react-server-dom-webpack/server'
 
+// renderToPipeableStream is available in the .node build but not in the type definitions.
+// We use a dynamic require (same pattern as InstantValidation below) to avoid Turbopack
+// failing to resolve it as a named export from the vendored CJS module.
+/* eslint-disable import/no-extraneous-dependencies */
+export const renderToPipeableStream: ((...args: any[]) => any) | undefined =
+  process.env.NEXT_RUNTIME !== 'edge'
+    ? ((require('react-server-dom-webpack/server') as typeof import('react-server-dom-webpack/server'))).renderToPipeableStream
+    : undefined
+/* eslint-enable import/no-extraneous-dependencies */
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { prerender } from 'react-server-dom-webpack/static'
+
+// prerenderToNodeStream is available in the .node build but not in the type definitions.
+// We use a dynamic require (same pattern as renderToPipeableStream above) to avoid Turbopack
+// failing to resolve it as a named export from the vendored CJS module.
+/* eslint-disable import/no-extraneous-dependencies */
+export const prerenderToNodeStream: ((...args: any[]) => any) | undefined =
+  process.env.NEXT_RUNTIME !== 'edge'
+    ? ((require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static'))).prerenderToNodeStream
+    : undefined
+/* eslint-enable import/no-extraneous-dependencies */
 
 // TODO: Just re-export `* as ReactServer`
 export { captureOwnerStack, createElement, Fragment } from 'react'

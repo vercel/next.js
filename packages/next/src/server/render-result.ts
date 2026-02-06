@@ -1,4 +1,5 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
+import type { Readable as NodeReadable } from 'node:stream'
 import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
 
@@ -73,6 +74,7 @@ export type RenderResultMetadata = AppPageRenderResultMetadata &
 export type RenderResultResponse =
   | ReadableStream<Uint8Array>[]
   | ReadableStream<Uint8Array>
+  | NodeReadable
   | string
   | Buffer
   | null
@@ -173,6 +175,19 @@ export default class RenderResult<
    * @param stream Whether or not to return a promise if the response is dynamic
    * @returns The response as a string
    */
+  private isNodeReadable(
+    response: RenderResultResponse
+  ): response is NodeReadable {
+    return (
+      response !== null &&
+      typeof response === 'object' &&
+      !Array.isArray(response) &&
+      !Buffer.isBuffer(response) &&
+      !(response instanceof ReadableStream) &&
+      typeof (response as any).pipe === 'function'
+    )
+  }
+
   public toUnchunkedString(stream?: false): string
   public toUnchunkedString(stream: true): Promise<string>
   public toUnchunkedString(stream = false): Promise<string> | string {
@@ -189,6 +204,15 @@ export default class RenderResult<
         )
       }
 
+      if (
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        this.isNodeReadable(this.response)
+      ) {
+        const { nodeStreamToString } =
+          require('./stream-utils/node-stream-helpers') as typeof import('./stream-utils/node-stream-helpers')
+        return nodeStreamToString(this.response)
+      }
+
       return streamToString(this.readable)
     }
 
@@ -196,7 +220,8 @@ export default class RenderResult<
   }
 
   /**
-   * Returns a readable stream of the response.
+   * Returns a web readable stream of the response.
+   * For Node.js Readable responses, use pipeToNodeResponse directly.
    */
   private get readable(): ReadableStream<Uint8Array> {
     if (this.response === null) {
@@ -217,9 +242,16 @@ export default class RenderResult<
       return streamFromBuffer(this.response)
     }
 
-    // If the response is an array of streams, then chain them together.
+    // If the response is an array of web streams, then chain them together.
     if (Array.isArray(this.response)) {
-      return chainStreams(...this.response)
+      return chainStreams(...(this.response as ReadableStream<Uint8Array>[]))
+    }
+
+    // Node.js Readable: should not reach here, use pipeToNodeResponse path
+    if (this.isNodeReadable(this.response)) {
+      throw new InvariantError(
+        'Node.js Readable responses should use the pipeToNodeResponse path directly'
+      )
     }
 
     return this.response
@@ -241,11 +273,15 @@ export default class RenderResult<
     if (typeof this.response === 'string') {
       return [streamFromString(this.response)]
     } else if (Array.isArray(this.response)) {
-      return this.response
+      return this.response as ReadableStream<Uint8Array>[]
     } else if (Buffer.isBuffer(this.response)) {
       return [streamFromBuffer(this.response)]
+    } else if (this.isNodeReadable(this.response)) {
+      throw new InvariantError(
+        'Node.js Readable responses cannot be coerced to web ReadableStream arrays'
+      )
     } else {
-      return [this.response]
+      return [this.response as ReadableStream<Uint8Array>]
     }
   }
 
@@ -329,6 +365,18 @@ export default class RenderResult<
    * @param res
    */
   public async pipeToNodeResponse(res: ServerResponse) {
+    // If the response is a Node.js Readable, pipe directly without
+    // going through web stream conversion.
+    if (
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      this.isNodeReadable(this.response)
+    ) {
+      const { pipeNodeReadableToResponse } =
+        require('./pipe-readable') as typeof import('./pipe-readable')
+      await pipeNodeReadableToResponse(this.response, res, this.waitUntil)
+      return
+    }
+
     await pipeToNodeResponse(this.readable, res, this.waitUntil)
   }
 }

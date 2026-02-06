@@ -1,4 +1,5 @@
 import type { ServerResponse } from 'node:http'
+import type { Readable } from 'node:stream'
 
 import {
   ResponseAbortedName,
@@ -142,5 +143,142 @@ export async function pipeToNodeResponse(
     if (isAbortError(err)) return
 
     throw new Error('failed to pipe response', { cause: err })
+  }
+}
+
+/**
+ * Pipes a Node.js Readable stream directly to a ServerResponse.
+ * This avoids the overhead of wrapping in web WritableStream.
+ */
+export async function pipeNodeReadableToResponse(
+  readable: Readable,
+  res: ServerResponse,
+  waitUntilForEnd?: Promise<unknown>
+) {
+  // Guard so webpack can DCE node:stream require for edge builds.
+  // pipe-readable.ts is imported by render-result.ts which is bundled into edge.
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    try {
+      const { errored, destroyed } = res
+      if (errored || destroyed) return
+
+      let started = false
+      const finished = new DetachedPromise<void>()
+
+      const { Writable: NodeWritable } =
+        require('node:stream') as typeof import('node:stream')
+
+      const writable = new NodeWritable({
+        write(chunk: Uint8Array, _encoding, callback) {
+          if (!started) {
+            started = true
+
+            if (
+              'performance' in globalThis &&
+              process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+            ) {
+              const metrics = getClientComponentLoaderMetrics()
+              if (metrics) {
+                performance.measure(
+                  `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
+                  {
+                    start: metrics.clientComponentLoadStart,
+                    end:
+                      metrics.clientComponentLoadStart +
+                      metrics.clientComponentLoadTimes,
+                  }
+                )
+              }
+            }
+
+            res.flushHeaders()
+            getTracer().trace(
+              NextNodeServerSpan.startResponse,
+              {
+                spanName: 'start response',
+              },
+              () => undefined
+            )
+          }
+
+          try {
+            const ok = res.write(chunk)
+
+            // Added by the `compression` middleware, this is a function that will
+            // flush the partially-compressed response to the client.
+            if ('flush' in res && typeof res.flush === 'function') {
+              res.flush()
+            }
+
+            if (!ok) {
+              res.once('drain', callback)
+            } else {
+              callback()
+            }
+          } catch (err) {
+            if (!res.writableFinished) {
+              res.end()
+            }
+            // Destroy the readable to stop it from pushing more data
+            if (!readable.destroyed) {
+              readable.destroy()
+            }
+            callback(
+              new Error('failed to write chunk to response', { cause: err })
+            )
+          }
+        },
+        final(callback) {
+          if (waitUntilForEnd) {
+            const finalize = () => {
+              if (!res.writableFinished) {
+                res.end()
+              }
+              callback()
+              finished.resolve()
+            }
+            waitUntilForEnd.then(finalize, finalize)
+          } else {
+            if (!res.writableFinished) {
+              res.end()
+            }
+            callback()
+            finished.resolve()
+          }
+        },
+        destroy(err, callback) {
+          if (err && !res.writableFinished) {
+            res.destroy(err)
+          }
+          callback(err)
+          finished.resolve()
+        },
+      })
+
+      // Handle client disconnect
+      const onClose = () => {
+        if (!readable.destroyed) {
+          readable.destroy()
+        }
+      }
+      res.once('close', onClose)
+
+      // Forward errors since Node.js .pipe() does not propagate them.
+      readable.on('error', (err) => {
+        if (!writable.destroyed) {
+          writable.destroy(err)
+        }
+      })
+
+      readable.pipe(writable)
+
+      await finished.promise
+      res.off('close', onClose)
+    } catch (err: any) {
+      if (isAbortError(err)) return
+      throw new Error('failed to pipe node readable to response', {
+        cause: err,
+      })
+    }
   }
 }

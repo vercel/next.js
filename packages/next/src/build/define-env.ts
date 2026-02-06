@@ -123,6 +123,7 @@ export function getDefineEnv({
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
   const isCacheComponentsEnabled = !!config.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
+  const isUseNodeStreamsEnabled = !!config.experimental.useNodeStreams
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -169,6 +170,7 @@ export function getDefineEnv({
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
+    'process.env.__NEXT_USE_NODE_STREAMS': isUseNodeStreamsEnabled,
 
     ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {

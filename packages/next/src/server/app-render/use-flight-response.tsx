@@ -1,5 +1,5 @@
 import type { BinaryStreamOf } from './app-render'
-import type { Readable } from 'node:stream'
+import type { Readable, Transform } from 'node:stream'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
@@ -251,4 +251,104 @@ function writeFlightDataInstruction(
       `${scriptStart}self.__next_f.push(${htmlInlinedData})</script>`
     )
   )
+}
+
+function encodeFlightDataChunk(
+  scriptStart: string,
+  chunk: string | Uint8Array
+): Uint8Array {
+  let htmlInlinedData: string
+
+  if (typeof chunk === 'string') {
+    htmlInlinedData = htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
+    )
+  } else {
+    const base64 = btoa(String.fromCodePoint(...chunk))
+    htmlInlinedData = htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
+    )
+  }
+
+  return encoder.encode(
+    `${scriptStart}self.__next_f.push(${htmlInlinedData})</script>`
+  )
+}
+
+/**
+ * Creates a Node.js Readable that provides inline script tag chunks for writing
+ * hydration data to the client outside the React render itself.
+ *
+ * This is the Node.js stream equivalent of createInlinedDataReadableStream.
+ */
+export function createInlinedDataNodeStream(
+  nonce: string | undefined,
+  formState: unknown | null
+): Transform {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new Error(
+      'createInlinedDataNodeStream is not supported in edge runtime'
+    )
+  }
+
+  const startScriptTag = nonce
+    ? `<script nonce=${JSON.stringify(nonce)}>`
+    : '<script>'
+
+  const decoder = new TextDecoder('utf-8', { fatal: true })
+  let bootstrapWritten = false
+
+  const { Transform: NodeTransform } =
+    require('node:stream') as typeof import('node:stream')
+
+  return new NodeTransform({
+    transform(chunk: Uint8Array, _encoding, callback) {
+      try {
+        if (!bootstrapWritten) {
+          bootstrapWritten = true
+          let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+            JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+          )})`
+
+          if (formState != null) {
+            scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+              JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+            )})`
+          }
+
+          this.push(
+            encoder.encode(`${startScriptTag}${scriptContents}</script>`)
+          )
+        }
+
+        try {
+          const decodedString = decoder.decode(chunk, { stream: true })
+          this.push(encodeFlightDataChunk(startScriptTag, decodedString))
+        } catch {
+          this.push(encodeFlightDataChunk(startScriptTag, chunk))
+        }
+
+        callback()
+      } catch (error) {
+        callback(error as Error)
+      }
+    },
+    flush(callback) {
+      // If no data was ever received, still write the bootstrap
+      if (!bootstrapWritten) {
+        let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+        )})`
+
+        if (formState != null) {
+          scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+            JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+          )})`
+        }
+
+        this.push(encoder.encode(`${startScriptTag}${scriptContents}</script>`))
+      }
+      callback()
+    },
+  })
 }

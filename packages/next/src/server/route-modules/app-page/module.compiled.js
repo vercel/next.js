@@ -15,6 +15,20 @@ if (process.env.NEXT_RUNTIME === 'edge') {
         module.exports = require('next/dist/compiled/next-server/app-page-experimental.runtime.prod.js')
       }
     }
+  } else if (process.env.__NEXT_USE_NODE_STREAMS) {
+    if (process.env.NODE_ENV === 'development') {
+      if (process.env.TURBOPACK) {
+        module.exports = require('next/dist/compiled/next-server/app-page-turbo-nodestreams.runtime.dev.js')
+      } else {
+        module.exports = require('next/dist/compiled/next-server/app-page-nodestreams.runtime.dev.js')
+      }
+    } else {
+      if (process.env.TURBOPACK) {
+        module.exports = require('next/dist/compiled/next-server/app-page-turbo-nodestreams.runtime.prod.js')
+      } else {
+        module.exports = require('next/dist/compiled/next-server/app-page-nodestreams.runtime.prod.js')
+      }
+    }
   } else {
     if (process.env.NODE_ENV === 'development') {
       if (process.env.TURBOPACK) {

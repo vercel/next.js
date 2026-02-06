@@ -306,6 +306,35 @@ declare module 'react-server-dom-webpack/static' {
   ): Promise<{
     prelude: ReadableStream<Uint8Array>
   }>
+
+  export function prerenderToNodeStream(
+    children: any,
+    webpackMap: {
+      readonly [id: string]: {
+        readonly id: string | number
+        readonly chunks: ReadonlyArray<string>
+        readonly name: string
+        readonly async?: boolean
+      }
+    },
+    options?: {
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      identifierPrefix?: string
+      signal?: AbortSignal
+      temporaryReferences?: TemporaryReferenceSet
+      onError?: (error: unknown) => void
+    }
+  ): Promise<{
+    prelude: import('node:stream').Readable
+  }>
 }
 declare module 'react-server-dom-webpack/client.edge' {
   export interface Options {
