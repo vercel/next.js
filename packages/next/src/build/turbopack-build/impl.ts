@@ -12,6 +12,7 @@ import {
 } from '../handle-entrypoints'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { promises as fs } from 'fs'
+import type { Stats } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
@@ -21,7 +22,7 @@ import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
-import { collectPagesFiles } from '../entries'
+import { collectPagesFiles } from '../route-discovery'
 import { createValidFileMatcher } from '../../server/lib/find-page-file'
 import type {
   ProjectOptions,
@@ -85,7 +86,7 @@ async function getNonDeferredBuildPaths(
 
     for (const entry of entries) {
       const fullPath = path.join(dir, entry)
-      let stat
+      let stat: Stats
       try {
         stat = await fs.stat(fullPath)
       } catch {
@@ -421,14 +422,15 @@ export async function workerMain(workerData: {
   Object.assign(NextBuildContext, workerData.buildContext)
 
   /// load the config because it's not serializable
-  const config = (NextBuildContext.config = await loadConfig(
+  const config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
     }
-  ))
+  )
+  NextBuildContext.config = config
   // Matches handling in build/index.ts
   // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
   // Ensures the `config.distDir` option is matched.
