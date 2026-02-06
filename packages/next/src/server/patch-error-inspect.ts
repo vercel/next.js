@@ -501,10 +501,7 @@ export function patchErrorInspectNodeJS(
       try {
         return inspect(newError, {
           ...inspectOptions,
-          depth:
-            (inspectOptions.depth ??
-              // Default in Node.js
-              2) - depth,
+          depth,
         })
       } finally {
         ;(newError as any)[inspectSymbol] = originalCustomInspect

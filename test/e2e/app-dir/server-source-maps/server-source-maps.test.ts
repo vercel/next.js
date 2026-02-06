@@ -126,6 +126,79 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('logged errors collapse deeply nested causes at depth 2', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-nested')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log-nested'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'Error: rsc-error-log-nested' +
+          '\n    at logError (app/rsc-error-log-nested/page.js:6:18)' +
+          '\n    at Page (app/rsc-error-log-nested/page.js:11:3)' +
+          "\n  4 |   const depth2 = new Error('Depth 2 error', { cause: depth3 })" +
+          "\n  5 |   const depth1 = new Error('Depth 1 error', { cause: depth2 })" +
+          "\n> 6 |   const depth0 = new Error('rsc-error-log-nested', { cause: depth1 })" +
+          '\n    |                  ^' +
+          '\n  7 |   console.error(depth0)' +
+          '\n  8 | }' +
+          '\n  9 | {' +
+          '\n  [cause]: Error: Depth 1 error' +
+          '\n      at logError (app/rsc-error-log-nested/page.js:5:18)' +
+          '\n      at Page (app/rsc-error-log-nested/page.js:11:3)' +
+          "\n    3 |   const depth3 = new Error('Depth 3 error', { cause: depth4 })" +
+          "\n    4 |   const depth2 = new Error('Depth 2 error', { cause: depth3 })" +
+          "\n  > 5 |   const depth1 = new Error('Depth 1 error', { cause: depth2 })" +
+          '\n      |                  ^' +
+          "\n    6 |   const depth0 = new Error('rsc-error-log-nested', { cause: depth1 })" +
+          '\n    7 |   console.error(depth0)' +
+          '\n    8 | } {' +
+          '\n    [cause]: Error: Depth 2 error' +
+          '\n        at logError (app/rsc-error-log-nested/page.js:4:18)' +
+          '\n        at Page (app/rsc-error-log-nested/page.js:11:3)' +
+          "\n      2 |   const depth4 = new Error('Depth 4 error')" +
+          "\n      3 |   const depth3 = new Error('Depth 3 error', { cause: depth4 })" +
+          "\n    > 4 |   const depth2 = new Error('Depth 2 error', { cause: depth3 })" +
+          '\n        |                  ^' +
+          "\n      5 |   const depth1 = new Error('Depth 1 error', { cause: depth2 })" +
+          "\n      6 |   const depth0 = new Error('rsc-error-log-nested', { cause: depth1 })" +
+          '\n      7 |   console.error(depth0) {' +
+          '\n      [cause]: [Error]' +
+          '\n    }' +
+          '\n  }' +
+          '\n}'
+      )
+      // Verify depth 3+ are NOT shown (truncated to [Error])
+      expect(
+        normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      ).not.toContain('Error: Depth 3 error')
+      expect(
+        normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      ).not.toContain('Error: Depth 4 error')
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        // TODO(veil): relative paths in production
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(app/rsc-error-log-nested/page.js:6:18)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain('[cause]: [Error]')
+        expect(normalizeCliOutput(next.cliOutput)).not.toContain(
+          'Error: Depth 3 error'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).not.toContain(
+          'Error: Depth 4 error'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
+  })
+
   it('stack frames are ignore-listed in ssr', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
