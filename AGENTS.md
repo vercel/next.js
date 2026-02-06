@@ -114,6 +114,12 @@ pnpm test-dev-turbo test/development/
 - `pnpm test-start-turbo` - Production build+start with Turbopack
 - `pnpm test-start-webpack` - Production build+start with Webpack
 
+**Run tests headless** (no browser window): Always set `HEADLESS=true` when running e2e tests:
+
+```bash
+HEADLESS=true pnpm test-dev-turbo test/path/to/test.ts
+```
+
 **Other test commands:**
 
 - `pnpm test-unit` - Run unit tests only (fast, no browser)
@@ -315,6 +321,15 @@ Server rendering code (`app-render.tsx`, route modules) is NOT bundled during th
 ### Stale Native Binary
 
 If Turbopack produces unexpected errors after switching branches or pulling, check if `packages/next-swc/native/*.node` is stale. Delete it and run `pnpm install` to get the npm-published binary instead of a locally-built one.
+
+### Vendored React Packages & Types
+
+React is NOT resolved from `node_modules`. It's vendored into `packages/next/src/compiled/` during `pnpm build` (task: `copy_vendor_react()` in `taskfile.js`).
+
+- **Type declarations**: `packages/next/types/$$compiled.internal.d.ts` contains `declare module` blocks for vendored React packages. When adding new APIs (e.g. `renderToPipeableStream`, `prerenderToNodeStream`), you must add type declarations here. The bare specifier types (e.g. `declare module 'react-server-dom-webpack/server'`) are what source code in `src/` imports against.
+- **Two channels**: stable (`compiled/react/`) and experimental (`compiled/react-experimental/`). The runtime bundle webpack config (`next-runtime.webpack-config.js`) aliases to the correct channel via `makeAppAliases({ experimental })`.
+- **Turbopack remap**: `react-server-dom-webpack/*` is silently remapped to `react-server-dom-turbopack/*` by Turbopack's import map. Code says "webpack" everywhere but Turbopack gets its own bindings.
+- **Adding Node.js-only React APIs** (e.g. `renderToPipeableStream`): These exist in `.node` builds but not in the type definitions. Use dynamic `require()` behind `process.env.NEXT_RUNTIME !== 'edge'` guard, with `/* eslint-disable import/no-extraneous-dependencies */`. Add type declarations to `$$compiled.internal.d.ts`.
 
 ### Documentation Code Blocks
 
