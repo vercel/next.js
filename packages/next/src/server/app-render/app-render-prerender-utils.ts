@@ -187,6 +187,24 @@ export async function createReactServerPrerenderResultFromNodeStream(
   return new ReactServerPrerenderResult(chunks)
 }
 
+/**
+ * Compile-time unified factory: creates a ReactServerPrerenderResult from a
+ * prerender promise that resolves to { prelude }, using either the web or node
+ * stream consumer based on __NEXT_USE_NODE_STREAMS.
+ */
+export async function createReactServerPrerenderResultFromPrerender(
+  underlying: Promise<{ prelude: ReadableStream<Uint8Array> | NodeReadable }>
+): Promise<ReactServerPrerenderResult> {
+  if (process.env.__NEXT_USE_NODE_STREAMS) {
+    return createReactServerPrerenderResultFromNodeStream(
+      underlying as Promise<ReactServerPrerenderNodeResolveToType>
+    )
+  }
+  return createReactServerPrerenderResult(
+    underlying as Promise<ReactServerPrerenderResolveToType>
+  )
+}
+
 export async function createReactServerPrerenderResultFromRender(
   underlying: ReadableStream<Uint8Array> | NodeReadable
 ): Promise<ReactServerPrerenderResult> {
@@ -275,6 +293,33 @@ export class ReactServerPrerenderResult {
   consumeAsUnclosingNodeStream(): NodeReadable {
     const chunks = this.consumeChunks('consumeAsUnclosingNodeStream()')
     return createUnclosingNodeStream(chunks)
+  }
+
+  // Compile-time unified methods: use __NEXT_USE_NODE_STREAMS to pick
+  // the right stream type without branching at the call site.
+
+  asFlightStream(): ReadableStream<Uint8Array> | NodeReadable {
+    return process.env.__NEXT_USE_NODE_STREAMS
+      ? this.asNodeStream()
+      : this.asStream()
+  }
+
+  consumeAsFlightStream(): ReadableStream<Uint8Array> | NodeReadable {
+    return process.env.__NEXT_USE_NODE_STREAMS
+      ? this.consumeAsNodeStream()
+      : this.consumeAsStream()
+  }
+
+  asUnclosingFlightStream(): ReadableStream<Uint8Array> | NodeReadable {
+    return process.env.__NEXT_USE_NODE_STREAMS
+      ? this.asUnclosingNodeStream()
+      : this.asUnclosingStream()
+  }
+
+  consumeAsUnclosingFlightStream(): ReadableStream<Uint8Array> | NodeReadable {
+    return process.env.__NEXT_USE_NODE_STREAMS
+      ? this.consumeAsUnclosingNodeStream()
+      : this.consumeAsUnclosingStream()
   }
 }
 

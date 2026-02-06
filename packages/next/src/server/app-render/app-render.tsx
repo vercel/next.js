@@ -32,17 +32,27 @@ import RenderResult, {
   type RenderResultOptions,
 } from '../render-result'
 import {
-  chainStreams,
   renderToInitialFizzStream,
-  createDocumentClosingStream,
+  streamToString,
+} from '../stream-utils/node-web-streams-helper'
+import {
+  chainStreams,
   continueFizzStream,
   continueDynamicPrerender,
   continueStaticPrerender,
   continueDynamicHTMLResume,
-  streamToBuffer,
-  streamToString,
   continueStaticFallbackPrerender,
-} from '../stream-utils/node-web-streams-helper'
+  streamToBuffer,
+  createInlinedDataStream,
+  createPendingStream,
+  createOnHeadersCallback,
+  resumeAndAbort,
+  renderToFlightStream,
+  getServerPrerender,
+  getClientPrerender,
+  processPrelude as processPreludeOp,
+  createDocumentClosingStream,
+} from './stream-ops'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_HMR_REFRESH_HEADER,
@@ -114,7 +124,6 @@ import { isDynamicServerError } from '../../client/components/hooks-server-conte
 import {
   getFlightStream,
   createInlinedDataReadableStream,
-  createInlinedDataNodeStream,
 } from './use-flight-response'
 import {
   StaticGenBailoutError,
@@ -158,14 +167,11 @@ import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import {
   prerenderAndAbortInSequentialTasksWithStages,
-  processPrelude,
-  processNodePrelude,
-  createReactServerPrerenderResultFromNodeStream,
+  createReactServerPrerenderResultFromPrerender,
 } from './app-render-prerender-utils'
 import {
   type ReactServerPrerenderResult,
   ReactServerResult,
-  createReactServerPrerenderResult,
   createReactServerPrerenderResultFromRender,
   prerenderAndAbortInSequentialTasks,
 } from './app-render-prerender-utils'
@@ -1170,9 +1176,6 @@ async function prospectiveRuntimeServerPrerender(
     getPayload
   )
 
-  const useNodeStreams =
-    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_USE_NODE_STREAMS
-
   const prerenderOptions = {
     filterStackFrame,
     onError: (err: unknown) => {
@@ -1203,13 +1206,9 @@ async function prospectiveRuntimeServerPrerender(
     signal: initialServerRenderController.signal,
   }
 
-  const prerenderFn = useNodeStreams
-    ? ComponentMod.prerenderToNodeStream!
-    : ComponentMod.prerender
-
   const pendingInitialServerResult = workUnitAsyncStorage.run(
     initialServerPrerenderStore,
-    prerenderFn,
+    getServerPrerender(ComponentMod),
     initialServerPayload,
     clientModules,
     prerenderOptions
@@ -1229,15 +1228,9 @@ async function prospectiveRuntimeServerPrerender(
   }
 
   try {
-    if (useNodeStreams) {
-      // eslint-disable-next-line @typescript-eslint/no-shadow
-      const { createReactServerPrerenderResultFromNodeStream } =
-        require('./app-render-prerender-utils') as typeof import('./app-render-prerender-utils')
-      return await createReactServerPrerenderResultFromNodeStream(
-        pendingInitialServerResult
-      )
-    }
-    return await createReactServerPrerenderResult(pendingInitialServerResult)
+    return await createReactServerPrerenderResultFromPrerender(
+      pendingInitialServerResult
+    )
   } catch (err) {
     if (
       initialServerRenderController.signal.aborted ||
@@ -1536,9 +1529,6 @@ async function finalRuntimeServerPrerender(
     draftMode,
   }
 
-  const useNodeStreams =
-    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_USE_NODE_STREAMS
-
   const { clientModules } = getClientReferenceManifest()
 
   const finalRSCPayload = await workUnitAsyncStorage.run(
@@ -1546,17 +1536,13 @@ async function finalRuntimeServerPrerender(
     getPayload
   )
 
-  const prerenderFn = useNodeStreams
-    ? ComponentMod.prerenderToNodeStream!
-    : ComponentMod.prerender
-
   let prerenderIsPending = true
   const result = await prerenderAndAbortInSequentialTasksWithStages(
     async () => {
       // Static stage
       const prerenderResult = await workUnitAsyncStorage.run(
         finalServerPrerenderStore,
-        prerenderFn,
+        getServerPrerender(ComponentMod),
         finalRSCPayload,
         clientModules,
         {
@@ -1599,7 +1585,7 @@ async function finalRuntimeServerPrerender(
   // Update the RSC payload stream to replace the sentinel with actual values.
   // React has already serialized the payload with the sentinel, so we need to transform the stream.
   const collectedStale = selectStaleTime(finalServerPrerenderStore.stale)
-  if (useNodeStreams) {
+  if (process.env.__NEXT_USE_NODE_STREAMS) {
     const { safePipe } =
       require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
     result.prelude = safePipe(
@@ -3146,7 +3132,7 @@ async function renderToStream(
             process.env.__NEXT_USE_NODE_STREAMS &&
             !(teed instanceof ReadableStream)
           ) {
-            // eslint-disable-next-line @typescript-eslint/no-shadow
+             
             const { createInlinedDataNodeStream } =
               require('./use-flight-response') as typeof import('./use-flight-response')
             const {
@@ -3216,7 +3202,7 @@ async function renderToStream(
                 require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
               const { continueDynamicHTMLResumeNode, safePipe } =
                 require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-              // eslint-disable-next-line @typescript-eslint/no-shadow
+               
               const { createInlinedDataNodeStream } =
                 require('./use-flight-response') as typeof import('./use-flight-response')
               const { stream: htmlNodeStream, allReady } =
@@ -3347,7 +3333,7 @@ async function renderToStream(
             require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
           const { continueFizzStreamNode: continueFizzStreamNodeFn, safePipe } =
             require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-          // eslint-disable-next-line @typescript-eslint/no-shadow
+           
           const { createInlinedDataNodeStream } =
             require('./use-flight-response') as typeof import('./use-flight-response')
           const { stream: htmlNodeStream, allReady } =
@@ -3585,7 +3571,7 @@ async function renderToStream(
               safePipe,
             } =
               require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-            // eslint-disable-next-line @typescript-eslint/no-shadow
+             
             const { createInlinedDataNodeStream } =
               require('./use-flight-response') as typeof import('./use-flight-response')
 
@@ -3801,9 +3787,6 @@ async function renderWithRestartOnCacheMissInDev(
   )
   requestStore.cacheSignal = cacheSignal
 
-  const useNodeStreams =
-    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_USE_NODE_STREAMS
-
   let debugChannel = setReactDebugChannel && createDebugChannel()
   const { clientModules } = getClientReferenceManifest()
 
@@ -3820,7 +3803,7 @@ async function renderWithRestartOnCacheMissInDev(
           initialStageController.advanceStage(RenderStage.Static)
           startTime = performance.now() + performance.timeOrigin
 
-          if (useNodeStreams) {
+          if (process.env.__NEXT_USE_NODE_STREAMS) {
             const { PassThrough } =
               require('node:stream') as typeof import('node:stream')
             const { renderToFlightPipeableStream } =
@@ -4020,7 +4003,7 @@ async function renderWithRestartOnCacheMissInDev(
         finalStageController.advanceStage(RenderStage.Static)
         startTime = performance.now() + performance.timeOrigin
 
-        if (useNodeStreams) {
+        if (process.env.__NEXT_USE_NODE_STREAMS) {
           const { PassThrough } =
             require('node:stream') as typeof import('node:stream')
           const { renderToFlightPipeableStream } =
@@ -4524,16 +4507,9 @@ async function warmupClientModulesForStagedValidationInDev(
     initialClientReactController.signal
   )
 
-  const useNodeStreams =
-    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_USE_NODE_STREAMS
-  const prerenderFn: typeof import('react-dom/static').prerender =
-    useNodeStreams
-      ? ((require('react-dom/static') as typeof import('react-dom/static'))).prerenderToNodeStream
-      : (require('react-dom/static') as typeof import('react-dom/static'))
-          .prerender
   const pendingInitialClientResult = workUnitAsyncStorage.run(
     initialClientPrerenderStore,
-    prerenderFn,
+    getClientPrerender,
     // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
     <App
       reactServerStream={serverStream}
@@ -4590,7 +4566,7 @@ async function warmupClientModulesForStagedValidationInDev(
     { once: true }
   )
 
-  pendingInitialClientResult.catch((err) => {
+  pendingInitialClientResult.catch((err: unknown) => {
     if (
       initialClientReactController.signal.aborted ||
       isPrerenderInterruptedError(err)
@@ -4683,20 +4659,13 @@ async function validateStagedShell(
       )
     : undefined
 
-  const useNodeStreams =
-    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_USE_NODE_STREAMS
-  const prerenderFn: typeof import('react-dom/static').prerender =
-    useNodeStreams
-      ? ((require('react-dom/static') as typeof import('react-dom/static'))).prerenderToNodeStream
-      : (require('react-dom/static') as typeof import('react-dom/static'))
-          .prerender
   try {
     let { prelude: unprocessedPrelude } =
       await prerenderAndAbortInSequentialTasks(
         () => {
           const pendingFinalClientResult = workUnitAsyncStorage.run(
             finalClientPrerenderStore,
-            prerenderFn,
+            getClientPrerender,
             // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
             <App
               reactServerStream={serverStream}
@@ -4757,9 +4726,7 @@ async function validateStagedShell(
         }
       )
 
-    const { preludeIsEmpty } = useNodeStreams
-      ? await processNodePrelude(unprocessedPrelude as unknown as Readable)
-      : await processPrelude(unprocessedPrelude)
+    const { preludeIsEmpty } = await processPreludeOp(unprocessedPrelude)
     return getStaticShellDisallowedDynamicReasons(
       workStore,
       preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
@@ -5004,20 +4971,13 @@ async function validateInstantConfigNavigation(
     ? DynamicHoleKind.Runtime
     : DynamicHoleKind.Dynamic
 
-  const useNodeStreams =
-    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_USE_NODE_STREAMS
-  const prerenderFn: typeof import('react-dom/static').prerender =
-    useNodeStreams
-      ? ((require('react-dom/static') as typeof import('react-dom/static'))).prerenderToNodeStream
-      : (require('react-dom/static') as typeof import('react-dom/static'))
-          .prerender
   try {
     let { prelude: unprocessedPrelude } =
       await prerenderAndAbortInSequentialTasks(
         () => {
           const pendingFinalClientResult = workUnitAsyncStorage.run(
             finalClientPrerenderStore,
-            prerenderFn,
+            getClientPrerender,
             // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
             <App
               reactServerStream={serverStream}
@@ -5080,9 +5040,7 @@ async function validateInstantConfigNavigation(
         }
       )
 
-    const { preludeIsEmpty } = useNodeStreams
-      ? await processNodePrelude(unprocessedPrelude as unknown as Readable)
-      : await processPrelude(unprocessedPrelude)
+    const { preludeIsEmpty } = await processPreludeOp(unprocessedPrelude)
     const reasons = getNavigationDisallowedDynamicReasons(
       workStore,
       preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
@@ -5432,25 +5390,13 @@ async function prerenderToStream(
         signal: initialServerReactController.signal,
       }
 
-      const useNodeStreams =
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_USE_NODE_STREAMS
-
-      const pendingInitialServerResult = useNodeStreams
-        ? workUnitAsyncStorage.run(
-            initialServerPrerenderStore,
-            ComponentMod.prerenderToNodeStream!,
-            initialServerPayload,
-            clientModules,
-            initialPrerenderOptions
-          )
-        : workUnitAsyncStorage.run(
-            initialServerPrerenderStore,
-            ComponentMod.prerender,
-            initialServerPayload,
-            clientModules,
-            initialPrerenderOptions
-          )
+      const pendingInitialServerResult = workUnitAsyncStorage.run(
+        initialServerPrerenderStore,
+        getServerPrerender(ComponentMod),
+        initialServerPayload,
+        clientModules,
+        initialPrerenderOptions
+      )
 
       // The listener to abort our own render controller must be added after
       // React has added its listener, to ensure that pending I/O is not
@@ -5479,11 +5425,10 @@ async function prerenderToStream(
 
       let initialServerResult
       try {
-        initialServerResult = useNodeStreams
-          ? await createReactServerPrerenderResultFromNodeStream(
-              pendingInitialServerResult
-            )
-          : await createReactServerPrerenderResult(pendingInitialServerResult)
+        initialServerResult =
+          await createReactServerPrerenderResultFromPrerender(
+            pendingInitialServerResult
+          )
       } catch (err) {
         if (
           initialServerReactController.signal.aborted ||
@@ -5533,21 +5478,12 @@ async function prerenderToStream(
           varyParamsAccumulator: null,
         }
 
-        const prerenderFn: typeof import('react-dom/static').prerender =
-          useNodeStreams
-            ? ((require('react-dom/static') as typeof import('react-dom/static'))).prerenderToNodeStream
-            : (require('react-dom/static') as typeof import('react-dom/static'))
-                .prerender
         const pendingInitialClientResult = workUnitAsyncStorage.run(
           initialClientPrerenderStore,
-          prerenderFn,
+          getClientPrerender,
           // eslint-disable-next-line @next/internal/no-ambiguous-jsx
           <App
-            reactServerStream={
-              useNodeStreams
-                ? initialServerResult.asUnclosingNodeStream()
-                : initialServerResult.asUnclosingStream()
-            }
+            reactServerStream={initialServerResult.asUnclosingFlightStream()}
             reactDebugStream={undefined}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
@@ -5557,7 +5493,7 @@ async function prerenderToStream(
           />,
           {
             signal: initialClientReactController.signal,
-            onError: (err) => {
+            onError: (err: unknown) => {
               const digest = getDigestForWellKnownError(err)
 
               if (digest) {
@@ -5600,7 +5536,7 @@ async function prerenderToStream(
           { once: true }
         )
 
-        pendingInitialClientResult.catch((err) => {
+        pendingInitialClientResult.catch((err: unknown) => {
           if (
             initialClientReactController.signal.aborted ||
             isPrerenderInterruptedError(err)
@@ -5743,9 +5679,7 @@ async function prerenderToStream(
           // The store to scope
           finalServerPrerenderStore,
           // The function to run
-          useNodeStreams
-            ? ComponentMod.prerenderToNodeStream!
-            : ComponentMod.prerender,
+          getServerPrerender(ComponentMod),
           // ... the arguments for the function to run
           finalAttemptRSCPayload,
           clientModules,
@@ -5768,19 +5702,13 @@ async function prerenderToStream(
 
         return prerenderResult
       }
-      const reactServerResult = (reactServerPrerenderResult = useNodeStreams
-        ? await createReactServerPrerenderResultFromNodeStream(
-            prerenderAndAbortInSequentialTasks(
-              finalRSCPrerenderFn,
-              finalRSCAbortCallback
-            )
+      const reactServerResult = (reactServerPrerenderResult =
+        await createReactServerPrerenderResultFromPrerender(
+          prerenderAndAbortInSequentialTasks(
+            finalRSCPrerenderFn,
+            finalRSCAbortCallback
           )
-        : await createReactServerPrerenderResult(
-            prerenderAndAbortInSequentialTasks(
-              finalRSCPrerenderFn,
-              finalRSCAbortCallback
-            )
-          ))
+        ))
 
       const clientDynamicTracking = createDynamicTrackingState(
         isDebugDynamicAccesses
@@ -5814,40 +5742,17 @@ async function prerenderToStream(
 
       let dynamicValidation = createDynamicValidationState()
 
-      const finalClientPrerenderFn: typeof import('react-dom/static').prerender =
-        useNodeStreams
-          ? ((require('react-dom/static') as typeof import('react-dom/static'))).prerenderToNodeStream
-          : (require('react-dom/static') as typeof import('react-dom/static'))
-              .prerender
-
-      // prerenderToNodeStream passes headers as a plain object, not a Headers instance.
-      // Wrap in new Headers() for consistency (same gotcha as renderToPipeableStream).
-      const finalClientOnHeaders = useNodeStreams
-        ? (headersDescriptor: any) => {
-            const headers = new Headers(headersDescriptor)
-            headers.forEach((value: string, key: string) => {
-              appendHeader(key, value)
-            })
-          }
-        : (headers: Headers) => {
-            headers.forEach((value, key) => {
-              appendHeader(key, value)
-            })
-          }
+      const finalClientOnHeaders = createOnHeadersCallback(appendHeader)
 
       let { prelude: unprocessedPrelude, postponed } =
         await prerenderAndAbortInSequentialTasks(
           () => {
             const pendingFinalClientResult = workUnitAsyncStorage.run(
               finalClientPrerenderStore,
-              finalClientPrerenderFn,
+              getClientPrerender,
               // eslint-disable-next-line @next/internal/no-ambiguous-jsx
               <App
-                reactServerStream={
-                  useNodeStreams
-                    ? reactServerResult.asUnclosingNodeStream()
-                    : reactServerResult.asUnclosingStream()
-                }
+                reactServerStream={reactServerResult.asUnclosingFlightStream()}
                 reactDebugStream={undefined}
                 debugEndTime={undefined}
                 preinitScripts={preinitScripts}
@@ -5902,9 +5807,8 @@ async function prerenderToStream(
           }
         )
 
-      const { prelude, preludeIsEmpty } = useNodeStreams
-        ? await processNodePrelude(unprocessedPrelude as unknown as Readable)
-        : await processPrelude(unprocessedPrelude)
+      const { prelude, preludeIsEmpty } =
+        await processPreludeOp(unprocessedPrelude)
 
       // If we've disabled throwing on empty static shell, then we don't need to
       // track any dynamic access that occurs above the suspense boundary because
@@ -5926,11 +5830,9 @@ async function prerenderToStream(
         tracingMetadata: tracingMetadata,
       })
 
-      const flightData = useNodeStreams
-        ? await (
-            require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-          ).nodeStreamToBuffer(reactServerResult.asNodeStream())
-        : await streamToBuffer(reactServerResult.asStream())
+      const flightData = await streamToBuffer(
+        reactServerResult.asFlightStream()
+      )
       metadata.flightData = flightData
       metadata.segmentData = await collectSegmentData(
         flightData,
@@ -5972,17 +5874,10 @@ async function prerenderToStream(
         return {
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
-          stream: useNodeStreams
-            ? await (
-                require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-              ).continueDynamicPrerenderNode(
-                prelude as import('node:stream').Readable,
-                continueDynamicPrerenderOpts
-              )
-            : await continueDynamicPrerender(
-                prelude as ReadableStream<Uint8Array>,
-                continueDynamicPrerenderOpts
-              ),
+          stream: await continueDynamicPrerender(
+            prelude,
+            continueDynamicPrerenderOpts
+          ),
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
             clientDynamicTracking
@@ -6010,79 +5905,29 @@ async function prerenderToStream(
           | ReadableStream<Uint8Array>
           | import('node:stream').Readable = prelude
         if (postponed != null) {
-          if (useNodeStreams) {
-            const { Readable: NodeReadable } =
-              require('node:stream') as typeof import('node:stream')
-            const { chainNodeStreams } =
-              require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-            const resumeAndPrerenderToNodeStreamFn = (
-              (require('react-dom/static') as typeof import('react-dom/static'))
-            ).resumeAndPrerenderToNodeStream
-
-            // We don't actually want to render anything so we just pass a stream
-            // that never resolves. The resume call is going to abort immediately anyway
-            const foreverStream = new NodeReadable({ read() {} })
-
-            const { prelude: resumePrelude } =
-              await resumeAndPrerenderToNodeStreamFn(
-                // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-                <App
-                  reactServerStream={foreverStream}
-                  reactDebugStream={undefined}
-                  debugEndTime={undefined}
-                  preinitScripts={() => {}}
-                  ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                  nonce={nonce}
-                  images={ctx.renderOpts.images}
-                />,
-                JSON.parse(JSON.stringify(postponed)),
-                {
-                  signal: createRenderInBrowserAbortSignal(),
-                  onError: htmlRendererErrorHandler,
-                  nonce,
-                }
-              )
-
-            htmlStream = chainNodeStreams(
-              prelude as import('node:stream').Readable,
-              resumePrelude
-            )
-          } else {
-            // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
-            // so we can set all the postponed boundaries to client render mode before we store the HTML response
-            const resume = (
-              require('react-dom/server') as typeof import('react-dom/server')
-            ).resume
-
-            // We don't actually want to render anything so we just pass a stream
-            // that never resolves. The resume call is going to abort immediately anyway
-            const foreverStream = new ReadableStream<Uint8Array>()
-
-            const resumeStream = await resume(
-              // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-              <App
-                reactServerStream={foreverStream}
-                reactDebugStream={undefined}
-                debugEndTime={undefined}
-                preinitScripts={() => {}}
-                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                nonce={nonce}
-                images={ctx.renderOpts.images}
-              />,
-              JSON.parse(JSON.stringify(postponed)),
-              {
-                signal: createRenderInBrowserAbortSignal(),
-                onError: htmlRendererErrorHandler,
-                nonce,
-              }
-            )
-
-            // First we write everything from the prerender, then we write everything from the aborted resume render
-            htmlStream = chainStreams(
-              prelude as ReadableStream<Uint8Array>,
-              resumeStream
-            )
-          }
+          // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
+          // so we can set all the postponed boundaries to client render mode before we store the HTML response
+          const foreverStream = createPendingStream()
+          const resumePrelude = await resumeAndAbort(
+            // eslint-disable-next-line @next/internal/no-ambiguous-jsx
+            <App
+              reactServerStream={foreverStream}
+              reactDebugStream={undefined}
+              debugEndTime={undefined}
+              preinitScripts={() => {}}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              nonce={nonce}
+              images={ctx.renderOpts.images}
+            />,
+            JSON.parse(JSON.stringify(postponed)),
+            {
+              signal: createRenderInBrowserAbortSignal(),
+              onError: htmlRendererErrorHandler,
+              nonce,
+            }
+          )
+          // First we write everything from the prerender, then we write everything from the aborted resume render
+          htmlStream = chainStreams(prelude, resumePrelude)
         }
 
         let finalStream
@@ -6105,90 +5950,35 @@ async function prerenderToStream(
           // TODO: In the future, rather than defer the entire hydration payload
           // to be fetched by the client, we should only defer the client
           // segments, since those are the only ones whose data is not complete.
-          if (useNodeStreams) {
-            const { renderToFlightPipeableStream } =
-              require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-            const { continueStaticFallbackPrerenderNode, safePipe } =
-              require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-            const emptyFlightNodeStream = renderToFlightPipeableStream(
-              ComponentMod.renderToPipeableStream!,
-              [],
-              clientModules,
-              {
+          const emptyReactServerResult =
+            await createReactServerPrerenderResultFromRender(
+              renderToFlightStream(ComponentMod, [], clientModules, {
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
-              }
+              })
             )
-            const emptyReactServerResult =
-              await createReactServerPrerenderResultFromRender(
-                emptyFlightNodeStream
-              )
-            finalStream = await continueStaticFallbackPrerenderNode(
-              htmlStream as import('node:stream').Readable,
-              {
-                inlinedDataStream: safePipe(
-                  emptyReactServerResult.consumeAsNodeStream(),
-                  createInlinedDataNodeStream(nonce, formState)
-                ),
-                getServerInsertedHTML,
-                getServerInsertedMetadata,
-                deploymentId: ctx.sharedContext.deploymentId,
-              }
-            )
-          } else {
-            const emptyReactServerResult =
-              await createReactServerPrerenderResultFromRender(
-                ComponentMod.renderToReadableStream([], clientModules, {
-                  filterStackFrame,
-                  onError: serverComponentsErrorHandler,
-                })
-              )
-            finalStream = await continueStaticFallbackPrerender(
-              htmlStream as ReadableStream<Uint8Array>,
-              {
-                inlinedDataStream: createInlinedDataReadableStream(
-                  emptyReactServerResult.consumeAsStream(),
-                  nonce,
-                  formState
-                ),
-                getServerInsertedHTML,
-                getServerInsertedMetadata,
-                deploymentId: ctx.sharedContext.deploymentId,
-              }
-            )
-          }
+          finalStream = await continueStaticFallbackPrerender(htmlStream, {
+            inlinedDataStream: createInlinedDataStream(
+              emptyReactServerResult.consumeAsFlightStream(),
+              nonce,
+              formState
+            ),
+            getServerInsertedHTML,
+            getServerInsertedMetadata,
+            deploymentId: ctx.sharedContext.deploymentId,
+          })
         } else {
           // Normal static prerender case, no fallback param handling needed
-          if (useNodeStreams) {
-            const { continueStaticPrerenderNode, safePipe } =
-              require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-            finalStream = await continueStaticPrerenderNode(
-              htmlStream as import('node:stream').Readable,
-              {
-                inlinedDataStream: safePipe(
-                  reactServerResult.consumeAsNodeStream(),
-                  createInlinedDataNodeStream(nonce, formState)
-                ),
-                getServerInsertedHTML,
-                getServerInsertedMetadata,
-                deploymentId: ctx.sharedContext.deploymentId,
-              }
-            )
-          } else {
-            finalStream = await continueStaticPrerender(
-              htmlStream as ReadableStream<Uint8Array>,
-              {
-                inlinedDataStream: createInlinedDataReadableStream(
-                  reactServerResult.consumeAsStream(),
-                  nonce,
-                  formState
-                ),
-                getServerInsertedHTML,
-                getServerInsertedMetadata,
-                deploymentId: ctx.sharedContext.deploymentId,
-              }
-            )
-          }
+          finalStream = await continueStaticPrerender(htmlStream, {
+            inlinedDataStream: createInlinedDataStream(
+              reactServerResult.consumeAsFlightStream(),
+              nonce,
+              formState
+            ),
+            getServerInsertedHTML,
+            getServerInsertedMetadata,
+            deploymentId: ctx.sharedContext.deploymentId,
+          })
         }
 
         return {
@@ -6235,40 +6025,20 @@ async function prerenderToStream(
         res.statusCode === 404
       )
       let reactServerResult: ReactServerPrerenderResult
-      if (
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_USE_NODE_STREAMS
-      ) {
-        const { renderToFlightPipeableStream } =
-          require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-        const flightNodeStream = workUnitAsyncStorage.run(
-          reactServerPrerenderStore,
-          renderToFlightPipeableStream,
-          ComponentMod.renderToPipeableStream!,
-          RSCPayload,
-          clientModules,
-          {
-            filterStackFrame,
-            onError: serverComponentsErrorHandler,
-          }
-        )
-        reactServerResult = reactServerPrerenderResult =
-          await createReactServerPrerenderResultFromRender(flightNodeStream)
-      } else {
-        reactServerResult = reactServerPrerenderResult =
-          await createReactServerPrerenderResultFromRender(
-            workUnitAsyncStorage.run(
-              reactServerPrerenderStore,
-              ComponentMod.renderToReadableStream,
-              RSCPayload,
-              clientModules,
-              {
-                filterStackFrame,
-                onError: serverComponentsErrorHandler,
-              }
-            )
+      reactServerResult = reactServerPrerenderResult =
+        await createReactServerPrerenderResultFromRender(
+          workUnitAsyncStorage.run(
+            reactServerPrerenderStore,
+            renderToFlightStream,
+            ComponentMod,
+            RSCPayload,
+            clientModules,
+            {
+              filterStackFrame,
+              onError: serverComponentsErrorHandler,
+            }
           )
-      }
+        )
 
       const ssrPrerenderStore: PrerenderStore = {
         type: 'prerender-ppr',
@@ -6283,37 +6053,14 @@ async function prerenderToStream(
         tags: [...implicitTags.tags],
         prerenderResumeDataCache,
       }
-      const useNodeStreamsPPR =
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_USE_NODE_STREAMS
-      const pprPrerenderFn: typeof import('react-dom/static').prerender =
-        useNodeStreamsPPR
-          ? ((require('react-dom/static') as typeof import('react-dom/static'))).prerenderToNodeStream
-          : (require('react-dom/static') as typeof import('react-dom/static'))
-              .prerender
-      const pprOnHeaders = useNodeStreamsPPR
-        ? (headersDescriptor: any) => {
-            const headers = new Headers(headersDescriptor)
-            headers.forEach((value: string, key: string) => {
-              appendHeader(key, value)
-            })
-          }
-        : (headers: Headers) => {
-            headers.forEach((value, key) => {
-              appendHeader(key, value)
-            })
-          }
+      const pprOnHeaders = createOnHeadersCallback(appendHeader)
       const { prelude: unprocessedPrelude, postponed } =
         await workUnitAsyncStorage.run(
           ssrPrerenderStore,
-          pprPrerenderFn,
+          getClientPrerender,
           // eslint-disable-next-line @next/internal/no-ambiguous-jsx
           <App
-            reactServerStream={
-              useNodeStreamsPPR
-                ? reactServerResult.asUnclosingNodeStream()
-                : reactServerResult.asUnclosingStream()
-            }
+            reactServerStream={reactServerResult.asUnclosingFlightStream()}
             reactDebugStream={undefined}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
@@ -6339,11 +6086,9 @@ async function prerenderToStream(
       // After awaiting here we've waited for the entire RSC render to complete. Crucially this means
       // that when we detect whether we've used dynamic APIs below we know we'll have picked up even
       // parts of the React Server render that might not be used in the SSR render.
-      const flightData = useNodeStreamsPPR
-        ? await (
-            require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-          ).nodeStreamToBuffer(reactServerResult.asNodeStream())
-        : await streamToBuffer(reactServerResult.asStream())
+      const flightData = await streamToBuffer(
+        reactServerResult.asFlightStream()
+      )
 
       if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
@@ -6355,9 +6100,8 @@ async function prerenderToStream(
         )
       }
 
-      const { prelude, preludeIsEmpty } = useNodeStreamsPPR
-        ? await processNodePrelude(unprocessedPrelude as unknown as Readable)
-        : await processPrelude(unprocessedPrelude)
+      const { prelude, preludeIsEmpty } =
+        await processPreludeOp(unprocessedPrelude)
 
       /**
        * When prerendering there are three outcomes to consider
@@ -6406,17 +6150,7 @@ async function prerenderToStream(
         return {
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
-          stream: useNodeStreamsPPR
-            ? await (
-                require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-              ).continueDynamicPrerenderNode(
-                prelude as import('node:stream').Readable,
-                pprDynamicOpts
-              )
-            : await continueDynamicPrerender(
-                prelude as ReadableStream<Uint8Array>,
-                pprDynamicOpts
-              ),
+          stream: await continueDynamicPrerender(prelude, pprDynamicOpts),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
@@ -6439,17 +6173,10 @@ async function prerenderToStream(
         return {
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
-          stream: useNodeStreamsPPR
-            ? await (
-                require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-              ).continueDynamicPrerenderNode(
-                prelude as import('node:stream').Readable,
-                pprFallbackDynamicOpts
-              )
-            : await continueDynamicPrerender(
-                prelude as ReadableStream<Uint8Array>,
-                pprFallbackDynamicOpts
-              ),
+          stream: await continueDynamicPrerender(
+            prelude,
+            pprFallbackDynamicOpts
+          ),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
@@ -6470,122 +6197,44 @@ async function prerenderToStream(
           | ReadableStream<Uint8Array>
           | import('node:stream').Readable = prelude
         if (postponed != null) {
-          if (useNodeStreamsPPR) {
-            const { Readable: NodeReadable } =
-              require('node:stream') as typeof import('node:stream')
-            const { chainNodeStreams } =
-              require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-            const resumeAndPrerenderToNodeStreamFn = (
-              (require('react-dom/static') as typeof import('react-dom/static'))
-            ).resumeAndPrerenderToNodeStream
-
-            const foreverStream = new NodeReadable({ read() {} })
-
-            const { prelude: resumePrelude } =
-              await resumeAndPrerenderToNodeStreamFn(
-                // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-                <App
-                  reactServerStream={foreverStream}
-                  reactDebugStream={undefined}
-                  debugEndTime={undefined}
-                  preinitScripts={() => {}}
-                  ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                  nonce={nonce}
-                  images={ctx.renderOpts.images}
-                />,
-                JSON.parse(JSON.stringify(postponed)),
-                {
-                  signal: createRenderInBrowserAbortSignal(),
-                  onError: htmlRendererErrorHandler,
-                  nonce,
-                }
-              )
-
-            htmlStream = chainNodeStreams(
-              prelude as import('node:stream').Readable,
-              resumePrelude
-            )
-          } else {
-            // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
-            // so we can set all the postponed boundaries to client render mode before we store the HTML response
-            const resume = (
-              require('react-dom/server') as typeof import('react-dom/server')
-            ).resume
-
-            // We don't actually want to render anything so we just pass a stream
-            // that never resolves. The resume call is going to abort immediately anyway
-            const foreverStream = new ReadableStream<Uint8Array>()
-
-            const resumeStream = await resume(
-              // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-              <App
-                reactServerStream={foreverStream}
-                reactDebugStream={undefined}
-                debugEndTime={undefined}
-                preinitScripts={() => {}}
-                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                nonce={nonce}
-                images={ctx.renderOpts.images}
-              />,
-              JSON.parse(JSON.stringify(postponed)),
-              {
-                signal: createRenderInBrowserAbortSignal(),
-                onError: htmlRendererErrorHandler,
-                nonce,
-              }
-            )
-
-            // First we write everything from the prerender, then we write everything from the aborted resume render
-            htmlStream = chainStreams(
-              prelude as ReadableStream<Uint8Array>,
-              resumeStream
-            )
-          }
-        }
-
-        if (useNodeStreamsPPR) {
-          const { continueStaticPrerenderNode, safePipe } =
-            require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-          return {
-            digestErrorsMap: reactServerErrorsByDigest,
-            ssrErrors: allCapturedErrors,
-            stream: await continueStaticPrerenderNode(
-              htmlStream as import('node:stream').Readable,
-              {
-                inlinedDataStream: safePipe(
-                  reactServerResult.consumeAsNodeStream(),
-                  createInlinedDataNodeStream(nonce, formState)
-                ),
-                getServerInsertedHTML,
-                getServerInsertedMetadata,
-                deploymentId: ctx.sharedContext.deploymentId,
-              }
-            ),
-            dynamicAccess: dynamicTracking.dynamicAccesses,
-            // TODO: Should this include the SSR pass?
-            collectedRevalidate: reactServerPrerenderStore.revalidate,
-            collectedExpire: reactServerPrerenderStore.expire,
-            collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
-            collectedTags: reactServerPrerenderStore.tags,
-          }
+          // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
+          // so we can set all the postponed boundaries to client render mode before we store the HTML response
+          const foreverStream = createPendingStream()
+          const resumePrelude = await resumeAndAbort(
+            // eslint-disable-next-line @next/internal/no-ambiguous-jsx
+            <App
+              reactServerStream={foreverStream}
+              reactDebugStream={undefined}
+              debugEndTime={undefined}
+              preinitScripts={() => {}}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              nonce={nonce}
+              images={ctx.renderOpts.images}
+            />,
+            JSON.parse(JSON.stringify(postponed)),
+            {
+              signal: createRenderInBrowserAbortSignal(),
+              onError: htmlRendererErrorHandler,
+              nonce,
+            }
+          )
+          // First we write everything from the prerender, then we write everything from the aborted resume render
+          htmlStream = chainStreams(prelude, resumePrelude)
         }
 
         return {
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
-          stream: await continueStaticPrerender(
-            htmlStream as ReadableStream<Uint8Array>,
-            {
-              inlinedDataStream: createInlinedDataReadableStream(
-                reactServerResult.consumeAsStream(),
-                nonce,
-                formState
-              ),
-              getServerInsertedHTML,
-              getServerInsertedMetadata,
-              deploymentId: ctx.sharedContext.deploymentId,
-            }
-          ),
+          stream: await continueStaticPrerender(htmlStream, {
+            inlinedDataStream: createInlinedDataStream(
+              reactServerResult.consumeAsFlightStream(),
+              nonce,
+              formState
+            ),
+            getServerInsertedHTML,
+            getServerInsertedMetadata,
+            deploymentId: ctx.sharedContext.deploymentId,
+          }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
@@ -6616,55 +6265,35 @@ async function prerenderToStream(
       )
 
       let reactServerResult: ReactServerPrerenderResult
-      if (
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_USE_NODE_STREAMS
-      ) {
-        const { renderToFlightPipeableStream } =
-          require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-        const flightNodeStream = workUnitAsyncStorage.run(
-          prerenderLegacyStore,
-          renderToFlightPipeableStream,
-          ComponentMod.renderToPipeableStream!,
-          RSCPayload,
-          clientModules,
-          {
-            filterStackFrame,
-            onError: serverComponentsErrorHandler,
-          }
-        )
-        reactServerResult = reactServerPrerenderResult =
-          await createReactServerPrerenderResultFromRender(flightNodeStream)
-      } else {
-        reactServerResult = reactServerPrerenderResult =
-          await createReactServerPrerenderResultFromRender(
-            workUnitAsyncStorage.run(
-              prerenderLegacyStore,
-              ComponentMod.renderToReadableStream,
-              RSCPayload,
-              clientModules,
-              {
-                filterStackFrame,
-                onError: serverComponentsErrorHandler,
-              }
-            )
+      reactServerResult = reactServerPrerenderResult =
+        await createReactServerPrerenderResultFromRender(
+          workUnitAsyncStorage.run(
+            prerenderLegacyStore,
+            renderToFlightStream,
+            ComponentMod,
+            RSCPayload,
+            clientModules,
+            {
+              filterStackFrame,
+              onError: serverComponentsErrorHandler,
+            }
           )
-      }
+        )
 
-      if (
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_USE_NODE_STREAMS
-      ) {
+      // Legacy prerender uses Fizz renderToReadableStream / renderToPipeableStream.
+      // The node path uses renderToFizzPipeableStream wrapper; the web path uses
+      // renderToReadableStream directly. Since these Fizz render functions differ
+      // significantly in their return types and calling conventions, we keep the
+      // compile-time branch here.
+      let htmlStream:
+        | ReadableStream<Uint8Array>
+        | import('node:stream').Readable
+      if (process.env.__NEXT_USE_NODE_STREAMS) {
         const { renderToFizzPipeableStream } =
           require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-        const { continueFizzStreamNode: continueFizzStreamNodeFn, safePipe } =
-          require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-        const { nodeStreamToBuffer: nodeStreamToBufferFn } =
-          require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-
         const reactDomServer =
           require('react-dom/server') as typeof import('react-dom/server')
-        const { stream: htmlNodeStream } = await renderToFizzPipeableStream(
+        const { stream } = await renderToFizzPipeableStream(
           (...args: any[]) =>
             workUnitAsyncStorage.run(
               prerenderLegacyStore,
@@ -6673,7 +6302,7 @@ async function prerenderToStream(
             ),
           // eslint-disable-next-line @next/internal/no-ambiguous-jsx
           <App
-            reactServerStream={reactServerResult.asUnclosingNodeStream()}
+            reactServerStream={reactServerResult.asUnclosingFlightStream()}
             reactDebugStream={undefined}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
@@ -6687,73 +6316,36 @@ async function prerenderToStream(
             bootstrapScripts: [bootstrapScript],
           }
         )
-
-        if (shouldGenerateStaticFlightData(workStore)) {
-          const flightData = await nodeStreamToBufferFn(
-            reactServerResult.asNodeStream()
-          )
-          metadata.flightData = flightData
-          metadata.segmentData = await collectSegmentData(
-            flightData,
-            prerenderLegacyStore,
-            ComponentMod,
-            renderOpts
-          )
-        }
-
-        const getServerInsertedHTML = makeGetServerInsertedHTML({
-          polyfills,
-          renderServerInsertedHTML,
-          serverCapturedErrors: allCapturedErrors,
-          basePath,
-          tracingMetadata: tracingMetadata,
-        })
-        return {
-          digestErrorsMap: reactServerErrorsByDigest,
-          ssrErrors: allCapturedErrors,
-          stream: await continueFizzStreamNodeFn(htmlNodeStream, {
-            inlinedDataStream: safePipe(
-              reactServerResult.consumeAsNodeStream(),
-              createInlinedDataNodeStream(nonce, formState)
-            ),
-            isStaticGeneration: true,
-            getServerInsertedHTML,
-            getServerInsertedMetadata,
-            deploymentId: ctx.sharedContext.deploymentId,
-          }),
-          // TODO: Should this include the SSR pass?
-          collectedRevalidate: prerenderLegacyStore.revalidate,
-          collectedExpire: prerenderLegacyStore.expire,
-          collectedStale: selectStaleTime(prerenderLegacyStore.stale),
-          collectedTags: prerenderLegacyStore.tags,
-        }
+        htmlStream = stream
+      } else {
+        const renderToReadableStream = (
+          require('react-dom/server') as typeof import('react-dom/server')
+        ).renderToReadableStream
+        htmlStream = await workUnitAsyncStorage.run(
+          prerenderLegacyStore,
+          renderToReadableStream,
+          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
+          <App
+            reactServerStream={reactServerResult.asUnclosingFlightStream()}
+            reactDebugStream={undefined}
+            debugEndTime={undefined}
+            preinitScripts={preinitScripts}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            nonce={nonce}
+            images={ctx.renderOpts.images}
+          />,
+          {
+            onError: htmlRendererErrorHandler,
+            nonce,
+            bootstrapScripts: [bootstrapScript],
+          }
+        )
       }
 
-      const renderToReadableStream = (
-        require('react-dom/server') as typeof import('react-dom/server')
-      ).renderToReadableStream
-      const htmlStream = await workUnitAsyncStorage.run(
-        prerenderLegacyStore,
-        renderToReadableStream,
-        // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-        <App
-          reactServerStream={reactServerResult.asUnclosingStream()}
-          reactDebugStream={undefined}
-          debugEndTime={undefined}
-          preinitScripts={preinitScripts}
-          ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-          nonce={nonce}
-          images={ctx.renderOpts.images}
-        />,
-        {
-          onError: htmlRendererErrorHandler,
-          nonce,
-          bootstrapScripts: [bootstrapScript],
-        }
-      )
-
       if (shouldGenerateStaticFlightData(workStore)) {
-        const flightData = await streamToBuffer(reactServerResult.asStream())
+        const flightData = await streamToBuffer(
+          reactServerResult.asFlightStream()
+        )
         metadata.flightData = flightData
         metadata.segmentData = await collectSegmentData(
           flightData,
@@ -6774,8 +6366,8 @@ async function prerenderToStream(
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
-          inlinedDataStream: createInlinedDataReadableStream(
-            reactServerResult.consumeAsStream(),
+          inlinedDataStream: createInlinedDataStream(
+            reactServerResult.consumeAsFlightStream(),
             nonce,
             formState
           ),
@@ -6899,6 +6491,8 @@ async function prerenderToStream(
         require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
       const { nodeStreamToBuffer: nodeStreamToBufferFn } =
         require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+      const { createInlinedDataNodeStream: createInlinedDataNodeStreamFn } =
+        require('./use-flight-response') as typeof import('./use-flight-response')
 
       const errorFlightNodeStream = workUnitAsyncStorage.run(
         prerenderLegacyStore,
@@ -6959,7 +6553,7 @@ async function prerenderToStream(
           stream: await continueFizzStreamNodeFn(htmlNodeStream, {
             inlinedDataStream: safePipe(
               flightNodeStream,
-              createInlinedDataNodeStream(nonce, formState)
+              createInlinedDataNodeStreamFn(nonce, formState)
             ),
             isStaticGeneration: true,
             getServerInsertedHTML: makeGetServerInsertedHTML({
