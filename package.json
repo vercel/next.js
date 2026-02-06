@@ -158,7 +158,7 @@
     "@types/fs-extra": "8.1.0",
     "@types/glob": "7.1.1",
     "@types/html-validator": "5.0.3",
-    "@types/http-proxy": "1.17.3",
+    "@types/http-proxy": "1.17.17",
     "@types/jest": "29.5.5",
     "@types/node": "20.17.6",
     "@types/node-fetch": "2.6.1",
@@ -340,7 +340,8 @@
       "stacktrace-parser@0.1.10": "patches/stacktrace-parser@0.1.10.patch",
       "@types/node@20.17.6": "patches/@types__node@20.17.6.patch",
       "taskr@1.1.0": "patches/taskr@1.1.0.patch",
-      "minizlib@3.1.0": "patches/minizlib@3.1.0.patch"
+      "minizlib@3.1.0": "patches/minizlib@3.1.0.patch",
+      "http-proxy@1.18.1": "patches/http-proxy@1.18.1.patch"
     }
   }
 }
