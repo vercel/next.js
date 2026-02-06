@@ -60,6 +60,30 @@ describe('accumulateMetadata', () => {
         description: 'child',
       })
     })
+
+    it('should fall back to parent when child description is undefined', async () => {
+      const metadataItems: MetadataItems = [
+        [{ description: 'parent' }, null],
+        [{ description: undefined }, null],
+      ]
+
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        description: 'parent',
+      })
+    })
+
+    it('should clear parent when child description is null', async () => {
+      const metadataItems: MetadataItems = [
+        [{ description: 'parent' }, null],
+        [{ description: null }, null],
+      ]
+
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        description: null,
+      })
+    })
   })
 
   describe('title', () => {

@@ -346,34 +346,54 @@ async function mergeMetadata(
       }
       // directly assign fields that fallback to null
       case 'abstract':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        if (metadata[key] !== undefined) {
+          newResolvedMetadata[key] = metadata[key] ?? null
+        }
         break
       case 'applicationName':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        if (metadata[key] !== undefined) {
+          newResolvedMetadata[key] = metadata[key] ?? null
+        }
         break
       case 'description':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        if (metadata[key] !== undefined) {
+          newResolvedMetadata[key] = metadata[key] ?? null
+        }
         break
       case 'generator':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        if (metadata[key] !== undefined) {
+          newResolvedMetadata[key] = metadata[key] ?? null
+        }
         break
       case 'creator':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        if (metadata[key] !== undefined) {
+          newResolvedMetadata[key] = metadata[key] ?? null
+        }
         break
       case 'publisher':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        if (metadata[key] !== undefined) {
+          newResolvedMetadata[key] = metadata[key] ?? null
+        }
         break
       case 'category':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        if (metadata[key] !== undefined) {
+          newResolvedMetadata[key] = metadata[key] ?? null
+        }
         break
       case 'classification':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        if (metadata[key] !== undefined) {
+          newResolvedMetadata[key] = metadata[key] ?? null
+        }
         break
       case 'referrer':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        if (metadata[key] !== undefined) {
+          newResolvedMetadata[key] = metadata[key] ?? null
+        }
         break
       case 'formatDetection':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        if (metadata[key] !== undefined) {
+          newResolvedMetadata[key] = metadata[key] ?? null
+        }
         break
       case 'manifest':
         newResolvedMetadata[key] = convertUrlsToStrings(metadata[key]) ?? null
