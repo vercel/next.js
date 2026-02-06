@@ -114,22 +114,13 @@ fn stringify_new_error_arg(expr: &Expr, bindings: &FxHashMap<Id, String>) -> Str
 }
 
 impl VisitMut for TransformVisitor {
-    fn visit_mut_module(&mut self, module: &mut Module) {
+    fn visit_mut_program(&mut self, program: &mut Program) {
         let mut collector = BindingCollector {
             bindings: FxHashMap::default(),
         };
-        module.visit_with(&mut collector);
+        program.visit_with(&mut collector);
         self.resolved_bindings = collector.bindings;
-        module.visit_mut_children_with(self);
-    }
-
-    fn visit_mut_script(&mut self, script: &mut Script) {
-        let mut collector = BindingCollector {
-            bindings: FxHashMap::default(),
-        };
-        script.visit_with(&mut collector);
-        self.resolved_bindings = collector.bindings;
-        script.visit_mut_children_with(self);
+        program.visit_mut_children_with(self);
     }
 
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
