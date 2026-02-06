@@ -90,6 +90,8 @@ export function getResolveRoutes(
 
       ...(opts.minimalMode ? [] : fsChecker.rewrites.afterFiles),
 
+      ...(opts.minimalMode ? [] : fsChecker.onMatchHeaders),
+
       // we always do the check: true handling before continuing to
       // fallback rewrites
       {

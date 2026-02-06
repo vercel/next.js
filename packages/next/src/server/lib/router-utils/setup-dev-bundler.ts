@@ -120,6 +120,7 @@ export interface DevRoutesManifest {
   rewrites: RoutesManifest['rewrites']
   redirects: RoutesManifest['redirects']
   headers: RoutesManifest['headers']
+  onMatchHeaders: RoutesManifest['headers']
   i18n: RoutesManifest['i18n']
   skipProxyUrlNormalize: RoutesManifest['skipProxyUrlNormalize']
 }
@@ -305,6 +306,7 @@ async function startWatcher(
     rewrites: opts.fsChecker.rewrites,
     redirects: opts.fsChecker.redirects,
     headers: opts.fsChecker.headers,
+    onMatchHeaders: opts.fsChecker.onMatchHeaders,
     i18n: nextConfig.i18n || undefined,
     skipProxyUrlNormalize: nextConfig.skipProxyUrlNormalize,
   }
