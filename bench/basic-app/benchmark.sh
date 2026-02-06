@@ -111,11 +111,7 @@ echo "Server: minimal-server (minimalMode: true)"
 
 # --- Web Streams (default) ---
 cat > next.config.js <<'CONF'
-module.exports = {
-  experimental: {
-    serverMinification: true,
-  },
-}
+module.exports = {}
 CONF
 
 echo ""
@@ -127,7 +123,6 @@ run_benchmark "Web Streams (default)"
 cat > next.config.js <<'CONF'
 module.exports = {
   experimental: {
-    serverMinification: true,
     useNodeStreams: true,
   },
 }
@@ -140,11 +135,7 @@ run_benchmark "Node Streams (useNodeStreams: true)"
 
 # Restore config
 cat > next.config.js <<'CONF'
-module.exports = {
-  experimental: {
-    serverMinification: true,
-  },
-}
+module.exports = {}
 CONF
 
 echo ""

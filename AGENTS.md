@@ -114,7 +114,7 @@ pnpm test-dev-turbo test/development/
 - `pnpm test-start-turbo` - Production build+start with Turbopack
 - `pnpm test-start-webpack` - Production build+start with Webpack
 
-**Run tests headless** (no browser window): Always set `HEADLESS=true` when running e2e tests:
+**Run tests headless** (no browser window): Set `HEADLESS=true` when running e2e tests unless you need visual browser debugging:
 
 ```bash
 HEADLESS=true pnpm test-dev-turbo test/path/to/test.ts
@@ -213,7 +213,7 @@ This fetches CI workflow runs, failed jobs, logs, and PR review comments, genera
 
 **CI Analysis Tips:**
 
-- **Assume test failures are NOT flaky by default.** Investigate every failure as if it is caused by the current changes until proven otherwise.
+- **Assume test failures are NOT flaky by default.** Investigate every failure as if it is caused by the current changes until proven otherwise. However, check the **Known Flaky Tests** section in pr-status output for historical data before deep-diving into a failure.
 - Prioritize blocking jobs first: build, lint, types, then test jobs
 - Prioritize CI failures over review comments
 
@@ -279,7 +279,7 @@ When running Next.js integration tests, you must rebuild if source files have ch
 
 ### Adding Experimental Flags
 
-All flags need: `config-shared.ts` (type) → `config-schema.ts` (zod) → `define-env.ts` (build-time injection).
+All flags need: `config-shared.ts` (type) → `config-schema.ts` (zod). If the flag is consumed in user-bundled code (client components, edge routes, `app-page.ts` template), also add it to `define-env.ts` for build-time injection. Runtime-only flags consumed exclusively in pre-compiled bundles can skip `define-env.ts`.
 
 Beyond that, it depends on where the flag is consumed:
 
@@ -298,7 +298,7 @@ For runtime flags, also add the field to the `NextConfigRuntime` Pick type in `c
 - Don't rely on exact log messages - filter by content patterns, find sequences not positions
 - **Snapshot tests vary by env flags**: Tests with inline snapshots (e.g. `ssr-in-rsc.test.ts`, `next-server-nft.test.ts`) can produce different output depending on env flags like `__NEXT_USE_NODE_STREAMS`, `__NEXT_CACHE_COMPONENTS`, `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`. The node streams CI jobs set all three. When updating snapshots, always run the test with the exact env flags the CI job uses (check `.github/workflows/build_and_test.yml` `afterBuild:` sections). Turbopack resolves `react-dom/server.edge` (no Node APIs like `renderToPipeableStream`), while webpack resolves the `.node` build (has them).
 - **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules from `server/stream-utils/` because they won't be resolvable from the user's project. Only `node:*` built-ins and already-externalized modules work. Use `require('next/dist/...')` for absolute package paths (matches pattern at line 278 of app-page.ts).
-- **Reproducing CI failures locally**: Always match the exact CI env vars (check `pr-status` output for "Job Environment Variables"). Key differences that change behavior: `IS_WEBPACK_TEST=1` forces webpack (turbopack is default), `NEXT_SKIP_ISOLATE=1` skips packing next.js (hides module resolution failures). For node streams CI jobs: `IS_WEBPACK_TEST=1 __NEXT_USE_NODE_STREAMS=true __NEXT_CACHE_COMPONENTS=true __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true`. Always run without `NEXT_SKIP_ISOLATE` when verifying module resolution fixes.
+- **Reproducing CI failures locally**: Always match the exact CI env vars (check `pr-status` output for "Job Environment Variables"). Key differences that change behavior: `IS_WEBPACK_TEST=1` forces webpack (turbopack is default), `NEXT_SKIP_ISOLATE=1` skips packing next.js (hides module resolution failures). For node streams CI: dev jobs use turbopack (no `IS_WEBPACK_TEST`), prod jobs use `IS_WEBPACK_TEST=1`. Both set `__NEXT_USE_NODE_STREAMS=true __NEXT_CACHE_COMPONENTS=true __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true`. Always run without `NEXT_SKIP_ISOLATE` when verifying module resolution fixes.
 
 ### Rust/Cargo
 
@@ -330,7 +330,7 @@ If Turbopack produces unexpected errors after switching branches or pulling, che
 
 ### Vendored React Packages & Types
 
-React is NOT resolved from `node_modules`. It's vendored into `packages/next/src/compiled/` during `pnpm build` (task: `copy_vendor_react()` in `taskfile.js`).
+React is NOT resolved from `node_modules` for **App Router**. It's vendored into `packages/next/src/compiled/` during `pnpm build` (task: `copy_vendor_react()` in `taskfile.js`). Pages Router resolves React from `node_modules` normally.
 
 - **Type declarations**: `packages/next/types/$$compiled.internal.d.ts` contains `declare module` blocks for vendored React packages. When adding new APIs (e.g. `renderToPipeableStream`, `prerenderToNodeStream`), you must add type declarations here. The bare specifier types (e.g. `declare module 'react-server-dom-webpack/server'`) are what source code in `src/` imports against.
 - **Two channels**: stable (`compiled/react/`) and experimental (`compiled/react-experimental/`). The runtime bundle webpack config (`next-runtime.webpack-config.js`) aliases to the correct channel via `makeAppAliases({ experimental })`.
