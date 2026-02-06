@@ -32,6 +32,21 @@ URL Imports can be used everywhere normal package imports can be used.
 
 This feature is being designed with **security as the top priority**. To start, we added an experimental flag forcing you to explicitly allow the domains you accept URL imports from. We're working to take this further by limiting URL imports to execute in the browser sandbox using the [Edge Runtime](/docs/app/api-reference/edge).
 
+## Redirect Validation
+
+If a URL import redirects to a different domain (for example, `https://github.com/org/repo/raw/main/file.png` redirecting to `https://raw.githubusercontent.com/...`), the redirect target domain must also be listed in the `urlImports` array:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    urlImports: [
+      'https://github.com/org/repo/raw/main/',
+      'https://raw.githubusercontent.com/org/repo/main/',
+    ],
+  },
+}
+```
+
 ## Lockfile
 
 When using URL imports, Next.js will create a `next.lock` directory containing a lockfile and fetched assets.
