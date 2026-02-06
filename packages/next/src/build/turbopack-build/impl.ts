@@ -12,7 +12,6 @@ import {
 } from '../handle-entrypoints'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { promises as fs } from 'fs'
-import type { Stats } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
@@ -22,13 +21,26 @@ import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
-import { collectPagesFiles } from '../route-discovery'
+import {
+  collectAppFiles,
+  collectPagesFiles,
+  getPageFromPath,
+} from '../route-discovery'
 import { createValidFileMatcher } from '../../server/lib/find-page-file'
 import type {
   ProjectOptions,
   RawEntrypoints,
   TurbopackResult,
 } from '../swc/types'
+
+/**
+ * Convert an app route path to debugBuildPaths format.
+ * e.g. '/' -> '/page', '/blog' -> '/blog/page'
+ */
+function toAppDebugPath(route: string, leaf: 'page' | 'route'): string {
+  const routePath = route.startsWith('/') ? route : `/${route}`
+  return routePath === '/' ? `/${leaf}` : `${routePath}/${leaf}`
+}
 
 /**
  * Convert deferred entry routes to debugBuildPaths format.
@@ -43,18 +55,15 @@ function getDeferredBuildPaths(
   pages: string[]
 } {
   return {
-    app: deferredEntries.map((route) => {
-      const routePath = route.startsWith('/') ? route : `/${route}`
-      return `${routePath}/page`
-    }),
+    app: deferredEntries.map((route) => toAppDebugPath(route, 'page')),
     // Include all pages routes so they are not filtered out
     pages: pagesPaths,
   }
 }
 
 /**
- * Scan the app directory to find all page routes, then filter out deferred entries.
- * Returns debugBuildPaths for non-deferred routes only.
+ * Collect app entries and filter out deferred app pages only.
+ * This keeps non-page app entries (e.g. route handlers) in the non-deferred build.
  * @param pagesPaths - All pages routes to include (deferred entries only affects app routes)
  */
 async function getNonDeferredBuildPaths(
@@ -67,56 +76,19 @@ async function getNonDeferredBuildPaths(
     return null
   }
 
-  const deferredSet = new Set(
-    deferredEntries.map((route) =>
-      route.startsWith('/') ? route : `/${route}`
-    )
+  const validFileMatcher = createValidFileMatcher(pageExtensions, appDir)
+  const { appPaths } = await collectAppFiles(appDir, validFileMatcher)
+
+  const deferredPagePaths = new Set(
+    deferredEntries.map((route) => toAppDebugPath(route, 'page'))
+  )
+  const nonDeferredAppPaths = appPaths.filter(
+    (appPath) =>
+      !deferredPagePaths.has(getPageFromPath(appPath, pageExtensions))
   )
 
-  const appRoutes: string[] = []
-
-  // Recursively scan for page files
-  async function scanDir(dir: string, routePath: string): Promise<void> {
-    let entries: string[]
-    try {
-      entries = await fs.readdir(dir)
-    } catch {
-      return
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry)
-      let stat: Stats
-      try {
-        stat = await fs.stat(fullPath)
-      } catch {
-        continue
-      }
-
-      if (stat.isDirectory()) {
-        // Recurse into subdirectory
-        const subRoute =
-          routePath === '/' ? `/${entry}` : `${routePath}/${entry}`
-        await scanDir(fullPath, subRoute)
-      } else if (stat.isFile()) {
-        // Check if this is a page file
-        for (const ext of pageExtensions) {
-          if (entry === `page.${ext}`) {
-            // Found a page file, add to routes if not deferred
-            if (!deferredSet.has(routePath)) {
-              appRoutes.push(`${routePath}/page`)
-            }
-            break
-          }
-        }
-      }
-    }
-  }
-
-  await scanDir(appDir, '/')
-
   return {
-    app: appRoutes,
+    app: nonDeferredAppPaths,
     // Include all pages routes so they are not filtered out
     pages: pagesPaths,
   }
