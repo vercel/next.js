@@ -1126,19 +1126,12 @@ async function startWatcher(
             const prevSortedRoutesSet = new Set(prevSortedRoutes)
             const sortedRoutesSet = new Set(sortedRoutes)
 
-            const addedRoutes: string[] = []
-            for (const route of sortedRoutes) {
-              if (!prevSortedRoutesSet.has(route)) {
-                addedRoutes.push(route)
-              }
-            }
-
-            const removedRoutes: string[] = []
-            for (const route of prevSortedRoutes) {
-              if (!sortedRoutesSet.has(route)) {
-                removedRoutes.push(route)
-              }
-            }
+            const addedRoutes = sortedRoutes.filter(
+              (route) => !prevSortedRoutesSet.has(route)
+            )
+            const removedRoutes = prevSortedRoutes.filter(
+              (route) => !sortedRoutesSet.has(route)
+            )
 
             // emit the change so clients fetch the update
             hotReloader.send({
