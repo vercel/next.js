@@ -1,5 +1,4 @@
 import type { ServerResponse } from 'node:http'
-import type { Readable } from 'node:stream'
 
 import {
   ResponseAbortedName,
@@ -151,7 +150,7 @@ export async function pipeToNodeResponse(
  * This avoids the overhead of wrapping in web WritableStream.
  */
 export async function pipeNodeReadableToResponse(
-  readable: Readable,
+  readable: import('node:stream').Readable,
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>
 ) {

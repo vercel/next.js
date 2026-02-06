@@ -195,6 +195,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/compiled/jsonwebtoken/index.js",
            "/node_modules/next/dist/compiled/nanoid/index.cjs",
            "/node_modules/next/dist/compiled/next-server/app-page-turbo-experimental.runtime.prod.js",
+           "/node_modules/next/dist/compiled/next-server/app-page-turbo-nodestreams.runtime.prod.js",
            "/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js",
            "/node_modules/next/dist/compiled/next-server/pages-turbo.runtime.prod.js",
            "/node_modules/next/dist/compiled/p-limit/index.js",

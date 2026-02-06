@@ -213,6 +213,7 @@ This fetches CI workflow runs, failed jobs, logs, and PR review comments, genera
 
 **CI Analysis Tips:**
 
+- **Assume test failures are NOT flaky by default.** Investigate every failure as if it is caused by the current changes until proven otherwise.
 - Prioritize blocking jobs first: build, lint, types, then test jobs
 - Prioritize CI failures over review comments
 
