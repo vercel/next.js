@@ -333,8 +333,24 @@ function disposeInactiveEntries(
     const entryData = entries[entryKey]
     const { lastActiveTime, status, dispose, bundlePath } = entryData
 
-    // TODO-APP: implement disposing of CHILD_ENTRY
     if (entryData.type === EntryTypes.CHILD_ENTRY) {
+      if (entryData.parentEntries.size === 0) {
+        entries[entryKey].dispose = true
+      } else {
+        const activeBundlePaths = new Set(
+          Object.values(entries)
+            .filter((e) => !e.dispose)
+            .map((e) => e.bundlePath)
+        )
+        for (const parentEntry of entryData.parentEntries) {
+          if (!activeBundlePaths.has(parentEntry)) {
+            entryData.parentEntries.delete(parentEntry)
+          }
+        }
+        if (entryData.parentEntries.size === 0) {
+          entries[entryKey].dispose = true
+        }
+      }
       return
     }
 
@@ -696,9 +712,9 @@ export function onDemandEntryHandler({
       ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
-            COMPILER_NAMES.edgeServer,
-            edgeServerStats.compilation.entrypoints
-          )
+          COMPILER_NAMES.edgeServer,
+          edgeServerStats.compilation.entrypoints
+        )
         : []),
     ]
 
@@ -860,8 +876,7 @@ export function onDemandEntryHandler({
       if (typeof isApp === 'boolean' && isApp !== isInsideAppDir) {
         Error.stackTraceLimit = 15
         throw new Error(
-          `Ensure bailed, found path "${
-            route.page
+          `Ensure bailed, found path "${route.page
           }" does not match ensure type (${isApp ? 'app' : 'pages'})`
         )
       }
@@ -1126,7 +1141,7 @@ export function onDemandEntryHandler({
               parsedData.url
             )
           }
-        } catch {}
+        } catch { }
       })
     },
   }
