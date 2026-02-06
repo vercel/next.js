@@ -468,7 +468,8 @@ function generateIndexMd(
   categorizedJobs,
   jobTestCounts,
   reviewData,
-  jobEnvMap
+  jobEnvMap,
+  flakyTests
 ) {
   const { failed, inProgress, queued, succeeded, cancelled, skipped } =
     categorizedJobs
@@ -569,6 +570,19 @@ function generateIndexMd(
           lines.push(`**${prefix}**: \`${envStr}\``, '')
         }
       }
+    }
+
+    // Known flaky tests section
+    if (flakyTests && flakyTests.size > 0) {
+      lines.push('### Known Flaky Tests (failing on 2+ branches)', '')
+      lines.push(
+        'These tests also failed in recent CI runs across multiple different branches and are likely pre-existing flakes, not caused by this PR:',
+        ''
+      )
+      for (const testPath of [...flakyTests].sort()) {
+        lines.push(`- \`${testPath}\``)
+      }
+      lines.push('')
     }
   }
 
@@ -916,6 +930,146 @@ function generateThreadMd(thread, index) {
 }
 
 // ============================================================================
+// Flaky Test Detection
+// ============================================================================
+
+/**
+ * Fetches recent failed CI runs across all branches and identifies tests that
+ * fail on multiple different branches (indicating flakiness, not branch-specific bugs).
+ * Excludes the current PR's branch to avoid self-matching.
+ * Returns a Set of test file paths that are likely flaky.
+ */
+async function getFlakyTests(currentBranch, runsToCheck = 5) {
+  console.log(
+    `Checking last ${runsToCheck} failed CI runs across all branches for known flaky tests...`
+  )
+
+  // Get recent failed build-and-test runs across ALL branches
+  const jqQuery = `.workflow_runs[] | select(.conclusion == "failure") | {id, head_branch}`
+  let output
+  try {
+    output = exec(
+      `gh api "repos/vercel/next.js/actions/workflows/57419851/runs?status=completed&per_page=30" --jq '${jqQuery}'`
+    )
+  } catch {
+    console.log('  Could not fetch CI runs, skipping flaky check')
+    return new Set()
+  }
+
+  if (!output.trim()) {
+    console.log('  No failed runs found')
+    return new Set()
+  }
+
+  // Filter out the current branch and take up to runsToCheck
+  const allRuns = output
+    .split('\n')
+    .filter((line) => line.trim())
+    .map((line) => JSON.parse(line))
+    .filter((run) => run.head_branch !== currentBranch)
+    .slice(0, runsToCheck)
+
+  if (allRuns.length === 0) {
+    console.log('  No failed runs from other branches found')
+    return new Set()
+  }
+
+  const branchCount = new Set(allRuns.map((r) => r.head_branch)).size
+  console.log(
+    `  Checking ${allRuns.length} runs from ${branchCount} different branches...`
+  )
+
+  // Fetch failed jobs for all runs in parallel
+  const runJobResults = await Promise.all(
+    allRuns.map(async (run) => {
+      try {
+        const jobsJq = '.jobs[] | select(.conclusion == "failure") | {id, name}'
+        const jobsOutput = exec(
+          `gh api "repos/vercel/next.js/actions/runs/${run.id}/jobs?per_page=100" --jq '${jobsJq}'`
+        )
+        if (!jobsOutput.trim()) return { run, jobs: [] }
+        const jobs = jobsOutput
+          .split('\n')
+          .filter((line) => line.trim())
+          .map((line) => JSON.parse(line))
+        // Skip runs with 20+ failed jobs (likely systemic, not flaky)
+        if (jobs.length > 20) return { run, jobs: [] }
+        return { run, jobs }
+      } catch {
+        return { run, jobs: [] }
+      }
+    })
+  )
+
+  // Collect all (job, branch) pairs, then fetch logs in parallel (batch of 5)
+  const jobBranchPairs = []
+  for (const { run, jobs } of runJobResults) {
+    for (const job of jobs) {
+      jobBranchPairs.push({ job, branch: run.head_branch })
+    }
+  }
+
+  console.log(`  Fetching logs for ${jobBranchPairs.length} failed jobs...`)
+
+  // Map: testPath → Set of branches where it failed
+  const testFailBranches = new Map()
+
+  // Process in batches of 5 to avoid overwhelming the API
+  const BATCH_SIZE = 5
+  for (let i = 0; i < jobBranchPairs.length; i += BATCH_SIZE) {
+    const batch = jobBranchPairs.slice(i, i + BATCH_SIZE)
+    const results = await Promise.all(
+      batch.map(async ({ job, branch }) => {
+        try {
+          const logs = exec(
+            `gh api "repos/vercel/next.js/actions/jobs/${job.id}/logs"`
+          )
+          return { logs, branch }
+        } catch {
+          return { logs: null, branch }
+        }
+      })
+    )
+
+    for (const { logs, branch } of results) {
+      if (!logs) continue
+      const testResults = extractTestOutputJson(logs)
+      for (const result of testResults) {
+        if (result.testResults) {
+          for (const tr of result.testResults) {
+            const hasFailed = tr.assertionResults?.some(
+              (a) => a.status === 'failed'
+            )
+            if (hasFailed) {
+              const shortPath = tr.name?.replace(/.*\/(test\/)/, '$1')
+              if (shortPath) {
+                if (!testFailBranches.has(shortPath)) {
+                  testFailBranches.set(shortPath, new Set())
+                }
+                testFailBranches.get(shortPath).add(branch)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // A test is flaky if it fails on 2+ different branches
+  const flakyTestFiles = new Set()
+  for (const [testPath, branches] of testFailBranches) {
+    if (branches.size >= 2) {
+      flakyTestFiles.add(testPath)
+    }
+  }
+
+  console.log(
+    `  Found ${flakyTestFiles.size} flaky tests (failing on 2+ different branches)`
+  )
+  return flakyTestFiles
+}
+
+// ============================================================================
 // Main Function
 // ============================================================================
 
@@ -1160,7 +1314,19 @@ async function main() {
     }
   }
 
-  // Step 8: Generate index.md
+  // Step 8: Check for known flaky tests across branches (skip with --skip-flaky-check)
+  let flakyTests = new Set()
+  if (!process.argv.includes('--skip-flaky-check')) {
+    flakyTests = await getFlakyTests(branchInfo.branchName, 5)
+    if (flakyTests.size > 0) {
+      await fs.writeFile(
+        path.join(OUTPUT_DIR, 'flaky-tests.json'),
+        JSON.stringify([...flakyTests].sort(), null, 2)
+      )
+    }
+  }
+
+  // Step 9: Generate index.md
   console.log('Generating index.md...')
   // Update categorizedJobs.failed with full processed metadata
   const finalCategorizedJobs = {
@@ -1174,7 +1340,8 @@ async function main() {
     finalCategorizedJobs,
     jobTestCounts,
     reviewData,
-    jobEnvMap
+    jobEnvMap,
+    flakyTests
   )
   await fs.writeFile(path.join(OUTPUT_DIR, 'index.md'), indexMd)
 
