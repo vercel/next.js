@@ -26,7 +26,13 @@ let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests({ dev, withMiddleware }: { dev: boolean; withMiddleware: boolean }) {
+function runTests({
+  dev,
+  withMiddleware,
+}: {
+  dev: boolean
+  withMiddleware: boolean
+}) {
   if (!dev) {
     it('should have correct cache entries on prefetch', async () => {
       const browser = await webdriver(appPort, '/')
@@ -1607,7 +1613,6 @@ describe.each([{ withMiddleware: false }, { withMiddleware: true }])(
         await fs.remove(middlewarePath)
       }
     })
-
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
       'development mode',
       () => {
