@@ -13,7 +13,9 @@ export {
 /* eslint-disable import/no-extraneous-dependencies */
 export const renderToPipeableStream: ((...args: any[]) => any) | undefined =
   process.env.NEXT_RUNTIME !== 'edge'
-    ? ((require('react-server-dom-webpack/server') as typeof import('react-server-dom-webpack/server'))).renderToPipeableStream
+    ? (
+        require('react-server-dom-webpack/server') as typeof import('react-server-dom-webpack/server')
+      ).renderToPipeableStream
     : undefined
 /* eslint-enable import/no-extraneous-dependencies */
 
@@ -26,7 +28,9 @@ export { prerender } from 'react-server-dom-webpack/static'
 /* eslint-disable import/no-extraneous-dependencies */
 export const prerenderToNodeStream: ((...args: any[]) => any) | undefined =
   process.env.NEXT_RUNTIME !== 'edge'
-    ? ((require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static'))).prerenderToNodeStream
+    ? (
+        require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static')
+      ).prerenderToNodeStream
     : undefined
 /* eslint-enable import/no-extraneous-dependencies */
 
