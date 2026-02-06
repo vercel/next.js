@@ -126,6 +126,26 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('logged errors collapse deeply nested causes at depth 2', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/rsc-error-log-nested')
+
+    await retry(() => {
+      expect(next.cliOutput.slice(outputIndex)).toContain(
+        'Error: rsc-error-log-nested'
+      )
+    })
+    const output = normalizeCliOutput(next.cliOutput.slice(outputIndex))
+    // These errors are shown (default `depth` is 2 for `util.inspect`)
+    expect(output).toContain('Error: rsc-error-log-nested')
+    expect(output).toContain('Error: Depth 1 error')
+    expect(output).toContain('Error: Depth 2 error')
+    // Depth 3+ should be truncated to [Error]
+    expect(output).toContain('[cause]: [Error]')
+    expect(output).not.toContain('Error: Depth 3 error')
+    expect(output).not.toContain('Error: Depth 4 error')
+  })
+
   it('stack frames are ignore-listed in ssr', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
