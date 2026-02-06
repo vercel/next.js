@@ -33,7 +33,7 @@ use crate::{
     },
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
-        free_var_references_with_vercel_system_env_warnings,
+        free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
     },
 };
 
@@ -273,7 +273,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
     .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(vec![rcstr!("NEXT_DEPLOYMENT_ID")]);
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
         builder = builder
@@ -357,7 +357,7 @@ pub async fn get_edge_chunking_context(
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
     .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(vec![rcstr!("NEXT_DEPLOYMENT_ID")]);
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
         builder = builder

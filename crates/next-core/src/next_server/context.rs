@@ -75,6 +75,7 @@ use crate::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, get_transpiled_packages,
         internal_assets_conditions, load_next_js_jsonc_file, module_styles_rule_condition,
+        worker_forwarded_globals,
     },
 };
 
@@ -1094,7 +1095,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1184,7 +1186,8 @@ pub async fn get_server_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);

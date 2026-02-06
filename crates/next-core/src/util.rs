@@ -555,3 +555,13 @@ pub fn module_styles_rule_condition() -> RuleCondition {
         RuleCondition::ContentTypeStartsWith("text/scss+module".into()),
     ])
 }
+
+/// Returns the list of global variables that should be forwarded from the main
+/// context to web workers. These are Next.js-specific globals that need to be
+/// available in worker contexts.
+pub fn worker_forwarded_globals() -> Vec<RcStr> {
+    vec![
+        rcstr!("NEXT_DEPLOYMENT_ID"),
+        rcstr!("NEXT_CLIENT_ASSET_SUFFIX"),
+    ]
+}
