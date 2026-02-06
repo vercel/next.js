@@ -3,7 +3,7 @@
 
 const { spawn } = require('child_process')
 
-const MAX_RETRIES = 3
+const MAX_ATTEMPTS = 3
 const RETRY_DELAY_MS = 5000
 
 /**
@@ -46,12 +46,12 @@ function runCommand(
 
 /**
  * @param {string} command
- * @param {number} maxRetries
+ * @param {number} maxAttempts
  * @returns {Promise<boolean>}
  */
-async function runWithRetry(command, maxRetries) {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(`Attempt ${attempt}/${maxRetries}...`)
+async function runWithRetry(command, maxAttempts) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`Attempt ${attempt}/${maxAttempts}...`)
     const { code, signal } = await runCommand(command)
 
     if (!code && !signal) {
@@ -62,12 +62,12 @@ async function runWithRetry(command, maxRetries) {
       `Attempt ${attempt} failed (exit code ${code}, signal ${signal})`
     )
 
-    if (attempt < maxRetries) {
+    if (attempt < maxAttempts) {
       console.log(`Retrying in ${RETRY_DELAY_MS / 1000}s...`)
       await sleep(RETRY_DELAY_MS)
     }
   }
-  return false // all retries failed
+  return false // all attempts failed
 }
 
 ;(async function () {
@@ -108,14 +108,14 @@ async function runWithRetry(command, maxRetries) {
 
     const success = await runWithRetry(
       `${turboCommand} run cache-build-native -- ${target}`,
-      MAX_RETRIES
+      MAX_ATTEMPTS
     )
 
     if (!success) {
       // Don't fail the job - the workflow will check if build exists
       // and build from source if needed
       console.warn(
-        `Cache restoration failed after ${MAX_RETRIES} attempts. ` +
+        `Cache restoration failed after ${MAX_ATTEMPTS} attempts. ` +
           `Build will proceed from source.`
       )
     }
