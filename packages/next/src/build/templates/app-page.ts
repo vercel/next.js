@@ -1534,7 +1534,7 @@ export async function handler(
             }
 
             // Pipe the resume result through the Node.js bridge stream.
-            await result.value.html.pipeToNodeResponse(bridge as any)
+            await result.value.html.pipeToNodeWritable(bridge)
           })
           .catch((err) => {
             bridge.destroy(err instanceof Error ? err : new Error(String(err)))

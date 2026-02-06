@@ -379,4 +379,30 @@ export default class RenderResult<
 
     await pipeToNodeResponse(this.readable, res, this.waitUntil)
   }
+
+  /**
+   * Pipes a Node.js Readable response to a Node.js Writable stream
+   * (e.g. a PassThrough used as a bridge). Unlike pipeToNodeResponse,
+   * this does not assume ServerResponse-specific APIs like flushHeaders().
+   */
+  public async pipeToNodeWritable(
+    writable: import('node:stream').Writable
+  ): Promise<void> {
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      const { pipeline } =
+        require('node:stream/promises') as typeof import('node:stream/promises')
+
+      if (this.isNodeReadable(this.response)) {
+        await pipeline(this.response, writable)
+        return
+      }
+
+      const { Readable } =
+        require('node:stream') as typeof import('node:stream')
+      await pipeline(
+        Readable.fromWeb(this.readable as import('stream/web').ReadableStream),
+        writable
+      )
+    }
+  }
 }
