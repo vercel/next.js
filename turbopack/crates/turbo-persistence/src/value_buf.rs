@@ -30,6 +30,12 @@ impl From<Vec<u8>> for ValueBuffer<'_> {
     }
 }
 
+impl From<Box<[u8]>> for ValueBuffer<'_> {
+    fn from(v: Box<[u8]>) -> Self {
+        ValueBuffer::Vec(v.into_vec())
+    }
+}
+
 impl From<SmallVec<[u8; 16]>> for ValueBuffer<'_> {
     fn from(sv: SmallVec<[u8; 16]>) -> Self {
         ValueBuffer::SmallVec(sv)
