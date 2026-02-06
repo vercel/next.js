@@ -71,6 +71,7 @@ import { isRedirectError } from '../../client/components/redirect-error'
 import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
+import { perfMark } from '../lib/perf-marks'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createReactServerErrorHandler,
@@ -1868,6 +1869,8 @@ async function renderToHTMLOrFlightImpl(
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ) {
+  perfMark('ssr:render-start')
+
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
     res.statusCode = 404
@@ -2951,6 +2954,7 @@ async function renderToStream(
         require('react-dom/server') as typeof import('react-dom/server')
       ).renderToReadableStream
 
+      perfMark('ssr:react-render')
       const htmlStream = await workUnitAsyncStorage.run(
         requestStore,
         renderToReadableStream,

@@ -67,6 +67,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
+import { perfMark } from './lib/perf-marks'
 import { getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
@@ -946,6 +947,8 @@ export default abstract class Server<
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
+      perfMark('ssr:request-start')
+
       // Wait for the matchers to be ready.
       await this.matchers.waitTillReady()
 

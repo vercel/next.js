@@ -8,6 +8,7 @@ import { DetachedPromise } from '../lib/detached-promise'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
+import { perfMark } from './lib/perf-marks'
 
 // Cache env var at module level to avoid per-request process.env lookups
 const NEXT_OTEL_PERFORMANCE_PREFIX =
@@ -53,6 +54,7 @@ function createWriterFromResponse(
       // started writing chunks.
       if (!started) {
         started = true
+        perfMark('ssr:first-byte')
 
         if (NEXT_OTEL_PERFORMANCE_PREFIX) {
           const metrics = getClientComponentLoaderMetrics()
@@ -107,6 +109,8 @@ function createWriterFromResponse(
       res.destroy(err)
     },
     close: async () => {
+      perfMark('ssr:request-end')
+
       // if a waitUntil promise was passed, wait for it to resolve before
       // ending the response.
       if (waitUntilForEnd) {
@@ -137,6 +141,7 @@ export async function pipeToNodeResponse(
 
     const writer = createWriterFromResponse(res, waitUntilForEnd)
 
+    perfMark('ssr:stream-start')
     await readable.pipeTo(writer, { signal: controller.signal })
   } catch (err: any) {
     // If this isn't related to an abort error, re-throw it.

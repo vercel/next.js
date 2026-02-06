@@ -54,9 +54,9 @@ pnpm --filter=next exec taskr <task>
 
 ## Fast Local Development
 
-For iterative development, use watch mode + fast test execution:
+**`pnpm --filter=next dev` is the default for ALL iterative work**: editing, testing, and benchmarking. Start it at the beginning of any session that involves editing Next.js source code. Only use `pnpm --filter=next build` for one-off builds (after branch switch, before CI push).
 
-**1. Start watch build in background:**
+**1. Start watch build in background (do this first):**
 
 ```bash
 # Runs taskr in watch mode - auto-rebuilds on file changes
@@ -64,17 +64,17 @@ For iterative development, use watch mode + fast test execution:
 pnpm --filter=next dev
 ```
 
-**2. Run tests fast (no isolation, no packing):**
+**2. Edit, test, or benchmark** while watch auto-compiles to `packages/next/dist/`:
 
 ```bash
-# NEXT_SKIP_ISOLATE=1 - skip packing Next.js for each test (much faster)
-# testonly - runs with --runInBand (no worker isolation overhead)
+# Run tests fast (no isolation, no packing)
 NEXT_SKIP_ISOLATE=1 NEXT_TEST_MODE=dev pnpm testonly test/path/to/test.ts
+
+# Run SSR benchmark
+node bench/basic-app/run-bench.js
 ```
 
 **3. When done, kill the background watch process.**
-
-Only use full `pnpm --filter=next build` for one-off builds (after branch switch, before CI push).
 
 **Always rebuild after switching branches:**
 
@@ -82,6 +82,26 @@ Only use full `pnpm --filter=next build` for one-off builds (after branch switch
 git checkout <branch>
 pnpm build   # Required before running tests (Turborepo dedupes if unchanged)
 ```
+
+### Benchmarking
+
+The `bench/basic-app/` directory contains a `force-dynamic` hello-world app with a pre-built `.next/`. The benchmark runner spawns a minimal server, warms up, and measures throughput and latency.
+
+```bash
+# Basic throughput test (runs c1 and c100)
+node bench/basic-app/run-bench.js
+
+# With CPU profiling (generates .cpuprofile + hot module analysis)
+node bench/basic-app/run-bench.js --profile
+
+# With SSR phase timing breakdown
+node bench/basic-app/run-bench.js --marks --concurrency 1
+
+# Custom options
+node bench/basic-app/run-bench.js --concurrency 50 --duration 20
+```
+
+Results are saved to `bench/basic-app/last-run.json`. Re-running the benchmark automatically shows a comparison with the previous run (% change in req/s).
 
 ## Testing
 
@@ -250,12 +270,20 @@ When running Next.js integration tests, you must rebuild if source files have ch
 - **Edited Turbopack (Rust)?** → `pnpm swc-build-native`
 - **Edited both?** → `pnpm turbo build build-native`
 
+## SSR Streaming Pipeline
+
+The SSR streaming pipeline lives in `packages/next/src/server/stream-utils/node-web-streams-helper.ts`. For dynamic SSR, `continueFizzStream` pipes React's output through `createUnifiedSSRTransformStream`, which handles buffered batching, metadata icon marks, deferred suffix, flight data injection, suffix movement, and head insertion in a single `TransformStream`. Prerendering paths use individual transforms chained separately.
+
+Unit tests are co-located at `node-web-streams-helper.test.ts` and run against both the unified transform and the legacy chain of individual transforms.
+
 ## Development Anti-Patterns
 
 ### Test Gotchas
 
 - Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
 - Don't rely on exact log messages - filter by content patterns, find sequences not positions
+- **Stream transform tests**: `scheduleImmediate`-based transforms (deferred suffix, buffered flush) don't work with synchronous test streams where all chunks are enqueued in `start()`. Use async chunk delivery with delays between chunks so `scheduleImmediate` callbacks fire between transforms. See `asyncStreamFromChunks` in `node-web-streams-helper.test.ts`
+- **Co-located unit tests**: Server code can have `.test.ts` files next to the source (e.g., `node-web-streams-helper.test.ts`). These run with `pnpm test-unit` alongside tests in `test/unit/`
 
 ### Rust/Cargo
 
