@@ -1,10 +1,19 @@
-export const dynamic = 'force-dynamic'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
+
+async function DynamicCurrentTime() {
+  await connection()
+
+  return <p id="current-time">{Date.now()}</p>
+}
 
 export default function CurrentTimePage() {
   return (
     <div>
       <h1>Current Time</h1>
-      <p id="current-time">{Date.now()}</p>
+      <Suspense fallback={null}>
+        <DynamicCurrentTime />
+      </Suspense>
     </div>
   )
 }

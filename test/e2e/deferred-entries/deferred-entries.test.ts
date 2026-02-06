@@ -222,7 +222,7 @@ describe('deferred-entries webpack', () => {
     })
   })
 
-  it('should render app router force-dynamic current time on every request', async () => {
+  it('should render app router current time on every request', async () => {
     await retry(async () => {
       const firstRes = await next.fetch('/current-time?request=1')
       expect(firstRes.status).toBe(200)
