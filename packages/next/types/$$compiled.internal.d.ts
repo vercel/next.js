@@ -224,6 +224,30 @@ declare module 'react-server-dom-webpack/server.node' {
     renderToReadableStream,
   } from 'react-server-dom-webpack/server.edge'
 
+  export function renderToPipeableStream(
+    model: any,
+    webpackMap: import('react-server-dom-webpack/server.edge').ClientManifest,
+    options?: {
+      temporaryReferences?: import('react-server-dom-webpack/server.edge').TemporaryReferenceSet
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      onError?: (error: unknown) => void
+      signal?: AbortSignal
+    }
+  ): {
+    pipe<Writable extends NodeJS.WritableStream>(
+      destination: Writable
+    ): Writable
+    abort(reason?: unknown): void
+  }
+
   export type TemporaryReferenceSet = WeakMap<any, string>
 
   export type ImportManifestEntry = {

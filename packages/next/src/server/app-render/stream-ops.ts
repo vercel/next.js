@@ -18,52 +18,67 @@ import type { Readable } from 'node:stream'
 export const continueFizzStream: (
   stream: ReadableStream<Uint8Array> | Readable,
   opts: any
-) => Promise<ReadableStream<Uint8Array> | Readable> = process.env
-  .__NEXT_USE_NODE_STREAMS
-  ? ((require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')))
-      .continueFizzStreamNode
-  : ((require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')))
-      .continueFizzStream
+) => Promise<ReadableStream<Uint8Array> | Readable> = (
+  process.env.__NEXT_USE_NODE_STREAMS
+    ? (
+        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+      ).continueFizzStreamNode
+    : (
+        require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')
+      ).continueFizzStream
+) as typeof continueFizzStream
 
 export const continueStaticPrerender: (
   stream: ReadableStream<Uint8Array> | Readable,
   opts: any
-) => Promise<ReadableStream<Uint8Array> | Readable> = process.env
-  .__NEXT_USE_NODE_STREAMS
-  ? ((require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')))
-      .continueStaticPrerenderNode
-  : ((require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')))
-      .continueStaticPrerender
+) => Promise<ReadableStream<Uint8Array> | Readable> = (
+  process.env.__NEXT_USE_NODE_STREAMS
+    ? (
+        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+      ).continueStaticPrerenderNode
+    : (
+        require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')
+      ).continueStaticPrerender
+) as typeof continueStaticPrerender
 
 export const continueDynamicPrerender: (
   stream: ReadableStream<Uint8Array> | Readable,
   opts: any
-) => Promise<ReadableStream<Uint8Array> | Readable> = process.env
-  .__NEXT_USE_NODE_STREAMS
-  ? ((require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')))
-      .continueDynamicPrerenderNode
-  : ((require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')))
-      .continueDynamicPrerender
+) => Promise<ReadableStream<Uint8Array> | Readable> = (
+  process.env.__NEXT_USE_NODE_STREAMS
+    ? (
+        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+      ).continueDynamicPrerenderNode
+    : (
+        require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')
+      ).continueDynamicPrerender
+) as typeof continueDynamicPrerender
 
 export const continueStaticFallbackPrerender: (
   stream: ReadableStream<Uint8Array> | Readable,
   opts: any
-) => Promise<ReadableStream<Uint8Array> | Readable> = process.env
-  .__NEXT_USE_NODE_STREAMS
-  ? ((require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')))
-      .continueStaticFallbackPrerenderNode
-  : ((require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')))
-      .continueStaticFallbackPrerender
+) => Promise<ReadableStream<Uint8Array> | Readable> = (
+  process.env.__NEXT_USE_NODE_STREAMS
+    ? (
+        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+      ).continueStaticFallbackPrerenderNode
+    : (
+        require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')
+      ).continueStaticFallbackPrerender
+) as typeof continueStaticFallbackPrerender
 
 export const continueDynamicHTMLResume: (
   stream: ReadableStream<Uint8Array> | Readable,
   opts: any
-) => Promise<ReadableStream<Uint8Array> | Readable> = process.env
-  .__NEXT_USE_NODE_STREAMS
-  ? ((require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')))
-      .continueDynamicHTMLResumeNode
-  : ((require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')))
-      .continueDynamicHTMLResume
+) => Promise<ReadableStream<Uint8Array> | Readable> = (
+  process.env.__NEXT_USE_NODE_STREAMS
+    ? (
+        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+      ).continueDynamicHTMLResumeNode
+    : (
+        require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')
+      ).continueDynamicHTMLResume
+) as typeof continueDynamicHTMLResume
 
 // ---------------------------------------------------------------------------
 // Utility functions (replaces ~10 ternaries)
@@ -71,24 +86,42 @@ export const continueDynamicHTMLResume: (
 
 export const streamToBuffer: (
   stream: ReadableStream<Uint8Array> | Readable
-) => Promise<Buffer> = process.env.__NEXT_USE_NODE_STREAMS
-  ? ((require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers'))).nodeStreamToBuffer
-  : ((require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper'))).streamToBuffer
+) => Promise<Buffer> = (
+  process.env.__NEXT_USE_NODE_STREAMS
+    ? (
+        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+      ).nodeStreamToBuffer
+    : (
+        require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')
+      ).streamToBuffer
+) as typeof streamToBuffer
 
 export const chainStreams: (
   ...streams: Array<ReadableStream<Uint8Array> | Readable>
-) => ReadableStream<Uint8Array> | Readable = process.env.__NEXT_USE_NODE_STREAMS
-  ? ((require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers'))).chainNodeStreams
-  : ((require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper'))).chainStreams
+) => ReadableStream<Uint8Array> | Readable = (
+  process.env.__NEXT_USE_NODE_STREAMS
+    ? (
+        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+      ).chainNodeStreams
+    : (
+        require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')
+      ).chainStreams
+) as typeof chainStreams
 
 export const processPrelude: (
   unprocessedPrelude: ReadableStream<Uint8Array> | Readable
 ) => Promise<{
   prelude: ReadableStream<Uint8Array> | Readable
   preludeIsEmpty: boolean
-}> = process.env.__NEXT_USE_NODE_STREAMS
-  ? ((require('./app-render-prerender-utils') as typeof import('./app-render-prerender-utils'))).processNodePrelude
-  : ((require('./app-render-prerender-utils') as typeof import('./app-render-prerender-utils'))).processPrelude
+}> = (
+  process.env.__NEXT_USE_NODE_STREAMS
+    ? (
+        require('./app-render-prerender-utils') as typeof import('./app-render-prerender-utils')
+      ).processNodePrelude
+    : (
+        require('./app-render-prerender-utils') as typeof import('./app-render-prerender-utils')
+      ).processPrelude
+) as typeof processPrelude
 
 // ---------------------------------------------------------------------------
 // Composed helpers
@@ -234,9 +267,13 @@ type PrerenderResult = Awaited<
  * unified return type captures both.
  */
 export const getClientPrerender: (...args: any[]) => Promise<PrerenderResult> =
-  process.env.__NEXT_USE_NODE_STREAMS
-    ? ((require('react-dom/static') as typeof import('react-dom/static'))).prerenderToNodeStream
-    : ((require('react-dom/static') as typeof import('react-dom/static'))).prerender
+  (
+    process.env.__NEXT_USE_NODE_STREAMS
+      ? (require('react-dom/static') as typeof import('react-dom/static'))
+          .prerenderToNodeStream
+      : (require('react-dom/static') as typeof import('react-dom/static'))
+          .prerender
+  ) as typeof getClientPrerender
 
 /**
  * Creates a closing stream for the document.
@@ -245,8 +282,12 @@ export const getClientPrerender: (...args: any[]) => Promise<PrerenderResult> =
  */
 export const createDocumentClosingStream: () =>
   | ReadableStream<Uint8Array>
-  | Readable = process.env.__NEXT_USE_NODE_STREAMS
-  ? ((require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')))
-      .createDocumentClosingNodeStream
-  : ((require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')))
-      .createDocumentClosingStream
+  | Readable = (
+  process.env.__NEXT_USE_NODE_STREAMS
+    ? (
+        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+      ).createDocumentClosingNodeStream
+    : (
+        require('../stream-utils/node-web-streams-helper') as typeof import('../stream-utils/node-web-streams-helper')
+      ).createDocumentClosingStream
+) as typeof createDocumentClosingStream
