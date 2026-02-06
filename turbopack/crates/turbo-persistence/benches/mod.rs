@@ -450,28 +450,6 @@ fn bench_read_batch_get(c: &mut Criterion) {
                     compacted_str,
                 );
 
-                group.bench_function(format!("{id}/hit/uncached"), |b| {
-                    let (_, db, stored_keys, rng) = &*db;
-                    let mut rng = rng.lock();
-                    iter_batched_with_init(
-                        b,
-                        |_| prepare_db_for_benchmarking(db),
-                        |_| {
-                            (0..batch_size)
-                                .map(|_| {
-                                    let idx = rng.random_range(0..stored_keys.len());
-                                    &*stored_keys[idx]
-                                })
-                                .collect::<Vec<_>>()
-                        },
-                        |keys| {
-                            let result = db.batch_get(0, &keys).unwrap();
-                            black_box(result)
-                        },
-                        BatchSize::PerIteration,
-                    );
-                });
-
                 group.bench_function(format!("{id}/hit/cached"), |b| {
                     let (_, db, stored_keys, _) = &*db;
                     iter_batched_with_init(
@@ -489,25 +467,6 @@ fn bench_read_batch_get(c: &mut Criterion) {
                             black_box(result)
                         },
                         BatchSize::NumBatches(1),
-                    );
-                });
-
-                group.bench_function(format!("{id}/miss/uncached"), |b| {
-                    let (_, db, _, rng) = &*db;
-                    let mut rng = rng.lock();
-                    iter_batched_with_init(
-                        b,
-                        |_| prepare_db_for_benchmarking(db),
-                        |_| {
-                            (0..batch_size)
-                                .map(|_| random_key(&mut rng, key_size))
-                                .collect::<Vec<_>>()
-                        },
-                        |keys| {
-                            let result = db.batch_get(0, &keys).unwrap();
-                            black_box(result)
-                        },
-                        BatchSize::PerIteration,
                     );
                 });
 
