@@ -1502,44 +1502,80 @@ export async function handler(
         body.push(createPPRBoundarySentinel())
       }
 
-      // This request has postponed, so let's create a new transformer that the
+      // This request has postponed, so let's create a bridge stream that the
       // dynamic data can pipe to that will attach the dynamic data to the end
       // of the response.
-      const transformer = new TransformStream<Uint8Array, Uint8Array>()
-      body.push(transformer.readable)
+      if (
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        process.env.__NEXT_USE_NODE_STREAMS
+      ) {
+        const { PassThrough, Readable } =
+          require('node:stream') as typeof import('node:stream')
+        const bridge = new PassThrough()
+        body.push(
+          Readable.toWeb(bridge) as unknown as ReadableStream<Uint8Array>
+        )
 
-      // Perform the render again, but this time, provide the postponed state.
-      // We don't await because we want the result to start streaming now, and
-      // we've already chained the transformer's readable to the render result.
-      doRender({
-        span,
-        postponed: cachedData.postponed,
-        // This is a resume render, not a fallback render, so we don't need to
-        // set this.
-        fallbackRouteParams: null,
-        forceStaticRender: false,
-      })
-        .then(async (result) => {
-          if (!result) {
-            throw new Error('Invariant: expected a result to be returned')
-          }
-
-          if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
-            throw new Error(
-              `Invariant: expected a page response, got ${result.value?.kind}`
-            )
-          }
-
-          // Pipe the resume result to the transformer.
-          await result.value.html.pipeTo(transformer.writable)
+        doRender({
+          span,
+          postponed: cachedData.postponed,
+          fallbackRouteParams: null,
+          forceStaticRender: false,
         })
-        .catch((err) => {
-          // An error occurred during piping or preparing the render, abort
-          // the transformers writer so we can terminate the stream.
-          transformer.writable.abort(err).catch((e) => {
-            console.error("couldn't abort transformer", e)
+          .then(async (result) => {
+            if (!result) {
+              throw new Error('Invariant: expected a result to be returned')
+            }
+
+            if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
+              throw new Error(
+                `Invariant: expected a page response, got ${result.value?.kind}`
+              )
+            }
+
+            // Pipe the resume result through the Node.js bridge stream.
+            await result.value.html.pipeToNodeResponse(bridge as any)
           })
+          .catch((err) => {
+            bridge.destroy(err instanceof Error ? err : new Error(String(err)))
+          })
+      } else {
+        const transformer = new TransformStream<Uint8Array, Uint8Array>()
+        body.push(transformer.readable)
+
+        // Perform the render again, but this time, provide the postponed state.
+        // We don't await because we want the result to start streaming now, and
+        // we've already chained the transformer's readable to the render result.
+        doRender({
+          span,
+          postponed: cachedData.postponed,
+          // This is a resume render, not a fallback render, so we don't need to
+          // set this.
+          fallbackRouteParams: null,
+          forceStaticRender: false,
         })
+          .then(async (result) => {
+            if (!result) {
+              throw new Error('Invariant: expected a result to be returned')
+            }
+
+            if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
+              throw new Error(
+                `Invariant: expected a page response, got ${result.value?.kind}`
+              )
+            }
+
+            // Pipe the resume result to the transformer.
+            await result.value.html.pipeTo(transformer.writable)
+          })
+          .catch((err) => {
+            // An error occurred during piping or preparing the render, abort
+            // the transformers writer so we can terminate the stream.
+            transformer.writable.abort(err).catch((e) => {
+              console.error("couldn't abort transformer", e)
+            })
+          })
+      }
 
       return sendRenderResult({
         req,
