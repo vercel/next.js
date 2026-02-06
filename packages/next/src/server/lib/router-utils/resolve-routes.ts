@@ -90,8 +90,6 @@ export function getResolveRoutes(
 
       ...(opts.minimalMode ? [] : fsChecker.rewrites.afterFiles),
 
-      ...(opts.minimalMode ? [] : fsChecker.onMatchHeaders),
-
       // we always do the check: true handling before continuing to
       // fallback rewrites
       {
@@ -853,6 +851,11 @@ export function getResolveRoutes(
         // handle check: true
         if (route.check) {
           const output = await checkTrue()
+
+          // handle onMatchHeaders
+          for (const onMatchHeaders of fsChecker.onMatchHeaders) {
+            await handleRoute(onMatchHeaders)
+          }
 
           if (output) {
             return {
