@@ -1773,12 +1773,16 @@ export default async function build(
       // #endregion
 
       // For app directory, we run type checking after build.
+      // Type checking has no data dependencies with subsequent phases, so we
+      // kick it off in the background and await it before the build finishes.
+      let typeCheckingPromise: Promise<void> | undefined
       if (appDir && !isCompileMode && !isGenerateMode) {
-        await updateBuildDiagnostics({
-          buildStage: 'type-checking',
-        })
-        await startTypeChecking(typeCheckingOptions)
-        traceMemoryUsage('Finished type checking', nextBuildSpan)
+        await updateBuildDiagnostics({ buildStage: 'type-checking' })
+        typeCheckingPromise = startTypeChecking(typeCheckingOptions).then(
+          () => {
+            traceMemoryUsage('Finished type checking', nextBuildSpan)
+          }
+        )
       }
 
       // #region required-server-files
@@ -3870,6 +3874,11 @@ export default async function build(
         await nextBuildSpan
           .traceChild('write-routes-manifest')
           .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
+      }
+
+      // Ensure type checking has completed before we finalize the build.
+      if (typeCheckingPromise) {
+        await typeCheckingPromise
       }
 
       const finalizingPageOptimizationStart = process.hrtime()
