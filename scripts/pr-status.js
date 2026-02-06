@@ -83,6 +83,60 @@ function isBot(username) {
   return username.endsWith('-bot') || username.endsWith('[bot]')
 }
 
+/**
+ * Parses the build_and_test.yml workflow to extract env vars from afterBuild
+ * sections. Returns a map of job display name prefix → env var list.
+ */
+function getJobEnvVarsFromWorkflow() {
+  const workflowPath = path.join(
+    __dirname,
+    '..',
+    '.github',
+    'workflows',
+    'build_and_test.yml'
+  )
+  try {
+    const content = require('fs').readFileSync(workflowPath, 'utf8')
+    const envMap = {}
+    // Match job blocks: "  job-id:\n    name: display name\n" ... "afterBuild: |"
+    const jobRegex =
+      /^ {2}([\w-]+):\s*\n\s+name:\s*(.+)\n[\s\S]*?afterBuild:\s*\|\n([\s\S]*?)(?=\n\s+stepName:)/gm
+    let match
+    while ((match = jobRegex.exec(content)) !== null) {
+      const displayName = match[2].trim()
+      const afterBuild = match[3]
+      const exports = []
+      for (const line of afterBuild.split('\n')) {
+        const exportMatch = line.match(
+          /^\s*export\s+([\w]+)=["']?([^"'\s]+)["']?/
+        )
+        if (exportMatch) {
+          exports.push(`${exportMatch[1]}=${exportMatch[2]}`)
+        }
+      }
+      if (exports.length > 0) {
+        envMap[displayName] = exports
+      }
+    }
+    return envMap
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Given a job name like "test node streams prod (4/7) / build" and the env map,
+ * returns the relevant env vars or null.
+ */
+function getEnvVarsForJob(jobName, envMap) {
+  for (const [prefix, vars] of Object.entries(envMap)) {
+    if (jobName.startsWith(prefix)) {
+      return vars
+    }
+  }
+  return null
+}
+
 // ============================================================================
 // Data Fetching Functions
 // ============================================================================
@@ -413,7 +467,8 @@ function generateIndexMd(
   runMetadata,
   categorizedJobs,
   jobTestCounts,
-  reviewData
+  reviewData,
+  jobEnvMap
 ) {
   const { failed, inProgress, queued, succeeded, cancelled, skipped } =
     categorizedJobs
@@ -493,6 +548,28 @@ function generateIndexMd(
       )
     }
     lines.push('')
+
+    // Show env vars for failed jobs if they differ from defaults
+    if (jobEnvMap && Object.keys(jobEnvMap).length > 0) {
+      const jobEnvGroups = new Map()
+      for (const job of failed) {
+        const envVars = getEnvVarsForJob(job.name, jobEnvMap)
+        if (envVars) {
+          const key = envVars.join(', ')
+          if (!jobEnvGroups.has(key)) {
+            jobEnvGroups.set(key, [])
+          }
+          jobEnvGroups.get(key).push(job.name)
+        }
+      }
+      if (jobEnvGroups.size > 0) {
+        lines.push('### Job Environment Variables', '')
+        for (const [envStr, jobNames] of jobEnvGroups) {
+          const prefix = jobNames[0].replace(/ \(.*/, '')
+          lines.push(`**${prefix}**: \`${envStr}\``, '')
+        }
+      }
+    }
   }
 
   // In-progress jobs section (only when CI is running)
@@ -972,7 +1049,8 @@ async function main() {
         runMetadata,
         emptyCategorizedJobs,
         {},
-        reviewData
+        reviewData,
+        {}
       )
     )
     process.exit(0)
@@ -1089,12 +1167,14 @@ async function main() {
     ...categorizedJobs,
     failed: processedFailedJobs,
   }
+  const jobEnvMap = getJobEnvVarsFromWorkflow()
   const indexMd = generateIndexMd(
     branchInfo,
     runMetadata,
     finalCategorizedJobs,
     jobTestCounts,
-    reviewData
+    reviewData,
+    jobEnvMap
   )
   await fs.writeFile(path.join(OUTPUT_DIR, 'index.md'), indexMd)
 

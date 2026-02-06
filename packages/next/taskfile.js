@@ -2951,6 +2951,69 @@ export async function next_bundle_app_dev_experimental(task, opts) {
   })
 }
 
+// Experimental + node streams variants
+export async function next_bundle_app_prod_turbo_experimental_nodestreams(
+  task,
+  opts
+) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      turbo: true,
+      bundleType: 'app',
+      experimental: true,
+      nodeStreams: true,
+    }),
+    name: 'next-bundle-app-prod-turbo-experimental-nodestreams',
+  })
+}
+
+export async function next_bundle_app_prod_experimental_nodestreams(
+  task,
+  opts
+) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: false,
+      bundleType: 'app',
+      experimental: true,
+      nodeStreams: true,
+    }),
+    name: 'next-bundle-app-prod-experimental-nodestreams',
+  })
+}
+
+export async function next_bundle_app_dev_turbo_experimental_nodestreams(
+  task,
+  opts
+) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: true,
+      turbo: true,
+      bundleType: 'app',
+      experimental: true,
+      nodeStreams: true,
+    }),
+    name: 'next-bundle-app-dev-turbo-experimental-nodestreams',
+  })
+}
+
+export async function next_bundle_app_dev_experimental_nodestreams(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: true,
+      bundleType: 'app',
+      experimental: true,
+      nodeStreams: true,
+    }),
+    name: 'next-bundle-app-dev-experimental-nodestreams',
+  })
+}
+
 // Node streams variants
 export async function next_bundle_app_prod_turbo_nodestreams(task, opts) {
   await task.source('dist').webpack({
@@ -3080,6 +3143,11 @@ export async function next_bundle(task, opts) {
       'next_bundle_app_prod_experimental',
       'next_bundle_app_dev_turbo_experimental',
       'next_bundle_app_dev_experimental',
+      // builds the app (route/page) bundles with experimental react + node streams
+      'next_bundle_app_prod_turbo_experimental_nodestreams',
+      'next_bundle_app_prod_experimental_nodestreams',
+      'next_bundle_app_dev_turbo_experimental_nodestreams',
+      'next_bundle_app_dev_experimental_nodestreams',
       // builds the app (route/page) bundles with node streams
       'next_bundle_app_prod_turbo_nodestreams',
       'next_bundle_app_prod_nodestreams',
