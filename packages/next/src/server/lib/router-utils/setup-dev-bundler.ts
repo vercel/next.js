@@ -429,6 +429,7 @@ async function startWatcher(
       const appRoutes: Array<{ route: string; filePath: string }> = []
       const layoutRoutes: Array<{ route: string; filePath: string }> = []
       const slots: Array<{ name: string; parent: string }> = []
+      const slotKeys = new Set<string>()
 
       let envChange = false
       let tsconfigChange = false
@@ -663,14 +664,10 @@ async function startWatcher(
               )
 
               const slotName = segment.slice(1)
-              // check if the slot already exists
-              if (
-                slots.some(
-                  (s) => s.name === slotName && s.parent === parentPath
-                )
-              )
-                continue
+              const slotKey = `${parentPath}:${slotName}`
+              if (slotKeys.has(slotKey)) continue
 
+              slotKeys.add(slotKey)
               slots.push({
                 name: slotName,
                 parent: parentPath,
@@ -1126,12 +1123,22 @@ async function startWatcher(
           if (
             !prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
           ) {
-            const addedRoutes = sortedRoutes.filter(
-              (route) => !prevSortedRoutes.includes(route)
-            )
-            const removedRoutes = prevSortedRoutes.filter(
-              (route) => !sortedRoutes.includes(route)
-            )
+            const prevSortedRoutesSet = new Set(prevSortedRoutes)
+            const sortedRoutesSet = new Set(sortedRoutes)
+
+            const addedRoutes: string[] = []
+            for (const route of sortedRoutes) {
+              if (!prevSortedRoutesSet.has(route)) {
+                addedRoutes.push(route)
+              }
+            }
+
+            const removedRoutes: string[] = []
+            for (const route of prevSortedRoutes) {
+              if (!sortedRoutesSet.has(route)) {
+                removedRoutes.push(route)
+              }
+            }
 
             // emit the change so clients fetch the update
             hotReloader.send({
