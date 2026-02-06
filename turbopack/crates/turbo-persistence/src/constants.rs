@@ -3,7 +3,11 @@ pub const MAX_MEDIUM_VALUE_SIZE: usize = 64 * 1024 * 1024;
 
 /// Values larger than this become separate value blocks
 // Note this must fit into 2 bytes length
-pub const MAX_SMALL_VALUE_SIZE: usize = 64 * 1024 - 1;
+// Note that a medium value has 14 bytes of extra overhead compared to a small value.
+// Note that we want to benefit from better compression by merging small values together, so we can
+// avoid a compression dictionary. Note that medium values can be copied without decompression
+// during compaction.
+pub const MAX_SMALL_VALUE_SIZE: usize = 1024;
 
 /// Maximum size for inline values stored directly in key blocks.
 /// Currently 8 bytes (break-even with the 8-byte indirection overhead).

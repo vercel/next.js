@@ -13,6 +13,7 @@ use turbo_bincode::{TurboBincodeBuffer, turbo_bincode_encode};
 use crate::{
     compression::compress_into_buffer,
     constants::MAX_INLINE_VALUE_SIZE,
+    constants::MAX_SMALL_VALUE_SIZE,
     meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH,
@@ -27,11 +28,12 @@ const MAX_KEY_BLOCK_ENTRIES: usize = MAX_KEY_BLOCK_SIZE / KEY_BLOCK_ENTRY_META_O
 // Note this must fit into 3 bytes length
 const MAX_KEY_BLOCK_SIZE: usize = 16 * 1024;
 /// Overhead of bytes that should be counted for entries in a key block in addition to the key size
-const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 8;
+const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 16;
 /// The maximum number of entries that should go into a single small value block
 const MAX_SMALL_VALUE_BLOCK_ENTRIES: usize = MAX_SMALL_VALUE_BLOCK_SIZE;
 /// The maximum bytes that should go into a single small value block
-const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 64 * 1024;
+// Note that each block has 8 bytes of overhead.
+const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 4 * MAX_SMALL_VALUE_SIZE;
 /// The aimed false positive rate for the AMQF
 const AMQF_FALSE_POSITIVE_RATE: f64 = 0.01;
 
