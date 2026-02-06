@@ -1,10 +1,10 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="fa425bb4-2cbc-57da-50fa-8bedec039b3d")}catch(e){}}();
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="5770f9e6-b0e5-5a25-603c-089a0fc1f085")}catch(e){}}();
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
-if (!Array.isArray(globalThis.TURBOPACK)) {
+if (!Array.isArray(globalThis["TURBOPACK"])) {
     return;
 }
 
@@ -1911,14 +1911,14 @@ function _eval({ code, url, map }) {
     // eslint-disable-next-line no-eval
     return eval(code);
 }
-const chunksToRegister = globalThis.TURBOPACK;
-globalThis.TURBOPACK = { push: registerChunk };
+const chunksToRegister = globalThis["TURBOPACK"];
+globalThis["TURBOPACK"] = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
-const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
-globalThis.TURBOPACK_CHUNK_LISTS = { push: registerChunkList };
+const chunkListsToRegister = globalThis["TURBOPACK_CHUNK_LISTS"] || [];
+globalThis["TURBOPACK_CHUNK_LISTS"] = { push: registerChunkList };
 chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=fa425bb4-2cbc-57da-50fa-8bedec039b3d
+//# debugId=5770f9e6-b0e5-5a25-603c-089a0fc1f085
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map
