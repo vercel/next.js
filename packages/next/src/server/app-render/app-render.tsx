@@ -3132,7 +3132,6 @@ async function renderToStream(
             process.env.__NEXT_USE_NODE_STREAMS &&
             !(teed instanceof ReadableStream)
           ) {
-             
             const { createInlinedDataNodeStream } =
               require('./use-flight-response') as typeof import('./use-flight-response')
             const {
@@ -3202,7 +3201,7 @@ async function renderToStream(
                 require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
               const { continueDynamicHTMLResumeNode, safePipe } =
                 require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-               
+
               const { createInlinedDataNodeStream } =
                 require('./use-flight-response') as typeof import('./use-flight-response')
               const { stream: htmlNodeStream, allReady } =
@@ -3333,7 +3332,7 @@ async function renderToStream(
             require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
           const { continueFizzStreamNode: continueFizzStreamNodeFn, safePipe } =
             require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-           
+
           const { createInlinedDataNodeStream } =
             require('./use-flight-response') as typeof import('./use-flight-response')
           const { stream: htmlNodeStream, allReady } =
@@ -3571,7 +3570,7 @@ async function renderToStream(
               safePipe,
             } =
               require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-             
+
             const { createInlinedDataNodeStream } =
               require('./use-flight-response') as typeof import('./use-flight-response')
 

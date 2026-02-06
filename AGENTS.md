@@ -317,6 +317,7 @@ Server rendering code (`app-render.tsx`, route modules) is NOT bundled during th
 - **Key implication**: `process.env.X` checks in `app-render.tsx` are either replaced by DefinePlugin at runtime-bundle-build time, or read as actual env vars at server startup. They are NOT affected by the user's webpack/Turbopack defines from `define-env.ts`.
 - **Adding a new feature flag**: Either leave it as a runtime env var (both code paths in bundle), or create new bundle variants (separate DefinePlugin value per variant, new taskfile tasks, updated `module.compiled.js` selector)
 - **Gotcha**: DefinePlugin entries in `next-runtime.webpack-config.js` must be scoped to the correct `bundleType` (e.g. `app` only, not `server`) to avoid replacing assignment targets in `next-server.ts`
+- **Edge runtime is different**: Edge routes do NOT use pre-compiled runtime bundles. They are compiled by the user's webpack/Turbopack, so `define-env.ts` controls DCE. Feature flags that gate `node:*` imports must be forced to `false` for edge builds in `define-env.ts` (`isEdgeServer ? false : flagValue`), otherwise webpack will try to resolve `node:stream` etc. and fail.
 
 ### Stale Native Binary
 

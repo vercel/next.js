@@ -170,7 +170,9 @@ export function getDefineEnv({
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
-    'process.env.__NEXT_USE_NODE_STREAMS': isUseNodeStreamsEnabled,
+    'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer
+      ? false
+      : isUseNodeStreamsEnabled,
 
     ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {
