@@ -208,7 +208,7 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
       },
     })
 
-    // Deployment skew is hard to properly e2e deploy test, so this just checks for the header
+    // Deployment skew is hard to properly e2e deploy test, so this just checks for the header.
     it('header is set on data routes', async () => {
       for (const route of ['/gsp', '/gssp']) {
         await next.fetch(route)

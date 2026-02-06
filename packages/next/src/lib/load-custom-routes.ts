@@ -489,6 +489,7 @@ export function checkCustomRoutes(
 
 export interface CustomRoutes {
   headers: Header[]
+  onMatchHeaders: Header[]
   rewrites: {
     fallback: Rewrite[]
     afterFiles: Rewrite[]
@@ -708,6 +709,8 @@ export default async function loadCustomRoutes(
     loadRedirects(config),
   ])
 
+  const onMatchHeaders: Header[] = []
+
   const totalRewrites =
     rewrites.beforeFiles.length +
     rewrites.afterFiles.length +
@@ -760,7 +763,7 @@ export default async function loadCustomRoutes(
       })
     }
 
-    headers.unshift(
+    onMatchHeaders.push(
       {
         source: '/:path*',
         has: [
@@ -852,6 +855,7 @@ export default async function loadCustomRoutes(
 
   return {
     headers,
+    onMatchHeaders,
     rewrites,
     redirects,
   }

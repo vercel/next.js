@@ -67,7 +67,7 @@ describe('segment cache (deployment skew)', () => {
       },
     })
 
-    // Deployment skew is hard to properly e2e deploy test, so this just checks for the header
+    // Deployment skew is hard to properly e2e deploy test, so this just checks for the header.
     it('header is set on RSC responses', async () => {
       for (const route of ['/dynamic-page', '/static-page']) {
         await next.fetch(route)

@@ -30,6 +30,7 @@ import type {
   ManifestRewriteRoute,
   FunctionsConfigManifest,
   DynamicPrerenderManifestRoute,
+  ManifestHeaderRoute,
 } from '..'
 
 import {
@@ -1977,6 +1978,19 @@ export async function handleBuildComplete({
       } satisfies Route
     }
 
+    const buildRouteFromHeader = (route: ManifestHeaderRoute): Route => {
+      const converted = convertHeaders([route])[0]
+      const regex = converted.src || route.regex
+      return {
+        source: route.source,
+        sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+        headers: 'headers' in converted ? converted.headers || {} : {},
+        has: route.has,
+        missing: route.missing,
+        priority: route.internal || undefined,
+      } satisfies Route
+    }
+
     try {
       Log.info(`Running onBuildComplete from ${adapterMod.name}`)
 
@@ -2007,19 +2021,12 @@ export async function handleBuildComplete({
         } satisfies Route
       })
 
-      const headers = routesManifest.headers.map((route) => {
-        const converted = convertHeaders([route])[0]
-        const regex = converted.src || route.regex
-
-        return {
-          source: route.source,
-          sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-          headers: 'headers' in converted ? converted.headers || {} : {},
-          has: route.has,
-          missing: route.missing,
-          priority: route.internal || undefined,
-        } satisfies Route
-      })
+      const headers = routesManifest.headers.map((route) =>
+        buildRouteFromHeader(route)
+      )
+      const onMatchHeaders = routesManifest.onMatchHeaders.map((route) =>
+        buildRouteFromHeader(route)
+      )
 
       await adapterMod.onBuildComplete({
         routing: {
@@ -2038,6 +2045,7 @@ export async function handleBuildComplete({
                 'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
               },
             },
+            ...onMatchHeaders,
           ],
           fallback: rewrites.fallback,
           shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
@@ -2050,6 +2058,7 @@ export async function handleBuildComplete({
             config,
             redirects: [],
             headers: [],
+            onMatchHeaders: [],
             rewrites,
             restrictedRedirectPaths: [],
             isAppPPREnabled: config.cacheComponents,
