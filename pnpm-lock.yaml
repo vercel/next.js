@@ -28,6 +28,9 @@ patchedDependencies:
   '@types/node@20.17.6':
     hash: rvl3vkomen3tospgr67bzubfyu
     path: patches/@types__node@20.17.6.patch
+  http-proxy@1.18.1:
+    hash: qqiqxx62zlcu62nljjmhlvexni
+    path: patches/http-proxy@1.18.1.patch
   minizlib@3.1.0:
     hash: o4nv5mg6kfnuzlknbdln3azhvu
     path: patches/minizlib@3.1.0.patch
@@ -187,8 +190,8 @@ importers:
         specifier: 5.0.3
         version: 5.0.3
       '@types/http-proxy':
-        specifier: 1.17.3
-        version: 1.17.3
+        specifier: 1.17.17
+        version: 1.17.17
       '@types/jest':
         specifier: 29.5.5
         version: 29.5.5
@@ -362,7 +365,7 @@ importers:
         version: 5.1.18
       http-proxy:
         specifier: 1.18.1
-        version: 1.18.1
+        version: 1.18.1(patch_hash=qqiqxx62zlcu62nljjmhlvexni)
       husky:
         specifier: 9.0.11
         version: 9.0.11
@@ -1517,7 +1520,7 @@ importers:
         version: 5.1.1
       http-proxy:
         specifier: 1.18.1
-        version: 1.18.1
+        version: 1.18.1(patch_hash=qqiqxx62zlcu62nljjmhlvexni)
       http-proxy-agent:
         specifier: 5.0.0
         version: 5.0.0
@@ -6647,11 +6650,8 @@ packages:
   '@types/http-errors@2.0.4':
     resolution: {integrity: sha512-D0CFMMtydbJAegzOyHjtiKPLlvnm3iTZyZRSZoLq2mRhDdmLfIWOCYPfQJ4cu2erKghU++QvjcUjp/5h7hESpA==}
 
-  '@types/http-proxy@1.17.16':
-    resolution: {integrity: sha512-sdWoUajOB1cd0A8cRRQ1cfyWNbmFKLAqBB89Y8x5iYyG/mkJHc0YUH8pdWBy2omi9qtCpiIgGjuwO0dQST2l5w==}
-
-  '@types/http-proxy@1.17.3':
-    resolution: {integrity: sha512-wIPqXANye5BbORbuh74exbwNzj+UWCwWyeEFJzUQ7Fq3W2NSAy+7x7nX1fgbEypr2/TdKqpeuxLnXWgzN533/Q==}
+  '@types/http-proxy@1.17.17':
+    resolution: {integrity: sha512-ED6LB+Z1AVylNTu7hdzuBqOgMnvG/ld6wGCG8wFnAzKX5uyW2K3WD52v0gnLCTK/VLpXtKckgWuyScYK6cSPaw==}
 
   '@types/inquirer@8.2.9':
     resolution: {integrity: sha512-5IEO2PwCy4NZDgj977dho4Qbdiw6dJZJzD4ZaB/9j7dfppf7z0xxFPKZz/FtTAUQbDjmWHJ6Jlz/gn0YzWHPsw==}
@@ -24078,11 +24078,7 @@ snapshots:
 
   '@types/http-errors@2.0.4': {}
 
-  '@types/http-proxy@1.17.16':
-    dependencies:
-      '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
-
-  '@types/http-proxy@1.17.3':
+  '@types/http-proxy@1.17.17':
     dependencies:
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
 
@@ -30019,8 +30015,8 @@ snapshots:
 
   http-proxy-middleware@2.0.7(@types/express@4.17.21):
     dependencies:
-      '@types/http-proxy': 1.17.16
-      http-proxy: 1.18.1
+      '@types/http-proxy': 1.17.17
+      http-proxy: 1.18.1(patch_hash=qqiqxx62zlcu62nljjmhlvexni)
       is-glob: 4.0.3
       is-plain-obj: 3.0.0
       micromatch: 4.0.8
@@ -30029,7 +30025,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  http-proxy@1.18.1:
+  http-proxy@1.18.1(patch_hash=qqiqxx62zlcu62nljjmhlvexni):
     dependencies:
       eventemitter3: 4.0.7
       follow-redirects: 1.9.0
