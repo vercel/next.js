@@ -43,11 +43,26 @@ pub async fn make_style_production_chunks(
         // order, we emit a shared batch only after we've seen all its members in the input.
         // We track how many items remain for each batch and emit when the count reaches zero.
 
-        // Track remaining items for each batch (initialized with batch sizes, decremented as we go)
+        // Count how many items from each batch appear in this endpoint's chunk_items.
+        // style_groups is computed globally, but chunk_items is per-endpoint.
         let mut batch_remaining: FxHashMap<ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>, usize> =
             FxHashMap::default();
-        for (_, &batch) in &style_groups.shared_chunk_items {
-            *batch_remaining.entry(batch).or_default() += 1;
+        for chunk_item in &chunk_items {
+            match chunk_item {
+                ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
+                    if let Some(&batch) = style_groups.shared_chunk_items.get(chunk_item) {
+                        *batch_remaining.entry(batch).or_default() += 1;
+                    }
+                }
+                ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
+                    for chunk_item in &batch.await?.chunk_items {
+                        if let Some(&style_batch) = style_groups.shared_chunk_items.get(chunk_item)
+                        {
+                            *batch_remaining.entry(style_batch).or_default() += 1;
+                        }
+                    }
+                }
+            }
         }
 
         // Process a single chunk item, emitting chunks as needed
@@ -56,7 +71,7 @@ pub async fn make_style_production_chunks(
                 let remaining = batch_remaining.get_mut(&batch).unwrap();
                 *remaining -= 1;
 
-                // Emit batch chunk when we've seen all its items
+                // Emit batch chunk when we've seen all its items in this endpoint
                 if *remaining == 0 {
                     make_chunk(
                         vec![&ChunkItemOrBatchWithInfo::Batch { batch, size: 0 }],
