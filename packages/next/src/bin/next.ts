@@ -310,6 +310,10 @@ program
     'Path to a HTTPS certificate authority file.'
   )
   .option(
+    '--experimental-server-fast-refresh',
+    'Enable experimental server-side Fast Refresh.'
+  )
+  .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
