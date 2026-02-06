@@ -96,6 +96,9 @@ describe('adapter-config', () => {
         expect(output.pathname.endsWith('.html')).toBe(false)
       } else if (output.pathname.endsWith('.rsc')) {
         expect(output.filePath.endsWith('rsc-fallback.json')).toBe(true)
+      } else if (output.filePath.endsWith('.body')) {
+        // Static metadata images (e.g., /icon.png) are output as static files
+        expect(output.pathname).toMatch(/\.(png|jpg|jpeg|ico|svg|gif)$/)
       } else {
         expect(output.pathname).toStartWith('/docs/_next/static')
       }
@@ -105,6 +108,27 @@ describe('adapter-config', () => {
       const stats = await fs.promises.stat(output.filePath)
       expect(stats.isFile()).toBe(true)
     }
+
+    // Verify static metadata images are output as static files, not prerenders
+    const iconStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/icon.png'
+    )
+    expect(iconStaticFile).toBeDefined()
+    expect(iconStaticFile?.filePath).toMatch(/\.body$/)
+
+    // Static metadata images should NOT be in prerenders
+    const iconPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/icon.png'
+    )
+    expect(iconPrerender).toBeUndefined()
+
+    // Static metadata images should NOT be in appRoutes
+    const iconAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/icon.png' ||
+        item.pathname === '/docs/icon.png.rsc'
+    )
+    expect(iconAppRoute).toBeUndefined()
 
     for (const prerenderOutput of prerenderOutputs) {
       try {

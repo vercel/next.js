@@ -40,6 +40,7 @@ import {
 } from '../../lib/constants'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -1005,6 +1006,11 @@ export async function handleBuildComplete({
             continue
           }
           const normalizedPage = normalizeAppPath(page)
+
+          // Skip static metadata routes - they will be output as static files
+          if (isStaticMetadataFile(normalizedPage)) {
+            continue
+          }
           const pageFile = path.join(appDistDir, `${page}.js`)
           const pageTraceFile = `${pageFile}.nft.json`
           const assets = await handleTraceFiles(pageTraceFile, 'app').catch(
@@ -1289,6 +1295,25 @@ export async function handleBuildComplete({
           isAppPage ? appDistDir : pagesDistDir,
           `${normalizePagePath(route)}.${isAppPage && !dataRoute ? 'body' : 'html'}`
         )
+
+        // Check if this is a static metadata route (e.g., /favicon.ico, /icon.png, /opengraph-image.png)
+        // These should be output as static files, not prerenders.
+        if (isStaticMetadataFile(route)) {
+          // For static metadata from app router, check if the .body file exists
+          const staticMetadataFilePath = path.join(
+            appDistDir,
+            `${normalizePagePath(route)}.body`
+          )
+          if (await cachedFilePathCheck(staticMetadataFilePath)) {
+            outputs.staticFiles.push({
+              id: route,
+              pathname: route,
+              type: AdapterOutputType.STATIC_FILE,
+              filePath: staticMetadataFilePath,
+            })
+            continue
+          }
+        }
 
         // we use the static 404 for notFound: true if available
         // if not we do a blocking invoke on first request
