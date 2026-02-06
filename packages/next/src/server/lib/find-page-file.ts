@@ -8,12 +8,38 @@ import { cyan } from '../../lib/picocolors'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import type { PageExtensions } from '../../build/page-extensions-type'
 
+const directoryEntriesCache = new Map<string, Set<string>>()
+let isDirectoryEntriesCacheCleanupScheduled = false
+
+function scheduleDirectoryEntriesCacheCleanup() {
+  if (isDirectoryEntriesCacheCleanupScheduled) {
+    return
+  }
+  isDirectoryEntriesCacheCleanupScheduled = true
+  setImmediate(() => {
+    directoryEntriesCache.clear()
+    isDirectoryEntriesCacheCleanupScheduled = false
+  })
+}
+
+async function getDirectoryEntries(dir: string) {
+  const cached = directoryEntriesCache.get(dir)
+  if (cached) {
+    return cached
+  }
+
+  const entries = new Set(await fsPromises.readdir(dir))
+  directoryEntriesCache.set(dir, entries)
+  scheduleDirectoryEntriesCacheCleanup()
+  return entries
+}
+
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(sep).filter(Boolean)
   const segmentExistsPromises = pageSegments.map(async (segment, i) => {
     const segmentParentDir = join(pagesDir, ...pageSegments.slice(0, i))
-    const parentDirEntries = await fsPromises.readdir(segmentParentDir)
-    return parentDirEntries.includes(segment)
+    const parentDirEntries = await getDirectoryEntries(segmentParentDir)
+    return parentDirEntries.has(segment)
   })
 
   return (await Promise.all(segmentExistsPromises)).every(Boolean)

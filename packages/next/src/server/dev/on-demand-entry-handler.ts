@@ -261,8 +261,42 @@ export const getInvalidator = (dir: string) => {
 }
 
 const doneCallbacks: EventEmitter = new EventEmitter()
-const lastClientAccessPages = ['']
-const lastServerAccessPagesForAppDir = ['']
+type RecentEntriesTracker = {
+  list: string[]
+  set: Set<string>
+}
+
+const createRecentEntriesTracker = (initialEntries: string[]) => ({
+  list: initialEntries,
+  set: new Set(initialEntries),
+})
+
+const lastClientAccessPages = createRecentEntriesTracker([''])
+const lastServerAccessPagesForAppDir = createRecentEntriesTracker([''])
+
+function hasRecentEntry(tracker: RecentEntriesTracker, key: string) {
+  return tracker.set.has(key)
+}
+
+function addRecentEntry(
+  tracker: RecentEntriesTracker,
+  key: string,
+  maxLength: number
+) {
+  if (tracker.set.has(key)) {
+    return
+  }
+
+  tracker.list.unshift(key)
+  tracker.set.add(key)
+
+  if (tracker.list.length > maxLength) {
+    const removed = tracker.list.pop()
+    if (removed !== undefined) {
+      tracker.set.delete(removed)
+    }
+  }
+}
 
 type BuildingTracker = Set<CompilerNameValues>
 type RebuildTracker = Set<CompilerNameValues>
@@ -359,8 +393,8 @@ function disposeInactiveEntries(
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
     if (
-      lastClientAccessPages.includes(entryKey) ||
-      lastServerAccessPagesForAppDir.includes(entryKey)
+      hasRecentEntry(lastClientAccessPages, entryKey) ||
+      hasRecentEntry(lastServerAccessPagesForAppDir, entryKey)
     )
       return
 
@@ -758,15 +792,13 @@ export function onDemandEntryHandler({
         if (entryInfo.status !== BUILT) continue
 
         // If there's an entryInfo
-        if (!lastServerAccessPagesForAppDir.includes(entryKey)) {
-          lastServerAccessPagesForAppDir.unshift(entryKey)
-
-          // Maintain the buffer max length
-          // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
-          if (lastServerAccessPagesForAppDir.length > pagesBufferLength) {
-            lastServerAccessPagesForAppDir.pop()
-          }
-        }
+        // Maintain the buffer max length
+        // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
+        addRecentEntry(
+          lastServerAccessPagesForAppDir,
+          entryKey,
+          pagesBufferLength
+        )
         entryInfo.lastActiveTime = Date.now()
         entryInfo.dispose = false
       }
@@ -796,14 +828,7 @@ export function onDemandEntryHandler({
       if (entryInfo.status !== BUILT) continue
 
       // If there's an entryInfo
-      if (!lastClientAccessPages.includes(entryKey)) {
-        lastClientAccessPages.unshift(entryKey)
-
-        // Maintain the buffer max length
-        if (lastClientAccessPages.length > pagesBufferLength) {
-          lastClientAccessPages.pop()
-        }
-      }
+      addRecentEntry(lastClientAccessPages, entryKey, pagesBufferLength)
       entryInfo.lastActiveTime = Date.now()
       entryInfo.dispose = false
     }
