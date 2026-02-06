@@ -26,13 +26,13 @@ const nextServer = new NextServer({
 
 const requestHandler = nextServer.getRequestHandler()
 
+const port = parseInt(process.env.PORT, 10) || 3000
+
 require('http')
   .createServer((req, res) => {
-    console.time('next-request')
-    return requestHandler(req, res).finally(() => {
-      console.timeEnd('next-request')
-    })
+    return requestHandler(req, res)
   })
-  .listen(3000, () => {
+  .listen(port, () => {
     console.timeEnd('next-cold-start')
+    console.log('Listening on port ' + port)
   })

@@ -1,5 +1,11 @@
-import type { Readable } from 'node:stream'
-import { Transform, PassThrough } from 'node:stream'
+import type { Readable, Transform } from 'node:stream'
+
+// Lazy require to avoid webpack trying to resolve node:stream at parse time.
+// When __NEXT_USE_NODE_STREAMS is false, DCE removes all call sites so this
+// require() is never reached at runtime.
+function getNodeStream(): typeof import('node:stream') {
+  return require('node:stream') as typeof import('node:stream')
+}
 import { DetachedPromise } from '../../lib/detached-promise'
 import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
 import { ENCODED_TAGS } from './encoded-tags'
@@ -24,13 +30,15 @@ const encoder = new TextEncoder()
 // ---------------------------------------------------------------------------
 
 export function nodeStreamFromString(str: string): Readable {
-  const pt = new PassThrough()
+  const { PassThrough: PT } = getNodeStream()
+  const pt = new PT()
   pt.end(encoder.encode(str))
   return pt
 }
 
 export function nodeStreamFromBuffer(buf: Buffer | Uint8Array): Readable {
-  const pt = new PassThrough()
+  const { PassThrough: PT } = getNodeStream()
+  const pt = new PT()
   pt.end(buf)
   return pt
 }
@@ -93,8 +101,9 @@ export function chainNodeTransforms(
  * Each stream is fully consumed before moving to the next.
  */
 export function chainNodeStreams(...streams: Readable[]): Readable {
+  const { PassThrough: PT } = getNodeStream()
   if (streams.length === 0) {
-    const pt = new PassThrough()
+    const pt = new PT()
     pt.end()
     return pt
   }
@@ -102,7 +111,7 @@ export function chainNodeStreams(...streams: Readable[]): Readable {
     return streams[0]
   }
 
-  const output = new PassThrough()
+  const output = new PT()
   let index = 0
 
   function pipeNext() {
@@ -137,8 +146,9 @@ export function createBufferedTransformNode(
   let bufferedChunks: Uint8Array[] = []
   let bufferByteLength = 0
   let pending: DetachedPromise<void> | undefined
+  const { Transform: T } = getNodeStream()
 
-  return new Transform({
+  return new T({
     transform(chunk: Uint8Array, _encoding, callback) {
       bufferedChunks.push(chunk)
       bufferByteLength += chunk.byteLength
@@ -191,8 +201,9 @@ export function createBufferedTransformNode(
 
 export function createHtmlDataDplIdTransformNode(dplId: string): Transform {
   let didTransform = false
+  const { Transform: T } = getNodeStream()
 
-  return new Transform({
+  return new T({
     transform(chunk: Uint8Array, _encoding, callback) {
       if (didTransform) {
         this.push(chunk)
@@ -229,8 +240,9 @@ export function createMetadataTransformNode(
 ): Transform {
   let chunkIndex = -1
   let isMarkRemoved = false
+  const { Transform: T } = getNodeStream()
 
-  return new Transform({
+  return new T({
     transform(chunk: Uint8Array, _encoding, callback) {
       chunkIndex++
 
@@ -309,8 +321,9 @@ export function createMetadataTransformNode(
 export function createDeferredSuffixTransformNode(suffix: string): Transform {
   let flushed = false
   let pendingPromise: Promise<void> | undefined
+  const { Transform: T } = getNodeStream()
 
-  return new Transform({
+  return new T({
     transform(chunk: Uint8Array, _encoding, callback) {
       this.push(chunk)
 
@@ -357,8 +370,9 @@ export function createFlightDataInjectionTransformNode(
   // Initialize pullDeferred eagerly to avoid the race condition where
   // flush() is called before the scheduleImmediate callback assigns it.
   const pullDeferred = new DetachedPromise<void>()
+  const { Transform: T } = getNodeStream()
 
-  const transform = new Transform({
+  const transform = new T({
     transform(chunk: Uint8Array, _encoding, callback) {
       this.push(chunk)
 
@@ -433,8 +447,9 @@ export function createFlightDataInjectionTransformNode(
 export function createRootLayoutValidatorTransformNode(): Transform {
   let foundHtml = false
   let foundBody = false
+  const { Transform: T } = getNodeStream()
 
-  return new Transform({
+  return new T({
     transform(chunk: Uint8Array, _encoding, callback) {
       if (
         !foundHtml &&
@@ -480,8 +495,9 @@ export function createRootLayoutValidatorTransformNode(): Transform {
 
 export function createMoveSuffixTransformNode(): Transform {
   let foundSuffix = false
+  const { Transform: T } = getNodeStream()
 
-  return new Transform({
+  return new T({
     transform(chunk: Uint8Array, _encoding, callback) {
       if (foundSuffix) {
         this.push(chunk)
@@ -519,8 +535,9 @@ export function createHeadInsertionTransformNode(
 ): Transform {
   let inserted = false
   let hasBytes = false
+  const { Transform: T } = getNodeStream()
 
-  return new Transform({
+  return new T({
     transform(chunk: Uint8Array, _encoding, callback) {
       hasBytes = true
 
@@ -593,8 +610,9 @@ export function createClientResumeScriptInsertionTransformNode(): Transform {
   const NEXT_CLIENT_RESUME_SCRIPT = `<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
 
   let didAlreadyInsert = false
+  const { Transform: T } = getNodeStream()
 
-  return new Transform({
+  return new T({
     transform(chunk: Uint8Array, _encoding, callback) {
       if (didAlreadyInsert) {
         this.push(chunk)
@@ -628,7 +646,8 @@ export function createClientResumeScriptInsertionTransformNode(): Transform {
 }
 
 export function createStripDocumentClosingTagsTransformNode(): Transform {
-  return new Transform({
+  const { Transform: T } = getNodeStream()
+  return new T({
     transform(chunk: Uint8Array, _encoding, callback) {
       if (
         isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.BODY_AND_HTML) ||

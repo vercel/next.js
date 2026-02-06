@@ -1,5 +1,11 @@
 import type { Writable, Readable } from 'node:stream'
-import { PassThrough } from 'node:stream'
+
+// Lazy require to avoid webpack trying to resolve node:stream at parse time.
+// When __NEXT_USE_NODE_STREAMS is false, DCE removes all call sites so this
+// require() is never reached at runtime.
+function getNodeStream(): typeof import('node:stream') {
+  return require('node:stream') as typeof import('node:stream')
+}
 import type {
   RenderToPipeableStreamOptions,
   PipeableStream,
@@ -32,6 +38,7 @@ export function renderToFizzPipeableStream(
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () => {
     const shellReady = new DetachedPromise<FizzPipeableStreamResult>()
     const allReady = new DetachedPromise<void>()
+    const { PassThrough } = getNodeStream()
     const passthrough = new PassThrough()
 
     const originalOnShellReady = options?.onShellReady
@@ -90,6 +97,7 @@ export function resumeToFizzPipeableStream(
 ): Promise<FizzPipeableStreamResult> {
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () => {
     const allReady = new DetachedPromise<void>()
+    const { PassThrough } = getNodeStream()
     const passthrough = new PassThrough()
 
     const originalOnAllReady = options?.onAllReady
@@ -139,6 +147,7 @@ export function renderToFlightPipeableStream(
   webpackMap: any,
   options?: any
 ): Readable {
+  const { PassThrough } = getNodeStream()
   const passthrough = new PassThrough()
   const { pipe } = renderToPipeableStreamFn(model, webpackMap, options)
   pipe(passthrough as unknown as Writable)

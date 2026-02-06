@@ -1,22 +1,26 @@
 #!/bin/bash
 # Benchmark script for comparing web streams vs node streams performance.
-# Runs autocannon multiple times and reports mean/stddev for each mode.
+# Uses the minimal server (bench/next-minimal-server) for lowest overhead.
+# Warms up with 50 requests, then runs two phases:
+#   Phase 1: 10s at concurrency=1   (single-client latency)
+#   Phase 2: 10s at concurrency=100 (throughput under load)
+# Reports throughput and latency percentiles for each phase.
 #
 # Usage:
-#   ./benchmark.sh [runs] [duration] [connections]
+#   ./benchmark.sh [duration] [warmup_requests]
 #
-# Defaults: 5 runs, 10s duration, 50 connections
+# Defaults: 10s duration per phase, 50 warmup requests
 
 set -euo pipefail
 
-RUNS=${1:-5}
-DURATION=${2:-10}
-CONNECTIONS=${3:-50}
+DURATION=${1:-10}
+WARMUP_REQS=${2:-50}
 PORT=3199
 NEXT_BIN="../../packages/next/dist/bin/next"
+MINIMAL_SERVER="../next-minimal-server/bin/minimal-server.js"
 
 if ! command -v npx &>/dev/null; then
-  echo "npx is required"
+  echo "npx is required (for autocannon)"
   exit 1
 fi
 
@@ -25,74 +29,85 @@ cleanup() {
 }
 trap cleanup EXIT
 
-join_csv() {
-  local IFS=','
-  echo "$*"
+start_server() {
+  cleanup
+  sleep 0.5
+  PORT=$PORT node "$MINIMAL_SERVER" &>/dev/null &
+  SERVER_PID=$!
+
+  # Wait for server to be ready
+  local retries=0
+  while ! curl -sf "http://localhost:$PORT" >/dev/null 2>&1; do
+    retries=$((retries + 1))
+    if [ "$retries" -gt 30 ]; then
+      echo "ERROR: Server failed to start after 15s"
+      exit 1
+    fi
+    sleep 0.5
+  done
+}
+
+stop_server() {
+  kill "$SERVER_PID" 2>/dev/null || true
+  wait "$SERVER_PID" 2>/dev/null || true
+  cleanup
+  sleep 1
+}
+
+warmup() {
+  echo "  Warming up ($WARMUP_REQS requests)..."
+  for i in $(seq 1 "$WARMUP_REQS"); do
+    curl -sf "http://localhost:$PORT" >/dev/null 2>&1 || true
+  done
+  sleep 0.5
+}
+
+run_phase() {
+  local label="$1"
+  local connections="$2"
+
+  echo ""
+  echo "  --- $label (${DURATION}s, c=$connections) ---"
+
+  local result
+  result=$(npx autocannon -d "$DURATION" -c "$connections" -j "http://localhost:$PORT" 2>/dev/null)
+
+  node -e "
+    const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+    const r = d.requests;
+    const l = d.latency;
+    console.log('  Throughput:');
+    console.log('    avg: ' + r.average + ' req/s');
+    console.log('    mean: ' + r.mean + ' req/s');
+    console.log('    total: ' + r.total + ' requests in ${DURATION}s');
+    console.log('  Latency:');
+    console.log('    avg:  ' + l.average.toFixed(2) + ' ms');
+    console.log('    p50:  ' + l.p50.toFixed(2) + ' ms');
+    console.log('    p90:  ' + l.p90.toFixed(2) + ' ms');
+    console.log('    p99:  ' + l.p99.toFixed(2) + ' ms');
+    console.log('    max:  ' + l.max.toFixed(2) + ' ms');
+  " <<< "$result"
 }
 
 run_benchmark() {
   local mode="$1"
-  local rps_values=()
-  local lat_values=()
 
   echo ""
-  echo "=== $mode ==="
-  echo "Running $RUNS iterations ($DURATION s each, $CONNECTIONS connections)"
-  echo ""
+  echo "============================================"
+  echo "  $mode"
+  echo "============================================"
 
-  for i in $(seq 1 "$RUNS"); do
-    NODE_ENV=production PORT=$PORT node "$NEXT_BIN" start -p "$PORT" &>/dev/null &
-    local server_pid=$!
-    sleep 2
-
-    # Warm-up
-    curl -s "http://localhost:$PORT" >/dev/null 2>&1 || true
-    sleep 0.5
-
-    local result
-    result=$(npx autocannon -d "$DURATION" -c "$CONNECTIONS" -j "http://localhost:$PORT" 2>/dev/null)
-
-    local rps lat
-    rps=$(echo "$result" | node -e "
-      const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-      console.log(d.requests.average);
-    ")
-    lat=$(echo "$result" | node -e "
-      const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-      console.log(d.latency.average);
-    ")
-
-    rps_values+=("$rps")
-    lat_values+=("$lat")
-
-    printf "  Run %d: %s req/s  %.2f ms avg latency\n" "$i" "$rps" "$lat"
-
-    kill "$server_pid" 2>/dev/null || true
-    wait "$server_pid" 2>/dev/null || true
-    cleanup
-    sleep 1
-  done
-
-  local rps_csv lat_csv
-  rps_csv=$(join_csv "${rps_values[@]}")
-  lat_csv=$(join_csv "${lat_values[@]}")
-
-  node -e "
-    const rps = [${rps_csv}];
-    const lat = [${lat_csv}];
-    const mean = arr => arr.reduce((a,b) => a+b, 0) / arr.length;
-    const std = arr => {
-      const m = mean(arr);
-      return Math.sqrt(arr.reduce((s,v) => s + (v-m)**2, 0) / arr.length);
-    };
-    console.log('');
-    console.log('  Req/s:   mean=' + mean(rps).toFixed(1) + '  stddev=' + std(rps).toFixed(1));
-    console.log('  Latency: mean=' + mean(lat).toFixed(2) + 'ms  stddev=' + std(lat).toFixed(2) + 'ms');
-  "
+  start_server
+  warmup
+  run_phase "Single client" 1
+  run_phase "Under load" 100
+  stop_server
 }
 
 echo "Benchmark: web streams vs node streams"
 echo "======================================="
+echo "Duration: ${DURATION}s per phase | Warmup: ${WARMUP_REQS} reqs"
+echo "Server: minimal-server (minimalMode: true)"
 
 # --- Web Streams (default) ---
 cat > next.config.js <<'CONF'
