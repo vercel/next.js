@@ -71,7 +71,7 @@ use crate::{
     util::{
         OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, internal_assets_conditions,
-        module_styles_rule_condition,
+        module_styles_rule_condition, worker_forwarded_globals,
     },
 };
 
@@ -503,7 +503,7 @@ pub async fn get_client_chunking_context(
     .debug_ids(*debug_ids.await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
     .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(vec![rcstr!("NEXT_DEPLOYMENT_ID")]);
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     if next_mode.is_development() {
         builder = builder

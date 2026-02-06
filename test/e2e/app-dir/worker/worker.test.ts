@@ -17,7 +17,7 @@ describe('app dir - workers', () => {
       const url = request.url()
       // TODO fix deployment id for webpack
       if (isTurbopack) {
-        if (url.includes('_next') && !url.includes('wasm')) {
+        if (url.includes('/_next/') && !url.includes('wasm')) {
           expect(url).toMatch(/^[^?]+\?(v=\d+&)?dpl=test-deployment-id$/)
         }
       }
@@ -130,5 +130,52 @@ describe('app dir - workers', () => {
         'shared-worker.ts:worker-dep:2'
       )
     )
+  })
+
+  it('should support loading PNG files in web workers', async () => {
+    const browser = await next.browser('/png', {
+      beforePageLoad,
+    })
+    // Initial state should be default
+    expect(await browser.elementByCss('#png-url').text()).toBe('default')
+
+    // Trigger worker to get PNG info
+    await browser.elementByCss('button').click()
+
+    // Wait for worker to respond and verify PNG info
+    await retry(async () => {
+      const pngUrl = await browser.elementByCss('#png-url').text()
+      expect(pngUrl).toContain('test-image')
+      expect(pngUrl).toContain('.png')
+    })
+
+    await retry(async () => {
+      const pngWidth = await browser.elementByCss('#png-width').text()
+      expect(pngWidth).toBe('1')
+    })
+
+    await retry(async () => {
+      const pngHeight = await browser.elementByCss('#png-height').text()
+      expect(pngHeight).toBe('1')
+    })
+
+    // Verify the worker actually fetched the PNG (proves asset URL works in worker)
+    await retry(async () => {
+      const fetchStatus = await browser.elementByCss('#fetch-status').text()
+      expect(fetchStatus).toBe('200')
+    })
+
+    await retry(async () => {
+      const contentType = await browser.elementByCss('#content-type').text()
+      expect(contentType).toBe('image/png')
+    })
+
+    // Log the full verification info for visual inspection
+    const fetchedFrom = await browser.elementByCss('#fetched-from').text()
+    console.log('Web Worker PNG verification:', {
+      fetchedFrom,
+      contentType: await browser.elementByCss('#content-type').text(),
+      status: await browser.elementByCss('#fetch-status').text(),
+    })
   })
 })

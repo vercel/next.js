@@ -53,17 +53,47 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let asset_prefix = this.chunking_context.asset_prefix().await?;
         let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
 
+        // Get the list of global variable names to forward to workers
+        let worker_forwarded_globals =
+            Vc::upcast::<Box<dyn ChunkingContext>>(*this.chunking_context)
+                .worker_forwarded_globals()
+                .await?;
+
         writedoc!(
             code,
             r#"
                 const RUNTIME_PUBLIC_PATH = {};
                 const RELATIVE_ROOT_PATH = {};
                 const ASSET_PREFIX = {};
+                const WORKER_FORWARDED_GLOBALS = {};
             "#,
             StringifyJs(runtime_public_path),
             StringifyJs(output_root_to_root_path.as_str()),
             StringifyJs(asset_prefix),
+            StringifyJs(&*worker_forwarded_globals),
         )?;
+
+        // Add preamble to read forwarded globals from workerData (for worker_threads)
+        if !worker_forwarded_globals.is_empty() {
+            writedoc!(
+                code,
+                r#"
+                    // Apply forwarded globals from workerData if running in a worker thread
+                    if (typeof require !== 'undefined') {{
+                        try {{
+                            const {{ workerData }} = require('worker_threads');
+                            if (workerData?.__turbopack_globals__) {{
+                                Object.assign(globalThis, workerData.__turbopack_globals__);
+                                // Remove internal data so it's not visible to user code
+                                delete workerData.__turbopack_globals__;
+                            }}
+                        }} catch (_) {{
+                            // Not in a worker thread context, ignore
+                        }}
+                    }}
+                "#,
+            )?;
+        }
 
         match *this.chunking_context.runtime_type().await? {
             RuntimeType::Development => {

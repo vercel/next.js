@@ -149,6 +149,13 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn worker_forwarded_globals(mut self, globals: Vec<RcStr>) -> Self {
+        self.chunking_context
+            .worker_forwarded_globals
+            .extend(globals);
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -217,6 +224,8 @@ pub struct NodeJsChunkingContext {
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Enable debug IDs for chunks and source maps.
     debug_ids: bool,
+    /// Global variable names to forward to workers (e.g. NEXT_DEPLOYMENT_ID)
+    worker_forwarded_globals: Vec<RcStr>,
 }
 
 impl NodeJsChunkingContext {
@@ -260,6 +269,7 @@ impl NodeJsChunkingContext {
                 unused_references: None,
                 chunking_configs: Default::default(),
                 debug_ids: false,
+                worker_forwarded_globals: vec![],
             },
         }
     }
@@ -677,5 +687,10 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn debug_ids_enabled(&self) -> Vc<bool> {
         Vc::cell(self.debug_ids)
+    }
+
+    #[turbo_tasks::function]
+    fn worker_forwarded_globals(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.worker_forwarded_globals.clone())
     }
 }

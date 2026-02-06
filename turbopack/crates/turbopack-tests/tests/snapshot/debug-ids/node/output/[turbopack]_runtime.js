@@ -1,6 +1,7 @@
 const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const ASSET_PREFIX = "/";
+const WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -714,10 +715,31 @@ function loadWebAssemblyModule(chunkPath, _edgeModule) {
     return compileWebAssemblyFromPath(resolved);
 }
 contextPrototype.u = loadWebAssemblyModule;
-function getWorkerURL(_entrypoint, _moduleChunks, _shared) {
-    throw new Error('Worker urls are not implemented yet for Node.js');
+/**
+ * Creates a Node.js worker thread by instantiating the given WorkerConstructor
+ * with the appropriate path and options, including forwarded globals.
+ *
+ * @param WorkerConstructor The Worker constructor from worker_threads
+ * @param workerPath Path to the worker entry chunk
+ * @param workerOptions options to pass to the Worker constructor (optional)
+ */ function createWorker(WorkerConstructor, workerPath, workerOptions) {
+    // Build the forwarded globals object
+    const forwardedGlobals = {};
+    for (const name of WORKER_FORWARDED_GLOBALS){
+        forwardedGlobals[name] = globalThis[name];
+    }
+    // Merge workerData with forwarded globals
+    const existingWorkerData = workerOptions?.workerData || {};
+    const options = {
+        ...workerOptions,
+        workerData: {
+            ...typeof existingWorkerData === 'object' ? existingWorkerData : {},
+            __turbopack_globals__: forwardedGlobals
+        }
+    };
+    return new WorkerConstructor(workerPath, options);
 }
-nodeContextPrototype.b = getWorkerURL;
+nodeContextPrototype.b = createWorker;
 function instantiateModule(id, sourceType, sourceData) {
     const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {

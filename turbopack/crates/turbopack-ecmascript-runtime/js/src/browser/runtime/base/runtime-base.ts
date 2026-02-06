@@ -335,22 +335,28 @@ function exportUrl(
 browserContextPrototype.q = exportUrl
 
 /**
- * Returns a URL for the worker.
+ * Creates a worker by instantiating the given WorkerConstructor with the
+ * appropriate URL and options.
+ *
  * The entrypoint is a pre-compiled worker runtime file. The params configure
  * which module chunks to load and which module to run as the entry point.
  *
  * The params are a JSON array of the following structure:
  * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
  *
+ * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint URL path to the worker entrypoint chunk
  * @param moduleChunks list of module chunk paths to load
- * @param shared whether this is a SharedWorker (uses querystring for URL identity)
+ * @param workerOptions options to pass to the Worker constructor (optional)
  */
-function getWorkerURL(
+function createWorker(
+  WorkerConstructor: { new (url: URL, options?: object): Worker },
   entrypoint: ChunkPath,
   moduleChunks: ChunkPath[],
-  shared: boolean
-): URL {
+  workerOptions?: object
+): Worker {
+  const isSharedWorker = WorkerConstructor.name === 'SharedWorker'
+
   const chunkUrls = moduleChunks
     .map((chunk) => getChunkRelativeUrl(chunk))
     .reverse()
@@ -361,14 +367,19 @@ function getWorkerURL(
 
   const url = new URL(getChunkRelativeUrl(entrypoint), location.origin)
   const paramsJson = JSON.stringify(params)
-  if (shared) {
+  if (isSharedWorker) {
     url.searchParams.set('params', paramsJson)
   } else {
     url.hash = '#params=' + encodeURIComponent(paramsJson)
   }
-  return url
+
+  // Remove type: "module" from options since our worker entrypoint is not a module
+  const options = workerOptions
+    ? { ...workerOptions, type: undefined }
+    : undefined
+  return new WorkerConstructor(url, options)
 }
-browserContextPrototype.b = getWorkerURL
+browserContextPrototype.b = createWorker
 
 /**
  * Instantiates a runtime module.
