@@ -184,7 +184,7 @@ impl ValueMode {
 ///
 /// cases where count per time is very low is probably not important
 fn value_over_time(value: u64, time: Timestamp) -> u64 {
-    if *time == 0 { 0 } else { value / *time }
+    value.checked_div(*time).unwrap_or(0)
 }
 
 #[derive(Clone, Copy, Debug)]

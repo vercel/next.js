@@ -209,8 +209,10 @@ pub async fn make_production_chunks(
                     min_chunk_size
                 } else if let Some(smallest) = heap.peek() {
                     smallest.size
-                } else if max_chunk_count_per_group != 0 {
-                    chunks_to_merge_size / max_chunk_count_per_group
+                } else if let Some(merge_threshold) =
+                    chunks_to_merge_size.checked_div(max_chunk_count_per_group)
+                {
+                    merge_threshold
                 } else {
                     unreachable!();
                 };
