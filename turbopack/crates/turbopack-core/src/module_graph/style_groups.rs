@@ -42,13 +42,41 @@ pub struct StyleGroups {
         FxIndexMap<ChunkItemWithAsyncModuleInfo, ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>,
 }
 
+/// Information about a CSS module and its presence across chunk groups.
+///
+/// Each CSS module can appear in multiple chunk groups (e.g., different routes/pages).
+/// This struct tracks where the module appears and its properties for the batching algorithm.
 #[derive(Debug)]
 struct ModuleInfo {
+    /// The type of style (e.g., GlobalStyle, ModuleStyle).
     style_type: StyleType,
+    /// The module identifier, used as a tiebreaker for deterministic ordering.
     ident: RcStr,
-    chunk_group_indices: FxHashMap<usize, usize>,
+    /// Maps chunk group index to the module's position within that chunk group's postorder.
+    ///
+    /// - Key: The index of a chunk group that contains this module
+    /// - Value: The position (index) of this module in that chunk group's postorder traversal
+    ///
+    /// For example, if a module appears in chunk groups 0 and 2:
+    /// - `{0: 5, 2: 3}` means it's at position 5 in chunk group 0, position 3 in chunk group 2
+    ///
+    /// This is used to:
+    /// 1. Determine which chunk groups a module belongs to (via `.keys()`)
+    /// 2. Look up a module's position in a specific chunk group (via `.get()`)
+    /// 3. Compute dependencies (module A depends on B if A appears after B in all shared groups)
+    ///
+    /// Uses FxIndexMap for deterministic iteration order (insertion order).
+    /// Since chunk groups are processed sequentially (0, 1, 2, ...), insertion order
+    /// equals sorted order. This is important because iteration order affects which
+    /// modules are selected for batching, and non-deterministic order can cause CSS
+    /// ordering bugs. See GitHub issue #89523.
+    chunk_group_indices: FxIndexMap<usize, usize>,
+    /// Sum of all position indices across chunk groups, used for sorting modules.
+    /// Lower values mean the module tends to appear earlier in chunk groups.
     index_sum: usize,
+    /// The byte size of this module's CSS output, used for chunk size budgeting.
     size: usize,
+    /// The chunk item representation of this module, populated after initial processing.
     chunk_item: Option<ChunkItemWithAsyncModuleInfo>,
 }
 
@@ -65,8 +93,16 @@ impl ModuleInfo {
     }
 }
 
+/// State for a single chunk group during style batching.
+///
+/// A chunk group typically corresponds to a route/page and contains all CSS modules
+/// needed by that route in their correct cascade order (postorder DFS traversal).
 struct ChunkGroupState {
+    /// CSS modules in this chunk group, in postorder traversal order.
+    /// The order here determines the correct CSS cascade order.
     styles: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    /// Number of CSS requests remaining for this chunk group.
+    /// Decremented as modules are assigned to shared chunks.
     requests: usize,
 }
 
@@ -184,37 +220,35 @@ pub async fn compute_style_groups(
     });
 
     // Compute the dependents of each module
-    let mut module_dependents: FxHashMap<_, Vec<_>> = FxHashMap::default();
+    // A module X is a dependency of module Y if X appears before Y in ALL chunk groups where both
+    // appear. We need to check all chunk groups, not just the shortest one.
+    let mut module_dependents: FxHashMap<_, FxHashSet<_>> = FxHashMap::default();
     for (&module, info) in &module_info_map {
         let info = info.as_ref().unwrap();
-        // Find the shortest chunk group as it's most efficient to iterate
-        let (&idx, &start_pos) = info
-            .chunk_group_indices
-            .iter()
-            .min_by_key(|&(&idx, _)| chunk_group_state[idx].styles.len())
-            .unwrap();
-        let potential_dependents = &chunk_group_state[idx].styles[start_pos + 1..];
 
-        let dependents = potential_dependents
-            .iter()
-            .copied()
-            .filter(|dependent| {
-                let dependent_info = module_info_map.get(dependent).unwrap();
-                let dependent_info = dependent_info.as_ref().unwrap();
+        // Collect potential dependents from ALL chunk groups this module appears in
+        let mut dependents = FxHashSet::default();
+        for (&idx, &start_pos) in &info.chunk_group_indices {
+            let following_styles = &chunk_group_state[idx].styles[start_pos + 1..];
+            dependents.extend(following_styles.iter().copied());
+        }
 
-                // module is a dependency of dependent when it's included in all chunk groups of
-                // dependent with an index lower than the index of the dependent
-                info.chunk_group_indices.len() >= dependent_info.chunk_group_indices.len()
-                    && dependent_info
-                        .chunk_group_indices
-                        .iter()
-                        .all(|(idx, &dependent_pos)| {
-                            info.chunk_group_indices
-                                .get(idx)
-                                .is_some_and(|&module_pos| module_pos < dependent_pos)
-                        })
-            })
-            .collect::<Vec<_>>();
+        // module is a dependency of dependent when it's included in all chunk groups of
+        // dependent with an index lower than the index of the dependent
+        dependents.retain(|dependent| {
+            let dependent_info = module_info_map.get(dependent).unwrap();
+            let dependent_info = dependent_info.as_ref().unwrap();
+
+            info.chunk_group_indices.len() >= dependent_info.chunk_group_indices.len()
+                && dependent_info
+                    .chunk_group_indices
+                    .iter()
+                    .all(|(idx, &dependent_pos)| {
+                        info.chunk_group_indices
+                            .get(idx)
+                            .is_some_and(|&module_pos| module_pos < dependent_pos)
+                    })
+        });
 
         if !dependents.is_empty() {
             module_dependents.insert(module, dependents);
@@ -301,7 +335,7 @@ pub async fn compute_style_groups(
                     let requests = info
                         .chunk_group_indices
                         .keys()
-                        .filter(|idx| all_chunk_states.contains_key(idx))
+                        .filter(|&idx| all_chunk_states.contains_key(idx))
                         .map(|&idx| chunk_group_state[idx].requests)
                         .max()
                         .unwrap();

@@ -1,12 +1,13 @@
 use anyhow::Result;
-use rustc_hash::FxHashSet;
+use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
     chunk::{
-        ChunkItemBatchGroup, ChunkItemWithAsyncModuleInfo, ChunkingConfig, ChunkingContext,
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo,
+        ChunkingConfig, ChunkingContext,
         chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
     },
     module_graph::{ModuleGraph, style_groups::StyleGroupsConfig},
@@ -33,10 +34,30 @@ pub async fn make_style_production_chunks(
                 },
             )
             .await?;
-        let mut handled = FxHashSet::default();
+
+        // `style_groups` has computed a set of shared batches from the chunk_items. We need to
+        // create chunks for those while respecting dependency ordering.
+        // The input `chunk_items` is already in dependency order based on a DFS post-order
+        // traversal of the module graph. However, this is a partial order and style_groups takes
+        // advantage of that to produce shared batches. To ensure we produce chunks in a valid
+        // order, we emit a shared batch only after we've seen all its members in the input.
+        // We track how many items remain for each batch and emit when the count reaches zero.
+
+        // Track remaining items for each batch (initialized with batch sizes, decremented as we go)
+        let mut batch_remaining: FxHashMap<ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>, usize> =
+            FxHashMap::default();
+        for (_, &batch) in &style_groups.shared_chunk_items {
+            *batch_remaining.entry(batch).or_default() += 1;
+        }
+
+        // Process a single chunk item, emitting chunks as needed
         let mut handle_chunk_item = async |chunk_item: &ChunkItemWithAsyncModuleInfo| {
             if let Some(&batch) = style_groups.shared_chunk_items.get(chunk_item) {
-                if handled.insert(batch) {
+                let remaining = batch_remaining.get_mut(&batch).unwrap();
+                *remaining -= 1;
+
+                // Emit batch chunk when we've seen all its items
+                if *remaining == 0 {
                     make_chunk(
                         vec![&ChunkItemOrBatchWithInfo::Batch { batch, size: 0 }],
                         vec![],
@@ -72,6 +93,11 @@ pub async fn make_style_production_chunks(
                 }
             };
         }
+
+        debug_assert!(
+            batch_remaining.values().all(|&count| count == 0),
+            "Not all batch items were seen in chunk_items"
+        );
 
         Ok(())
     }
