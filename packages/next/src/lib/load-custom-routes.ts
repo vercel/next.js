@@ -770,12 +770,6 @@ export default async function loadCustomRoutes(
             value: '1',
           },
         ],
-        missing: [
-          {
-            type: 'header',
-            key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
-          },
-        ],
         headers: [
           {
             key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
@@ -785,12 +779,6 @@ export default async function loadCustomRoutes(
       },
       {
         source: '/_next/data/(.*)',
-        missing: [
-          {
-            type: 'header',
-            key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
-          },
-        ],
         headers: [
           {
             key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
