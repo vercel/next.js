@@ -103,4 +103,56 @@ describe('open browser option', () => {
       })
     })
   })
+
+  describe('with next.config.js open: true (no CLI flag)', () => {
+    let next: NextInstance
+
+    beforeAll(async () => {
+      next = await createNext({
+        files: {
+          'app/page.tsx': `export default function Page() { return <div>Hello</div> }`,
+          'next.config.js': `module.exports = { open: true }`,
+        },
+        skipStart: true,
+        startCommand: 'pnpm next dev',
+      })
+    })
+
+    afterAll(() => next.destroy())
+
+    it('should start dev server and read open from config', async () => {
+      await next.start()
+
+      await retry(async () => {
+        const res = await next.fetch('/')
+        expect(res.status).toBe(200)
+      })
+    })
+  })
+
+  describe('with next.config.js open: true in next start (no CLI flag)', () => {
+    let next: NextInstance
+
+    beforeAll(async () => {
+      next = await createNext({
+        files: {
+          'app/page.tsx': `export default function Page() { return <div>Hello</div> }`,
+          'next.config.js': `module.exports = { open: true }`,
+        },
+        skipStart: true,
+        startCommand: 'pnpm next start',
+      })
+    })
+
+    afterAll(() => next.destroy())
+
+    it('should start production server and read open from config', async () => {
+      await next.start()
+
+      await retry(async () => {
+        const res = await next.fetch('/')
+        expect(res.status).toBe(200)
+      })
+    })
+  })
 })

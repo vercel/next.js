@@ -1752,6 +1752,8 @@ export interface NextConfigRuntime {
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
   logging?: NextConfigComplete['logging']
+  /** CLI-only: open browser when starting dev/start (see NextConfig.open) */
+  open?: NextConfigComplete['open']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1895,7 +1897,7 @@ export function getNextConfigRuntime(
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
     logging: config.logging,
-
+    open: config.open,
     experimental,
   }
 
