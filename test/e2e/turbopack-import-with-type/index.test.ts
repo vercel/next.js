@@ -37,6 +37,11 @@ describe('turbopack-import-with-type', () => {
         instanceofUint8Array: true,
         content: jsContent,
       },
+      configuredAsJsAsBytes: {
+        instanceofUint8Array: true,
+        content:
+          "throw new Error('this file is configured as ecmascript but imported as bytes')\n",
+      },
     })
   })
 })

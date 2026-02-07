@@ -361,6 +361,31 @@ impl ModuleOptions {
 
         let mut rules = vec![];
 
+        // Import attribute rules (bytes/text) must come BEFORE config rules.
+        // Import attributes have a stronger API contract - they're explicit in the source code
+        // and should override any file-pattern-based config rules.
+        if enable_import_as_bytes {
+            rules.push(ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
+                )),
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(BytesSourceTransform::new().to_resolved().await?),
+                ]))],
+            ));
+        }
+
+        if enable_import_as_text {
+            rules.push(ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
+                )),
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
+                ]))],
+            ));
+        }
+
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let webpack_loaders_options = webpack_loaders_options.await?;
             let execution_context =
@@ -530,34 +555,6 @@ impl ModuleOptions {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
             ),
         ]);
-
-        if enable_import_as_bytes {
-            // Rule to apply the source transform when importing with type:"bytes".
-            // The transform renames the file to .mjs, so the existing .mjs rule will
-            // set the module type to Ecmascript.
-            rules.push(ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
-                )),
-                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                    ResolvedVc::upcast(BytesSourceTransform::new().to_resolved().await?),
-                ]))],
-            ));
-        }
-
-        if enable_import_as_text {
-            // Rule to apply the source transform when importing with type:"text".
-            // The transform renames the file to .mjs, so the existing .mjs rule will
-            // set the module type to Ecmascript.
-            rules.push(ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
-                )),
-                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                    ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
-                ]))],
-            ));
-        }
 
         // Rules that apply based on file extension or content type
         rules.extend([
