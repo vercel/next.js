@@ -51,7 +51,10 @@ impl SourceTransform for BytesSourceTransform {
         // For binary files, we use an empty string as sourcesContent since the
         // original content isn't meaningful text.
         let code = format!(
-            r#"const decode = Uint8Array.fromBase64 || function(base64) {{
+            r#"
+"use turbopack no side effects";
+
+const decode = Uint8Array.fromBase64 || function(base64) {{
   const binaryString = atob(base64);
   const buffer = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {{
@@ -59,7 +62,8 @@ impl SourceTransform for BytesSourceTransform {
   }}
   return buffer
 }};
-export default /*#__PURE__*/ decode({});
+
+export default decode({});
 {}"#,
             StringifyJs(&encoded),
             inline_source_map_comment(&path.path, "")
