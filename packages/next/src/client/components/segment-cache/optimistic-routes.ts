@@ -173,7 +173,8 @@ export function discoverKnownRoute(
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   isPPREnabled: boolean,
-  hasDynamicRewrite: boolean
+  hasDynamicRewrite: boolean,
+  isRedirect: boolean = false
 ): FulfilledRouteCacheEntry {
   const tree = routeTree
 
@@ -190,7 +191,8 @@ export function discoverKnownRoute(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled
+      isPPREnabled,
+      isRedirect
     )
     if (hasDynamicRewrite) {
       fulfilledEntry.hasDynamicRewrite = true
@@ -211,7 +213,8 @@ export function discoverKnownRoute(
       couldBeIntercepted,
       canonicalUrl,
       isPPREnabled,
-      hasDynamicRewrite
+      hasDynamicRewrite,
+      isRedirect
     )
     return fulfilledEntry
   }
@@ -231,7 +234,8 @@ export function discoverKnownRoute(
     couldBeIntercepted,
     canonicalUrl,
     isPPREnabled,
-    hasDynamicRewrite
+    hasDynamicRewrite,
+    isRedirect
   )
 }
 
@@ -286,7 +290,8 @@ function discoverKnownRoutePart(
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   isPPREnabled: boolean,
-  hasDynamicRewrite: boolean
+  hasDynamicRewrite: boolean,
+  isRedirect: boolean = false
 ): FulfilledRouteCacheEntry {
   const segment = routeTree.segment
 
@@ -325,7 +330,8 @@ function discoverKnownRoutePart(
         metadataVaryPath,
         couldBeIntercepted,
         canonicalUrl,
-        isPPREnabled
+        isPPREnabled,
+        isRedirect
       )
     }
 
@@ -404,7 +410,8 @@ function discoverKnownRoutePart(
         couldBeIntercepted,
         canonicalUrl,
         isPPREnabled,
-        hasDynamicRewrite
+        hasDynamicRewrite,
+        isRedirect
       )
       // All parallel route branches share the same URL, so they should all
       // reach compatible leaf nodes. We capture any result.
@@ -425,7 +432,8 @@ function discoverKnownRoutePart(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled
+      isPPREnabled,
+      isRedirect
     )
   }
 
@@ -454,7 +462,8 @@ function discoverKnownRoutePart(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled
+      isPPREnabled,
+      isRedirect
     )
   }
 

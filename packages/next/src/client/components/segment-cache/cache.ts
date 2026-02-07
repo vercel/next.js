@@ -1030,7 +1030,8 @@ export function fulfillRouteCacheEntry(
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  isPPREnabled: boolean
+  isPPREnabled: boolean,
+  isRedirect: boolean = false
 ): FulfilledRouteCacheEntry {
   // Get the rendered search from the vary path
   const renderedSearch =
@@ -1042,8 +1043,9 @@ export function fulfillRouteCacheEntry(
   // Route structure is essentially static — it only changes on deploy.
   // Always use the static stale time.
   // NOTE: An exception is rewrites/redirects in middleware or proxy, which can
-  // change routes dynamically. We have other strategies for handling those.
-  fulfilledEntry.staleAt = now + STATIC_STALETIME_MS
+  // change routes dynamically. For redirects, we set staleAt to now so the
+  // cache entry is immediately stale and middleware will be re-evaluated.
+  fulfilledEntry.staleAt = isRedirect ? now : now + STATIC_STALETIME_MS
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
@@ -1060,7 +1062,8 @@ export function writeRouteIntoCache(
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  isPPREnabled: boolean
+  isPPREnabled: boolean,
+  isRedirect: boolean = false
 ): FulfilledRouteCacheEntry {
   const pendingEntry = createDetachedRouteCacheEntry()
   const fulfilledEntry = fulfillRouteCacheEntry(
@@ -1070,7 +1073,8 @@ export function writeRouteIntoCache(
     metadataVaryPath,
     couldBeIntercepted,
     canonicalUrl,
-    isPPREnabled
+    isPPREnabled,
+    isRedirect
   )
   // nextUrl is always null here because we only write to the route cache for
   // non-intercepted routes. Intercepted routes are deopted in attemptOptimisticRouting.
@@ -1735,7 +1739,8 @@ export async function fetchRouteOnCacheMiss(
         couldBeIntercepted,
         canonicalUrl,
         routeIsPPREnabled,
-        false // hasDynamicRewrite
+        false, // hasDynamicRewrite
+        response.redirected // isRedirect - bypass cache for middleware redirects
       )
     } else {
       // PPR is not enabled for this route. The server responds with a
@@ -2173,7 +2178,8 @@ function writeDynamicTreeResponseIntoCache(
     couldBeIntercepted,
     canonicalUrl,
     routeIsPPREnabled,
-    false // hasDynamicRewrite
+    false, // hasDynamicRewrite
+    response.redirected // isRedirect - bypass cache for middleware redirects
   )
 
   // If the server sent segment data as part of the response, we should write
