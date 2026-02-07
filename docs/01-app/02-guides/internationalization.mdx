@@ -142,7 +142,29 @@ const dictionaries = {
 export const hasLocale = (locale) => locale in dictionaries
 
 export const getDictionary = async (locale) => dictionaries[locale]()
+
+
+// Optional, you can use a function like also, so it supports replacement too
+export const getTranslation = async (locale: Locale) => {
+  const dict = await getDictionary(locale);
+
+  return (
+    key: keyof Awaited<ReturnType<typeof getDictionary>>,
+    replace?: Record<string, string>,
+  ) => {
+    let value = dict[key] as string;
+
+    if (replace) {
+      for (const [toReplace, replacement] of Object.entries(replace)) {
+        value = value.replaceAll(`{{${toReplace}}}`, replacement);
+      }
+    }
+
+    return value;
+  };
+};
 ```
+
 
 Given the currently selected language, we can fetch the dictionary inside of a layout or page.
 
