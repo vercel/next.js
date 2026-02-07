@@ -3,6 +3,10 @@ const path = require('path')
 
 const logFile = path.join(__dirname, '.entry-log')
 const callbackLogFile = path.join(__dirname, '.callback-log')
+const deferredPageFile = path.join(__dirname, 'app', 'deferred', 'page.tsx')
+const homePageFile = path.join(__dirname, 'app', 'page.tsx')
+
+let lastHomePageContent = null
 
 /** @type {import('next').NextConfig} */
 module.exports = {
@@ -10,10 +14,34 @@ module.exports = {
     deferredEntries: ['/deferred'],
     onBeforeDeferredEntries: async () => {
       const timestamp = Date.now()
-      // Write the callback log file - this file existing proves callback was called
-      fs.writeFileSync(callbackLogFile, `callback:${timestamp}\n`)
+      const homePageContent = fs.readFileSync(homePageFile, 'utf-8')
+      const shouldWriteDeferredTimestamp =
+        lastHomePageContent === null || lastHomePageContent !== homePageContent
+
+      // Mutate the deferred entry source directly so the deferred build picks
+      // up callback-time content.
+      if (shouldWriteDeferredTimestamp) {
+        const deferredPageContent = fs.readFileSync(deferredPageFile, 'utf-8')
+        const nextDeferredPageContent = deferredPageContent.replace(
+          /const CALLBACK_TIMESTAMP = \d+/,
+          `const CALLBACK_TIMESTAMP = ${timestamp}`
+        )
+        if (nextDeferredPageContent === deferredPageContent) {
+          throw new Error(
+            'Failed to update CALLBACK_TIMESTAMP in deferred page entry'
+          )
+        }
+        fs.writeFileSync(deferredPageFile, nextDeferredPageContent)
+
+        // Persist only write-triggering callback timestamps.
+        // This avoids deferred self-rebuild callback loops in webpack dev.
+        fs.writeFileSync(callbackLogFile, `callback:${timestamp}\n`)
+      }
+
+      lastHomePageContent = homePageContent
+
       console.log(
-        `[TEST] onBeforeDeferredEntries callback executed at ${timestamp}`
+        `[TEST] onBeforeDeferredEntries callback executed at ${timestamp} (write=${shouldWriteDeferredTimestamp})`
       )
 
       // Small delay to ensure we can verify timing

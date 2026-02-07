@@ -35,6 +35,67 @@ function parseCallbackLog(logPath: string): number | null {
   return parseInt(timestamp, 10)
 }
 
+function parseCurrentTimeTimestamp(html: string): number {
+  const match = html.match(/id="current-time">(\d+)</)
+  if (!match) {
+    throw new Error('Could not find current-time timestamp in response HTML')
+  }
+  return parseInt(match[1], 10)
+}
+
+function parseDeferredCallbackTimestamp(html: string): number {
+  const match = html.match(
+    /id="deferred-callback-timestamp">(?:<!-- -->)?(\d+)/
+  )
+  if (!match) {
+    throw new Error(
+      'Could not find deferred callback timestamp in response HTML'
+    )
+  }
+  return parseInt(match[1], 10)
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function waitForCallbackTimestampToStabilize(
+  callbackLogPath: string,
+  stableForMs = 500,
+  pollIntervalMs = 100,
+  timeoutMs = 5000
+): Promise<number> {
+  const start = Date.now()
+  let lastTimestamp = parseCallbackLog(callbackLogPath)
+  if (lastTimestamp === null) {
+    throw new Error('Callback timestamp is not available')
+  }
+
+  let stableMs = 0
+
+  while (Date.now() - start < timeoutMs) {
+    await sleep(pollIntervalMs)
+    const currentTimestamp = parseCallbackLog(callbackLogPath)
+    if (currentTimestamp === null) {
+      throw new Error('Callback timestamp disappeared unexpectedly')
+    }
+
+    if (currentTimestamp === lastTimestamp) {
+      stableMs += pollIntervalMs
+      if (stableMs >= stableForMs) {
+        return currentTimestamp
+      }
+    } else {
+      lastTimestamp = currentTimestamp
+      stableMs = 0
+    }
+  }
+
+  throw new Error(
+    `Callback timestamp did not stabilize within ${timeoutMs}ms (latest: ${lastTimestamp})`
+  )
+}
+
 describe('deferred-entries webpack', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
@@ -71,12 +132,151 @@ describe('deferred-entries webpack', () => {
     })
   })
 
+  it('should render timestamp written by onBeforeDeferredEntries in deferred source file', async () => {
+    const callbackLogPath = path.join(next.testDir, '.callback-log')
+
+    await retry(async () => {
+      const deferredRes = await next.fetch('/deferred')
+      expect(deferredRes.status).toBe(200)
+
+      const html = await deferredRes.text()
+      const renderedTimestamp = parseDeferredCallbackTimestamp(html)
+
+      const callbackTimestamp = parseCallbackLog(callbackLogPath)
+      expect(callbackTimestamp).not.toBeNull()
+      expect(renderedTimestamp).toBe(callbackTimestamp)
+    })
+  })
+
   it('should build pages router routes when using deferred entries', async () => {
     // Verify pages router page works alongside deferred app router entries
     await retry(async () => {
       const legacyRes = await next.fetch('/legacy')
       expect(legacyRes.status).toBe(200)
       expect(await legacyRes.text()).toContain('Legacy Pages Router Page')
+    })
+  })
+
+  it('should build pages router getStaticProps routes when using deferred entries', async () => {
+    await retry(async () => {
+      const staticPropsRes = await next.fetch('/static-props')
+      expect(staticPropsRes.status).toBe(200)
+      expect(await staticPropsRes.text()).toContain(
+        'Pages getStaticProps Primary'
+      )
+    })
+
+    await retry(async () => {
+      const staticPropsSecondaryRes = await next.fetch(
+        '/static-props-secondary'
+      )
+      expect(staticPropsSecondaryRes.status).toBe(200)
+      expect(await staticPropsSecondaryRes.text()).toContain(
+        'Pages getStaticProps Secondary'
+      )
+    })
+  })
+
+  it('should build pages router dynamic getStaticPaths/getStaticProps route when using deferred entries', async () => {
+    await retry(async () => {
+      const staticPathsRes = await next.fetch('/static-paths/alpha')
+      expect(staticPathsRes.status).toBe(200)
+      const html = await staticPathsRes.text()
+      expect(html).toMatch(
+        /Pages getStaticPaths \+ getStaticProps:\s*(?:<!-- -->)?alpha/
+      )
+    })
+  })
+
+  it('should build pages router getServerSideProps route when using deferred entries', async () => {
+    await retry(async () => {
+      const serverSideRes = await next.fetch('/server-side-props')
+      expect(serverSideRes.status).toBe(200)
+      expect(await serverSideRes.text()).toContain('Pages getServerSideProps')
+    })
+  })
+
+  it('should build pages router route with no data fetching when using deferred entries', async () => {
+    await retry(async () => {
+      const noDataRes = await next.fetch('/no-data')
+      expect(noDataRes.status).toBe(200)
+      expect(await noDataRes.text()).toContain('Pages No Data Fetching')
+    })
+  })
+
+  it('should build app router dynamic route with generateStaticParams when using deferred entries', async () => {
+    await retry(async () => {
+      const staticParamsRes = await next.fetch('/static-params/alpha')
+      expect(staticParamsRes.status).toBe(200)
+      const html = await staticParamsRes.text()
+      expect(html).toMatch(/Generated Static Param:\s*(?:<!-- -->)?alpha/)
+    })
+  })
+
+  it('should build app router route handler when using deferred entries', async () => {
+    await retry(async () => {
+      const routeHandlerRes = await next.fetch('/route-handler')
+      expect(routeHandlerRes.status).toBe(200)
+      const data = await routeHandlerRes.json()
+      expect(data.message).toBe('Hello from app route handler')
+    })
+  })
+
+  it('should build app router metadata routes when using deferred entries', async () => {
+    await retry(async () => {
+      const [faviconRes, manifestRes, robotsRes, sitemapRes] =
+        await Promise.all([
+          next.fetch('/favicon.ico'),
+          next.fetch('/manifest.json'),
+          next.fetch('/robots.txt'),
+          next.fetch('/sitemap.xml'),
+        ])
+
+      expect(faviconRes.status).toBe(200)
+      expect(manifestRes.status).toBe(200)
+      expect(robotsRes.status).toBe(200)
+      expect(sitemapRes.status).toBe(200)
+
+      const [actualFavicon, actualManifest, actualRobots] = await Promise.all([
+        next.readFileBuffer('app/favicon.ico'),
+        next.readFile('app/manifest.json'),
+        next.readFile('app/robots.txt'),
+      ])
+
+      expect(
+        Buffer.compare(
+          Buffer.from(await faviconRes.arrayBuffer()),
+          actualFavicon
+        )
+      ).toBe(0)
+      expect(await manifestRes.text()).toBe(actualManifest)
+      expect(await robotsRes.text()).toBe(actualRobots)
+
+      const sitemapXml = await sitemapRes.text()
+      expect(sitemapXml).toContain('<urlset')
+      expect(sitemapXml).toContain(
+        '<loc>https://example.com/deferred-entries</loc>'
+      )
+
+      expect(manifestRes.headers.get('content-type')).toMatch(
+        /application\/(manifest\+)?json/
+      )
+      expect(robotsRes.headers.get('content-type')).toContain('text/plain')
+      expect(sitemapRes.headers.get('content-type')).toMatch(/xml/)
+    })
+  })
+
+  it('should render app router current time on every request', async () => {
+    await retry(async () => {
+      const firstRes = await next.fetch('/current-time?request=1')
+      expect(firstRes.status).toBe(200)
+      const firstTimestamp = parseCurrentTimeTimestamp(await firstRes.text())
+
+      const secondRes = await next.fetch('/current-time?request=2')
+      expect(secondRes.status).toBe(200)
+      const secondTimestamp = parseCurrentTimeTimestamp(await secondRes.text())
+
+      expect(secondTimestamp).not.toBe(firstTimestamp)
     })
   })
 
@@ -145,6 +345,145 @@ describe('deferred-entries webpack', () => {
         expect(await homeRes.text()).toContain('Home Page Updated')
       })
     })
+
+    it('should update deferred rendered timestamp during HMR when non-deferred entry changes', async () => {
+      const callbackLogPath = path.join(next.testDir, '.callback-log')
+
+      let initialCallbackTimestamp: number | null = null
+      let initialRenderedTimestamp: number | null = null
+
+      // Capture initial callback/rendered timestamp pair from deferred route.
+      await retry(async () => {
+        const deferredRes = await next.fetch('/deferred')
+        expect(deferredRes.status).toBe(200)
+
+        const html = await deferredRes.text()
+        initialRenderedTimestamp = parseDeferredCallbackTimestamp(html)
+        initialCallbackTimestamp = parseCallbackLog(callbackLogPath)
+
+        expect(initialCallbackTimestamp).not.toBeNull()
+        expect(initialRenderedTimestamp).toBe(initialCallbackTimestamp)
+      })
+
+      // Ensure callback timestamp changes after a non-deferred edit.
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      await next.patchFile('app/page.tsx', (content) =>
+        content.includes('Home Page Updated')
+          ? content.replace('Home Page Updated', 'Home Page Updated Again')
+          : content.replace('Home Page', 'Home Page Updated Again')
+      )
+
+      let updatedCallbackTimestamp: number | null = null
+      await retry(async () => {
+        updatedCallbackTimestamp = parseCallbackLog(callbackLogPath)
+        expect(updatedCallbackTimestamp).not.toBeNull()
+        expect(updatedCallbackTimestamp).toBeGreaterThan(
+          initialCallbackTimestamp!
+        )
+      })
+
+      // Deferred page should now render the new callback-written timestamp.
+      await retry(async () => {
+        const deferredRes = await next.fetch('/deferred')
+        expect(deferredRes.status).toBe(200)
+
+        const html = await deferredRes.text()
+        const updatedRenderedTimestamp = parseDeferredCallbackTimestamp(html)
+        const latestCallbackTimestamp = parseCallbackLog(callbackLogPath)
+
+        expect(latestCallbackTimestamp).not.toBeNull()
+        expect(updatedRenderedTimestamp).toBeGreaterThanOrEqual(
+          updatedCallbackTimestamp!
+        )
+        expect(updatedRenderedTimestamp).toBeLessThanOrEqual(
+          latestCallbackTimestamp!
+        )
+        expect(updatedRenderedTimestamp).toBeGreaterThan(
+          initialRenderedTimestamp!
+        )
+      })
+    })
+
+    it('should handle successive non-deferred edits without callback looping', async () => {
+      const callbackLogPath = path.join(next.testDir, '.callback-log')
+
+      // Track app/page.tsx with an initial request.
+      await retry(async () => {
+        const homeRes = await next.fetch('/')
+        expect(homeRes.status).toBe(200)
+      })
+
+      let previousCallbackTimestamp: number | null = null
+      let previousRenderedTimestamp: number | null = null
+
+      await retry(async () => {
+        const deferredRes = await next.fetch('/deferred')
+        expect(deferredRes.status).toBe(200)
+
+        previousRenderedTimestamp = parseDeferredCallbackTimestamp(
+          await deferredRes.text()
+        )
+        previousCallbackTimestamp = parseCallbackLog(callbackLogPath)
+        expect(previousCallbackTimestamp).not.toBeNull()
+        expect(previousRenderedTimestamp).toBe(previousCallbackTimestamp)
+      })
+
+      const labels = ['Home Page HMR A', 'Home Page HMR B']
+
+      for (const label of labels) {
+        if (
+          previousCallbackTimestamp === null ||
+          previousRenderedTimestamp === null
+        ) {
+          throw new Error('Previous callback/rendered timestamp is missing')
+        }
+
+        const previousCallbackTimestampForIteration = previousCallbackTimestamp
+        const previousRenderedTimestampForIteration = previousRenderedTimestamp
+
+        await sleep(100)
+        await next.patchFile('app/page.tsx', (content) =>
+          content.replace(/Home Page[^<]*/, label)
+        )
+
+        let callbackAfterEdit: number | null = null
+        await retry(async () => {
+          callbackAfterEdit = parseCallbackLog(callbackLogPath)
+          expect(callbackAfterEdit).not.toBeNull()
+          expect(callbackAfterEdit).toBeGreaterThan(
+            previousCallbackTimestampForIteration
+          )
+        })
+
+        let renderedAfterEdit: number | null = null
+        await retry(async () => {
+          const deferredRes = await next.fetch('/deferred')
+          expect(deferredRes.status).toBe(200)
+
+          renderedAfterEdit = parseDeferredCallbackTimestamp(
+            await deferredRes.text()
+          )
+          const latestCallbackTimestamp = parseCallbackLog(callbackLogPath)
+          expect(latestCallbackTimestamp).not.toBeNull()
+
+          expect(renderedAfterEdit).toBeGreaterThanOrEqual(callbackAfterEdit!)
+          expect(renderedAfterEdit).toBeLessThanOrEqual(
+            latestCallbackTimestamp!
+          )
+          expect(renderedAfterEdit).toBeGreaterThan(
+            previousRenderedTimestampForIteration
+          )
+        })
+
+        // No runaway callback loop: timestamp should settle when idle.
+        const stabilizedTimestamp =
+          await waitForCallbackTimestampToStabilize(callbackLogPath)
+        expect(stabilizedTimestamp).toBeGreaterThanOrEqual(renderedAfterEdit!)
+
+        previousCallbackTimestamp = callbackAfterEdit
+        previousRenderedTimestamp = renderedAfterEdit
+      }
+    })
   }
 
   if (isNextStart) {
@@ -191,10 +530,15 @@ describe('deferred-entries webpack', () => {
       expect(homePageEntries.length).toBeGreaterThan(0)
       expect(deferredPageEntries.length).toBeGreaterThan(0)
 
-      // Verify the callback is called AFTER non-deferred entries
-      // (non-deferred entries are built first)
+      // Verify the callback is called after at least one non-deferred entry from
+      // the first build pass. Additional non-deferred recompiles may happen in
+      // the second pass when metadata routes are included.
+      const homePageEntriesBeforeCallback = homePageEntries.filter(
+        (e) => e.timestamp <= callbackTimestamp
+      )
+      expect(homePageEntriesBeforeCallback.length).toBeGreaterThan(0)
       const latestNonDeferredTimestamp = Math.max(
-        ...homePageEntries.map((e) => e.timestamp)
+        ...homePageEntriesBeforeCallback.map((e) => e.timestamp)
       )
       expect(callbackTimestamp).toBeGreaterThanOrEqual(
         latestNonDeferredTimestamp
