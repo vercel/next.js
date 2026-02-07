@@ -189,6 +189,7 @@ pub enum ConfiguredModuleType {
     Typescript,
     Css,
     CssModule,
+    Json,
     Wasm,
     Raw,
     Node,
@@ -206,13 +207,14 @@ impl ConfiguredModuleType {
             "typescript" => ConfiguredModuleType::Typescript,
             "css" => ConfiguredModuleType::Css,
             "css-module" => ConfiguredModuleType::CssModule,
+            "json" => ConfiguredModuleType::Json,
             "wasm" => ConfiguredModuleType::Wasm,
             "raw" => ConfiguredModuleType::Raw,
             "node" => ConfiguredModuleType::Node,
             "bytes" => ConfiguredModuleType::Bytes,
             _ => bail!(
                 "Unknown module type: {type_str:?}. Valid types are: asset, ecmascript, \
-                 typescript, css, css-module, wasm, raw, node, bytes"
+                 typescript, css, css-module, json, wasm, raw, node, bytes"
             ),
         })
     }
@@ -263,6 +265,7 @@ impl ConfiguredModuleType {
                 environment,
             }),
             ConfiguredModuleType::CssModule => ModuleRuleEffect::ModuleType(ModuleType::CssModule),
+            ConfiguredModuleType::Json => ModuleRuleEffect::ModuleType(ModuleType::Json),
             ConfiguredModuleType::Wasm => ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
                 source_ty: WebAssemblySourceType::Binary,
             }),
