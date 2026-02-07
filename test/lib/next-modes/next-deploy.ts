@@ -213,9 +213,16 @@ export class NextDeployInstance extends NextInstance {
       require('console').log(`Using Vercel CLI version:`, res.stdout)
     } catch (_) {
       require('console').log(`Installing Vercel CLI`)
-      await execa('npm', ['i', '-g', 'vercel@latest'], {
-        stdio: 'inherit',
-      })
+      await execa(
+        'npm',
+        [
+          'i',
+          '-g',
+          // temp: testing https://github.com/vercel/vercel/pull/14937
+          'vercel@https://vercel-l7lncenkm.vercel.sh/tarballs/vercel.tgz',
+        ],
+        { stdio: 'inherit' }
+      )
     }
 
     const vercelFlags: string[] = []
@@ -290,7 +297,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     additionalEnv.push(
-      `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
+      `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@https://vercel-l7lncenkm.vercel.sh/tarballs/vercel.tgz'}`
     )
 
     // Add experimental feature flags
