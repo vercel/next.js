@@ -1,54 +1,154 @@
-const { execSync, spawn } = require('child_process')
+const https = require('https')
+const http = require('http')
 const fs = require('fs/promises')
 const path = require('path')
+const { execSync } = require('child_process')
 
 const OUTPUT_DIR = path.join(__dirname, 'pr-status')
+
+const REPO_OWNER = 'vercel'
+const REPO_NAME = 'next.js'
+
+// ============================================================================
+// GitHub API Functions
+// ============================================================================
+
+function getGitHubToken() {
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN
+  if (token) return token
+
+  // Try to get from gh CLI as fallback
+  try {
+    return execSync('gh auth token', {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim()
+  } catch {}
+
+  console.error(
+    'Error: GitHub token not found.\n' +
+      'Set GITHUB_TOKEN or GH_TOKEN environment variable, or authenticate with `gh auth login`.'
+  )
+  process.exit(1)
+}
+
+let _token = null
+
+function getToken() {
+  if (!_token) _token = getGitHubToken()
+  return _token
+}
+
+function httpRequest(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url)
+    const mod = parsedUrl.protocol === 'https:' ? https : http
+
+    const reqOptions = {
+      method: options.method || 'GET',
+      headers: { ...options.headers },
+    }
+
+    const req = mod.request(parsedUrl, reqOptions, (res) => {
+      // Handle redirects
+      if (
+        res.statusCode >= 300 &&
+        res.statusCode < 400 &&
+        res.headers.location
+      ) {
+        const redirectUrl = new URL(res.headers.location)
+        const newOptions = { ...options }
+        // Strip auth header when redirecting to a different host
+        if (redirectUrl.host !== parsedUrl.host && newOptions.headers) {
+          newOptions.headers = { ...newOptions.headers }
+          delete newOptions.headers['Authorization']
+          delete newOptions.headers['authorization']
+        }
+        // Consume remaining data from the redirect response
+        res.resume()
+        resolve(httpRequest(res.headers.location, newOptions))
+        return
+      }
+
+      const chunks = []
+      res.on('data', (chunk) => chunks.push(chunk))
+      res.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8')
+        resolve({ statusCode: res.statusCode, headers: res.headers, body })
+      })
+    })
+
+    req.on('error', reject)
+
+    if (options.body) {
+      req.write(options.body)
+    }
+
+    req.end()
+  })
+}
+
+async function githubApi(apiPath) {
+  const url = `https://api.github.com${apiPath}`
+  const resp = await httpRequest(url, {
+    headers: {
+      Authorization: `token ${getToken()}`,
+      Accept: 'application/json',
+      'User-Agent': 'next.js-pr-status-script',
+    },
+  })
+
+  if (resp.statusCode < 200 || resp.statusCode >= 300) {
+    throw new Error(
+      `GitHub API error ${resp.statusCode}: ${resp.body.substring(0, 200)}`
+    )
+  }
+
+  return JSON.parse(resp.body)
+}
+
+async function githubApiRaw(apiPath) {
+  const url = `https://api.github.com${apiPath}`
+  const resp = await httpRequest(url, {
+    headers: {
+      Authorization: `token ${getToken()}`,
+      'User-Agent': 'next.js-pr-status-script',
+    },
+  })
+
+  if (resp.statusCode < 200 || resp.statusCode >= 300) {
+    throw new Error(
+      `GitHub API error ${resp.statusCode}: ${resp.body.substring(0, 200)}`
+    )
+  }
+
+  return resp.body
+}
+
+async function githubGraphQL(query) {
+  const url = 'https://api.github.com/graphql'
+  const resp = await httpRequest(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `bearer ${getToken()}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'next.js-pr-status-script',
+    },
+    body: JSON.stringify({ query }),
+  })
+
+  if (resp.statusCode < 200 || resp.statusCode >= 300) {
+    throw new Error(
+      `GitHub GraphQL error ${resp.statusCode}: ${resp.body.substring(0, 200)}`
+    )
+  }
+
+  return JSON.parse(resp.body)
+}
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-function exec(cmd) {
-  try {
-    return execSync(cmd, {
-      encoding: 'utf8',
-      maxBuffer: 50 * 1024 * 1024, // 50MB for large logs
-    }).trim()
-  } catch (error) {
-    console.error(`Command failed: ${cmd}`)
-    console.error(error.stderr || error.message)
-    throw error
-  }
-}
-
-function execAsync(prog, args) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(prog, args, {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    const chunks = []
-    let stderr = ''
-    child.stdout.on('data', (chunk) => chunks.push(chunk))
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk
-    })
-    child.on('close', (code) => {
-      if (code !== 0) {
-        const error = new Error(`Command failed: ${prog} ${args.join(' ')}`)
-        error.stderr = stderr
-        reject(error)
-      } else {
-        resolve(Buffer.concat(chunks).toString('utf8').trim())
-      }
-    })
-    child.on('error', reject)
-  })
-}
-
-function execJson(cmd) {
-  const output = exec(cmd)
-  return JSON.parse(output)
-}
 
 function formatDuration(startedAt, completedAt) {
   if (!startedAt || !completedAt) return 'N/A'
@@ -165,14 +265,15 @@ function getEnvVarsForJob(jobName, envMap) {
 // Data Fetching Functions
 // ============================================================================
 
-function getBranchInfo(prNumberArg) {
+async function getBranchInfo(prNumberArg) {
   // If PR number provided as argument, fetch branch from that PR
   if (prNumberArg) {
     try {
-      const output = exec(`gh pr view ${prNumberArg} --json number,headRefName`)
-      const data = JSON.parse(output)
-      if (data.number && data.headRefName) {
-        return { prNumber: String(data.number), branchName: data.headRefName }
+      const data = await githubApi(
+        `/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumberArg}`
+      )
+      if (data.number && data.head && data.head.ref) {
+        return { prNumber: String(data.number), branchName: data.head.ref }
       }
     } catch {
       console.error(`Failed to fetch PR #${prNumberArg}`)
@@ -180,99 +281,122 @@ function getBranchInfo(prNumberArg) {
     }
   }
 
-  // Auto-detect from current branch/PR context
+  // Auto-detect from current branch
+  const branchName = execSync('git rev-parse --abbrev-ref HEAD', {
+    encoding: 'utf8',
+  }).trim()
+
+  // Determine remote owner (may differ from REPO_OWNER for forks)
+  let remoteOwner = REPO_OWNER
   try {
-    const output = exec(`gh pr view --json number,headRefName`)
-    const data = JSON.parse(output)
-    if (data.number && data.headRefName) {
-      return { prNumber: String(data.number), branchName: data.headRefName }
+    const remoteUrl = execSync('git remote get-url origin', {
+      encoding: 'utf8',
+    }).trim()
+    const match = remoteUrl.match(/github\.com[:/]([^/]+)\//)
+    if (match) remoteOwner = match[1]
+  } catch {}
+
+  // Try to find an open PR for this branch
+  try {
+    const prs = await githubApi(
+      `/repos/${REPO_OWNER}/${REPO_NAME}/pulls?head=${encodeURIComponent(remoteOwner + ':' + branchName)}&state=open`
+    )
+    if (prs.length > 0) {
+      return { prNumber: String(prs[0].number), branchName }
     }
-  } catch {
-    // Fallback to git if not in PR context
-  }
-  const branchName = exec('git rev-parse --abbrev-ref HEAD')
+  } catch {}
+
   return { prNumber: null, branchName }
 }
 
-function getWorkflowRuns(branch) {
+async function getWorkflowRuns(branch) {
   const encodedBranch = encodeURIComponent(branch)
-  const jqQuery =
-    '.workflow_runs[] | select(.name == "build-and-test") | {id, run_attempt, status, conclusion}'
-  const output = exec(
-    `gh api "repos/vercel/next.js/actions/runs?branch=${encodedBranch}&per_page=10" --jq '${jqQuery}'`
+  const data = await githubApi(
+    `/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs?branch=${encodedBranch}&per_page=10`
   )
 
-  if (!output.trim()) return []
-
-  return output
-    .split('\n')
-    .filter((line) => line.trim())
-    .map((line) => JSON.parse(line))
+  return (data.workflow_runs || [])
+    .filter((run) => run.name === 'build-and-test')
+    .map((run) => ({
+      id: run.id,
+      run_attempt: run.run_attempt,
+      status: run.status,
+      conclusion: run.conclusion,
+    }))
 }
 
-function getRunMetadata(runId) {
-  return execJson(
-    `gh api "repos/vercel/next.js/actions/runs/${runId}" --jq '{id, name, status, conclusion, run_attempt, html_url, head_sha, created_at, updated_at}'`
+async function getRunMetadata(runId) {
+  const run = await githubApi(
+    `/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${runId}`
   )
+  return {
+    id: run.id,
+    name: run.name,
+    status: run.status,
+    conclusion: run.conclusion,
+    run_attempt: run.run_attempt,
+    html_url: run.html_url,
+    head_sha: run.head_sha,
+    created_at: run.created_at,
+    updated_at: run.updated_at,
+  }
 }
 
-function getFailedJobs(runId) {
+async function getFailedJobs(runId) {
   const failedJobs = []
   let page = 1
 
   while (true) {
-    const jqQuery = '.jobs[] | select(.conclusion == "failure") | {id, name}'
-    let output
+    let data
     try {
-      output = exec(
-        `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=100&page=${page}" --jq '${jqQuery}'`
+      data = await githubApi(
+        `/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${runId}/jobs?per_page=100&page=${page}`
       )
     } catch {
       break
     }
 
-    if (!output.trim()) break
+    const pageJobs = data.jobs || []
+    const failed = pageJobs
+      .filter((j) => j.conclusion === 'failure')
+      .map((j) => ({ id: j.id, name: j.name }))
 
-    const jobs = output
-      .split('\n')
-      .filter((line) => line.trim())
-      .map((line) => JSON.parse(line))
+    failedJobs.push(...failed)
 
-    failedJobs.push(...jobs)
-
-    if (jobs.length < 100) break
+    if (pageJobs.length < 100) break
     page++
   }
 
   return failedJobs
 }
 
-function getAllJobs(runId) {
+async function getAllJobs(runId) {
   const allJobs = []
   let page = 1
 
   while (true) {
-    const jqQuery =
-      '.jobs[] | {id, name, status, conclusion, started_at, completed_at}'
-    let output
+    let data
     try {
-      output = exec(
-        `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=100&page=${page}" --jq '${jqQuery}'`
+      data = await githubApi(
+        `/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${runId}/jobs?per_page=100&page=${page}`
       )
     } catch {
       break
     }
 
-    if (!output.trim()) break
+    const pageJobs = data.jobs || []
+    const mapped = pageJobs.map((j) => ({
+      id: j.id,
+      name: j.name,
+      status: j.status,
+      conclusion: j.conclusion,
+      started_at: j.started_at,
+      completed_at: j.completed_at,
+    }))
 
-    const jobs = output
-      .split('\n')
-      .filter((line) => line.trim())
-      .map((line) => JSON.parse(line))
+    allJobs.push(...mapped)
 
-    allJobs.push(...jobs)
-
-    if (jobs.length < 100) break
+    if (pageJobs.length < 100) break
     page++
   }
 
@@ -290,38 +414,55 @@ function categorizeJobs(jobs) {
   }
 }
 
-function getJobMetadata(jobId) {
-  return execJson(
-    `gh api "repos/vercel/next.js/actions/jobs/${jobId}" --jq '{id, name, status, conclusion, started_at, completed_at, html_url}'`
+async function getJobMetadata(jobId) {
+  const job = await githubApi(
+    `/repos/${REPO_OWNER}/${REPO_NAME}/actions/jobs/${jobId}`
   )
+  return {
+    id: job.id,
+    name: job.name,
+    status: job.status,
+    conclusion: job.conclusion,
+    started_at: job.started_at,
+    completed_at: job.completed_at,
+    html_url: job.html_url,
+  }
 }
 
 async function getJobLogs(jobId) {
   try {
-    return await execAsync('gh', [
-      'api',
-      `repos/vercel/next.js/actions/jobs/${jobId}/logs`,
-    ])
+    return await githubApiRaw(
+      `/repos/${REPO_OWNER}/${REPO_NAME}/actions/jobs/${jobId}/logs`
+    )
   } catch {
     return 'Logs not available'
   }
 }
 
-function getPRReviews(prNumber) {
+async function getPRReviews(prNumber) {
   try {
-    const reviews = execJson(
-      `gh api "repos/vercel/next.js/pulls/${prNumber}/reviews" --jq '[.[] | {id, user: .user.login, state: .state, body: .body, submitted_at: .submitted_at, html_url: .html_url}]'`
+    const data = await githubApi(
+      `/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumber}/reviews`
     )
-    return reviews.filter((r) => !isBot(r.user))
+    return data
+      .map((r) => ({
+        id: r.id,
+        user: r.user?.login,
+        state: r.state,
+        body: r.body,
+        submitted_at: r.submitted_at,
+        html_url: r.html_url,
+      }))
+      .filter((r) => !isBot(r.user))
   } catch {
     return []
   }
 }
 
-function getPRReviewThreads(prNumber) {
+async function getPRReviewThreads(prNumber) {
   const query = `
     query {
-      repository(owner:"vercel", name:"next.js") {
+      repository(owner:"${REPO_OWNER}", name:"${REPO_NAME}") {
         pullRequest(number:${prNumber}) {
           reviewThreads(first:100) {
             nodes {
@@ -347,20 +488,27 @@ function getPRReviewThreads(prNumber) {
     }
   `
   try {
-    const output = exec(`gh api graphql -f query='${query}'`)
-    const data = JSON.parse(output)
+    const data = await githubGraphQL(query)
     return data.data.repository.pullRequest.reviewThreads.nodes
   } catch {
     return []
   }
 }
 
-function getPRComments(prNumber) {
+async function getPRComments(prNumber) {
   try {
-    const comments = execJson(
-      `gh api "repos/vercel/next.js/issues/${prNumber}/comments" --jq '[.[] | {id, user: .user.login, body: .body, created_at: .created_at, html_url: .html_url}]'`
+    const data = await githubApi(
+      `/repos/${REPO_OWNER}/${REPO_NAME}/issues/${prNumber}/comments`
     )
-    return comments.filter((c) => !isBot(c.user))
+    return data
+      .map((c) => ({
+        id: c.id,
+        user: c.user?.login,
+        body: c.body,
+        created_at: c.created_at,
+        html_url: c.html_url,
+      }))
+      .filter((c) => !isBot(c.user))
   } catch {
     return []
   }
@@ -972,27 +1120,27 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
   )
 
   // Get recent failed build-and-test runs across ALL branches
-  const jqQuery = `.workflow_runs[] | select(.conclusion == "failure") | {id, head_branch}`
-  let output
+  let runsData
   try {
-    output = exec(
-      `gh api "repos/vercel/next.js/actions/workflows/57419851/runs?status=completed&per_page=30" --jq '${jqQuery}'`
+    runsData = await githubApi(
+      `/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/57419851/runs?status=completed&per_page=30`
     )
   } catch {
     console.log('  Could not fetch CI runs, skipping flaky check')
     return new Set()
   }
 
-  if (!output.trim()) {
+  const failedRuns = (runsData.workflow_runs || [])
+    .filter((run) => run.conclusion === 'failure')
+    .map((run) => ({ id: run.id, head_branch: run.head_branch }))
+
+  if (failedRuns.length === 0) {
     console.log('  No failed runs found')
     return new Set()
   }
 
   // Filter out the current branch and take up to runsToCheck
-  const allRuns = output
-    .split('\n')
-    .filter((line) => line.trim())
-    .map((line) => JSON.parse(line))
+  const allRuns = failedRuns
     .filter((run) => run.head_branch !== currentBranch)
     .slice(0, runsToCheck)
 
@@ -1010,15 +1158,12 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
   const runJobResults = await Promise.all(
     allRuns.map(async (run) => {
       try {
-        const jobsJq = '.jobs[] | select(.conclusion == "failure") | {id, name}'
-        const jobsOutput = exec(
-          `gh api "repos/vercel/next.js/actions/runs/${run.id}/jobs?per_page=100" --jq '${jobsJq}'`
+        const data = await githubApi(
+          `/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run.id}/jobs?per_page=100`
         )
-        if (!jobsOutput.trim()) return { run, jobs: [] }
-        const jobs = jobsOutput
-          .split('\n')
-          .filter((line) => line.trim())
-          .map((line) => JSON.parse(line))
+        const jobs = (data.jobs || [])
+          .filter((j) => j.conclusion === 'failure')
+          .map((j) => ({ id: j.id, name: j.name }))
         // Skip runs with 20+ failed jobs (likely systemic, not flaky)
         if (jobs.length > 20) return { run, jobs: [] }
         return { run, jobs }
@@ -1048,10 +1193,9 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
     const results = await Promise.all(
       batch.map(async ({ job, branch }) => {
         try {
-          const logs = await execAsync('gh', [
-            'api',
-            `repos/vercel/next.js/actions/jobs/${job.id}/logs`,
-          ])
+          const logs = await githubApiRaw(
+            `/repos/${REPO_OWNER}/${REPO_NAME}/actions/jobs/${job.id}/logs`
+          )
           return { logs, branch }
         } catch {
           return { logs: null, branch }
@@ -1112,14 +1256,14 @@ async function main() {
 
   // Step 2: Get branch info
   console.log('Getting branch info...')
-  const branchInfo = getBranchInfo(prNumberArg)
+  const branchInfo = await getBranchInfo(prNumberArg)
   console.log(
     `Branch: ${branchInfo.branchName}, PR: ${branchInfo.prNumber || 'N/A'}`
   )
 
   // Step 3: Get workflow runs
   console.log('Fetching workflow runs...')
-  const runs = getWorkflowRuns(branchInfo.branchName)
+  const runs = await getWorkflowRuns(branchInfo.branchName)
 
   if (runs.length === 0) {
     console.log('No workflow runs found for this branch.')
@@ -1134,7 +1278,7 @@ async function main() {
 
   // Step 4: Get run metadata
   console.log('Fetching run metadata...')
-  const runMetadata = getRunMetadata(latestRun.id)
+  const runMetadata = await getRunMetadata(latestRun.id)
 
   // Step 5: Determine fetch strategy based on run status
   const isRunInProgress =
@@ -1145,7 +1289,7 @@ async function main() {
   if (isRunInProgress) {
     // Fetch ALL jobs when CI is still running
     console.log('CI is in progress. Fetching all jobs...')
-    const allJobs = getAllJobs(latestRun.id)
+    const allJobs = await getAllJobs(latestRun.id)
     categorizedJobs = categorizeJobs(allJobs)
     console.log(
       `Found: ${categorizedJobs.failed.length} failed, ${categorizedJobs.inProgress.length} in progress, ${categorizedJobs.queued.length} queued, ${categorizedJobs.succeeded.length} succeeded`
@@ -1153,7 +1297,7 @@ async function main() {
   } else {
     // For completed runs, only fetch failed jobs (efficiency)
     console.log('Fetching failed jobs...')
-    const failedJobIds = getFailedJobs(latestRun.id)
+    const failedJobIds = await getFailedJobs(latestRun.id)
     console.log(`Found ${failedJobIds.length} failed jobs`)
 
     categorizedJobs = {
@@ -1170,9 +1314,9 @@ async function main() {
   let reviewData = null
   if (branchInfo.prNumber) {
     console.log('Fetching PR reviews and comments...')
-    const reviews = getPRReviews(branchInfo.prNumber)
-    const reviewThreads = getPRReviewThreads(branchInfo.prNumber)
-    const prComments = getPRComments(branchInfo.prNumber)
+    const reviews = await getPRReviews(branchInfo.prNumber)
+    const reviewThreads = await getPRReviewThreads(branchInfo.prNumber)
+    const prComments = await getPRComments(branchInfo.prNumber)
     reviewData = { reviews, reviewThreads, prComments }
     console.log(
       `Found ${reviews.length} reviews, ${reviewThreads.length} review threads, ${prComments.length} general comments`
@@ -1253,7 +1397,7 @@ async function main() {
     console.log(`Processing failed job ${id}: ${name}...`)
 
     // Get full job metadata (getAllJobs already has basic metadata, but getFailedJobs doesn't)
-    const jobMetadata = job.started_at ? job : getJobMetadata(id)
+    const jobMetadata = job.started_at ? job : await getJobMetadata(id)
     processedFailedJobs.push(jobMetadata)
 
     // Get job logs
