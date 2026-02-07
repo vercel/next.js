@@ -393,6 +393,21 @@ export async function createHotReloaderTurbopack(
   // Track whether HMR is pending - used to call callback once after HMR settles
   let hmrPendingDeferredCallback = false
 
+  function markDeferredCallbackPendingForEntry(entryKey: string) {
+    if (!hasDeferredEntriesConfig) return
+
+    try {
+      const { page } = splitEntryKey(entryKey as EntryKey)
+      if (isDeferredEntry(page, deferredEntriesConfig)) {
+        return
+      }
+    } catch {
+      // If this isn't an entry key (e.g. middleware), still allow callback.
+    }
+
+    hmrPendingDeferredCallback = true
+  }
+
   // Debounced function to call onBeforeDeferredEntries after HMR
   // This prevents rapid-fire calls when turbopack fires many update events
   // Use 500ms debounce to ensure all rapid updates are batched together
@@ -584,6 +599,7 @@ export async function createHotReloaderTurbopack(
       clientStates.get(client)?.messages.set(id, message)
     }
 
+    markDeferredCallbackPendingForEntry(id)
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
@@ -1341,6 +1357,10 @@ export async function createHotReloaderTurbopack(
       // .env files or tsconfig/jsconfig change
       reloadAfterInvalidation,
     }) {
+      if (hasDeferredEntriesConfig) {
+        hmrPendingDeferredCallback = true
+      }
+
       if (reloadAfterInvalidation) {
         for (const [key, entrypoint] of currentWrittenEntrypoints) {
           clearRequireCache(key, entrypoint, { force: true })
@@ -1567,13 +1587,6 @@ export async function createHotReloaderTurbopack(
       switch (updateMessage.updateType) {
         case 'start': {
           hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
-          // Mark that HMR has started and we need to call the callback after it settles
-          // This ensures onBeforeDeferredEntries will be called again during HMR
-          if (hasDeferredEntriesConfig) {
-            hmrPendingDeferredCallback = true
-            onBeforeDeferredEntriesCalled = false
-            onBeforeDeferredEntriesPromise = null
-          }
           break
         }
         case 'end': {
@@ -1631,7 +1644,8 @@ export async function createHotReloaderTurbopack(
             })
           }
 
-          if (hmrEventHappened) {
+          const hadHmrEvent = hmrEventHappened
+          if (hadHmrEvent) {
             const time = updateMessage.value.duration
             const timeMessage =
               time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
@@ -1642,7 +1656,7 @@ export async function createHotReloaderTurbopack(
           // Call onBeforeDeferredEntries after compilation completes during HMR
           // This ensures the callback is invoked even when non-deferred entries change
           // Use debounced function to prevent rapid-fire calls from turbopack updates
-          if (hasDeferredEntriesConfig) {
+          if (hasDeferredEntriesConfig && hmrPendingDeferredCallback) {
             callOnBeforeDeferredEntriesAfterHMR()
           }
           break

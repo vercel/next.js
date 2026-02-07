@@ -48,7 +48,9 @@ module.exports = {
       await new Promise((resolve) => setTimeout(resolve, 100))
 
       // Append to entry log to mark callback position in the build sequence
-      fs.appendFileSync(logFile, `${timestamp}:CALLBACK_EXECUTED\n`)
+      if (process.env.NEXT_TEST_MODE === 'start') {
+        fs.appendFileSync(logFile, `${timestamp}:CALLBACK_EXECUTED\n`)
+      }
     },
   },
   // Turbopack loader configuration

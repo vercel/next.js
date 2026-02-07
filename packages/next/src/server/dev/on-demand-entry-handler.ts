@@ -574,6 +574,9 @@ export function onDemandEntryHandler({
     deferredEntriesConfig && deferredEntriesConfig.length > 0
   let onBeforeDeferredEntriesCalled = false
   let onBeforeDeferredEntriesPromise: Promise<void> | null = null
+  // Track whether a real file change invalidation happened, so we can
+  // re-run the callback for HMR updates without triggering on request compiles.
+  let hmrPendingDeferredCallback = false
 
   // Function to wait for all non-deferred entries to be built
   async function waitForNonDeferredEntries(): Promise<void> {
@@ -640,11 +643,20 @@ export function onDemandEntryHandler({
 
   const startBuilding = (compilation: webpack.Compilation) => {
     const compilationName = compilation.name as any as CompilerNameValues
+    const compilerWithFileChanges = compilation.compiler as webpack.Compiler & {
+      modifiedFiles?: ReadonlySet<string>
+      removedFiles?: ReadonlySet<string>
+    }
+
+    if (
+      hasDeferredEntriesConfig &&
+      ((compilerWithFileChanges.modifiedFiles?.size ?? 0) > 0 ||
+        (compilerWithFileChanges.removedFiles?.size ?? 0) > 0)
+    ) {
+      hmrPendingDeferredCallback = true
+    }
+
     curInvalidator.startBuilding(compilationName)
-    // Reset deferred entries state for this compilation cycle
-    // This ensures onBeforeDeferredEntries will be called again during HMR
-    onBeforeDeferredEntriesCalled = false
-    onBeforeDeferredEntriesPromise = null
   }
   for (const compiler of multiCompiler.compilers) {
     compiler.hooks.make.tap('NextJsOnDemandEntries', startBuilding)
@@ -720,7 +732,8 @@ export function onDemandEntryHandler({
 
     // Call onBeforeDeferredEntries after compilation completes during HMR
     // This ensures the callback is invoked even when non-deferred entries change
-    if (hasDeferredEntriesConfig && !onBeforeDeferredEntriesCalled) {
+    if (hasDeferredEntriesConfig && hmrPendingDeferredCallback) {
+      hmrPendingDeferredCallback = false
       onBeforeDeferredEntriesCalled = true
       if (nextConfig.experimental.onBeforeDeferredEntries) {
         debug('calling onBeforeDeferredEntries callback after HMR')

@@ -300,6 +300,42 @@ describe('deferred-entries webpack', () => {
   })
 
   if (!isNextStart) {
+    it('should not call onBeforeDeferredEntries on repeated requests without source updates, including non-deferred routes', async () => {
+      const callbackLogPath = path.join(next.testDir, '.callback-log')
+
+      await retry(async () => {
+        const deferredRes = await next.fetch('/deferred')
+        expect(deferredRes.status).toBe(200)
+      })
+
+      const stabilizedTimestamp =
+        await waitForCallbackTimestampToStabilize(callbackLogPath)
+
+      for (const request of [1, 2, 3]) {
+        await retry(async () => {
+          const deferredRes = await next.fetch(`/deferred?request=${request}`)
+          expect(deferredRes.status).toBe(200)
+        })
+      }
+
+      for (const nonDeferredPath of [
+        '/?request=1',
+        '/legacy?request=1',
+        '/no-data?request=1',
+        '/api/hello?request=1',
+      ]) {
+        await retry(async () => {
+          const res = await next.fetch(nonDeferredPath)
+          expect(res.status).toBe(200)
+        })
+      }
+
+      await sleep(600)
+
+      const latestTimestamp = parseCallbackLog(callbackLogPath)
+      expect(latestTimestamp).toBe(stabilizedTimestamp)
+    })
+
     it('should call onBeforeDeferredEntries during HMR even when non-deferred entry changes', async () => {
       const callbackLogPath = path.join(next.testDir, '.callback-log')
 
