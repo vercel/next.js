@@ -457,6 +457,10 @@ pub struct ImportModuleItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     source_map: Option<RcStr>,
     module_and_exports: bool,
+    /// Whether this module is async (top-level await, wasm import, etc.)
+    /// and whether it has a top-level await keyword.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    has_top_level_await: Option<bool>,
 }
 
 #[derive(Serialize, Debug)]
@@ -787,6 +791,11 @@ impl EvaluateContext for WebpackLoaderContext {
                         code,
                         source_map,
                         module_and_exports: content.options.module_and_exports,
+                        has_top_level_await: content
+                            .options
+                            .async_module
+                            .as_ref()
+                            .map(|opts| opts.has_top_level_await),
                     });
                 }
 

@@ -22,6 +22,7 @@ export interface ImportModuleResult {
     code: string
     sourceMap?: string
     moduleAndExports: boolean
+    hasTopLevelAwait?: boolean
   }>
 }
 
@@ -183,9 +184,25 @@ export async function executeModules(
   // ── Compile factories ──────────────────────────────────────────
 
   for (const mod of result.modules) {
+    // For async modules (top-level await, wasm imports), the inner code
+    // contains __turbopack_handle_async_dependencies__ / await patterns
+    // but not the ctx.a() wrapper. We add the wrapper here, mirroring
+    // what module_factory() does in Rust (item.rs).
+    let code = mod.code
+    if (mod.hasTopLevelAwait != null) {
+      code =
+        'return __turbopack_context__.a(async ' +
+        '(__turbopack_handle_async_dependencies__, ' +
+        '__turbopack_async_result__) => { try {\n' +
+        code +
+        '\n__turbopack_async_result__();' +
+        '} catch(e) { __turbopack_async_result__(e); } }, ' +
+        String(mod.hasTopLevelAwait) +
+        ');'
+    }
     const factoryCode = mod.moduleAndExports
-      ? `(function(__turbopack_context__, module, exports) {\n${mod.code}\n})`
-      : `(function(__turbopack_context__) {\n${mod.code}\n})`
+      ? `(function(__turbopack_context__, module, exports) {\n${code}\n})`
+      : `(function(__turbopack_context__) {\n${code}\n})`
     const factory = vm.runInThisContext(factoryCode, {
       filename: mod.id,
     })
@@ -355,6 +372,25 @@ export async function executeModules(
       }
 
       body(handleAsyncDependencies, asyncResult)
+    }
+
+    // .P — resolve absolute path (for import.meta.url)
+    ctx.P = (modulePath?: string) => {
+      if (modulePath) return resolveProjectPath(modulePath)
+      return contextDir
+    }
+
+    // .A — async loader (for dynamic imports in production mode).
+    // In the full runtime, the "async loader" is a separate chunk item.
+    // In our mini runtime all modules are already available, so we
+    // strip the ", async loader" suffix and do a regular dynamic import.
+    ctx.A = (depId: string) => {
+      if (moduleFactories.has(depId)) {
+        const loader = ctx.r(depId)
+        return loader(ctx.i)
+      }
+      const baseId = depId.replace(/, async loader\)$/, ')')
+      return ctx.l(baseId)
     }
 
     // .l — dynamic import
