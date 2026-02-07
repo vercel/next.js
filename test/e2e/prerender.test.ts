@@ -6,7 +6,7 @@ import escapeRegex from 'escape-string-regexp'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   check,
   fetchViaHTTP,
   getBrowserBodyText,
@@ -15,6 +15,7 @@ import {
   renderViaHTTP,
   retry,
   waitFor,
+  getCacheHeader,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
@@ -302,6 +303,13 @@ describe('Prerender', () => {
     //   initialRevalidateSeconds: false,
     //   srcRoute: null,
     // },
+    '/fallback-true/first': {
+      allowHeader,
+      dataRoute: `/_next/data/${next.buildId}/fallback-true/first.json`,
+      initialExpireSeconds: 31536000,
+      initialRevalidateSeconds: 2,
+      srcRoute: '/fallback-true/[slug]',
+    },
     '/lang/de/about': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/lang/de/about.json`,
@@ -364,19 +372,19 @@ describe('Prerender', () => {
 
   const navigateTest = (isDev = false) => {
     it('should navigate between pages successfully', async () => {
-      const toBuild = [
-        '/',
-        '/another',
-        '/something',
-        '/normal',
-        '/blog/post-1',
-        '/blog/post-1/comment-1',
-        '/catchall/first',
+      // TODO: Compiling this many pages in parallel hits some race condition
+      // causing "SyntaxError: Unexpected non-whitespace character after JSON at position 614"
+      // which persists throughout Next.js Server instance lifetime.
+      // Compiling in batches to avoid that unknown bug.
+      const toBuildBatches = [
+        ['/', '/another', '/something', '/normal'],
+        ['/blog/post-1', '/blog/post-1/comment-1', '/catchall/first'],
       ]
 
-      await waitFor(2500)
-
-      await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      for (const toBuild of toBuildBatches) {
+        // eslint-disable-next-line no-loop-func -- we're not accessing `next` after the loop was exited.
+        await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      }
 
       const browser = await webdriver(next.url, '/')
       let text = await browser.elementByCss('p').text()
@@ -405,7 +413,6 @@ describe('Prerender', () => {
       await goFromAnotherToHome()
 
       // Client-side SSG data caching test
-      // eslint-disable-next-line no-lone-blocks
       {
         // Let revalidation period lapse
         await waitFor(2000)
@@ -676,6 +683,72 @@ describe('Prerender', () => {
             : 's-maxage=2, stale-while-revalidate=31535998'
         )
       })
+
+      it('should use correct caching headers for a fallback-true page (prerendered)', async () => {
+        const initialRes = await fetchViaHTTP(next.url, '/fallback-true/first')
+        expect(initialRes.status).toBe(200)
+        expect(initialRes.headers.get('cache-control')).toBe(
+          isDeploy
+            ? 'public, max-age=0, must-revalidate'
+            : 's-maxage=2, stale-while-revalidate=31535998'
+        )
+        expect(await initialRes.text()).not.toContain('hi fallback')
+
+        const dataRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/fallback-true/first.json`
+        )
+        expect(dataRes.status).toBe(200)
+        expect(dataRes.headers.get('cache-control')).toBe(
+          isDeploy
+            ? 'public, max-age=0, must-revalidate'
+            : 's-maxage=2, stale-while-revalidate=31535998'
+        )
+
+        await retry(async () => {
+          const finalRes = await fetchViaHTTP(next.url, `/fallback-true/first`)
+          expect(finalRes.status).toBe(200)
+          expect(finalRes.headers.get('cache-control')).toBe(
+            isDeploy
+              ? 'public, max-age=0, must-revalidate'
+              : 's-maxage=2, stale-while-revalidate=31535998'
+          )
+          expect(await finalRes.text()).not.toContain('hi fallback')
+        })
+      })
+
+      it('should use correct caching headers for a fallback-true page (lazy)', async () => {
+        const initialRes = await fetchViaHTTP(next.url, '/fallback-true/second')
+        expect(initialRes.status).toBe(200)
+        expect(initialRes.headers.get('cache-control')).toBe(
+          isDeploy
+            ? 'public, max-age=0, must-revalidate'
+            : 'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
+        expect(await initialRes.text()).toContain('hi fallback')
+
+        const dataRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/fallback-true/second.json`
+        )
+        expect(dataRes.status).toBe(200)
+        expect(dataRes.headers.get('cache-control')).toBe(
+          isDeploy
+            ? 'public, max-age=0, must-revalidate'
+            : 's-maxage=2, stale-while-revalidate=31535998'
+        )
+
+        await retry(async () => {
+          const finalRes = await fetchViaHTTP(next.url, `/fallback-true/second`)
+          expect(finalRes.status).toBe(200)
+          expect(finalRes.headers.get('cache-control')).toBe(
+            isDeploy
+              ? 'public, max-age=0, must-revalidate'
+              : 's-maxage=2, stale-while-revalidate=31535998'
+          )
+          expect(await finalRes.text()).not.toContain('hi fallback')
+        })
+      })
     }
 
     it('should navigate to a normal page and back', async () => {
@@ -700,13 +773,9 @@ describe('Prerender', () => {
       const browser = await webdriver(next.url, '/')
       await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-post').click()
-      expect(
-        await check(() => browser.eval('window.beforeClick'), {
-          test(v) {
-            return v !== 'abc'
-          },
-        })
-      ).toBe(true)
+      await retry(async () => {
+        expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+      })
     })
 
     it('should SSR dynamic page with brackets in param as object', async () => {
@@ -834,13 +903,9 @@ describe('Prerender', () => {
         const browser = await webdriver(next.url, '/')
         await browser.eval('window.beforeClick = "abc"')
         await browser.elementByCss('#broken-at-first-post').click()
-        expect(
-          await check(() => browser.eval('window.beforeClick'), {
-            test(v) {
-              return v !== 'abc'
-            },
-          })
-        ).toBe(true)
+        await retry(async () => {
+          expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+        })
 
         const text = await browser.elementByCss('#params').text()
         expect(text).toMatch(/post.*?post-999/)
@@ -1284,7 +1349,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1300,7 +1365,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1546,6 +1611,16 @@ describe('Prerender', () => {
             //   page: '/index',
             // },
             {
+              dataRouteRegex: normalizeRegEx(
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/fallback\\-true\\/([^\\/]+?)\\.json$`
+              ),
+              namedDataRouteRegex: `^/_next/data/${escapeRegex(next.buildId)}/fallback\\-true/(?<nxtPslug>[^/]+?)\\.json$`,
+              page: '/fallback-true/[slug]',
+              routeKeys: {
+                nxtPslug: 'nxtPslug',
+              },
+            },
+            {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
               )}/lang/(?<nxtPlang>[^/]+?)/about\\.json$`,
@@ -1739,6 +1814,17 @@ describe('Prerender', () => {
                 '^\\/fallback\\-only\\/([^\\/]+?)(?:\\/)?$'
               ),
               allowHeader,
+            },
+            '/fallback-true/[slug]': {
+              allowHeader,
+              dataRoute: `/_next/data/${next.buildId}/fallback-true/[slug].json`,
+              dataRouteRegex: normalizeRegEx(
+                `^\\/_next\\/data\\/${escapedBuildId}\\/fallback\\-true\\/([^\\/]+?)\\.json$`
+              ),
+              fallback: '/fallback-true/[slug].html',
+              routeRegex: normalizeRegEx(
+                '^\\/fallback\\-true\\/([^\\/]+?)(?:\\/)?$'
+              ),
             },
             '/lang/[lang]/about': {
               dataRoute: `/_next/data/${next.buildId}/lang/[lang]/about.json`,
@@ -2200,7 +2286,11 @@ describe('Prerender', () => {
       })
     }
 
-    if (!isDev) {
+    // This test is disabled in deployed environments because the initial on-demand revalidate call
+    // is not actually producing a new response, until it's called for a second time
+    // Rather than retrying just to fix the test, we need to investigate what might
+    // be causing this behavior in a deployed environment.
+    if (!isDev && !isDeploy) {
       it('should handle on-demand revalidate for fallback: blocking', async () => {
         const res = await fetchViaHTTP(
           next.url,
@@ -2210,26 +2300,23 @@ describe('Prerender', () => {
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
-        const cacheHeader = isDeploy ? 'x-vercel-cache' : 'x-nextjs-cache'
 
-        expect(res.headers.get(cacheHeader)).toMatch(/MISS/)
+        expect(getCacheHeader(res)).toMatch(/MISS/)
         expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
 
-        if (!isDeploy) {
-          // we use retry here as the cache might still be
-          // writing to disk even after the above request has finished
-          await retry(async () => {
-            const res2 = await fetchViaHTTP(
-              next.url,
-              '/blocking-fallback/test-manual-1'
-            )
-            const html2 = await res2.text()
-            const $2 = cheerio.load(html2)
+        // we use retry here as the cache might still be
+        // writing to disk even after the above request has finished
+        await retry(async () => {
+          const res2 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-manual-1'
+          )
+          const html2 = await res2.text()
+          const $2 = cheerio.load(html2)
 
-            expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
-            expect(initialTime).toBe($2('#time').text())
-          })
-        }
+          expect(getCacheHeader(res2)).toMatch(/(HIT|STALE)/)
+          expect(initialTime).toBe($2('#time').text())
+        })
 
         const res3 = await fetchViaHTTP(
           next.url,
@@ -2251,8 +2338,9 @@ describe('Prerender', () => {
           )
           const html4 = await res4.text()
           const $4 = cheerio.load(html4)
+
           expect($4('#time').text()).not.toBe(initialTime)
-          expect(res4.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(getCacheHeader(res4)).toMatch(/(HIT|STALE)/)
         })
       })
     }

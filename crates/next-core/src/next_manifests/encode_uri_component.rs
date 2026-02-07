@@ -1,4 +1,4 @@
-use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
+use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 
 /// An `AsciiSet` that matches the behavior of JavaScript's `encodeURIComponent`.
 /// - It leaves `A-Z a-z 0-9 - _ . ~` unescaped.

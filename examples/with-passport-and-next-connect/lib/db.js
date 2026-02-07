@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import { uuid as uuidv4 } from "uuidv4";
 
 export function getAllUsers(req) {
   // For demo purpose only. You are not likely to have to return all users.
@@ -14,7 +13,7 @@ export function createUser(req, { username, password, name }) {
     .pbkdf2Sync(password, salt, 1000, 64, "sha512")
     .toString("hex");
   const user = {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     createdAt: Date.now(),
     username,
     name,

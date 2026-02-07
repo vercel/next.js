@@ -1,1 +1,1 @@
-import "the-package";
+import 'the-package'

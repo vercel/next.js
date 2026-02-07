@@ -1,10 +1,11 @@
 use std::sync::{Arc, RwLock};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Result, bail};
 use lightningcss::{
-    css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
-    stylesheet::{ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
-    targets::{Features, Targets},
+    css_modules::{CssModuleExport, Pattern, Segment},
+    stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
+    targets::{BrowserslistConfig, Features, Targets},
+    traits::ToCss,
     values::url::Url,
     visit_types,
     visitor::Visit,
@@ -13,12 +14,14 @@ use rustc_hash::FxHashMap;
 use smallvec::smallvec;
 use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
+    SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
+    environment::Environment,
     issue::{
         Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
         StyledString,
@@ -27,84 +30,108 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{utils::add_default_ignore_list, OptionStringifiedSourceMap},
+    source_map::utils::add_default_ignore_list,
     source_pos::SourcePos,
-    SOURCE_URL_PROTOCOL,
 };
 
 use crate::{
+    CssModuleAssetType,
     lifetime_util::stylesheet_into_static,
     references::{
         analyze_references,
-        url::{replace_url_references, resolve_url_reference, UrlAssetReference},
+        url::{UrlAssetReference, replace_url_references, resolve_url_reference},
     },
-    CssModuleAssetType,
 };
-
-#[derive(Debug)]
-pub struct StyleSheetLike<'i, 'o>(pub(crate) StyleSheet<'i, 'o>);
-
-impl PartialEq for StyleSheetLike<'_, '_> {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
 
 pub type CssOutput = (ToCssResult, Option<Rope>);
 
-impl StyleSheetLike<'_, '_> {
-    pub fn to_static(
-        &self,
-        options: ParserOptions<'static, 'static>,
-    ) -> StyleSheetLike<'static, 'static> {
-        StyleSheetLike(stylesheet_into_static(&self.0, options))
+#[turbo_tasks::value(transparent)]
+struct LightningCssTargets(
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    pub Targets,
+);
+
+/// Returns the LightningCSS targets for the given browserslist query.
+#[turbo_tasks::function]
+async fn get_lightningcss_browser_targets(
+    environment: Option<ResolvedVc<Environment>>,
+    handle_nesting: bool,
+) -> Result<Vc<LightningCssTargets>> {
+    match environment {
+        Some(environment) => {
+            let browserslist_query = environment.browserslist_query().owned().await?;
+            let browserslist_browsers =
+                lightningcss::targets::Browsers::from_browserslist_with_config(
+                    browserslist_query.split(','),
+                    BrowserslistConfig {
+                        ignore_unknown_versions: true,
+                        ..Default::default()
+                    },
+                )?;
+
+            Ok(if handle_nesting {
+                Vc::cell(Targets {
+                    browsers: browserslist_browsers,
+                    include: Features::Nesting | Features::MediaRangeSyntax,
+                    ..Default::default()
+                })
+            } else {
+                Vc::cell(Targets {
+                    browsers: browserslist_browsers,
+                    include: Features::MediaRangeSyntax,
+                    ..Default::default()
+                })
+            })
+        }
+        // Default when empty environment is passed.
+        None => Ok(Vc::cell(Default::default())),
     }
+}
 
-    pub fn to_css(
-        &self,
-        code: &str,
-        minify_type: MinifyType,
-        enable_srcmap: bool,
-        handle_nesting: bool,
-    ) -> Result<CssOutput> {
-        let ss = &self.0;
-        let mut srcmap = if enable_srcmap {
-            Some(parcel_sourcemap::SourceMap::new(""))
+async fn stylesheet_to_css(
+    ss: &StyleSheet<'_, '_>,
+    code: &str,
+    minify_type: MinifyType,
+    enable_srcmap: bool,
+    handle_nesting: bool,
+    mut origin_source_map: Option<parcel_sourcemap::SourceMap>,
+    environment: Option<ResolvedVc<Environment>>,
+) -> Result<CssOutput> {
+    let mut srcmap = if enable_srcmap {
+        Some(parcel_sourcemap::SourceMap::new(""))
+    } else {
+        None
+    };
+
+    let targets =
+        *get_lightningcss_browser_targets(environment.as_deref().copied(), handle_nesting).await?;
+
+    let result = ss.to_css(PrinterOptions {
+        minify: matches!(minify_type, MinifyType::Minify { .. }),
+        source_map: srcmap.as_mut(),
+        targets,
+        analyze_dependencies: None,
+        ..Default::default()
+    })?;
+
+    if let Some(srcmap) = &mut srcmap {
+        debug_assert_eq!(ss.sources.len(), 1);
+
+        if let Some(origin_source_map) = origin_source_map.as_mut() {
+            let _ = srcmap.extends(origin_source_map);
         } else {
-            None
-        };
-
-        let targets = if handle_nesting {
-            Targets {
-                include: Features::Nesting,
-                ..Default::default()
-            }
-        } else {
-            Default::default()
-        };
-
-        let result = ss.to_css(PrinterOptions {
-            minify: matches!(minify_type, MinifyType::Minify { .. }),
-            source_map: srcmap.as_mut(),
-            targets,
-            analyze_dependencies: None,
-            ..Default::default()
-        })?;
-
-        if let Some(srcmap) = &mut srcmap {
-            debug_assert_eq!(ss.sources.len(), 1);
-
             srcmap.add_sources(ss.sources.clone());
             srcmap.set_source_content(0, code)?;
         }
-
-        let srcmap = match srcmap {
-            Some(srcmap) => Some(generate_css_source_map(&srcmap)?),
-            None => None,
-        };
-
-        Ok((result, srcmap))
     }
+
+    let srcmap = match srcmap {
+        Some(srcmap) => Some(generate_css_source_map(&srcmap)?),
+        None => None,
+    };
+
+    Ok((result, srcmap))
 }
 
 /// Multiple [ModuleReference]s
@@ -112,12 +139,13 @@ impl StyleSheetLike<'_, '_> {
 pub struct UnresolvedUrlReferences(pub Vec<(String, ResolvedVc<UrlAssetReference>)>);
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[allow(clippy::large_enum_variant)] // This is a turbo-tasks value
 pub enum ParseCssResult {
     Ok {
         code: ResolvedVc<FileContent>,
 
         #[turbo_tasks(trace_ignore)]
-        stylesheet: StyleSheetLike<'static, 'static>,
+        stylesheet: StyleSheet<'static, 'static>,
 
         references: ResolvedVc<ModuleReferences>,
 
@@ -126,7 +154,7 @@ pub enum ParseCssResult {
         #[turbo_tasks(trace_ignore)]
         options: ParserOptions<'static, 'static>,
     },
-    Unparseable,
+    Unparsable,
     NotFound,
 }
 
@@ -145,34 +173,26 @@ pub enum CssWithPlaceholderResult {
         #[turbo_tasks(trace_ignore)]
         placeholders: FxHashMap<String, Url<'static>>,
     },
-    Unparseable,
+    Unparsable,
     NotFound,
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none")]
 pub enum FinalCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
         output_code: String,
 
-        #[turbo_tasks(trace_ignore)]
-        exports: Option<CssModuleExports>,
-
-        source_map: ResolvedVc<OptionStringifiedSourceMap>,
+        source_map: ResolvedVc<FileContent>,
     },
-    Unparseable,
+    Unparsable,
     NotFound,
-}
-
-impl PartialEq for FinalCssResult {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
 }
 
 #[turbo_tasks::function]
 pub async fn process_css_with_placeholder(
     parse_result: ResolvedVc<ParseCssResult>,
+    environment: Option<ResolvedVc<Environment>>,
 ) -> Result<Vc<CssWithPlaceholderResult>> {
     let result = parse_result.await?;
 
@@ -192,7 +212,16 @@ pub async fn process_css_with_placeholder(
 
             // We use NoMinify because this is not a final css. We need to replace url references,
             // and we do final codegen with proper minification.
-            let (result, _) = stylesheet.to_css(&code, MinifyType::NoMinify, false, false)?;
+            let (result, _) = stylesheet_to_css(
+                stylesheet,
+                &code,
+                MinifyType::NoMinify,
+                false,
+                false,
+                None,
+                environment,
+            )
+            .await?;
 
             let exports = result.exports.map(|exports| {
                 let mut exports = exports.into_iter().collect::<FxIndexMap<_, _>>();
@@ -211,7 +240,7 @@ pub async fn process_css_with_placeholder(
             }
             .cell())
         }
-        ParseCssResult::Unparseable => Ok(CssWithPlaceholderResult::Unparseable.cell()),
+        ParseCssResult::Unparsable => Ok(CssWithPlaceholderResult::Unparsable.cell()),
         ParseCssResult::NotFound => Ok(CssWithPlaceholderResult::NotFound.cell()),
     }
 }
@@ -221,6 +250,8 @@ pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     minify_type: MinifyType,
+    origin_source_map: Vc<FileContent>,
+    environment: Option<ResolvedVc<Environment>>,
 ) -> Result<Vc<FinalCssResult>> {
     let result = result.await?;
     match &*result {
@@ -235,9 +266,9 @@ pub async fn finalize_css(
                     options,
                     code,
                     ..
-                } => (stylesheet.to_static(options.clone()), *code),
-                ParseCssResult::Unparseable => return Ok(FinalCssResult::Unparseable.into()),
-                ParseCssResult::NotFound => return Ok(FinalCssResult::NotFound.into()),
+                } => (stylesheet_into_static(stylesheet, options.clone()), *code),
+                ParseCssResult::Unparsable => return Ok(FinalCssResult::Unparsable.cell()),
+                ParseCssResult::NotFound => return Ok(FinalCssResult::NotFound.cell()),
             };
 
             let url_references = *url_references;
@@ -258,29 +289,54 @@ pub async fn finalize_css(
                 FileContent::Content(v) => v.content().to_str()?,
                 _ => bail!("this case should be filtered out while parsing"),
             };
-            let (result, srcmap) = stylesheet.to_css(&code, minify_type, true, true)?;
+
+            let origin_source_map = if let Some(rope) = origin_source_map.await?.as_content() {
+                Some(parcel_sourcemap::SourceMap::from_json(
+                    "",
+                    &rope.content().to_str()?,
+                )?)
+            } else {
+                None
+            };
+
+            let (result, srcmap) = stylesheet_to_css(
+                &stylesheet,
+                &code,
+                minify_type,
+                true,
+                true,
+                origin_source_map,
+                environment,
+            )
+            .await?;
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
-                exports: result.exports,
-                source_map: ResolvedVc::cell(srcmap),
+                source_map: if let Some(srcmap) = srcmap {
+                    FileContent::Content(File::from(srcmap)).resolved_cell()
+                } else {
+                    FileContent::NotFound.resolved_cell()
+                },
             }
-            .into())
+            .cell())
         }
-        CssWithPlaceholderResult::Unparseable => Ok(FinalCssResult::Unparseable.into()),
-        CssWithPlaceholderResult::NotFound => Ok(FinalCssResult::NotFound.into()),
+        CssWithPlaceholderResult::Unparsable => Ok(FinalCssResult::Unparsable.cell()),
+        CssWithPlaceholderResult::NotFound => Ok(FinalCssResult::NotFound.cell()),
     }
 }
 
 #[turbo_tasks::value_trait]
 pub trait ParseCss {
+    #[turbo_tasks::function]
     async fn parse_css(self: Vc<Self>) -> Result<Vc<ParseCssResult>>;
 }
 
 #[turbo_tasks::value_trait]
 pub trait ProcessCss: ParseCss {
+    #[turbo_tasks::function]
     async fn get_css_with_placeholder(self: Vc<Self>) -> Result<Vc<CssWithPlaceholderResult>>;
 
+    #[turbo_tasks::function]
     async fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -291,34 +347,34 @@ pub trait ProcessCss: ParseCss {
 #[turbo_tasks::function]
 pub async fn parse_css(
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Option<Vc<ImportContext>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
+    environment: Option<ResolvedVc<Environment>>,
 ) -> Result<Vc<ParseCssResult>> {
-    let span = {
-        let name = source.ident().to_string().await?.to_string();
-        tracing::info_span!("parse css", name = name)
-    };
+    let span = tracing::info_span!(
+        "parse css",
+        name = display(source.ident().to_string().await?)
+    );
     async move {
         let content = source.content();
-        let fs_path = source.ident().path();
         let ident_str = &*source.ident().to_string().await?;
         Ok(match &*content.await? {
-            AssetContent::Redirect { .. } => ParseCssResult::Unparseable.cell(),
+            AssetContent::Redirect { .. } => ParseCssResult::Unparsable.cell(),
             AssetContent::File(file_content) => match &*file_content.await? {
                 FileContent::NotFound => ParseCssResult::NotFound.cell(),
                 FileContent::Content(file) => match file.content().to_str() {
-                    Err(_err) => ParseCssResult::Unparseable.cell(),
+                    Err(_err) => ParseCssResult::Unparsable.cell(),
                     Ok(string) => {
                         process_content(
-                            **file_content,
+                            *file_content,
                             string.into_owned(),
-                            fs_path.to_resolved().await?,
                             ident_str,
                             source,
                             origin,
                             import_context,
                             ty,
+                            environment,
                         )
                         .await?
                     }
@@ -331,14 +387,14 @@ pub async fn parse_css(
 }
 
 async fn process_content(
-    content_vc: Vc<FileContent>,
+    content_vc: ResolvedVc<FileContent>,
     code: String,
-    fs_path_vc: ResolvedVc<FileSystemPath>,
     filename: &str,
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Option<Vc<ImportContext>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
+    environment: Option<ResolvedVc<Environment>>,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
     fn without_warnings<'o, 'i>(config: ParserOptions<'o, 'i>) -> ParserOptions<'o, 'static> {
@@ -377,7 +433,7 @@ async fn process_content(
         ..Default::default()
     };
 
-    let stylesheet = StyleSheetLike({
+    let stylesheet = {
         let warnings: Arc<RwLock<_>> = Default::default();
 
         match StyleSheet::parse(
@@ -393,14 +449,11 @@ async fn process_content(
                     ss.visit(&mut validator).unwrap();
 
                     for err in validator.errors {
-                        err.report(fs_path_vc);
+                        err.report(source);
                     }
                 }
 
-                // We need to collect here because we need to avoid holding the lock while calling
-                // `.await` in the loop.
-                let warngins = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
-                for err in warngins.iter() {
+                for err in warnings.read().unwrap().iter() {
                     match err.kind {
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
@@ -410,21 +463,21 @@ async fn process_content(
                                 Some(loc) => {
                                     let pos = SourcePos {
                                         line: loc.line as _,
-                                        column: loc.column as _,
+                                        column: (loc.column - 1) as _,
                                     };
-                                    Some(IssueSource::from_line_col(source, pos, pos))
+                                    IssueSource::from_line_col(source, pos, pos)
                                 }
-                                None => None,
+                                None => IssueSource::from_source_only(source),
                             };
 
                             ParsingIssue {
-                                file: fs_path_vc,
-                                msg: ResolvedVc::cell(err.to_string().into()),
+                                msg: err.kind.to_string().into(),
+                                stage: IssueStage::Parse,
                                 source,
                             }
                             .resolved_cell()
                             .emit();
-                            return Ok(ParseCssResult::Unparseable.cell());
+                            return Ok(ParseCssResult::Unparsable.cell());
                         }
 
                         _ => {
@@ -433,13 +486,37 @@ async fn process_content(
                     }
                 }
 
+                let targets =
+                    *get_lightningcss_browser_targets(environment.as_deref().copied(), true)
+                        .await?;
+
                 // minify() is actually transform, and it performs operations like CSS modules
                 // handling.
                 //
-                //
                 // See: https://github.com/parcel-bundler/lightningcss/issues/935#issuecomment-2739325537
-                ss.minify(Default::default())
-                    .context("failed to transform css")?;
+                if let Err(e) = ss.minify(MinifyOptions {
+                    targets,
+                    ..Default::default()
+                }) {
+                    let source = match &e.loc {
+                        Some(loc) => {
+                            let pos = SourcePos {
+                                line: loc.line as _,
+                                column: (loc.column - 1) as _,
+                            };
+                            IssueSource::from_line_col(source, pos, pos)
+                        }
+                        None => IssueSource::from_source_only(source),
+                    };
+                    ParsingIssue {
+                        msg: e.kind.to_string().into(),
+                        stage: IssueStage::Transform,
+                        source,
+                    }
+                    .resolved_cell()
+                    .emit();
+                    return Ok(ParseCssResult::Unparsable.cell());
+                }
 
                 stylesheet_into_static(&ss, without_warnings(config.clone()))
             }
@@ -448,46 +525,34 @@ async fn process_content(
                     Some(loc) => {
                         let pos = SourcePos {
                             line: loc.line as _,
-                            column: loc.column as _,
+                            column: (loc.column - 1) as _,
                         };
-                        Some(IssueSource::from_line_col(source, pos, pos))
+                        IssueSource::from_line_col(source, pos, pos)
                     }
-                    None => None,
+                    None => IssueSource::from_source_only(source),
                 };
                 ParsingIssue {
-                    file: fs_path_vc,
-                    msg: ResolvedVc::cell(e.to_string().into()),
+                    msg: e.kind.to_string().into(),
+                    stage: IssueStage::Parse,
                     source,
                 }
                 .resolved_cell()
                 .emit();
-                return Ok(ParseCssResult::Unparseable.cell());
+                return Ok(ParseCssResult::Unparsable.cell());
             }
         }
-    });
+    };
 
     let config = without_warnings(config);
-    let mut stylesheet = stylesheet.to_static(config.clone());
+    let mut stylesheet = stylesheet_into_static(&stylesheet, config.clone());
 
     let (references, url_references) =
-        analyze_references(&mut stylesheet, source, origin, import_context)?;
-
-    let url_references = url_references
-        .into_iter()
-        .map(|(k, v)| async move { Ok((k, v.to_resolved().await?)) })
-        .try_join()
-        .await?;
+        analyze_references(&mut stylesheet, source, origin, import_context).await?;
 
     Ok(ParseCssResult::Ok {
-        code: content_vc.to_resolved().await?,
+        code: content_vc,
         stylesheet,
-        references: ResolvedVc::cell(
-            references
-                .into_iter()
-                .map(|v| v.to_resolved())
-                .try_join()
-                .await?,
-        ),
+        references: ResolvedVc::cell(references),
         url_references: ResolvedVc::cell(url_references),
         options: config,
     }
@@ -508,19 +573,22 @@ struct CssValidator {
 
 #[derive(Debug, PartialEq, Eq)]
 enum CssError {
-    LightningCssSelectorInModuleNotPure { selector: String },
+    CssSelectorInModuleNotPure { selector: String },
 }
 
 impl CssError {
-    fn report(self, file: ResolvedVc<FileSystemPath>) {
+    fn report(self, source: ResolvedVc<Box<dyn Source>>) {
         match self {
-            CssError::LightningCssSelectorInModuleNotPure { selector } => {
+            CssError::CssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
-                    file,
-                    msg: ResolvedVc::cell(
-                        format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
-                    ),
-                    source: None,
+                    msg: format!(
+                        "Selector \"{selector}\" is not pure. Pure selectors must contain at \
+                         least one local class or id."
+                    )
+                    .into(),
+                    stage: IssueStage::Transform,
+                    // TODO: This should include the location of the selector in the file.
+                    source: IssueSource::from_source_only(source),
                 }
                 .resolved_cell()
                 .emit();
@@ -528,9 +596,6 @@ impl CssError {
         }
     }
 }
-
-const CSS_MODULE_ERROR: &str =
-    "Selector is not pure (pure selectors must contain at least one local class or id)";
 
 /// We only visit top-level selectors.
 impl lightningcss::visitor::Visitor<'_> for CssValidator {
@@ -573,10 +638,15 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
         }
 
         if is_selector_problematic(selector) {
-            self.errors
-                .push(CssError::LightningCssSelectorInModuleNotPure {
-                    selector: format!("{selector:?}"),
-                });
+            let selector_string = selector
+                .to_css_string(PrinterOptions {
+                    minify: false,
+                    ..Default::default()
+                })
+                .expect("selector.to_css_string should not fail");
+            self.errors.push(CssError::CssSelectorInModuleNotPure {
+                selector: selector_string,
+            });
         }
 
         Ok(())
@@ -587,11 +657,11 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
     let mut builder = SourceMapBuilder::new(None);
 
     for src in source_map.get_sources() {
-        builder.add_source(&format!("{SOURCE_URL_PROTOCOL}///{src}"));
+        builder.add_source(format!("{SOURCE_URL_PROTOCOL}///{src}").into());
     }
 
     for (idx, content) in source_map.get_sources_content().iter().enumerate() {
-        builder.set_source_contents(idx as _, Some(content));
+        builder.set_source_contents(idx as _, Some(content.clone().into()));
     }
 
     for m in source_map.get_mappings() {
@@ -615,40 +685,42 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
 
 #[turbo_tasks::value]
 struct ParsingIssue {
-    msg: ResolvedVc<RcStr>,
-    file: ResolvedVc<FileSystemPath>,
-    source: Option<IssueSource>,
+    msg: RcStr,
+    stage: IssueStage,
+    source: IssueSource,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+        self.stage.clone().cell()
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Parsing css source code failed".into()).cell()
+        StyledString::Text(match self.stage {
+            IssueStage::Parse => rcstr!("Parsing CSS source code failed"),
+            IssueStage::Transform => rcstr!("Transforming CSS failed"),
+            _ => rcstr!("CSS processing failed"),
+        })
+        .cell()
     }
 
     #[turbo_tasks::function]
-    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(match &self.source {
-            Some(s) => Some(s.resolve_source_map().await?.into_owned()),
-            None => None,
-        }))
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
-            StyledString::Text(self.msg.await?.as_str().into()).resolved_cell(),
+            StyledString::Text(self.msg.clone()).resolved_cell(),
         )))
     }
 }

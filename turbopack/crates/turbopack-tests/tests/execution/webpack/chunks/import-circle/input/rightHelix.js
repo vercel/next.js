@@ -1,6 +1,6 @@
-import rightHelixPrime, { run } from "./rightHelixPrime";
+import rightHelixPrime, { run } from './rightHelixPrime'
 
 export default {
   rightHelixPrime,
   run,
-};
+}

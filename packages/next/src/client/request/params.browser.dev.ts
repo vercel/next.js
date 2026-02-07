@@ -1,7 +1,6 @@
 import type { Params } from '../../server/request/params'
 
 import { ReflectAdapter } from '../../server/web/spec-extension/adapters/reflect'
-import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   describeStringPropertyAccess,
   wellKnownProperties,
@@ -10,7 +9,7 @@ import {
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 
-export function makeDynamicallyTrackedExoticParamsWithDevWarnings(
+function makeDynamicallyTrackedParamsWithDevWarnings(
   underlyingParams: Params
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
@@ -24,7 +23,6 @@ export function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   const promise = Promise.resolve(underlyingParams)
 
   const proxiedProperties = new Set<string>()
-  const unproxiedProperties: Array<string> = []
 
   Object.keys(underlyingParams).forEach((prop) => {
     if (wellKnownProperties.has(prop)) {
@@ -32,7 +30,6 @@ export function makeDynamicallyTrackedExoticParamsWithDevWarnings(
       // true underlying value for Promises to work correctly at runtime
     } else {
       proxiedProperties.add(prop)
-      ;(promise as any)[prop] = underlyingParams[prop]
     }
   })
 
@@ -56,7 +53,7 @@ export function makeDynamicallyTrackedExoticParamsWithDevWarnings(
       return ReflectAdapter.set(target, prop, value, receiver)
     },
     ownKeys(target) {
-      warnForEnumeration(unproxiedProperties)
+      warnForEnumeration()
       return Reflect.ownKeys(target)
     },
   })
@@ -67,45 +64,22 @@ export function makeDynamicallyTrackedExoticParamsWithDevWarnings(
 
 function warnForSyncAccess(expression: string) {
   console.error(
-    `A param property was accessed directly with ${expression}. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.`
+    `A param property was accessed directly with ${expression}. ` +
+      `\`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
 
-function warnForEnumeration(missingProperties: Array<string>) {
-  if (missingProperties.length) {
-    const describedMissingProperties =
-      describeListOfPropertyNames(missingProperties)
-    console.error(
-      `params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
-        `\`params\` should be unwrapped with \`React.use()\` before using its value. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-    )
-  } else {
-    console.error(
-      `params are being enumerated. ` +
-        `\`params\` should be unwrapped with \`React.use()\` before using its value. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-    )
-  }
+function warnForEnumeration() {
+  console.error(
+    `params are being enumerated. ` +
+      `\`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
 }
 
-function describeListOfPropertyNames(properties: Array<string>) {
-  switch (properties.length) {
-    case 0:
-      throw new InvariantError(
-        'Expected describeListOfPropertyNames to be called with a non-empty list of strings.'
-      )
-    case 1:
-      return `\`${properties[0]}\``
-    case 2:
-      return `\`${properties[0]}\` and \`${properties[1]}\``
-    default: {
-      let description = ''
-      for (let i = 0; i < properties.length - 1; i++) {
-        description += `\`${properties[i]}\`, `
-      }
-      description += `, and \`${properties[properties.length - 1]}\``
-      return description
-    }
-  }
+export function createRenderParamsFromClient(
+  clientParams: Params
+): Promise<Params> {
+  return makeDynamicallyTrackedParamsWithDevWarnings(clientParams)
 }

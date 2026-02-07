@@ -1,18 +1,22 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
 use crate::{
     chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     module::{Module, Modules},
-    output::{OutputAsset, OutputAssets},
+    output::{
+        ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
+        expand_output_assets,
+    },
     raw_module::RawModule,
-    resolve::{ModuleResolveResult, RequestKey},
+    resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult, RequestKey},
 };
 pub mod source_map;
 
@@ -27,6 +31,7 @@ pub use source_map::SourceMapReference;
 /// [ChunkableModuleReference]: crate::chunk::ChunkableModuleReference
 #[turbo_tasks::value_trait]
 pub trait ModuleReference: ValueToString {
+    #[turbo_tasks::function]
     fn resolve_reference(self: Vc<Self>) -> Vc<ModuleResolveResult>;
     // TODO think about different types
     // fn kind(&self) -> Vc<AssetReferenceType>;
@@ -49,7 +54,7 @@ impl ModuleReferences {
 #[turbo_tasks::value]
 pub struct SingleModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
-    description: ResolvedVc<RcStr>,
+    description: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -64,7 +69,7 @@ impl ModuleReference for SingleModuleReference {
 impl ValueToString for SingleModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        *self.description
+        Vc::cell(self.description.clone())
     }
 }
 
@@ -73,7 +78,7 @@ impl SingleModuleReference {
     /// Create a new [Vc<SingleModuleReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: ResolvedVc<RcStr>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: RcStr) -> Vc<Self> {
         Self::cell(SingleModuleReference { asset, description })
     }
 
@@ -87,14 +92,23 @@ impl SingleModuleReference {
 #[turbo_tasks::value]
 pub struct SingleChunkableModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
-    description: ResolvedVc<RcStr>,
+    description: RcStr,
+    export: ResolvedVc<ExportUsage>,
 }
 
 #[turbo_tasks::value_impl]
 impl SingleChunkableModuleReference {
     #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: ResolvedVc<RcStr>) -> Vc<Self> {
-        Self::cell(SingleChunkableModuleReference { asset, description })
+    pub fn new(
+        asset: ResolvedVc<Box<dyn Module>>,
+        description: RcStr,
+        export: ResolvedVc<ExportUsage>,
+    ) -> Vc<Self> {
+        Self::cell(SingleChunkableModuleReference {
+            asset,
+            description,
+            export,
+        })
     }
 }
 
@@ -102,7 +116,19 @@ impl SingleChunkableModuleReference {
 impl ChunkableModuleReference for SingleChunkableModuleReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: true,
+            hoisted: false,
+        }))
+    }
+
+    #[turbo_tasks::function]
+    async fn binding_usage(&self) -> Result<Vc<BindingUsage>> {
+        Ok(BindingUsage {
+            import: ImportUsage::TopLevel,
+            export: self.export.owned().await?,
+        }
+        .cell())
     }
 }
 
@@ -118,7 +144,7 @@ impl ModuleReference for SingleChunkableModuleReference {
 impl ValueToString for SingleChunkableModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        *self.description
+        Vc::cell(self.description.clone())
     }
 }
 
@@ -126,7 +152,7 @@ impl ValueToString for SingleChunkableModuleReference {
 #[turbo_tasks::value]
 pub struct SingleOutputAssetReference {
     asset: ResolvedVc<Box<dyn OutputAsset>>,
-    description: ResolvedVc<RcStr>,
+    description: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -141,7 +167,7 @@ impl ModuleReference for SingleOutputAssetReference {
 impl ValueToString for SingleOutputAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        *self.description
+        Vc::cell(self.description.clone())
     }
 }
 
@@ -150,10 +176,7 @@ impl SingleOutputAssetReference {
     /// Create a new [Vc<SingleOutputAssetReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(
-        asset: ResolvedVc<Box<dyn OutputAsset>>,
-        description: ResolvedVc<RcStr>,
-    ) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>, description: RcStr) -> Vc<Self> {
         Self::cell(SingleOutputAssetReference { asset, description })
     }
 
@@ -270,19 +293,27 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
     Ok(Vc::cell(modules))
 }
 
-type ModulesVec = Vec<ResolvedVc<Box<dyn Module>>>;
+#[derive(Clone, Eq, PartialEq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub struct ResolvedReference {
+    pub chunking_type: ChunkingType,
+    pub binding_usage: BindingUsage,
+    pub modules: Vec<ResolvedVc<Box<dyn Module>>>,
+}
+
 #[turbo_tasks::value(transparent)]
-pub struct ModulesWithChunkingType(Vec<(ChunkingType, ModulesVec)>);
+pub struct ModulesWithRefData(Vec<(ResolvedVc<Box<dyn ModuleReference>>, ResolvedReference)>);
 
 /// Aggregates all primary [Module]s referenced by an [Module] via [ChunkableModuleReference]s.
-/// This does not include transitively references [Module]s, only includes
+/// This does not include transitively referenced [Module]s, only includes
 /// primary [Module]s referenced.
 ///
 /// [Module]: crate::module::Module
 #[turbo_tasks::function]
 pub async fn primary_chunkable_referenced_modules(
-    module: Vc<Box<dyn Module>>,
-) -> Result<Vc<ModulesWithChunkingType>> {
+    module: ResolvedVc<Box<dyn Module>>,
+    include_traced: bool,
+    include_binding_usage: bool,
+) -> Result<Vc<ModulesWithRefData>> {
     let modules = module
         .references()
         .await?
@@ -290,17 +321,31 @@ pub async fn primary_chunkable_referenced_modules(
         .map(|reference| async {
             if let Some(reference) =
                 ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference)
+                && let Some(chunking_type) = &*reference.chunking_type().await?
             {
-                if let Some(chunking_type) = &*reference.chunking_type().await? {
-                    let resolved = reference
-                        .resolve_reference()
-                        .resolve()
-                        .await?
-                        .primary_modules()
-                        .owned()
-                        .await?;
-                    return Ok(Some((chunking_type.clone(), resolved)));
+                if !include_traced && matches!(chunking_type, ChunkingType::Traced) {
+                    return Ok(None);
                 }
+
+                let resolved = reference
+                    .resolve_reference()
+                    .await?
+                    .primary_modules_ref()
+                    .await?;
+                let binding_usage = if include_binding_usage {
+                    reference.binding_usage().owned().await?
+                } else {
+                    BindingUsage::default()
+                };
+
+                return Ok(Some((
+                    ResolvedVc::upcast(reference),
+                    ResolvedReference {
+                        chunking_type: chunking_type.clone(),
+                        binding_usage,
+                        modules: resolved,
+                    },
+                )));
             }
             Ok(None)
         })
@@ -312,31 +357,28 @@ pub async fn primary_chunkable_referenced_modules(
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets.
 #[turbo_tasks::function]
-pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputAssets>> {
+pub async fn all_assets_from_entries(
+    entries: Vc<OutputAssets>,
+) -> Result<Vc<ExpandedOutputAssets>> {
     Ok(Vc::cell(
-        AdjacencyMap::new()
-            .skip_duplicates()
-            .visit(
-                entries.await?.iter().copied().map(ResolvedVc::upcast),
-                get_referenced_assets,
-            )
-            .await
-            .completed()?
-            .into_inner()
-            .into_postorder_topological()
-            .collect(),
+        expand_output_assets(
+            entries
+                .await?
+                .into_iter()
+                .map(|&asset| ExpandOutputAssetsInput::Asset(asset)),
+            true,
+        )
+        .await?,
     ))
 }
 
-/// Computes the list of all chunk children of a given chunk.
-pub async fn get_referenced_assets(
-    asset: ResolvedVc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
-    Ok(asset
-        .references()
-        .await?
-        .iter()
-        .copied()
-        .collect::<Vec<_>>()
-        .into_iter())
+/// Walks the asset graph from multiple assets and collect all referenced
+/// assets.
+#[turbo_tasks::function]
+pub async fn all_assets_from_entry(
+    entry: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<Vc<ExpandedOutputAssets>> {
+    Ok(Vc::cell(
+        expand_output_assets(std::iter::once(ExpandOutputAssetsInput::Asset(entry)), true).await?,
+    ))
 }

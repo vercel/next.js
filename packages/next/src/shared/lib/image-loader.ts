@@ -1,6 +1,6 @@
 import type { ImageLoaderPropsWithConfig } from './image-config'
-
-const DEFAULT_Q = 75
+import { findClosestQuality } from './find-closest-quality'
+import { getDeploymentId } from './deployment-id'
 
 function defaultLoader({
   config,
@@ -24,7 +24,35 @@ function defaultLoader({
         )}`
       )
     }
+  }
 
+  // Extract dpl parameter early so validation uses the clean URL
+  let deploymentId = getDeploymentId()
+  if (src.startsWith('/')) {
+    const srcUrl = new URL(src, 'http://n')
+    const srcDpl = srcUrl.searchParams.get('dpl')
+    if (srcDpl) {
+      deploymentId = srcDpl
+      // Remove the dpl parameter from the src URL to avoid duplication
+      srcUrl.searchParams.delete('dpl')
+      src = srcUrl.href.slice('http://n'.length)
+    }
+  }
+
+  if (
+    src.startsWith('/') &&
+    src.includes('?') &&
+    config.localPatterns?.length === 1 &&
+    config.localPatterns[0].pathname === '**' &&
+    config.localPatterns[0].search === ''
+  ) {
+    throw new Error(
+      `Image with src "${src}" is using a query string which is not configured in images.localPatterns.` +
+        `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
+    )
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
     if (src.startsWith('//')) {
       throw new Error(
         `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
@@ -38,7 +66,8 @@ function defaultLoader({
         process.env.NEXT_RUNTIME !== 'edge'
       ) {
         // We use dynamic require because this should only error in development
-        const { hasLocalMatch } = require('./match-local-pattern')
+        const { hasLocalMatch } =
+          require('./match-local-pattern') as typeof import('./match-local-pattern')
         if (!hasLocalMatch(config.localPatterns, src)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\` does not match \`images.localPatterns\` configured in your \`next.config.js\`\n` +
@@ -65,8 +94,11 @@ function defaultLoader({
         process.env.NEXT_RUNTIME !== 'edge'
       ) {
         // We use dynamic require because this should only error in development
-        const { hasRemoteMatch } = require('./match-remote-pattern')
-        if (!hasRemoteMatch(config.domains, config.remotePatterns, parsedSrc)) {
+        const { hasRemoteMatch } =
+          require('./match-remote-pattern') as typeof import('./match-remote-pattern')
+        if (
+          !hasRemoteMatch(config.domains!, config.remotePatterns!, parsedSrc)
+        ) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
@@ -74,26 +106,12 @@ function defaultLoader({
         }
       }
     }
-
-    if (quality && config.qualities && !config.qualities.includes(quality)) {
-      throw new Error(
-        `Invalid quality prop (${quality}) on \`next/image\` does not match \`images.qualities\` configured in your \`next.config.js\`\n` +
-          `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
-      )
-    }
   }
 
-  const q =
-    quality ||
-    config.qualities?.reduce((prev, cur) =>
-      Math.abs(cur - DEFAULT_Q) < Math.abs(prev - DEFAULT_Q) ? cur : prev
-    ) ||
-    DEFAULT_Q
+  const q = findClosestQuality(quality, config)
 
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
-    src.startsWith('/_next/static/media/') && process.env.NEXT_DEPLOYMENT_ID
-      ? `&dpl=${process.env.NEXT_DEPLOYMENT_ID}`
-      : ''
+    src.startsWith('/') && deploymentId ? `&dpl=${deploymentId}` : ''
   }`
 }
 

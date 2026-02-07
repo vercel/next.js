@@ -1,5 +1,5 @@
-import { report } from "../tick";
-import "./x";
-import "./y";
+import { report } from '../tick'
+import './x'
+import './y'
 
-report("index");
+report('index')

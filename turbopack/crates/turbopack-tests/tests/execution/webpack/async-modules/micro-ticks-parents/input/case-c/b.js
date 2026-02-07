@@ -1,3 +1,3 @@
-import { report } from "../tick";
+import { report } from '../tick'
 
-report("b");
+report('b')

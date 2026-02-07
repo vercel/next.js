@@ -51,6 +51,7 @@ export async function handleRoute(
         ([name]) => !name.toLowerCase().startsWith('next-test-')
       )
     ),
+    // @ts-expect-error - Type 'Buffer<ArrayBufferLike> | null' is not assignable to type 'BodyInit | null | undefined'.
     body: postData ?? null,
   })
 

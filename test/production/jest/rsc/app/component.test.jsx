@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { fireEvent, render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import Component from './component'
 
 it('works with client-only code', () => {

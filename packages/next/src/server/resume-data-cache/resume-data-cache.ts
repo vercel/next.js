@@ -100,7 +100,8 @@ type ResumeStoreSerialized = {
  * 'null' if empty
  */
 export async function stringifyResumeDataCache(
-  resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache
+  resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache,
+  isCacheComponentsEnabled: boolean
 ): Promise<string> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
@@ -116,7 +117,10 @@ export async function stringifyResumeDataCache(
         fetch: Object.fromEntries(Array.from(resumeDataCache.fetch.entries())),
         cache: Object.fromEntries(
           (
-            await serializeUseCacheCacheStore(resumeDataCache.cache.entries())
+            await serializeUseCacheCacheStore(
+              resumeDataCache.cache.entries(),
+              isCacheComponentsEnabled
+            )
           ).filter(
             (entry): entry is [string, UseCacheCacheStoreSerialized] =>
               entry !== null
@@ -157,31 +161,41 @@ export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
  * 1. An existing prerender cache instance
  * 2. A serialized cache string
  *
+ * @param renderResumeDataCache - A RenderResumeDataCache instance to be used directly
  * @param prerenderResumeDataCache - A PrerenderResumeDataCache instance to convert to immutable
  * @param persistedCache - A serialized cache string to parse
+ * @param maxPostponedStateSizeBytes - The max compressed size limit in bytes (used to calculate 5x decompression limit)
  * @returns An immutable RenderResumeDataCache instance
  */
+export function createRenderResumeDataCache(
+  renderResumeDataCache: RenderResumeDataCache
+): RenderResumeDataCache
 export function createRenderResumeDataCache(
   prerenderResumeDataCache: PrerenderResumeDataCache
 ): RenderResumeDataCache
 export function createRenderResumeDataCache(
-  persistedCache: string
+  persistedCache: string,
+  maxPostponedStateSizeBytes: number | undefined
 ): RenderResumeDataCache
 export function createRenderResumeDataCache(
-  prerenderResumeDataCacheOrPersistedCache: PrerenderResumeDataCache | string
+  resumeDataCacheOrPersistedCache:
+    | RenderResumeDataCache
+    | PrerenderResumeDataCache
+    | string,
+  maxPostponedStateSizeBytes?: number | undefined
 ): RenderResumeDataCache {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
       '`createRenderResumeDataCache` should not be called in edge runtime.'
     )
   } else {
-    if (typeof prerenderResumeDataCacheOrPersistedCache !== 'string') {
-      // If the cache is already a prerender cache, we can return it directly,
-      // we're just performing a type change.
-      return prerenderResumeDataCacheOrPersistedCache
+    if (typeof resumeDataCacheOrPersistedCache !== 'string') {
+      // If the cache is already a prerender or render cache, we can return it
+      // directly. For the former, we're just performing a type change.
+      return resumeDataCacheOrPersistedCache
     }
 
-    if (prerenderResumeDataCacheOrPersistedCache === 'null') {
+    if (resumeDataCacheOrPersistedCache === 'null') {
       return {
         cache: new Map(),
         fetch: new Map(),
@@ -195,11 +209,32 @@ export function createRenderResumeDataCache(
     // synchronous inflateSync function.
     const { inflateSync } = require('node:zlib') as typeof import('node:zlib')
 
-    const json: ResumeStoreSerialized = JSON.parse(
-      inflateSync(
-        Buffer.from(prerenderResumeDataCacheOrPersistedCache, 'base64')
-      ).toString('utf-8')
-    )
+    // Limit decompressed size to prevent zipbomb attacks. This is 5x the
+    // configured maxPostponedStateSize, allowing reasonable compression
+    // ratios while preventing extreme decompression bombs.
+    // Default is 500MB (5x the default 100MB compressed limit).
+    const maxDecompressedSize = maxPostponedStateSizeBytes
+      ? maxPostponedStateSizeBytes * 5
+      : 500 * 1024 * 1024
+
+    let json: ResumeStoreSerialized
+    try {
+      json = JSON.parse(
+        inflateSync(Buffer.from(resumeDataCacheOrPersistedCache, 'base64'), {
+          maxOutputLength: maxDecompressedSize,
+        }).toString('utf-8')
+      )
+    } catch (err: unknown) {
+      if (
+        err instanceof RangeError &&
+        (err as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE'
+      ) {
+        throw new Error(
+          `Decompressed resume data cache exceeded ${maxDecompressedSize} byte limit`
+        )
+      }
+      throw err
+    }
 
     return {
       cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),

@@ -1,0 +1,10 @@
+[data-loading] {
+  background-color: red;
+}
+
+[data-file] {
+  font-family: monospace;
+  padding: 10px;
+  background-color: blue;
+  color: white;
+}

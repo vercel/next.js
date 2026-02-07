@@ -1,0 +1,1 @@
+const mailgun = require('mailgun')

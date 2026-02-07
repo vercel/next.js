@@ -1,7 +1,7 @@
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../types'
 import type { PagesRouteModuleOptions } from '../../../../server/route-modules/pages/module'
-import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
@@ -19,7 +19,6 @@ export type EdgeSSRLoaderQuery = {
   dev: boolean
   isServerComponent: boolean
   page: string
-  stringifiedConfig: string
   appDirLoader?: string
   pagesType: PAGE_TYPES
   sriEnabled: boolean
@@ -46,7 +45,10 @@ function swapDistFolderWithEsmDistFolder(path: string) {
 }
 
 function getRouteModuleOptions(page: string) {
-  const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
+  const options: Omit<
+    PagesRouteModuleOptions,
+    'userland' | 'components' | 'distDir' | 'relativeProjectDir'
+  > = {
     definition: {
       kind: RouteKind.PAGES,
       page: normalizePagePath(page),
@@ -63,7 +65,6 @@ function getRouteModuleOptions(page: string) {
 const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
   async function edgeSSRLoader(this) {
     const {
-      dev,
       page,
       absolutePagePath,
       absoluteAppPath,
@@ -71,33 +72,26 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       absolute500Path,
       absoluteErrorPath,
       isServerComponent,
-      stringifiedConfig: stringifiedConfigBase64,
       appDirLoader: appDirLoaderBase64,
       pagesType,
-      sriEnabled,
       cacheHandler,
       cacheHandlers: cacheHandlersStringified,
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
-      serverActions,
     } = this.getOptions()
 
     const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
 
     if (!cacheHandlers.default) {
       cacheHandlers.default = require.resolve(
-        '../../../../server/lib/cache-handlers/default'
+        '../../../../server/lib/cache-handlers/default.external'
       )
     }
 
-    const middlewareConfig: MiddlewareConfig = JSON.parse(
+    const middlewareConfig: ProxyConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
 
-    const stringifiedConfig = Buffer.from(
-      stringifiedConfigBase64 || '',
-      'base64'
-    ).toString()
     const appDirLoader = Buffer.from(
       appDirLoaderBase64 || '',
       'base64'
@@ -121,18 +115,24 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       this.context || this.rootContext,
       absolutePagePath
     )
-    const appPath = this.utils.contextify(
-      this.context || this.rootContext,
-      swapDistFolderWithEsmDistFolder(absoluteAppPath)
-    )
-    const errorPath = this.utils.contextify(
-      this.context || this.rootContext,
-      swapDistFolderWithEsmDistFolder(absoluteErrorPath)
-    )
-    const documentPath = this.utils.contextify(
-      this.context || this.rootContext,
-      swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
-    )
+    const appPath = absoluteAppPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteAppPath)
+        )
+      : ''
+    const errorPath = absoluteErrorPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteErrorPath)
+        )
+      : ''
+    const documentPath = absoluteDocumentPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
+        )
+      : ''
     const userland500Path = absolute500Path
       ? this.utils.contextify(
           this.context || this.rootContext,
@@ -154,16 +154,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           VAR_USERLAND: pageModPath,
           VAR_PAGE: page,
         },
-        {
-          sriEnabled: JSON.stringify(sriEnabled),
-          nextConfig: stringifiedConfig,
-          isServerComponent: JSON.stringify(isServerComponent),
-          dev: JSON.stringify(dev),
-          serverActions:
-            typeof serverActions === 'undefined'
-              ? 'undefined'
-              : JSON.stringify(serverActions),
-        },
+        {},
         {
           incrementalCacheHandler: cacheHandler ?? null,
         }
@@ -173,16 +164,12 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         'edge-ssr',
         {
           VAR_USERLAND: pageModPath,
-          VAR_PAGE: page,
+          VAR_DEFINITION_PATHNAME: page,
           VAR_MODULE_DOCUMENT: documentPath,
           VAR_MODULE_APP: appPath,
           VAR_MODULE_GLOBAL_ERROR: errorPath,
         },
         {
-          pagesType: JSON.stringify(pagesType),
-          sriEnabled: JSON.stringify(sriEnabled),
-          nextConfig: stringifiedConfig,
-          dev: JSON.stringify(dev),
           pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
           errorRouteModuleOptions: JSON.stringify(
             getRouteModuleOptions('/_error')

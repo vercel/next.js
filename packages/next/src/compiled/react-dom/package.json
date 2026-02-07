@@ -14,7 +14,7 @@
       "react-server": "./server.react-server.js",
       "workerd": "./server.edge.js",
       "bun": "./server.bun.js",
-      "deno": "./server.browser.js",
+      "deno": "./server.node.js",
       "worker": "./server.browser.js",
       "node": "./server.node.js",
       "edge-light": "./server.edge.js",
@@ -67,10 +67,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "scheduler": "0.26.0-canary-db7dfe05-20250319"
+    "scheduler": "0.28.0-canary-95ffd6cd-20260205"
   },
   "peerDependencies": {
-    "react": "19.1.0-canary-db7dfe05-20250319"
+    "react": "19.3.0-canary-95ffd6cd-20260205"
   },
   "browser": {
     "./server.js": "./server.browser.js",

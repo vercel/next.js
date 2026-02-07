@@ -24,7 +24,6 @@ describe('SCSS Support', () => {
         'Learn more: https://nextjs.org/docs/messages/install-sass'
       )
 
-      expect(cliOutput).toContain('Failed to compile.')
       expect(cliOutput).not.toContain('css-loader')
       expect(cliOutput).not.toContain('sass-loader')
     })

@@ -423,7 +423,7 @@ graph TD
     Export(
         "NextResponse",
     ): 0,
-    Exports: 7,
+    Exports: 1,
 }
 ```
 
@@ -569,72 +569,6 @@ export { };
 
 ```
 ## Part 1
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { stringifyCookie } from '../../web/spec-extension/cookies';
-export { stringifyCookie as e } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 2
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { NextURL } from '../next-url';
-export { NextURL as f } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { toNodeOutgoingHttpHeaders } from '../utils';
-export { toNodeOutgoingHttpHeaders as g } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { validateURL } from '../utils';
-export { validateURL as h } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 5
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { ReflectAdapter } from './adapters/reflect';
-export { ReflectAdapter as i } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 6
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { ResponseCookies } from './cookies';
-export { ResponseCookies as j } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 7
 ```js
 export { NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export NextResponse"
@@ -788,7 +722,7 @@ export { };
     Export(
         "NextResponse",
     ): 0,
-    Exports: 7,
+    Exports: 1,
 }
 ```
 
@@ -934,72 +868,6 @@ export { };
 
 ```
 ## Part 1
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { stringifyCookie } from '../../web/spec-extension/cookies';
-export { stringifyCookie as e } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 2
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { NextURL } from '../next-url';
-export { NextURL as f } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { toNodeOutgoingHttpHeaders } from '../utils';
-export { toNodeOutgoingHttpHeaders as g } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { validateURL } from '../utils';
-export { validateURL as h } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 5
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { ReflectAdapter } from './adapters/reflect';
-export { ReflectAdapter as i } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 6
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { ResponseCookies } from './cookies';
-export { ResponseCookies as j } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 7
 ```js
 export { NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export NextResponse"

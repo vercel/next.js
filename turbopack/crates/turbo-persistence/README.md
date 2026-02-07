@@ -16,46 +16,66 @@ There is a single `CURRENT` file which stores the latest committed sequence numb
 
 All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once there sequence number is <= the committed sequence number. But they might be deleted when they are superseeded by other committed files.
 
-There are two different file types:
+There are four different file types:
 
-* Static Sorted Table (SST, `*.sst`): These files contain key value pairs.
-* Blob files (`*.blob`): These files contain large values.
+- Static Sorted Table (SST, `*.sst`): These files contain key value pairs.
+- Blob files (`*.blob`): These files contain large values.
+- Delete files (`*.del`): These files contain a list of sequence numbers of files that should be considered as deleted.
+- Meta files (`*.meta`): These files contain metadata about the SST files. They contains the hash range and a AMQF for quick filtering.
 
 Therefore there are there value types:
 
-* INLINE: Small values that are stored directly in the `*.sst` files.
-* BLOB: Large values that are stored in `*.blob` files.
-* DELETED: Values that are deleted. (Tombstone)
-* Future:
-  * MERGE: An application specific update operation that is applied on the old value.
+- INLINE: Small values that are stored directly in the `*.sst` files.
+- BLOB: Large values that are stored in `*.blob` files.
+- DELETED: Values that are deleted. (Tombstone)
+- Future:
+  - MERGE: An application specific update operation that is applied on the old value.
+
+### Meta file
+
+A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
+
+- Header
+  - 4 bytes magic number (0xFE4ADA4A)
+  - 4 bytes key family
+  - 4 bytes count of obsolete SST files
+  - foreach obsolete SST file
+    - 4 bytes sequence number of the obsolete SST file
+  - 4 bytes count of described SST files
+  - foreach described SST file
+    - 4 bytes sequence number of the SST file
+    - 2 bytes key Compression Dictionary length
+    - 2 bytes block count
+    - 8 bytes min hash
+    - 8 bytes max hash
+    - 8 bytes SST file size
+    - 4 bytes flags
+      - bit 0: cold (compacted and not recently accessed)
+      - bit 1: fresh (not yet compacted)
+    - 4 bytes end of AMQF offset relative to start of all AMQF data
+  - 4 bytes end of AMQF offset relative to start of all AMQF data of the "used key hashes" AMQF
+- foreach described SST file
+  - serialized AMQF
+- serialized "used key hashes" AMQF
 
 ### SST file
 
-* Headers
-  * 4 bytes magic number and version
-  * 4 bytes key family
-  * 8 bytes min hash
-  * 8 bytes max hash
-  * 3 bytes AQMF length
-  * 2 bytes key Compression Dictionary length
-  * 2 bytes value Compression Dictionary length
-  * 2 bytes block count
-* serialized AQMF
-* serialized key Compression Dictionary
-* serialized value Compression Dictionary
-* foreach block
-  * 4 bytes end of block offset relative to start of all blocks
-* foreach block
-  * 4 bytes uncompressed block length
-  * compressed data
+The SST file contains only data without any header.
+
+- serialized key Compression Dictionary
+- foreach block
+  - 4 bytes uncompressed block length
+  - compressed data
+- foreach block
+  - 4 bytes end of block offset relative to start of all blocks
 
 #### Index Block
 
-* 1 byte block type (0: index block)
-* 2 bytes block index
-* `n` times
-  * 8 bytes hash
-  * 2 bytes block index
+- 1 byte block type (0: index block)
+- 2 bytes block index
+- `n` times
+  - 8 bytes hash
+  - 2 bytes block index
 
 An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indicies that point to the block that contains the hash range.
 
@@ -65,51 +85,57 @@ The hashes are sorted.
 
 #### Key Block
 
-* 1 byte block type (1: key block)
-* 3 bytes entry count
-* foreach entry
-  * 1 byte type
-  * 3 bytes position in block after header
-* Max block size: 16 MB
+- 1 byte block type (1: key block with hash, 2: key block without hash)
+- 3 bytes entry count
+- foreach entry
+  - 1 byte type
+  - 3 bytes position in block after header
+- Max block size: 16 MB
 
 A Key block contains n keys, which specify n key value pairs.
 
+The block type determines whether the key hash is stored per entry:
+
+- Block type 1 (with hash): Full 8-byte hash stored per entry
+- Block type 2 (no hash): No hash stored (for keys ≤ 32 bytes)
+
+During lookup, if block type is 2, the full hash is recomputed from the key data.
+
 Depending on the `type` field entry has a different format:
-* 0: normal key (small value)
-  * 8 bytes key hash
-  * key data
-  * 2 byte block index
-  * 2 bytes size
-  * 4 bytes position in block
-* 1: blob reference
-  * 8 bytes key hash
-  * key data
-  * 4 bytes sequence number
-* 2: deleted key / tombstone (no data)
-  * 8 bytes key hash
-  * key data
-* 3: normal key (medium sized value)
-  * 8 bytes key hash
-  * key data
-  * 2 byte block index
-* 7: merge key (future)
-  * key data
-  * 2 byte block index
-  * 3 bytes size
-  * 4 bytes position in block
-* 8..255: inlined key (future)
-  * 8 bytes key hash
-  * key data
-  * type - 8 bytes value data
+
+- 0: normal key (small value)
+  - 8 bytes key hash (if block type 1)
+  - key data
+  - 2 byte block index
+  - 2 bytes size
+  - 4 bytes position in block
+- 1: blob reference
+  - 8 bytes key hash (if block type 1)
+  - key data
+  - 4 bytes sequence number
+- 2: deleted key / tombstone (no data)
+  - 8 bytes key hash (if block type 1)
+  - key data
+- 3: normal key (medium sized value)
+  - 8 bytes key hash (if block type 1)
+  - key data
+  - 2 byte block index
+- 7: merge key (future)
+  - key data
+  - 2 byte block index
+  - 3 bytes size
+  - 4 bytes position in block
+- 8..255: inlined key (future)
+  - 8 bytes key hash (if block type 1)
+  - key data
+  - type - 8 bytes value data
 
 The entries are sorted by key hash and key.
 
-TODO: 8 bytes key hash is a bit inefficient for small keys.
-
 #### Value Block
 
-* no header, all bytes are data referenced by other blocks
-* max block size: 4 GB
+- no header, all bytes are data referenced by other blocks
+- max block size: 4 GB
 
 ### Blob file
 
@@ -119,17 +145,17 @@ The plain value compressed with dynamic compression.
 
 Reading start from the current sequence number and goes downwards.
 
-* We have all SST files memory mapped
-* for i = CURRENT sequence number .. 0
-  * Check AQMF from SST file for key existance -> if not continue
-  * let block = 0
-  * loop
-    * Index Block: find key range that contains the key by binary search
-      * found -> set block, continue
-      * not found -> break
-    * Key Block: find key by binary search
-      * found -> lookup value from value block, return
-      * not found -> break
+- We have all SST files memory mapped
+- for i = CURRENT sequence number .. 0
+  - Check AMQF from SST file for key existence -> if not continue
+  - let block = 0
+  - loop
+    - Index Block: find key range that contains the key by binary search
+      - found -> set block, continue
+      - not found -> break
+    - Key Block: find key by binary search
+      - found -> lookup value from value block, return
+      - not found -> break
 
 ## Writing
 
@@ -153,7 +179,7 @@ Compaction chooses a few SST files and runs the merge step of merge sort on tham
 
 Example:
 
-```
+``` text
 key hash range: | 0    ...    u64::MAX |
 SST 1:             |----------------|
 SST 2:                |----------------|
@@ -162,7 +188,7 @@ SST 3:            |-----|
 
 can be compacted into:
 
-```
+``` text
 key hash range: | 0    ...    u64::MAX |
 SST 1':           |-------|
 SST 2':                   |------|
@@ -171,7 +197,7 @@ SST 3':                          |-----|
 
 The merge operation decreases the total coverage since the new SST files will have a coverage of < 1.
 
-But we need to be careful to insert the SST files in the correct location again, since items in these SST files might be overriden in later SST file and we don't want to change that.
+But we need to be careful to insert the SST files in the correct location again, since items in these SST files might be overridden in later SST file and we don't want to change that.
 
 Since SST files that are smaller than the current sequence number are immutable we can't change the files and we can't insert new files at this sequence numbers.
 Instead we need to insert the new SST after the current sequence number and copy all SST files after the original SST files after them. (Actually we only need to copy SST files with overlapping key hash ranges. And we can hardlink them instead). Later we will write the current sequence number and delete them original and all copied SST files.
@@ -190,7 +216,7 @@ Full example:
 
 Example:
 
-```
+``` text
 key hash range: | 0    ...    u64::MAX | Family
 SST 1:             |-|                   1
 SST 2:             |----------------|    1
@@ -218,7 +244,7 @@ Then we delete SST files 2, 3, 6 and 4, 5, 8 and 7, 9. The
 
 SST files 1 stays unchanged.
 
-```
+``` text
 key hash range: | 0    ...    u64::MAX | Family
 SST 1:             |-|                   1
 SST 10:            |-----|               1
@@ -233,19 +259,18 @@ CURRENT: 17
 ```
 
 Configuration options for compations are:
-* max number of SST files that are merged at once
-* coverage when compaction is triggered (otherwise calling compact is a noop)
+
+- max number of SST files that are merged at once
+- coverage when compaction is triggered (otherwise calling compact is a noop)
 
 ## Opening
 
-* Read the `CURRENT` file
-* Delete all files with a higher sequence number than the one in the `CURRENT` file.
-* Read all `*.del` files and delete the files that are listed in there.
-* Read all `*.sst` files and memory map them.
+- Read the `CURRENT` file
+- Delete all files with a higher sequence number than the one in the `CURRENT` file.
+- Read all `*.del` files and delete the files that are listed in there.
+- Read all `*.sst` files and memory map them.
 
 ## Closing
 
-* fsync!
-* (this also deleted enqueued files)
-
-
+- fsync!
+- (this also deleted enqueued files)

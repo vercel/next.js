@@ -1,4 +1,4 @@
-const webpack = require('webpack')
+const webpack = require('@rspack/core')
 
 module.exports = function (task) {
   // eslint-disable-next-line require-yield

@@ -6,7 +6,10 @@ use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 use super::get_ecma_transform_rule;
-use crate::next_config::{NextConfig, RemoveConsoleConfig};
+use crate::{
+    next_config::{NextConfig, RemoveConsoleConfig},
+    next_shared::transforms::EcmascriptTransformStage,
+};
 
 /// Returns a rule which applies the remove_console transform.
 pub async fn get_remove_console_transform_rule(
@@ -37,7 +40,7 @@ pub async fn get_remove_console_transform_rule(
             get_ecma_transform_rule(
                 Box::new(RemoveConsoleTransformer { config }),
                 enable_mdx_rs,
-                true,
+                EcmascriptTransformStage::Preprocess,
             )
         });
 

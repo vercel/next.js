@@ -2,12 +2,9 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    dynamicIO: true,
-    cacheHandlers: {
-      default: require.resolve('./handler.js'),
-      legacy: require.resolve('./legacy-handler.js'),
-    },
+  cacheComponents: true,
+  cacheHandlers: {
+    default: require.resolve('./handler.js'),
   },
 }
 

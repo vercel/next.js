@@ -13,5 +13,5 @@ jobs:
       name: turbopack-development
       test_type: development
       run_before_test: |
-        export TURBOPACK=1
+        export IS_TURBOPACK_TEST=1 TURBOPACK_DEV=1
     secrets: inherit

@@ -11,16 +11,18 @@
 
 use std::fmt::Write;
 
-use anyhow::{bail, Error, Result};
-use turbo_rcstr::RcStr;
+use anyhow::{Error, Result, bail};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{glob::Glob, FileContent, FileJsonContent};
+use turbo_tasks_fs::{FileContent, FileJsonContent};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    code_builder::CodeBuilder,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -30,11 +32,6 @@ use turbopack_ecmascript::{
     },
     runtime_functions::TURBOPACK_EXPORT_VALUE,
 };
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("json".into())
-}
 
 #[turbo_tasks::value]
 pub struct JsonModuleAsset {
@@ -53,15 +50,17 @@ impl JsonModuleAsset {
 impl Module for JsonModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(modifier())
+        self.source.ident().with_modifier(rcstr!("json"))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for JsonModuleAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 
@@ -86,11 +85,6 @@ impl EcmascriptChunkPlaceable for JsonModuleAsset {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
     }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(true)
-    }
 }
 
 #[turbo_tasks::value]
@@ -98,6 +92,9 @@ struct JsonChunkItem {
     module: ResolvedVc<JsonModuleAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for JsonChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for JsonChunkItem {
@@ -108,7 +105,7 @@ impl ChunkItem for JsonChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(*self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -130,26 +127,57 @@ impl EcmascriptChunkItem for JsonChunkItem {
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         // We parse to JSON and then stringify again to ensure that the
         // JSON is valid.
-        let content = self.module.content().file_content();
+        let content = self.module.await?.source.content().file_content();
         let data = content.parse_json().await?;
         match &*data {
             FileJsonContent::Content(data) => {
-                let js_str_content = serde_json::to_string(&data.to_string())?;
-                let inner_code = format!("{TURBOPACK_EXPORT_VALUE}(JSON.parse({js_str_content}));");
+                let data_str = data.to_string();
 
+                let mut code = CodeBuilder::default();
+
+                let source_code = if data_str.len() > 10_000 {
+                    // Only use JSON.parse if the content is larger than 10kb
+                    // https://v8.dev/blog/cost-of-javascript-2019#json
+                    let js_str_content = serde_json::to_string(&data_str)?;
+                    format!("{TURBOPACK_EXPORT_VALUE}(JSON.parse({js_str_content}));")
+                } else {
+                    format!("{TURBOPACK_EXPORT_VALUE}({data_str});")
+                };
+
+                let source_code = source_code.into();
+                let source_map = serde_json::json!({
+                    "version": 3,
+                    // TODO: Encode using `urlencoding`, so that these
+                    // are valid URLs. However, `project_trace_source_operation` (and
+                    // `uri_from_file`) need to handle percent encoding correctly first.
+                    //
+                    // See turbopack/crates/turbopack-core/src/source_map/utils.rs as well
+                    "sources": [format!("turbopack:///{}", self.module.ident().path().to_string().await?)],
+                    "sourcesContent": [&data_str],
+                    "names": [],
+                    // Maps 0:0 in the output code to 0:0 in the `source_code`. Sufficient for
+                    // bundle analyzers to attribute the bytes in the output chunks
+                    "mappings": "AAAA",
+                })
+                .to_string()
+                .into();
+                code.push_source(&source_code, Some(source_map));
+
+                let code = code.build();
                 Ok(EcmascriptChunkItemContent {
-                    inner_code: inner_code.into(),
+                    source_map: Some(code.generate_source_map_ref(None)),
+                    inner_code: code.into_source_code(),
                     ..Default::default()
                 }
-                .into())
+                .cell())
             }
-            FileJsonContent::Unparseable(e) => {
+            FileJsonContent::Unparsable(e) => {
                 let mut message = "Unable to make a module from invalid JSON: ".to_string();
                 if let FileContent::Content(content) = &*content.await? {
                     let text = content.content().to_str()?;
                     e.write_with_content(&mut message, text.as_ref())?;
                 } else {
-                    write!(message, "{}", e)?;
+                    write!(message, "{e}")?;
                 }
 
                 Err(Error::msg(message))
@@ -162,12 +190,4 @@ impl EcmascriptChunkItem for JsonChunkItem {
             }
         }
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

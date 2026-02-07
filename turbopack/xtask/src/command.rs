@@ -52,18 +52,20 @@ impl Command {
             cmd.current_dir(&current_dir);
         }
         if self.dry_run {
-            println!("{:?}", cmd);
+            println!("{cmd:?}");
             return;
         }
         let status = cmd.status();
-        assert!({
-            if self.error_message.is_empty() {
-                status.unwrap()
-            } else {
-                status.expect(&self.error_message)
+        assert!(
+            {
+                if self.error_message.is_empty() {
+                    status.unwrap()
+                } else {
+                    status.expect(&self.error_message)
+                }
             }
-        }
-        .success());
+            .success()
+        );
     }
 
     pub fn output_string(self) -> String {

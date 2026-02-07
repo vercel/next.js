@@ -1,6 +1,0 @@
-{
-  "name": "typescript-plugin-fixture",
-  "dependencies": {
-    "typescript": "^5.5.2"
-  }
-}

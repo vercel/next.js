@@ -1,31 +1,25 @@
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use anyhow::{Result, bail};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::{OutputAsset, OutputAssets},
-    source::Source,
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
-    runtime_functions::TURBOPACK_EXPORT_VALUE,
+    runtime_functions::TURBOPACK_EXPORT_URL,
     utils::StringifyJs,
 };
 
 use crate::{output_asset::WebAssemblyAsset, source::WebAssemblySource};
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("wasm raw".into())
-}
 
 /// Exports the relative path to the WebAssembly file without loading it.
 #[turbo_tasks::value]
@@ -57,19 +51,23 @@ impl RawWebAssemblyModuleAsset {
 #[turbo_tasks::value_impl]
 impl Module for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
             .ident()
-            .with_modifier(modifier())
-            .with_layer(self.asset_context.layer())
+            .with_modifier(rcstr!("wasm raw"))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer()))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(ResolvedVc::upcast(self.source)))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // this just exports a path
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 
@@ -85,10 +83,7 @@ impl ChunkableModule for RawWebAssemblyModuleAsset {
             RawModuleChunkItem {
                 module: self,
                 chunking_context,
-                wasm_asset: self
-                    .wasm_asset(Vc::upcast(*chunking_context))
-                    .to_resolved()
-                    .await?,
+                wasm_asset: self.wasm_asset(*chunking_context).to_resolved().await?,
             }
             .cell(),
         ))
@@ -111,6 +106,14 @@ struct RawModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for RawModuleChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(Vc::cell(vec![ResolvedVc::upcast(self.wasm_asset)]))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for RawModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -118,13 +121,8 @@ impl ChunkItem for RawModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(self.wasm_asset)]))
-    }
-
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(*self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -152,13 +150,9 @@ impl EcmascriptChunkItem for RawModuleChunkItem {
         };
 
         Ok(EcmascriptChunkItemContent {
-            inner_code: format!(
-                "{TURBOPACK_EXPORT_VALUE}({path});",
-                path = StringifyJs(path)
-            )
-            .into(),
+            inner_code: format!("{TURBOPACK_EXPORT_URL}({path});", path = StringifyJs(path)).into(),
             ..Default::default()
         }
-        .into())
+        .cell())
     }
 }

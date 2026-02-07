@@ -1,7 +1,7 @@
 use turbo_rcstr::RcStr;
-use turbo_tasks::{mark_session_dependent, FxIndexMap, Vc};
+use turbo_tasks::{FxIndexMap, Vc, mark_session_dependent};
 
-use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
+use crate::{EnvMap, GLOBAL_ENV_LOCK, ProcessEnv, sorted_env_vars};
 
 /// Load the environment variables defined via command line.
 #[turbo_tasks::value]

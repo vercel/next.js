@@ -1,3 +1,3 @@
 export function getThis() {
-  return this;
+  return this
 }

@@ -3,7 +3,7 @@ import type { Declaration } from 'postcss'
 import postcss from 'postcss'
 
 /**
- * The next/font postcss plugin recieves the @font-face declarations returned from the next/font loaders.
+ * The next/font postcss plugin receives the @font-face declarations returned from the next/font loaders.
  *
  * It hashes the font-family name to make it unguessable, it shouldn't be globally accessible.
  * If it were global, we wouldn't be able to tell which pages are using which fonts when generating preload tags.

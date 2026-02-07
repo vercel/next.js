@@ -1,7 +1,16 @@
 const fs = require('fs')
 const path = require('path')
+const JSON5 = require('next/dist/compiled/json5')
 
-const serverExternals = require('../packages/next/src/lib/server-external-packages.json')
+const serverExternals = JSON5.parse(
+  fs.readFileSync(
+    path.join(
+      __dirname,
+      '../packages/next/src/lib/server-external-packages.jsonc'
+    ),
+    'utf8'
+  )
+)
 
 function validate(docPath) {
   const docContent = fs.readFileSync(
@@ -55,10 +64,10 @@ function validate(docPath) {
 }
 
 const appRouterValid = validate(
-  `docs/01-app/04-api-reference/05-config/01-next-config-js/serverExternalPackages.mdx`
+  `docs/01-app/03-api-reference/05-config/01-next-config-js/serverExternalPackages.mdx`
 )
 const pagesRouterValid = validate(
-  `docs/02-pages/03-api-reference/04-config/01-next-config-js/serverExternalPackages.mdx`
+  `docs/02-pages/04-api-reference/04-config/01-next-config-js/serverExternalPackages.mdx`
 )
 
 if (appRouterValid && pagesRouterValid) {

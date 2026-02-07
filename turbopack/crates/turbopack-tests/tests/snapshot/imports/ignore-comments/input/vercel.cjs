@@ -1,1 +1,1 @@
-module.exports = "turbopack";
+module.exports = 'turbopack'

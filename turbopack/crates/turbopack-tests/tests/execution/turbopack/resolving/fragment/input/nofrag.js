@@ -1,1 +1,1 @@
-export default "nofrag";
+export default 'nofrag'

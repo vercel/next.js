@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import '../server/lib/cpu-profile'
+import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
 import { italic } from '../lib/picocolors'
 import build from '../build'
@@ -10,57 +10,84 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
+import { Bundler, parseBundlerArgs } from '../lib/bundler'
+import {
+  resolveBuildPaths,
+  parseBuildPathsInput,
+} from '../lib/resolve-build-paths'
 
 export type NextBuildOptions = {
+  experimentalAnalyze?: boolean
   debug?: boolean
+  debugPrerender?: boolean
   profile?: boolean
-  lint: boolean
   mangling: boolean
   turbo?: boolean
   turbopack?: boolean
+  webpack?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env'
   experimentalUploadTrace?: string
+  experimentalNextConfigStripTypes?: boolean
+  debugBuildPaths?: string
+  experimentalCpuProf?: boolean
 }
 
-const nextBuild = (options: NextBuildOptions, directory?: string) => {
-  process.on('SIGTERM', () => process.exit(143))
-  process.on('SIGINT', () => process.exit(130))
+const nextBuild = async (options: NextBuildOptions, directory?: string) => {
+  process.on('SIGTERM', () => {
+    saveCpuProfile()
+    process.exit(143)
+  })
+  process.on('SIGINT', () => {
+    saveCpuProfile()
+    process.exit(130)
+  })
 
   const {
+    experimentalAnalyze,
     debug,
+    debugPrerender,
     experimentalDebugMemoryUsage,
     profile,
-    lint,
     mangling,
     experimentalAppOnly,
     experimentalBuildMode,
     experimentalUploadTrace,
+    debugBuildPaths,
   } = options
-
-  const useTurbopack =
-    options.experimentalTurbo || options.turbo || options.turbopack
 
   let traceUploadUrl: string | undefined
   if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
     traceUploadUrl = experimentalUploadTrace
   }
 
-  if (!lint) {
-    warn('Linting is disabled.')
+  const bundler = parseBundlerArgs(options)
+
+  if (experimentalAnalyze && bundler !== Bundler.Turbopack) {
+    printAndExit(
+      '--experimental-analyze is only compatible with the Turbopack bundler.'
+    )
   }
 
   if (!mangling) {
     warn(
-      'Mangling is disabled. Note: This may affect performance and should only be used for debugging purposes.'
+      `Mangling is disabled. ${italic('Note: This may affect performance and should only be used for debugging purposes.')}`
     )
   }
 
   if (profile) {
     warn(
       `Profiling is enabled. ${italic('Note: This may affect performance.')}`
+    )
+  }
+
+  if (debugPrerender) {
+    warn(
+      `Prerendering is running in debug mode. ${italic(
+        'Note: This may affect performance and should not be used for production.'
+      )}`
     )
   }
 
@@ -75,20 +102,39 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (useTurbopack) {
-    process.env.TURBOPACK = '1'
+  // Resolve selective build paths
+  let resolvedBuildPaths: { app: string[]; pages: string[] } | undefined
+
+  if (debugBuildPaths) {
+    try {
+      const patterns = parseBuildPathsInput(debugBuildPaths)
+
+      if (patterns.length > 0) {
+        const resolved = await resolveBuildPaths(patterns, dir)
+        resolvedBuildPaths = {
+          app: resolved.appPaths,
+          pages: resolved.pagePaths,
+        }
+      }
+    } catch (err) {
+      printAndExit(
+        `Failed to resolve build paths: ${isError(err) ? err.message : String(err)}`
+      )
+    }
   }
 
   return build(
     dir,
+    experimentalAnalyze,
     profile,
     debug || Boolean(process.env.NEXT_DEBUG_BUILD),
-    lint,
+    debugPrerender,
     !mangling,
     experimentalAppOnly,
-    !!process.env.TURBOPACK,
+    bundler,
     experimentalBuildMode,
-    traceUploadUrl
+    traceUploadUrl,
+    resolvedBuildPaths
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {
@@ -117,4 +163,4 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     })
 }
 
-export { nextBuild }
+export { nextBuild, saveCpuProfile }

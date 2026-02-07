@@ -4,10 +4,12 @@ use rustc_hash::FxHashMap;
 use swc_core::{
     base::SwcComments,
     common::{
-        comments::{Comment, CommentKind, Comments},
         BytePos,
+        comments::{Comment, CommentKind, Comments},
     },
 };
+
+use crate::source_map::extract_source_mapping_url;
 
 /// Immutable version of [SwcComments] which doesn't allow mutation. The `take`
 /// variants are still implemented, but do not mutate the content. They are used
@@ -38,6 +40,60 @@ impl ImmutableComments {
                 })
                 .collect(),
         }
+    }
+
+    /// Creates a new ImmutableComments from SwcComments, extracting and removing
+    /// any sourceMappingURL comment. Returns the comments and the extracted URL if found.
+    /// If multiple sourceMappingURL comments exist, the one with the highest position
+    /// (last in the file) is selected per the ECMAScript spec.
+    pub fn new_with_source_mapping_url(comments: SwcComments) -> (Self, Option<String>) {
+        let mut source_mapping_url_by_pos: Vec<(BytePos, String)> = Vec::new();
+
+        let leading: FxHashMap<BytePos, Vec<Comment>> = comments
+            .leading
+            .iter_mut()
+            .filter_map(|mut r| {
+                let pos = *r.key();
+                let mut c = take(r.value_mut());
+                // Extract and remove sourceMappingURL comments
+                c.retain(|comment| {
+                    if let Some(url) = extract_source_mapping_url(comment) {
+                        source_mapping_url_by_pos.push((pos, url.to_string()));
+                        false
+                    } else {
+                        true
+                    }
+                });
+                (!c.is_empty()).then_some((pos, c))
+            })
+            .collect();
+
+        let trailing: FxHashMap<BytePos, Vec<Comment>> = comments
+            .trailing
+            .iter_mut()
+            .filter_map(|mut r| {
+                let pos = *r.key();
+                let mut c = take(r.value_mut());
+                // Extract and remove sourceMappingURL comments
+                c.retain(|comment| {
+                    if let Some(url) = extract_source_mapping_url(comment) {
+                        source_mapping_url_by_pos.push((pos, url.to_string()));
+                        false
+                    } else {
+                        true
+                    }
+                });
+                (!c.is_empty()).then_some((pos, c))
+            })
+            .collect();
+
+        // Select the sourceMappingURL with the highest position (last one in the file)
+        let source_mapping_url = source_mapping_url_by_pos
+            .into_iter()
+            .max_by_key(|&(pos, _)| pos)
+            .map(|(_, url)| url);
+
+        (Self { leading, trailing }, source_mapping_url)
     }
 
     pub fn into_consumable(self) -> CowComments<'static> {
@@ -191,8 +247,8 @@ impl Comments for ImmutableComments {
 }
 
 pub struct CowComments<'a> {
-    leading: RefCell<FxHashMap<BytePos, Cow<'a, Vec<Comment>>>>,
-    trailing: RefCell<FxHashMap<BytePos, Cow<'a, Vec<Comment>>>>,
+    leading: RefCell<FxHashMap<BytePos, Cow<'a, [Comment]>>>,
+    trailing: RefCell<FxHashMap<BytePos, Cow<'a, [Comment]>>>,
 }
 
 impl<'a> CowComments<'a> {
@@ -202,14 +258,14 @@ impl<'a> CowComments<'a> {
                 comments
                     .leading
                     .iter()
-                    .map(|(&key, value)| (key, Cow::Borrowed(value)))
+                    .map(|(&key, value)| (key, Cow::Borrowed(&value[..])))
                     .collect(),
             ),
             trailing: RefCell::new(
                 comments
                     .trailing
                     .iter()
-                    .map(|(&key, value)| (key, Cow::Borrowed(value)))
+                    .map(|(&key, value)| (key, Cow::Borrowed(&value[..])))
                     .collect(),
             ),
         }
@@ -274,7 +330,7 @@ impl Comments for CowComments<'_> {
         &self,
         pos: swc_core::common::BytePos,
     ) -> Option<Vec<swc_core::common::comments::Comment>> {
-        self.leading.borrow().get(&pos).map(|v| (**v).clone())
+        self.leading.borrow().get(&pos).map(|v| (**v).to_vec())
     }
 
     fn add_trailing(
@@ -315,7 +371,7 @@ impl Comments for CowComments<'_> {
         &self,
         pos: swc_core::common::BytePos,
     ) -> Option<Vec<swc_core::common::comments::Comment>> {
-        self.trailing.borrow().get(&pos).map(|v| (**v).clone())
+        self.trailing.borrow().get(&pos).map(|v| (**v).to_vec())
     }
 
     fn add_pure_comment(&self, _pos: swc_core::common::BytePos) {

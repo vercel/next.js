@@ -3,27 +3,27 @@ use std::convert::Infallible;
 use anyhow::Result;
 use lightningcss::{
     rules::CssRule,
+    stylesheet::StyleSheet,
     traits::IntoOwned,
     values::url::Url,
     visitor::{Visit, Visitor},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext, ReferenceType},
-    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
+    resolve::{
+        ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request, url_resolve,
+    },
     source::Source,
     source_pos::SourcePos,
 };
 
-use crate::{
-    references::{
-        import::{ImportAssetReference, ImportAttributes},
-        url::UrlAssetReference,
-    },
-    StyleSheetLike,
+use crate::references::{
+    import::{ImportAssetReference, ImportAttributes},
+    url::UrlAssetReference,
 };
 
 pub(crate) mod compose;
@@ -32,31 +32,38 @@ pub(crate) mod internal;
 pub(crate) mod url;
 
 pub type AnalyzedRefs = (
-    Vec<Vc<Box<dyn ModuleReference>>>,
-    Vec<(String, Vc<UrlAssetReference>)>,
+    Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    Vec<(String, ResolvedVc<UrlAssetReference>)>,
 );
 
 /// Returns `(all_references, urls)`.
-pub fn analyze_references(
-    stylesheet: &mut StyleSheetLike<'static, 'static>,
+pub async fn analyze_references(
+    stylesheet: &mut StyleSheet<'static, 'static>,
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Option<Vc<ImportContext>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
 ) -> Result<AnalyzedRefs> {
     let mut references = Vec::new();
     let mut urls = Vec::new();
 
     let mut visitor =
         ModuleReferencesVisitor::new(source, origin, import_context, &mut references, &mut urls);
-    stylesheet.0.visit(&mut visitor).unwrap();
+    stylesheet.visit(&mut visitor).unwrap();
 
-    Ok((references, urls))
+    tokio::try_join!(
+        references.into_iter().map(|v| v.to_resolved()).try_join(),
+        urls.into_iter()
+            .map(|(k, v)| async move { Ok((k, v.to_resolved().await?)) })
+            .try_join(),
+    )
 }
 
 struct ModuleReferencesVisitor<'a> {
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Option<Vc<ImportContext>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
+    // `references` and `urls` must be resolved later (in `analyze_references`), as they're
+    // collected inside of a synchronous visitor
     references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
     urls: &'a mut Vec<(String, Vc<UrlAssetReference>)>,
 }
@@ -64,8 +71,8 @@ struct ModuleReferencesVisitor<'a> {
 impl<'a> ModuleReferencesVisitor<'a> {
     fn new(
         source: ResolvedVc<Box<dyn Source>>,
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        import_context: Option<Vc<ImportContext>>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        import_context: Option<ResolvedVc<ImportContext>>,
         references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
         urls: &'a mut Vec<(String, Vc<UrlAssetReference>)>,
     ) -> Self {
@@ -94,12 +101,12 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                 let issue_span = i.loc;
 
                 self.references.push(Vc::upcast(ImportAssetReference::new(
-                    self.origin,
-                    Request::parse(Value::new(RcStr::from(src).into())),
-                    ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).into(),
-                    self.import_context,
+                    *self.origin,
+                    Request::parse(RcStr::from(src).into()),
+                    ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).cell(),
+                    self.import_context.map(|ctx| *ctx),
                     IssueSource::from_line_col(
-                        ResolvedVc::upcast(self.source),
+                        self.source,
                         SourcePos {
                             line: issue_span.line as _,
                             column: issue_span.column as _,
@@ -113,8 +120,8 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
 
                 *rule = CssRule::Ignored;
 
-                // let res = i.visit_children(self);
-                // res
+                // This node type has no children worth visiting.
+                // i.visit_children(self)
                 Ok(())
             }
 
@@ -131,10 +138,10 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
             let issue_span = u.loc;
 
             let vc = UrlAssetReference::new(
-                self.origin,
-                Request::parse(Value::new(RcStr::from(src).into())),
+                *self.origin,
+                Request::parse(RcStr::from(src).into()),
                 IssueSource::from_line_col(
-                    ResolvedVc::upcast(self.source),
+                    self.source,
                     SourcePos {
                         line: issue_span.line as _,
                         column: issue_span.column as _,
@@ -150,8 +157,8 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
             self.urls.push((u.url.to_string(), vc));
         }
 
+        // This node type has no children worth visiting.
         // u.visit_children(self)?;
-
         Ok(())
     }
 
@@ -170,14 +177,14 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
 pub fn css_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    ty: Value<CssReferenceSubType>,
+    ty: CssReferenceSubType,
     issue_source: Option<IssueSource>,
 ) -> Vc<ModuleResolveResult> {
     url_resolve(
         origin,
         request,
-        Value::new(ReferenceType::Css(ty.into_value())),
+        ReferenceType::Css(ty),
         issue_source,
-        false,
+        ResolveErrorMode::Error,
     )
 }

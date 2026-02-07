@@ -148,7 +148,6 @@
             ),
         ],
         span: 18..34,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -274,7 +273,6 @@
             ),
         ],
         span: 57..81,
-        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -347,12 +345,9 @@
             ),
         ],
         span: 57..68,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "process",
-        ),
+        var: "process",
         ast_path: [
             Program(
                 Module,
@@ -419,7 +414,6 @@
             ),
         ],
         span: 57..64,
-        in_try: false,
     },
     Conditional {
         condition: Binary(
@@ -601,7 +595,6 @@
             ),
         ],
         span: 57..196,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -894,7 +887,6 @@
             ),
         ],
         span: 208..268,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -945,7 +937,6 @@
                             ),
                         ],
                         span: 354..355,
-                        in_try: false,
                     },
                 ],
                 range: Exact(
@@ -1014,7 +1005,6 @@
                             ),
                         ],
                         span: 368..369,
-                        in_try: false,
                     },
                 ],
                 range: Exact(
@@ -1060,7 +1050,6 @@
             ),
         ],
         span: 340..372,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -1234,7 +1223,6 @@
             ),
         ],
         span: 399..434,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -1339,6 +1327,5 @@
             ),
         ],
         span: 453..454,
-        in_try: false,
     },
 ]

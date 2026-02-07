@@ -5,17 +5,11 @@ const Header: React.FC = () => {
   return (
     <nav>
       <div className="left">
-        <Link href="/" legacyBehavior>
-          <a>Blog</a>
-        </Link>
-        <Link href="/drafts" legacyBehavior>
-          <a>Drafts</a>
-        </Link>
+        <Link href="/">Blog</Link>
+        <Link href="/drafts">Drafts</Link>
       </div>
       <div className="right">
-        <Link href="/create" legacyBehavior>
-          <a>+ New draft</a>
-        </Link>
+        <Link href="/create">+ New draft</Link>
       </div>
       <style jsx>{`
         nav {

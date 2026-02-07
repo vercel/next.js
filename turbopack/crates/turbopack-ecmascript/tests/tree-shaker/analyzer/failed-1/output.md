@@ -15,12 +15,12 @@ let source;
 ## Item 2: Stmt 1, `VarDeclarator(0)`
 
 ```js
-const eventCallbacks = [];
+const messageCallbacks = [];
 
 ```
 
-- Declares: `eventCallbacks`
-- Write: `eventCallbacks`
+- Declares: `messageCallbacks`
+- Write: `messageCallbacks`
 
 ## Item 3: Stmt 2, `Normal`
 
@@ -43,16 +43,16 @@ function getSocketProtocol(assetPrefix) {
 
 ```js
 export function addMessageListener(cb) {
-    eventCallbacks.push(cb);
+    messageCallbacks.push(cb);
 }
 
 ```
 
 - Hoisted
 - Declares: `addMessageListener`
-- Reads (eventual): `eventCallbacks`
+- Reads (eventual): `messageCallbacks`
 - Write: `addMessageListener`
-- Write (eventual): `eventCallbacks`
+- Write (eventual): `messageCallbacks`
 
 ## Item 5: Stmt 4, `Normal`
 
@@ -82,7 +82,7 @@ export function connectHMR(options) {
             const connected = {
                 type: "turbopack-connected"
             };
-            eventCallbacks.forEach((cb)=>{
+            messageCallbacks.forEach((cb)=>{
                 cb(connected);
             });
             if (options.log) console.log("[HMR] connected");
@@ -92,7 +92,7 @@ export function connectHMR(options) {
                 type: "turbopack-message",
                 data: JSON.parse(event.data)
             };
-            eventCallbacks.forEach((cb)=>{
+            messageCallbacks.forEach((cb)=>{
                 cb(message);
             });
         }
@@ -119,9 +119,9 @@ export function connectHMR(options) {
 
 - Hoisted
 - Declares: `connectHMR`
-- Reads (eventual): `source`, `eventCallbacks`, `getSocketProtocol`
+- Reads (eventual): `source`, `messageCallbacks`, `getSocketProtocol`
 - Write: `connectHMR`
-- Write (eventual): `source`, `eventCallbacks`
+- Write (eventual): `source`, `messageCallbacks`
 
 # Phase 1
 ```mermaid
@@ -249,15 +249,15 @@ export { source as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-const eventCallbacks = [];
-export { eventCallbacks as b } from "__TURBOPACK_VAR__" assert {
+const messageCallbacks = [];
+export { messageCallbacks as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 2
 ```js
-import { b as eventCallbacks } from "__TURBOPACK_PART__" assert {
+import { b as messageCallbacks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -1
 };
 import { a as source } from "__TURBOPACK_PART__" assert {
@@ -279,7 +279,7 @@ function connectHMR(options) {
             const connected = {
                 type: "turbopack-connected"
             };
-            eventCallbacks.forEach((cb)=>{
+            messageCallbacks.forEach((cb)=>{
                 cb(connected);
             });
             if (options.log) console.log("[HMR] connected");
@@ -289,7 +289,7 @@ function connectHMR(options) {
                 type: "turbopack-message",
                 data: JSON.parse(event.data)
             };
-            eventCallbacks.forEach((cb)=>{
+            messageCallbacks.forEach((cb)=>{
                 cb(message);
             });
         }
@@ -322,11 +322,11 @@ export { connectHMR as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import { b as eventCallbacks } from "__TURBOPACK_PART__" assert {
+import { b as messageCallbacks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -1
 };
 function addMessageListener(cb) {
-    eventCallbacks.push(cb);
+    messageCallbacks.push(cb);
 }
 export { addMessageListener };
 export { addMessageListener as e } from "__TURBOPACK_VAR__" assert {
@@ -402,15 +402,15 @@ export { source as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-const eventCallbacks = [];
-export { eventCallbacks as b } from "__TURBOPACK_VAR__" assert {
+const messageCallbacks = [];
+export { messageCallbacks as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 2
 ```js
-import { b as eventCallbacks } from "__TURBOPACK_PART__" assert {
+import { b as messageCallbacks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -1
 };
 import { a as source } from "__TURBOPACK_PART__" assert {
@@ -432,7 +432,7 @@ function connectHMR(options) {
             const connected = {
                 type: "turbopack-connected"
             };
-            eventCallbacks.forEach((cb)=>{
+            messageCallbacks.forEach((cb)=>{
                 cb(connected);
             });
             if (options.log) console.log("[HMR] connected");
@@ -442,7 +442,7 @@ function connectHMR(options) {
                 type: "turbopack-message",
                 data: JSON.parse(event.data)
             };
-            eventCallbacks.forEach((cb)=>{
+            messageCallbacks.forEach((cb)=>{
                 cb(message);
             });
         }
@@ -475,11 +475,11 @@ export { connectHMR as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import { b as eventCallbacks } from "__TURBOPACK_PART__" assert {
+import { b as messageCallbacks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -1
 };
 function addMessageListener(cb) {
-    eventCallbacks.push(cb);
+    messageCallbacks.push(cb);
 }
 export { addMessageListener };
 export { addMessageListener as e } from "__TURBOPACK_VAR__" assert {

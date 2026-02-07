@@ -1,8 +1,8 @@
 use std::io::Write as _;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use indoc::writedoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
@@ -12,22 +12,21 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use super::chunk_asset::ManifestAsyncModule;
 use crate::{
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkPlaceable, EcmascriptChunkType,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, data::EcmascriptChunkData,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("loader".into())
+fn modifier() -> RcStr {
+    rcstr!("loader")
 }
 
 /// The manifest loader item is shipped in the same chunk that uses the dynamic
@@ -67,9 +66,12 @@ impl ManifestLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    pub fn chunks_data(&self) -> Vc<ChunksData> {
-        let chunks = self.manifest.manifest_chunks();
-        ChunkData::from_assets(self.chunking_context.output_root(), chunks)
+    pub async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
+        let chunks = self.manifest.manifest_chunk_group().await?.assets;
+        Ok(ChunkData::from_assets(
+            self.chunking_context.output_root().owned().await?,
+            *chunks,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -78,14 +80,12 @@ impl ManifestLoaderChunkItem {
     }
 }
 
-#[turbo_tasks::function]
-fn manifest_loader_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("manifest loader chunk".into())
-}
-
-#[turbo_tasks::function]
-fn chunk_data_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk data reference".into())
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ManifestLoaderChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        self.manifest.manifest_chunk_group()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -101,19 +101,8 @@ impl ChunkItem for ManifestLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let mut references = (*this.manifest.manifest_chunks().await?).clone();
-        for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?);
-        }
-
-        Ok(Vc::cell(references))
-    }
-
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -146,9 +135,9 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
 
         // We also need the manifest chunk item's id, which points to a CJS module that
         // exports a promise for all of the necessary chunk loads.
-        let item_id = &*this
+        let item_id = this
             .manifest
-            .chunk_item_id(*ResolvedVc::upcast(manifest.chunking_context))
+            .chunk_item_id(*manifest.chunking_context)
             .await?;
 
         // Finally, we need the id of the module that we're actually trying to
@@ -156,9 +145,7 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         let placeable =
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
-        let dynamic_id = &*placeable
-            .chunk_item_id(*ResolvedVc::upcast(manifest.chunking_context))
-            .await?;
+        let dynamic_id = placeable.chunk_item_id(*manifest.chunking_context).await?;
 
         // This is the code that will be executed when the dynamic import is reached.
         // It will load the manifest chunk, which will load all the chunks needed by
@@ -185,14 +172,14 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
                     .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
                     .collect::<Vec<_>>()
             ),
-            item_id = StringifyModuleId(item_id),
-            dynamic_id = StringifyModuleId(dynamic_id),
+            item_id = StringifyModuleId(&item_id),
+            dynamic_id = StringifyModuleId(&dynamic_id),
         )?;
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
             ..Default::default()
         }
-        .into())
+        .cell())
     }
 }

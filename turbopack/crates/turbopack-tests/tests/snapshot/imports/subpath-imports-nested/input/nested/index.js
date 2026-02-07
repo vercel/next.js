@@ -1,2 +1,2 @@
-import foo from "#foo";
-export default foo;
+import foo from '#foo'
+export default foo

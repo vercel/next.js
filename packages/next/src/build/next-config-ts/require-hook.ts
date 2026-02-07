@@ -9,7 +9,7 @@ const extensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
 export function registerHook(swcOptions: SWCOptions) {
   // lazy require swc since it loads React before even setting NODE_ENV
   // resulting loading Development React on Production
-  const { transformSync } = require('../swc')
+  const { transformSync } = require('../swc') as typeof import('../swc')
 
   require.extensions['.js'] = function (mod: any, oldFilename) {
     try {

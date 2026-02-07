@@ -43,7 +43,7 @@ pub fn install(install_dir: &Path, packages: &[NpmPackage<'_>]) -> Result<()> {
         });
 
         File::create(install_dir.join("package.json"))?
-            .write_all(format!("{:#}", package_json).as_bytes())?;
+            .write_all(format!("{package_json:#}").as_bytes())?;
     }
 
     let mut args = vec![

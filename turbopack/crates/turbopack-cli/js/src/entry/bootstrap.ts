@@ -1,5 +1,5 @@
-import { initializeHMR } from "./client";
+import { initializeHMR } from './client'
 
 initializeHMR({
-  assetPrefix: "",
-});
+  assetPrefix: '',
+})

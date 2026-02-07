@@ -13,7 +13,12 @@ values
   ('It was awesome!');
 `.trim();
 
-const server = `import { createClient } from '@/utils/supabase/server'
+const rls = `alter table notes enable row level security;
+create policy "Allow public read access" on notes
+for select
+using (true);`.trim();
+
+const server = `import { createClient } from '@/lib/supabase/server'
 
 export default async function Page() {
   const supabase = await createClient()
@@ -25,7 +30,7 @@ export default async function Page() {
 
 const client = `'use client'
 
-import { createClient } from '@/utils/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
 export default function Page() {
@@ -44,7 +49,7 @@ export default function Page() {
 }
 `.trim();
 
-export default function FetchDataSteps() {
+export function FetchDataSteps() {
   return (
     <ol className="flex flex-col gap-6">
       <TutorialStep title="Create some tables and insert some data">
@@ -59,7 +64,7 @@ export default function FetchDataSteps() {
             Table Editor
           </a>{" "}
           for your Supabase project to create a table and insert some example
-          data. If you're stuck for creativity, you can copy and paste the
+          data. If you&apos;re stuck for creativity, you can copy and paste the
           following into the{" "}
           <a
             href="https://supabase.com/dashboard/project/_/sql/new"
@@ -72,6 +77,49 @@ export default function FetchDataSteps() {
           and click RUN!
         </p>
         <CodeBlock code={create} />
+      </TutorialStep>
+
+      <TutorialStep title="Enable Row Level Security (RLS)">
+        <p>
+          Supabase enables Row Level Security (RLS) by default. To query data
+          from your <code>notes</code> table, you need to add a policy. You can
+          do this in the{" "}
+          <a
+            href="https://supabase.com/dashboard/project/_/editor"
+            className="font-bold hover:underline text-foreground/80"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Table Editor
+          </a>{" "}
+          or via the{" "}
+          <a
+            href="https://supabase.com/dashboard/project/_/sql/new"
+            className="font-bold hover:underline text-foreground/80"
+            target="_blank"
+            rel="noreferrer"
+          >
+            SQL Editor
+          </a>
+          .
+        </p>
+        <p>
+          For example, you can run the following SQL to allow public read
+          access:
+        </p>
+        <CodeBlock code={rls} />
+        <p>
+          You can learn more about RLS in the{" "}
+          <a
+            href="https://supabase.com/docs/guides/auth/row-level-security"
+            className="font-bold hover:underline text-foreground/80"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Supabase docs
+          </a>
+          .
+        </p>
       </TutorialStep>
 
       <TutorialStep title="Query Supabase data from Next.js">
@@ -88,8 +136,27 @@ export default function FetchDataSteps() {
         <CodeBlock code={client} />
       </TutorialStep>
 
+      <TutorialStep title="Explore the Supabase UI Library">
+        <p>
+          Head over to the{" "}
+          <a
+            href="https://supabase.com/ui"
+            className="font-bold hover:underline text-foreground/80"
+          >
+            Supabase UI library
+          </a>{" "}
+          and try installing some blocks. For example, you can install a
+          Realtime Chat block by running:
+        </p>
+        <CodeBlock
+          code={
+            "npx shadcn@latest add https://supabase.com/ui/r/realtime-chat-nextjs.json"
+          }
+        />
+      </TutorialStep>
+
       <TutorialStep title="Build in a weekend and scale to millions!">
-        <p>You're ready to launch your product to the world! 🚀</p>
+        <p>You&apos;re ready to launch your product to the world! 🚀</p>
       </TutorialStep>
     </ol>
   );

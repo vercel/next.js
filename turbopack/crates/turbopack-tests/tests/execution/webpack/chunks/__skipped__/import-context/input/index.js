@@ -1,42 +1,42 @@
 function testCase(load, done) {
-  load("two", 2, function () {
-    var sync = true;
-    load("one", 1, function () {
-      expect(sync).toBe(false);
-      load("three", 3, function () {
-        var sync = true;
-        load("two", 2, function () {
-          expect(sync).toBe(true);
-          done();
-        });
+  load('two', 2, function () {
+    var sync = true
+    load('one', 1, function () {
+      expect(sync).toBe(false)
+      load('three', 3, function () {
+        var sync = true
+        load('two', 2, function () {
+          expect(sync).toBe(true)
+          done()
+        })
         Promise.resolve()
           .then(function () {})
           .then(function () {})
           .then(function () {
-            sync = false;
-          });
-      });
-    });
+            sync = false
+          })
+      })
+    })
     Promise.resolve().then(function () {
-      sync = false;
-    });
-  });
+      sync = false
+    })
+  })
 }
 
-it("should be able to use expressions in import", function (done) {
+it('should be able to use expressions in import', function (done) {
   function load(name, expected, callback) {
-    import("./dir/" + name)
+    import('./dir/' + name)
       .then(function (result) {
         expect(result).toEqual(
           nsObj({
             default: expected,
           })
-        );
-        callback();
+        )
+        callback()
       })
       .catch(function (err) {
-        done(err);
-      });
+        done(err)
+      })
   }
-  testCase(load, done);
-});
+  testCase(load, done)
+})

@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { act, render } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import Link from 'next/link'
 import React from 'react'
 

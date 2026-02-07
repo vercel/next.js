@@ -1,7 +1,7 @@
 import type webpack from 'webpack'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
-import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../analysis/get-page-static-info'
 
 export type EdgeFunctionLoaderOptions = {
   absolutePagePath: string
@@ -22,7 +22,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
     }: EdgeFunctionLoaderOptions = this.getOptions()
     const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
     const buildInfo = getModuleBuildInfo(this._module as any)
-    const middlewareConfig: MiddlewareConfig = JSON.parse(
+    const middlewareConfig: ProxyConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
     buildInfo.route = {

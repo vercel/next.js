@@ -1,10 +1,10 @@
-use std::borrow::Cow;
-
 use anyhow::Result;
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
+    write_batch::{
+        BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer,
+    },
 };
 
 pub struct NoopKvDb;
@@ -14,12 +14,6 @@ impl KeyValueDatabase for NoopKvDb {
         = ()
     where
         Self: 'l;
-
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        tx
-    }
 
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
         Ok(())
@@ -78,21 +72,39 @@ impl<'a> BaseWriteBatch<'a> for NoopWriteBatch {
 }
 
 impl SerialWriteBatch<'_> for NoopWriteBatch {
-    fn put(&mut self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &mut self,
+        _key_space: KeySpace,
+        _key: WriteBuffer<'_>,
+        _value: WriteBuffer<'_>,
+    ) -> Result<()> {
         Ok(())
     }
 
-    fn delete(&mut self, _key_space: KeySpace, _key: Cow<[u8]>) -> Result<()> {
+    fn delete(&mut self, _key_space: KeySpace, _key: WriteBuffer<'_>) -> Result<()> {
+        Ok(())
+    }
+
+    fn flush(&mut self, _key_space: KeySpace) -> Result<()> {
         Ok(())
     }
 }
 
 impl ConcurrentWriteBatch<'_> for NoopWriteBatch {
-    fn put(&self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &self,
+        _key_space: KeySpace,
+        _key: WriteBuffer<'_>,
+        _value: WriteBuffer<'_>,
+    ) -> Result<()> {
         Ok(())
     }
 
-    fn delete(&self, _key_space: KeySpace, _key: Cow<[u8]>) -> Result<()> {
+    fn delete(&self, _key_space: KeySpace, _key: WriteBuffer<'_>) -> Result<()> {
+        Ok(())
+    }
+
+    unsafe fn flush(&self, _key_space: KeySpace) -> Result<()> {
         Ok(())
     }
 }

@@ -1,4 +1,4 @@
-const withRspack = require("@next/plugin-rspack");
+const withRspack = require("next-rspack");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

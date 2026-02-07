@@ -19,20 +19,23 @@
     ),
     (
         "t_i",
-        Call(
-            3,
-            FreeVar(
-                "import",
-            ),
-            [
-                Constant(
-                    Str(
-                        Atom(
-                            "t_i",
+        Awaited(
+            4,
+            Call(
+                3,
+                FreeVar(
+                    "import",
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "t_i",
+                            ),
                         ),
                     ),
-                ),
-            ],
+                ],
+            ),
         ),
     ),
     (
@@ -106,20 +109,23 @@
     ),
     (
         "w_i",
-        Call(
-            3,
-            FreeVar(
-                "import",
-            ),
-            [
-                Constant(
-                    Str(
-                        Atom(
-                            "w_i",
+        Awaited(
+            4,
+            Call(
+                3,
+                FreeVar(
+                    "import",
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "w_i",
+                            ),
                         ),
                     ),
-                ),
-            ],
+                ],
+            ),
         ),
     ),
     (

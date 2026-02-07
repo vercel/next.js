@@ -1,36 +1,36 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
-    common::{util::take::Take, DUMMY_SP},
+    common::{DUMMY_SP, util::take::Take},
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
-    Vc,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
     environment::ChunkLoading,
     issue::IssueSource,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
+        ModuleResolveResult, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ModuleResolveResult,
     },
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
-use super::super::pattern_mapping::{PatternMapping, ResolveType};
 use crate::{
     analyzer::imports::ImportAnnotations,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{
+        AstPath,
+        pattern_mapping::{PatternMapping, ResolveType},
+    },
 };
 
 #[turbo_tasks::value]
@@ -40,7 +40,7 @@ pub struct EsmAsyncAssetReference {
     pub request: ResolvedVc<Request>,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
 }
 
@@ -59,16 +59,16 @@ impl EsmAsyncAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        annotations: Value<ImportAnnotations>,
-        in_try: bool,
+        annotations: ImportAnnotations,
+        error_mode: ResolveErrorMode,
         import_externals: bool,
     ) -> Self {
         EsmAsyncAssetReference {
             origin,
             request,
             issue_source,
-            annotations: annotations.into_value(),
-            in_try,
+            annotations,
+            error_mode,
             import_externals,
         }
     }
@@ -81,9 +81,9 @@ impl ModuleReference for EsmAsyncAssetReference {
         esm_resolve(
             self.get_origin().resolve().await?,
             *self.request,
-            Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
-            self.in_try,
-            Some(self.issue_source.clone()),
+            EcmaScriptModulesReferenceSubType::DynamicImport,
+            self.error_mode,
+            Some(self.issue_source),
         )
         .await
     }
@@ -123,7 +123,9 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct EsmAsyncAssetReferenceCodeGen {
     path: AstPath,
     reference: ResolvedVc<EsmAsyncAssetReference>,
@@ -132,7 +134,6 @@ pub struct EsmAsyncAssetReferenceCodeGen {
 impl EsmAsyncAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -140,7 +141,7 @@ impl EsmAsyncAssetReferenceCodeGen {
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
-            Vc::upcast(chunking_context),
+            chunking_context,
             self.reference.resolve_reference(),
             if matches!(
                 *chunking_context.environment().chunk_loading().await?,
@@ -155,21 +156,23 @@ impl EsmAsyncAssetReferenceCodeGen {
 
         let import_externals = reference.import_externals;
 
-        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let old_expr = expr.take();
-            let message = if let Expr::Call(CallExpr { args, ..}) = old_expr {
+            let message = if let Expr::Call(CallExpr { args, .. }) = old_expr {
                 match args.into_iter().next() {
-                    Some(ExprOrSpread { spread: None, expr: key_expr }) => {
+                    Some(ExprOrSpread {
+                        spread: None,
+                        expr: key_expr,
+                    }) => {
                         *expr = pm.create_import(*key_expr, import_externals);
                         return;
                     }
                     // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
-                    Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
-                        "spread operator is illegal in import() expressions."
-                    }
-                    _ => {
-                        "import() expressions require at least 1 argument"
-                    }
+                    Some(ExprOrSpread {
+                        spread: Some(_),
+                        expr: _,
+                    }) => "spread operator is illegal in import() expressions.",
+                    _ => "import() expressions require at least 1 argument",
                 }
             } else {
                 "visitor must be executed on a CallExpr"
@@ -185,7 +188,7 @@ impl EsmAsyncAssetReferenceCodeGen {
                     expr: error,
                 }],
                 span: DUMMY_SP,
-               ..Default::default()
+                ..Default::default()
             });
         });
 

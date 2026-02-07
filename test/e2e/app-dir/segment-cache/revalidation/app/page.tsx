@@ -1,5 +1,9 @@
-import { revalidatePath, revalidateTag } from 'next/cache'
-import { LinkAccordion, FormAccordion } from '../components/link-accordion'
+import { revalidatePath, updateTag } from 'next/cache'
+import {
+  LinkAccordion,
+  FormAccordion,
+  ManualPrefetchLinkAccordion,
+} from '../components/link-accordion'
 import Link from 'next/link'
 
 export default async function Page() {
@@ -19,7 +23,7 @@ export default async function Page() {
           id="revalidate-by-tag"
           formAction={async function () {
             'use server'
-            revalidateTag('random-greeting')
+            updateTag('random-greeting')
           }}
         >
           Revalidate by tag
@@ -35,6 +39,12 @@ export default async function Page() {
           <FormAccordion action="/greeting">
             Form pointing to target page with prefetching enabled
           </FormAccordion>
+        </li>
+        <li>
+          <ManualPrefetchLinkAccordion href="/greeting">
+            Manual link (router.prefetch) to target page with prefetching
+            enabled
+          </ManualPrefetchLinkAccordion>
         </li>
         <li>
           <Link prefetch={false} href="/greeting">

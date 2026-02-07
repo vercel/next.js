@@ -4,7 +4,7 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshLogBox app', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -34,7 +34,6 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Ecmascript file had an error",
          "environmentLabel": null,
          "label": "Build Error",
@@ -45,16 +44,39 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  ╰─▶   × Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/page.js
+         ╰─▶   × Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
+               │   |
+               │
+               │    ,-[3:1]
+               │  1 | 'use client'
+               │  2 | import myLibrary from 'my-non-existent-library'
+               │  3 | export async function getStaticProps() {
+               │    :                       ^^^^^^^^^^^^^^
+               │  4 |   return {
+               │  5 |     props: {
+               │  6 |       result: myLibrary()
+               │    \`----
+               │
+       Import trace for requested module:
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching",
+         "description": "  x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js
        Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
-         |
          |
           ,-[3:1]
         1 | 'use client'

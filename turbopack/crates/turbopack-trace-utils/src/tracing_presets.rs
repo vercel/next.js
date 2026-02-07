@@ -4,14 +4,17 @@ pub static TRACING_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     vec![
         "turbo_tasks=info",
         "turbo_tasks_fs=info",
+        "turbo_tasks_fetch=info",
+        "turbo_tasks_backend=info",
+        "turbo_persistence=info",
         "turbopack=info",
         "turbopack_binding=info",
+        "turbopack_browser=info",
         "turbopack_nodejs=info",
         "turbopack_cli=info",
         "turbopack_cli_utils=info",
         "turbopack_core=info",
         "turbopack_css=info",
-        "turbopack_browser=info",
         "turbopack_dev_server=info",
         "turbopack_ecmascript=info",
         "turbopack_ecmascript_hmr_protocol=info",
@@ -52,6 +55,7 @@ pub static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
             "turbopack_static=trace",
             "turbopack_swc_utils=trace",
             "turbopack_wasm=trace",
+            "swc_ecma_minifier=trace",
         ],
     ]
     .concat()
@@ -62,14 +66,13 @@ pub static TRACING_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
         &[
             "turbo_tasks=trace",
             "turbo_tasks_auto_hash_map=trace",
-            "turbo_tasks_build=trace",
             "turbo_tasks_bytes=trace",
             "turbo_tasks_env=trace",
             "turbo_tasks_fetch=trace",
             "turbo_tasks_fs=trace",
             "turbo_tasks_hash=trace",
-            "turbo_tasks_memory=trace",
             "turbo_tasks_backend=trace",
+            "turbo_persistence=trace",
         ],
     ]
     .concat()

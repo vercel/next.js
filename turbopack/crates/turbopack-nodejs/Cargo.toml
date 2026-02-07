@@ -3,7 +3,7 @@ name = "turbopack-nodejs"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -20,15 +20,12 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-either = { workspace = true }
-indexmap = { workspace = true }
+bincode = { workspace = true }
 indoc = { workspace = true }
-rustc-hash = { workspace = true }
-serde = { workspace = true }
-smallvec = { workspace = true }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
 
+turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
@@ -37,5 +34,3 @@ turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-runtime = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

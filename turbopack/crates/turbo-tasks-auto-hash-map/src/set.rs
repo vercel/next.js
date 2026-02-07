@@ -4,12 +4,19 @@ use std::{
     marker::PhantomData,
 };
 
+use bincode::{Decode, Encode};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
+use shrink_to_fit::ShrinkToFit;
 
 use crate::AutoMap;
 
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode)]
+#[bincode(
+    encode_bounds = "K: Encode + Hash + Eq, H: BuildHasher + Default",
+    decode_bounds = "K: Decode<__Context> + Hash + Eq, H: BuildHasher + Default",
+    borrow_decode_bounds = "K: Decode<__Context> + Hash + Eq, H: BuildHasher + Default"
+)]
 pub struct AutoSet<K, H = BuildHasherDefault<FxHasher>, const I: usize = 0> {
     map: AutoMap<K, (), H, I>,
 }
@@ -218,6 +225,12 @@ impl<K: Eq + Hash, H: BuildHasher, const I: usize> PartialEq for AutoSet<K, H, I
 
 impl<K: Eq + Hash, H: BuildHasher, const I: usize> Eq for AutoSet<K, H, I> {}
 
+impl<K: Eq + Hash, SH: BuildHasher + Default, const I: usize> Hash for AutoSet<K, SH, I> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.map.hash(state);
+    }
+}
+
 impl<K, H, const I: usize> FromIterator<K> for AutoSet<K, H, I>
 where
     K: Hash + Eq,
@@ -237,6 +250,16 @@ where
 {
     fn from(array: [K; N]) -> Self {
         Self::from_iter(array)
+    }
+}
+
+impl<K, H, const I: usize> ShrinkToFit for AutoSet<K, H, I>
+where
+    K: Eq + Hash,
+    H: BuildHasher + Default,
+{
+    fn shrink_to_fit(&mut self) {
+        self.map.shrink_to_fit();
     }
 }
 

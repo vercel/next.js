@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use rustc_hash::FxHashMap;
+use hashbrown::HashMap;
 
 use crate::timestamp::Timestamp;
 
@@ -64,14 +64,14 @@ pub struct SpanTimeData {
 pub struct SpanExtra {
     pub graph: OnceLock<Vec<SpanGraphEvent>>,
     pub bottom_up: OnceLock<Vec<Arc<SpanBottomUp>>>,
-    pub search_index: OnceLock<FxHashMap<String, Vec<SpanIndex>>>,
+    pub search_index: OnceLock<HashMap<String, Vec<SpanIndex>>>,
 }
 
 #[derive(Default)]
 pub struct SpanNames {
     // These values are computed when accessed (and maybe deleted during writing):
     pub nice_name: OnceLock<(String, String)>,
-    pub group_name: OnceLock<String>,
+    pub group_name: OnceLock<(String, String)>,
 }
 
 impl Span {
@@ -79,7 +79,7 @@ impl Span {
         self.time_data.get_or_init(|| {
             Box::new(SpanTimeData {
                 self_end: self.start,
-                ignore_self_time: &self.name == "thread",
+                ignore_self_time: &self.name == "thread" || &self.name == "blocking",
                 ..Default::default()
             })
         })

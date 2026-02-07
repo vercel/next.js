@@ -1,1 +1,1 @@
-export default "file4-fallback";
+export default 'file4-fallback'

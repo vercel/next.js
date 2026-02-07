@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
@@ -58,7 +58,9 @@ describe('i18n-ignore-redirect-source-locale with basepath', () => {
     'get redirected to the new page, from: %s to: sv',
     async (locale) => {
       const browser = await webdriver(next.url, `basepath/${locale}/to-sv`)
-      await check(() => browser.elementById('current-locale').text(), 'sv')
+      await retry(async () => {
+        expect(await browser.elementById('current-locale').text()).toBe('sv')
+      })
     }
   )
 
@@ -66,7 +68,9 @@ describe('i18n-ignore-redirect-source-locale with basepath', () => {
     'get redirected to the new page, from: %s to: en',
     async (locale) => {
       const browser = await webdriver(next.url, `basepath/${locale}/to-en`)
-      await check(() => browser.elementById('current-locale').text(), 'en')
+      await retry(async () => {
+        expect(await browser.elementById('current-locale').text()).toBe('en')
+      })
     }
   )
 
@@ -74,7 +78,9 @@ describe('i18n-ignore-redirect-source-locale with basepath', () => {
     'get redirected to the new page, from: %s to: /',
     async (locale) => {
       const browser = await webdriver(next.url, `basepath/${locale}/to-slash`)
-      await check(() => browser.elementById('current-locale').text(), 'en')
+      await retry(async () => {
+        expect(await browser.elementById('current-locale').text()).toBe('en')
+      })
     }
   )
 
@@ -82,10 +88,11 @@ describe('i18n-ignore-redirect-source-locale with basepath', () => {
     'get redirected to the new page, from and to: %s',
     async (locale) => {
       const browser = await webdriver(next.url, `basepath/${locale}/to-same`)
-      await check(
-        () => browser.elementById('current-locale').text(),
-        locale === '' ? 'en' : locale.slice(1)
-      )
+      await retry(async () => {
+        expect(await browser.elementById('current-locale').text()).toBe(
+          locale === '' ? 'en' : locale.slice(1)
+        )
+      })
     }
   )
 })

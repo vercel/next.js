@@ -4,7 +4,7 @@
 use std::{collections::VecDeque, ops::Add};
 
 use lsp_types::Range;
-use syn::{visit::Visit, Expr, Meta};
+use syn::{Expr, Meta, visit::Visit};
 
 use crate::identifier::Identifier;
 
@@ -215,16 +215,15 @@ impl Visit<'_> for CallingStyleVisitor {
 
     fn visit_expr_call(&mut self, i: &'_ syn::ExprCall) {
         syn::visit::visit_expr_call(self, i);
-        if let Expr::Path(p) = i.func.as_ref() {
-            if let Some(last) = p.path.segments.last() {
-                if is_match(
-                    &self.reference.identifier,
-                    &last.ident,
-                    &self.reference.references,
-                ) {
-                    self.halt = true;
-                }
-            }
+        if let Expr::Path(p) = i.func.as_ref()
+            && let Some(last) = p.path.segments.last()
+            && is_match(
+                &self.reference.identifier,
+                &last.ident,
+                &self.reference.references,
+            )
+        {
+            self.halt = true;
         }
     }
 

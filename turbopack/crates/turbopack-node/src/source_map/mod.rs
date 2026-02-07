@@ -1,28 +1,27 @@
 use std::{
     borrow::Cow,
     fmt::Write,
-    path::{Path, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, Path},
 };
 
 use anyhow::Result;
 use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
-pub use trace::{trace_source_map, StackFrame, TraceResult};
-use tracing::{instrument, Level};
+use serde::Deserialize;
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
-    source_context::get_source_context, to_sys_path, FileLinesContent, FileSystemPath,
+    FileLinesContent, FileSystemPath, source_context::get_source_context, to_sys_path,
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMap},
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
+    source_map::{GenerateSourceMap, SourceMap},
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{internal_assets_for_source_mapping, pool::FormattingMode, AssetsForSourceMapping};
+pub use crate::source_map::trace::{StackFrame, TraceResult, trace_source_map};
+use crate::{AssetsForSourceMapping, pool::FormattingMode};
 
 pub mod trace;
 
@@ -31,8 +30,8 @@ const MAX_CODE_FRAMES: usize = 3;
 pub async fn apply_source_mapping(
     text: &'_ str,
     assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    root: FileSystemPath,
+    project_dir: FileSystemPath,
     formatting_mode: FormattingMode,
 ) -> Result<Cow<'_, str>> {
     static STACK_TRACE_LINE: Lazy<Regex> =
@@ -62,9 +61,13 @@ pub async fn apply_source_mapping(
             line: Some(line),
             column: Some(column),
         };
-        let resolved =
-            resolve_source_mapping(assets_for_source_mapping, root, project_dir.root(), &frame)
-                .await;
+        let resolved = resolve_source_mapping(
+            assets_for_source_mapping,
+            root.clone(),
+            project_dir.root().owned().await?,
+            &frame,
+        )
+        .await;
         write_resolved(
             &mut new,
             resolved,
@@ -91,9 +94,9 @@ fn write_resolved(
     match resolved {
         Err(err) => {
             // There was an error resolving the source map
-            write!(writable, "{PADDING}at {}", original_frame)?;
+            write!(writable, "{PADDING}at {original_frame}")?;
             if *first_error {
-                write!(writable, "{PADDING}(error resolving source map: {})", err)?;
+                write!(writable, "{PADDING}(error resolving source map: {err})")?;
                 *first_error = false;
             } else {
                 write!(writable, "{PADDING}(error resolving source map)")?;
@@ -104,7 +107,7 @@ fn write_resolved(
             write!(
                 writable,
                 "{PADDING}{}",
-                formatting_mode.lowlight(&format_args!("[at {}]", original_frame))
+                formatting_mode.lowlight(&format_args!("[at {original_frame}]"))
             )?;
         }
         Ok(ResolvedSourceMapping::Mapped { frame }) => {
@@ -159,21 +162,21 @@ fn write_resolved(
             let (line, column) = frame.get_pos().unwrap_or((0, 0));
             let line = line.saturating_sub(1);
             let column = column.saturating_sub(1);
-            if let FileLinesContent::Lines(lines) = &*lines {
-                if *visible_code_frames < MAX_CODE_FRAMES {
-                    let lines = lines.iter().map(|l| l.content.as_str());
-                    let ctx = get_source_context(lines, line, column, line, column);
-                    match formatting_mode {
-                        FormattingMode::Plain => {
-                            write!(writable, "\n{}", ctx)?;
-                        }
-                        FormattingMode::AnsiColors => {
-                            writable.write_char('\n')?;
-                            format_source_context_lines(&ctx, writable);
-                        }
+            if let FileLinesContent::Lines(lines) = &*lines
+                && *visible_code_frames < MAX_CODE_FRAMES
+            {
+                let lines = lines.iter().map(|l| l.content.as_str());
+                let ctx = get_source_context(lines, line, column, line, column);
+                match formatting_mode {
+                    FormattingMode::Plain => {
+                        write!(writable, "\n{ctx}")?;
                     }
-                    *visible_code_frames += 1;
+                    FormattingMode::AnsiColors => {
+                        writable.write_char('\n')?;
+                        format_source_context_lines(&ctx, writable);
+                    }
                 }
+                *visible_code_frames += 1;
             }
         }
     }
@@ -188,19 +191,19 @@ enum ResolvedSourceMapping {
     },
     MappedProject {
         frame: StackFrame<'static>,
-        project_path: ReadRef<FileSystemPath>,
+        project_path: FileSystemPath,
         lines: ReadRef<FileLinesContent>,
     },
     MappedLibrary {
         frame: StackFrame<'static>,
-        project_path: ReadRef<FileSystemPath>,
+        project_path: FileSystemPath,
     },
 }
 
 async fn resolve_source_mapping(
     assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    root: FileSystemPath,
+    project_dir: FileSystemPath,
     frame: &StackFrame<'_>,
 ) -> Result<ResolvedSourceMapping> {
     let Some((line, column)) = frame.get_pos() else {
@@ -228,7 +231,7 @@ async fn resolve_source_mapping(
     let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = trace_source_map(sm, line, column, name.map(|s| &**s)).await?;
+    let trace = trace_source_map(sm, line, column, name.map(|s| &**s));
     match trace {
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
@@ -238,17 +241,17 @@ async fn resolve_source_mapping(
                 PROJECT_FILESYSTEM_NAME,
                 "]/"
             )) {
-                let fs_path = project_dir.join(project_path.into());
+                let fs_path = project_dir.join(project_path)?;
                 if lib_code {
                     return Ok(ResolvedSourceMapping::MappedLibrary {
                         frame: frame.clone(),
-                        project_path: fs_path.await?,
+                        project_path: fs_path.clone(),
                     });
                 } else {
                     let lines = fs_path.read().lines().await?;
                     return Ok(ResolvedSourceMapping::MappedProject {
                         frame: frame.clone(),
-                        project_path: fs_path.await?,
+                        project_path: fs_path.clone(),
                         lines,
                     });
                 }
@@ -262,7 +265,7 @@ async fn resolve_source_mapping(
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct StructuredError {
     pub name: String,
     pub message: String,
@@ -275,8 +278,8 @@ impl StructuredError {
     pub async fn print(
         &self,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-        root: Vc<FileSystemPath>,
-        root_path: Vc<FileSystemPath>,
+        root: FileSystemPath,
+        root_path: FileSystemPath,
         formatting_mode: FormattingMode,
     ) -> Result<String> {
         let mut message = String::new();
@@ -295,8 +298,13 @@ impl StructuredError {
 
         for frame in &self.stack {
             let frame = frame.unmangle_identifiers(magic);
-            let resolved =
-                resolve_source_mapping(assets_for_source_mapping, root, root_path, &frame).await;
+            let resolved = resolve_source_mapping(
+                assets_for_source_mapping,
+                root.clone(),
+                root_path.clone(),
+                &frame,
+            )
+            .await;
             write_resolved(
                 &mut message,
                 resolved,
@@ -310,45 +318,16 @@ impl StructuredError {
         if let Some(cause) = &self.cause {
             message.write_str("\nCaused by: ")?;
             message.write_str(
-                &Box::pin(cause.print(assets_for_source_mapping, root, root_path, formatting_mode))
-                    .await?,
+                &Box::pin(cause.print(
+                    assets_for_source_mapping,
+                    root.clone(),
+                    root_path.clone(),
+                    formatting_mode,
+                ))
+                .await?,
             )?;
         }
 
         Ok(message)
     }
-}
-
-pub async fn trace_stack(
-    error: StructuredError,
-    root_asset: Vc<Box<dyn OutputAsset>>,
-    output_path: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-) -> Result<String> {
-    let assets_for_source_mapping = internal_assets_for_source_mapping(root_asset, output_path);
-
-    trace_stack_with_source_mapping_assets(
-        error,
-        assets_for_source_mapping,
-        output_path,
-        project_dir,
-    )
-    .await
-}
-
-#[instrument(level = Level::TRACE, skip_all)]
-pub async fn trace_stack_with_source_mapping_assets(
-    error: StructuredError,
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    output_path: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-) -> Result<String> {
-    error
-        .print(
-            assets_for_source_mapping,
-            output_path,
-            project_dir,
-            FormattingMode::Plain,
-        )
-        .await
 }

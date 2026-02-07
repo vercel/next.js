@@ -83,7 +83,7 @@ looks like this: [AnyDeserializeSeed][]
 
 ### Why `XxxVc` instead of `Vc<Xxx>` and what are all the build scripts for?
 
-Both of these are relevant for persistent caching and serialization of values.
+Both of these are relevant for filesystem cache and serialization of values.
 We need to deserialize values without knowing the type of the value at
 compile-time.
 

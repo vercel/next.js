@@ -1,33 +1,74 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 
 describe('DevErrorOverlay', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    env: {
+      NEXT_TELEMETRY_DISABLED: '',
+    },
   })
 
   it('can get error code from RSC error thrown by framework', async () => {
-    await next.render('/known-rsc-error')
     const browser = await next.browser('/known-rsc-error')
-    const errorCode = await browser.waitForElementByCss(
-      '[data-nextjs-error-code]'
-    )
+
+    const errorCode = await browser.elementByCss('[data-nextjs-error-code]')
     const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E127')
+    expect(code).toBe('E40')
   })
 
-  it('can get error code from client side error thrown by framework', async () => {
-    await next.render('/known-client-error')
+  it('sends feedback when clicking helpful button', async () => {
+    const feedbackRequests: string[] = []
+    const browser = await next.browser('/known-client-error', {
+      beforePageLoad(page) {
+        page.route(/__nextjs_error_feedback/, (route) => {
+          const url = new URL(route.request().url())
+          feedbackRequests.push(url.pathname + url.search)
 
-    const browser = await next.browser('/known-client-error')
+          route.fulfill({ status: 204, body: 'No Content' })
+        })
+      },
+    })
 
     await browser.elementByCss('button').click() // clicked "break on client"
+    await browser.getByRole('button', { name: 'Mark as helpful' }).click()
 
-    const errorCode = await browser.waitForElementByCss(
-      '[data-nextjs-error-code]'
-    )
-    const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E209')
+    expect(
+      await browser
+        .getByRole('region', { name: 'Error feedback' })
+        .getByRole('status')
+        .textContent()
+    ).toEqual('Thanks for your feedback!')
+    expect(feedbackRequests).toEqual([
+      '/__nextjs_error_feedback?errorCode=E40&wasHelpful=true',
+    ])
+  })
+
+  it('sends feedback when clicking not helpful button', async () => {
+    const feedbackRequests: string[] = []
+    const browser = await next.browser('/known-client-error', {
+      beforePageLoad(page) {
+        page.route(/__nextjs_error_feedback/, (route) => {
+          const url = new URL(route.request().url())
+          feedbackRequests.push(url.pathname + url.search)
+
+          route.fulfill({ status: 204, body: 'No Content' })
+        })
+      },
+    })
+
+    await browser.elementByCss('button').click() // clicked "break on client"
+    await browser.getByRole('button', { name: 'Mark as not helpful' }).click()
+
+    expect(
+      await browser
+        .getByRole('region', { name: 'Error feedback' })
+        .getByRole('status')
+        .textContent()
+    ).toEqual('Thanks for your feedback!')
+    expect(feedbackRequests).toEqual([
+      '/__nextjs_error_feedback?errorCode=E40&wasHelpful=false',
+    ])
   })
 
   it('loads fonts successfully', async () => {
@@ -45,7 +86,7 @@ describe('DevErrorOverlay', () => {
       },
     })
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     await browser.waitForIdleNetwork()
 
     // Verify woff2 files were requested and loaded successfully
@@ -53,5 +94,29 @@ describe('DevErrorOverlay', () => {
     for (const request of woff2Requests) {
       expect(request.status).toBe(200)
     }
+  })
+
+  it('should load dev overlay styles successfully', async () => {
+    const browser = await next.browser('/hydration-error')
+
+    await waitForRedbox(browser)
+    const redbox = browser.locateRedbox()
+
+    // check the data-nextjs-dialog-header="true" DOM element styles under redbox is applied
+    const dialogHeader = redbox.locator('[data-nextjs-dialog-header="true"]')
+    expect(await dialogHeader.isVisible()).toBe(true)
+    // get computed styles
+    const computedStyles = await dialogHeader.evaluate((element) => {
+      return window.getComputedStyle(element)
+    })
+    const styles = {
+      backgroundColor: computedStyles.backgroundColor,
+      color: computedStyles.color,
+    }
+
+    expect(styles).toEqual({
+      backgroundColor: 'rgba(0, 0, 0, 0)',
+      color: 'rgb(117, 117, 117)',
+    })
   })
 })

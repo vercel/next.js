@@ -1,0 +1,34 @@
+---
+title: Removed parsed User Agent from Proxy API
+---
+
+## Why This Error Occurred
+
+Your application is interacting with `req.ua` which has been deprecated.
+
+```ts filename="proxy.ts"
+import { NextRequest, NextResponse } from 'next/server'
+
+export function proxy(request: NextRequest) {
+  const viewport = request.ua.device.type === 'mobile' ? 'mobile' : 'desktop'
+
+  request.nextUrl.searchParams.set('viewport', viewport)
+  return NextResponse.rewrite(request.nextUrl)
+}
+```
+
+## Possible Ways to Fix It
+
+The internal logic has been moved into a separate `userAgent` function that you can import from `next/server` and wrap your request instead.
+
+```ts filename="proxy.ts"
+import { NextRequest, NextResponse, userAgent } from 'next/server'
+
+export function proxy(request: NextRequest) {
+  const { device } = userAgent(request)
+  const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
+
+  request.nextUrl.searchParams.set('viewport', viewport)
+  return NextResponse.rewrite(request.nextUrl)
+}
+```

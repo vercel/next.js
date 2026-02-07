@@ -1,19 +1,18 @@
-import { draftMode, type UnsafeUnwrappedDraftMode } from 'next/headers'
+import { draftMode } from 'next/headers'
 
 function Component() {
-  const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
-    .isEnabled
-  ;(draftMode() as unknown as UnsafeUnwrappedDraftMode).enable()
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+  const isEnabled = (draftMode() as any).isEnabled
+  ;(draftMode() as any).enable()
 
   const clonedDraftMode = {
-    ...(draftMode() as unknown as UnsafeUnwrappedDraftMode),
+    ...(draftMode() as any),
   }
   return <pre>{JSON.stringify({ clonedDraftMode, isEnabled }, null, 2)}</pre>
 }
 
 export default function Page() {
-  const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
-    .isEnabled
+  const isEnabled = (draftMode() as any).isEnabled
   return (
     <>
       <pre>{JSON.stringify({ isEnabled }, null, 2)}</pre>

@@ -9,53 +9,53 @@ function routeToAbout(e) {
 export default () => (
   <div id="home-page">
     <div>
-      <Link href="/about" legacyBehavior>
-        <a id="about-via-link">About via Link</a>
+      <Link href="/about" id="about-via-link">
+        About via Link
       </Link>
       <a href="#" onClick={routeToAbout} id="about-via-router">
         About via Router
       </a>
-      <Link href="/counter" legacyBehavior>
-        <a id="counter">Counter</a>
+      <Link href="/counter" id="counter">
+        Counter
       </Link>
-      <Link href="/dynamic?text=cool+dynamic+text" legacyBehavior>
-        <a id="get-initial-props">getInitialProps</a>
+      <Link href="/dynamic?text=cool+dynamic+text" id="get-initial-props">
+        getInitialProps
       </Link>
       <Link
         href="/dynamic?text=next+export+is+nice"
         as="/dynamic/one"
-        legacyBehavior
+        id="dynamic-1"
       >
-        <a id="dynamic-1">Dynamic 1</a>
+        Dynamic 1
       </Link>
       <Link
         href="/dynamic?text=Vercel+is+awesome"
         as="/dynamic/two"
-        legacyBehavior
+        id="dynamic-2"
       >
-        <a id="dynamic-2">Dynamic 2</a>
+        Dynamic 2
       </Link>
-      <Link href="/dynamic?text=Vercel+is+awesome#cool" legacyBehavior>
-        <a id="with-hash">With Hash</a>
+      <Link href="/dynamic?text=Vercel+is+awesome#cool" id="with-hash">
+        With Hash
       </Link>
       <Link
         href="/dynamic?text=this+file+has+an+extension"
         as="/file-name.md"
-        legacyBehavior
+        id="path-with-extension"
       >
-        <a id="path-with-extension">Path with extension</a>
+        Path with extension
       </Link>
-      <Link href="/level1" legacyBehavior>
-        <a id="level1-home-page">Level1 home page</a>
+      <Link href="/level1" id="level1-home-page">
+        Level1 home page
       </Link>
-      <Link href="/level1/about" legacyBehavior>
-        <a id="level1-about-page">Level1 about page</a>
+      <Link href="/level1/about" id="level1-about-page">
+        Level1 about page
       </Link>
-      <Link href="/dynamic-imports" legacyBehavior>
-        <a id="dynamic-imports-link">Dynamic imports page</a>
+      <Link href="/dynamic-imports" id="dynamic-imports-link">
+        Dynamic imports page
       </Link>
-      <Link href="/gsp-notfound" legacyBehavior>
-        <a id="gsp-notfound-link">GSP notfound page</a>
+      <Link href="/gsp-notfound" id="gsp-notfound-link">
+        GSP notfound page
       </Link>
     </div>
     <p>This is the home page</p>

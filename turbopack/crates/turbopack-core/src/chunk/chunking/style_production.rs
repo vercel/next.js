@@ -1,32 +1,33 @@
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
     chunk::{
-        chunking::{make_chunk, ChunkItemOrBatchWithInfo, SplitContext},
         ChunkItemBatchGroup, ChunkItemWithAsyncModuleInfo, ChunkingConfig, ChunkingContext,
+        chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
     },
-    module_graph::{style_groups::StyleGroupsConfig, ModuleGraph},
+    module_graph::{ModuleGraph, style_groups::StyleGroupsConfig},
 };
 
 pub async fn make_style_production_chunks(
     chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
     _batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     module_graph: Vc<ModuleGraph>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     chunking_config: &ChunkingConfig,
     mut split_context: SplitContext<'_>,
 ) -> Result<()> {
     let span_outer = tracing::info_span!(
-        "make production chunks keeping order",
+        "make style production chunks",
         chunk_items = chunk_items.len(),
     );
     async move {
         let style_groups = module_graph
             .style_groups(
-                chunking_context,
+                *chunking_context,
                 StyleGroupsConfig {
                     max_chunk_size: chunking_config.max_merge_chunk_size,
                 },
@@ -49,7 +50,7 @@ pub async fn make_style_production_chunks(
                     vec![&ChunkItemOrBatchWithInfo::ChunkItem {
                         chunk_item: chunk_item.clone(),
                         size: 0,
-                        asset_ident: "".into(),
+                        asset_ident: rcstr!(""),
                     }],
                     vec![],
                     &mut String::new(),

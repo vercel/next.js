@@ -1,4 +1,4 @@
-import { loadManifest } from './load-manifest'
+import { loadManifest } from './load-manifest.external'
 import { readFileSync } from 'fs'
 
 jest.mock('fs')

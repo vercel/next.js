@@ -16,11 +16,11 @@ struct BenchSuite {
 impl Tabled for BenchSuite {
     const LENGTH: usize = 4;
 
-    fn fields(&self) -> Vec<Cow<str>> {
-        fn g(s: &str) -> Cow<str> {
+    fn fields(&self) -> Vec<Cow<'_, str>> {
+        fn g(s: &str) -> Cow<'_, str> {
             Cow::Owned(s.green().to_string())
         }
-        fn r(s: &str) -> Cow<str> {
+        fn r(s: &str) -> Cow<'_, str> {
             Cow::Owned(s.red().to_string())
         }
         if self.is_faster {

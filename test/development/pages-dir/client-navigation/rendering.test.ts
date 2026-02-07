@@ -2,16 +2,15 @@
 
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, getDistDir, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import path from 'path'
-import url from 'url'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Client Navigation rendering', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     env: {
       TEST_STRICT_NEXT_HEAD: String(true),
@@ -47,7 +46,7 @@ describe('Client Navigation rendering', () => {
     it('should should not contain scripts that are not js', async () => {
       const $ = await get$('/')
       $('script[src]').each((_index, element) => {
-        const parsedUrl = url.parse($(element).attr('src'))
+        const parsedUrl = new URL($(element).attr('src'), next.url)
         if (!parsedUrl.pathname.endsWith('.js')) {
           throw new Error(
             `Page includes script that is not a javascript file ${parsedUrl.pathname}`
@@ -131,21 +130,19 @@ describe('Client Navigation rendering', () => {
       if (isReact18 && isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "Error: Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
+           "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
            "stack": [
-             "new Promise <anonymous> (0:0)",
+             "new Promise <anonymous>",
            ],
          }
         `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "Error: Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
+           "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -163,8 +160,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: "InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.",
+         "description": ""InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
@@ -178,8 +174,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: "EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
+         "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
@@ -222,8 +217,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: The default export is not a React Component in page: "/no-default-export"",
+         "description": "The default export is not a React Component in page: "/no-default-export"",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
@@ -238,12 +232,10 @@ describe('Client Navigation rendering', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "Error: This is an expected error",
+           "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "pages/error-inside-page.js (2:9) @
-         {default export}
+           "source": "pages/error-inside-page.js (2:9) @ {default export}
          > 2 |   throw new Error('This is an expected error')
              |         ^",
            "stack": [
@@ -251,11 +243,24 @@ describe('Client Navigation rendering', () => {
            ],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "This is an expected error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-inside-page.js (2:9) @ __rspack_default_export
+         > 2 |   throw new Error('This is an expected error')
+             |         ^",
+           "stack": [
+             "__rspack_default_export pages/error-inside-page.js (2:9)",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "Error: This is an expected error",
+           "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "pages/error-inside-page.js (2:9) @ default
@@ -278,26 +283,24 @@ describe('Client Navigation rendering', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "ReferenceError: aa is not defined",
+           "description": "aa is not defined",
            "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/error-in-the-global-scope.js (1:1) @ [project]/pages/error-in-the-global-scope.js [ssr] (ecmascript)
+           "label": "Runtime ReferenceError",
+           "source": "pages/error-in-the-global-scope.js (1:1) @ module evaluation
          > 1 | aa = 10 //eslint-disable-line
              | ^",
            "stack": [
-             "[project]/pages/error-in-the-global-scope.js [ssr] (ecmascript) pages/error-in-the-global-scope.js (1:1)",
+             "module evaluation pages/error-in-the-global-scope.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }
         `)
-      } else {
+      } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "ReferenceError: aa is not defined",
+           "description": "aa is not defined",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Runtime ReferenceError",
            "source": "pages/error-in-the-global-scope.js (1:1) @ eval
          > 1 | aa = 10 //eslint-disable-line
              | ^",
@@ -315,6 +318,26 @@ describe('Client Navigation rendering', () => {
            ],
          }
         `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "aa is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "pages/error-in-the-global-scope.js (1:1) @ eval
+         > 1 | aa = 10 //eslint-disable-line
+             | ^",
+           "stack": [
+             "eval pages/error-in-the-global-scope.js (1:1)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
       }
     })
 
@@ -322,11 +345,13 @@ describe('Client Navigation rendering', () => {
       // build dynamic page
       await fetch('/dynamic/ssr')
 
-      const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
+      const buildManifest = await next.readJSON(
+        `${getDistDir()}/${BUILD_MANIFEST}`
+      )
       const reactLoadableManifest = await next.readJSON(
-        process.env.TURBOPACK
-          ? `.next/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
-          : `.next/${REACT_LOADABLE_MANIFEST}`
+        process.env.IS_TURBOPACK_TEST
+          ? `${getDistDir()}/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
+          : `${getDistDir()}/${REACT_LOADABLE_MANIFEST}`
       )
       const resources = []
 
@@ -334,7 +359,7 @@ describe('Client Navigation rendering', () => {
         return item
           .replace(/\\/g, '/')
           .endsWith(
-            process.env.TURBOPACK
+            process.env.IS_TURBOPACK_TEST
               ? 'components/hello1.js [client] (ecmascript, next/dynamic entry)'
               : 'ssr.js -> ../../components/hello1'
           )
@@ -422,8 +447,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: An undefined error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
+         "description": "An undefined error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
@@ -433,302 +457,3 @@ describe('Client Navigation rendering', () => {
     })
   })
 })
-
-describe.each([[false], [true]])(
-  'Client Navigation rendering <Head /> with strictNextHead=%s',
-  (strictNextHead) => {
-    const { next } = nextTestSetup({
-      files: path.join(__dirname, 'fixture'),
-      env: {
-        TEST_STRICT_NEXT_HEAD: String(strictNextHead),
-      },
-    })
-
-    function render(
-      pathname: Parameters<typeof renderViaHTTP>[1],
-      query?: Parameters<typeof renderViaHTTP>[2]
-    ) {
-      return renderViaHTTP(next.appPort, pathname, query)
-    }
-
-    it('should handle undefined prop in head server-side', async () => {
-      const html = await render('/head')
-      const $ = cheerio.load(html)
-      const value = 'content' in $('meta[name="empty-content"]').attr()
-
-      expect(value).toBe(false)
-    })
-
-    // default-head contains an empty <Head />.
-    test('header renders default charset', async () => {
-      const html = await render('/default-head')
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta charSet="utf-8" data-next-head=""/>'
-          : '<meta charSet="utf-8"/>'
-      )
-      expect(html).toContain('next-head, but only once.')
-    })
-
-    test('header renders default viewport', async () => {
-      const html = await render('/default-head')
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta name="viewport" content="width=device-width" data-next-head=""/>'
-          : '<meta name="viewport" content="width=device-width"/>'
-      )
-    })
-
-    test('header helper renders header information', async () => {
-      const html = await render('/head')
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta charSet="iso-8859-5" data-next-head=""/>'
-          : '<meta charSet="iso-8859-5"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta content="my meta" data-next-head=""/>'
-          : '<meta content="my meta"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta name="viewport" content="width=device-width,initial-scale=1" data-next-head=""/>'
-          : '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
-      )
-      expect(html).toContain('I can have meta tags')
-    })
-
-    test('header helper dedupes tags', async () => {
-      const html = await render('/head')
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta charSet="iso-8859-5" data-next-head=""/>'
-          : '<meta charSet="iso-8859-5"/>'
-      )
-      expect(html).not.toContain(
-        strictNextHead
-          ? '<meta charSet="utf-8" data-next-head=""/>'
-          : '<meta charSet="utf-8"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta name="viewport" content="width=device-width,initial-scale=1" data-next-head=""/>'
-          : '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
-      )
-      // Should contain only one viewport
-      expect(html.match(/<meta name="viewport" /g).length).toBe(1)
-      expect(html).not.toContain(
-        '<meta name="viewport" content="width=device-width"'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta content="my meta" data-next-head=""/>'
-          : '<meta content="my meta"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<link rel="stylesheet" href="/dup-style.css" data-next-head=""/><link rel="stylesheet" href="/dup-style.css" data-next-head=""/>'
-          : '<link rel="stylesheet" href="/dup-style.css"/><link rel="stylesheet" href="/dup-style.css"/>'
-      )
-      const dedupeLink = strictNextHead
-        ? '<link rel="stylesheet" href="dedupe-style.css" data-next-head=""/>'
-        : '<link rel="stylesheet" href="dedupe-style.css"/>'
-      expect(html).toContain(dedupeLink)
-      expect(
-        html.substring(html.indexOf(dedupeLink) + dedupeLink.length)
-      ).not.toContain('<link rel="stylesheet" href="dedupe-style.css"')
-      expect(html).toContain(
-        strictNextHead
-          ? '<link rel="alternate" hrefLang="en" href="/last/en" data-next-head=""/>'
-          : '<link rel="alternate" hrefLang="en" href="/last/en"/>'
-      )
-      expect(html).not.toContain(
-        '<link rel="alternate" hrefLang="en" href="/first/en"'
-      )
-    })
-
-    test('header helper dedupes tags with the same key as the default', async () => {
-      const html = await render('/head-duplicate-default-keys')
-      // Expect exactly one `charSet`
-      expect((html.match(/charSet=/g) || []).length).toBe(1)
-      // Expect exactly one `viewport`
-      expect((html.match(/name="viewport"/g) || []).length).toBe(1)
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta charSet="iso-8859-1" data-next-head=""/>'
-          : '<meta charSet="iso-8859-1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta name="viewport" content="width=500" data-next-head=""/>'
-          : '<meta name="viewport" content="width=500"/>'
-      )
-    })
-
-    test('header helper avoids dedupe of specific tags', async () => {
-      const html = await render('/head')
-      console.log(html)
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="article:tag" content="tag1" data-next-head=""/>'
-          : '<meta property="article:tag" content="tag1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="article:tag" content="tag2" data-next-head=""/>'
-          : '<meta property="article:tag" content="tag2"/>'
-      )
-      expect(html).not.toContain('<meta property="dedupe:tag" content="tag3"')
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="dedupe:tag" content="tag4" data-next-head=""/>'
-          : '<meta property="dedupe:tag" content="tag4"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image" content="ogImageTag1" data-next-head=""/>'
-          : '<meta property="og:image" content="ogImageTag1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image" content="ogImageTag2" data-next-head=""/>'
-          : '<meta property="og:image" content="ogImageTag2"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:alt" content="ogImageAltTag1" data-next-head=""/>'
-          : '<meta property="og:image:alt" content="ogImageAltTag1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:alt" content="ogImageAltTag2" data-next-head=""/>'
-          : '<meta property="og:image:alt" content="ogImageAltTag2"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:width" content="ogImageWidthTag1" data-next-head=""/>'
-          : '<meta property="og:image:width" content="ogImageWidthTag1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:width" content="ogImageWidthTag2" data-next-head=""/>'
-          : '<meta property="og:image:width" content="ogImageWidthTag2"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:height" content="ogImageHeightTag1" data-next-head=""/>'
-          : '<meta property="og:image:height" content="ogImageHeightTag1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:height" content="ogImageHeightTag2" data-next-head=""/>'
-          : '<meta property="og:image:height" content="ogImageHeightTag2"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:type" content="ogImageTypeTag1" data-next-head=""/>'
-          : '<meta property="og:image:type" content="ogImageTypeTag1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:type" content="ogImageTypeTag2" data-next-head=""/>'
-          : '<meta property="og:image:type" content="ogImageTypeTag2"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:secure_url" content="ogImageSecureUrlTag1" data-next-head=""/>'
-          : '<meta property="og:image:secure_url" content="ogImageSecureUrlTag1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:secure_url" content="ogImageSecureUrlTag2" data-next-head=""/>'
-          : '<meta property="og:image:secure_url" content="ogImageSecureUrlTag2"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:url" content="ogImageUrlTag1" data-next-head=""/>'
-          : '<meta property="og:image:url" content="ogImageUrlTag1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="og:image:url" content="ogImageUrlTag2" data-next-head=""/>'
-          : '<meta property="og:image:url" content="ogImageUrlTag2"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="fb:pages" content="fbpages1" data-next-head=""/>'
-          : '<meta property="fb:pages" content="fbpages1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta property="fb:pages" content="fbpages2" data-next-head=""/>'
-          : '<meta property="fb:pages" content="fbpages2"/>'
-      )
-    })
-
-    test('header helper avoids dedupe of meta tags with the same name if they use unique keys', async () => {
-      const html = await render('/head')
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta name="citation_author" content="authorName1" data-next-head=""/>'
-          : '<meta name="citation_author" content="authorName1"/>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta name="citation_author" content="authorName2" data-next-head=""/>'
-          : '<meta name="citation_author" content="authorName2"/>'
-      )
-    })
-
-    test('header helper renders Fragment children', async () => {
-      const html = await render('/head')
-      expect(html).toContain(
-        strictNextHead
-          ? '<title data-next-head="">Fragment title</title>'
-          : '<title>Fragment title</title>'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta content="meta fragment" data-next-head=""/>'
-          : '<meta content="meta fragment"/>'
-      )
-    })
-
-    test('header helper renders boolean attributes correctly children', async () => {
-      const html = await render('/head')
-      expect(html).toContain(
-        strictNextHead
-          ? '<script src="/test-async-false.js" data-next-head="">'
-          : '<script src="/test-async-false.js">'
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<script src="/test-async-true.js" async="" data-next-head="">'
-          : ''
-      )
-      expect(html).toContain(
-        strictNextHead
-          ? '<script src="/test-defer.js" defer="" data-next-head="">'
-          : ''
-      )
-    })
-
-    it('should place charset element at the top of <head>', async () => {
-      const html = await render('/head-priority')
-      const nextHeadElement = strictNextHead
-        ? '<meta charSet="iso-8859-5" data-next-head=""/><meta name="viewport" content="width=device-width,initial-scale=1" data-next-head=""/><meta name="title" content="head title" data-next-head=""/>'
-        : '<meta charSet="iso-8859-5"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="title" content="head title"/><meta name="next-head-count" content="3"/>'
-      const documentHeadElement =
-        '<meta name="keywords" content="document head test"/>'
-
-      expect(html).toContain(
-        isReact18
-          ? // charset is not actually at the top.
-            // data-next-hide-fouc comes first
-            `</style></noscript>${nextHeadElement}${documentHeadElement}`
-          : `<head>${nextHeadElement}${documentHeadElement}`
-      )
-    })
-  }
-)

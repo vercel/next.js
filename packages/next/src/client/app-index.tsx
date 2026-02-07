@@ -1,13 +1,12 @@
-// imports polyfill from `@next/polyfill-module` after build.
-import '../build/polyfills/polyfill-module'
-
-import './components/globals/patch-console'
-import './components/globals/handle-global-errors'
-
+import './app-globals'
 import ReactDOMClient from 'react-dom/client'
-import React, { use } from 'react'
+import React from 'react'
+// TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromReadableStream } from 'react-server-dom-webpack/client'
+import {
+  createFromReadableStream as createFromReadableStreamBrowser,
+  createFromFetch as createFromFetchBrowser,
+} from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import {
@@ -19,14 +18,22 @@ import { findSourceMapURL } from './app-find-source-map-url'
 import {
   type AppRouterActionQueue,
   createMutableActionQueue,
-} from '../shared/lib/router/action-queue'
+} from './components/app-router-instance'
 import AppRouter from './components/app-router'
-import type { InitialRSCPayload } from '../server/app-render/types'
+import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
-import { setAppBuildId } from './app-build-id'
+import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-app'
+import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
+import { getDeploymentId } from '../shared/lib/deployment-id'
+import { setNavigationBuildId } from './navigation-build-id'
 
 /// <reference types="react-dom/experimental" />
+
+const createFromReadableStream =
+  createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
+const createFromFetch =
+  createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
 const appElement: HTMLElement | Document = document
 
@@ -53,7 +60,21 @@ type NextFlight = Omit<Array<FlightSegment>, 'push'> & {
 declare global {
   // If you're working in a browser environment
   interface Window {
+    /**
+     * request ID, dev-only
+     */
+    __next_r?: string
     __next_f: NextFlight
+    /**
+     * Testing API that allows e2e tests to assert on the prefetched UI state
+     * before dynamic data streams in. Dev-only.
+     */
+    __EXPERIMENTAL_NEXT_TESTING__?: {
+      navigation: {
+        lock: () => void
+        unlock: () => void
+      }
+    }
   }
 }
 
@@ -145,7 +166,13 @@ if (document.readyState === 'loading') {
 }
 
 const nextServerDataLoadingGlobal = (self.__next_f = self.__next_f || [])
+
+// Consume all buffered chunks and clear the global data array right after to release memory.
+// Otherwise it will be retained indefinitely.
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
+nextServerDataLoadingGlobal.length = 0
+
+// Patch its push method so subsequent chunks are handled (but not actually pushed to the array).
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
 const readable = new ReadableStream({
@@ -153,52 +180,73 @@ const readable = new ReadableStream({
     nextServerDataRegisterWriter(controller)
   },
 })
+if (process.env.NODE_ENV !== 'production') {
+  // @ts-expect-error
+  readable.name = 'hydration'
+}
 
-const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
-  readable,
-  { callServer, findSourceMapURL }
-)
+let debugChannel:
+  | { readable?: ReadableStream; writable?: WritableStream }
+  | undefined
 
-// React overrides `.then` and doesn't return a new promise chain,
-// so we wrap the action queue in a promise to ensure that its value
-// is defined when the promise resolves.
-// https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
-const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
-  (resolve, reject) => {
-    initialServerResponse.then(
-      (initialRSCPayload) => {
-        // setAppBuildId should be called only once, during JS initialization
-        // and before any components have hydrated.
-        setAppBuildId(initialRSCPayload.b)
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEBUG_CHANNEL &&
+  typeof window !== 'undefined'
+) {
+  const { createDebugChannel } =
+    require('./dev/debug-channel') as typeof import('./dev/debug-channel')
 
-        resolve(
-          createMutableActionQueue(
-            createInitialRouterState({
-              initialFlightData: initialRSCPayload.f,
-              initialCanonicalUrlParts: initialRSCPayload.c,
-              initialParallelRoutes: new Map(),
-              location: window.location,
-              couldBeIntercepted: initialRSCPayload.i,
-              postponed: initialRSCPayload.s,
-              prerendered: initialRSCPayload.S,
-            })
-          )
-        )
-      },
-      (err: Error) => reject(err)
+  debugChannel = createDebugChannel(undefined)
+}
+
+const clientResumeFetch: Promise<Response> | undefined =
+  // @ts-expect-error
+  window.__NEXT_CLIENT_RESUME
+
+let initialServerResponse: Promise<InitialRSCPayload>
+if (clientResumeFetch) {
+  initialServerResponse = Promise.resolve(
+    createFromFetch<InitialRSCPayload>(clientResumeFetch, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+    })
+  ).then(async (fallbackInitialRSCPayload) =>
+    createInitialRSCPayloadFromFallbackPrerender(
+      await clientResumeFetch,
+      fallbackInitialRSCPayload
     )
-  }
-)
+  )
+} else {
+  initialServerResponse = createFromReadableStream<InitialRSCPayload>(
+    readable,
+    {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      startTime: 0,
+    }
+  )
+}
 
-function ServerRoot(): React.ReactNode {
-  const initialRSCPayload = use(initialServerResponse)
-  const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
-
+function ServerRoot({
+  initialRSCPayload,
+  actionQueue,
+  webSocket,
+  staticIndicatorState,
+}: {
+  initialRSCPayload: InitialRSCPayload
+  actionQueue: AppRouterActionQueue
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
+}): React.ReactNode {
   const router = (
     <AppRouter
       actionQueue={actionQueue}
-      globalErrorComponentAndStyles={initialRSCPayload.G}
-      assetPrefix={initialRSCPayload.p}
+      globalErrorState={initialRSCPayload.G}
+      webSocket={webSocket}
+      staticIndicatorState={staticIndicatorState}
     />
   )
 
@@ -232,18 +280,77 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
+const enableTransitionIndicator = process.env.__NEXT_TRANSITION_INDICATOR
+
+function noDefaultTransitionIndicator() {
+  return () => {}
+}
+
 const reactRootOptions: ReactDOMClient.RootOptions = {
+  onDefaultTransitionIndicator: enableTransitionIndicator
+    ? // TODO: Compose default with user-configureable (e.g. nprogress)
+      undefined
+    : noDefaultTransitionIndicator,
   onRecoverableError,
   onCaughtError,
   onUncaughtError,
 }
 
-export function hydrate() {
+export type ClientInstrumentationHooks = {
+  onRouterTransitionStart?: (
+    url: string,
+    navigationType: 'push' | 'replace' | 'traverse'
+  ) => void
+}
+
+export async function hydrate(
+  instrumentationHooks: ClientInstrumentationHooks | null,
+  assetPrefix: string
+) {
+  let staticIndicatorState: StaticIndicatorState | undefined
+  let webSocket: WebSocket | undefined
+
+  if (process.env.NODE_ENV !== 'production') {
+    const { createWebSocket } =
+      require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
+
+    staticIndicatorState = { pathname: null, appIsrManifest: null }
+    webSocket = createWebSocket(assetPrefix, staticIndicatorState)
+  }
+  const initialRSCPayload = await initialServerResponse
+
+  // setNavigationBuildId should be called only once, during JS initialization
+  // and before any components have hydrated.
+  if (initialRSCPayload.b) {
+    setNavigationBuildId(initialRSCPayload.b!)
+  } else {
+    setNavigationBuildId(getDeploymentId()!)
+  }
+
+  const initialTimestamp = Date.now()
+  const actionQueue: AppRouterActionQueue = createMutableActionQueue(
+    createInitialRouterState({
+      navigatedAt: initialTimestamp,
+      initialFlightData: initialRSCPayload.f,
+      initialCanonicalUrlParts: initialRSCPayload.c,
+      initialRenderedSearch: initialRSCPayload.q,
+      initialCouldBeIntercepted: initialRSCPayload.i,
+      initialPrerendered: initialRSCPayload.S,
+      location: window.location,
+    }),
+    instrumentationHooks
+  )
+
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
         <Root>
-          <ServerRoot />
+          <ServerRoot
+            initialRSCPayload={initialRSCPayload}
+            actionQueue={actionQueue}
+            webSocket={webSocket}
+            staticIndicatorState={staticIndicatorState}
+          />
         </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
@@ -253,11 +360,13 @@ export function hydrate() {
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
     if (process.env.NODE_ENV !== 'production') {
-      const { createRootLevelDevOverlayElement } =
-        require('./components/react-dev-overlay/app/client-entry') as typeof import('./components/react-dev-overlay/app/client-entry')
+      const { RootLevelDevOverlayElement } =
+        require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')
 
       // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
-      element = createRootLevelDevOverlayElement(element)
+      element = (
+        <RootLevelDevOverlayElement>{element}</RootLevelDevOverlayElement>
+      )
     }
 
     ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)

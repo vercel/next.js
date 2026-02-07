@@ -58,7 +58,6 @@ fn test(input: &Path, minify: bool) {
                     ..Default::default()
                 },
                 disable_next_ssg: false,
-                disable_page_config: false,
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,
@@ -82,6 +81,7 @@ fn test(input: &Path, minify: bool) {
                 prefer_esm: false,
                 debug_function_name: false,
                 css_env: None,
+                track_dynamic_imports: false,
             };
 
             let unresolved_mark = Mark::new();

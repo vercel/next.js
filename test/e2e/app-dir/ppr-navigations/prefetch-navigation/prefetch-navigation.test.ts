@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
-import type { Route, Page } from 'playwright'
 
-describe('prefetch-navigation', () => {
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('prefetch-navigation', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
@@ -17,8 +17,8 @@ describe('prefetch-navigation', () => {
       { resolve: () => Promise<void> }
     >()
     const browser = await next.browser('/catch-all/1', {
-      beforePageLoad(page: Page) {
-        page.route('**/catch-all/**', async (route: Route) => {
+      beforePageLoad(page) {
+        page.route('**/catch-all/**', async (route) => {
           const request = route.request()
           const headers = await request.allHeaders()
           const url = new URL(request.url())

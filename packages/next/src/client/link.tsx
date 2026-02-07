@@ -5,7 +5,7 @@ import type {
   PrefetchOptions as RouterPrefetchOptions,
 } from '../shared/lib/router/router'
 
-import React from 'react'
+import React, { createContext, useContext } from 'react'
 import type { UrlObject } from 'url'
 import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
@@ -18,6 +18,7 @@ import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
 import { useMergedRef } from './use-merged-ref'
+import { errorOnce } from '../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -72,7 +73,7 @@ type InternalLinkProps = {
    * Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
    *
    * In App Router:
-   * - `null` (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
+   * - "auto", null, undefined (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
    * - `true`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
    * - `false`: This will not prefetch any data, even on hover.
    *
@@ -81,7 +82,7 @@ type InternalLinkProps = {
    * - `false`: Prefetching will not happen when entering the viewport, but will still happen on hover.
    * @defaultValue `true` (pages router) or `null` (app router)
    */
-  prefetch?: boolean | null
+  prefetch?: boolean | 'auto' | null
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
@@ -90,6 +91,8 @@ type InternalLinkProps = {
   locale?: string | false
   /**
    * Enable legacy link behavior.
+   *
+   * @deprecated This will be removed in a future version
    * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
@@ -116,9 +119,12 @@ type InternalLinkProps = {
 // adding this to the publicly exported type currently breaks existing apps
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
-// isn't generated yet. It will be replaced when the webpack plugin runs.
+// isn't generated yet. It will be replaced when type generation runs.
+// WARNING: This should be an interface to prevent TypeScript from inlining it
+// in declarations of libraries dependending on Next.js.
+// Not trivial to reproduce so only convert to an interface when needed.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type LinkProps<RouteInferType = any> = InternalLinkProps
+export interface LinkProps<RouteInferType = any> extends InternalLinkProps {}
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
@@ -357,7 +363,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         } else {
           // TypeScript trick for type-guarding:
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const _: never = key
         }
       })
@@ -417,7 +422,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           key === 'scroll' ||
           key === 'shallow' ||
           key === 'passHref' ||
-          key === 'prefetch' ||
           key === 'legacyBehavior'
         ) {
           if (props[key] != null && valType !== 'boolean') {
@@ -427,9 +431,20 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               actual: valType,
             })
           }
+        } else if (key === 'prefetch') {
+          if (
+            props[key] != null &&
+            valType !== 'boolean' &&
+            props[key] !== 'auto'
+          ) {
+            throw createPropError({
+              key,
+              expected: '`boolean | "auto"`',
+              actual: valType,
+            })
+          }
         } else {
           // TypeScript trick for type-guarding:
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const _: never = key
         }
       })
@@ -504,7 +519,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
       rootMargin: '200px',
     })
-
     const setIntersectionWithResetRef = React.useCallback(
       (el: Element | null) => {
         // Before the link getting observed, check if visible state need to be reset
@@ -642,8 +656,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           },
     }
 
-    // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
-    // defined, we specify the current 'href', so that repetition is not needed by the user.
     // If the url is absolute, we can bypass the logic to prepend the domain and locale.
     if (isAbsoluteUrl(as)) {
       childProps.href = as
@@ -665,14 +677,37 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         addBasePath(addLocale(as, curLocale, router?.defaultLocale))
     }
 
-    return legacyBehavior ? (
-      React.cloneElement(child, childProps)
-    ) : (
+    if (legacyBehavior) {
+      if (process.env.NODE_ENV === 'development') {
+        errorOnce(
+          '`legacyBehavior` is deprecated and will be removed in a future ' +
+            'release. A codemod is available to upgrade your components:\n\n' +
+            'npx @next/codemod@latest new-link .\n\n' +
+            'Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components'
+        )
+      }
+      return React.cloneElement(child, childProps)
+    }
+
+    return (
       <a {...restProps} {...childProps}>
         {children}
       </a>
     )
   }
 )
+
+const LinkStatusContext = createContext<{
+  pending: boolean
+}>({
+  // We do not support link status in the Pages Router, so we always return false
+  pending: false,
+})
+
+export const useLinkStatus = () => {
+  // This behaviour is like React's useFormStatus. When the component is not under
+  // a <form> tag, it will get the default value, instead of throwing an error.
+  return useContext(LinkStatusContext)
+}
 
 export default Link

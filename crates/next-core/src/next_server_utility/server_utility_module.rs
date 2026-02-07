@@ -1,17 +1,18 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::ModuleReferences,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -24,11 +25,6 @@ use turbopack_ecmascript::{
 };
 
 use super::server_utility_reference::NextServerUtilityModuleReference;
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("Next.js server utility".into())
-}
 
 #[turbo_tasks::value(shared)]
 pub struct NextServerUtilityModule {
@@ -52,7 +48,14 @@ impl NextServerUtilityModule {
 impl Module for NextServerUtilityModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_modifier(modifier())
+        self.module
+            .ident()
+            .with_modifier(rcstr!("Next.js server utility"))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]
@@ -63,13 +66,11 @@ impl Module for NextServerUtilityModule {
                 .await?,
         )]))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for NextServerUtilityModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js server utility module has no content")
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // This just exports another import
+        ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
     }
 }
 
@@ -103,9 +104,10 @@ impl EcmascriptChunkPlaceable for NextServerUtilityModule {
         );
 
         let mut exports = BTreeMap::new();
+        let default = rcstr!("default");
         exports.insert(
-            "default".into(),
-            EsmExport::ImportedBinding(module_reference, "default".into(), false),
+            default.clone(),
+            EsmExport::ImportedBinding(module_reference, default, false),
         );
 
         Ok(EcmascriptExports::EsmExports(
@@ -127,15 +129,15 @@ struct NextServerComponentChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for NextServerComponentChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for NextServerComponentChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let inner = self.inner.await?;
 
-        let module_id = inner
-            .module
-            .chunk_item_id(Vc::upcast(*self.chunking_context))
-            .await?;
+        let module_id = inner.module.chunk_item_id(*self.chunking_context).await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));",

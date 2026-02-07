@@ -9,6 +9,7 @@ import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
 import {
+  addRequestMeta,
   getRequestMeta,
   type NextParsedUrlQuery,
   type NextUrlWithParsedQuery,
@@ -20,20 +21,18 @@ import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
+import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
-import { ampValidation } from '../../build/output'
-import {
-  INSTRUMENTATION_HOOK_FILENAME,
-  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
-} from '../../lib/constants'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import {
   PHASE_DEVELOPMENT_SERVER,
   PAGES_MANIFEST,
   APP_PATHS_MANIFEST,
   COMPILER_NAMES,
+  PRERENDER_MANIFEST,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -41,13 +40,18 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
 import { type Span, setGlobal, trace } from '../../trace'
+import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
-import { loadDefaultErrorComponents } from '../load-default-error-components'
+import {
+  loadDefaultErrorComponents,
+  type ErrorModule,
+} from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
+import { defaultConfig, type NextConfigComplete } from '../config-shared'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
 import { DevRouteMatcherManager } from '../route-matcher-managers/dev-route-matcher-manager'
@@ -68,21 +72,31 @@ import { decorateServerError } from '../../shared/lib/error-source'
 import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
-import { FallbackMode } from '../../lib/fallback'
-import type { PagesDevOverlayType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import { FallbackMode, fallbackModeToFallbackField } from '../../lib/fallback'
+import type { PagesDevOverlayBridgeType } from '../../next-devtools/userspace/pages/pages-dev-overlay-setup'
+import {
+  ensureInstrumentationRegistered,
+  getInstrumentationModule,
+} from '../lib/router-utils/instrumentation-globals.external'
+import type { PrerenderManifest } from '../../build'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import type { PrerenderedRoute } from '../../build/static-paths/types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 
 // Load ReactDevOverlay only when needed
-let ReactDevOverlayImpl: PagesDevOverlayType
-const ReactDevOverlay: PagesDevOverlayType = (props) => {
-  if (ReactDevOverlayImpl === undefined) {
-    ReactDevOverlayImpl =
-      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay')
-        .PagesDevOverlay as PagesDevOverlayType
+let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
+const ReactDevOverlay: PagesDevOverlayBridgeType = (props) => {
+  if (PagesDevOverlayBridgeImpl === undefined) {
+    PagesDevOverlayBridgeImpl = (
+      require('../../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../../next-devtools/userspace/pages/pages-dev-overlay-setup')
+    ).PagesDevOverlayBridge
   }
-  return ReactDevOverlayImpl(props)
+  return React.createElement(PagesDevOverlayBridgeImpl, props)
 }
 
 export interface Options extends ServerOptions {
+  // Override type to make the full config available instead of only NextConfigRuntime
+  conf: NextConfigComplete
   /**
    * Tells of Next.js is running from the `next dev` command
    */
@@ -100,6 +114,9 @@ export interface Options extends ServerOptions {
 }
 
 export default class DevServer extends Server {
+  // Override type to make the full config available instead of only NextConfigRuntime
+  protected readonly nextConfig: NextConfigComplete
+
   /**
    * The promise that resolves when the server is ready. When this is unset
    * the server is ready.
@@ -111,7 +128,6 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
@@ -160,6 +176,7 @@ export default class DevServer extends Server {
       Error.stackTraceLimit = 50
     } catch {}
     super({ ...options, dev: true })
+    this.nextConfig = options.conf
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
@@ -169,41 +186,24 @@ export default class DevServer extends Server {
       // 5MB
       5 * 1024 * 1024,
       function length(value) {
-        return JSON.stringify(value.staticPaths)?.length ?? 0
+        // Ensure minimum size of 1 for LRU eviction to work correctly
+        return JSON.stringify(value.staticPaths)?.length || 1
       }
     )
-    this.renderOpts.ampSkipValidation =
-      this.nextConfig.experimental?.amp?.skipValidation ?? false
-    this.renderOpts.ampValidator = (html: string, pathname: string) => {
-      const validatorPath =
-        (this.nextConfig.experimental &&
-          this.nextConfig.experimental.amp &&
-          this.nextConfig.experimental.amp.validator) ||
-        require.resolve(
-          'next/dist/compiled/amphtml-validator/validator_wasm.js'
-        )
-
-      const AmpHtmlValidator =
-        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
-      return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
-        const result = validator.validateString(html)
-        ampValidation(
-          pathname,
-          result.errors
-            .filter((e) => e.severity === 'ERROR')
-            .filter((e) => this._filterAmpDevelopmentScript(html, e)),
-          result.errors.filter((e) => e.severity !== 'ERROR')
-        )
-      })
-    }
 
     const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
     this.appDir = appDir
 
     if (this.nextConfig.experimental.serverComponentsHmrCache) {
-      this.serverComponentsHmrCache = new LRUCache(
+      // Ensure HMR cache has a minimum size equal to the default cacheMaxMemorySize,
+      // but allow it to grow if the user has configured a larger value.
+      const hmrCacheSize = Math.max(
         this.nextConfig.cacheMaxMemorySize,
+        defaultConfig.cacheMaxMemorySize
+      )
+      this.serverComponentsHmrCache = new LRUCache(
+        hmrCacheSize,
         function length(value) {
           return JSON.stringify(value).length
         }
@@ -276,11 +276,23 @@ export default class DevServer extends Server {
         })
       )
 
+      // TODO: Improve passing of "is running with Turbopack"
+      const isTurbopack = !!process.env.TURBOPACK
       matchers.push(
-        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
+        new DevAppPageRouteMatcherProvider(
+          appDir,
+          extensions,
+          fileReader,
+          isTurbopack
+        )
       )
       matchers.push(
-        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
+        new DevAppRouteRouteMatcherProvider(
+          appDir,
+          extensions,
+          fileReader,
+          isTurbopack
+        )
       )
     }
 
@@ -295,7 +307,12 @@ export default class DevServer extends Server {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
-    const telemetry = new Telemetry({ distDir: this.distDir })
+    // Use existing telemetry instance from traceGlobals instead of creating a new one.
+    // Creating a new instance would overwrite the existing one, causing any telemetry
+    // events recorded to the original instance to be lost during cleanup/flush.
+    const existingTelemetry = traceGlobals.get('telemetry')
+    const telemetry =
+      existingTelemetry || new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
     await this.matchers.reload()
@@ -309,7 +326,10 @@ export default class DevServer extends Server {
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
     setGlobal('pagesDir', this.pagesDir)
-    setGlobal('telemetry', telemetry)
+    // Only set telemetry if it wasn't already set
+    if (!existingTelemetry) {
+      setGlobal('telemetry', telemetry)
+    }
 
     process.on('unhandledRejection', (reason) => {
       if (isPostpone(reason)) {
@@ -420,6 +440,7 @@ export default class DevServer extends Server {
        */
       if (
         request.url.includes('/_next/static') ||
+        request.url.includes('/__nextjs_attach-nodejs-inspector') ||
         request.url.includes('/__nextjs_original-stack-frame') ||
         request.url.includes('/__nextjs_source-map') ||
         request.url.includes('/__nextjs_error_feedback')
@@ -473,8 +494,14 @@ export default class DevServer extends Server {
       const loggingConfig = this.nextConfig.logging
 
       if (loggingConfig !== false) {
-        const start = Date.now()
-        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
+        // The closure variable is not used here because the request handler may be invoked twice for one request when middleware is added in the application.
+        // By setting the start time we can ensure that the middleware timing is correctly included.
+        if (!getRequestMeta(req, 'devRequestTimingStart')) {
+          const requestStart = process.hrtime.bigint()
+          addRequestMeta(req, 'devRequestTimingStart', requestStart)
+        }
+        const isMiddlewareRequest =
+          getRequestMeta(req, 'middlewareInvoke') ?? false
 
         if (!isMiddlewareRequest) {
           response.originalResponse.once('close', () => {
@@ -487,12 +514,24 @@ export default class DevServer extends Server {
               return
             }
 
-            logRequests({
+            // The closure variable is not used here because the request handler may be invoked twice for one request when middleware is added in the application.
+            // By setting the start time we can ensure that the middleware timing is correctly included.
+            const requestStart = getRequestMeta(req, 'devRequestTimingStart')
+            if (!requestStart) {
+              return
+            }
+            const requestEnd = process.hrtime.bigint()
+            logRequests(
               request,
               response,
               loggingConfig,
-              requestDurationInMs: Date.now() - start,
-            })
+              requestStart,
+              requestEnd,
+              getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
+              getRequestMeta(req, 'devRequestTimingMiddlewareEnd'),
+              getRequestMeta(req, 'devRequestTimingInternalsEnd'),
+              getRequestMeta(req, 'devGenerateStaticParamsDuration')
+            )
           })
         }
       }
@@ -509,6 +548,7 @@ export default class DevServer extends Server {
     const span = trace('handle-request', undefined, { url: req.url })
     const result = await span.traceAsyncFn(async () => {
       await this.ready?.promise
+      addRequestMeta(req, 'PagesErrorDebug', this.renderOpts.ErrorDebug)
       return await super.handleRequest(req, res, parsedUrl)
     })
     const memoryUsage = process.memoryUsage()
@@ -657,8 +697,9 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        instrumentationModule = await require(
-          pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
+        instrumentationModule = await getInstrumentationModule(
+          this.dir,
+          this.nextConfig.distDir
         )
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -669,9 +710,7 @@ export default class DevServer extends Server {
   }
 
   protected async runInstrumentationHookIfAvailable() {
-    await this.startServerSpan
-      .traceChild('run-instrumentation-hook')
-      .traceAsyncFn(() => this.instrumentation?.register?.())
+    await ensureInstrumentationRegistered(this.dir, this.nextConfig.distDir)
   }
 
   protected async ensureEdgeFunction({
@@ -709,41 +748,20 @@ export default class DevServer extends Server {
     // })
   }
 
-  _filterAmpDevelopmentScript(
-    html: string,
-    event: { line: number; col: number; code: string }
-  ): boolean {
-    if (event.code !== 'DISALLOWED_SCRIPT_TAG') {
-      return true
-    }
-
-    const snippetChunks = html.split('\n')
-
-    let snippet
-    if (
-      !(snippet = html.split('\n')[event.line - 1]) ||
-      !(snippet = snippet.substring(event.col))
-    ) {
-      return true
-    }
-
-    snippet = snippet + snippetChunks.slice(event.line).join('\n')
-    snippet = snippet.substring(0, snippet.indexOf('</script>'))
-
-    return !snippet.includes('data-amp-development-mode-only')
-  }
-
   protected async getStaticPaths({
     pathname,
+    urlPathname,
     requestHeaders,
     page,
     isAppPath,
   }: {
     pathname: string
+    urlPathname: string
     requestHeaders: IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
   }): Promise<{
+    prerenderedRoutes?: PrerenderedRoute[]
     staticPaths?: string[]
     fallbackMode?: FallbackMode
   }> {
@@ -751,12 +769,7 @@ export default class DevServer extends Server {
     // from waiting on them for the page to load in dev mode
 
     const __getStaticPaths = async () => {
-      const {
-        configFileName,
-        publicRuntimeConfig,
-        serverRuntimeConfig,
-        httpAgentOptions,
-      } = this.nextConfig
+      const { configFileName, httpAgentOptions } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
       const staticPathsWorker = this.getStaticPathsWorker()
 
@@ -768,9 +781,7 @@ export default class DevServer extends Server {
           config: {
             pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
-            publicRuntimeConfig,
-            serverRuntimeConfig,
-            dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
+            cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },
           httpAgentOptions,
           locales,
@@ -779,11 +790,11 @@ export default class DevServer extends Server {
           isAppPath,
           requestHeaders,
           cacheHandler: this.nextConfig.cacheHandler,
-          cacheHandlers: this.nextConfig.experimental.cacheHandlers,
-          cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+          cacheHandlers: this.nextConfig.cacheHandlers,
+          cacheLifeProfiles: this.nextConfig.cacheLife,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
+          cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
@@ -801,9 +812,45 @@ export default class DevServer extends Server {
       `staticPaths-${pathname}`,
       []
     )
-      .then((res) => {
-        const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
-          res.value
+      .then(async (res) => {
+        const { prerenderedRoutes, fallbackMode: fallback } = res.value
+
+        if (isAppPath) {
+          if (this.nextConfig.output === 'export') {
+            if (!prerenderedRoutes) {
+              throw new Error(
+                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+              )
+            }
+
+            if (
+              !prerenderedRoutes.some((item) => item.pathname === urlPathname)
+            ) {
+              throw new Error(
+                `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
+              )
+            }
+          }
+
+          // Since generateStaticParams run on the background, when accessing the
+          // devFallbackParams during the render, it is still set to the previous
+          // result from the cache. Therefore when the result has changed, re-render
+          // the Server Component to sync the devFallbackParams with the new result.
+          if (
+            isAppPath &&
+            this.nextConfig.cacheComponents &&
+            // Ensure this is not the first invocation.
+            result &&
+            // Ideally, we would want to compare the whole objects, but that is too expensive.
+            result.prerenderedRoutes?.length !== prerenderedRoutes?.length
+          ) {
+            this.bundlerService.sendHmrMessage({
+              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+              hash: `generateStaticParams-${Date.now()}`,
+            })
+          }
+        }
+
         if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === FallbackMode.BLOCKING_STATIC_RENDER) {
             throw new Error(
@@ -818,10 +865,58 @@ export default class DevServer extends Server {
 
         const value: {
           staticPaths: string[] | undefined
+          prerenderedRoutes: PrerenderedRoute[] | undefined
           fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths: staticPaths?.map((route) => route.pathname),
+          staticPaths: prerenderedRoutes?.map((route) => route.pathname),
+          prerenderedRoutes,
           fallbackMode: fallback,
+        }
+
+        if (
+          res.value?.fallbackMode !== undefined &&
+          // This matches the hasGenerateStaticParams logic we do during build.
+          (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
+        ) {
+          // we write the static paths to partial manifest for
+          // fallback handling inside of entry handler's
+          const rawExistingManifest = await fs.promises.readFile(
+            pathJoin(this.distDir, PRERENDER_MANIFEST),
+            'utf8'
+          )
+          const existingManifest: PrerenderManifest =
+            JSON.parse(rawExistingManifest)
+          for (const staticPath of value.staticPaths || []) {
+            existingManifest.routes[staticPath] = {} as any
+          }
+
+          existingManifest.dynamicRoutes[pathname] = {
+            dataRoute: null,
+            dataRouteRegex: null,
+            fallback: fallbackModeToFallbackField(res.value.fallbackMode, page),
+            fallbackRevalidate: false,
+            fallbackExpire: undefined,
+            fallbackHeaders: undefined,
+            fallbackStatus: undefined,
+            fallbackRootParams: undefined,
+            fallbackRouteParams: undefined,
+            fallbackSourceRoute: pathname,
+            prefetchDataRoute: undefined,
+            prefetchDataRouteRegex: undefined,
+            routeRegex: getRouteRegex(pathname).re.source,
+            experimentalPPR: undefined,
+            renderingMode: undefined,
+            allowHeader: [],
+          }
+
+          const updatedManifest = JSON.stringify(existingManifest)
+
+          if (updatedManifest !== rawExistingManifest) {
+            await fs.promises.writeFile(
+              pathJoin(this.distDir, PRERENDER_MANIFEST),
+              updatedManifest
+            )
+          }
         }
         this.staticPathsCache.set(pathname, value)
         return value
@@ -901,7 +996,7 @@ export default class DevServer extends Server {
 
   protected async getFallbackErrorComponents(
     url?: string
-  ): Promise<LoadComponentsReturnType | null> {
+  ): Promise<LoadComponentsReturnType<ErrorModule> | null> {
     await this.bundlerService.getFallbackErrorComponents(url)
     return await loadDefaultErrorComponents(this.distDir)
   }
@@ -915,7 +1010,9 @@ export default class DevServer extends Server {
   ) {
     await super.instrumentationOnRequestError(...args)
 
-    const err = args[0]
-    this.logErrorWithOriginalStack(err, 'app-dir')
+    const [err, , , silenceLog] = args
+    if (!silenceLog) {
+      this.logErrorWithOriginalStack(err, 'app-dir')
+    }
   }
 }

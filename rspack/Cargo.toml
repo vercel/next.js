@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+
+members = [
+  "crates/binding"
+]
+
+# Copied from https://github.com/web-infra-dev/rspack/blob/main/Cargo.toml
+
+[profile.dev]
+codegen-units = 16
+debug         = 2
+incremental   = true
+panic         = "abort"
+
+[profile.release]
+codegen-units = 1
+debug         = false
+# Performs “fat” LTO which attempts to perform optimizations across all crates within the dependency graph.
+lto       = "fat"
+opt-level = 3
+panic     = "abort"
+strip     = true

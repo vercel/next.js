@@ -105,6 +105,13 @@ function webpack5(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
           `options.factory = ${runtimeTemplate.basicFunction(
             'moduleObject, moduleExports, webpackRequire',
             [
+              // If the original factory is missing, e.g. due to race condition
+              // when compiling multiple entries concurrently, recover by doing
+              // a full page reload.
+              'if (!originalFactory) {',
+              Template.indent('document.location.reload();'),
+              Template.indent('return;'),
+              '}',
               // Legacy CSS implementations will `eval` browser code in a Node.js
               // context to extract CSS. For backwards compatibility, we need to check
               // we're in a browser context before continuing.
@@ -154,7 +161,12 @@ class ReactFreshWebpackPlugin {
   RuntimeModule: typeof WebpackRuntimeModule
   Template: typeof WebpackTemplate
   constructor(
-    { version, RuntimeGlobals, RuntimeModule, Template } = require('webpack')
+    {
+      version,
+      RuntimeGlobals,
+      RuntimeModule,
+      Template,
+    } = require('webpack') as typeof import('webpack')
   ) {
     this.webpackMajorVersion = parseInt(version ?? '', 10)
     this.RuntimeGlobals = RuntimeGlobals

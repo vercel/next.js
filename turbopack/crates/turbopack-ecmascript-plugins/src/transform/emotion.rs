@@ -6,20 +6,34 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
-use rustc_hash::FxHasher;
+use bincode::{Decode, Encode};
+use indexmap::IndexMap;
+use rustc_hash::{FxBuildHasher, FxHasher};
 use serde::{Deserialize, Serialize};
 use swc_core::{
+    atoms::Atom,
     common::util::take::Take,
     ecma::{
         ast::{Module, Program},
         visit::FoldWith,
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, OperationValue, ValueDefault, Vc};
+use swc_emotion::ImportMap;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{NonLocalValue, OperationValue, ValueDefault, Vc, trace::TraceRawVcs};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    TraceRawVcs,
+    Deserialize,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum EmotionLabelKind {
@@ -28,15 +42,46 @@ pub enum EmotionLabelKind {
     Never,
 }
 
-//[TODO]: need to support importmap, there are type mismatch between
-//next.config.js to swc's emotion options
+#[derive(
+    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct EmotionImportItemConfig {
+    pub canonical_import: EmotionItemSpecifier,
+    pub styled_base_import: Option<EmotionItemSpecifier>,
+}
+
+impl From<&EmotionImportItemConfig> for swc_emotion::ImportItemConfig {
+    fn from(value: &EmotionImportItemConfig) -> Self {
+        swc_emotion::ImportItemConfig {
+            canonical_import: From::from(&value.canonical_import),
+            styled_base_import: value.styled_base_import.as_ref().map(From::from),
+        }
+    }
+}
+
+#[derive(
+    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+)]
+pub struct EmotionItemSpecifier(pub RcStr, pub RcStr);
+
+impl From<&EmotionItemSpecifier> for swc_emotion::ItemSpecifier {
+    fn from(value: &EmotionItemSpecifier) -> Self {
+        swc_emotion::ItemSpecifier(value.0.as_str().into(), value.1.as_str().into())
+    }
+}
+
+pub type EmotionImportMapValue = IndexMap<RcStr, EmotionImportItemConfig, FxBuildHasher>;
+
 #[turbo_tasks::value(shared, operation)]
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EmotionTransformConfig {
     pub sourcemap: Option<bool>,
     pub label_format: Option<String>,
     pub auto_label: Option<EmotionLabelKind>,
+    #[bincode(with_serde)]
+    pub import_map: Option<IndexMap<RcStr, EmotionImportMapValue, FxBuildHasher>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -68,17 +113,25 @@ impl EmotionTransformer {
             enabled: Some(true),
             sourcemap: config.sourcemap,
             label_format: config.label_format.as_deref().map(From::from),
-            auto_label: if let Some(auto_label) = config.auto_label.as_ref() {
-                match auto_label {
-                    EmotionLabelKind::Always => Some(true),
-                    EmotionLabelKind::Never => Some(false),
-                    // [TODO]: this is not correct coerece, need to be fixed
-                    EmotionLabelKind::DevOnly => None,
-                }
-            } else {
-                None
+            auto_label: match config.auto_label.as_ref() {
+                Some(EmotionLabelKind::Always) => Some(true),
+                Some(EmotionLabelKind::Never) => Some(false),
+                // [TODO]: this is not correct (doesn't take current mode into account)
+                Some(EmotionLabelKind::DevOnly) => None,
+                None => None,
             },
-            ..Default::default()
+            import_map: config.import_map.as_ref().map(|map| {
+                map.iter()
+                    .map(|(k, v)| {
+                        (
+                            k.as_str().into(),
+                            swc_emotion::ImportMapValue::from_iter(v.iter().map(|(k, v)| {
+                                (k.as_str().into(), swc_emotion::ImportItemConfig::from(v))
+                            })),
+                        )
+                    })
+                    .collect()
+            }),
         };
 
         Some(EmotionTransformer { config })

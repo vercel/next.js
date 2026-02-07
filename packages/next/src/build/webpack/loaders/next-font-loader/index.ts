@@ -35,6 +35,12 @@ export default async function nextFontLoader(this: any) {
         `${bold('Cannot')} be used within ${cyan('pages/_document.js')}.`
       )
       err.name = 'NextFontError'
+      if (process.env.NEXT_RSPACK) {
+        // Rspack uses miette for error formatting, which automatically includes stack
+        // traces in the error message. To avoid showing redundant stack information
+        // in the final error output, we clear the stack property.
+        err.stack = undefined
+      }
       callback(err)
       return
     }

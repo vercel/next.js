@@ -64,7 +64,6 @@
             ),
         ],
         span: 53..87,
-        in_try: false,
     },
     MemberCall {
         obj: Array {
@@ -304,7 +303,6 @@
             ),
         ],
         span: 135..169,
-        in_try: false,
     },
     MemberCall {
         obj: Array {
@@ -544,7 +542,6 @@
             ),
         ],
         span: 219..253,
-        in_try: false,
     },
     MemberCall {
         obj: Array {
@@ -663,12 +660,9 @@
                                 ),
                             ],
                             span: 281..296,
-                            in_try: false,
                         },
                         FreeVar {
-                            var: FreeVar(
-                                "require",
-                            ),
+                            var: "require",
                             ast_path: [
                                 Program(
                                     Script,
@@ -743,7 +737,6 @@
                                 ),
                             ],
                             span: 281..288,
-                            in_try: false,
                         },
                         MemberCall {
                             obj: FreeVar(
@@ -1020,12 +1013,9 @@
             ),
         ],
         span: 339..354,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -1078,7 +1068,6 @@
             ),
         ],
         span: 339..346,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(

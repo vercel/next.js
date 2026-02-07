@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 
 describe('app dir - global-error - error-in-global-error', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -12,13 +12,12 @@ describe('app dir - global-error - error-in-global-error', () => {
     expect(text).toBe('Custom Global Error')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: error in page",
+         "description": "error in page",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "app/page.js (7:11) @ Page.useEffect
        >  7 |     throw new Error('error in page')
             |           ^",
@@ -32,27 +31,39 @@ describe('app dir - global-error - error-in-global-error', () => {
 
   it('should render fallback UI when error occurs in global-error', async () => {
     const browser = await next.browser('/?error-in-global-error=1')
-    const text = await browser.elementByCss('h2').text()
-    expect(text).toMatch(
-      /Application error: a client-side exception has occurred while loading [\w.-]+ \(see the browser console for more information\)./
-    )
+    // When the custom global-error throws, it falls back to the default global-error
+    // Client errors show "This page crashed"
+    const title = await browser.elementByCss('h1').text()
+    expect(title).toBe('This page crashed')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       await expect(browser).toDisplayRedbox(`
-       {
-         "count": 2,
-         "description": "Error: error in global error",
-         "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
-         "source": "app/global-error.js (10:11) @ InnerGlobalError
+       [
+         {
+           "description": "error in global error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "app/global-error.js (10:11) @ InnerGlobalError
        > 10 |     throw new Error('error in global error')
             |           ^",
-         "stack": [
-           "InnerGlobalError app/global-error.js (10:11)",
-           "GlobalError app/global-error.js (26:7)",
-         ],
-       }
+           "stack": [
+             "InnerGlobalError app/global-error.js (10:11)",
+             "GlobalError app/global-error.js (26:7)",
+           ],
+         },
+         {
+           "description": "error in page",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "app/page.js (7:11) @ Page.useEffect
+       >  7 |     throw new Error('error in page')
+            |           ^",
+           "stack": [
+             "Page.useEffect app/page.js (7:11)",
+           ],
+         },
+       ]
       `)
     }
   })

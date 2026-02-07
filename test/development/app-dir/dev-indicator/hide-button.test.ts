@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasDevToolsIndicator,
+  waitForDevToolsIndicator,
   assertNoDevToolsIndicator,
-  openDevToolsIndicatorPopover,
+  toggleDevToolsIndicatorPopover,
   waitFor,
 } from 'next-test-utils'
 
@@ -19,7 +19,7 @@ describe('dev indicator - Hide DevTools Button', () => {
   it('should show the dev indicator when the server is manually restarted', async () => {
     const browser = await next.browser('/')
 
-    await openDevToolsIndicatorPopover(browser)
+    await toggleDevToolsIndicatorPopover(browser)
     await browser.elementByCss('[data-preferences]').click()
     await browser.elementByCss('[data-hide-dev-tools]').click()
 
@@ -30,13 +30,13 @@ describe('dev indicator - Hide DevTools Button', () => {
 
     const browser2 = await next.browser('/')
     await browser2.refresh()
-    await assertHasDevToolsIndicator(browser2)
+    await waitForDevToolsIndicator(browser2)
   })
 
   it('should still hide the dev indicator after reloading the page', async () => {
     const browser = await next.browser('/')
 
-    await openDevToolsIndicatorPopover(browser)
+    await toggleDevToolsIndicatorPopover(browser)
     await browser.elementByCss('[data-preferences]').click()
     await browser.elementByCss('[data-hide-dev-tools]').click()
 
@@ -52,7 +52,7 @@ describe('dev indicator - Hide DevTools Button', () => {
 
     const browser = await next.browser('/')
 
-    await openDevToolsIndicatorPopover(browser)
+    await toggleDevToolsIndicatorPopover(browser)
     await browser.elementByCss('[data-preferences]').click()
     await browser.elementByCss('[data-hide-dev-tools]').click()
 
@@ -62,6 +62,6 @@ describe('dev indicator - Hide DevTools Button', () => {
     await waitFor(COOLDOWN)
 
     await browser.refresh()
-    await assertHasDevToolsIndicator(browser)
+    await waitForDevToolsIndicator(browser)
   })
 })

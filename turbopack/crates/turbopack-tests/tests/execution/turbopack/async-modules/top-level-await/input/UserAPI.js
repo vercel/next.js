@@ -1,7 +1,7 @@
-import { dbCall } from "./db-connection.js";
+import { dbCall } from './db-connection.js'
 
 export const createUser = async (name) => {
-  const command = `CREATE USER ${name}`;
+  const command = `CREATE USER ${name}`
   // This is a normal await, because it's in an async function
-  return await dbCall({ command });
-};
+  return await dbCall({ command })
+}

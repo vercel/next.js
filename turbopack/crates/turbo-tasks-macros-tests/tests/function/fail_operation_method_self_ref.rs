@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![allow(unexpected_cfgs)]
 
 use turbo_tasks::Vc;
 

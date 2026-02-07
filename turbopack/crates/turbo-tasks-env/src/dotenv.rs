@@ -1,11 +1,11 @@
 use std::{env, sync::MutexGuard};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
-use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
+use crate::{EnvMap, GLOBAL_ENV_LOCK, ProcessEnv, sorted_env_vars};
 
 /// Load the environment variables defined via a dotenv file, with an
 /// optional prior state that we can lookup already defined variables
@@ -13,16 +13,13 @@ use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
 #[turbo_tasks::value]
 pub struct DotenvProcessEnv {
     prior: Option<ResolvedVc<Box<dyn ProcessEnv>>>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl DotenvProcessEnv {
     #[turbo_tasks::function]
-    pub fn new(
-        prior: Option<ResolvedVc<Box<dyn ProcessEnv>>>,
-        path: ResolvedVc<FileSystemPath>,
-    ) -> Vc<Self> {
+    pub fn new(prior: Option<ResolvedVc<Box<dyn ProcessEnv>>>, path: FileSystemPath) -> Vc<Self> {
         DotenvProcessEnv { prior, path }.cell()
     }
 
@@ -35,11 +32,10 @@ impl DotenvProcessEnv {
     }
 
     #[turbo_tasks::function]
-    pub async fn read_all_with_prior(self: Vc<Self>, prior: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
-        let this = self.await?;
+    pub async fn read_all_with_prior(&self, prior: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
         let prior = prior.await?;
 
-        let file = this.path.read().await?;
+        let file = self.path.read().await?;
         if let FileContent::Content(f) = &*file {
             let res;
             let vars;
@@ -53,7 +49,7 @@ impl DotenvProcessEnv {
 
                 restore_env(&initial, &prior, &lock);
 
-                // from_read will load parse and evalute the Read, and set variables
+                // from_read will load parse and evaluate the Read, and set variables
                 // into the global env. If a later dotenv defines an already defined
                 // var, it'll be ignored.
                 res = dotenv::from_read(f.read()).map(|e| e.load());
@@ -65,7 +61,7 @@ impl DotenvProcessEnv {
             if let Err(e) = res {
                 return Err(e).context(anyhow!(
                     "unable to read {} for env vars",
-                    this.path.to_string().await?
+                    self.path.value_to_string().await?
                 ));
             }
 
@@ -95,13 +91,13 @@ fn restore_env(
 ) {
     for key in from.keys() {
         if !to.contains_key(key) {
-            env::remove_var(key);
+            unsafe { env::remove_var(key) };
         }
     }
     for (key, value) in to {
         match from.get(key) {
             Some(v) if v == value => {}
-            _ => env::set_var(key, value),
+            _ => unsafe { env::set_var(key, value) },
         }
     }
 }

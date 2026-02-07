@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1a.css"],"sourcesContent":[".b1a {\n  content: '3';\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1b.css"],"sourcesContent":[".b1b {\n  content: '4';\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css"],"sourcesContent":["@import 'b1a.css';\n@import 'b1b.css';\n\n.b1 {\n  content: '5';\n}\n"],"names":[],"mappings":"AAGA"}}]
+}

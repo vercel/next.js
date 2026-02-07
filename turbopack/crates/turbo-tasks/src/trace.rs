@@ -4,7 +4,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     marker::PhantomData,
     path::{Path, PathBuf},
-    sync::{atomic::*, Arc, Mutex},
+    sync::{Arc, Mutex, atomic::*},
     time::Duration,
 };
 
@@ -12,6 +12,7 @@ use auto_hash_map::{AutoMap, AutoSet};
 use either::Either;
 use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
+use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
 
 use crate::RawVc;
@@ -62,7 +63,9 @@ macro_rules! ignore {
   }
 }
 
-ignore!(i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, char, bool, isize, usize);
+ignore!(
+    i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, char, bool, isize, usize
+);
 ignore!(
     AtomicI8,
     AtomicU8,
@@ -106,6 +109,25 @@ macro_rules! impl_trace_tuple {
 }
 
 impl_trace_tuple!(E D C B A Z Y X W V U T);
+
+/// Function pointers (the lowercase `fn` type, not `Fn`) don't contain any data, so it's not
+/// possible for them to contain a `Vc`.
+macro_rules! impl_trace_fn_ptr {
+    ($T:ident) => {
+        impl_trace_fn_ptr!(@impl $T);
+    };
+    ($T:ident $( $U:ident )+) => {
+        impl_trace_fn_ptr!($( $U )+);
+        impl_trace_fn_ptr!(@impl $T $( $U )+);
+    };
+    (@impl $( $T:ident )+) => {
+        impl<$($T,)+ Return> TraceRawVcs for fn($($T),+) -> Return {
+            fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
+        }
+    };
+}
+
+impl_trace_fn_ptr!(E D C B A Z Y X W V U T);
 
 impl<T: TraceRawVcs> TraceRawVcs for Option<T> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
@@ -179,6 +201,14 @@ impl<T: TraceRawVcs, S> TraceRawVcs for IndexSet<T, S> {
     }
 }
 
+impl<T: TraceRawVcs> TraceRawVcs for FrozenSet<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        for item in self.iter() {
+            TraceRawVcs::trace_raw_vcs(item, trace_context);
+        }
+    }
+}
+
 impl<K: TraceRawVcs, V: TraceRawVcs, S> TraceRawVcs for HashMap<K, V, S> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for (key, value) in self.iter() {
@@ -207,6 +237,15 @@ impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for BTreeMap<K, V> {
 }
 
 impl<K: TraceRawVcs, V: TraceRawVcs, S> TraceRawVcs for IndexMap<K, V, S> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        for (key, value) in self.iter() {
+            TraceRawVcs::trace_raw_vcs(key, trace_context);
+            TraceRawVcs::trace_raw_vcs(value, trace_context);
+        }
+    }
+}
+
+impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for FrozenMap<K, V> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for (key, value) in self.iter() {
             TraceRawVcs::trace_raw_vcs(key, trace_context);

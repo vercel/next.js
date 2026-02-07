@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, Wtf8Atom},
     common::{errors::HANDLER, SourceMap, Span},
     ecma::{
         ast::{
@@ -28,6 +28,42 @@ pub fn warn_for_edge_runtime(
         guarded_process_props: Default::default(),
         guarded_runtime: false,
         is_production,
+        emit_warn: |span: Span, msg: String| {
+            HANDLER.with(|h| {
+                h.struct_span_warn(span, &msg).emit();
+            });
+        },
+        emit_error: |span: Span, msg: String| {
+            HANDLER.with(|h| {
+                h.struct_span_err(span, &msg).emit();
+            });
+        },
+    }
+}
+
+pub fn warn_for_edge_runtime_with_handlers<EmitWarn, EmitError>(
+    cm: Arc<SourceMap>,
+    ctx: ExprCtx,
+    should_error_for_node_apis: bool,
+    is_production: bool,
+    emit_warn: EmitWarn,
+    emit_error: EmitError,
+) -> impl Visit
+where
+    EmitWarn: Fn(Span, String),
+    EmitError: Fn(Span, String),
+{
+    WarnForEdgeRuntime {
+        cm,
+        ctx,
+        should_error_for_node_apis,
+        should_add_guards: false,
+        guarded_symbols: Default::default(),
+        guarded_process_props: Default::default(),
+        guarded_runtime: false,
+        is_production,
+        emit_warn,
+        emit_error,
     }
 }
 
@@ -41,7 +77,7 @@ pub fn warn_for_edge_runtime(
 /// ```js
 /// if(typeof clearImmediate !== "function") clearImmediate();
 /// ```
-struct WarnForEdgeRuntime {
+struct WarnForEdgeRuntime<EmitWarn, EmitError> {
     cm: Arc<SourceMap>,
     ctx: ExprCtx,
     should_error_for_node_apis: bool,
@@ -52,6 +88,8 @@ struct WarnForEdgeRuntime {
     // for process.env.NEXT_RUNTIME
     guarded_runtime: bool,
     is_production: bool,
+    emit_warn: EmitWarn,
+    emit_error: EmitError,
 }
 
 const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
@@ -144,27 +182,31 @@ const NODEJS_MODULE_NAMES: &[&str] = &[
     "zlib",
 ];
 
-impl WarnForEdgeRuntime {
-    fn warn_if_nodejs_module(&self, span: Span, module_specifier: &str) -> Option<()> {
+impl<EmitWarn, EmitError> WarnForEdgeRuntime<EmitWarn, EmitError>
+where
+    EmitWarn: Fn(Span, String),
+    EmitError: Fn(Span, String),
+{
+    fn warn_if_nodejs_module(&self, span: Span, module_specifier: &Wtf8Atom) -> Option<()> {
+        let module_specifier_str = module_specifier.as_str()?;
         if self.guarded_runtime {
             return None;
         }
 
         // Node.js modules can be loaded with `node:` prefix or directly
-        if module_specifier.starts_with("node:") || NODEJS_MODULE_NAMES.contains(&module_specifier)
+        if module_specifier.starts_with("node:")
+            || NODEJS_MODULE_NAMES.contains(&module_specifier_str)
         {
             let loc = self.cm.lookup_line(span.lo).ok()?;
 
             let msg = format!(
-                "A Node.js module is loaded ('{module_specifier}' at line {}) which is not \
+                "A Node.js module is loaded ('{module_specifier_str}' at line {}) which is not \
                  supported in the Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
                 loc.line + 1
             );
 
-            HANDLER.with(|h| {
-                h.struct_span_warn(span, &msg).emit();
-            });
+            (self.emit_warn)(span, msg);
         }
 
         None
@@ -189,13 +231,11 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
             loc.line + 1
         );
 
-        HANDLER.with(|h| {
-            if self.should_error_for_node_apis {
-                h.struct_span_err(span, &msg).emit();
-            } else {
-                h.struct_span_warn(span, &msg).emit();
-            }
-        });
+        if self.should_error_for_node_apis {
+            (self.emit_error)(span, msg);
+        } else {
+            (self.emit_warn)(span, msg);
+        }
 
         None
     }
@@ -266,9 +306,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
                        'WebAssembly.compile') not allowed in Edge Runtime"
                 .to_string();
 
-            HANDLER.with(|h| {
-                h.struct_span_err(span, &msg).emit();
-            });
+            (self.emit_error)(span, msg);
         }
     }
 
@@ -284,7 +322,11 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
     }
 }
 
-impl Visit for WarnForEdgeRuntime {
+impl<EmitWarn, EmitError> Visit for WarnForEdgeRuntime<EmitWarn, EmitError>
+where
+    EmitWarn: Fn(Span, String),
+    EmitError: Fn(Span, String),
+{
     fn visit_call_expr(&mut self, n: &CallExpr) {
         n.visit_children_with(self);
 

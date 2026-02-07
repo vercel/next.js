@@ -1,39 +1,37 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath};
 
 use super::ModuleReference;
 use crate::{
     file_source::FileSource,
     raw_module::RawModule,
     resolve::ModuleResolveResult,
-    source_map::{
-        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
-    },
+    source_map::{GenerateSourceMap, utils::resolve_source_map_sources},
 };
 
 #[turbo_tasks::value]
 pub struct SourceMapReference {
-    from: ResolvedVc<FileSystemPath>,
-    file: ResolvedVc<FileSystemPath>,
+    from: FileSystemPath,
+    file: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl SourceMapReference {
     #[turbo_tasks::function]
-    pub fn new(from: ResolvedVc<FileSystemPath>, file: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(from: FileSystemPath, file: FileSystemPath) -> Vc<Self> {
         Self::cell(SourceMapReference { from, file })
     }
 }
 
 impl SourceMapReference {
-    async fn get_file(&self) -> Option<Vc<FileSystemPath>> {
+    async fn get_file(&self) -> Option<FileSystemPath> {
         let file_type = self.file.get_type().await;
-        if let Ok(file_type_result) = file_type.as_ref() {
-            if let FileSystemEntryType::File = &**file_type_result {
-                return Some(*self.file);
-            }
+        if let Ok(file_type_result) = file_type.as_ref()
+            && let FileSystemEntryType::File = &**file_type_result
+        {
+            return Some(self.file.clone());
         }
         None
     }
@@ -57,15 +55,18 @@ impl ModuleReference for SourceMapReference {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMapReference {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
+    async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
         let Some(file) = self.get_file().await else {
-            return Ok(Vc::cell(None));
+            return Ok(FileContent::NotFound.cell());
         };
 
         let content = file.read().await?;
         let content = content.as_content().map(|file| file.content());
-        let source_map = resolve_source_map_sources(content, *self.from).await?;
-        Ok(Vc::cell(source_map))
+        if let Some(source_map) = resolve_source_map_sources(content, &self.from).await? {
+            Ok(FileContent::Content(File::from(source_map)).cell())
+        } else {
+            Ok(FileContent::NotFound.cell())
+        }
     }
 }
 
@@ -76,7 +77,7 @@ impl ValueToString for SourceMapReference {
         Ok(Vc::cell(
             format!(
                 "source map file is referenced by {}",
-                self.from.to_string().await?
+                self.from.value_to_string().await?
             )
             .into(),
         ))

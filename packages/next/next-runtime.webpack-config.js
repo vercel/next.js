@@ -1,8 +1,6 @@
-const webpack = require('webpack')
+const webpack = require('@rspack/core')
 const path = require('path')
-const TerserPlugin = require('terser-webpack-plugin')
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
-const EvalSourceMapDevToolPlugin = require('./webpack-plugins/eval-source-map-dev-tool-plugin')
 const DevToolsIgnoreListPlugin = require('./webpack-plugins/devtools-ignore-list-plugin')
 
 function shouldIgnorePath(modulePath) {
@@ -25,22 +23,16 @@ const pagesExternals = [
   'react-dom/server.browser',
   'react-dom/server.edge',
   'react-server-dom-webpack/client',
-  'react-server-dom-webpack/client.edge',
-  'react-server-dom-webpack/server.edge',
+  'react-server-dom-webpack/server',
   'react-server-dom-webpack/server.node',
-  'react-server-dom-webpack/static.edge',
+  'react-server-dom-webpack/static',
 ]
 
-const appExternals = [
-  // Externalize the react-dom/server legacy implementation outside of the runtime.
-  // If users are using them and imported from 'react-dom/server' they will get the external asset bundled.
-  'next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.development.js',
-  'next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.production.js',
-  'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.development.js',
-  'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.production.js',
-]
+const appExternals = []
 
-function makeAppAliases(reactChannel = '') {
+function makeAppAliases({ experimental, bundler }) {
+  const reactChannel = experimental ? '-experimental' : ''
+
   return {
     react$: `next/dist/compiled/react${reactChannel}`,
     'react/react.react-server$': `next/dist/compiled/react${reactChannel}/react.react-server`,
@@ -49,30 +41,22 @@ function makeAppAliases(reactChannel = '') {
     'react/jsx-dev-runtime$': `next/dist/compiled/react${reactChannel}/jsx-dev-runtime`,
     'react/compiler-runtime$': `next/dist/compiled/react${reactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${reactChannel}/client`,
-    'react-dom/server$': `next/dist/compiled/react-dom${reactChannel}/server`,
-    'react-dom/static$': `next/dist/compiled/react-dom${reactChannel}/static`,
-    'react-dom/static.edge$': `next/dist/compiled/react-dom${reactChannel}/static.edge`,
-    'react-dom/static.browser$': `next/dist/compiled/react-dom${reactChannel}/static.browser`,
-    // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
+    // optimizations to ignore the legacy APIs in react-dom/server
+    'react-dom/server$': `next/dist/build/webpack/alias/react-dom-server${reactChannel}.js`,
+    'react-dom/static$': `next/dist/compiled/react-dom${reactChannel}/static.node`,
     // react-server-dom-webpack alias
-    'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
-    'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
-    'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
+    'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.node`,
+    'react-server-dom-turbopack/server$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
     'react-server-dom-turbopack/server.node$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
-    'react-server-dom-turbopack/static.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/static.edge`,
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.node`,
-    'react-server-dom-webpack/static.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/static.edge`,
+    'react-server-dom-turbopack/static$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/static.node`,
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client.node`,
+    'react-server-dom-webpack/server$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.node`,
+    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.node`,
+    'react-server-dom-webpack/static$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/static.node`,
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts':
       'next/dist/client/dev/noop-turbopack-hmr',
   }
 }
-
-const appAliases = makeAppAliases()
-const appExperimentalAliases = makeAppAliases('-experimental')
 
 const sharedExternals = [
   'styled-jsx',
@@ -95,6 +79,8 @@ const sharedExternals = [
 
 const externalsMap = {
   './web/sandbox': 'next/dist/server/web/sandbox',
+  'next/dist/compiled/next-devtools':
+    'commonjs next/dist/next-devtools/dev-overlay.shim.js',
 }
 
 const externalsRegexMap = {
@@ -153,7 +139,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         return
       }
 
-      if (request.endsWith('.external')) {
+      if (request.match(/\.external(\.js)?$/)) {
         const resolve = getResolve()
         const resolved = await resolve(context, request)
         const relative = path.relative(
@@ -175,10 +161,23 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
 
   const bundledReactChannel = experimental ? '-experimental' : ''
 
+  const alias =
+    bundleType === 'app'
+      ? makeAppAliases({
+          experimental,
+          bundler: turbo ? 'turbopack' : 'webpack',
+        })
+      : {}
+
   return {
     entry: bundleTypes[bundleType],
     target: 'node',
-    mode: dev ? 'development' : 'production',
+    mode:
+      process.env.NEXT_DEBUG_INTERNALS === 'true'
+        ? 'development'
+        : dev
+          ? 'development'
+          : 'production',
     output: {
       path: path.join(__dirname, 'dist/compiled/next-server'),
       filename: `[name]${turbo ? '-turbo' : ''}${
@@ -186,36 +185,25 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
       libraryTarget: 'commonjs2',
     },
-    devtool: process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
-      ? // We'll use a fork in plugins
-        false
-      : 'source-map',
-    optimization: {
-      moduleIds: 'named',
-      minimize: true,
-      concatenateModules: true,
-      minimizer: [
-        new TerserPlugin({
-          minify: TerserPlugin.swcMinify,
-          terserOptions: {
-            compress: {
-              dead_code: true,
-              // Zero means no limit.
-              passes: 0,
-            },
-            format: {
-              preamble: '',
-            },
-            mangle:
-              dev && !process.env.NEXT_SERVER_EVAL_SOURCE_MAPS ? false : true,
+    devtool: 'source-map',
+    optimization:
+      process.env.NEXT_DEBUG_INTERNALS === 'true'
+        ? undefined
+        : {
+            moduleIds: 'named',
+            minimize: true,
+            concatenateModules: true,
+            minimizer: [
+              new webpack.SwcJsMinimizerRspackPlugin({
+                minimizerOptions: {
+                  mangle:
+                    dev || process.env.NEXT_SERVER_NO_MANGLE ? false : true,
+                },
+              }),
+            ],
           },
-        }),
-      ],
-    },
     plugins: [
-      process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
-        ? new EvalSourceMapDevToolPlugin({ shouldIgnorePath })
-        : new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
+      new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
       new webpack.DefinePlugin({
         'typeof window': JSON.stringify('undefined'),
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),
@@ -230,7 +218,8 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
           experimental ? true : false
         ),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
-        ...(!dev ? { 'process.env.TURBOPACK': JSON.stringify(turbo) } : {}),
+        'process.turbopack': JSON.stringify(turbo),
+        'process.env.TURBOPACK': JSON.stringify(turbo),
       }),
       !!process.env.ANALYZE &&
         new BundleAnalyzerPlugin({
@@ -260,12 +249,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       optimizationBailout: true,
     },
     resolve: {
-      alias:
-        bundleType === 'app'
-          ? experimental
-            ? appExperimentalAliases
-            : appAliases
-          : {},
+      alias,
     },
     module: {
       rules: [
@@ -313,9 +297,6 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       externalsMap,
       externalHandler,
     ],
-    experiments: {
-      layers: true,
-    },
     ...rest,
   }
 }

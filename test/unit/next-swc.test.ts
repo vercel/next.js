@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import { transform } from 'next/dist/build/swc'
+import { installBindings } from 'next/dist/build/swc/install-bindings'
 import path from 'path'
 import fsp from 'fs/promises'
 
@@ -11,6 +12,9 @@ const swc = async (code) => {
 const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
 describe('next/swc', () => {
+  beforeAll(async () => {
+    await installBindings()
+  })
   describe('hook_optimizer', () => {
     it('should leave alone array destructuring of hooks', async () => {
       const output = await swc(
@@ -125,7 +129,7 @@ describe('next/swc', () => {
         '__NEXT_REQUIRED_NODE_VERSION_RANGE'
       )
       expect(nextEntryContent).toMatch(
-        /For Next.js, Node.js version "\$\{"\^\d+\.\d+\.\d* \|\| \^\d+\.\d+\.\d* \|\| >= \d+\.\d+\.\d*"\}" is required./
+        /For Next.js, Node.js version "\$\{">=\d+\.\d+\.\d*"\}" is required./
       )
     })
   })

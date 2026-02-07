@@ -1,7 +1,6 @@
 // source: https://github.com/sindresorhus/fnv1a
 // FNV_PRIMES and FNV_OFFSETS from
 // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-/* eslint-disable @typescript-eslint/no-loss-of-precision */
 
 const FNV_PRIMES = {
   32: BigInt(16_777_619),

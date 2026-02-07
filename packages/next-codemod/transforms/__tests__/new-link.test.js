@@ -5,8 +5,9 @@ const defineTest = require('jscodeshift/dist/testUtils').defineTest
 const fixtures = [
   'link-a',
   'move-props',
-  'add-legacy-behavior',
-  'excludes-links-with-legacybehavior-prop',
+  'custom-component-child',
+  'custom-component-child-legacy-behavior',
+  'links-with-legacybehavior-prop',
   'children-interpolation',
   'spread-props',
   'link-string',

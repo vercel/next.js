@@ -1,7 +1,7 @@
 use either::Either;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
-use syn::{spanned::Spanned, Data, Field, Generics, Ident, Path};
+use syn::{Data, Field, Generics, Ident, Path, spanned::Spanned};
 
 /// Generates tokens for a [`syn::ItemConst`] that asserts every field on the struct, enum, or union
 /// (represented by [`Data`]) is an instance of `trait_path`.

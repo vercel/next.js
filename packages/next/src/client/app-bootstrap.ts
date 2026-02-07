@@ -5,6 +5,9 @@
  * - next/script with `beforeInteractive` strategy
  */
 
+import { getAssetPrefix } from './asset-prefix'
+import { setAttributesFromProps } from './set-attributes-from-props'
+
 const version = process.env.__NEXT_VERSION
 
 window.next = {
@@ -27,11 +30,7 @@ function loadScriptsInSequence(
           const el = document.createElement('script')
 
           if (props) {
-            for (const key in props) {
-              if (key !== 'children') {
-                el.setAttribute(key, props[key])
-              }
-            }
+            setAttributesFromProps(el, props)
           }
 
           if (src) {
@@ -56,7 +55,9 @@ function loadScriptsInSequence(
     })
 }
 
-export function appBootstrap(hydrate: () => void) {
+export function appBootstrap(hydrate: (assetPrefix: string) => void) {
+  const assetPrefix = getAssetPrefix()
+
   loadScriptsInSequence((self as any).__next_s, () => {
     // If the static shell is being debugged, skip hydration if the
     // `__nextppronly` query is present. This is only enabled when the
@@ -75,6 +76,34 @@ export function appBootstrap(hydrate: () => void) {
       }
     }
 
-    hydrate()
+    // Instant Navigation Testing API: If the page was loaded with the instant
+    // test cookie set (from an MPA navigation while locked), skip hydration
+    // and set up a minimal testing API. Hydration would fail because the
+    // static shell response doesn't include the full Flight data stream.
+    // When unlock() is called, we clear the cookie and reload the page.
+    if (process.env.__NEXT_EXPOSE_TESTING_API) {
+      const NEXT_INSTANT_TEST_COOKIE = 'next-instant-navigation-testing'
+      if (document.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')) {
+        // Set up minimal testing API for the static shell
+        window.__EXPERIMENTAL_NEXT_TESTING__ = {
+          navigation: {
+            lock: () => {
+              console.error(
+                'Navigation lock already acquired. Concurrent locks are not allowed. ' +
+                  'Did you forget to release the previous lock?'
+              )
+            },
+            unlock: () => {
+              // Clear the cookie and reload to get the full page with dynamic data
+              document.cookie = `${NEXT_INSTANT_TEST_COOKIE}=;path=/;max-age=0`
+              window.location.reload()
+            },
+          },
+        }
+        return
+      }
+    }
+
+    hydrate(assetPrefix)
   })
 }

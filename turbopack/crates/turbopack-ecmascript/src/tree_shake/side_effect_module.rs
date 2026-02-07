@@ -1,21 +1,19 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
-use turbo_tasks_fs::glob::Glob;
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReferences, SingleChunkableModuleReference},
-    resolve::ModulePart,
+    resolve::{ExportUsage, ModulePart},
 };
 
 use crate::{
+    EcmascriptModuleAsset,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     tree_shake::chunk_item::SideEffectsModuleChunkItem,
-    EcmascriptModuleAsset,
 };
 
 #[turbo_tasks::value]
@@ -57,20 +55,25 @@ impl Module for SideEffectsModule {
         ident.parts.push(self.part.clone());
 
         ident.add_asset(
-            ResolvedVc::cell(RcStr::from("resolved")),
+            rcstr!("resolved"),
             self.resolved_as.ident().to_resolved().await?,
         );
 
-        ident.add_modifier(ResolvedVc::cell(RcStr::from("side effects")));
+        ident.add_modifier(rcstr!("side effects"));
 
         for (i, side_effect) in self.side_effects.iter().enumerate() {
             ident.add_asset(
-                ResolvedVc::cell(RcStr::from(format!("side effect {}", i))),
+                RcStr::from(format!("side effect {i}")),
                 side_effect.ident().to_resolved().await?,
             );
         }
 
-        Ok(AssetIdent::new(Value::new(ident)))
+        Ok(AssetIdent::new(ident))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]
@@ -84,7 +87,8 @@ impl Module for SideEffectsModule {
                     Ok(ResolvedVc::upcast(
                         SingleChunkableModuleReference::new(
                             *ResolvedVc::upcast(*side_effect),
-                            Vc::cell(RcStr::from("side effect")),
+                            rcstr!("side effect"),
+                            ExportUsage::evaluation(),
                         )
                         .to_resolved()
                         .await?,
@@ -97,7 +101,8 @@ impl Module for SideEffectsModule {
         references.push(ResolvedVc::upcast(
             SingleChunkableModuleReference::new(
                 *ResolvedVc::upcast(self.resolved_as),
-                Vc::cell(RcStr::from("resolved as")),
+                rcstr!("resolved as"),
+                ExportUsage::all(),
             )
             .to_resolved()
             .await?,
@@ -105,26 +110,21 @@ impl Module for SideEffectsModule {
 
         Ok(Vc::cell(references))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for SideEffectsModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unreachable!("SideEffectsModule has no content")
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // This module exists to collect side effects from references.  So it isn't side effectful
+        // but it may depend on side effectful modules.  use this mode to allow inner graph tree
+        // shaking to still potentially trim this module and its dependencies.
+        ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for SideEffectsModule {
     #[turbo_tasks::function]
-    async fn get_exports(&self) -> Vc<EcmascriptExports> {
+    fn get_exports(&self) -> Vc<EcmascriptExports> {
         self.resolved_as.get_exports()
-    }
-
-    #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(true)
     }
 }
 

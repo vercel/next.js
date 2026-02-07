@@ -1,42 +1,17 @@
-import { startTransition, useCallback } from 'react'
-import {
-  ACTION_SERVER_ACTION,
-  type ReducerActions,
-  type ServerActionDispatcher,
-} from './components/router-reducer/router-reducer-types'
-
-let globalServerActionDispatcher = null as ServerActionDispatcher | null
-
-export function useServerActionDispatcher(
-  dispatch: React.Dispatch<ReducerActions>
-) {
-  const serverActionDispatcher: ServerActionDispatcher = useCallback(
-    (actionPayload) => {
-      startTransition(() => {
-        dispatch({
-          ...actionPayload,
-          type: ACTION_SERVER_ACTION,
-        })
-      })
-    },
-    [dispatch]
-  )
-  globalServerActionDispatcher = serverActionDispatcher
-}
+import { startTransition } from 'react'
+import { ACTION_SERVER_ACTION } from './components/router-reducer/router-reducer-types'
+import { dispatchAppRouterAction } from './components/use-action-queue'
 
 export async function callServer(actionId: string, actionArgs: any[]) {
-  const actionDispatcher = globalServerActionDispatcher
-
-  if (!actionDispatcher) {
-    throw new Error('Invariant: missing action dispatcher.')
-  }
-
   return new Promise((resolve, reject) => {
-    actionDispatcher({
-      actionId,
-      actionArgs,
-      resolve,
-      reject,
+    startTransition(() => {
+      dispatchAppRouterAction({
+        type: ACTION_SERVER_ACTION,
+        actionId,
+        actionArgs,
+        resolve,
+        reject,
+      })
     })
   })
 }

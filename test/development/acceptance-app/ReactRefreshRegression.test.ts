@@ -9,7 +9,7 @@ describe('ReactRefreshRegression app', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      'styled-components': '5.1.0',
+      'styled-components': '6.1.16',
       '@next/mdx': 'canary',
       '@mdx-js/loader': '2.2.1',
       '@mdx-js/react': '2.2.1',
@@ -76,7 +76,7 @@ describe('ReactRefreshRegression app', () => {
     )
 
     // Verify no hydration mismatch:
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   // https://github.com/vercel/next.js/issues/13978
@@ -277,7 +277,7 @@ describe('ReactRefreshRegression app', () => {
       `export default function () { throw new Error('boom'); }`
     )
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
@@ -296,7 +296,7 @@ describe('ReactRefreshRegression app', () => {
       `export default function Page() { throw new Error('boom'); }`
     )
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
@@ -318,7 +318,7 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
@@ -366,7 +366,7 @@ describe('ReactRefreshRegression app', () => {
 
     let didNotReload = await session.patch('app/content.mdx', `Hello Foo!`)
     expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(
         () => document.querySelector('#content').textContent
@@ -375,7 +375,7 @@ describe('ReactRefreshRegression app', () => {
 
     didNotReload = await session.patch('app/content.mdx', `Hello Bar!`)
     expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(
         () => document.querySelector('#content').textContent

@@ -28,17 +28,12 @@ describe('styled-jsx', () => {
     expect(color).toMatch('0, 255, 255')
   })
 
-  it('should render styles during CSR (AMP)', async () => {
-    const browser = await next.browser('/amp')
+  it('should render styles inside TypeScript', async () => {
+    const browser = await next.browser('/typescript')
     const color = await browser.eval(
       `getComputedStyle(document.querySelector('button')).color`
     )
 
-    expect(color).toMatch('0, 255, 255')
-  })
-
-  it('should render styles during SSR (AMP)', async () => {
-    const html = await next.render('/amp')
-    expect(html).toMatch(/color:.*?cyan/)
+    expect(color).toMatch('255, 0, 0')
   })
 })

@@ -4,33 +4,11 @@ import React, { type JSX } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
+import { HandleISRError } from './handle-isr-error'
+import { isBot } from '../../shared/lib/router/utils/is-bot'
 
-const workAsyncStorage =
-  typeof window === 'undefined'
-    ? (
-        require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
-      ).workAsyncStorage
-    : undefined
-
-const styles = {
-  error: {
-    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
-    fontFamily:
-      'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
-    height: '100vh',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontSize: '14px',
-    fontWeight: 400,
-    lineHeight: '28px',
-    margin: '0 8px',
-  },
-} as const
+const isBotUserAgent =
+  typeof window !== 'undefined' && isBot(window.navigator.userAgent)
 
 export type ErrorComponent = React.ComponentType<{
   error: Error
@@ -54,21 +32,6 @@ interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
 interface ErrorBoundaryHandlerState {
   error: Error | null
   previousPathname: string | null
-}
-
-// if we are revalidating we want to re-throw the error so the
-// function crashes so we can maintain our previous cache
-// instead of caching the error page
-function HandleISRError({ error }: { error: any }) {
-  if (workAsyncStorage) {
-    const store = workAsyncStorage.getStore()
-    if (store?.isRevalidate || store?.isStaticGeneration) {
-      console.error(error)
-      throw error
-    }
-  }
-
-  return null
 }
 
 export class ErrorBoundaryHandler extends React.Component<
@@ -134,7 +97,9 @@ export class ErrorBoundaryHandler extends React.Component<
 
   // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
-    if (this.state.error) {
+    //When it's bot request, segment level error boundary will keep rendering the children,
+    // the final error will be caught by the root error boundary and determine wether need to apply graceful degrade.
+    if (this.state.error && !isBotUserAgent) {
       return (
         <>
           <HandleISRError error={this.state.error} />
@@ -151,36 +116,6 @@ export class ErrorBoundaryHandler extends React.Component<
     return this.props.children
   }
 }
-
-export type GlobalErrorComponent = React.ComponentType<{
-  error: any
-}>
-export function GlobalError({ error }: { error: any }) {
-  const digest: string | undefined = error?.digest
-  return (
-    <html id="__next_error__">
-      <head></head>
-      <body>
-        <HandleISRError error={error} />
-        <div style={styles.error}>
-          <div>
-            <h2 style={styles.text}>
-              Application error: a {digest ? 'server' : 'client'}-side exception
-              has occurred while loading {window.location.hostname} (see the{' '}
-              {digest ? 'server logs' : 'browser console'} for more
-              information).
-            </h2>
-            {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
-          </div>
-        </div>
-      </body>
-    </html>
-  )
-}
-
-// Exported so that the import signature in the loaders can be identical to user
-// supplied custom global error signatures.
-export default GlobalError
 
 /**
  * Handles errors through `getDerivedStateFromError`.

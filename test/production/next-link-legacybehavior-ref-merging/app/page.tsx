@@ -1,13 +1,12 @@
 'use client'
 import Link from 'next/link'
-import * as React from 'react'
 import {
   useCallback,
   useState,
-  type RefCallback,
-  type Ref,
   type ComponentPropsWithRef,
   type ReactNode,
+  type Ref,
+  type RefCallback,
 } from 'react'
 
 export default function Page() {

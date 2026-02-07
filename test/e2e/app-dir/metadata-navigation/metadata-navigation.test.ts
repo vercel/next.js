@@ -5,7 +5,6 @@ import {
   getTitle,
   retry,
 } from 'next-test-utils'
-import { Request } from 'playwright'
 
 describe('app dir - metadata navigation', () => {
   const { next } = nextTestSetup({
@@ -90,14 +89,14 @@ describe('app dir - metadata navigation', () => {
 
     it('should show the index title', async () => {
       const browser = await next.browser('/parallel-route')
-      expect(await browser.elementByCss('title').text()).toBe('Home Layout')
+      expect(await getTitle(browser)).toBe('Home Layout')
     })
 
     it('should show target page metadata after navigation', async () => {
       const browser = await next.browser('/parallel-route')
       await browser.elementByCss('#product-link').click()
       await browser.waitForElementByCss('#product-title')
-      expect(await browser.elementByCss('title').text()).toBe('Product Layout')
+      expect(await getTitle(browser)).toBe('Product Layout')
     })
 
     it('should show target page metadata after navigation with back', async () => {
@@ -106,7 +105,7 @@ describe('app dir - metadata navigation', () => {
       await browser.waitForElementByCss('#product-title')
       await browser.elementByCss('#home-link').click()
       await browser.waitForElementByCss('#home-title')
-      expect(await browser.elementByCss('title').text()).toBe('Home Layout')
+      expect(await getTitle(browser)).toBe('Home Layout')
     })
   })
 
@@ -115,7 +114,7 @@ describe('app dir - metadata navigation', () => {
       const browser = await next.browser('/server-action/not-found')
       // collect server action requests
       let isActionSent = false
-      browser.on('request', (req: Request) => {
+      browser.on('request', (req) => {
         if (
           req.method() === 'POST' &&
           req.url().endsWith('/server-action/not-found')

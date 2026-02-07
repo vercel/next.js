@@ -3,4 +3,5 @@
 #![feature(arbitrary_self_types_pointers)]
 
 pub mod jest;
+pub mod noop_asset_context;
 pub mod snapshot;

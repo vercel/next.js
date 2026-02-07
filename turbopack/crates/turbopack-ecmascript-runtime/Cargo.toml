@@ -3,7 +3,7 @@ name = "turbopack-ecmascript-runtime"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -29,6 +29,3 @@ turbo-tasks-fs = { workspace = true }
 turbopack = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
-
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

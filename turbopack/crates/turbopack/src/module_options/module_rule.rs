@@ -1,17 +1,21 @@
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc};
+use std::fmt::Display;
+
+use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    reference_type::ReferenceType, source::Source, source_transform::SourceTransforms,
+    environment::Environment, reference_type::ReferenceType, source::Source,
+    source_transform::SourceTransforms,
 };
 use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
 use turbopack_wasm::source::WebAssemblySourceType;
 
-use super::{match_mode::MatchMode, CustomModuleType, RuleCondition};
+use crate::module_options::{CustomModuleType, RuleCondition, match_mode::MatchMode};
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ModuleRule {
     condition: RuleCondition,
     effects: Vec<ModuleRuleEffect>,
@@ -20,7 +24,8 @@ pub struct ModuleRule {
 
 impl ModuleRule {
     /// Creates a new module rule. Will not match internal references.
-    pub fn new(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new(mut condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        condition.flatten();
         ModuleRule {
             condition,
             effects,
@@ -29,7 +34,8 @@ impl ModuleRule {
     }
 
     /// Creates a new module rule. Will only match internal references.
-    pub fn new_internal(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new_internal(mut condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        condition.flatten();
         ModuleRule {
             condition,
             effects,
@@ -38,7 +44,8 @@ impl ModuleRule {
     }
 
     /// Creates a new module rule. Will match all references.
-    pub fn new_all(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new_all(mut condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        condition.flatten();
         ModuleRule {
             condition,
             effects,
@@ -66,26 +73,39 @@ impl ModuleRule {
 pub enum ModuleRuleEffect {
     ModuleType(ModuleType),
     /// Allow to extend an existing Ecmascript module rules for the additional
-    /// transforms. First argument will prepend the existing transforms, and
-    /// the second argument will append the new transforms.
+    /// transforms
     ExtendEcmascriptTransforms {
-        prepend: ResolvedVc<EcmascriptInputTransforms>,
-        append: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
     },
     SourceTransforms(ResolvedVc<SourceTransforms>),
     Ignore,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input", shared)]
-#[derive(Hash, Debug, Copy, Clone)]
+#[turbo_tasks::value(shared)]
+#[derive(Hash, Debug, Clone)]
 pub enum ModuleType {
     Ecmascript {
-        transforms: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Typescript {
-        transforms: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
         // parse JSX syntax.
         tsx: bool,
         // follow references to imported types.
@@ -94,20 +114,111 @@ pub enum ModuleType {
         options: ResolvedVc<EcmascriptOptions>,
     },
     TypescriptDeclaration {
-        transforms: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
+        #[turbo_tasks(trace_ignore)]
+        options: ResolvedVc<EcmascriptOptions>,
+    },
+    EcmascriptExtensionless {
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Json,
     Raw,
+    NodeAddon,
     CssModule,
     Css {
         ty: CssModuleAssetType,
+        environment: Option<ResolvedVc<Environment>>,
     },
-    StaticUrlJs,
-    StaticUrlCss,
+    StaticUrlJs {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
+    StaticUrlCss {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
+    InlinedBytesJs,
     WebAssembly {
         source_ty: WebAssemblySourceType,
     },
     Custom(ResolvedVc<Box<dyn CustomModuleType>>),
+}
+
+impl Display for ModuleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModuleType::Ecmascript { .. } => write!(f, "Ecmascript"),
+            ModuleType::Typescript { .. } => write!(f, "Typescript"),
+            ModuleType::TypescriptDeclaration { .. } => write!(f, "TypescriptDeclaration"),
+            ModuleType::EcmascriptExtensionless { .. } => write!(f, "EcmascriptExtensionless"),
+            ModuleType::Json => write!(f, "Json"),
+            ModuleType::Raw => write!(f, "Raw"),
+            ModuleType::NodeAddon => write!(f, "NodeAddon"),
+            ModuleType::CssModule => write!(f, "CssModule"),
+            ModuleType::Css { .. } => write!(f, "Css"),
+            ModuleType::StaticUrlJs { .. } => write!(f, "StaticUrlJs"),
+            ModuleType::StaticUrlCss { .. } => write!(f, "StaticUrlCss"),
+            ModuleType::InlinedBytesJs => write!(f, "InlinedBytesJs"),
+            ModuleType::WebAssembly { .. } => write!(f, "WebAssembly"),
+            ModuleType::Custom(_) => write!(f, "Custom"),
+        }
+    }
+}
+
+impl ModuleType {
+    /// Creates a ModuleType from a string identifier.
+    /// This is used for user-configured module types in turbopack rules.
+    pub fn from_str_with_defaults(
+        type_str: &str,
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
+        options: ResolvedVc<EcmascriptOptions>,
+        environment: Option<ResolvedVc<Environment>>,
+    ) -> Result<Self> {
+        Ok(match type_str {
+            "asset" => ModuleType::StaticUrlJs { tag: None },
+            "ecmascript" => ModuleType::Ecmascript {
+                preprocess,
+                main,
+                postprocess,
+                options,
+            },
+            "typescript" => ModuleType::Typescript {
+                preprocess,
+                main,
+                postprocess,
+                tsx: false,
+                analyze_types: false,
+                options,
+            },
+            "css" => ModuleType::Css {
+                ty: CssModuleAssetType::Default,
+                environment,
+            },
+            "css-module" => ModuleType::CssModule,
+            "wasm" => ModuleType::WebAssembly {
+                source_ty: WebAssemblySourceType::Binary,
+            },
+            "raw" => ModuleType::Raw,
+            "node" => ModuleType::NodeAddon,
+            "bytes" => ModuleType::InlinedBytesJs,
+            _ => bail!(
+                "Unknown module type: {type_str:?}. Valid types are: asset, ecmascript, \
+                 typescript, css, css-module, wasm, raw, node, bytes"
+            ),
+        })
+    }
 }

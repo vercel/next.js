@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, MergeableModule, MergeableModules,
+        MergeableModulesExposed,
+    },
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
@@ -15,12 +16,13 @@ use turbopack_core::{
 
 use super::chunk_item::EcmascriptModuleLocalsChunkItem;
 use crate::{
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions, MergedEcmascriptModule,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
-    EcmascriptModuleAsset,
 };
 
 /// A module derived from an original ecmascript module that only contains the
@@ -43,13 +45,16 @@ impl EcmascriptModuleLocalsModule {
 impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        let inner = self.module.ident();
-
-        inner.with_part(ModulePart::locals())
+        self.module.ident().with_part(ModulePart::locals())
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
+    fn references(&self) -> Result<Vc<ModuleReferences>> {
         let result = self.module.analyze();
         Ok(result.local_references())
     }
@@ -64,13 +69,63 @@ impl Module for EcmascriptModuleLocalsModule {
             Ok(Vc::cell(false))
         }
     }
+
+    #[turbo_tasks::function]
+    fn side_effects(&self) -> Vc<ModuleSideEffects> {
+        self.module.side_effects()
+    }
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for EcmascriptModuleLocalsModule {
+impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.module.content()
+    fn analyze(&self) -> Vc<AnalyzeEcmascriptModuleResult> {
+        self.module.analyze()
+    }
+
+    #[turbo_tasks::function]
+    fn module_content_without_analysis(
+        &self,
+        generate_source_map: bool,
+    ) -> Vc<EcmascriptModuleContent> {
+        self.module
+            .module_content_without_analysis(generate_source_map)
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content_options(
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContentOptions>> {
+        let exports = self.get_exports().to_resolved().await?;
+        let original_module = self.await?.module;
+        let parsed = original_module.await?.parse().await?.to_resolved().await?;
+
+        let analyze = original_module.analyze();
+        let analyze_result = analyze.await?;
+
+        let module_type_result = original_module.determine_module_type().await?;
+        let generate_source_map = *chunking_context
+            .reference_module_source_maps(Vc::upcast(*self))
+            .await?;
+
+        Ok(EcmascriptModuleContentOptions {
+            parsed: Some(parsed),
+            module: ResolvedVc::upcast(self),
+            specified_module_type: module_type_result.module_type,
+            chunking_context,
+            references: analyze.local_references().to_resolved().await?,
+            esm_references: analyze_result.esm_local_references,
+            part_references: vec![],
+            code_generation: analyze_result.code_generation,
+            async_module: analyze_result.async_module,
+            generate_source_map,
+            original_source_map: analyze_result.source_map,
+            exports,
+            async_module_info,
+        }
+        .cell())
     }
 }
 
@@ -89,10 +144,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
                 EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(..) => {
                     // not included in locals module
                 }
-                EsmExport::LocalBinding(local_name, mutable) => {
+                EsmExport::LocalBinding(local_name, liveness) => {
                     exports.insert(
                         name.clone(),
-                        EsmExport::LocalBinding(local_name.clone(), *mutable),
+                        EsmExport::LocalBinding(local_name.clone(), *liveness),
                     );
                 }
                 EsmExport::Error => {
@@ -110,12 +165,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        self.module
-            .is_marked_as_side_effect_free(side_effect_free_packages)
-    }
-
-    #[turbo_tasks::function]
     fn get_async_module(&self) -> Vc<OptionAsyncModule> {
         self.module.get_async_module()
     }
@@ -126,16 +175,29 @@ impl ChunkableModule for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        _module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             EcmascriptModuleLocalsChunkItem {
                 module: self,
-                module_graph,
                 chunking_context,
             }
             .cell(),
         )
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl MergeableModule for EcmascriptModuleLocalsModule {
+    #[turbo_tasks::function]
+    async fn merge(
+        &self,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(modules, entry_points, self.module.await?.options).await?,
+        ))
     }
 }

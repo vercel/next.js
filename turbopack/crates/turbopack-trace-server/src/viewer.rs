@@ -1,16 +1,16 @@
-use std::cmp::{max, Reverse};
+use std::cmp::{Reverse, max};
 
 use either::Either;
 use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     server::ViewRect,
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{SpanGraphEventRef, SpanGraphRef},
-    span_ref::SpanRef,
+    span_ref::{SpanEventRef, SpanRef},
     store::{SpanId, Store},
     timestamp::Timestamp,
     u64_empty_string,
@@ -73,6 +73,17 @@ impl ValueMode {
                 span.total_persistent_allocations(),
                 span.corrected_total_time(),
             ),
+        }
+    }
+
+    fn value_from_event(&self, event: &SpanEventRef<'_>) -> u64 {
+        match self {
+            ValueMode::Duration => *event.corrected_self_time(),
+            ValueMode::Cpu => *event.total_time(),
+            _ => match event {
+                SpanEventRef::Child { span } => self.value_from_span(span),
+                SpanEventRef::SelfTime { .. } => 0,
+            },
         }
     }
 
@@ -173,11 +184,7 @@ impl ValueMode {
 ///
 /// cases where count per time is very low is probably not important
 fn value_over_time(value: u64, time: Timestamp) -> u64 {
-    if *time == 0 {
-        0
-    } else {
-        value / *time
-    }
+    value.checked_div(*time).unwrap_or(0)
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -245,14 +252,14 @@ pub struct Update {
     pub max: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewLineUpdate {
     y: u64,
     spans: Vec<ViewSpan>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewSpan {
     #[serde(with = "u64_empty_string")]
@@ -655,24 +662,31 @@ impl Viewer {
                         }
                     } else if !selected_view_mode.aggregate_children() {
                         let spans = if selected_view_mode.sort_children() {
-                            Either::Left(span.children().sorted_by_cached_key(|child| {
-                                Reverse(value_mode.value_from_span(child))
+                            Either::Left(span.events().sorted_by_cached_key(|child| {
+                                Reverse(value_mode.value_from_event(child))
                             }))
                         } else {
-                            Either::Right(span.children().sorted_by_key(|child| child.start()))
+                            Either::Right(span.events().sorted_by_key(|child| child.start()))
                         };
                         for child in spans {
-                            let filtered = get_filter_mode(child.id());
-                            add_child_item(
-                                &mut children,
-                                &mut current,
-                                view_rect,
-                                child_line_index,
-                                view_mode,
-                                value_mode,
-                                QueueItem::Span(child),
-                                filtered,
-                            );
+                            match child {
+                                SpanEventRef::SelfTime { .. } => {
+                                    current += value_mode.value_from_event(&child);
+                                }
+                                SpanEventRef::Child { span: child } => {
+                                    let filtered = get_filter_mode(child.id());
+                                    add_child_item(
+                                        &mut children,
+                                        &mut current,
+                                        view_rect,
+                                        child_line_index,
+                                        view_mode,
+                                        value_mode,
+                                        QueueItem::Span(child),
+                                        filtered,
+                                    );
+                                }
+                            }
                         }
                     } else {
                         let events = if selected_view_mode.sort_children() {
@@ -992,9 +1006,11 @@ impl Viewer {
                                 }
                             }
                             ViewSpan {
-                                id: (!span.is_root())
-                                    .then(|| span.id().get() as u64)
-                                    .unwrap_or_default(),
+                                id: if !span.is_root() {
+                                    span.id().get() as u64
+                                } else {
+                                    Default::default()
+                                },
                                 start: entry.start,
                                 width: entry.width,
                                 category: category.to_string(),

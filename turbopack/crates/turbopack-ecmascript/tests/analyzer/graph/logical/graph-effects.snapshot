@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "global",
-        ),
+        var: "global",
         ast_path: [
             Program(
                 Script,
@@ -37,12 +35,9 @@
             ),
         ],
         span: 132..138,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "global",
-        ),
+        var: "global",
         ast_path: [
             Program(
                 Script,
@@ -95,12 +90,9 @@
             ),
         ],
         span: 164..170,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "global",
-        ),
+        var: "global",
         ast_path: [
             Program(
                 Script,
@@ -147,12 +139,9 @@
             ),
         ],
         span: 208..214,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "global",
-        ),
+        var: "global",
         ast_path: [
             Program(
                 Script,
@@ -193,12 +182,9 @@
             ),
         ],
         span: 256..262,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "global",
-        ),
+        var: "global",
         ast_path: [
             Program(
                 Script,
@@ -233,12 +219,9 @@
             ),
         ],
         span: 284..290,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "global",
-        ),
+        var: "global",
         ast_path: [
             Program(
                 Script,
@@ -273,12 +256,9 @@
             ),
         ],
         span: 323..329,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "global",
-        ),
+        var: "global",
         ast_path: [
             Program(
                 Script,
@@ -313,12 +293,9 @@
             ),
         ],
         span: 346..352,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "global",
-        ),
+        var: "global",
         ast_path: [
             Program(
                 Script,
@@ -353,6 +330,5 @@
             ),
         ],
         span: 387..393,
-        in_try: false,
     },
 ]

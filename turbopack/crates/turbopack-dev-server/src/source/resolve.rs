@@ -5,26 +5,26 @@ use std::{
 
 use anyhow::Result;
 use hyper::{
-    header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
     Uri,
+    header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, TransientInstance, Value, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TransientInstance, Vc};
 
-use super::{
+use crate::source::{
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+    GetContentSourceContent, GetContentSourceContents, HeaderList, ProxyResult, RewriteType,
+    StaticContent,
     headers::{HeaderValue, Headers},
     query::Query,
     request::SourceRequest,
     route_tree::RouteTree,
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    GetContentSourceContent, GetContentSourceContents, HeaderList, ProxyResult, RewriteType,
-    StaticContent,
 };
 
 /// The result of [`resolve_source_request`]. Similar to a
 /// `ContentSourceContent`, but without the `Rewrite` variant as this is taken
 /// care in the function.
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", shared)]
 pub enum ResolveSourceRequestResult {
     NotFound,
     Static(ResolvedVc<StaticContent>, ResolvedVc<HeaderList>),
@@ -57,7 +57,7 @@ fn get_content_source_content_vary_operation(
 fn get_content_source_content_get_operation(
     get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
     path: RcStr,
-    data: Value<ContentSourceData>,
+    data: ContentSourceData,
 ) -> Vc<ContentSourceContent> {
     get_content.get(path, data)
 }
@@ -95,7 +95,7 @@ pub async fn resolve_source_request(
                 let content_op = get_content_source_content_get_operation(
                     get_content,
                     current_asset_path.clone(),
-                    Value::new(content_data),
+                    content_data,
                 );
                 match &*content_op.read_strongly_consistent().await? {
                     ContentSourceContent::Rewrite(rewrite) => {

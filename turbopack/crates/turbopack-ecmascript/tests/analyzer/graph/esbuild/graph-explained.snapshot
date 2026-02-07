@@ -1,4 +1,4 @@
-*arrow function 2666* = (...) => (
+*arrow function 2666* (const after eval) = (...) => (
   | [
         "node",
         [
@@ -8,7 +8,7 @@
   | [generateBinPath(), []]
 )
 
-args = esbuildCommandAndArgs()[1]
+args (const after eval) = esbuildCommandAndArgs()[1]
 
 binPath = (
   | ???*0*
@@ -20,7 +20,7 @@ binPath = (
 
 binTargetPath = path["join"](esbuildLibDir, `pnpapi-${pkg}-${path["basename"](subpath)}`)
 
-command = esbuildCommandAndArgs()[0]
+command (const after eval) = esbuildCommandAndArgs()[0]
 
 e#10 = ???*0*
 - *0* e
@@ -30,15 +30,15 @@ e#15 = ???*0*
 - *0* e
   ⚠️  pattern without value
 
-esbuildCommandAndArgs = *arrow function 2666*
+esbuildCommandAndArgs (const after eval) = *arrow function 2666*
 
 esbuildLibDir = path["dirname"](FreeVar(require)["resolve"]("esbuild"))
 
-generateBinPath = (...) => (FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)
+generateBinPath (const after eval) = (...) => (FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)
 
 isYarnPnP = (false | true)
 
-knownUnixlikePackages = {
+knownUnixlikePackages (const after eval) = {
     "android arm64 LE": "esbuild-android-arm64",
     "darwin arm64 LE": "esbuild-darwin-arm64",
     "darwin x64 LE": "esbuild-darwin-64",
@@ -56,17 +56,17 @@ knownUnixlikePackages = {
     "sunos x64 LE": "esbuild-sunos-64"
 }
 
-knownWindowsPackages = {
+knownWindowsPackages (const after eval) = {
     "win32 arm64 LE": "esbuild-windows-arm64",
     "win32 ia32 LE": "esbuild-windows-32",
     "win32 x64 LE": "esbuild-windows-64"
 }
 
-os = FreeVar(require)("os")
+os (const after eval) = FreeVar(require)("os")
 
-path = FreeVar(require)("path")
+path (const after eval) = FreeVar(require)("path")
 
-path2 = FreeVar(require)("path")
+path2 (const after eval) = FreeVar(require)("path")
 
 pkg#3 = (???*0* | knownWindowsPackages[platformKey] | knownUnixlikePackages[platformKey])
 - *0* pkg
@@ -74,7 +74,7 @@ pkg#3 = (???*0* | knownWindowsPackages[platformKey] | knownUnixlikePackages[plat
 
 pkg#7 = pkgAndSubpathForCurrentPlatform()["pkg"]
 
-pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
+pkgAndSubpathForCurrentPlatform (const after eval) = (...) => {"pkg": pkg, "subpath": subpath}
 
 platformKey = `${FreeVar(process)["platform"]} ${os["arch"]()} ${os["endianness"]()}`
 
@@ -84,4 +84,4 @@ subpath#3 = (???*0* | "esbuild.exe" | "bin/esbuild")
 
 subpath#7 = pkgAndSubpathForCurrentPlatform()["subpath"]
 
-x = args["concat"]("--service=0.14.12", "--ping")
+x (const after eval) = args["concat"]("--service=0.14.12", "--ping")
