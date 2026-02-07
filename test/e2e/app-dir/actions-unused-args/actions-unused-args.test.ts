@@ -2,9 +2,15 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from '../../../lib/next-test-utils'
 
 describe('actions-unused-args', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // No access to runtime logs when deployed.
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should not call server actions with unused arguments', async () => {
     const browser = await next.browser('/')
