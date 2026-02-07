@@ -20,12 +20,12 @@ We built Turbopack to push the performance of Next.js, including:
 
 Turbopack requires platform-specific native bindings. The following platforms are currently supported:
 
-| Platform       | Architecture     |
-| -------------- | ---------------- |
-| macOS (Darwin) | x64, ARM64       |
-| Windows        | x64, ARM64, ia32 |
-| Linux (glibc)  | x64, ARM64       |
-| Linux (musl)   | x64, ARM64       |
+| Platform       | Architecture |
+| -------------- | ------------ |
+| macOS (Darwin) | x64, ARM64   |
+| Windows        | x64, ARM64   |
+| Linux (glibc)  | x64, ARM64   |
+| Linux (musl)   | x64, ARM64   |
 
 On platforms without native bindings (e.g. FreeBSD, OpenBSD), Next.js falls back to WebAssembly (WASM) bindings. WASM bindings support core SWC features like compilation and minification, but **do not support Turbopack**. On these platforms, use the `--webpack` flag:
 
