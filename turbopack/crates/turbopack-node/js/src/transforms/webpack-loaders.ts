@@ -388,15 +388,32 @@ const transform = (
                 type: 'importModule',
                 lookupPath: toPath(resourceDir),
                 request: actualRequest,
-              })) as { code: string; sourceMap?: string }
+              })) as { code: string; sourceMap?: string; path: string }
 
-              // Execute the compiled module code similar to webpack's executeModule.
-              // We wrap it in a CommonJS function and evaluate using vm.
+              const resolvedPath = fromPath(result.path)
+
+              // For ESM modules (.mjs or code with import/export syntax),
+              // use Node.js native import() since they can't be evaluated
+              // in a CommonJS wrapper. We use new Function to create the
+              // import call so Turbopack doesn't try to statically analyze it.
+              if (
+                resolvedPath.endsWith('.mjs') ||
+                /\b(import\s|export\s)/.test(result.code)
+              ) {
+                const url = require('url')
+                const fileUrl = url.pathToFileURL(resolvedPath).href
+                const dynamicImport = new Function(
+                  'specifier',
+                  'return import(specifier)'
+                )
+                return await dynamicImport(fileUrl)
+              }
+
+              // Execute the compiled module code similar to webpack's
+              // executeModule. Wrap in a CommonJS function and evaluate
+              // using vm.
               const vm = require('vm')
               const moduleObj = { exports: {} as any }
-              const resolvedPath = path.isAbsolute(request)
-                ? request
-                : pathResolve(resourceDir, request)
               const wrapper = vm.runInThisContext(
                 `(function(module, exports, require, __filename, __dirname) {\n${result.code}\n})`,
                 { filename: resolvedPath }

@@ -1,2 +1,5 @@
 export const title = 'wrong'
 export const items = 'wrong'
+export const cjsGreeting = 'wrong'
+export const version = 'wrong'
+export const esmLabel = 'wrong'

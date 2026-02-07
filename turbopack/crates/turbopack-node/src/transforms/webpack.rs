@@ -460,6 +460,7 @@ pub enum ResponseMessage {
     #[serde(rename_all = "camelCase")]
     ImportModule {
         code: RcStr,
+        path: RcStr,
         #[serde(skip_serializing_if = "Option::is_none")]
         source_map: Option<RcStr>,
     },
@@ -696,16 +697,23 @@ impl EvaluateContext for WebpackLoaderContext {
                     bail!("importModule: file not found");
                 };
 
-                // Track the file as a dependency
+                // Track the file as a dependency and get its path
                 let source_path = source.ident().path().await?;
                 let _ = &*source_path.clone().read().await?;
+                let resolved_path = self
+                    .cwd
+                    .get_relative_path_to(&source_path)
+                    .context("importModule: resolved path is on a different filesystem")?;
 
                 let code: RcStr = file_content.content().to_str()?.into_owned().into();
 
-                // Attempt to get source map from the processed module
                 let source_map = None;
 
-                Ok(ResponseMessage::ImportModule { code, source_map })
+                Ok(ResponseMessage::ImportModule {
+                    code,
+                    path: resolved_path,
+                    source_map,
+                })
             }
         }
     }
