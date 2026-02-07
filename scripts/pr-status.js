@@ -26,6 +26,17 @@ function getGitHubToken() {
     }).trim()
   } catch {}
 
+  // In Claude Code remote environments, the proxy handles access to public
+  // GitHub API endpoints, so a token is optional (but job logs and GraphQL
+  // review threads will be unavailable without one).
+  if (process.env.CLAUDE_CODE_REMOTE) {
+    console.warn(
+      'Warning: No GitHub token found. Job logs and review threads will be unavailable.\n' +
+        'Set GITHUB_TOKEN or GH_TOKEN for full functionality.'
+    )
+    return null
+  }
+
   console.error(
     'Error: GitHub token not found.\n' +
       'Set GITHUB_TOKEN or GH_TOKEN environment variable, or authenticate with `gh auth login`.'
@@ -34,9 +45,13 @@ function getGitHubToken() {
 }
 
 let _token = null
+let _tokenResolved = false
 
 function getToken() {
-  if (!_token) _token = getGitHubToken()
+  if (!_tokenResolved) {
+    _token = getGitHubToken()
+    _tokenResolved = true
+  }
   return _token
 }
 
@@ -197,11 +212,17 @@ async function httpRequest(url, options = {}) {
   })
 }
 
+function authHeaders(type = 'token') {
+  const token = getToken()
+  if (!token) return {}
+  return { Authorization: `${type} ${token}` }
+}
+
 async function githubApi(apiPath) {
   const url = `https://api.github.com${apiPath}`
   const resp = await httpRequest(url, {
     headers: {
-      Authorization: `token ${getToken()}`,
+      ...authHeaders(),
       Accept: 'application/json',
       'User-Agent': 'next.js-pr-status-script',
     },
@@ -220,7 +241,7 @@ async function githubApiRaw(apiPath) {
   const url = `https://api.github.com${apiPath}`
   const resp = await httpRequest(url, {
     headers: {
-      Authorization: `token ${getToken()}`,
+      ...authHeaders(),
       'User-Agent': 'next.js-pr-status-script',
     },
   })
@@ -239,7 +260,7 @@ async function githubGraphQL(query) {
   const resp = await httpRequest(url, {
     method: 'POST',
     headers: {
-      Authorization: `bearer ${getToken()}`,
+      ...authHeaders('bearer'),
       'Content-Type': 'application/json',
       'User-Agent': 'next.js-pr-status-script',
     },
