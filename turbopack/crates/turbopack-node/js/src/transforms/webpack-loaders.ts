@@ -448,14 +448,11 @@ const transform = (
                 )
               }
 
-              // Compile all module factories. Strip `await` keywords
-              // so factories execute synchronously (our .w() wasm
-              // implementation is synchronous).
+              // Compile all module factories
               for (const mod of result.modules) {
-                const code = mod.code.replace(/\bawait\s+/g, '')
                 const factoryCode = mod.moduleAndExports
-                  ? `(function(__turbopack_context__, module, exports) {\n${code}\n})`
-                  : `(function(__turbopack_context__) {\n${code}\n})`
+                  ? `(function(__turbopack_context__, module, exports) {\n${mod.code}\n})`
+                  : `(function(__turbopack_context__) {\n${mod.code}\n})`
                 const factory = vm.runInThisContext(factoryCode, {
                   filename: mod.id,
                 })
@@ -547,6 +544,11 @@ const transform = (
                 return ns
               }
 
+              // Symbol used to track async module promises on
+              // namespace/export objects so handleAsyncDependencies
+              // can detect and await them.
+              const ASYNC_PROMISE = Symbol('asyncPromise')
+
               // Instantiate a module by ID
               function instantiateModule(id: string): ModuleObj {
                 const cached = moduleCache.get(id)
@@ -583,7 +585,8 @@ const transform = (
                 // ESM import
                 ctx.i = (depId: string) => {
                   const mod = instantiateModule(depId)
-                  if (mod.namespaceObject) return mod.namespaceObject
+                  if (mod.namespaceObject)
+                    return mod.namespaceObject
                   const raw = mod.exports
                   return (mod.namespaceObject = interopEsm(
                     raw,
@@ -715,10 +718,10 @@ const transform = (
                   return assetUrl
                 }
 
-                // Load and instantiate WebAssembly synchronously.
+                // Load and instantiate WebAssembly asynchronously.
                 // The chunkPath comes from a raw wasm module's
                 // ctx.q() export.
-                ctx.w = (
+                ctx.w = async (
                   chunkPath: string,
                   _edgeModule: any,
                   importsObj: any
@@ -742,28 +745,82 @@ const transform = (
                   const wasmBuffer = require('fs').readFileSync(
                     absPath
                   )
-                  const wasmModule = new WebAssembly.Module(
-                    wasmBuffer
-                  )
-                  return new WebAssembly.Instance(
-                    wasmModule,
-                    importsObj || {}
-                  ).exports
+                  const { instance } =
+                    await WebAssembly.instantiate(
+                      wasmBuffer,
+                      importsObj || {}
+                    )
+                  return instance.exports
                 }
 
-                // Async module handler (for modules with top-level
-                // await). Since we strip await keywords, the body
-                // executes synchronously.
+                // Async module handler. When a module has top-level
+                // await or imports async dependencies, the code
+                // generator wraps its body with ctx.a(). This sets
+                // up a promise that tracks the module's async
+                // initialization and replaces module.exports with a
+                // proxy object tagged with the promise so that
+                // handleAsyncDependencies can detect and await it.
                 ctx.a = (
-                  _module: any,
                   body: Function,
-                  _hasAwait: boolean
+                  hasAwait: boolean
                 ) => {
-                  const handleAsyncDependencies = (
+                  let resolvePromise!: () => void
+                  let rejectPromise!: (err: any) => void
+                  const asyncPromise = new Promise<void>(
+                    (resolve, reject) => {
+                      resolvePromise = resolve
+                      rejectPromise = reject
+                    }
+                  )
+
+                  // Replace module exports with a proxy object
+                  // tagged with the async promise. ESM bindings
+                  // (ctx.s) will define getters on this proxy,
+                  // and handleAsyncDependencies will detect the
+                  // ASYNC_PROMISE symbol to await completion.
+                  const exportProxy = Object.create(null)
+                  ;(exportProxy as any)[ASYNC_PROMISE] =
+                    asyncPromise
+                  moduleObj.exports = exportProxy
+                  moduleObj.namespaceObject = exportProxy
+
+                  function handleAsyncDependencies(
                     deps: any[]
-                  ) => deps
-                  const asyncResult = () => {}
+                  ) {
+                    const promises: Promise<void>[] = []
+                    for (const dep of deps) {
+                      const p =
+                        dep && dep[ASYNC_PROMISE]
+                      if (p) promises.push(p)
+                    }
+                    if (promises.length > 0) {
+                      return Promise.all(promises).then(
+                        () => () => deps
+                      )
+                    }
+                    return deps
+                  }
+
+                  function asyncResult(err?: any) {
+                    if (err) rejectPromise(err)
+                    else resolvePromise()
+                  }
+
                   body(handleAsyncDependencies, asyncResult)
+                }
+
+                // Dynamic import
+                ctx.l = (depId: string) => {
+                  const mod = instantiateModule(depId)
+                  const ns =
+                    mod.namespaceObject ||
+                    (mod.namespaceObject = interopEsm(
+                      mod.exports,
+                      mod.exports && mod.exports.__esModule
+                    ))
+                  const p = ns && ns[ASYNC_PROMISE]
+                  if (p) return p.then(() => ns)
+                  return Promise.resolve(ns)
                 }
 
                 // Execute the factory
@@ -781,12 +838,18 @@ const transform = (
               }
 
               // Execute the entry module and return its exports
-              const entryModule = instantiateModule(result.entryId)
-              // For ESM modules, return the namespace object
-              if (entryModule.namespaceObject) {
-                return entryModule.namespaceObject
+              const entryModule = instantiateModule(
+                result.entryId
+              )
+              // If the module is async, wait for it to complete
+              const ns =
+                entryModule.namespaceObject ||
+                entryModule.exports
+              const asyncP = ns && ns[ASYNC_PROMISE]
+              if (asyncP) {
+                await asyncP
               }
-              return entryModule.exports
+              return ns
             }
 
             if (!callback) {

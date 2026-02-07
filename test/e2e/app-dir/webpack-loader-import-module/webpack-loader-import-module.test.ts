@@ -29,11 +29,15 @@ describe('webpack-loader-import-module', () => {
       expect($('#image-url').text()).toMatch(/\.png/)
       // WebAssembly add(1, 2) from add.wasm in url-wasm-data.ts
       expect($('#wasm-add-result').text()).toBe('3')
+      // Dynamic import('./module.js') in url-wasm-data.ts
+      expect($('#dynamic-value').text()).toBe('loaded dynamically')
       // new URL('./image.png', import.meta.url) in url-wasm-data.mjs
       expect($('#mjs-image-url').text()).toContain('image')
       expect($('#mjs-image-url').text()).toMatch(/\.png/)
       // WebAssembly add(10, 20) from add.wasm in url-wasm-data.mjs
       expect($('#mjs-wasm-add-result').text()).toBe('30')
+      // Dynamic import('./module.js') in url-wasm-data.mjs
+      expect($('#mjs-dynamic-value').text()).toBe('loaded dynamically')
     }
   })
 })

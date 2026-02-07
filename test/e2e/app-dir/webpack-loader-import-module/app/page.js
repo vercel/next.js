@@ -6,10 +6,12 @@ import {
   esmLabel,
   imageUrl,
   wasmAddResult,
+  dynamicValue,
   mjsTitle,
   mjsEsmLabel,
   mjsImageUrl,
   mjsWasmAddResult,
+  mjsDynamicValue,
 } from './file.test-file'
 
 export default function Page() {
@@ -22,10 +24,12 @@ export default function Page() {
       <p id="esm-label">{esmLabel}</p>
       <p id="image-url">{imageUrl}</p>
       <p id="wasm-add-result">{wasmAddResult}</p>
+      <p id="dynamic-value">{dynamicValue}</p>
       <p id="mjs-title">{mjsTitle}</p>
       <p id="mjs-esm-label">{mjsEsmLabel}</p>
       <p id="mjs-image-url">{mjsImageUrl}</p>
       <p id="mjs-wasm-add-result">{mjsWasmAddResult}</p>
+      <p id="mjs-dynamic-value">{mjsDynamicValue}</p>
     </div>
   )
 }

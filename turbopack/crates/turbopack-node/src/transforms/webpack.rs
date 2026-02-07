@@ -741,8 +741,12 @@ impl EvaluateContext for WebpackLoaderContext {
                     entry_chunkable.as_chunk_item(import_mg_vc, *self.chunking_context);
                 let entry_id: RcStr = entry_chunk_item.id().await?.to_string().into();
 
-                // Generate code for all modules in the graph
+                // Generate code for all modules in the graph,
+                // computing async module info so that modules with
+                // top-level await (e.g. WebAssembly imports) get
+                // the proper ctx.a() wrapper in their generated code.
                 let import_mg_ref = import_mg_vc.await?;
+                let async_modules_info = import_mg_vc.async_module_info().await?;
                 let mut module_items = Vec::new();
                 for m in import_mg_ref.iter_nodes() {
                     let Some(chunkable) =
@@ -761,8 +765,20 @@ impl EvaluateContext for WebpackLoaderContext {
                         continue;
                     };
 
-                    let content =
-                        ecma_item.content_with_async_module_info(None, false).await?;
+                    let async_info = if async_modules_info.contains(&m) {
+                        Some(
+                            import_mg_vc
+                                .referenced_async_modules(*m)
+                                .to_resolved()
+                                .await?,
+                        )
+                    } else {
+                        None
+                    };
+
+                    let content = ecma_item
+                        .content_with_async_module_info(async_info.map(|v| *v), false)
+                        .await?;
                     let id: RcStr = chunk_item.id().await?.to_string().into();
                     let code: RcStr = content.inner_code.to_str()?.into_owned().into();
                     let source_map = match &content.source_map {

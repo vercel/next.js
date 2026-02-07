@@ -21,24 +21,28 @@ module.exports = async function () {
   const mjsTitle = mjsConfig.mjsTitle
   const mjsEsmLabel = mjsConfig.esmLabel
 
-  // Try importing the wasm+URL module (supported in Turbopack,
-  // not in webpack's importModule)
+  // Try importing the wasm+URL+dynamic-import module (supported in
+  // Turbopack, not in webpack's importModule)
   let imageUrl = 'unsupported'
   let wasmAddResult = 'unsupported'
+  let dynamicValue = 'unsupported'
   let mjsImageUrl = 'unsupported'
   let mjsWasmAddResult = 'unsupported'
+  let mjsDynamicValue = 'unsupported'
   try {
     const urlWasmPath = path.resolve(__dirname, 'url-wasm-data.ts')
     const urlWasmModule = await this.importModule(urlWasmPath)
     const urlWasm = urlWasmModule.default || urlWasmModule
     imageUrl = urlWasm.imageUrl
     wasmAddResult = String(urlWasm.wasmAddResult)
+    dynamicValue = urlWasm.dynamicValue
 
     const mjsUrlWasmPath = path.resolve(__dirname, 'url-wasm-data.mjs')
     const mjsUrlWasmModule = await this.importModule(mjsUrlWasmPath)
     const mjsUrlWasm = mjsUrlWasmModule.default || mjsUrlWasmModule
     mjsImageUrl = mjsUrlWasm.mjsImageUrl
     mjsWasmAddResult = String(mjsUrlWasm.mjsWasmAddResult)
+    mjsDynamicValue = mjsUrlWasm.mjsDynamicValue
   } catch {
     // webpack's importModule doesn't support wasm/URL asset patterns
   }
@@ -51,9 +55,11 @@ module.exports = async function () {
     export const esmLabel = ${JSON.stringify(esmLabel)};
     export const imageUrl = ${JSON.stringify(imageUrl)};
     export const wasmAddResult = ${JSON.stringify(wasmAddResult)};
+    export const dynamicValue = ${JSON.stringify(dynamicValue)};
     export const mjsTitle = ${JSON.stringify(mjsTitle)};
     export const mjsEsmLabel = ${JSON.stringify(mjsEsmLabel)};
     export const mjsImageUrl = ${JSON.stringify(mjsImageUrl)};
     export const mjsWasmAddResult = ${JSON.stringify(mjsWasmAddResult)};
+    export const mjsDynamicValue = ${JSON.stringify(mjsDynamicValue)};
   `
 }
