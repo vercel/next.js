@@ -2,6 +2,11 @@
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
+import {
+  normalizeMetadataPageToRoute,
+  normalizeMetadataRoute,
+} from '../../lib/metadata/get-metadata-route'
 import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
@@ -12,7 +17,6 @@ import {
 } from '../handle-entrypoints'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { promises as fs } from 'fs'
-import type { Stats } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
@@ -22,7 +26,11 @@ import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
-import { collectPagesFiles } from '../route-discovery'
+import {
+  collectAppFiles,
+  collectPagesFiles,
+  getPageFromPath,
+} from '../route-discovery'
 import { createValidFileMatcher } from '../../server/lib/find-page-file'
 import type {
   ProjectOptions,
@@ -31,92 +39,64 @@ import type {
 } from '../swc/types'
 
 /**
+ * Convert an app route path to debugBuildPaths format.
+ * e.g. '/' -> '/page', '/blog' -> '/blog/page'
+ */
+function toAppDebugPath(route: string, leaf: 'page' | 'route'): string {
+  const routePath = route.startsWith('/') ? route : `/${route}`
+  return routePath === '/' ? `/${leaf}` : `${routePath}/${leaf}`
+}
+
+/**
  * Convert deferred entry routes to debugBuildPaths format.
  * Routes like '/deferred' become '/deferred/page' for the filter.
  * @param pagesPaths - All pages routes to include (deferred entries only affects app routes)
  */
 function getDeferredBuildPaths(
   deferredEntries: string[],
-  pagesPaths: string[]
+  pagesPaths: string[],
+  metadataAppPaths: string[]
 ): {
   app: string[]
   pages: string[]
 } {
   return {
-    app: deferredEntries.map((route) => {
-      const routePath = route.startsWith('/') ? route : `/${route}`
-      return `${routePath}/page`
-    }),
+    app: [
+      ...new Set([
+        ...deferredEntries.map((route) => toAppDebugPath(route, 'page')),
+        ...metadataAppPaths,
+      ]),
+    ],
     // Include all pages routes so they are not filtered out
     pages: pagesPaths,
   }
 }
 
 /**
- * Scan the app directory to find all page routes, then filter out deferred entries.
- * Returns debugBuildPaths for non-deferred routes only.
+ * Collect app entries and filter out deferred app pages only.
+ * This keeps non-page app entries (e.g. route handlers) in the non-deferred build.
  * @param pagesPaths - All pages routes to include (deferred entries only affects app routes)
  */
-async function getNonDeferredBuildPaths(
-  appDir: string | undefined,
+function getNonDeferredBuildPaths(
+  appPaths: string[],
   deferredEntries: string[],
   pageExtensions: string[],
   pagesPaths: string[]
-): Promise<{ app: string[]; pages: string[] } | null> {
-  if (!appDir || deferredEntries.length === 0) {
+): { app: string[]; pages: string[] } | null {
+  if (deferredEntries.length === 0) {
     return null
   }
 
-  const deferredSet = new Set(
-    deferredEntries.map((route) =>
-      route.startsWith('/') ? route : `/${route}`
-    )
+  const deferredPagePaths = new Set(
+    deferredEntries.map((route) => toAppDebugPath(route, 'page'))
+  )
+  const nonDeferredAppPaths = appPaths.filter(
+    (appPath) =>
+      !deferredPagePaths.has(getPageFromPath(appPath, pageExtensions))
   )
 
-  const appRoutes: string[] = []
-
-  // Recursively scan for page files
-  async function scanDir(dir: string, routePath: string): Promise<void> {
-    let entries: string[]
-    try {
-      entries = await fs.readdir(dir)
-    } catch {
-      return
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry)
-      let stat: Stats
-      try {
-        stat = await fs.stat(fullPath)
-      } catch {
-        continue
-      }
-
-      if (stat.isDirectory()) {
-        // Recurse into subdirectory
-        const subRoute =
-          routePath === '/' ? `/${entry}` : `${routePath}/${entry}`
-        await scanDir(fullPath, subRoute)
-      } else if (stat.isFile()) {
-        // Check if this is a page file
-        for (const ext of pageExtensions) {
-          if (entry === `page.${ext}`) {
-            // Found a page file, add to routes if not deferred
-            if (!deferredSet.has(routePath)) {
-              appRoutes.push(`${routePath}/page`)
-            }
-            break
-          }
-        }
-      }
-    }
-  }
-
-  await scanDir(appDir, '/')
-
   return {
-    app: appRoutes,
+    app: nonDeferredAppPaths,
     // Include all pages routes so they are not filtered out
     pages: pagesPaths,
   }
@@ -157,6 +137,8 @@ export async function turbopackBuild(): Promise<{
   // Collect all pages paths when using deferred entries to ensure pages routes
   // are not filtered out (deferred entries only affects app routes)
   let pagesPaths: string[] = []
+  let appPaths: string[] = []
+  let metadataAppPaths: string[] = []
   if (hasDeferredEntries && NextBuildContext.pagesDir) {
     const validFileMatcher = createValidFileMatcher(
       config.pageExtensions!,
@@ -167,20 +149,50 @@ export async function turbopackBuild(): Promise<{
       validFileMatcher
     )
   }
+  if (hasDeferredEntries && NextBuildContext.appDir) {
+    const validFileMatcher = createValidFileMatcher(
+      config.pageExtensions!,
+      NextBuildContext.appDir
+    )
+    ;({ appPaths } = await collectAppFiles(
+      NextBuildContext.appDir,
+      validFileMatcher
+    ))
+    metadataAppPaths = Array.from(
+      new Set(
+        appPaths.flatMap((appPath) => {
+          if (!isMetadataRouteFile(appPath, config.pageExtensions!, true)) {
+            return []
+          }
+          const page = getPageFromPath(appPath, config.pageExtensions!)
+          const route = normalizeMetadataRoute(page)
+          return [
+            appPath,
+            page,
+            route,
+            normalizeMetadataPageToRoute(route, false),
+            normalizeMetadataPageToRoute(route, true),
+          ]
+        })
+      )
+    )
+  }
 
   // For deferred entries, we use debugBuildPaths to control which routes are built
   // First build excludes deferred entries, second build includes only deferred entries
-  const nonDeferredBuildPaths = hasDeferredEntries
-    ? await getNonDeferredBuildPaths(
-        NextBuildContext.appDir,
-        deferredEntries,
-        config.pageExtensions!,
-        pagesPaths
-      )
-    : null
-  const deferredBuildPaths = hasDeferredEntries
-    ? getDeferredBuildPaths(deferredEntries, pagesPaths)
-    : null
+  const nonDeferredBuildPaths =
+    hasDeferredEntries && NextBuildContext.appDir
+      ? getNonDeferredBuildPaths(
+          appPaths,
+          deferredEntries,
+          config.pageExtensions!,
+          pagesPaths
+        )
+      : null
+  const deferredBuildPaths =
+    hasDeferredEntries && NextBuildContext.appDir
+      ? getDeferredBuildPaths(deferredEntries, pagesPaths, metadataAppPaths)
+      : null
 
   const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
