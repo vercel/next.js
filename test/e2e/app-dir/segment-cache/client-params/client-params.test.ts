@@ -2,8 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
-console.log('noop to trigger deploy test')
-
 describe('client params', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
