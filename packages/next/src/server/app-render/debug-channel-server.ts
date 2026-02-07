@@ -1,26 +1,50 @@
 export type DebugChannelPair = {
-  // serverSide is passed opaquely as options.debugChannel to React's
-  // renderToReadableStream (web) or renderToPipeableStream (Node).
-  // The two APIs expect different shapes:
-  //   - Web:  { readable?, writable: WritableStream }
-  //   - Node: a Writable stream (has .write() directly on the object)
-  // Consumers should not access properties on serverSide directly.
+  // serverSide is always in the web shape ({ writable: WritableStream }).
+  // Consumers that need a Node Writable (for renderToPipeableStream) should
+  // call toNodeDebugChannel() to convert.
   serverSide: DebugChannelServer
   clientSide: DebugChannelClient
 }
 
-// Passed directly as options.debugChannel to React's render functions.
-// React's web API (renderToReadableStream) reads .writable from it.
-// React's Node API (renderToPipeableStream) checks .write() on it directly.
-export type DebugChannelServer =
-  | {
-      readable?: ReadableStream<Uint8Array>
-      writable: WritableStream<Uint8Array>
-    }
-  | import('node:stream').Writable
+// Always the web shape: React's renderToReadableStream reads .writable from it.
+// For renderToPipeableStream (Node), use toNodeDebugChannel() to convert.
+export type DebugChannelServer = {
+  readable?: ReadableStream<Uint8Array>
+  writable: WritableStream<Uint8Array>
+}
 export type DebugChannelClient = {
   readable: ReadableStream<Uint8Array>
   writable?: WritableStream<Uint8Array>
+}
+
+/**
+ * Converts a web-shaped debug channel to a Node Writable for use with
+ * React's renderToPipeableStream, which checks typeof debugChannel.write
+ * to find its debug destination.
+ */
+export function toNodeDebugChannel(
+  webDebugChannel: DebugChannelServer
+): import('node:stream').Writable {
+  const { Writable } = require('node:stream') as typeof import('node:stream')
+  const writer = webDebugChannel.writable.getWriter()
+  return new Writable({
+    write(
+      chunk: Buffer | Uint8Array,
+      _encoding: string,
+      callback: (error?: Error | null) => void
+    ) {
+      writer.write(chunk).then(() => callback(), callback)
+    },
+    final(callback: (error?: Error | null) => void) {
+      writer.close().then(() => callback(), callback)
+    },
+    destroy(_err, callback) {
+      writer.abort(_err).then(
+        () => callback(_err),
+        () => callback(_err)
+      )
+    },
+  })
 }
 
 export function createDebugChannel(): DebugChannelPair | undefined {
@@ -35,33 +59,6 @@ export function createDebugChannel(): DebugChannelPair | undefined {
       readableController = controller
     },
   })
-
-  // When node streams are enabled, create a Node.js Writable as the server
-  // side. React's renderToPipeableStream checks typeof debugChannel.write
-  // to find its debug destination. A web WritableStream doesn't have .write()
-  // on the object, so it must be a Node Writable.
-  if (process.env.__NEXT_USE_NODE_STREAMS) {
-    const { Writable } = require('node:stream') as typeof import('node:stream')
-    const serverSide = new Writable({
-      write(
-        chunk: Buffer | Uint8Array,
-        _encoding: string,
-        callback: (error?: Error | null) => void
-      ) {
-        readableController?.enqueue(chunk)
-        callback()
-      },
-      final(callback: (error?: Error | null) => void) {
-        readableController?.close()
-        callback()
-      },
-      destroy(_err, callback) {
-        readableController?.error(_err)
-        callback(_err)
-      },
-    })
-    return { serverSide, clientSide: { readable: clientSideReadable } }
-  }
 
   return {
     serverSide: {

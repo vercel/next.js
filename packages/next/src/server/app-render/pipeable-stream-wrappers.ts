@@ -149,6 +149,16 @@ export function renderToFlightPipeableStream(
 ): Readable {
   const { PassThrough } = getNodeStream()
   const passthrough = new PassThrough()
+
+  // React's renderToPipeableStream checks typeof debugChannel.write to find
+  // its debug destination. The web-shaped { writable: WritableStream } doesn't
+  // have .write() on the object, so convert to a Node Writable.
+  if (options?.debugChannel) {
+    const { toNodeDebugChannel } =
+      require('./debug-channel-server') as typeof import('./debug-channel-server')
+    options = { ...options, debugChannel: toNodeDebugChannel(options.debugChannel) }
+  }
+
   const { pipe } = renderToPipeableStreamFn(model, webpackMap, options)
   pipe(passthrough as unknown as Writable)
   return passthrough

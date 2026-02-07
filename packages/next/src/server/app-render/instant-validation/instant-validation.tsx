@@ -39,8 +39,7 @@ import { createDebugChannel } from '../debug-channel-server'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { renderToReadableStream } from 'react-server-dom-webpack/server'
+// renderToReadableStream is now lazy-loaded conditionally below
 
 const filterStackFrame =
   process.env.NODE_ENV !== 'production'
@@ -442,44 +441,98 @@ export async function collectStagedSegmentData(
         cache.set(segmentPath, segmentCacheItem)
 
         const segmentTask = async () => {
-          const segmentDebugChannel = fullPageDebugChunks
-            ? createDebugChannel()
-            : undefined
+          // When using node streams, skip debug channel at segment level to avoid
+          // issues with parallel debug channel bridges. Debug info is still captured
+          // at the combined payload level in createCombinedPayloadStream.
+          const segmentDebugChannel =
+            fullPageDebugChunks && !process.env.__NEXT_USE_NODE_STREAMS
+              ? createDebugChannel()
+              : undefined
 
-          const segmentStream = renderToReadableStream(
-            segmentData,
-            clientReferenceManifest.clientModules,
-            {
-              filterStackFrame,
-              debugChannel: segmentDebugChannel?.serverSide,
-              environmentName,
-              startTime,
-              onError(error: unknown) {
-                const digest = getDigestForWellKnownError(error)
-                if (digest) {
-                  return digest
-                }
-                // We don't need to log the errors because we would have already done that
-                // when generating the original Flight stream for the whole page.
-                if (
-                  process.env.NEXT_DEBUG_BUILD ||
-                  process.env.__NEXT_VERBOSE_LOGGING
-                ) {
-                  const workStore = workAsyncStorage.getStore()
-                  printDebugThrownValueForProspectiveRender(
-                    error,
-                    workStore?.route ?? 'unknown route',
-                    Phase.InstantValidation
-                  )
-                }
-              },
-            }
-          )
+          let segmentStream:
+            | ReadableStream<Uint8Array>
+            | import('node:stream').Readable
+          let streamIterator: AsyncIterable<Uint8Array>
+
+          if (process.env.__NEXT_USE_NODE_STREAMS) {
+            const { renderToFlightPipeableStream } =
+              require('../pipeable-stream-wrappers') as typeof import('../pipeable-stream-wrappers')
+            // eslint-disable-next-line import/no-extraneous-dependencies
+            const ComponentMod = require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+
+            segmentStream = renderToFlightPipeableStream(
+              ComponentMod.renderToPipeableStream,
+              segmentData,
+              clientReferenceManifest.clientModules,
+              {
+                filterStackFrame,
+                debugChannel: segmentDebugChannel?.serverSide,
+                environmentName,
+                startTime,
+                onError(error: unknown) {
+                  const digest = getDigestForWellKnownError(error)
+                  if (digest) {
+                    return digest
+                  }
+                  // We don't need to log the errors because we would have already done that
+                  // when generating the original Flight stream for the whole page.
+                  if (
+                    process.env.NEXT_DEBUG_BUILD ||
+                    process.env.__NEXT_VERBOSE_LOGGING
+                  ) {
+                    const workStore = workAsyncStorage.getStore()
+                    printDebugThrownValueForProspectiveRender(
+                      error,
+                      workStore?.route ?? 'unknown route',
+                      Phase.InstantValidation
+                    )
+                  }
+                },
+              }
+            )
+            streamIterator = segmentStream
+          } else {
+            // eslint-disable-next-line import/no-extraneous-dependencies
+            const { renderToReadableStream } = require('react-server-dom-webpack/server') as typeof import('react-server-dom-webpack/server')
+
+            segmentStream = renderToReadableStream(
+              segmentData,
+              clientReferenceManifest.clientModules,
+              {
+                filterStackFrame,
+                debugChannel: segmentDebugChannel?.serverSide,
+                environmentName,
+                startTime,
+                onError(error: unknown) {
+                  const digest = getDigestForWellKnownError(error)
+                  if (digest) {
+                    return digest
+                  }
+                  // We don't need to log the errors because we would have already done that
+                  // when generating the original Flight stream for the whole page.
+                  if (
+                    process.env.NEXT_DEBUG_BUILD ||
+                    process.env.__NEXT_VERBOSE_LOGGING
+                  ) {
+                    const workStore = workAsyncStorage.getStore()
+                    printDebugThrownValueForProspectiveRender(
+                      error,
+                      workStore?.route ?? 'unknown route',
+                      Phase.InstantValidation
+                    )
+                  }
+                },
+              }
+            )
+            streamIterator = (
+              segmentStream as ReadableStream<Uint8Array>
+            ).values()
+          }
 
           await Promise.all([
             // accumulate Flight chunks
             (async () => {
-              for await (const chunk of segmentStream.values()) {
+              for await (const chunk of streamIterator) {
                 writeChunk(
                   segmentCacheItem.chunks,
                   controller.currentStage,
@@ -671,39 +724,84 @@ export async function createCombinedPayloadStream(
 
   await scheduleInSequentialTasks(
     () => {
-      const stream = renderToReadableStream(
-        payload,
-        clientReferenceManifest.clientModules,
-        {
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-          startTime,
-          onError(error: unknown) {
-            const digest = getDigestForWellKnownError(error)
-            if (digest) {
-              return digest
-            }
-            // We don't need to log the errors because we would have already done that
-            // when generating the original Flight stream for the whole page.
-            if (
-              process.env.NEXT_DEBUG_BUILD ||
-              process.env.__NEXT_VERBOSE_LOGGING
-            ) {
-              const workStore = workAsyncStorage.getStore()
-              printDebugThrownValueForProspectiveRender(
-                error,
-                workStore?.route ?? 'unknown route',
-                Phase.InstantValidation
-              )
-            }
-          },
-        }
-      )
+      let stream: ReadableStream<Uint8Array> | import('node:stream').Readable
+      let streamIterator: AsyncIterable<Uint8Array>
+
+      if (process.env.__NEXT_USE_NODE_STREAMS) {
+        const { renderToFlightPipeableStream } =
+          require('../pipeable-stream-wrappers') as typeof import('../pipeable-stream-wrappers')
+        // eslint-disable-next-line import/no-extraneous-dependencies
+        const ComponentMod = require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+
+        stream = renderToFlightPipeableStream(
+          ComponentMod.renderToPipeableStream,
+          payload,
+          clientReferenceManifest.clientModules,
+          {
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+            startTime,
+            onError(error: unknown) {
+              const digest = getDigestForWellKnownError(error)
+              if (digest) {
+                return digest
+              }
+              // We don't need to log the errors because we would have already done that
+              // when generating the original Flight stream for the whole page.
+              if (
+                process.env.NEXT_DEBUG_BUILD ||
+                process.env.__NEXT_VERBOSE_LOGGING
+              ) {
+                const workStore = workAsyncStorage.getStore()
+                printDebugThrownValueForProspectiveRender(
+                  error,
+                  workStore?.route ?? 'unknown route',
+                  Phase.InstantValidation
+                )
+              }
+            },
+          }
+        )
+        streamIterator = stream
+      } else {
+        // eslint-disable-next-line import/no-extraneous-dependencies
+        const { renderToReadableStream } = require('react-server-dom-webpack/server') as typeof import('react-server-dom-webpack/server')
+
+        stream = renderToReadableStream(
+          payload,
+          clientReferenceManifest.clientModules,
+          {
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+            startTime,
+            onError(error: unknown) {
+              const digest = getDigestForWellKnownError(error)
+              if (digest) {
+                return digest
+              }
+              // We don't need to log the errors because we would have already done that
+              // when generating the original Flight stream for the whole page.
+              if (
+                process.env.NEXT_DEBUG_BUILD ||
+                process.env.__NEXT_VERBOSE_LOGGING
+              ) {
+                const workStore = workAsyncStorage.getStore()
+                printDebugThrownValueForProspectiveRender(
+                  error,
+                  workStore?.route ?? 'unknown route',
+                  Phase.InstantValidation
+                )
+              }
+            },
+          }
+        )
+        streamIterator = (stream as ReadableStream<Uint8Array>).values()
+      }
 
       streamFinished = Promise.all([
         // Accumulate Flight chunks
         (async () => {
-          for await (const chunk of stream.values()) {
+          for await (const chunk of streamIterator) {
             allChunks.push(chunk)
             if (isRenderable) {
               renderableChunks.push(chunk)
