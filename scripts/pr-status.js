@@ -100,7 +100,10 @@ function connectTunnel(proxy, targetHost, targetPort) {
         resolve(socket)
       } else {
         reject(
-          new Error(`Proxy CONNECT to ${connectPath} failed: ${res.statusCode}`)
+          new Error(
+            `Proxy CONNECT to ${connectPath} failed with status ${res.statusCode}. ` +
+              `The proxy may not allow connections to ${targetHost}.`
+          )
         )
       }
     })
@@ -546,7 +549,13 @@ async function getJobLogs(jobId) {
     return await githubApiRaw(
       `/repos/${REPO_OWNER}/${REPO_NAME}/actions/jobs/${jobId}/logs`
     )
-  } catch {
+  } catch (err) {
+    const msg = err?.message || ''
+    if (msg.includes('Proxy CONNECT')) {
+      // Log download redirects to an external host (e.g. Azure Blob Storage)
+      // which may be blocked by the network proxy.
+      console.warn(`  Warning: ${msg}`)
+    }
     return 'Logs not available'
   }
 }
