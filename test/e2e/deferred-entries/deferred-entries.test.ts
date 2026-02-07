@@ -222,6 +222,50 @@ describe('deferred-entries webpack', () => {
     })
   })
 
+  it('should build app router metadata routes when using deferred entries', async () => {
+    await retry(async () => {
+      const [faviconRes, manifestRes, robotsRes, sitemapRes] =
+        await Promise.all([
+          next.fetch('/favicon.ico'),
+          next.fetch('/manifest.json'),
+          next.fetch('/robots.txt'),
+          next.fetch('/sitemap.xml'),
+        ])
+
+      expect(faviconRes.status).toBe(200)
+      expect(manifestRes.status).toBe(200)
+      expect(robotsRes.status).toBe(200)
+      expect(sitemapRes.status).toBe(200)
+
+      const [actualFavicon, actualManifest, actualRobots] = await Promise.all([
+        next.readFileBuffer('app/favicon.ico'),
+        next.readFile('app/manifest.json'),
+        next.readFile('app/robots.txt'),
+      ])
+
+      expect(
+        Buffer.compare(
+          Buffer.from(await faviconRes.arrayBuffer()),
+          actualFavicon
+        )
+      ).toBe(0)
+      expect(await manifestRes.text()).toBe(actualManifest)
+      expect(await robotsRes.text()).toBe(actualRobots)
+
+      const sitemapXml = await sitemapRes.text()
+      expect(sitemapXml).toContain('<urlset')
+      expect(sitemapXml).toContain(
+        '<loc>https://example.com/deferred-entries</loc>'
+      )
+
+      expect(manifestRes.headers.get('content-type')).toMatch(
+        /application\/(manifest\+)?json/
+      )
+      expect(robotsRes.headers.get('content-type')).toContain('text/plain')
+      expect(sitemapRes.headers.get('content-type')).toMatch(/xml/)
+    })
+  })
+
   it('should render app router current time on every request', async () => {
     await retry(async () => {
       const firstRes = await next.fetch('/current-time?request=1')
@@ -486,10 +530,15 @@ describe('deferred-entries webpack', () => {
       expect(homePageEntries.length).toBeGreaterThan(0)
       expect(deferredPageEntries.length).toBeGreaterThan(0)
 
-      // Verify the callback is called AFTER non-deferred entries
-      // (non-deferred entries are built first)
+      // Verify the callback is called after at least one non-deferred entry from
+      // the first build pass. Additional non-deferred recompiles may happen in
+      // the second pass when metadata routes are included.
+      const homePageEntriesBeforeCallback = homePageEntries.filter(
+        (e) => e.timestamp <= callbackTimestamp
+      )
+      expect(homePageEntriesBeforeCallback.length).toBeGreaterThan(0)
       const latestNonDeferredTimestamp = Math.max(
-        ...homePageEntries.map((e) => e.timestamp)
+        ...homePageEntriesBeforeCallback.map((e) => e.timestamp)
       )
       expect(callbackTimestamp).toBeGreaterThanOrEqual(
         latestNonDeferredTimestamp

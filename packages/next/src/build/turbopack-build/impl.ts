@@ -2,6 +2,11 @@
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
+import {
+  normalizeMetadataPageToRoute,
+  normalizeMetadataRoute,
+} from '../../lib/metadata/get-metadata-route'
 import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
@@ -49,13 +54,19 @@ function toAppDebugPath(route: string, leaf: 'page' | 'route'): string {
  */
 function getDeferredBuildPaths(
   deferredEntries: string[],
-  pagesPaths: string[]
+  pagesPaths: string[],
+  metadataAppPaths: string[]
 ): {
   app: string[]
   pages: string[]
 } {
   return {
-    app: deferredEntries.map((route) => toAppDebugPath(route, 'page')),
+    app: [
+      ...new Set([
+        ...deferredEntries.map((route) => toAppDebugPath(route, 'page')),
+        ...metadataAppPaths,
+      ]),
+    ],
     // Include all pages routes so they are not filtered out
     pages: pagesPaths,
   }
@@ -66,18 +77,15 @@ function getDeferredBuildPaths(
  * This keeps non-page app entries (e.g. route handlers) in the non-deferred build.
  * @param pagesPaths - All pages routes to include (deferred entries only affects app routes)
  */
-async function getNonDeferredBuildPaths(
-  appDir: string | undefined,
+function getNonDeferredBuildPaths(
+  appPaths: string[],
   deferredEntries: string[],
   pageExtensions: string[],
   pagesPaths: string[]
-): Promise<{ app: string[]; pages: string[] } | null> {
-  if (!appDir || deferredEntries.length === 0) {
+): { app: string[]; pages: string[] } | null {
+  if (deferredEntries.length === 0) {
     return null
   }
-
-  const validFileMatcher = createValidFileMatcher(pageExtensions, appDir)
-  const { appPaths } = await collectAppFiles(appDir, validFileMatcher)
 
   const deferredPagePaths = new Set(
     deferredEntries.map((route) => toAppDebugPath(route, 'page'))
@@ -129,6 +137,8 @@ export async function turbopackBuild(): Promise<{
   // Collect all pages paths when using deferred entries to ensure pages routes
   // are not filtered out (deferred entries only affects app routes)
   let pagesPaths: string[] = []
+  let appPaths: string[] = []
+  let metadataAppPaths: string[] = []
   if (hasDeferredEntries && NextBuildContext.pagesDir) {
     const validFileMatcher = createValidFileMatcher(
       config.pageExtensions!,
@@ -139,20 +149,50 @@ export async function turbopackBuild(): Promise<{
       validFileMatcher
     )
   }
+  if (hasDeferredEntries && NextBuildContext.appDir) {
+    const validFileMatcher = createValidFileMatcher(
+      config.pageExtensions!,
+      NextBuildContext.appDir
+    )
+    ;({ appPaths } = await collectAppFiles(
+      NextBuildContext.appDir,
+      validFileMatcher
+    ))
+    metadataAppPaths = Array.from(
+      new Set(
+        appPaths.flatMap((appPath) => {
+          if (!isMetadataRouteFile(appPath, config.pageExtensions!, true)) {
+            return []
+          }
+          const page = getPageFromPath(appPath, config.pageExtensions!)
+          const route = normalizeMetadataRoute(page)
+          return [
+            appPath,
+            page,
+            route,
+            normalizeMetadataPageToRoute(route, false),
+            normalizeMetadataPageToRoute(route, true),
+          ]
+        })
+      )
+    )
+  }
 
   // For deferred entries, we use debugBuildPaths to control which routes are built
   // First build excludes deferred entries, second build includes only deferred entries
-  const nonDeferredBuildPaths = hasDeferredEntries
-    ? await getNonDeferredBuildPaths(
-        NextBuildContext.appDir,
-        deferredEntries,
-        config.pageExtensions!,
-        pagesPaths
-      )
-    : null
-  const deferredBuildPaths = hasDeferredEntries
-    ? getDeferredBuildPaths(deferredEntries, pagesPaths)
-    : null
+  const nonDeferredBuildPaths =
+    hasDeferredEntries && NextBuildContext.appDir
+      ? getNonDeferredBuildPaths(
+          appPaths,
+          deferredEntries,
+          config.pageExtensions!,
+          pagesPaths
+        )
+      : null
+  const deferredBuildPaths =
+    hasDeferredEntries && NextBuildContext.appDir
+      ? getDeferredBuildPaths(deferredEntries, pagesPaths, metadataAppPaths)
+      : null
 
   const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
