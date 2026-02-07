@@ -71,6 +71,10 @@ describe('findClosestQuality', () => {
       input: [14, { qualities: [100, 10, 75, 15] }],
       output: 15, // use closet input even when config is out of order
     },
+    {
+      input: [1, { qualities: [75] }],
+      output: 75, // low quality should not return 0
+    },
   ])('for quality $input expected $output', ({ input, output }) => {
     expect(findClosestQuality(...input)).toEqual(output)
   })
