@@ -2,6 +2,7 @@ use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde_json::Value as JsonValue;
 use swc_core::{
     atoms::Wtf8Atom,
     common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
@@ -31,6 +32,9 @@ pub struct ImportAnnotations {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     map: BTreeMap<Wtf8Atom, Wtf8Atom>,
+    /// JSON-serialized turbopackUse loader configuration from import assertions.
+    /// e.g. `import "file" with { turbopackUse: [{ loader: "raw-loader" }] }`
+    turbopack_use: Option<RcStr>,
 }
 
 /// Enables a specified transition for the annotated import
@@ -44,6 +48,55 @@ static ANNOTATION_CHUNKING_TYPE: Lazy<Wtf8Atom> =
 /// Changes the type of the resolved module (only "json" is supported currently)
 static ATTRIBUTE_MODULE_TYPE: Lazy<Wtf8Atom> = Lazy::new(|| atom!("type").into());
 
+/// Convert a SWC expression AST node to a serde_json::Value.
+/// Supports string, number, boolean, null, array, and object literals.
+fn expr_to_json_value(expr: &Expr) -> Option<JsonValue> {
+    match expr {
+        Expr::Lit(lit) => match lit {
+            Lit::Str(s) => Some(JsonValue::String(s.value.to_string_lossy().into_owned())),
+            Lit::Num(n) => serde_json::Number::from_f64(n.value).map(JsonValue::Number),
+            Lit::Bool(b) => Some(JsonValue::Bool(b.value)),
+            Lit::Null(_) => Some(JsonValue::Null),
+            _ => None,
+        },
+        Expr::Array(arr) => {
+            let items: Option<Vec<JsonValue>> = arr
+                .elems
+                .iter()
+                .map(|e| e.as_ref().and_then(|e| expr_to_json_value(&e.expr)))
+                .collect();
+            items.map(JsonValue::Array)
+        }
+        Expr::Object(obj) => {
+            let pairs: Option<serde_json::Map<String, JsonValue>> = obj
+                .props
+                .iter()
+                .map(|prop| {
+                    let kv = prop.as_prop()?.as_key_value()?;
+                    let key = match &kv.key {
+                        PropName::Ident(ident) => Some(ident.sym.to_string()),
+                        PropName::Str(s) => {
+                            Some(s.value.to_string_lossy().into_owned())
+                        }
+                        _ => None,
+                    }?;
+                    let val = expr_to_json_value(&kv.value)?;
+                    Some((key, val))
+                })
+                .collect();
+            pairs.map(JsonValue::Object)
+        }
+        Expr::Unary(unary) if unary.op == UnaryOp::Minus => {
+            if let Expr::Lit(Lit::Num(n)) = &*unary.arg {
+                serde_json::Number::from_f64(-n.value).map(JsonValue::Number)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
 impl ImportAnnotations {
     pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
         let Some(with) = with else {
@@ -51,30 +104,71 @@ impl ImportAnnotations {
         };
 
         let mut map = BTreeMap::new();
+        let mut turbopack_use_loaders: Option<JsonValue> = None;
+        let mut turbopack_as: Option<String> = None;
+        let mut turbopack_module_type: Option<String> = None;
 
-        // The `with` clause is way more restrictive than `ObjectLit`, it only allows
-        // string -> value and value can only be a string.
-        // We just ignore everything else here till the SWC ast is more restrictive.
-        for (key, value) in with.props.iter().filter_map(|prop| {
-            let kv = prop.as_prop()?.as_key_value()?;
-
-            let Lit::Str(str) = kv.value.as_lit()? else {
-                return None;
+        for prop in &with.props {
+            let Some(kv) = prop.as_prop().and_then(|p| p.as_key_value()) else {
+                continue;
             };
 
-            Some((&kv.key, str))
-        }) {
-            let key = match key {
-                PropName::Ident(ident) => ident.sym.clone().into(),
-                PropName::Str(str) => str.value.clone(),
-                // the rest are invalid, ignore for now till SWC ast is correct
+            let key_str = match &kv.key {
+                PropName::Ident(ident) => ident.sym.to_string(),
+                PropName::Str(str) => str.value.to_string_lossy().into_owned(),
                 _ => continue,
             };
 
-            map.insert(key, value.value.clone());
+            // Handle turbopackUse specially - it's an array of objects, not a string
+            if key_str == "turbopackUse" {
+                turbopack_use_loaders = expr_to_json_value(&kv.value);
+                continue;
+            }
+
+            // Handle turbopackAs - rename output extension (e.g., "*.js")
+            if key_str == "turbopackAs" {
+                if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                    turbopack_as = Some(s.value.to_string_lossy().into_owned());
+                }
+                continue;
+            }
+
+            // Handle turbopackModuleType - override module type (e.g., "ecmascript")
+            if key_str == "turbopackModuleType" {
+                if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                    turbopack_module_type = Some(s.value.to_string_lossy().into_owned());
+                }
+                continue;
+            }
+
+            // For all other keys, only accept string values (per spec)
+            if let Some(Lit::Str(str)) = kv.value.as_lit() {
+                let key: Wtf8Atom = match &kv.key {
+                    PropName::Ident(ident) => ident.sym.clone().into(),
+                    PropName::Str(s) => s.value.clone(),
+                    _ => continue,
+                };
+                map.insert(key, str.value.clone());
+            }
         }
 
-        ImportAnnotations { map }
+        // Build the combined turbopack_use JSON if loaders were specified
+        let turbopack_use = turbopack_use_loaders.and_then(|loaders| {
+            let mut obj = serde_json::Map::new();
+            obj.insert("loaders".to_string(), loaders);
+            if let Some(rename_as) = turbopack_as {
+                obj.insert("renameAs".to_string(), JsonValue::String(rename_as));
+            }
+            if let Some(module_type) = turbopack_module_type {
+                obj.insert("moduleType".to_string(), JsonValue::String(module_type));
+            }
+            serde_json::to_string(&obj).ok().map(RcStr::from)
+        });
+
+        ImportAnnotations {
+            map,
+            turbopack_use,
+        }
     }
 
     pub fn parse_dynamic(with: &JsValue) -> Option<ImportAnnotations> {
@@ -102,7 +196,10 @@ impl ImportAnnotations {
             );
         }
 
-        Some(ImportAnnotations { map })
+        Some(ImportAnnotations {
+            map,
+            turbopack_use: None,
+        })
     }
 
     /// Returns the content on the transition annotation
@@ -119,6 +216,11 @@ impl ImportAnnotations {
     /// Returns the content on the type attribute
     pub fn module_type(&self) -> Option<&Wtf8Atom> {
         self.get(&ATTRIBUTE_MODULE_TYPE)
+    }
+
+    /// Returns the JSON-serialized turbopackUse loader configuration, if present
+    pub fn turbopack_use(&self) -> Option<&RcStr> {
+        self.turbopack_use.as_ref()
     }
 
     pub fn get(&self, key: &Wtf8Atom) -> Option<&Wtf8Atom> {
@@ -859,5 +961,218 @@ fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol 
         }
         ExportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
         ExportSpecifier::Namespace(..) => ImportedSymbol::Exports,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{
+        atoms::Atom,
+        common::DUMMY_SP,
+        ecma::ast::*,
+    };
+
+    use super::*;
+
+    /// Helper to create a string literal expression
+    fn str_lit(s: &str) -> Box<Expr> {
+        Box::new(Expr::Lit(Lit::Str(Str {
+            span: DUMMY_SP,
+            value: Atom::from(s).into(),
+            raw: None,
+        })))
+    }
+
+    /// Helper to create an ident property name
+    fn ident_key(s: &str) -> PropName {
+        PropName::Ident(IdentName {
+            span: DUMMY_SP,
+            sym: Atom::from(s),
+        })
+    }
+
+    /// Helper to create a key-value property
+    fn kv_prop(key: PropName, value: Box<Expr>) -> PropOrSpread {
+        PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp { key, value })))
+    }
+
+    #[test]
+    fn test_expr_to_json_value_string() {
+        let expr = Expr::Lit(Lit::Str(Str {
+            span: DUMMY_SP,
+            value: Atom::from("hello").into(),
+            raw: None,
+        }));
+        let result = expr_to_json_value(&expr);
+        assert_eq!(result, Some(JsonValue::String("hello".to_string())));
+    }
+
+    #[test]
+    fn test_expr_to_json_value_number() {
+        let expr = Expr::Lit(Lit::Num(Number {
+            span: DUMMY_SP,
+            value: 42.0,
+            raw: None,
+        }));
+        let result = expr_to_json_value(&expr);
+        assert_eq!(
+            result,
+            Some(JsonValue::Number(serde_json::Number::from_f64(42.0).unwrap()))
+        );
+    }
+
+    #[test]
+    fn test_expr_to_json_value_bool() {
+        let expr = Expr::Lit(Lit::Bool(Bool {
+            span: DUMMY_SP,
+            value: true,
+        }));
+        let result = expr_to_json_value(&expr);
+        assert_eq!(result, Some(JsonValue::Bool(true)));
+    }
+
+    #[test]
+    fn test_expr_to_json_value_null() {
+        let expr = Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
+        let result = expr_to_json_value(&expr);
+        assert_eq!(result, Some(JsonValue::Null));
+    }
+
+    #[test]
+    fn test_expr_to_json_value_array() {
+        let expr = Expr::Array(ArrayLit {
+            span: DUMMY_SP,
+            elems: vec![
+                Some(ExprOrSpread {
+                    spread: None,
+                    expr: str_lit("a"),
+                }),
+                Some(ExprOrSpread {
+                    spread: None,
+                    expr: str_lit("b"),
+                }),
+            ],
+        });
+        let result = expr_to_json_value(&expr);
+        assert_eq!(
+            result,
+            Some(JsonValue::Array(vec![
+                JsonValue::String("a".to_string()),
+                JsonValue::String("b".to_string()),
+            ]))
+        );
+    }
+
+    #[test]
+    fn test_expr_to_json_value_object() {
+        let expr = Expr::Object(ObjectLit {
+            span: DUMMY_SP,
+            props: vec![
+                kv_prop(ident_key("loader"), str_lit("raw-loader")),
+            ],
+        });
+        let result = expr_to_json_value(&expr);
+        let mut expected = serde_json::Map::new();
+        expected.insert("loader".to_string(), JsonValue::String("raw-loader".to_string()));
+        assert_eq!(result, Some(JsonValue::Object(expected)));
+    }
+
+    #[test]
+    fn test_parse_turbopack_use_annotation() {
+        // Simulate: with { turbopackUse: [{ loader: "raw-loader" }] }
+        let with = ObjectLit {
+            span: DUMMY_SP,
+            props: vec![kv_prop(
+                ident_key("turbopackUse"),
+                Box::new(Expr::Array(ArrayLit {
+                    span: DUMMY_SP,
+                    elems: vec![Some(ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Object(ObjectLit {
+                            span: DUMMY_SP,
+                            props: vec![kv_prop(
+                                ident_key("loader"),
+                                str_lit("raw-loader"),
+                            )],
+                        })),
+                    })],
+                })),
+            )],
+        };
+
+        let annotations = ImportAnnotations::parse(Some(&with));
+        let turbopack_use = annotations.turbopack_use();
+        assert!(turbopack_use.is_some());
+
+        let parsed: JsonValue = serde_json::from_str(turbopack_use.unwrap()).unwrap();
+        let arr = parsed.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["loader"], "raw-loader");
+    }
+
+    #[test]
+    fn test_parse_turbopack_use_with_options() {
+        // Simulate: with { turbopackUse: [{ loader: "my-loader", options: { flag: true } }] }
+        let with = ObjectLit {
+            span: DUMMY_SP,
+            props: vec![kv_prop(
+                ident_key("turbopackUse"),
+                Box::new(Expr::Array(ArrayLit {
+                    span: DUMMY_SP,
+                    elems: vec![Some(ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Object(ObjectLit {
+                            span: DUMMY_SP,
+                            props: vec![
+                                kv_prop(ident_key("loader"), str_lit("my-loader")),
+                                kv_prop(
+                                    ident_key("options"),
+                                    Box::new(Expr::Object(ObjectLit {
+                                        span: DUMMY_SP,
+                                        props: vec![kv_prop(
+                                            ident_key("flag"),
+                                            Box::new(Expr::Lit(Lit::Bool(Bool {
+                                                span: DUMMY_SP,
+                                                value: true,
+                                            }))),
+                                        )],
+                                    })),
+                                ),
+                            ],
+                        })),
+                    })],
+                })),
+            )],
+        };
+
+        let annotations = ImportAnnotations::parse(Some(&with));
+        let turbopack_use = annotations.turbopack_use();
+        assert!(turbopack_use.is_some());
+
+        let parsed: JsonValue = serde_json::from_str(turbopack_use.unwrap()).unwrap();
+        let arr = parsed.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["loader"], "my-loader");
+        assert_eq!(arr[0]["options"]["flag"], true);
+    }
+
+    #[test]
+    fn test_parse_without_turbopack_use() {
+        // Simulate: with { type: "json" }
+        let with = ObjectLit {
+            span: DUMMY_SP,
+            props: vec![kv_prop(ident_key("type"), str_lit("json"))],
+        };
+
+        let annotations = ImportAnnotations::parse(Some(&with));
+        assert!(annotations.turbopack_use().is_none());
+        assert!(annotations.module_type().is_some());
+    }
+
+    #[test]
+    fn test_parse_empty_with() {
+        let annotations = ImportAnnotations::parse(None);
+        assert!(annotations.turbopack_use().is_none());
+        assert!(annotations.module_type().is_none());
     }
 }

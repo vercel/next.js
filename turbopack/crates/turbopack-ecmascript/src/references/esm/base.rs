@@ -408,7 +408,9 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = if let Some(module_type) = self.annotations.module_type() {
+        let ty = if let Some(turbopack_use) = self.annotations.turbopack_use() {
+            EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse(turbopack_use.clone())
+        } else if let Some(module_type) = self.annotations.module_type() {
             EcmaScriptModulesReferenceSubType::ImportWithType(RcStr::from(
                 &*module_type.to_string_lossy(),
             ))

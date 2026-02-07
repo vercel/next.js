@@ -75,6 +75,9 @@ pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
     ImportWithType(RcStr),
+    /// Import with `turbopackUse` assertion specifying inline loaders.
+    /// The `RcStr` contains the JSON-serialized loader configuration.
+    ImportWithTurbopackUse(RcStr),
     DynamicImport,
     Custom(u8),
     #[default]
@@ -323,6 +326,9 @@ impl Display for ReferenceType {
             ReferenceType::CommonJs(_) => "commonjs",
             ReferenceType::EcmaScriptModules(sub) => match sub {
                 EcmaScriptModulesReferenceSubType::ImportPart(_) => "EcmaScript Modules (part)",
+                EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse(_) => {
+                    "EcmaScript Modules (turbopackUse)"
+                }
                 _ => "EcmaScript Modules",
             },
             ReferenceType::Css(_) => "css",

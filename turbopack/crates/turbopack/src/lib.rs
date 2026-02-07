@@ -12,7 +12,7 @@ pub mod global_module_ids;
 pub mod module_options;
 pub mod transition;
 
-use anyhow::{Result, bail};
+use anyhow::{Context as _, Result, bail};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
@@ -40,6 +40,7 @@ use turbopack_core::{
         parse::Request, resolve,
     },
     source::Source,
+    source_transform::SourceTransforms,
 };
 use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_ecmascript::{
@@ -57,6 +58,7 @@ use turbopack_ecmascript::{
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use turbopack_json::JsonModuleAsset;
+use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
 use turbopack_resolve::{
     resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
     typescript::type_resolve,
@@ -65,8 +67,10 @@ use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use crate::{
+    evaluate_context::node_evaluate_asset_context,
     module_options::{
         CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+        package_import_map_from_context, package_import_map_from_import_mapping,
     },
     transition::{Transition, TransitionOptions},
 };
@@ -667,6 +671,127 @@ async fn process_default_internal(
     };
     let mut current_source = source;
     let mut current_module_type = None;
+
+    // Handle turbopackUse import assertions: apply inline loaders as source transforms
+    if let ReferenceType::EcmaScriptModules(
+        EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse(ref config_json),
+    ) = reference_type
+    {
+        let config: serde_json::Value = serde_json::from_str(config_json)
+            .context("Failed to parse turbopackUse configuration")?;
+        let loader_items: Vec<WebpackLoaderItem> = serde_json::from_value(
+            config
+                .get("loaders")
+                .cloned()
+                .unwrap_or(serde_json::Value::Array(vec![])),
+        )
+        .context("Failed to parse turbopackUse loader items")?;
+        let rename_as: Option<RcStr> = config
+            .get("renameAs")
+            .and_then(|v| v.as_str())
+            .map(RcStr::from);
+
+        if !loader_items.is_empty() {
+            let module_options_context = module_asset_context.module_options_context().await?;
+            let execution_context = module_options_context
+                .execution_context
+                .context("execution_context is required for turbopackUse import assertions")?;
+            let execution_context_value = execution_context.await?;
+
+            let resolve_options_context = module_asset_context
+                .resolve_options_context()
+                .to_resolved()
+                .await?;
+            let source_maps = matches!(
+                module_options_context.ecmascript.source_maps,
+                SourceMapsType::Full
+            );
+
+            // Determine the import map for loader-runner
+            let import_map = if let Some(ref webpack_loaders_options) =
+                module_options_context.enable_webpack_loaders
+            {
+                let webpack_loaders_options = webpack_loaders_options.await?;
+                if let Some(loader_runner_package) = webpack_loaders_options.loader_runner_package {
+                    package_import_map_from_import_mapping(
+                        rcstr!("loader-runner"),
+                        *loader_runner_package,
+                    )
+                } else {
+                    package_import_map_from_context(
+                        rcstr!("loader-runner"),
+                        execution_context_value.project_path.clone(),
+                    )
+                }
+            } else {
+                package_import_map_from_context(
+                    rcstr!("loader-runner"),
+                    execution_context_value.project_path.clone(),
+                )
+            };
+
+            let loaders_vc = WebpackLoaderItems(loader_items).resolved_cell();
+
+            let evaluate_context = node_evaluate_asset_context(
+                *execution_context,
+                Some(import_map),
+                None,
+                Layer::new(rcstr!("turbopack_use_loaders")),
+                false,
+            )
+            .to_resolved()
+            .await?;
+
+            let webpack_loaders = WebpackLoaders::new(
+                *evaluate_context,
+                *execution_context,
+                *loaders_vc,
+                rename_as,
+                *resolve_options_context,
+                source_maps,
+            )
+            .to_resolved()
+            .await?;
+
+            let transforms =
+                Vc::<SourceTransforms>::cell(vec![ResolvedVc::upcast(webpack_loaders)]);
+            current_source = transforms
+                .transform(*current_source)
+                .to_resolved()
+                .await?;
+
+            // If the ident changed (e.g., due to rename_as), re-process from the
+            // beginning so the new extension is matched by the correct rules.
+            // Use a plain Import reference type to avoid re-applying turbopackUse
+            // loaders in the recursive call (which would cause an infinite loop).
+            if current_source.ident().to_resolved().await? != ident {
+                let plain_reference_type = ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Import,
+                );
+                if let Some(transition) = module_asset_context
+                    .await?
+                    .transitions
+                    .await?
+                    .get_by_rules(current_source, &plain_reference_type)
+                    .await?
+                {
+                    return Ok(transition.process(
+                        *current_source,
+                        module_asset_context,
+                        plain_reference_type,
+                    ));
+                } else {
+                    return Box::pin(process_default(
+                        module_asset_context,
+                        current_source,
+                        plain_reference_type,
+                        processed_rules,
+                    ))
+                    .await;
+                }
+            }
+        }
+    }
 
     // Collect transforms from ExtendEcmascriptTransforms effects.
     // They will be applied when ModuleType is set.
