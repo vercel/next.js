@@ -2063,6 +2063,8 @@ var KeyboardEventInterface = assign({}, UIEventInterface, {
     isPrimary: 0
   }),
   SyntheticPointerEvent = createSyntheticEvent(PointerEventInterface),
+  SubmitEventInterface = assign({}, EventInterface, { submitter: 0 }),
+  SyntheticSubmitEvent = createSyntheticEvent(SubmitEventInterface),
   TouchEventInterface = assign({}, UIEventInterface, {
     touches: 0,
     targetTouches: 0,
@@ -2251,14 +2253,14 @@ var isInputEventSupported = !1;
 if (canUseDOM) {
   var JSCompiler_inline_result$jscomp$356;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_519 = "oninput" in document;
-    if (!isSupported$jscomp$inline_519) {
-      var element$jscomp$inline_520 = document.createElement("div");
-      element$jscomp$inline_520.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_519 =
-        "function" === typeof element$jscomp$inline_520.oninput;
+    var isSupported$jscomp$inline_518 = "oninput" in document;
+    if (!isSupported$jscomp$inline_518) {
+      var element$jscomp$inline_519 = document.createElement("div");
+      element$jscomp$inline_519.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_518 =
+        "function" === typeof element$jscomp$inline_519.oninput;
     }
-    JSCompiler_inline_result$jscomp$356 = isSupported$jscomp$inline_519;
+    JSCompiler_inline_result$jscomp$356 = isSupported$jscomp$inline_518;
   } else JSCompiler_inline_result$jscomp$356 = !1;
   isInputEventSupported =
     JSCompiler_inline_result$jscomp$356 &&
@@ -8013,6 +8015,12 @@ function updateSuspenseListComponent(current, workInProgress, renderLanes) {
   }
   return workInProgress.child;
 }
+function updateContextProvider(current, workInProgress, renderLanes) {
+  var newProps = workInProgress.pendingProps;
+  pushProvider(workInProgress, workInProgress.type, newProps.value);
+  reconcileChildren(current, workInProgress, newProps.children, renderLanes);
+  return workInProgress.child;
+}
 function bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes) {
   null !== current && (workInProgress.dependencies = current.dependencies);
   profilerStartTime = -1;
@@ -8231,6 +8239,15 @@ function beginWork(current, workInProgress, renderLanes) {
                 workInProgress,
                 current,
                 props,
+                renderLanes
+              );
+              break a;
+            } else if ($$typeof === REACT_CONTEXT_TYPE) {
+              workInProgress.tag = 10;
+              workInProgress.type = current;
+              workInProgress = updateContextProvider(
+                null,
+                workInProgress,
                 renderLanes
               );
               break a;
@@ -8537,12 +8554,7 @@ function beginWork(current, workInProgress, renderLanes) {
         workInProgress.child
       );
     case 10:
-      return (
-        (props = workInProgress.pendingProps),
-        pushProvider(workInProgress, workInProgress.type, props.value),
-        reconcileChildren(current, workInProgress, props.children, renderLanes),
-        workInProgress.child
-      );
+      return updateContextProvider(current, workInProgress, renderLanes);
     case 9:
       return (
         ($$typeof = workInProgress.type._context),
@@ -11718,7 +11730,12 @@ function recursivelyResetForms(parentFiber) {
     for (parentFiber = parentFiber.child; null !== parentFiber; ) {
       var fiber = parentFiber;
       recursivelyResetForms(fiber);
-      5 === fiber.tag && fiber.flags & 1024 && fiber.stateNode.reset();
+      5 === fiber.tag &&
+        fiber.flags & 1024 &&
+        ((fiber = fiber.stateNode),
+        (_enabled = !0),
+        fiber.reset(),
+        (_enabled = !1));
       parentFiber = parentFiber.sibling;
     }
 }
@@ -15334,20 +15351,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1999 = 0;
-  i$jscomp$inline_1999 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1999++
+  var i$jscomp$inline_1990 = 0;
+  i$jscomp$inline_1990 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1990++
 ) {
-  var eventName$jscomp$inline_2000 =
-      simpleEventPluginEvents[i$jscomp$inline_1999],
-    domEventName$jscomp$inline_2001 =
-      eventName$jscomp$inline_2000.toLowerCase(),
-    capitalizedEvent$jscomp$inline_2002 =
-      eventName$jscomp$inline_2000[0].toUpperCase() +
-      eventName$jscomp$inline_2000.slice(1);
+  var eventName$jscomp$inline_1991 =
+      simpleEventPluginEvents[i$jscomp$inline_1990],
+    domEventName$jscomp$inline_1992 =
+      eventName$jscomp$inline_1991.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1993 =
+      eventName$jscomp$inline_1991[0].toUpperCase() +
+      eventName$jscomp$inline_1991.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_2001,
-    "on" + capitalizedEvent$jscomp$inline_2002
+    domEventName$jscomp$inline_1992,
+    "on" + capitalizedEvent$jscomp$inline_1993
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15669,6 +15686,9 @@ function dispatchEventForPluginEventSystem(
           case "pointerover":
           case "pointerup":
             SyntheticEventCtor = SyntheticPointerEvent;
+            break;
+          case "submit":
+            SyntheticEventCtor = SyntheticSubmitEvent;
             break;
           case "toggle":
           case "beforetoggle":
@@ -19979,16 +19999,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2348 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2339 = React.version;
 if (
-  "19.3.0-canary-230772f9-20260128" !==
-  isomorphicReactPackageVersion$jscomp$inline_2348
+  "19.3.0-canary-95ffd6cd-20260205" !==
+  isomorphicReactPackageVersion$jscomp$inline_2339
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2348,
-      "19.3.0-canary-230772f9-20260128"
+      isomorphicReactPackageVersion$jscomp$inline_2339,
+      "19.3.0-canary-95ffd6cd-20260205"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20008,24 +20028,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2951 = {
+var internals$jscomp$inline_2938 = {
   bundleType: 0,
-  version: "19.3.0-canary-230772f9-20260128",
+  version: "19.3.0-canary-95ffd6cd-20260205",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-230772f9-20260128"
+  reconcilerVersion: "19.3.0-canary-95ffd6cd-20260205"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2952 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2939 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2952.isDisabled &&
-    hook$jscomp$inline_2952.supportsFiber
+    !hook$jscomp$inline_2939.isDisabled &&
+    hook$jscomp$inline_2939.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2952.inject(
-        internals$jscomp$inline_2951
+      (rendererID = hook$jscomp$inline_2939.inject(
+        internals$jscomp$inline_2938
       )),
-        (injectedHook = hook$jscomp$inline_2952);
+        (injectedHook = hook$jscomp$inline_2939);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -20272,7 +20292,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-230772f9-20260128";
+exports.version = "19.3.0-canary-95ffd6cd-20260205";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

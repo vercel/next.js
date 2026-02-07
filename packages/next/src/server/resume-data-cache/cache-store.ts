@@ -2,9 +2,9 @@ import {
   arrayBufferToString,
   stringToUint8Array,
 } from '../app-render/encryption-utils'
-import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CachedFetchValue } from '../response-cache/types'
 import { DYNAMIC_EXPIRE } from '../use-cache/constants'
+import type { CollectedCacheResult } from '../use-cache/use-cache-wrapper'
 
 /**
  * A generic cache store type that provides a subset of Map functionality
@@ -34,19 +34,23 @@ export type DecryptedBoundArgsCacheStore = CacheStore<string>
  * Serialized format for "use cache" entries
  */
 export interface UseCacheCacheStoreSerialized {
-  value: string
-  tags: string[]
-  stale: number
-  timestamp: number
-  expire: number
-  revalidate: number
+  entry: {
+    value: string
+    tags: string[]
+    stale: number
+    timestamp: number
+    expire: number
+    revalidate: number
+  }
+  hasExplicitRevalidate: boolean | undefined
+  hasExplicitExpire: boolean | undefined
 }
 
 /**
  * A cache store specifically for "use cache" values that stores promises of
- * cache entries.
+ * collected cache results (entry + metadata).
  */
-export type UseCacheCacheStore = CacheStore<Promise<CacheEntry>>
+export type UseCacheCacheStore = CacheStore<Promise<CollectedCacheResult>>
 
 /**
  * Parses serialized cache entries into a UseCacheCacheStore
@@ -56,30 +60,34 @@ export type UseCacheCacheStore = CacheStore<Promise<CacheEntry>>
 export function parseUseCacheCacheStore(
   entries: Iterable<[string, UseCacheCacheStoreSerialized]>
 ): UseCacheCacheStore {
-  const store = new Map<string, Promise<CacheEntry>>()
+  const store = new Map<string, Promise<CollectedCacheResult>>()
 
   for (const [
     key,
-    { value, tags, stale, timestamp, expire, revalidate },
+    { entry, hasExplicitRevalidate, hasExplicitExpire },
   ] of entries) {
     store.set(
       key,
       Promise.resolve({
-        // Create a ReadableStream from the Uint8Array
-        value: new ReadableStream<Uint8Array>({
-          start(controller) {
-            // Enqueue the Uint8Array to the stream
-            controller.enqueue(stringToUint8Array(atob(value)))
+        entry: {
+          // Create a ReadableStream from the Uint8Array
+          value: new ReadableStream<Uint8Array>({
+            start(controller) {
+              // Enqueue the Uint8Array to the stream
+              controller.enqueue(stringToUint8Array(atob(entry.value)))
 
-            // Close the stream
-            controller.close()
-          },
-        }),
-        tags,
-        stale,
-        timestamp,
-        expire,
-        revalidate,
+              // Close the stream
+              controller.close()
+            },
+          }),
+          tags: entry.tags,
+          stale: entry.stale,
+          timestamp: entry.timestamp,
+          expire: entry.expire,
+          revalidate: entry.revalidate,
+        },
+        hasExplicitRevalidate,
+        hasExplicitExpire,
       })
     )
   }
@@ -93,13 +101,13 @@ export function parseUseCacheCacheStore(
  * @returns A promise that resolves to an array of key-value pairs with serialized values
  */
 export async function serializeUseCacheCacheStore(
-  entries: IterableIterator<[string, Promise<CacheEntry>]>,
+  entries: IterableIterator<[string, Promise<CollectedCacheResult>]>,
   isCacheComponentsEnabled: boolean
 ): Promise<Array<[string, UseCacheCacheStoreSerialized] | null>> {
   return Promise.all(
     Array.from(entries).map(([key, value]) => {
       return value
-        .then(async (entry) => {
+        .then(async ({ entry, hasExplicitRevalidate, hasExplicitExpire }) => {
           if (
             isCacheComponentsEnabled &&
             (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
@@ -124,13 +132,17 @@ export async function serializeUseCacheCacheStore(
           return [
             key,
             {
-              // Encode the value as a base64 string.
-              value: btoa(binaryString),
-              tags: entry.tags,
-              stale: entry.stale,
-              timestamp: entry.timestamp,
-              expire: entry.expire,
-              revalidate: entry.revalidate,
+              entry: {
+                // Encode the value as a base64 string.
+                value: btoa(binaryString),
+                tags: entry.tags,
+                stale: entry.stale,
+                timestamp: entry.timestamp,
+                expire: entry.expire,
+                revalidate: entry.revalidate,
+              },
+              hasExplicitRevalidate,
+              hasExplicitExpire,
             },
           ] satisfies [string, UseCacheCacheStoreSerialized]
         })

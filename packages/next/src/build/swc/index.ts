@@ -1021,10 +1021,13 @@ function bindingToApi(
     for (const [glob, rule] of Object.entries(turbopackRules)) {
       if (Array.isArray(rule)) {
         serializedRules[glob] = rule.map((item) => {
-          if (typeof item !== 'string' && 'loaders' in item) {
-            return serializeConfigItem(item, glob)
+          if (
+            typeof item !== 'string' &&
+            ('loaders' in item || 'type' in item || 'condition' in item)
+          ) {
+            return serializeConfigItem(item as TurbopackRuleConfigItem, glob)
           } else {
-            checkLoaderItem(item, glob)
+            checkLoaderItem(item as TurbopackLoaderItem, glob)
             return item
           }
         })
@@ -1040,8 +1043,10 @@ function bindingToApi(
       glob: string
     ): any {
       if (!rule) return rule
-      for (const item of rule.loaders) {
-        checkLoaderItem(item, glob)
+      if (rule.loaders) {
+        for (const item of rule.loaders) {
+          checkLoaderItem(item, glob)
+        }
       }
       let serializedRule: any = rule
       if (rule.condition != null) {
@@ -1350,12 +1355,12 @@ async function loadWasm(importPath = '') {
         imports
       )
     },
-    lockfileTryAcquire(_filePath: string) {
+    lockfileTryAcquire(_filePath: string, _content?: string | null) {
       throw new Error(
         '`lockfileTryAcquire` is not supported by the wasm bindings.'
       )
     },
-    lockfileTryAcquireSync(_filePath: string) {
+    lockfileTryAcquireSync(_filePath: string, _content?: string | null) {
       throw new Error(
         '`lockfileTryAcquireSync` is not supported by the wasm bindings.'
       )
@@ -1570,11 +1575,11 @@ function loadNative(importPath?: string) {
           imports
         )
       },
-      lockfileTryAcquire(filePath: string) {
-        return bindings.lockfileTryAcquire(filePath)
+      lockfileTryAcquire(filePath: string, content?: string | null) {
+        return bindings.lockfileTryAcquire(filePath, content)
       },
-      lockfileTryAcquireSync(filePath: string) {
-        return bindings.lockfileTryAcquireSync(filePath)
+      lockfileTryAcquireSync(filePath: string, content?: string | null) {
+        return bindings.lockfileTryAcquireSync(filePath, content)
       },
       lockfileUnlock(lockfile: Lockfile) {
         return bindings.lockfileUnlock(lockfile)

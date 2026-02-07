@@ -5,7 +5,7 @@
     "examples": ["examples/**"],
     "Font (next/font)": ["**/*font*"],
     "tests": ["test/**", "bench/**"],
-    "Turbopack": ["crates/next-*/**", "crates/napi/**", "turbopack/**"],
+    "Turbopack": ["crates/next-*/**", "turbopack/**"],
     "Rspack": [
       { "type": "user", "pattern": "9aoy" },
       { "type": "user", "pattern": "ahabhgk" },

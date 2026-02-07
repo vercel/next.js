@@ -6,6 +6,7 @@ import type {
   DynamicParamTypesShort,
   HeadData,
 } from '../../shared/lib/app-router-types'
+import { readVaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -35,7 +36,7 @@ import { workAsyncStorage } from './work-async-storage.external'
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
 export type RootTreePrefetch = {
-  buildId: string
+  buildId?: string
   tree: TreePrefetch
   staleTime: number
 }
@@ -77,7 +78,7 @@ export type TreePrefetch = {
 }
 
 export type SegmentPrefetch = {
-  buildId: string
+  buildId?: string
   rsc: React.ReactNode | null
   isPartial: boolean
   staleTime: number
@@ -245,6 +246,15 @@ async function PrefetchTreeData({
   const seedData: CacheNodeSeedData = flightDataPaths[0][1]
   const head: HeadData = flightDataPaths[0][2]
 
+  // Extract the head vary params from the decoded response.
+  // The head vary params thenable should be fulfilled by now; if not, treat
+  // as unknown (null).
+  const headVaryParamsThenable = initialRSCPayload.h
+  const headVaryParams =
+    headVaryParamsThenable !== null
+      ? readVaryParams(headVaryParamsThenable)
+      : null
+
   // Compute the route metadata tree by traversing the FlightRouterState. As we
   // walk the tree, we will also spawn a task to produce a prefetch response for
   // each segment.
@@ -270,9 +280,7 @@ async function PrefetchTreeData({
         staleTime,
         head,
         HEAD_REQUEST_KEY,
-        // TODO: Track vary params for metadata. For now, assume all
-        // params vary.
-        null,
+        headVaryParams,
         clientModules
       )
     )
@@ -285,9 +293,11 @@ async function PrefetchTreeData({
 
   // Render the route tree to a special `/_tree` segment.
   const treePrefetch: RootTreePrefetch = {
-    buildId,
     tree,
     staleTime,
+  }
+  if (buildId) {
+    treePrefetch.buildId = buildId
   }
   return treePrefetch
 }
@@ -295,7 +305,7 @@ async function PrefetchTreeData({
 function collectSegmentDataImpl(
   isClientParamParsingEnabled: boolean,
   route: FlightRouterState,
-  buildId: string,
+  buildId: string | undefined,
   staleTime: number,
   seedData: CacheNodeSeedData | null,
   clientModules: ManifestNode,
@@ -336,7 +346,15 @@ function collectSegmentDataImpl(
   }
 
   const hasRuntimePrefetch = seedData !== null ? seedData[4] : false
-  const varyParams = seedData !== null ? seedData[5] : null
+
+  // Determine which params this segment varies on.
+  // Read the vary params thenable directly from the seed data. By the time
+  // collectSegmentData runs, the thenable should be fulfilled. If it's not
+  // fulfilled or null, treat as unknown (null means we can't share cache
+  // entries across param values).
+  const varyParamsThenable = seedData !== null ? seedData[5] : null
+  const varyParams =
+    varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
 
   if (seedData !== null) {
     // Spawn a task to write the segment data to a new Flight stream.
@@ -391,7 +409,7 @@ function collectSegmentDataImpl(
 }
 
 async function renderSegmentPrefetch(
-  buildId: string,
+  buildId: string | undefined,
   staleTime: number,
   rsc: React.ReactNode,
   requestKey: SegmentRequestKey,
@@ -400,11 +418,13 @@ async function renderSegmentPrefetch(
 ): Promise<[SegmentRequestKey, Buffer]> {
   // Render the segment data to a stream.
   const segmentPrefetch: SegmentPrefetch = {
-    buildId,
     rsc,
     isPartial: await isPartialRSCData(rsc, clientModules),
     staleTime,
     varyParams,
+  }
+  if (buildId) {
+    segmentPrefetch.buildId = buildId
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
