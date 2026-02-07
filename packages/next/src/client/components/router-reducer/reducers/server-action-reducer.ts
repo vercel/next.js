@@ -103,13 +103,7 @@ async function fetchServerAction(
 ): Promise<FetchServerActionResult> {
   const temporaryReferences = createTemporaryReferenceSet()
   const info = extractInfoFromServerReferenceId(actionId)
-
-  // TODO: Currently, we're only omitting unused args for the experimental "use
-  // cache" functions. Once the server reference info byte feature is stable, we
-  // should apply this to server actions as well.
-  const usedArgs =
-    info.type === 'use-cache' ? omitUnusedArgs(actionArgs, info) : actionArgs
-
+  const usedArgs = omitUnusedArgs(actionArgs, info)
   const body = await encodeReply(usedArgs, { temporaryReferences })
 
   const headers: Record<string, string> = {
