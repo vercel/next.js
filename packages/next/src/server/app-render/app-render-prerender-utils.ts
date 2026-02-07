@@ -115,24 +115,29 @@ export class ReactServerResult {
       this._stream = tee[0]
       return tee[1]
     } else if (process.env.NEXT_RUNTIME !== 'edge') {
-      // Node.js Readable: pipe to two PassThrough streams
+      // Node.js Readable: tee with decoupled backpressure.
+      // We use manual on('data') forwarding instead of .pipe() because
+      // pipe couples backpressure across destinations: if one side's
+      // buffer fills (e.g. flight data not pulling yet due to
+      // delayDataUntilFirstHtmlChunk), pipe pauses the source, starving
+      // the other side (SSR), causing a deadlock.
       const { PassThrough } =
         require('node:stream') as typeof import('node:stream')
       const pt1 = new PassThrough()
       const pt2 = new PassThrough()
       const source = this._stream
-      // Forward errors from source to both destinations since
-      // Node.js .pipe() does not propagate errors automatically.
-      // Unpipe before destroying to prevent ERR_STREAM_DESTROYED
-      // from propagating back to the shared source.
+      source.on('data', (chunk: Buffer | Uint8Array) => {
+        pt1.write(chunk)
+        pt2.write(chunk)
+      })
+      source.on('end', () => {
+        pt1.end()
+        pt2.end()
+      })
       source.on('error', (err) => {
-        source.unpipe(pt1)
-        source.unpipe(pt2)
         if (!pt1.destroyed) pt1.destroy(err)
         if (!pt2.destroyed) pt2.destroy(err)
       })
-      source.pipe(pt1)
-      source.pipe(pt2)
       this._stream = pt1
       return pt2
     } else {
@@ -410,26 +415,25 @@ export async function processNodePrelude(unprocessedPrelude: NodeReadable) {
       require('node:stream') as typeof import('node:stream')
     const pt1 = new PassThrough()
     const pt2 = new PassThrough()
-    // Forward errors from source to both destinations since
-    // Node.js .pipe() does not propagate errors automatically.
-    // Unpipe before destroying to prevent ERR_STREAM_DESTROYED
-    // from propagating back to the shared source.
+    // Use manual on('data') forwarding instead of .pipe() to decouple
+    // backpressure. See ReactServerResult.tee() for full explanation.
+    unprocessedPrelude.on('data', (chunk: Buffer | Uint8Array) => {
+      pt1.write(chunk)
+      pt2.write(chunk)
+    })
+    unprocessedPrelude.on('end', () => {
+      pt1.end()
+      pt2.end()
+    })
     unprocessedPrelude.on('error', (err) => {
-      unprocessedPrelude.unpipe(pt1)
-      unprocessedPrelude.unpipe(pt2)
       if (!pt1.destroyed) pt1.destroy(err)
       if (!pt2.destroyed) pt2.destroy(err)
     })
-    unprocessedPrelude.pipe(pt1)
-    unprocessedPrelude.pipe(pt2)
 
     // Read the first chunk from the peek stream to check if it's empty
     const firstChunk = await new Promise<Uint8Array | null>(
       (resolve, reject) => {
         pt2.once('data', (chunk) => {
-          // Unpipe before destroying to avoid ERR_STREAM_DESTROYED
-          // propagating back to the shared source.
-          unprocessedPrelude.unpipe(pt2)
           pt2.destroy()
           resolve(chunk)
         })
@@ -437,8 +441,6 @@ export async function processNodePrelude(unprocessedPrelude: NodeReadable) {
           resolve(null)
         })
         pt2.once('error', (err) => {
-          // Clean up pt1 as well since the source errored
-          unprocessedPrelude.unpipe(pt1)
           if (!pt1.destroyed) pt1.destroy(err)
           reject(err)
         })

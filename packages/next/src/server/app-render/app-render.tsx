@@ -722,7 +722,9 @@ async function generateDynamicFlightRenderResult(
           onError,
           temporaryReferences: options?.temporaryReferences,
           filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
+          // TODO: The debug channel uses web WritableStream which keeps
+          // renderToPipeableStream from ending. Skip it for now.
+          // debugChannel: debugChannel?.serverSide,
         }
       )
 
@@ -817,6 +819,9 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
   if (process.env.__NEXT_USE_NODE_STREAMS) {
     const { renderToFlightPipeableStream } =
       require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
+    // Strip debugChannel from options: the debug channel uses web WritableStream
+    // which keeps renderToPipeableStream from ending.
+    const { debugChannel: _dc, ...nodeOptions } = options || ({} as any)
     return await workUnitAsyncStorage.run(
       requestStore,
       scheduleInSequentialTasks,
@@ -827,7 +832,7 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
           rscPayload,
           clientModules,
           {
-            ...options,
+            ...nodeOptions,
             environmentName,
           }
         )
@@ -3072,7 +3077,9 @@ async function renderToStream(
                 {
                   filterStackFrame,
                   onError: serverComponentsErrorHandler,
-                  debugChannel: debugChannel?.serverSide,
+                  // TODO: The debug channel uses web WritableStream which keeps
+                  // renderToPipeableStream from ending. Skip it for now.
+                  // debugChannel: debugChannel?.serverSide,
                 }
               )
             )
@@ -3799,7 +3806,10 @@ async function renderWithRestartOnCacheMissInDev(
                 environmentName,
                 startTime,
                 filterStackFrame,
-                debugChannel: debugChannel?.serverSide,
+                // TODO: The debug channel uses web WritableStream which keeps
+                // renderToPipeableStream from ending. Skip it for now in the
+                // node streams path until we have a Node-compatible debug channel.
+                // debugChannel: debugChannel?.serverSide,
                 signal: initialReactController.signal,
               }
             )
@@ -3807,16 +3817,25 @@ async function renderWithRestartOnCacheMissInDev(
               initialDataController.abort(initialReactController.signal.reason)
             })
 
-            // Node stream tee: pipe to two PassThrough streams.
-            // Forward errors since Node.js .pipe() does not propagate them.
+            // Node stream tee: forward data to two PassThrough streams.
+            // We use manual on('data') forwarding instead of .pipe() because
+            // pipe couples backpressure across destinations: if one side's
+            // buffer fills (e.g. continuationStream not read until later),
+            // pipe pauses the source, starving the other side.
             const continuationStream = new PassThrough()
             const accumulatingStream = new PassThrough()
+            stream.on('data', (chunk: Buffer | Uint8Array) => {
+              continuationStream.write(chunk)
+              accumulatingStream.write(chunk)
+            })
+            stream.on('end', () => {
+              continuationStream.end()
+              accumulatingStream.end()
+            })
             stream.on('error', (err: Error) => {
               if (!continuationStream.destroyed) continuationStream.destroy(err)
               if (!accumulatingStream.destroyed) accumulatingStream.destroy(err)
             })
-            stream.pipe(continuationStream)
-            stream.pipe(accumulatingStream)
             const accumulatedChunksPromise = accumulateNodeStreamChunks(
               accumulatingStream,
               initialStageController,
@@ -3999,19 +4018,30 @@ async function renderWithRestartOnCacheMissInDev(
               environmentName,
               startTime,
               filterStackFrame,
-              debugChannel: debugChannel?.serverSide,
+              // TODO: The debug channel uses web WritableStream which keeps
+              // renderToPipeableStream from ending. Skip it for now in the
+              // node streams path until we have a Node-compatible debug channel.
+              // debugChannel: debugChannel?.serverSide,
             }
           )
 
-          // Forward errors since Node.js .pipe() does not propagate them.
+          // Node stream tee: forward data to two PassThrough streams.
+          // We use manual on('data') forwarding instead of .pipe() because
+          // pipe couples backpressure across destinations.
           const continuationStream = new PassThrough()
           const accumulatingStream = new PassThrough()
+          stream.on('data', (chunk: Buffer | Uint8Array) => {
+            continuationStream.write(chunk)
+            accumulatingStream.write(chunk)
+          })
+          stream.on('end', () => {
+            continuationStream.end()
+            accumulatingStream.end()
+          })
           stream.on('error', (err: Error) => {
             if (!continuationStream.destroyed) continuationStream.destroy(err)
             if (!accumulatingStream.destroyed) accumulatingStream.destroy(err)
           })
-          stream.pipe(continuationStream)
-          stream.pipe(accumulatingStream)
           const accumulatedChunksPromise = accumulateNodeStreamChunks(
             accumulatingStream,
             finalStageController,

@@ -709,7 +709,7 @@ export async function continueFizzStreamNode(
     await waitAtLeastOneReactRenderTask()
   }
 
-  return chainNodeTransforms(renderStream, [
+  const result = chainNodeTransforms(renderStream, [
     createBufferedTransformNode(),
     deploymentId ? createHtmlDataDplIdTransformNode(deploymentId) : null,
     createMetadataTransformNode(getServerInsertedMetadata),
@@ -723,6 +723,8 @@ export async function continueFizzStreamNode(
     createMoveSuffixTransformNode(),
     createHeadInsertionTransformNode(getServerInsertedHTML),
   ])
+
+  return result
 }
 
 type ContinueDynamicPrerenderNodeOptions = {
