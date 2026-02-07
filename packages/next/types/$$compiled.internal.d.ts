@@ -114,7 +114,9 @@ declare module 'react-server-dom-webpack/client.browser' {
     findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
     temporaryReferences?: TemporaryReferenceSet
-    debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+    debugChannel?:
+      | { readable?: ReadableStream; writable?: WritableStream }
+      | import('node:stream').Writable
     startTime?: number
     endTime?: number
   }
@@ -168,7 +170,9 @@ declare module 'react-server-dom-webpack/server.edge' {
         | undefined
       onError?: (error: unknown) => void
       signal?: AbortSignal
-      debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+      debugChannel?:
+        | { readable?: ReadableStream; writable?: WritableStream }
+        | import('node:stream').Writable
       startTime?: number
     }
   ): ReadableStream<Uint8Array>
@@ -240,6 +244,11 @@ declare module 'react-server-dom-webpack/server.node' {
         | undefined
       onError?: (error: unknown) => void
       signal?: AbortSignal
+      // React's Node API expects debugChannel to be a Node.js Writable
+      // (has .write()), Duplex (has .read()), or WebSocket (has .send()).
+      // This differs from the web API which expects { readable?, writable? }.
+      debugChannel?: import('node:stream').Writable
+      startTime?: number
     }
   ): {
     pipe<Writable extends NodeJS.WritableStream>(

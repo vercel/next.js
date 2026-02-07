@@ -136,12 +136,6 @@ export function resumeToFizzPipeableStream(
  * Wraps react-server-dom-webpack/server.node renderToPipeableStream
  * for Flight (RSC) rendering. Since Flight rendering starts immediately
  * (no shell concept), we pipe to a PassThrough right away.
- *
- * When options.debugChannel is a web-style { writable: WritableStream },
- * it is bridged to a Node.js Writable so that React's Node API can use it.
- * React's renderToPipeableStream expects debugChannel to be a Node Writable
- * (has .write()), Duplex (has .read()), or WebSocket (has .send()), not the
- * web { readable?, writable } shape used by renderToReadableStream.
  */
 export function renderToFlightPipeableStream(
   renderToPipeableStreamFn: (
@@ -153,37 +147,9 @@ export function renderToFlightPipeableStream(
   webpackMap: any,
   options?: any
 ): Readable {
-  const { PassThrough, Writable: NodeWritable } = getNodeStream()
+  const { PassThrough } = getNodeStream()
   const passthrough = new PassThrough()
-
-  // Bridge web debug channel to Node.js Writable.
-  // React's Node API checks typeof debugChannel.write === 'function' to find
-  // the debug destination. A web WritableStream doesn't have .write() on the
-  // object itself, so React skips setting up the debug destination while still
-  // enabling debug info (because debugChannel !== undefined). This causes
-  // pendingDebugChunks to accumulate without ever being flushed, preventing
-  // the flight stream from completing.
-  let nodeOptions = options
-  const dc = options?.debugChannel
-  if (dc && 'writable' in dc && typeof dc.write !== 'function') {
-    const webWritable: WritableStream<Uint8Array> = dc.writable
-    const writer = webWritable.getWriter()
-    const nodeDebugWritable = new NodeWritable({
-      write(
-        chunk: Buffer | Uint8Array,
-        _encoding: string,
-        callback: (error?: Error | null) => void
-      ) {
-        writer.write(chunk).then(() => callback(), callback)
-      },
-      final(callback: (error?: Error | null) => void) {
-        writer.close().then(() => callback(), callback)
-      },
-    })
-    nodeOptions = { ...options, debugChannel: nodeDebugWritable }
-  }
-
-  const { pipe } = renderToPipeableStreamFn(model, webpackMap, nodeOptions)
+  const { pipe } = renderToPipeableStreamFn(model, webpackMap, options)
   pipe(passthrough as unknown as Writable)
   return passthrough
 }
