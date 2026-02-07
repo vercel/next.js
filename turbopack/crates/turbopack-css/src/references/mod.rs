@@ -36,6 +36,21 @@ pub type AnalyzedRefs = (
     Vec<(String, ResolvedVc<UrlAssetReference>)>,
 );
 
+fn should_resolve_css_url(src: &str) -> bool {
+    if matches!(src.bytes().next(), Some(b'#') | Some(b'/')) {
+        return false;
+    }
+
+    if src
+        .get(..5)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("data:"))
+    {
+        return false;
+    }
+
+    true
+}
+
 /// Returns `(all_references, urls)`.
 pub async fn analyze_references(
     stylesheet: &mut StyleSheet<'static, 'static>,
@@ -134,7 +149,7 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
 
         // ignore internal urls like `url(#noiseFilter)`
         // ignore server-relative urls like `url(/foo)`
-        if !matches!(src.bytes().next(), Some(b'#') | Some(b'/')) {
+        if should_resolve_css_url(src) {
             let issue_span = u.loc;
 
             let vc = UrlAssetReference::new(
@@ -170,6 +185,30 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
         _: &mut lightningcss::rules::supports::SupportsCondition<'_>,
     ) -> Result<(), Self::Error> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_resolve_css_url;
+
+    #[test]
+    fn should_ignore_internal_and_server_relative_urls() {
+        assert!(!should_resolve_css_url("#noiseFilter"));
+        assert!(!should_resolve_css_url("/foo.woff2"));
+    }
+
+    #[test]
+    fn should_ignore_data_urls() {
+        assert!(!should_resolve_css_url(
+            "data:font/woff2;charset=utf-8;base64,AAAA"
+        ));
+    }
+
+    #[test]
+    fn should_resolve_relative_urls() {
+        assert!(should_resolve_css_url("./foo.woff2"));
+        assert!(should_resolve_css_url("../foo.woff2"));
     }
 }
 
