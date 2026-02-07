@@ -30,7 +30,9 @@ function getGitHubToken() {
     'Error: GitHub token not found.\n' +
       (process.env.CLAUDE_CODE_REMOTE
         ? 'Add a read-only GitHub token (public_repo scope) to your Claude Code cloud environment\n' +
-          'as the GITHUB_TOKEN secret in your account settings.'
+          'as the GITHUB_TOKEN secret in your account settings.\n' +
+          'Also add *.blob.core.windows.net to the allowed domains for CI log downloads.\n' +
+          'Restart the session after changing settings.'
         : 'Set GITHUB_TOKEN or GH_TOKEN environment variable, or authenticate with `gh auth login`.')
   )
   process.exit(1)
@@ -560,7 +562,8 @@ async function getJobLogs(jobId) {
       console.warn(`  Warning: ${msg}`)
       if (process.env.CLAUDE_CODE_REMOTE) {
         console.warn(
-          '  Add *.blob.core.windows.net to the allowed domains in your Claude Code cloud environment.'
+          '  Add *.blob.core.windows.net to the allowed domains in your Claude Code cloud environment.\n' +
+            '  Restart the session after changing settings.'
         )
       }
     }
