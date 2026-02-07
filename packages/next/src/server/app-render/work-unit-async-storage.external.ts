@@ -398,8 +398,8 @@ export function getRenderResumeDataCache(
         // that is used to read from prefilled caches.
         return workUnitStore.renderResumeDataCache
       }
-      // Otherwise we return the mutable resume data cache here as an immutable
-      // version of the cache as it can also be used for reading.
+      // Otherwise we return the mutable prerender resume data cache here as an
+      // immutable version of the cache as it can also be used for reading.
       return workUnitStore.prerenderResumeDataCache ?? null
     case 'cache':
     case 'private-cache':

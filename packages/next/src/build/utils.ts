@@ -902,12 +902,10 @@ export async function isPageStatic({
 
         rootParamKeys = collectRootParamKeys(routeModule)
 
-        // A page supports partial prerendering if it is an app page and either
-        // the whole app has PPR enabled or this page has PPR enabled when we're
-        // in incremental mode.
+        // A page supports partial prerendering if it is an app page and
+        // cacheComponents is enabled.
         isRoutePPREnabled =
-          routeModule.definition.kind === RouteKind.APP_PAGE &&
-          !!cacheComponents
+          routeModule.definition.kind === RouteKind.APP_PAGE && cacheComponents
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.

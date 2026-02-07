@@ -1492,7 +1492,7 @@ export default async function build(
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
-      const isAppPPREnabled = !!config.cacheComponents
+      const isAppPPREnabled = isAppCacheComponentsEnabled
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
 
@@ -2870,9 +2870,8 @@ export default async function build(
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
 
-                const isRoutePPREnabled: boolean = appConfig
-                  ? !!config.cacheComponents
-                  : false
+                const isRoutePPREnabled: boolean =
+                  !!appConfig && isAppCacheComponentsEnabled
 
                 routes.forEach((route) => {
                   // If the route has any dynamic root segments, we need to skip
@@ -3066,7 +3065,9 @@ export default async function build(
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
             const isRoutePPREnabled: true | undefined =
-              !isAppRouteHandler && !!config.cacheComponents ? true : undefined
+              !isAppRouteHandler && isAppCacheComponentsEnabled
+                ? true
+                : undefined
 
             const htmlBotsRegexString =
               // The htmlLimitedBots has been converted to a string during loadConfig
