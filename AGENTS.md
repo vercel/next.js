@@ -1,5 +1,7 @@
 # Next.js Development Guide
 
+> **Note:** `CLAUDE.md` is a symlink to `AGENTS.md`. They are the same file.
+
 ## Codebase structure
 
 ### Monorepo Overview
@@ -138,6 +140,20 @@ Generating tests using `pnpm new-test` is mandatory.
 # type: e2e | production | development | unit
 
 pnpm new-test --args true my-feature e2e
+```
+
+**Analyzing test output efficiently:**
+
+Never re-run the same test suite with different grep filters. Capture output once to a file, then read from it:
+
+```bash
+# Run once, save everything
+HEADLESS=true pnpm test-dev-turbo test/path/to/test.ts > /tmp/test-output.log 2>&1
+
+# Then analyze without re-running
+grep "●" /tmp/test-output.log            # Failed test names
+grep -A5 "Error:" /tmp/test-output.log   # Error details
+tail -5 /tmp/test-output.log             # Summary
 ```
 
 ## Writing Tests
@@ -297,7 +313,7 @@ For runtime flags, also add the field to the `NextConfigRuntime` Pick type in `c
 - Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
 - Don't rely on exact log messages - filter by content patterns, find sequences not positions
 - **Snapshot tests vary by env flags**: Tests with inline snapshots (e.g. `ssr-in-rsc.test.ts`, `next-server-nft.test.ts`) can produce different output depending on env flags like `__NEXT_USE_NODE_STREAMS`, `__NEXT_CACHE_COMPONENTS`, `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`. The node streams CI jobs set all three. When updating snapshots, always run the test with the exact env flags the CI job uses (check `.github/workflows/build_and_test.yml` `afterBuild:` sections). Turbopack resolves `react-dom/server.edge` (no Node APIs like `renderToPipeableStream`), while webpack resolves the `.node` build (has them).
-- **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules from `server/stream-utils/` because they won't be resolvable from the user's project. Only `node:*` built-ins and already-externalized modules work. Use `require('next/dist/...')` for absolute package paths (matches pattern at line 278 of app-page.ts).
+- **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules with relative paths because they won't be resolvable from the user's project. Instead, export new helpers from `entry-base.ts` (which is part of the pre-compiled runtime bundle where relative requires work) and access them via `entryBase.*` in the template.
 - **Reproducing CI failures locally**: Always match the exact CI env vars (check `pr-status` output for "Job Environment Variables"). Key differences that change behavior: `IS_WEBPACK_TEST=1` forces webpack (turbopack is default), `NEXT_SKIP_ISOLATE=1` skips packing next.js (hides module resolution failures). For node streams CI: dev jobs use turbopack (no `IS_WEBPACK_TEST`), prod jobs use `IS_WEBPACK_TEST=1`. Both set `__NEXT_USE_NODE_STREAMS=true __NEXT_CACHE_COMPONENTS=true __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true`. Always run without `NEXT_SKIP_ISOLATE` when verifying module resolution fixes.
 
 ### Rust/Cargo
