@@ -26,32 +26,20 @@ function getGitHubToken() {
     }).trim()
   } catch {}
 
-  // In Claude Code remote environments, the proxy handles access to public
-  // GitHub API endpoints, so a token is optional (but job logs and GraphQL
-  // review threads will be unavailable without one).
-  if (process.env.CLAUDE_CODE_REMOTE) {
-    console.warn(
-      'Warning: No GitHub token found. Job logs and review threads will be unavailable.\n' +
-        'Set GITHUB_TOKEN or GH_TOKEN for full functionality.'
-    )
-    return null
-  }
-
   console.error(
     'Error: GitHub token not found.\n' +
-      'Set GITHUB_TOKEN or GH_TOKEN environment variable, or authenticate with `gh auth login`.'
+      (process.env.CLAUDE_CODE_REMOTE
+        ? 'Add a read-only GitHub token (public_repo scope) to your Claude Code cloud environment\n' +
+          'as the GITHUB_TOKEN secret in your account settings.'
+        : 'Set GITHUB_TOKEN or GH_TOKEN environment variable, or authenticate with `gh auth login`.')
   )
   process.exit(1)
 }
 
 let _token = null
-let _tokenResolved = false
 
 function getToken() {
-  if (!_tokenResolved) {
-    _token = getGitHubToken()
-    _tokenResolved = true
-  }
+  if (!_token) _token = getGitHubToken()
   return _token
 }
 
@@ -212,17 +200,11 @@ async function httpRequest(url, options = {}) {
   })
 }
 
-function authHeaders(type = 'token') {
-  const token = getToken()
-  if (!token) return {}
-  return { Authorization: `${type} ${token}` }
-}
-
 async function githubApi(apiPath) {
   const url = `https://api.github.com${apiPath}`
   const resp = await httpRequest(url, {
     headers: {
-      ...authHeaders(),
+      Authorization: `token ${getToken()}`,
       Accept: 'application/json',
       'User-Agent': 'next.js-pr-status-script',
     },
@@ -241,7 +223,7 @@ async function githubApiRaw(apiPath) {
   const url = `https://api.github.com${apiPath}`
   const resp = await httpRequest(url, {
     headers: {
-      ...authHeaders(),
+      Authorization: `token ${getToken()}`,
       'User-Agent': 'next.js-pr-status-script',
     },
   })
@@ -260,7 +242,7 @@ async function githubGraphQL(query) {
   const resp = await httpRequest(url, {
     method: 'POST',
     headers: {
-      ...authHeaders('bearer'),
+      Authorization: `bearer ${getToken()}`,
       'Content-Type': 'application/json',
       'User-Agent': 'next.js-pr-status-script',
     },
