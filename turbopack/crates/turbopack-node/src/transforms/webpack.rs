@@ -457,8 +457,9 @@ pub struct ImportModuleItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     source_map: Option<RcStr>,
     module_and_exports: bool,
-    /// Whether this module is async (top-level await, wasm import, etc.)
-    /// and whether it has a top-level await keyword.
+    /// For async modules (wasm imports, top-level await, etc.), whether
+    /// the module itself contains a top-level `await`. `None` if the
+    /// module is not async.
     #[serde(skip_serializing_if = "Option::is_none")]
     has_top_level_await: Option<bool>,
 }

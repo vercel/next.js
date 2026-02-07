@@ -12,6 +12,8 @@ declare const __turbopack_external_require__: {
 
 import fs from 'fs'
 import path from 'path'
+import { pathToFileURL } from 'url'
+import vm from 'vm'
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -28,7 +30,6 @@ export interface ImportModuleResult {
 
 interface ModuleObj {
   exports: any
-  error: any
   id: string
   namespaceObject: any
 }
@@ -119,8 +120,6 @@ export async function executeModules(
   result: ImportModuleResult,
   contextDir: string
 ): Promise<any> {
-  const vm = require('vm')
-
   // Module cache and factory map
   const moduleCache = new Map<string, ModuleObj>()
   const moduleFactories = new Map<
@@ -172,7 +171,6 @@ export async function executeModules(
     if (!mod) {
       mod = {
         exports: {},
-        error: undefined,
         id,
         namespaceObject: undefined,
       }
@@ -225,7 +223,6 @@ export async function executeModules(
 
     const moduleObj: ModuleObj = {
       exports: {},
-      error: undefined,
       id,
       namespaceObject: undefined,
     }
@@ -310,7 +307,6 @@ export async function executeModules(
       const sourceModId = urlToModuleId.get(assetUrl)
       if (sourceModId) {
         const absPath = resolveModuleIdPath(sourceModId)
-        const { pathToFileURL } = require('url')
         return pathToFileURL(absPath).href
       }
       return assetUrl
