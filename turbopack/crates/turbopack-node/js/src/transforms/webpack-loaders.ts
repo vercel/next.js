@@ -41,12 +41,18 @@ export type IpcInfoMessage =
       }>
     }
 
-export type IpcRequestMessage = {
-  type: 'resolve'
-  options: any
-  lookupPath: string
-  request: string
-}
+export type IpcRequestMessage =
+  | {
+      type: 'resolve'
+      options: any
+      lookupPath: string
+      request: string
+    }
+  | {
+      type: 'importModule'
+      lookupPath: string
+      request: string
+    }
 
 type LoaderConfig =
   | string
@@ -351,6 +357,70 @@ const transform = (
           },
           emitWarning: makeErrorEmitter('warning', ipc),
           emitError: makeErrorEmitter('error', ipc),
+          importModule(
+            request: string,
+            optionsOrCallback?: any,
+            maybeCallback?: (err: Error | null, result?: any) => void
+          ) {
+            // Support both (request, options, callback) and (request, options) -> Promise
+            let callback:
+              | ((err: Error | null, result?: any) => void)
+              | undefined
+            if (typeof optionsOrCallback === 'function') {
+              callback = optionsOrCallback
+            } else {
+              callback = maybeCallback
+            }
+
+            const doImport = async () => {
+              let actualRequest = request
+              if (path.isAbsolute(request)) {
+                actualRequest = path.relative(resourceDir, request)
+                if (
+                  !path.isAbsolute(actualRequest) &&
+                  actualRequest.split(path.sep)[0] !== '..'
+                ) {
+                  actualRequest = './' + actualRequest
+                }
+              }
+
+              const result = (await ipc.sendRequest({
+                type: 'importModule',
+                lookupPath: toPath(resourceDir),
+                request: actualRequest,
+              })) as { code: string; sourceMap?: string }
+
+              // Execute the compiled module code similar to webpack's executeModule.
+              // We wrap it in a CommonJS function and evaluate using vm.
+              const vm = require('vm')
+              const moduleObj = { exports: {} as any }
+              const resolvedPath = path.isAbsolute(request)
+                ? request
+                : pathResolve(resourceDir, request)
+              const wrapper = vm.runInThisContext(
+                `(function(module, exports, require, __filename, __dirname) {\n${result.code}\n})`,
+                { filename: resolvedPath }
+              )
+              const { createRequire } = require('module')
+              const moduleRequire = createRequire(resolvedPath)
+              wrapper(
+                moduleObj,
+                moduleObj.exports,
+                moduleRequire,
+                resolvedPath,
+                path.dirname(resolvedPath)
+              )
+              return moduleObj.exports
+            }
+
+            if (!callback) {
+              return doImport()
+            }
+            doImport().then(
+              (result) => callback!(null, result),
+              (err) => callback!(err as Error)
+            )
+          },
           getLogger(name: unknown) {
             const logFn = (logType: string, ...args: unknown[]) => {
               let trace: StackFrame[] | undefined

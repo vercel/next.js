@@ -290,6 +290,7 @@ impl WebpackLoadersProcessedAsset {
                 node_backend: *node_backend,
                 context_source_for_issue: self.source,
                 chunking_context: *chunking_context,
+                evaluate_context: transform.evaluate_context,
                 module_graph,
                 resolve_options_context: Some(transform.resolve_options_context),
                 args: vec![
@@ -443,6 +444,11 @@ pub enum RequestMessage {
     },
     #[serde(rename_all = "camelCase")]
     TrackFileRead { file: RcStr },
+    #[serde(rename_all = "camelCase")]
+    ImportModule {
+        lookup_path: RcStr,
+        request: RcStr,
+    },
 }
 
 #[derive(Serialize, Debug)]
@@ -451,6 +457,12 @@ pub enum ResponseMessage {
     Resolve { path: RcStr },
     // Only used for tracking invalidations, no content is returned.
     TrackFileRead {},
+    #[serde(rename_all = "camelCase")]
+    ImportModule {
+        code: RcStr,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        source_map: Option<RcStr>,
+    },
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
@@ -462,6 +474,7 @@ pub struct WebpackLoaderContext {
     pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
@@ -645,6 +658,54 @@ impl EvaluateContext for WebpackLoaderContext {
                 // await the read though to cover at least one class of race conditions.
                 let _ = &*self.cwd.join(&file)?.read().await?;
                 Ok(ResponseMessage::TrackFileRead {})
+            }
+            RequestMessage::ImportModule {
+                lookup_path,
+                request,
+            } => {
+                let Some(resolve_options_context) = self.resolve_options_context else {
+                    bail!("Resolve options are not available in this context");
+                };
+                let lookup_path = self.cwd.join(&lookup_path)?;
+                let request_vc = Request::parse(Pattern::Constant(request));
+                let options = resolve_options(lookup_path.clone(), *resolve_options_context);
+
+                let resolved = resolve(
+                    lookup_path.clone(),
+                    ReferenceType::Undefined,
+                    request_vc,
+                    options,
+                );
+
+                let Some(source) = *resolved.first_source().await? else {
+                    bail!(
+                        "Unable to resolve {} in {}",
+                        request_vc.to_string().await?,
+                        lookup_path.value_to_string().await?
+                    );
+                };
+
+                // Read the source content directly and return it for
+                // JS-side evaluation. The source has already been resolved
+                // through Turbopack's resolver.
+                let content = source.content();
+                let AssetContent::File(file) = *content.await? else {
+                    bail!("importModule only supports file sources");
+                };
+                let FileContent::Content(file_content) = &*file.await? else {
+                    bail!("importModule: file not found");
+                };
+
+                // Track the file as a dependency
+                let source_path = source.ident().path().await?;
+                let _ = &*source_path.clone().read().await?;
+
+                let code: RcStr = file_content.content().to_str()?.into_owned().into();
+
+                // Attempt to get source map from the processed module
+                let source_map = None;
+
+                Ok(ResponseMessage::ImportModule { code, source_map })
             }
         }
     }
