@@ -23,7 +23,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::ChunkingContext,
+    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext},
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
@@ -31,8 +31,8 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module_graph::{ModuleGraph, SingleModuleGraph},
-    reference_type::{InnerAssets, ReferenceType},
+    module_graph::{ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry},
+    reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
         parse::Request,
@@ -44,8 +44,10 @@ use turbopack_core::{
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkItem;
 use turbopack_resolve::{
-    ecmascript::get_condition_maps, resolve::resolve_options,
+    ecmascript::get_condition_maps,
+    resolve::resolve_options,
     resolve_options_context::ResolveOptionsContext,
 };
 
@@ -452,6 +454,16 @@ pub enum RequestMessage {
 }
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportModuleItem {
+    id: RcStr,
+    code: RcStr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_map: Option<RcStr>,
+    module_and_exports: bool,
+}
+
+#[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum ResponseMessage {
     Resolve { path: RcStr },
@@ -459,10 +471,8 @@ pub enum ResponseMessage {
     TrackFileRead {},
     #[serde(rename_all = "camelCase")]
     ImportModule {
-        code: RcStr,
-        path: RcStr,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        source_map: Option<RcStr>,
+        entry_id: RcStr,
+        modules: Vec<ImportModuleItem>,
     },
 }
 
@@ -668,51 +678,109 @@ impl EvaluateContext for WebpackLoaderContext {
                     bail!("Resolve options are not available in this context");
                 };
                 let lookup_path = self.cwd.join(&lookup_path)?;
-                let request_vc = Request::parse(Pattern::Constant(request));
+
+                // Resolve using the project's resolve options (same as the
+                // Resolve handler) with ESM reference type so TS/JSON
+                // extensions are resolved.
+                let request_vc = Request::parse(Pattern::Constant(request.clone()));
                 let options = resolve_options(lookup_path.clone(), *resolve_options_context);
 
                 let resolved = resolve(
                     lookup_path.clone(),
-                    ReferenceType::Undefined,
+                    ReferenceType::EcmaScriptModules(
+                        EcmaScriptModulesReferenceSubType::Import,
+                    ),
                     request_vc,
                     options,
                 );
 
                 let Some(source) = *resolved.first_source().await? else {
                     bail!(
-                        "Unable to resolve {} in {}",
-                        request_vc.to_string().await?,
+                        "importModule: unable to resolve {} in {}",
+                        request,
                         lookup_path.value_to_string().await?
                     );
                 };
 
-                // Read the source content directly and return it for
-                // JS-side evaluation. The source has already been resolved
-                // through Turbopack's resolver.
-                let content = source.content();
-                let AssetContent::File(file) = *content.await? else {
-                    bail!("importModule only supports file sources");
+                // Process the source through Turbopack's compilation
+                // pipeline (SWC for TypeScript, JSON parsing, etc.)
+                let process_result = self
+                    .evaluate_context
+                    .process(
+                        *source,
+                        ReferenceType::EcmaScriptModules(
+                            EcmaScriptModulesReferenceSubType::Import,
+                        ),
+                    )
+                    .await?;
+                let ProcessResult::Module(module) = &*process_result else {
+                    bail!("importModule: failed to process source into a module");
                 };
-                let FileContent::Content(file_content) = &*file.await? else {
-                    bail!("importModule: file not found");
-                };
+                let module = *module;
 
-                // Track the file as a dependency and get its path
-                let source_path = source.ident().path().await?;
-                let _ = &*source_path.clone().read().await?;
-                let resolved_path = self
-                    .cwd
-                    .get_relative_path_to(&source_path)
-                    .context("importModule: resolved path is on a different filesystem")?;
+                // Build a module graph from the resolved module and its
+                // transitive dependencies
+                let single_graph = SingleModuleGraph::new_with_entry(
+                    ChunkGroupEntry::Entry(vec![module]),
+                    false,
+                    false,
+                );
+                let import_module_graph = ModuleGraph::from_single_graph(single_graph)
+                    .connect()
+                    .to_resolved()
+                    .await?;
 
-                let code: RcStr = file_content.content().to_str()?.into_owned().into();
+                let import_mg_vc = *import_module_graph;
 
-                let source_map = None;
+                // Get the entry module's chunk item ID
+                let entry_chunkable =
+                    Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(*module)
+                        .await?
+                        .context("importModule: entry module is not chunkable")?;
+                let entry_chunk_item =
+                    entry_chunkable.as_chunk_item(import_mg_vc, *self.chunking_context);
+                let entry_id: RcStr = entry_chunk_item.id().await?.to_string().into();
+
+                // Generate code for all modules in the graph
+                let import_mg_ref = import_mg_vc.await?;
+                let mut module_items = Vec::new();
+                for m in import_mg_ref.iter_nodes() {
+                    let Some(chunkable) =
+                        Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(*m).await?
+                    else {
+                        continue;
+                    };
+
+                    let chunk_item =
+                        chunkable.as_chunk_item(import_mg_vc, *self.chunking_context);
+
+                    let Some(ecma_item) =
+                        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
+                            .await?
+                    else {
+                        continue;
+                    };
+
+                    let content =
+                        ecma_item.content_with_async_module_info(None, false).await?;
+                    let id: RcStr = chunk_item.id().await?.to_string().into();
+                    let code: RcStr = content.inner_code.to_str()?.into_owned().into();
+                    let source_map = match &content.source_map {
+                        Some(sm) => Some(RcStr::from(sm.to_str()?.into_owned())),
+                        None => None,
+                    };
+
+                    module_items.push(ImportModuleItem {
+                        id,
+                        code,
+                        source_map,
+                        module_and_exports: content.options.module_and_exports,
+                    });
+                }
 
                 Ok(ResponseMessage::ImportModule {
-                    code,
-                    path: resolved_path,
-                    source_map,
+                    entry_id,
+                    modules: module_items,
                 })
             }
         }

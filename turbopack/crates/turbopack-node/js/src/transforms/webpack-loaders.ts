@@ -388,46 +388,286 @@ const transform = (
                 type: 'importModule',
                 lookupPath: toPath(resourceDir),
                 request: actualRequest,
-              })) as { code: string; sourceMap?: string; path: string }
-
-              const resolvedPath = fromPath(result.path)
-
-              // For ESM modules (.mjs or code with import/export syntax),
-              // use Node.js native import() since they can't be evaluated
-              // in a CommonJS wrapper. We use new Function to create the
-              // import call so Turbopack doesn't try to statically analyze it.
-              if (
-                resolvedPath.endsWith('.mjs') ||
-                /\b(import\s|export\s)/.test(result.code)
-              ) {
-                const url = require('url')
-                const fileUrl = url.pathToFileURL(resolvedPath).href
-                const dynamicImport = new Function(
-                  'specifier',
-                  'return import(specifier)'
-                )
-                return await dynamicImport(fileUrl)
+              })) as {
+                entryId: string
+                modules: Array<{
+                  id: string
+                  code: string
+                  sourceMap?: string
+                  moduleAndExports: boolean
+                }>
               }
 
-              // Execute the compiled module code similar to webpack's
-              // executeModule. Wrap in a CommonJS function and evaluate
-              // using vm.
+              // Build a mini Turbopack runtime to execute the compiled
+              // module code, similar to webpack's executeModule.
               const vm = require('vm')
-              const moduleObj = { exports: {} as any }
-              const wrapper = vm.runInThisContext(
-                `(function(module, exports, require, __filename, __dirname) {\n${result.code}\n})`,
-                { filename: resolvedPath }
-              )
-              const { createRequire } = require('module')
-              const moduleRequire = createRequire(resolvedPath)
-              wrapper(
-                moduleObj,
-                moduleObj.exports,
-                moduleRequire,
-                resolvedPath,
-                path.dirname(resolvedPath)
-              )
-              return moduleObj.exports
+
+              type ModuleObj = {
+                exports: any
+                error: any
+                id: string
+                namespaceObject: any
+              }
+
+              // Module cache and factory map
+              const moduleCache = new Map<string, ModuleObj>()
+              const moduleFactories = new Map<
+                string,
+                { factory: Function; moduleAndExports: boolean }
+              >()
+
+              // Compile all module factories
+              for (const mod of result.modules) {
+                const factoryCode = mod.moduleAndExports
+                  ? `(function(__turbopack_context__, module, exports) {\n${mod.code}\n})`
+                  : `(function(__turbopack_context__) {\n${mod.code}\n})`
+                const factory = vm.runInThisContext(factoryCode, {
+                  filename: mod.id,
+                })
+                moduleFactories.set(mod.id, {
+                  factory,
+                  moduleAndExports: mod.moduleAndExports,
+                })
+              }
+
+              // ESM helpers
+              function defineProp(
+                obj: any,
+                name: string,
+                options: PropertyDescriptor
+              ) {
+                if (!Object.prototype.hasOwnProperty.call(obj, name)) {
+                  Object.defineProperty(obj, name, options)
+                }
+              }
+
+              function esmBindings(
+                exports: any,
+                bindings: any[]
+              ) {
+                defineProp(exports, '__esModule', { value: true })
+                let i = 0
+                while (i < bindings.length) {
+                  const propName = bindings[i++]
+                  const tagOrFunction = bindings[i++]
+                  if (typeof tagOrFunction === 'number') {
+                    if (tagOrFunction === 0) {
+                      defineProp(exports, propName, {
+                        value: bindings[i++],
+                        enumerable: true,
+                        writable: false,
+                      })
+                    }
+                  } else {
+                    const getter = tagOrFunction
+                    if (
+                      i < bindings.length &&
+                      typeof bindings[i] === 'function'
+                    ) {
+                      const setter = bindings[i++]
+                      defineProp(exports, propName, {
+                        get: getter,
+                        set: setter,
+                        enumerable: true,
+                      })
+                    } else {
+                      defineProp(exports, propName, {
+                        get: getter,
+                        enumerable: true,
+                      })
+                    }
+                  }
+                }
+              }
+
+              function interopEsm(
+                raw: any,
+                allowExportDefault?: boolean
+              ): any {
+                const ns = Object.create(null)
+                defineProp(ns, '__esModule', { value: true })
+                if (
+                  raw &&
+                  (typeof raw === 'object' || typeof raw === 'function')
+                ) {
+                  for (const key of Object.getOwnPropertyNames(raw)) {
+                    defineProp(ns, key, {
+                      enumerable: true,
+                      get: () => raw[key],
+                    })
+                  }
+                }
+                if (
+                  !(
+                    allowExportDefault &&
+                    raw &&
+                    Object.prototype.hasOwnProperty.call(raw, 'default')
+                  )
+                ) {
+                  defineProp(ns, 'default', {
+                    value: raw,
+                    enumerable: true,
+                  })
+                }
+                return ns
+              }
+
+              // Instantiate a module by ID
+              function instantiateModule(id: string): ModuleObj {
+                const cached = moduleCache.get(id)
+                if (cached) return cached
+
+                const entry = moduleFactories.get(id)
+                if (!entry) {
+                  throw new Error(
+                    `importModule: module not found: ${id}`
+                  )
+                }
+
+                const moduleObj: ModuleObj = {
+                  exports: {},
+                  error: undefined,
+                  id,
+                  namespaceObject: undefined,
+                }
+                moduleCache.set(id, moduleObj)
+
+                // Create __turbopack_context__
+                const ctx: any = Object.create(null)
+                ctx.m = moduleObj
+                ctx.e = moduleObj.exports
+                ctx.c = moduleCache
+                ctx.M = moduleFactories
+                ctx.g = globalThis
+
+                // CommonJS require
+                ctx.r = (depId: string) => {
+                  return instantiateModule(depId).exports
+                }
+
+                // ESM import
+                ctx.i = (depId: string) => {
+                  const mod = instantiateModule(depId)
+                  if (mod.namespaceObject) return mod.namespaceObject
+                  const raw = mod.exports
+                  return (mod.namespaceObject = interopEsm(
+                    raw,
+                    raw && raw.__esModule
+                  ))
+                }
+
+                // ESM export bindings
+                ctx.s = (bindings: any[], targetId?: string) => {
+                  let targetModule: ModuleObj
+                  let targetExports: any
+                  if (targetId != null) {
+                    targetModule = moduleCache.get(targetId) || {
+                      exports: {},
+                      error: undefined,
+                      id: targetId,
+                      namespaceObject: undefined,
+                    }
+                    if (!moduleCache.has(targetId)) {
+                      moduleCache.set(targetId, targetModule)
+                    }
+                    targetExports = targetModule.exports
+                  } else {
+                    targetModule = moduleObj
+                    targetExports = moduleObj.exports
+                  }
+                  targetModule.namespaceObject = targetExports
+                  esmBindings(targetExports, bindings)
+                }
+
+                // Export value
+                ctx.v = (value: any, targetId?: string) => {
+                  if (targetId != null) {
+                    const mod = moduleCache.get(targetId) || {
+                      exports: {},
+                      error: undefined,
+                      id: targetId,
+                      namespaceObject: undefined,
+                    }
+                    mod.exports = value
+                    if (!moduleCache.has(targetId)) {
+                      moduleCache.set(targetId, mod)
+                    }
+                  } else {
+                    moduleObj.exports = value
+                  }
+                }
+
+                // Export namespace
+                ctx.n = (namespace: any, targetId?: string) => {
+                  if (targetId != null) {
+                    const mod = moduleCache.get(targetId) || {
+                      exports: {},
+                      error: undefined,
+                      id: targetId,
+                      namespaceObject: undefined,
+                    }
+                    mod.exports = mod.namespaceObject = namespace
+                    if (!moduleCache.has(targetId)) {
+                      moduleCache.set(targetId, mod)
+                    }
+                  } else {
+                    moduleObj.exports = moduleObj.namespaceObject =
+                      namespace
+                  }
+                }
+
+                // Dynamic export
+                ctx.j = (object: any) => {
+                  if (
+                    typeof object === 'object' &&
+                    object !== null
+                  ) {
+                    for (const key of Object.keys(object)) {
+                      if (key !== 'default') {
+                        defineProp(moduleObj.exports, key, {
+                          enumerable: true,
+                          get: () => object[key],
+                        })
+                      }
+                    }
+                  }
+                }
+
+                // External require (use __turbopack_external_require__
+                // to avoid Turbopack static analysis of require())
+                ctx.x = __turbopack_external_require__
+
+                // Runtime require
+                ctx.t = __turbopack_external_require__
+
+                // Require stub (throws in ESM)
+                ctx.z = () => {
+                  throw new Error(
+                    'dynamic usage of require is not supported'
+                  )
+                }
+
+                // Execute the factory
+                if (entry.moduleAndExports) {
+                  entry.factory(
+                    ctx,
+                    moduleObj,
+                    moduleObj.exports
+                  )
+                } else {
+                  entry.factory(ctx)
+                }
+
+                return moduleObj
+              }
+
+              // Execute the entry module and return its exports
+              const entryModule = instantiateModule(result.entryId)
+              // For ESM modules, return the namespace object
+              if (entryModule.namespaceObject) {
+                return entryModule.namespaceObject
+              }
+              return entryModule.exports
             }
 
             if (!callback) {

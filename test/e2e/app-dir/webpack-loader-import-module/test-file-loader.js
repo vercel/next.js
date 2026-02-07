@@ -1,8 +1,8 @@
 const path = require('path')
 
 module.exports = async function () {
-  // Import a CJS module that has its own dependencies (cjs-dep -> metadata.json)
-  const configPath = path.resolve(__dirname, 'config-data.js')
+  // Import a TypeScript module that has its own dependencies (cjs-dep.ts -> metadata.json)
+  const configPath = path.resolve(__dirname, 'config-data.ts')
   const configModule = await this.importModule(configPath)
   const config = configModule.default || configModule
 
