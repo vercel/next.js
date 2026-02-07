@@ -1,5 +1,4 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
@@ -9,7 +8,7 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 
-use crate::utils::StringifyJs;
+use crate::utils::{StringifyJs, inline_source_map_comment};
 
 /// A source transform that converts any file into an ES module that exports
 /// the file's content as a default string export.
@@ -30,24 +29,30 @@ impl TextSourceTransform {
 impl SourceTransform for TextSourceTransform {
     #[turbo_tasks::function]
     async fn transform(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
+        let ident = source.ident();
+        let path = ident.path().await?;
         let content = source.content().file_content().await?;
         let text = match &*content {
             FileContent::Content(data) => data.content().to_str()?,
             FileContent::NotFound => {
                 // This shouldn't happen because the import was already resolved
-                bail!("File not found: {:?}", source.ident().path());
+                bail!("File not found: {:?}", path);
             }
         };
 
-        let code = format!("export default {};", StringifyJs(&text));
+        // Generate ES module with inline source map pointing back to the original file
+        let code = format!(
+            "export default {};\n{}",
+            StringifyJs(&text),
+            inline_source_map_comment(&path.path, &text)
+        );
 
-        // Add modifier for uniqueness (so same file imported normally vs with type:"text" are
-        // distinct). The module type will be set by a separate rule matching on
-        // ResourceHasModifier("text_module").
-        let ident = source.ident().with_modifier(rcstr!("text_module"));
+        // Rename to .mjs so module rules recognize it as ESM.
+        // The inline source map ensures debuggers show the original file.
+        let new_ident = ident.rename_as(format!("{}.[text].mjs", path.path).into());
 
         Ok(Vc::upcast(VirtualSource::new_with_ident(
-            ident,
+            new_ident,
             AssetContent::file(FileContent::Content(File::from(code)).cell()),
         )))
     }

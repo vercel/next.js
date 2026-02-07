@@ -8,7 +8,6 @@ use bincode::{Decode, Encode};
 use either::Either;
 use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
@@ -29,8 +28,6 @@ pub enum RuleCondition {
     ResourcePathEndsWith(String),
     ResourcePathInDirectory(String),
     ResourcePathInExactDirectory(FileSystemPath),
-    /// Matches if the resource's ident has the specified modifier
-    ResourceHasModifier(RcStr),
     ContentTypeStartsWith(String),
     ContentTypeEmpty,
     ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
@@ -250,10 +247,6 @@ impl RuleCondition {
                     }
                     RuleCondition::ResourcePathInExactDirectory(parent_path) => {
                         return Ok(path.is_inside_ref(parent_path));
-                    }
-                    RuleCondition::ResourceHasModifier(modifier) => {
-                        let ident = source.ident().await?;
-                        return Ok(ident.modifiers.contains(modifier));
                     }
                     RuleCondition::ContentTypeStartsWith(start) => {
                         let content_type = &source.ident().await?.content_type;

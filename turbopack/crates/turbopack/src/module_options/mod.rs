@@ -530,7 +530,9 @@ impl ModuleOptions {
         ]);
 
         if enable_import_as_bytes {
-            // Rule to apply the source transform when importing with type:"bytes"
+            // Rule to apply the source transform when importing with type:"bytes".
+            // The transform renames the file to .mjs, so the existing .mjs rule will
+            // set the module type to Ecmascript.
             rules.push(ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
@@ -539,20 +541,12 @@ impl ModuleOptions {
                     ResolvedVc::upcast(BytesSourceTransform::new().to_resolved().await?),
                 ]))],
             ));
-            // Rule to set the module type after the transform adds the "bytes_module" modifier
-            rules.push(ModuleRule::new(
-                RuleCondition::ResourceHasModifier("bytes_module".into()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    preprocess: ecma_preprocess,
-                    main,
-                    postprocess,
-                    options: ecmascript_options_vc,
-                })],
-            ));
         }
 
         if enable_import_as_text {
-            // Rule to apply the source transform when importing with type:"text"
+            // Rule to apply the source transform when importing with type:"text".
+            // The transform renames the file to .mjs, so the existing .mjs rule will
+            // set the module type to Ecmascript.
             rules.push(ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
@@ -560,16 +554,6 @@ impl ModuleOptions {
                 vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                     ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
                 ]))],
-            ));
-            // Rule to set the module type after the transform adds the "text_module" modifier
-            rules.push(ModuleRule::new(
-                RuleCondition::ResourceHasModifier("text_module".into()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    preprocess: ecma_preprocess,
-                    main,
-                    postprocess,
-                    options: ecmascript_options_vc,
-                })],
             ));
         }
 

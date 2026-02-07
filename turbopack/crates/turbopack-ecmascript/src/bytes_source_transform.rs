@@ -1,7 +1,6 @@
 use std::io::Read;
 
 use anyhow::{Result, bail};
-use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, glob::Glob};
 use turbopack_core::{
@@ -16,7 +15,7 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptOptions,
-    utils::StringifyJs,
+    utils::{StringifyJs, inline_source_map_comment},
 };
 
 /// A source transform that converts any file into an ES module that exports
@@ -38,24 +37,27 @@ impl BytesSourceTransform {
 impl SourceTransform for BytesSourceTransform {
     #[turbo_tasks::function]
     async fn transform(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
+        let ident = source.ident();
+        let path = ident.path().await?;
         let content = source.content().file_content().await?;
         let bytes = match &*content {
             FileContent::Content(data) => {
                 data.read().bytes().collect::<std::io::Result<Vec<u8>>>()?
             }
             FileContent::NotFound => {
-                bail!("File not found: {:?}", source.ident().path());
+                bail!("File not found: {:?}", path);
             }
         };
 
         let encoded = data_encoding::BASE64_NOPAD.encode(&bytes);
 
-        // Generate ES module that decodes base64 to Uint8Array.
+        // Generate ES module that decodes base64 to Uint8Array with inline source map.
         // Uses Uint8Array.fromBase64 (ES2024+) with atob fallback for older environments.
         // The /*#__PURE__*/ annotation marks the decode call as side-effect free for tree shaking.
+        // For binary files, we use an empty string as sourcesContent since the
+        // original content isn't meaningful text.
         let code = format!(
-            r#"
-const decode = Uint8Array.fromBase64 || function(base64) {{
+            r#"const decode = Uint8Array.fromBase64 || function(base64) {{
   const binaryString = atob(base64);
   const buffer = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {{
@@ -64,17 +66,17 @@ const decode = Uint8Array.fromBase64 || function(base64) {{
   return buffer
 }};
 export default /*#__PURE__*/ decode({});
-"#,
-            StringifyJs(&encoded)
+{}"#,
+            StringifyJs(&encoded),
+            inline_source_map_comment(&path.path, "")
         );
 
-        // Add modifier for uniqueness (so same file imported normally vs with type:"bytes" are
-        // distinct). The module type will be set by a separate rule matching on
-        // ResourceHasModifier("bytes_module").
-        let ident = source.ident().with_modifier(rcstr!("bytes_module"));
+        // Rename to .mjs so module rules recognize it as ESM.
+        // The inline source map ensures debuggers show the original file.
+        let new_ident = ident.rename_as(format!("{}.[bytes].mjs", path.path).into());
 
         Ok(Vc::upcast(VirtualSource::new_with_ident(
-            ident,
+            new_ident,
             AssetContent::file(FileContent::Content(File::from(code)).cell()),
         )))
     }
