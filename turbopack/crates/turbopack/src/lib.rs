@@ -44,8 +44,7 @@ use turbopack_core::{
 use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
-    EcmascriptOptions, TreeShakingMode,
-    bytes_source_transform::create_bytes_module,
+    TreeShakingMode,
     chunk::EcmascriptChunkPlaceable,
     references::{
         FollowExportsResult,
@@ -275,23 +274,6 @@ async fn apply_module_type(
                 .to_resolved()
                 .await?,
         ),
-        ModuleType::InlinedBytesJs => {
-            let side_effect_free_packages = module_asset_context
-                .module_options_context()
-                .await?
-                .side_effect_free_packages;
-            // Note: Using default options since InlinedBytesJs doesn't carry ecmascript options.
-            // The generated code is simple (just a decode + export), so defaults are sufficient.
-            create_bytes_module(
-                *source,
-                Vc::upcast(module_asset_context),
-                module_asset_context.compile_time_info(),
-                side_effect_free_packages.map(|g| *g),
-                EcmascriptOptions::default().cell(),
-            )
-            .to_resolved()
-            .await?
-        }
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
             WebAssemblyModuleAsset::new(
                 WebAssemblySource::new(*source, *source_ty),

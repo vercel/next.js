@@ -1,22 +1,16 @@
 use std::io::Read;
 
 use anyhow::{Result, bail};
-use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, FileContent, glob::Glob};
+use turbo_tasks::Vc;
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    compile_time_info::CompileTimeInfo,
-    context::AssetContext,
-    module::Module,
     source::Source,
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
 
-use crate::{
-    EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptOptions,
-    utils::{StringifyJs, inline_source_map_comment},
-};
+use crate::utils::{StringifyJs, inline_source_map_comment};
 
 /// A source transform that converts any file into an ES module that exports
 /// the file's content as a default Uint8Array export.
@@ -80,35 +74,4 @@ export default /*#__PURE__*/ decode({});
             AssetContent::file(FileContent::Content(File::from(code)).cell()),
         )))
     }
-}
-
-/// Creates an EcmascriptModuleAsset that exports the source file's content as a Uint8Array.
-///
-/// This is a convenience function that applies the BytesSourceTransform and wraps
-/// the result in an EcmascriptModuleAsset.
-#[turbo_tasks::function]
-pub async fn create_bytes_module(
-    source: ResolvedVc<Box<dyn Source>>,
-    asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    compile_time_info: ResolvedVc<CompileTimeInfo>,
-    side_effect_free_packages: Option<ResolvedVc<Glob>>,
-    ecmascript_options: ResolvedVc<EcmascriptOptions>,
-) -> Result<Vc<Box<dyn Module>>> {
-    let transformed_source = BytesSourceTransform::new()
-        .transform(*source)
-        .to_resolved()
-        .await?;
-
-    Ok(Vc::upcast(
-        EcmascriptModuleAsset::builder(
-            transformed_source,
-            asset_context,
-            EcmascriptInputTransforms::empty().to_resolved().await?,
-            ecmascript_options,
-            compile_time_info,
-            side_effect_free_packages,
-        )
-        .with_type(EcmascriptModuleAssetType::Ecmascript)
-        .build(),
-    ))
 }
