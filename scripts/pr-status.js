@@ -544,6 +544,8 @@ async function getJobMetadata(jobId) {
   }
 }
 
+let _logProxyWarningShown = false
+
 async function getJobLogs(jobId) {
   try {
     return await githubApiRaw(
@@ -551,10 +553,16 @@ async function getJobLogs(jobId) {
     )
   } catch (err) {
     const msg = err?.message || ''
-    if (msg.includes('Proxy CONNECT')) {
+    if (msg.includes('Proxy CONNECT') && !_logProxyWarningShown) {
+      _logProxyWarningShown = true
       // Log download redirects to an external host (e.g. Azure Blob Storage)
       // which may be blocked by the network proxy.
       console.warn(`  Warning: ${msg}`)
+      if (process.env.CLAUDE_CODE_REMOTE) {
+        console.warn(
+          '  Add *.blob.core.windows.net to the allowed domains in your Claude Code cloud environment.'
+        )
+      }
     }
     return 'Logs not available'
   }
