@@ -44,11 +44,7 @@ const MODULE_ID_PATH_RE = /^\[project\]\/(.+?)(?:\s+\[|\s+\()/
 // that handleAsyncDependencies can detect and await them.
 const ASYNC_PROMISE = Symbol('asyncPromise')
 
-function defineProp(
-  obj: any,
-  name: string,
-  descriptor: PropertyDescriptor
-) {
+function defineProp(obj: any, name: string, descriptor: PropertyDescriptor) {
   if (!Object.prototype.hasOwnProperty.call(obj, name)) {
     Object.defineProperty(obj, name, descriptor)
   }
@@ -147,9 +143,7 @@ export async function executeModules(
       if (fs.existsSync(candidate)) return candidate
       dir = parent
     }
-    throw new Error(
-      `importModule: cannot resolve project path: ${relPath}`
-    )
+    throw new Error(`importModule: cannot resolve project path: ${relPath}`)
   }
 
   // Resolve a module ID (e.g. "[project]/file.wasm [...]") to an
@@ -313,16 +307,10 @@ export async function executeModules(
     }
 
     // .w — async WebAssembly instantiation
-    ctx.w = async (
-      chunkPath: string,
-      _edgeModule: any,
-      importsObj: any
-    ) => {
+    ctx.w = async (chunkPath: string, _edgeModule: any, importsObj: any) => {
       const sourceModId = urlToModuleId.get(chunkPath)
       if (!sourceModId) {
-        throw new Error(
-          `importModule: wasm source not found for ${chunkPath}`
-        )
+        throw new Error(`importModule: wasm source not found for ${chunkPath}`)
       }
       const absPath = resolveModuleIdPath(sourceModId)
       const wasmBuffer = fs.readFileSync(absPath)
