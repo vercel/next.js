@@ -74,6 +74,9 @@ pub enum ImportWithType {
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
+    /// Used for `importModule()` in webpack loaders, where a module and its
+    /// transitive dependencies are compiled and executed in a loader context.
+    ImportModule,
     ImportWithType(RcStr),
     /// Import with `turbopackLoader` attribute specifying an inline loader.
     ImportWithTurbopackUse {

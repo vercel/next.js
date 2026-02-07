@@ -401,6 +401,7 @@ const transform = (
               // Build a mini Turbopack runtime to execute the compiled
               // module code, similar to webpack's executeModule.
               const vm = require('vm')
+              const nodeUrl = require('url')
 
               type ModuleObj = {
                 exports: any
@@ -416,11 +417,45 @@ const transform = (
                 { factory: Function; moduleAndExports: boolean }
               >()
 
-              // Compile all module factories
+              // Map from exported asset URLs to the module IDs that
+              // produced them (populated by ctx.q)
+              const urlToModuleId = new Map<string, string>()
+
+              // Resolve a [project]-relative path to an absolute
+              // filesystem path. The module ID contains a path
+              // relative to Turbopack's project root which may be
+              // an ancestor of contextDir (process.cwd()).
+              function resolveProjectPath(
+                relPath: string
+              ): string {
+                const fs = require('fs')
+                let candidate = path.resolve(
+                  contextDir,
+                  relPath
+                )
+                if (fs.existsSync(candidate)) return candidate
+                let dir = contextDir
+                while (true) {
+                  const parent = path.dirname(dir)
+                  if (parent === dir) break
+                  candidate = path.resolve(parent, relPath)
+                  if (fs.existsSync(candidate))
+                    return candidate
+                  dir = parent
+                }
+                throw new Error(
+                  `importModule: cannot resolve project path: ${relPath}`
+                )
+              }
+
+              // Compile all module factories. Strip `await` keywords
+              // so factories execute synchronously (our .w() wasm
+              // implementation is synchronous).
               for (const mod of result.modules) {
+                const code = mod.code.replace(/\bawait\s+/g, '')
                 const factoryCode = mod.moduleAndExports
-                  ? `(function(__turbopack_context__, module, exports) {\n${mod.code}\n})`
-                  : `(function(__turbopack_context__) {\n${mod.code}\n})`
+                  ? `(function(__turbopack_context__, module, exports) {\n${code}\n})`
+                  : `(function(__turbopack_context__) {\n${code}\n})`
                 const factory = vm.runInThisContext(factoryCode, {
                   filename: mod.id,
                 })
@@ -645,6 +680,90 @@ const transform = (
                   throw new Error(
                     'dynamic usage of require is not supported'
                   )
+                }
+
+                // Export URL (for static assets and raw wasm modules)
+                ctx.q = (url: string) => {
+                  defineProp(moduleObj.exports, 'default', {
+                    value: url,
+                    enumerable: true,
+                  })
+                  urlToModuleId.set(url, moduleObj.id)
+                }
+
+                // Resolve module ID path (for new URL(./file,
+                // import.meta.url) patterns). Returns a file:// URL
+                // pointing to the original source file.
+                ctx.R = (depModuleId: string) => {
+                  const exported = ctx.r(depModuleId)
+                  const assetUrl =
+                    exported?.default ?? exported
+                  const sourceModId =
+                    urlToModuleId.get(assetUrl)
+                  if (sourceModId) {
+                    const m = sourceModId.match(
+                      /^\[project\]\/(.+?)(?:\s+\[|\s+\()/
+                    )
+                    if (m) {
+                      const absPath = resolveProjectPath(
+                        m[1]
+                      )
+                      return nodeUrl.pathToFileURL(absPath)
+                        .href
+                    }
+                  }
+                  return assetUrl
+                }
+
+                // Load and instantiate WebAssembly synchronously.
+                // The chunkPath comes from a raw wasm module's
+                // ctx.q() export.
+                ctx.w = (
+                  chunkPath: string,
+                  _edgeModule: any,
+                  importsObj: any
+                ) => {
+                  const sourceModId =
+                    urlToModuleId.get(chunkPath)
+                  if (!sourceModId) {
+                    throw new Error(
+                      `importModule: wasm source not found for ${chunkPath}`
+                    )
+                  }
+                  const m = sourceModId.match(
+                    /^\[project\]\/(.+?)(?:\s+\[|\s+\()/
+                  )
+                  if (!m) {
+                    throw new Error(
+                      `importModule: cannot extract path from module ID: ${sourceModId}`
+                    )
+                  }
+                  const absPath = resolveProjectPath(m[1])
+                  const wasmBuffer = require('fs').readFileSync(
+                    absPath
+                  )
+                  const wasmModule = new WebAssembly.Module(
+                    wasmBuffer
+                  )
+                  return new WebAssembly.Instance(
+                    wasmModule,
+                    importsObj || {}
+                  ).exports
+                }
+
+                // Async module handler (for modules with top-level
+                // await). Since we strip await keywords, the body
+                // executes synchronously.
+                ctx.a = (
+                  _module: any,
+                  body: Function,
+                  _hasAwait: boolean
+                ) => {
+                  const handleAsyncDependencies = (
+                    deps: any[]
+                  ) => deps
+                  const asyncResult = () => {}
+                  body(handleAsyncDependencies, asyncResult)
                 }
 
                 // Execute the factory

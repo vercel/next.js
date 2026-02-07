@@ -688,7 +688,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 let resolved = resolve(
                     lookup_path.clone(),
                     ReferenceType::EcmaScriptModules(
-                        EcmaScriptModulesReferenceSubType::Import,
+                        EcmaScriptModulesReferenceSubType::ImportModule,
                     ),
                     request_vc,
                     options,
@@ -709,7 +709,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     .process(
                         *source,
                         ReferenceType::EcmaScriptModules(
-                            EcmaScriptModulesReferenceSubType::Import,
+                            EcmaScriptModulesReferenceSubType::ImportModule,
                         ),
                     )
                     .await?;

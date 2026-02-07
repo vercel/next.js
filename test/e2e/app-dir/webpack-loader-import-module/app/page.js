@@ -4,12 +4,12 @@ import {
   cjsGreeting,
   version,
   esmLabel,
-  urlPathname,
-  wasmAvailable,
+  imageUrl,
+  wasmAddResult,
   mjsTitle,
   mjsEsmLabel,
-  mjsUrlPathname,
-  mjsWasmAvailable,
+  mjsImageUrl,
+  mjsWasmAddResult,
 } from './file.test-file'
 
 export default function Page() {
@@ -20,12 +20,12 @@ export default function Page() {
       <p id="cjs-greeting">{cjsGreeting}</p>
       <p id="version">{version}</p>
       <p id="esm-label">{esmLabel}</p>
-      <p id="url-pathname">{urlPathname}</p>
-      <p id="wasm-available">{wasmAvailable}</p>
+      <p id="image-url">{imageUrl}</p>
+      <p id="wasm-add-result">{wasmAddResult}</p>
       <p id="mjs-title">{mjsTitle}</p>
       <p id="mjs-esm-label">{mjsEsmLabel}</p>
-      <p id="mjs-url-pathname">{mjsUrlPathname}</p>
-      <p id="mjs-wasm-available">{mjsWasmAvailable}</p>
+      <p id="mjs-image-url">{mjsImageUrl}</p>
+      <p id="mjs-wasm-add-result">{mjsWasmAddResult}</p>
     </div>
   )
 }
