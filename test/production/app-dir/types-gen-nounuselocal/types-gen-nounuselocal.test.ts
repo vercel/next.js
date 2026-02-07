@@ -22,7 +22,7 @@ describe('types-gen-nounuselocal', () => {
 
   it('should generate route types successfully', async () => {
     const routeTypes = await fsp.readFile(
-      path.join(next.testDir, '.next', 'types', 'routes.d.ts'),
+      path.join(next.testDir, '.next', 'types', 'route-types.d.ts'),
       'utf-8'
     )
 
@@ -55,7 +55,7 @@ describe('types-gen-nounuselocal', () => {
        }
 
 
-       export type { AppRoutes, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes, ParamMap }
+       export type { AppRoutes, PageProps, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes, ParamMap }
 
        declare global {
          /**

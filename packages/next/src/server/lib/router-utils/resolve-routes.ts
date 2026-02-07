@@ -867,6 +867,12 @@ export function getResolveRoutes(
     for (const route of routes) {
       const result = await handleRoute(route)
       if (result) {
+        if (result.matchedOutput) {
+          // handle onMatchHeaders
+          for (const onMatchHeaders of fsChecker.onMatchHeaders) {
+            await handleRoute(onMatchHeaders)
+          }
+        }
         return result
       }
     }

@@ -20,7 +20,8 @@ import { hrtimeDurationToString } from './duration-to-string'
 function verifyTypeScriptSetup(
   dir: string,
   distDir: string,
-  distDirRoot: string | undefined,
+  distDirRoot: string,
+  strictRouteTypes: boolean,
   typeCheckPreflight: boolean,
   tsconfigPath: string | undefined,
   disableStaticImages: boolean,
@@ -28,10 +29,9 @@ function verifyTypeScriptSetup(
   enableWorkerThreads: boolean | undefined,
   hasAppDir: boolean,
   hasPagesDir: boolean,
-  isolatedDevBuild: boolean | undefined,
   appDir: string | undefined,
   pagesDir: string | undefined,
-  debugBuildPaths: { app?: string[]; pages?: string[] } | undefined
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 ) {
   const typeCheckWorker = new Worker(
     require.resolve('../lib/verify-typescript-setup'),
@@ -52,13 +52,13 @@ function verifyTypeScriptSetup(
       dir,
       distDir,
       distDirRoot,
+      strictRouteTypes,
       typeCheckPreflight,
       tsconfigPath,
       disableStaticImages,
       cacheDir,
       hasAppDir,
       hasPagesDir,
-      isolatedDevBuild,
       appDir,
       pagesDir,
       debugBuildPaths,
@@ -91,7 +91,7 @@ export async function startTypeChecking({
   pagesDir?: string
   telemetry: Telemetry
   appDir?: string
-  debugBuildPaths?: { app?: string[]; pages?: string[] }
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 }) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
 
@@ -120,6 +120,7 @@ export async function startTypeChecking({
           dir,
           config.distDir,
           config.distDirRoot,
+          Boolean(config.experimental.strictRouteTypes),
           !ignoreTypeScriptErrors,
           config.typescript.tsconfigPath,
           config.images.disableStaticImages,
@@ -127,7 +128,6 @@ export async function startTypeChecking({
           config.experimental.workerThreads,
           !!appDir,
           !!pagesDir,
-          config.experimental.isolatedDevBuild,
           appDir,
           pagesDir,
           debugBuildPaths

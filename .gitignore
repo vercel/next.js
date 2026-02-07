@@ -60,6 +60,7 @@ test-timings.json
 *.tsbuildinfo
 .swc/
 .turbo
+.jest-cache/
 
 # Storybook
 *storybook.log
@@ -69,3 +70,9 @@ test-timings.json
 .claude/plans/
 .claude/todos.json
 CLAUDE.local.md
+
+# Conductor (worktrees created by Conductor app, but keep scripts/)
+.conductor/*/
+!.conductor/scripts/
+
+index.scip

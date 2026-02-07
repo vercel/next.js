@@ -113,6 +113,53 @@ For type completion of `params` and `searchParams`, you can type the first argum
 > - React [`cache` can be used](/docs/app/guides/caching#react-cache-function) if `fetch` is unavailable.
 > - [File-based metadata](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
 
+## Why `generateMetadata` is Server Component only
+
+`generateMetadata` and the `metadata` export are only supported in Server Components because metadata must be resolved on the server before the page component is rendered. This allows Next.js to include the metadata in the initial HTML response.
+
+If you need to use Client Component features, keep your `page.tsx` as a Server Component and move the Client Component logic to a separate file:
+
+```tsx filename="app/page.tsx" switcher
+import type { Metadata } from 'next'
+import { InteractiveComponent } from './interactive-component'
+
+export const metadata: Metadata = {
+  title: 'My Page',
+}
+
+export default function Page() {
+  return <InteractiveComponent />
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { InteractiveComponent } from './interactive-component'
+
+export const metadata = {
+  title: 'My Page',
+}
+
+export default function Page() {
+  return <InteractiveComponent />
+}
+```
+
+```tsx filename="app/interactive-component.tsx" switcher
+'use client'
+
+export function InteractiveComponent() {
+  // Client-side interactivity (hooks, event handlers, etc.)
+}
+```
+
+```jsx filename="app/interactive-component.js" switcher
+'use client'
+
+export function InteractiveComponent() {
+  // Client-side interactivity (hooks, event handlers, etc.)
+}
+```
+
 ## Reference
 
 ### Parameters

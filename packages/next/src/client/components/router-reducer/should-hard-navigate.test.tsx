@@ -68,7 +68,7 @@ describe('shouldHardNavigate', () => {
           'link-hard-push',
           {
             children: [
-              ['id', '123', 'd'],
+              ['id', '123', 'd', null],
               {
                 children: ['', {}],
               },
@@ -87,14 +87,14 @@ describe('shouldHardNavigate', () => {
           'children',
           'link-hard-push',
           'children',
-          ['id', '123', 'd'],
+          ['id', '123', 'd', null],
           [
-            ['id', '123', 'd'],
+            ['id', '123', 'd', null],
             {
               children: ['', {}],
             },
           ],
-          [['id', '123', 'd'], {}, null],
+          [['id', '123', 'd', null], {}, null],
           null,
         ],
       ]
@@ -125,7 +125,7 @@ describe('shouldHardNavigate', () => {
           'link-hard-push',
           {
             children: [
-              ['id', '456', 'd'],
+              ['id', '456', 'd', null],
               {
                 children: ['', {}],
               },
@@ -144,14 +144,14 @@ describe('shouldHardNavigate', () => {
           'children',
           'link-hard-push',
           'children',
-          ['id', '123', 'd'],
+          ['id', '123', 'd', null],
           [
-            ['id', '123', 'd'],
+            ['id', '123', 'd', null],
             {
               children: ['', {}],
             },
           ],
-          [['id', '123', 'd'], {}, null],
+          [['id', '123', 'd', null], {}, null],
           null,
           false,
         ],

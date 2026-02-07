@@ -9,8 +9,7 @@ pub enum KeySpace {
     Infra = 0,
     TaskMeta = 1,
     TaskData = 2,
-    ForwardTaskCache = 3,
-    ReverseTaskCache = 4,
+    TaskCache = 3,
 }
 
 pub trait KeyValueDatabase {
@@ -34,6 +33,20 @@ pub trait KeyValueDatabase {
         key_space: KeySpace,
         key: &[u8],
     ) -> Result<Option<Self::ValueBuffer<'l>>>;
+
+    fn batch_get<'l, 'db: 'l>(
+        &'l self,
+        transaction: &'l Self::ReadTransaction<'db>,
+        key_space: KeySpace,
+        keys: &[&[u8]],
+    ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
+        let mut results = Vec::with_capacity(keys.len());
+        for key in keys {
+            let value = self.get(transaction, key_space, key)?;
+            results.push(value);
+        }
+        Ok(results)
+    }
 
     type SerialWriteBatch<'l>: SerialWriteBatch<'l>
         = UnimplementedWriteBatch

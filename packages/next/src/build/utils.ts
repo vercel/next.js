@@ -85,6 +85,41 @@ import type { TurbopackResult } from './swc/types'
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { parseAppRoute } from '../shared/lib/router/routes/app'
+import { fillMetadataSegment } from '../lib/metadata/get-metadata-route'
+import { STATIC_METADATA_IMAGES } from '../lib/metadata/is-metadata-route'
+
+// Build a set of static metadata image filenames for quick lookup
+const staticMetadataImageFilenames = new Set<string>(
+  Object.values(STATIC_METADATA_IMAGES).map((meta) => meta.filename)
+)
+
+/**
+ * Get the display path for build output. For static metadata files under
+ * dynamic routes, this normalizes the path to use "-" placeholder.
+ * e.g., /dynamic/[id]/icon.png -> /dynamic/-/icon.png
+ */
+function getTreeViewDisplayPath(pagePath: string): string {
+  // Check if the path contains dynamic segments
+  if (!isDynamicRoute(pagePath)) {
+    return pagePath
+  }
+
+  // Check if the filename is a static metadata image
+  const lastSlash = pagePath.lastIndexOf('/')
+  const filename = pagePath.slice(lastSlash + 1)
+  const dotIndex = filename.lastIndexOf('.')
+  const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename
+
+  // Check against known static metadata image filenames (e.g., icon, apple-icon, opengraph-image)
+  if (!staticMetadataImageFilenames.has(baseName)) {
+    return pagePath
+  }
+
+  // Transform using fillMetadataSegment with isStatic=true
+  const segment = pagePath.slice(0, lastSlash)
+  const lastSegment = filename
+  return fillMetadataSegment(segment, {}, lastSegment, true)
+}
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -416,10 +451,12 @@ export async function printTreeView(
         symbol = 'ƒ'
       }
 
+      const displayPath = getTreeViewDisplayPath(item)
+
       if (hasGSPAndRevalidateZero.has(item)) {
         usedSymbols.add('ƒ')
         messages.push([
-          `${border} ƒ ${item}${
+          `${border} ƒ ${displayPath}${
             totalDuration > MIN_DURATION
               ? ` (${getPrettyDuration(totalDuration)})`
               : ''
@@ -436,7 +473,7 @@ export async function printTreeView(
       usedSymbols.add(symbol)
 
       messages.push([
-        `${border} ${symbol} ${item}${
+        `${border} ${symbol} ${displayPath}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -609,13 +646,14 @@ export function printCustomRoutes({
   redirects,
   rewrites,
   headers,
+  onMatchHeaders,
 }: CustomRoutes) {
   const printRoutes = (
     routes: Redirect[] | Rewrite[] | Header[],
-    type: 'Redirects' | 'Rewrites' | 'Headers'
+    type: 'Redirects' | 'Rewrites' | 'Headers' | 'On Match Headers'
   ) => {
     const isRedirects = type === 'Redirects'
-    const isHeaders = type === 'Headers'
+    const isHeaders = type === 'Headers' || type === 'On Match Headers'
     print(underline(type))
 
     /*
@@ -667,6 +705,9 @@ export function printCustomRoutes({
   }
   if (headers.length) {
     printRoutes(headers, 'Headers')
+  }
+  if (onMatchHeaders.length) {
+    printRoutes(onMatchHeaders, 'On Match Headers')
   }
 
   const combinedRewrites = [
@@ -1232,7 +1273,10 @@ export async function copyTracedFiles(
   }
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
-    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8')
+    const packageJsonContent = await fs.readFile(
+      /* turbopackIgnore: true */ packageJsonPath,
+      'utf8'
+    )
     const packageJson = JSON.parse(packageJsonContent)
     moduleType = packageJson.type === 'module'
 
@@ -1249,7 +1293,9 @@ export async function copyTracedFiles(
   const copiedFiles = new Set()
 
   async function handleTraceFiles(traceFilePath: string) {
-    const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
+    const traceData = JSON.parse(
+      await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
+    ) as {
       files: string[]
     }
     const copySema = new Sema(10, { capacity: traceData.files.length })

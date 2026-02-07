@@ -44,19 +44,18 @@ impl EcmascriptBuildNodeChunkContent {
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
-    async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+    async fn code(&self) -> Result<Vc<Code>> {
         use std::io::Write;
-        let this = self.await?;
-        let source_maps = *this
+        let source_maps = *self
             .chunking_context
-            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
+            .reference_chunk_source_maps(*ResolvedVc::upcast(self.chunk))
             .await?;
 
-        let mut code = CodeBuilder::new(true, *this.chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new(true, *self.chunking_context.debug_ids_enabled().await?);
 
         write!(code, "module.exports = [")?;
 
-        let content = this.content.await?;
+        let content = self.content.await?;
         let chunk_items = content.chunk_item_code_and_ids().await?;
         for item in chunk_items {
             for (id, item_code) in item {
@@ -70,7 +69,7 @@ impl EcmascriptBuildNodeChunkContent {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
+        if let MinifyType::Minify { mangle } = *self.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;
         }
 
