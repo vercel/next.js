@@ -1,5 +1,6 @@
 const https = require('https')
 const http = require('http')
+const tls = require('tls')
 const fs = require('fs/promises')
 const path = require('path')
 const { execSync } = require('child_process')
@@ -39,51 +40,159 @@ function getToken() {
   return _token
 }
 
-function httpRequest(url, options = {}) {
-  return new Promise((resolve, reject) => {
-    const parsedUrl = new URL(url)
-    const mod = parsedUrl.protocol === 'https:' ? https : http
+function getProxyForUrl(url) {
+  const parsedUrl = new URL(url)
 
-    const reqOptions = {
-      method: options.method || 'GET',
-      headers: { ...options.headers },
+  // Check no_proxy
+  const noProxy = process.env.no_proxy || process.env.NO_PROXY || ''
+  if (noProxy) {
+    const hostname = parsedUrl.hostname
+    const entries = noProxy.split(',').map((s) => s.trim())
+    for (const entry of entries) {
+      if (!entry) continue
+      if (entry === hostname) return null
+      if (hostname.endsWith('.' + entry)) return null
+      if (entry.startsWith('*.') && hostname.endsWith(entry.slice(1)))
+        return null
+      if (entry.startsWith('.') && hostname.endsWith(entry)) return null
+    }
+  }
+
+  const proxyEnv =
+    parsedUrl.protocol === 'https:'
+      ? process.env.HTTPS_PROXY || process.env.https_proxy
+      : process.env.HTTP_PROXY || process.env.http_proxy
+  if (!proxyEnv) return null
+
+  try {
+    return new URL(proxyEnv)
+  } catch {
+    return null
+  }
+}
+
+function connectTunnel(proxy, targetHost, targetPort) {
+  return new Promise((resolve, reject) => {
+    const connectPath = `${targetHost}:${targetPort}`
+    const headers = { Host: connectPath }
+
+    if (proxy.username) {
+      headers['Proxy-Authorization'] =
+        'Basic ' +
+        Buffer.from(
+          `${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password || '')}`
+        ).toString('base64')
     }
 
-    const req = mod.request(parsedUrl, reqOptions, (res) => {
-      // Handle redirects
-      if (
-        res.statusCode >= 300 &&
-        res.statusCode < 400 &&
-        res.headers.location
-      ) {
-        const redirectUrl = new URL(res.headers.location)
-        const newOptions = { ...options }
-        // Strip auth header when redirecting to a different host
-        if (redirectUrl.host !== parsedUrl.host && newOptions.headers) {
-          newOptions.headers = { ...newOptions.headers }
-          delete newOptions.headers['Authorization']
-          delete newOptions.headers['authorization']
-        }
-        // Consume remaining data from the redirect response
-        res.resume()
-        resolve(httpRequest(res.headers.location, newOptions))
-        return
-      }
+    const req = http.request({
+      host: proxy.hostname,
+      port: proxy.port || 80,
+      method: 'CONNECT',
+      path: connectPath,
+      headers,
+    })
 
-      const chunks = []
-      res.on('data', (chunk) => chunks.push(chunk))
-      res.on('end', () => {
-        const body = Buffer.concat(chunks).toString('utf8')
-        resolve({ statusCode: res.statusCode, headers: res.headers, body })
-      })
+    req.on('connect', (res, socket) => {
+      if (res.statusCode === 200) {
+        resolve(socket)
+      } else {
+        reject(
+          new Error(`Proxy CONNECT to ${connectPath} failed: ${res.statusCode}`)
+        )
+      }
     })
 
     req.on('error', reject)
+    req.end()
+  })
+}
 
-    if (options.body) {
-      req.write(options.body)
+function handleResponse(res, parsedUrl, options, resolve) {
+  // Handle redirects
+  if (
+    res.statusCode >= 300 &&
+    res.statusCode < 400 &&
+    res.headers.location
+  ) {
+    const redirectUrl = new URL(res.headers.location)
+    const newOptions = { ...options }
+    // Strip auth header when redirecting to a different host
+    if (redirectUrl.host !== parsedUrl.host && newOptions.headers) {
+      newOptions.headers = { ...newOptions.headers }
+      delete newOptions.headers['Authorization']
+      delete newOptions.headers['authorization']
     }
+    // Consume remaining data from the redirect response
+    res.resume()
+    resolve(httpRequest(res.headers.location, newOptions))
+    return
+  }
 
+  const chunks = []
+  res.on('data', (chunk) => chunks.push(chunk))
+  res.on('end', () => {
+    const body = Buffer.concat(chunks).toString('utf8')
+    resolve({ statusCode: res.statusCode, headers: res.headers, body })
+  })
+}
+
+async function httpRequest(url, options = {}) {
+  const parsedUrl = new URL(url)
+  const proxy = getProxyForUrl(url)
+
+  if (proxy && parsedUrl.protocol === 'https:') {
+    // HTTPS through HTTP proxy: use CONNECT tunneling
+    const socket = await connectTunnel(
+      proxy,
+      parsedUrl.hostname,
+      parsedUrl.port || 443
+    )
+
+    // Establish TLS over the tunnel, then send HTTP over that TLS socket.
+    // Use http.request (not https.request) to avoid double-TLS wrapping.
+    const tlsSocket = tls.connect({
+      socket,
+      servername: parsedUrl.hostname,
+    })
+
+    return new Promise((resolve, reject) => {
+      tlsSocket.on('error', reject)
+
+      const req = http.request(
+        {
+          createConnection: () => tlsSocket,
+          hostname: parsedUrl.hostname,
+          path: parsedUrl.pathname + parsedUrl.search,
+          method: options.method || 'GET',
+          headers: {
+            ...options.headers,
+            Host: parsedUrl.host,
+          },
+        },
+        (res) => handleResponse(res, parsedUrl, options, resolve)
+      )
+
+      req.on('error', reject)
+      if (options.body) req.write(options.body)
+      req.end()
+    })
+  }
+
+  // Direct connection (no proxy or HTTP target)
+  return new Promise((resolve, reject) => {
+    const mod = parsedUrl.protocol === 'https:' ? https : http
+
+    const req = mod.request(
+      parsedUrl,
+      {
+        method: options.method || 'GET',
+        headers: { ...options.headers },
+      },
+      (res) => handleResponse(res, parsedUrl, options, resolve)
+    )
+
+    req.on('error', reject)
+    if (options.body) req.write(options.body)
     req.end()
   })
 }
