@@ -12,11 +12,12 @@ use turbo_bincode::{TurboBincodeBuffer, turbo_bincode_encode};
 
 use crate::{
     compression::compress_into_buffer,
+    constants::MAX_INLINE_VALUE_SIZE,
     meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH,
-        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
-        KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
 };
 
@@ -67,6 +68,8 @@ pub trait Entry {
 /// Reference to a value
 #[derive(Copy, Clone)]
 pub enum EntryValue<'l> {
+    /// Inline value stored directly in the key block.
+    Inline { value: &'l [u8] },
     /// Small-sized value. They are stored in shared value blocks.
     Small { value: &'l [u8] },
     /// Medium-sized value. They are stored in their own value block.
@@ -372,7 +375,8 @@ fn write_value_blocks(
                 value_locations.push((block_index, 0));
                 writer.write_compressed_block(uncompressed_size, block)?;
             }
-            EntryValue::Deleted | EntryValue::Large { .. } => {
+            EntryValue::Inline { .. } | EntryValue::Deleted | EntryValue::Large { .. } => {
+                // Inline values are stored in the key block, not in value blocks
                 value_locations.push((0, 0));
             }
         }
@@ -416,6 +420,9 @@ fn write_key_blocks_and_compute_amqf(
         block: &mut KeyBlockBuilder,
     ) {
         match entry.value() {
+            EntryValue::Inline { value } => {
+                block.put_inline(entry, value);
+            }
             EntryValue::Small { value } => {
                 block.put_small(
                     entry,
@@ -623,6 +630,22 @@ impl<'l> KeyBlockBuilder<'l> {
         self.write_hash(entry);
         entry.write_key_to(self.buffer);
         self.buffer.write_u32::<BE>(blob).unwrap();
+
+        self.current_entry += 1;
+    }
+
+    /// Writes an inline value directly to the key block.
+    pub fn put_inline<E: Entry>(&mut self, entry: &E, value: &[u8]) {
+        debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
+        let pos = self.buffer.len() - self.header_size;
+        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let entry_type = KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + value.len() as u8;
+        let header = (pos as u32) | ((entry_type as u32) << 24);
+        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
+
+        self.write_hash(entry);
+        entry.write_key_to(self.buffer);
+        self.buffer.extend_from_slice(value);
 
         self.current_entry += 1;
     }

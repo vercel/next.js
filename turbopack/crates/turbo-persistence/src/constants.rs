@@ -5,6 +5,12 @@ pub const MAX_MEDIUM_VALUE_SIZE: usize = 64 * 1024 * 1024;
 // Note this must fit into 2 bytes length
 pub const MAX_SMALL_VALUE_SIZE: usize = 64 * 1024 - 1;
 
+/// Maximum size for inline values stored directly in key blocks.
+/// Currently 8 bytes (break-even with the 8-byte indirection overhead).
+/// Can be increased up to 247 bytes (type 255 - 8) if desired.
+/// See static_sorted_file.rs for the static assertion enforcing this limit.
+pub const MAX_INLINE_VALUE_SIZE: usize = 8;
+
 /// Maximum number of entries per SST file
 pub const MAX_ENTRIES_PER_INITIAL_FILE: usize = 256 * 1024;
 

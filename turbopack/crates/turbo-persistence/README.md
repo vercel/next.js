@@ -125,10 +125,10 @@ Depending on the `type` field entry has a different format:
   - 2 byte block index
   - 3 bytes size
   - 4 bytes position in block
-- 8..255: inlined key (future)
+- 8..255: inlined value (currently only values ≤8 bytes are inlined, though the format supports up to 247)
   - 8 bytes key hash (if block type 1)
   - key data
-  - type - 8 bytes value data
+  - (type - 8) bytes value data (inline, no separate value block)
 
 The entries are sorted by key hash and key.
 
