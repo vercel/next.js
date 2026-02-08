@@ -325,5 +325,51 @@ describe('app-dir - errors', () => {
         expect(output).toContain(`digest: '${digest}'`)
       })
     }
+
+    describe('retry', () => {
+      it('should recover Server Component error after retry', async () => {
+        const browser = await next.browser('/server-component/recover')
+
+        expect(
+          await browser.elementByCss('#error-boundary-message').text()
+        ).toBe(
+          isNextDev
+            ? 'this is a test'
+            : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+        )
+
+        await browser
+          .elementByCss('#retry')
+          .click()
+          .waitForElementByCss('#recover')
+
+        expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
+      })
+
+      it('should recover Client Component error after retry', async () => {
+        const browser = await next.browser('/client-component')
+
+        // Try triggering and retrying a few times in a row
+        for (let i = 0; i < 5; i++) {
+          await browser
+            .elementByCss('#error-trigger-button')
+            .click()
+            .waitForElementByCss('#error-boundary-message')
+
+          expect(
+            await browser.elementByCss('#error-boundary-message').text()
+          ).toBe('An error occurred: this is a test')
+
+          await browser
+            .elementByCss('#retry')
+            .click()
+            .waitForElementByCss('#error-trigger-button')
+
+          expect(
+            await browser.elementByCss('#error-trigger-button').text()
+          ).toBe('Trigger Error!')
+        }
+      })
+    })
   })
 })
