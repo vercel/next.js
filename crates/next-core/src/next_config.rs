@@ -985,7 +985,7 @@ pub enum TurbopackIgnoreIssuePathPattern {
 }
 
 impl TurbopackIgnoreIssuePathPattern {
-    fn into_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
+    fn to_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
         match self {
             TurbopackIgnoreIssuePathPattern::Glob { value } => Ok(IgnoreIssuePattern::Glob(
                 Glob::parse(value.clone(), GlobOptions::default())?,
@@ -1013,7 +1013,7 @@ pub enum TurbopackIgnoreIssueTextPattern {
 }
 
 impl TurbopackIgnoreIssueTextPattern {
-    fn into_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
+    fn to_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
         match self {
             TurbopackIgnoreIssueTextPattern::String { value } => {
                 Ok(IgnoreIssuePattern::ExactString(value.clone()))
@@ -2204,16 +2204,16 @@ impl NextConfig {
             .iter()
             .map(|rule| {
                 Ok(IgnoreIssue {
-                    path: rule.path.into_ignore_pattern()?,
+                    path: rule.path.to_ignore_pattern()?,
                     title: rule
                         .title
                         .as_ref()
-                        .map(|t| t.into_ignore_pattern())
+                        .map(|t| t.to_ignore_pattern())
                         .transpose()?,
                     description: rule
                         .description
                         .as_ref()
-                        .map(|d| d.into_ignore_pattern())
+                        .map(|d| d.to_ignore_pattern())
                         .transpose()?,
                 })
             })

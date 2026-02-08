@@ -370,27 +370,39 @@ impl IssueFilter {
             return Ok(Vc::cell(true));
         }
 
+        // Fetch the file path once — it's used by both ignore rules and severity
+        // checks.
+        let file_path = issue.file_path().await?;
+
         // Check ignore rules first — if any rule matches, the issue is dropped.
+        // Title and description are fetched lazily: only when a rule's path
+        // matches and the rule also specifies a title/description pattern.
         if !has_no_ignore_rules {
-            let file_path = issue.file_path().await?.to_string();
-            let title_str = issue.title().await?.to_unstyled_string();
-            let description_opt = issue.description().await?;
-            let description_text = match description_opt.as_ref() {
-                Some(desc_vc) => Some(desc_vc.await?.to_unstyled_string()),
-                None => None,
-            };
+            let file_path_str = file_path.to_string();
+            let mut title_str: Option<String> = None;
+            let mut description_text: Option<Option<String>> = None;
 
             for rule in &self.ignore_rules {
-                if !rule.path.matches(&file_path) {
+                if !rule.path.matches(&file_path_str) {
                     continue;
                 }
-                if let Some(ref title_pat) = rule.title
-                    && !title_pat.matches(&title_str)
-                {
-                    continue;
+                if let Some(ref title_pat) = rule.title {
+                    if title_str.is_none() {
+                        title_str = Some(issue.title().await?.to_unstyled_string());
+                    }
+                    if !title_pat.matches(title_str.as_deref().unwrap()) {
+                        continue;
+                    }
                 }
                 if let Some(ref desc_pat) = rule.description {
-                    match &description_text {
+                    if description_text.is_none() {
+                        let desc_opt = issue.description().await?;
+                        description_text = Some(match desc_opt.as_ref() {
+                            Some(desc_vc) => Some(desc_vc.await?.to_unstyled_string()),
+                            None => None,
+                        });
+                    }
+                    match description_text.as_ref().unwrap().as_deref() {
                         Some(desc) if desc_pat.matches(desc) => {}
                         _ => continue,
                     }
@@ -404,18 +416,15 @@ impl IssueFilter {
         // NOTE: Lower severities are _more_ severe
         Ok(Vc::cell(
             if severity <= self.severity || severity <= self.foreign_severity {
-                // we need to check the path to see if it is foreign or not.  Only await the path if
-                // it might possibly matter
+                // we need to check the path to see if it is foreign or not.  Only await the
+                // path if it might possibly matter
                 if severity <= self.severity && severity <= self.foreign_severity {
                     // it matches no matter where the path is
                     true
+                } else if ContextCondition::InNodeModules.matches(&file_path) {
+                    severity <= self.foreign_severity
                 } else {
-                    let path = issue.file_path().await?;
-                    if ContextCondition::InNodeModules.matches(&path) {
-                        severity <= self.foreign_severity
-                    } else {
-                        severity <= self.severity
-                    }
+                    severity <= self.severity
                 }
             } else {
                 // it is too low severity to match either way

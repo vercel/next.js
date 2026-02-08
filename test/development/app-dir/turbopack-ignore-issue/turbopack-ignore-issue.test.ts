@@ -27,13 +27,17 @@ describe('turbopack-ignore-issue', () => {
       const outputIndex = next.cliOutput.length
       await next.fetch('/with-warning')
 
-      // Wait briefly for output to settle
+      // Wait for compilation to finish (the GET log line confirms the page
+      // was fully compiled and rendered).
       await retry(async () => {
         const output = stripAnsi(next.cliOutput.slice(outputIndex))
-        // The warning about 'a-missing-module-for-testing' should be suppressed
-        // because our turbopackIgnoreIssue rule matches the path
-        expect(output).not.toContain('a-missing-module-for-testing')
+        expect(output).toContain('GET /with-warning')
       })
+
+      // Now that compilation is complete, the warning should be absent
+      // because our turbopackIgnoreIssue rule matches the path.
+      const output = stripAnsi(next.cliOutput.slice(outputIndex))
+      expect(output).not.toContain('a-missing-module-for-testing')
     })
 
     it('should still show issues for pages without ignore rules', async () => {
