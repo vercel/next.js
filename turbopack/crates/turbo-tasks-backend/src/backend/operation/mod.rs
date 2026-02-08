@@ -407,7 +407,7 @@ impl<'e, 'tx, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, '
 where
     'tx: 'e,
 {
-    type TaskGuardImpl = TaskGuardImpl<'e, B>;
+    type TaskGuardImpl = TaskGuardImpl<'e>;
 
     fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'tx, 'l, B>
     where
@@ -470,7 +470,6 @@ where
         TaskGuardImpl {
             task,
             task_id,
-            _backend: self.backend,
             #[cfg(debug_assertions)]
             category,
             #[cfg(debug_assertions)]
@@ -487,7 +486,6 @@ where
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         mut func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
-        let backend = self.backend;
         #[cfg(debug_assertions)]
         let active_task_locks = self.active_task_locks.clone();
         self.prepare_tasks_with_callback(task_ids, true, |this, task_id, _category, task| {
@@ -497,10 +495,9 @@ where
             #[cfg(debug_assertions)]
             active_task_locks.fetch_add(1, Ordering::AcqRel);
 
-            let guard: TaskGuardImpl<'_, B> = TaskGuardImpl {
+            let guard = TaskGuardImpl {
                 task,
                 task_id,
-                _backend: backend,
                 #[cfg(debug_assertions)]
                 category: _category,
                 #[cfg(debug_assertions)]
@@ -585,7 +582,6 @@ where
             TaskGuardImpl {
                 task: task1,
                 task_id: task_id1,
-                _backend: self.backend,
                 #[cfg(debug_assertions)]
                 category,
                 #[cfg(debug_assertions)]
@@ -594,7 +590,6 @@ where
             TaskGuardImpl {
                 task: task2,
                 task_id: task_id2,
-                _backend: self.backend,
                 #[cfg(debug_assertions)]
                 category,
                 #[cfg(debug_assertions)]
@@ -925,10 +920,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
 }
 
-pub struct TaskGuardImpl<'a, B: BackingStorage> {
+pub struct TaskGuardImpl<'a> {
     task_id: TaskId,
     task: StorageWriteGuard<'a>,
-    _backend: &'a TurboTasksBackendInner<B>,
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
     #[cfg(debug_assertions)]
@@ -936,13 +930,13 @@ pub struct TaskGuardImpl<'a, B: BackingStorage> {
 }
 
 #[cfg(debug_assertions)]
-impl<B: BackingStorage> Drop for TaskGuardImpl<'_, B> {
+impl Drop for TaskGuardImpl<'_> {
     fn drop(&mut self) {
         self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
     }
 }
 
-impl<B: BackingStorage> TaskGuardImpl<'_, B> {
+impl TaskGuardImpl<'_> {
     /// Verify that the task guard restored the correct category
     /// before accessing the data.
     #[inline]
@@ -975,7 +969,7 @@ impl<B: BackingStorage> TaskGuardImpl<'_, B> {
     }
 }
 
-impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
+impl Debug for TaskGuardImpl<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut d = f.debug_struct("TaskGuard");
         d.field("task_id", &self.task_id);
@@ -984,7 +978,7 @@ impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
     }
 }
 
-impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
+impl TaskGuard for TaskGuardImpl<'_> {
     fn id(&self) -> TaskId {
         self.task_id
     }
@@ -1036,7 +1030,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 }
 
-impl<'a, B: BackingStorage> TaskStorageAccessors for TaskGuardImpl<'a, B> {
+impl TaskStorageAccessors for TaskGuardImpl<'_> {
     fn typed(&self) -> &TaskStorage {
         &self.task
     }
