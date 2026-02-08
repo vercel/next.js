@@ -970,7 +970,9 @@ pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>
 /// Serialized representation of a path pattern for `turbopackIgnoreIssue`.
 /// Strings are serialized as `{ "type": "glob", "value": "..." }` and
 /// RegExp as `{ "type": "regex", "source": "...", "flags": "..." }`.
-#[derive(Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode)]
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
 #[serde(tag = "type")]
 pub enum TurbopackIgnoreIssuePathPattern {
     #[serde(rename = "glob")]
@@ -983,7 +985,9 @@ pub enum TurbopackIgnoreIssuePathPattern {
 /// `turbopackIgnoreIssue`. Strings are serialized as
 /// `{ "type": "string", "value": "..." }` and RegExp as
 /// `{ "type": "regex", "source": "...", "flags": "..." }`.
-#[derive(Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode)]
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
 #[serde(tag = "type")]
 pub enum TurbopackIgnoreIssueTextPattern {
     #[serde(rename = "string")]
@@ -993,7 +997,9 @@ pub enum TurbopackIgnoreIssueTextPattern {
 }
 
 /// A single rule in `experimental.turbopackIgnoreIssue`.
-#[derive(Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode)]
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
 pub struct TurbopackIgnoreIssueRule {
     pub path: TurbopackIgnoreIssuePathPattern,
     #[serde(default)]
@@ -2170,12 +2176,10 @@ impl NextConfig {
                     .iter()
                     .map(|rule| {
                         let path = match &rule.path {
-                            TurbopackIgnoreIssuePathPattern::Glob { value } => {
-                                IgnoreIssuePattern {
-                                    pattern: value.clone(),
-                                    mode: IgnoreIssueMatchMode::Glob,
-                                }
-                            }
+                            TurbopackIgnoreIssuePathPattern::Glob { value } => IgnoreIssuePattern {
+                                pattern: value.clone(),
+                                mode: IgnoreIssueMatchMode::Glob,
+                            },
                             TurbopackIgnoreIssuePathPattern::Regex { source, .. } => {
                                 IgnoreIssuePattern {
                                     pattern: source.clone(),

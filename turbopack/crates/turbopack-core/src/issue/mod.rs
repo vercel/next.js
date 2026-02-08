@@ -260,13 +260,11 @@ impl IgnoreIssuePattern {
     pub fn matches(&self, value: &str) -> bool {
         match self.mode {
             IgnoreIssueMatchMode::ExactString => value == self.pattern.as_str(),
-            IgnoreIssueMatchMode::Glob => {
-                turbo_tasks_fs::glob::Glob::parse(
-                    self.pattern.clone(),
-                    turbo_tasks_fs::glob::GlobOptions::default(),
-                )
-                .is_ok_and(|g| g.matches(value))
-            }
+            IgnoreIssueMatchMode::Glob => turbo_tasks_fs::glob::Glob::parse(
+                self.pattern.clone(),
+                turbo_tasks_fs::glob::GlobOptions::default(),
+            )
+            .is_ok_and(|g| g.matches(value)),
             IgnoreIssueMatchMode::Regex => {
                 regex::Regex::new(&self.pattern).is_ok_and(|re| re.is_match(value))
             }

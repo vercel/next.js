@@ -9,8 +9,7 @@ use turbo_tasks::{Effects, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue, output::OutputAssets};
 
 use crate::next_api::{
-    project::issue_filter_from_container,
-    utils::strongly_consistent_catch_collectables,
+    project::issue_filter_from_project, utils::strongly_consistent_catch_collectables,
 };
 
 #[turbo_tasks::value(serialization = "none")]
@@ -26,7 +25,7 @@ pub async fn write_analyze_data_with_issues_operation(
     app_dir_only: bool,
 ) -> Result<Vc<WriteAnalyzeResult>> {
     let analyze_data_op = write_analyze_data_with_issues_operation_inner(project, app_dir_only);
-    let filter = issue_filter_from_container(project).await?;
+    let filter = issue_filter_from_project(project.project()).await?;
 
     let (_analyze_data, issues, diagnostics, effects) =
         strongly_consistent_catch_collectables(analyze_data_op, filter).await?;

@@ -87,16 +87,20 @@ static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTO
 static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
     Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
-/// Build an `IssueFilter` from a `ProjectContainer`'s Next.js config.
+/// Build an `IssueFilter` from a `Project`'s Next.js config.
 /// This includes the standard warnings-and-foreign-errors filter plus any
 /// user-defined `experimental.turbopackIgnoreIssue` rules.
-pub async fn issue_filter_from_container(
-    container: ResolvedVc<ProjectContainer>,
-) -> Result<IssueFilter> {
-    let project = container.project();
+pub async fn issue_filter_from_project(project: Vc<Project>) -> Result<IssueFilter> {
     let next_config = project.next_config().await?;
     let ignore_rules = next_config.turbopack_ignore_issue_rules();
     Ok(IssueFilter::warnings_and_foreign_errors().with_ignore_rules(ignore_rules))
+}
+
+/// Build an `IssueFilter` from a `ProjectContainer`'s Next.js config.
+async fn issue_filter_from_container(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<IssueFilter> {
+    issue_filter_from_project(container.project()).await
 }
 
 #[napi(object)]
@@ -783,13 +787,12 @@ impl NapiRoute {
         pathname: String,
         value: RouteOperation,
         turbopack_ctx: &NextTurbopackContext,
-        container: ResolvedVc<ProjectContainer>,
     ) -> Self {
         let convert_endpoint = |endpoint: OperationVc<OptionEndpoint>| {
-            Some(External::new(ExternalEndpoint {
-                endpoint: DetachedVc::new(turbopack_ctx.clone(), endpoint),
-                container,
-            }))
+            Some(External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
+                endpoint,
+            ))))
         };
         match value {
             RouteOperation::Page {
@@ -852,13 +855,12 @@ impl NapiMiddleware {
     fn from_middleware(
         value: &MiddlewareOperation,
         turbopack_ctx: &NextTurbopackContext,
-        container: ResolvedVc<ProjectContainer>,
     ) -> Result<Self> {
         Ok(NapiMiddleware {
-            endpoint: External::new(ExternalEndpoint {
-                endpoint: DetachedVc::new(turbopack_ctx.clone(), value.endpoint),
-                container,
-            }),
+            endpoint: External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
+                value.endpoint,
+            ))),
             is_proxy: value.is_proxy,
         })
     }
@@ -874,17 +876,16 @@ impl NapiInstrumentation {
     fn from_instrumentation(
         value: &InstrumentationOperation,
         turbopack_ctx: &NextTurbopackContext,
-        container: ResolvedVc<ProjectContainer>,
     ) -> Result<Self> {
         Ok(NapiInstrumentation {
-            node_js: External::new(ExternalEndpoint {
-                endpoint: DetachedVc::new(turbopack_ctx.clone(), value.node_js),
-                container,
-            }),
-            edge: External::new(ExternalEndpoint {
-                endpoint: DetachedVc::new(turbopack_ctx.clone(), value.edge),
-                container,
-            }),
+            node_js: External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
+                value.node_js,
+            ))),
+            edge: External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
+                value.edge,
+            ))),
         })
     }
 }
@@ -903,37 +904,34 @@ impl NapiEntrypoints {
     fn from_entrypoints_op(
         entrypoints: &EntrypointsOperation,
         turbopack_ctx: &NextTurbopackContext,
-        container: ResolvedVc<ProjectContainer>,
     ) -> Result<Self> {
         let routes = entrypoints
             .routes
             .iter()
-            .map(|(k, v)| {
-                NapiRoute::from_route(k.to_string(), v.clone(), turbopack_ctx, container)
-            })
+            .map(|(k, v)| NapiRoute::from_route(k.to_string(), v.clone(), turbopack_ctx))
             .collect();
         let middleware = entrypoints
             .middleware
             .as_ref()
-            .map(|m| NapiMiddleware::from_middleware(m, turbopack_ctx, container))
+            .map(|m| NapiMiddleware::from_middleware(m, turbopack_ctx))
             .transpose()?;
         let instrumentation = entrypoints
             .instrumentation
             .as_ref()
-            .map(|i| NapiInstrumentation::from_instrumentation(i, turbopack_ctx, container))
+            .map(|i| NapiInstrumentation::from_instrumentation(i, turbopack_ctx))
             .transpose()?;
-        let pages_document_endpoint = External::new(ExternalEndpoint {
-            endpoint: DetachedVc::new(turbopack_ctx.clone(), entrypoints.pages_document_endpoint),
-            container,
-        });
-        let pages_app_endpoint = External::new(ExternalEndpoint {
-            endpoint: DetachedVc::new(turbopack_ctx.clone(), entrypoints.pages_app_endpoint),
-            container,
-        });
-        let pages_error_endpoint = External::new(ExternalEndpoint {
-            endpoint: DetachedVc::new(turbopack_ctx.clone(), entrypoints.pages_error_endpoint),
-            container,
-        });
+        let pages_document_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
+            turbopack_ctx.clone(),
+            entrypoints.pages_document_endpoint,
+        )));
+        let pages_app_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
+            turbopack_ctx.clone(),
+            entrypoints.pages_app_endpoint,
+        )));
+        let pages_error_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
+            turbopack_ctx.clone(),
+            entrypoints.pages_error_endpoint,
+        )));
         Ok(NapiEntrypoints {
             routes,
             middleware,
@@ -1040,7 +1038,6 @@ pub async fn project_write_all_entrypoints_to_disk(
             Some(NapiEntrypoints::from_entrypoints_op(
                 &entrypoints,
                 &project.turbopack_ctx,
-                project.container,
             )?)
         } else {
             None
@@ -1153,7 +1150,6 @@ pub async fn project_entrypoints(
         Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
             &entrypoints,
             &project.turbopack_ctx,
-            project.container,
         )?),
         None => None,
     };
@@ -1199,7 +1195,6 @@ pub fn project_entrypoints_subscribe(
                 Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
                     &entrypoints,
                     &turbopack_ctx,
-                    container,
                 )?),
                 None => None,
             };
@@ -1240,11 +1235,10 @@ async fn hmr_update_with_issues_operation(
     chunk_name: RcStr,
     state: ResolvedVc<VersionState>,
     target: HmrTarget,
-    container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_op = project_hmr_update_operation(project, chunk_name, target, state);
     let update = update_op.read_strongly_consistent().await?;
-    let filter = issue_filter_from_container(container).await?;
+    let filter = issue_filter_from_project(*project).await?;
     let issues = get_issues(update_op, filter).await?;
     let diagnostics = get_diagnostics(update_op).await?;
     let effects = Arc::new(get_effects(update_op).await?);
@@ -1292,7 +1286,6 @@ pub fn project_hmr_events(
                         chunk_name.clone(),
                         state,
                         hmr_target,
-                        container,
                     );
                     let update = update_op.read_strongly_consistent().await?;
                     let HmrUpdateWithIssues {
