@@ -1055,5 +1055,6 @@
   "1054": "processNodePrelude is not supported in edge runtime",
   "1055": "createUnclosingNodeStream is not supported in edge runtime",
   "1056": "createClosingNodeStream is not supported in edge runtime",
-  "1057": "Cannot tee a Node.js stream in the edge runtime"
+  "1057": "Cannot tee a Node.js stream in the edge runtime",
+  "1058": "toNodeDebugChannel can only be used in Node.js environments, this is a bug in the Next.js codebase"
 }

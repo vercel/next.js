@@ -156,7 +156,10 @@ export function renderToFlightPipeableStream(
   if (options?.debugChannel) {
     const { toNodeDebugChannel } =
       require('./debug-channel-server') as typeof import('./debug-channel-server')
-    options = { ...options, debugChannel: toNodeDebugChannel(options.debugChannel) }
+    options = {
+      ...options,
+      debugChannel: toNodeDebugChannel(options.debugChannel),
+    }
   }
 
   const { pipe } = renderToPipeableStreamFn(model, webpackMap, options)
