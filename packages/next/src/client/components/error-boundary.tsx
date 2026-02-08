@@ -70,7 +70,7 @@ export class ErrorBoundaryHandler extends React.Component<
 
   componentDidCatch(_error: Error, errorInfo: React.ErrorInfo): void {
     this.setState({
-      componentStack: errorInfo.componentStack ?? undefined,
+      componentStack: errorInfo.componentStack,
     })
   }
 
