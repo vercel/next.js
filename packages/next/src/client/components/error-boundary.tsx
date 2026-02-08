@@ -1,11 +1,12 @@
 'use client'
 
-import React, { type JSX } from 'react'
+import React, { startTransition, type JSX } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 import { HandleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
+import { publicAppRouterInstance } from './app-router-instance'
 
 const isBotUserAgent =
   typeof window !== 'undefined' && isBot(window.navigator.userAgent)
@@ -13,6 +14,10 @@ const isBotUserAgent =
 export type ErrorComponent = React.ComponentType<{
   error: Error
   reset: () => void
+  retry: () => void
+  componentStack: React.ErrorInfo['componentStack']
+  /** DEV-only */
+  ownerStack: ReturnType<typeof React.captureOwnerStack>
 }>
 
 export interface ErrorBoundaryProps {
@@ -30,6 +35,8 @@ interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
 interface ErrorBoundaryHandlerState {
   error: Error | null
   previousPathname: string | null
+  componentStack: React.ErrorInfo['componentStack']
+  ownerStack: ReturnType<typeof React.captureOwnerStack>
 }
 
 export class ErrorBoundaryHandler extends React.Component<
@@ -38,7 +45,12 @@ export class ErrorBoundaryHandler extends React.Component<
 > {
   constructor(props: ErrorBoundaryHandlerProps) {
     super(props)
-    this.state = { error: null, previousPathname: this.props.pathname }
+    this.state = {
+      error: null,
+      previousPathname: this.props.pathname,
+      componentStack: undefined,
+      ownerStack: null,
+    }
   }
 
   static getDerivedStateFromError(error: Error) {
@@ -48,7 +60,18 @@ export class ErrorBoundaryHandler extends React.Component<
       throw error
     }
 
-    return { error }
+    let ownerStack: string | null = null
+    if ('captureOwnerStack' in React) {
+      ownerStack = React.captureOwnerStack()
+    }
+
+    return { error, ownerStack }
+  }
+
+  componentDidCatch(_error: Error, errorInfo: React.ErrorInfo): void {
+    this.setState({
+      componentStack: errorInfo.componentStack ?? undefined,
+    })
   }
 
   static getDerivedStateFromProps(
@@ -67,6 +90,8 @@ export class ErrorBoundaryHandler extends React.Component<
         return {
           error: null,
           previousPathname: props.pathname,
+          componentStack: undefined,
+          ownerStack: null,
         }
       }
     }
@@ -81,16 +106,31 @@ export class ErrorBoundaryHandler extends React.Component<
       return {
         error: null,
         previousPathname: props.pathname,
+        componentStack: undefined,
+        ownerStack: null,
       }
     }
     return {
       error: state.error,
       previousPathname: props.pathname,
+      componentStack: state.componentStack,
+      ownerStack: state.ownerStack,
     }
   }
 
   reset = () => {
-    this.setState({ error: null })
+    this.setState({
+      error: null,
+      componentStack: undefined,
+      ownerStack: null,
+    })
+  }
+
+  retry = () => {
+    startTransition(() => {
+      publicAppRouterInstance.refresh()
+      this.reset()
+    })
   }
 
   // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
@@ -106,6 +146,9 @@ export class ErrorBoundaryHandler extends React.Component<
           <this.props.errorComponent
             error={this.state.error}
             reset={this.reset}
+            retry={this.retry}
+            componentStack={this.state.componentStack}
+            ownerStack={this.state.ownerStack}
           />
         </>
       )

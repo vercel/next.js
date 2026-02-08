@@ -1,9 +1,10 @@
-import { PureComponent } from 'react'
+import React, { PureComponent, startTransition } from 'react'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
 import { RuntimeErrorHandler } from '../../../client/dev/runtime-error-handler'
 import { ErrorBoundary } from '../../../client/components/error-boundary'
 import DefaultGlobalError from '../../../client/components/builtin/global-error'
 import type { GlobalErrorState } from '../../../client/components/app-router-instance'
+import { publicAppRouterInstance } from '../../../client/components/app-router-instance'
 import { SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE } from './segment-explorer-node'
 
 type AppDevOverlayErrorBoundaryProps = {
@@ -13,16 +14,25 @@ type AppDevOverlayErrorBoundaryProps = {
 
 type AppDevOverlayErrorBoundaryState = {
   reactError: unknown
+  componentStack: React.ErrorInfo['componentStack']
+  /** DEV-only */
+  ownerStack: ReturnType<typeof React.captureOwnerStack>
 }
 
 function ErroredHtml({
   globalError: [GlobalError, globalErrorStyles],
   error,
   reset,
+  retry,
+  componentStack,
+  ownerStack,
 }: {
   globalError: GlobalErrorState
   error: unknown
   reset: () => void
+  retry: () => void
+  componentStack: React.ErrorInfo['componentStack']
+  ownerStack: ReturnType<typeof React.captureOwnerStack>
 }) {
   if (!error) {
     return (
@@ -35,7 +45,13 @@ function ErroredHtml({
   return (
     <ErrorBoundary errorComponent={DefaultGlobalError}>
       {globalErrorStyles}
-      <GlobalError error={error} reset={reset} />
+      <GlobalError
+        error={error}
+        reset={reset}
+        retry={retry}
+        componentStack={componentStack}
+        ownerStack={ownerStack}
+      />
     </ErrorBoundary>
   )
 }
@@ -44,39 +60,66 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
   AppDevOverlayErrorBoundaryProps,
   AppDevOverlayErrorBoundaryState
 > {
-  state = { reactError: null }
+  state: AppDevOverlayErrorBoundaryState = {
+    reactError: null,
+    componentStack: undefined,
+    ownerStack: null,
+  }
 
   static getDerivedStateFromError(error: Error) {
     RuntimeErrorHandler.hadRuntimeError = true
 
+    let ownerStack: string | null = null
+    if ('captureOwnerStack' in React) {
+      ownerStack = React.captureOwnerStack()
+    }
+
     return {
       reactError: error,
+      ownerStack,
     }
   }
 
-  componentDidCatch(err: Error) {
+  componentDidCatch(err: Error, errorInfo: React.ErrorInfo) {
     if (
       process.env.NODE_ENV === 'development' &&
       err.message === SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE
     ) {
       return
     }
+    this.setState({
+      componentStack: errorInfo.componentStack,
+    })
     dispatcher.openErrorOverlay()
   }
 
+  retry = () => {
+    startTransition(() => {
+      publicAppRouterInstance.refresh()
+      this.reset()
+    })
+  }
+
   reset = () => {
-    this.setState({ reactError: null })
+    this.setState({
+      reactError: null,
+      componentStack: undefined,
+      ownerStack: null,
+    })
   }
 
   render() {
     const { children, globalError } = this.props
-    const { reactError } = this.state
+    const { reactError, componentStack, ownerStack } = this.state
 
     const fallback = (
       <ErroredHtml
         globalError={globalError}
         error={reactError}
         reset={this.reset}
+        retry={this.retry}
+        componentStack={componentStack}
+        ownerStack={ownerStack}
       />
     )
 
