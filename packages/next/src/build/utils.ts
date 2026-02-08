@@ -80,11 +80,7 @@ import type {
   AppRouteModule,
   AppRouteRouteModule,
 } from '../server/route-modules/app-route/module'
-import {
-  formatIssue,
-  isRelevantWarning,
-  shouldIgnoreIssue,
-} from '../shared/lib/turbopack/utils'
+import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
 import type { TurbopackResult } from './swc/types'
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -249,8 +245,7 @@ export function collectRoutesUsingEdgeRuntime(
  */
 export function printBuildErrors(
   entrypoints: TurbopackResult,
-  isDev: boolean,
-  ignoreRules?: NextConfigComplete['experimental']['turbopackIgnoreIssue']
+  isDev: boolean
 ): void {
   // Issues that we want to stop the server from executing
   const topLevelFatalIssues = []
@@ -265,9 +260,6 @@ export function printBuildErrors(
   const seenWarnings = new Set<string>()
 
   for (const issue of entrypoints.issues) {
-    if (ignoreRules && shouldIgnoreIssue(issue, ignoreRules)) {
-      continue
-    }
     // We only want to completely shut down the server
     if (issue.severity === 'fatal' || issue.severity === 'bug') {
       const formatted = formatIssue(issue)

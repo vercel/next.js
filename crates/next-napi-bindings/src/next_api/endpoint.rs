@@ -7,18 +7,22 @@ use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
     paths::ServerPath,
+    project::ProjectContainer,
     route::{
         EndpointOutputPaths, endpoint_client_changed_operation, endpoint_server_changed_operation,
         endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
+use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, ResolvedVc, Vc};
 use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue};
 
-use crate::next_api::utils::{
-    DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
-    strongly_consistent_catch_collectables, subscribe,
+use crate::next_api::{
+    project::issue_filter_from_container,
+    utils::{
+        DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
+        strongly_consistent_catch_collectables, subscribe,
+    },
 };
 
 #[napi(object)]
@@ -88,13 +92,16 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
 //    some async functions (in this case `endpoint_write_to_disk`) can cause
 //    higher-ranked lifetime errors. See https://github.com/rust-lang/rust/issues/102211
 // 2. the type_complexity clippy lint.
-pub struct ExternalEndpoint(pub DetachedVc<OptionEndpoint>);
+pub struct ExternalEndpoint {
+    pub endpoint: DetachedVc<OptionEndpoint>,
+    pub container: ResolvedVc<ProjectContainer>,
+}
 
 impl Deref for ExternalEndpoint {
     type Target = DetachedVc<OptionEndpoint>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.endpoint
     }
 }
 
@@ -109,10 +116,12 @@ struct WrittenEndpointWithIssues {
 #[turbo_tasks::function(operation)]
 async fn get_written_endpoint_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
+    container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
+    let filter = issue_filter_from_container(container).await?;
     let (written, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op).await?;
+        strongly_consistent_catch_collectables(write_to_disk_op, filter).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -129,12 +138,13 @@ pub async fn endpoint_write_to_disk(
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ***endpoint;
+    let container = endpoint.container;
     let (written, issues, diags) = endpoint
         .turbopack_ctx()
         .turbo_tasks()
         .run(async move {
             let written_entrypoint_with_issues_op =
-                get_written_endpoint_with_issues_operation(endpoint_op);
+                get_written_endpoint_with_issues_operation(endpoint_op, container);
             let WrittenEndpointWithIssues {
                 written,
                 issues,
@@ -164,13 +174,15 @@ pub fn endpoint_server_changed_subscribe(
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
+    let container = endpoint.container;
     let endpoint = ***endpoint;
     subscribe(
         turbopack_ctx,
         func,
         move || {
             async move {
-                let issues_and_diags_op = subscribe_issues_and_diags_operation(endpoint, issues);
+                let issues_and_diags_op =
+                    subscribe_issues_and_diags_operation(endpoint, issues, container);
                 let result = issues_and_diags_op.read_strongly_consistent().await?;
                 result.effects.apply().await?;
                 Ok(result)
@@ -222,12 +234,14 @@ impl Eq for EndpointIssuesAndDiags {}
 async fn subscribe_issues_and_diags_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
     should_include_issues: bool,
+    container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
     let changed_op = endpoint_server_changed_operation(endpoint_op);
 
     if should_include_issues {
+        let filter = issue_filter_from_container(container).await?;
         let (changed_value, issues, diagnostics, effects) =
-            strongly_consistent_catch_collectables(changed_op).await?;
+            strongly_consistent_catch_collectables(changed_op, filter).await?;
         Ok(EndpointIssuesAndDiags {
             changed: changed_value,
             issues,

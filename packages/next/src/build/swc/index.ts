@@ -965,6 +965,50 @@ function bindingToApi(
       nextConfigSerializable.turbopack = turbopack
     }
 
+    // Serialize turbopackIgnoreIssue rules: convert RegExp to {source, flags}
+    if (nextConfigSerializable.experimental?.turbopackIgnoreIssue) {
+      nextConfigSerializable.experimental = {
+        ...nextConfigSerializable.experimental,
+        turbopackIgnoreIssue:
+          nextConfigSerializable.experimental.turbopackIgnoreIssue.map(
+            (rule: {
+              path: string | RegExp
+              title?: string | RegExp
+              description?: string | RegExp
+            }) => ({
+              path:
+                rule.path instanceof RegExp
+                  ? {
+                      type: 'regex',
+                      source: rule.path.source,
+                      flags: rule.path.flags,
+                    }
+                  : { type: 'glob', value: rule.path },
+              title:
+                rule.title == null
+                  ? undefined
+                  : rule.title instanceof RegExp
+                    ? {
+                        type: 'regex',
+                        source: rule.title.source,
+                        flags: rule.title.flags,
+                      }
+                    : { type: 'string', value: rule.title },
+              description:
+                rule.description == null
+                  ? undefined
+                  : rule.description instanceof RegExp
+                    ? {
+                        type: 'regex',
+                        source: rule.description.source,
+                        flags: rule.description.flags,
+                      }
+                    : { type: 'string', value: rule.description },
+            })
+          ),
+      }
+    }
+
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 

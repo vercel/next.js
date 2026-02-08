@@ -729,7 +729,7 @@ export async function createHotReloaderTurbopack(
       const changed = await changedPromise
 
       for await (const change of changed) {
-        processIssues(currentEntryIssues, key, change, false, true, nextConfig.experimental.turbopackIgnoreIssue)
+        processIssues(currentEntryIssues, key, change, false, true)
         // TODO: Get an actual content hash from Turbopack.
         const message = await createMessage(change, String(++hmrHash))
         if (message) {
@@ -777,7 +777,7 @@ export async function createHotReloaderTurbopack(
       await subscription.next()
 
       for await (const data of subscription) {
-        processIssues(state.clientIssues, key, data, false, true, nextConfig.experimental.turbopackIgnoreIssue)
+        processIssues(state.clientIssues, key, data, false, true)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data as TurbopackUpdate)
         }
@@ -820,11 +820,11 @@ export async function createHotReloaderTurbopack(
       }
 
       // Always process issues/diagnostics, even if there are no entrypoints yet
-      processTopLevelIssues(currentTopLevelIssues, entrypoints, nextConfig.experimental.turbopackIgnoreIssue)
+      processTopLevelIssues(currentTopLevelIssues, entrypoints)
 
       // Certain crtical issues prevent any entrypoints from being constructed so return early
       if (!('routes' in entrypoints)) {
-        printBuildErrors(entrypoints, true, nextConfig.experimental.turbopackIgnoreIssue)
+        printBuildErrors(entrypoints, true)
 
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined
@@ -879,7 +879,6 @@ export async function createHotReloaderTurbopack(
             unsubscribeFromHmrEvents: unsubscribeFromClientHmrEvents,
           },
         },
-        ignoreRules: nextConfig.experimental.turbopackIgnoreIssue,
       })
 
       // Reload matchers when the files have been compiled
@@ -1261,7 +1260,7 @@ export async function createHotReloaderTurbopack(
                 message: formatIssue(issue),
               })
             } else {
-              printNonFatalIssue(issue, nextConfig.experimental.turbopackIgnoreIssue)
+              printNonFatalIssue(issue)
             }
           }
         }
@@ -1407,7 +1406,7 @@ export async function createHotReloaderTurbopack(
           .map((issue) => {
             const formattedIssue = formatIssue(issue)
             if (issue.severity === 'warning') {
-              printNonFatalIssue(issue, nextConfig.experimental.turbopackIgnoreIssue)
+              printNonFatalIssue(issue)
               return null
             } else if (isWellKnownError(issue)) {
               Log.error(formattedIssue)
@@ -1431,7 +1430,7 @@ export async function createHotReloaderTurbopack(
             const message = formatIssue(issue)
             errors.push(new Error(message))
           } else {
-            printNonFatalIssue(issue, nextConfig.experimental.turbopackIgnoreIssue)
+            printNonFatalIssue(issue)
           }
         }
       }
@@ -1555,7 +1554,6 @@ export async function createHotReloaderTurbopack(
                     })
                   },
                 },
-                ignoreRules: nextConfig.experimental.turbopackIgnoreIssue,
               })
             } finally {
               finishBuilding()
@@ -1624,7 +1622,6 @@ export async function createHotReloaderTurbopack(
                   })
                 },
               },
-              ignoreRules: nextConfig.experimental.turbopackIgnoreIssue,
             })
           } finally {
             finishBuilding()

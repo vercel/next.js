@@ -5,7 +5,8 @@ const nextConfig = {
   experimental: {
     turbopackIgnoreIssue: [
       {
-        path: /app\/with-warning\/page\.tsx/,
+        // Use a glob string pattern for path
+        path: '**/with-warning/**',
         title: /Module not found/,
       },
       {

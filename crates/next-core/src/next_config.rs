@@ -19,7 +19,10 @@ use turbopack::module_options::{
 };
 use turbopack_core::{
     chunk::SourceMapsType,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        IgnoreIssue, IgnoreIssueMatchMode, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity,
+        IssueStage, OptionStyledString, StyledString,
+    },
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
@@ -964,6 +967,41 @@ pub enum ReactCompilerOptionsOrBoolean {
 #[turbo_tasks::value(transparent)]
 pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>);
 
+/// Serialized representation of a path pattern for `turbopackIgnoreIssue`.
+/// Strings are serialized as `{ "type": "glob", "value": "..." }` and
+/// RegExp as `{ "type": "regex", "source": "...", "flags": "..." }`.
+#[derive(Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode)]
+#[serde(tag = "type")]
+pub enum TurbopackIgnoreIssuePathPattern {
+    #[serde(rename = "glob")]
+    Glob { value: RcStr },
+    #[serde(rename = "regex")]
+    Regex { source: RcStr, flags: RcStr },
+}
+
+/// Serialized representation of a text pattern (title/description) for
+/// `turbopackIgnoreIssue`. Strings are serialized as
+/// `{ "type": "string", "value": "..." }` and RegExp as
+/// `{ "type": "regex", "source": "...", "flags": "..." }`.
+#[derive(Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode)]
+#[serde(tag = "type")]
+pub enum TurbopackIgnoreIssueTextPattern {
+    #[serde(rename = "string")]
+    String { value: RcStr },
+    #[serde(rename = "regex")]
+    Regex { source: RcStr, flags: RcStr },
+}
+
+/// A single rule in `experimental.turbopackIgnoreIssue`.
+#[derive(Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode)]
+pub struct TurbopackIgnoreIssueRule {
+    pub path: TurbopackIgnoreIssuePathPattern,
+    #[serde(default)]
+    pub title: Option<TurbopackIgnoreIssueTextPattern>,
+    #[serde(default)]
+    pub description: Option<TurbopackIgnoreIssueTextPattern>,
+}
+
 #[derive(
     Clone,
     Debug,
@@ -1094,6 +1132,9 @@ pub struct ExperimentalConfig {
     turbopack_remove_unused_exports: Option<bool>,
     /// Enable local analysis to infer side effect free modules. Defaults to true.
     turbopack_infer_module_side_effects: Option<bool>,
+    /// Issue patterns to ignore (suppress) from Turbopack output.
+    #[serde(default)]
+    turbopack_ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
@@ -2114,6 +2155,71 @@ impl NextConfig {
                 "`experimental.reportSystemEnvInlining` must be undefined, \"error\", or \"warn\""
             ),
         }
+    }
+}
+
+impl NextConfig {
+    /// Returns the list of ignore-issue rules from the experimental config,
+    /// converted to the `IgnoreIssue` type used by `IssueFilter`.
+    pub fn turbopack_ignore_issue_rules(&self) -> Vec<IgnoreIssue> {
+        self.experimental
+            .turbopack_ignore_issue
+            .as_ref()
+            .map(|rules| {
+                rules
+                    .iter()
+                    .map(|rule| {
+                        let path = match &rule.path {
+                            TurbopackIgnoreIssuePathPattern::Glob { value } => {
+                                IgnoreIssuePattern {
+                                    pattern: value.clone(),
+                                    mode: IgnoreIssueMatchMode::Glob,
+                                }
+                            }
+                            TurbopackIgnoreIssuePathPattern::Regex { source, .. } => {
+                                IgnoreIssuePattern {
+                                    pattern: source.clone(),
+                                    mode: IgnoreIssueMatchMode::Regex,
+                                }
+                            }
+                        };
+                        let title = rule.title.as_ref().map(|t| match t {
+                            TurbopackIgnoreIssueTextPattern::String { value } => {
+                                IgnoreIssuePattern {
+                                    pattern: value.clone(),
+                                    mode: IgnoreIssueMatchMode::ExactString,
+                                }
+                            }
+                            TurbopackIgnoreIssueTextPattern::Regex { source, .. } => {
+                                IgnoreIssuePattern {
+                                    pattern: source.clone(),
+                                    mode: IgnoreIssueMatchMode::Regex,
+                                }
+                            }
+                        });
+                        let description = rule.description.as_ref().map(|d| match d {
+                            TurbopackIgnoreIssueTextPattern::String { value } => {
+                                IgnoreIssuePattern {
+                                    pattern: value.clone(),
+                                    mode: IgnoreIssueMatchMode::ExactString,
+                                }
+                            }
+                            TurbopackIgnoreIssueTextPattern::Regex { source, .. } => {
+                                IgnoreIssuePattern {
+                                    pattern: source.clone(),
+                                    mode: IgnoreIssueMatchMode::Regex,
+                                }
+                            }
+                        });
+                        IgnoreIssue {
+                            path,
+                            title,
+                            description,
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }
 

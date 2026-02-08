@@ -235,24 +235,41 @@ where
 #[turbo_tasks::value(transparent)]
 pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
-/// A pattern that can match either by exact string comparison or by regex.
+/// How an ignore-issue pattern should be matched.
+#[derive(TaskInput, Hash, Eq, PartialEq, Clone, Encode, Decode, TraceRawVcs, Debug)]
+pub enum IgnoreIssueMatchMode {
+    /// The value must exactly equal the pattern string.
+    ExactString,
+    /// The pattern is treated as a glob (uses turbo-tasks-fs glob matching).
+    Glob,
+    /// The pattern is a regular expression source.
+    Regex,
+}
+
+/// A pattern that can match by exact string, glob, or regex.
 #[derive(TaskInput, Hash, Eq, PartialEq, Clone, Encode, Decode, TraceRawVcs, Debug)]
 pub struct IgnoreIssuePattern {
-    /// The pattern string (either a literal or a regex source).
+    /// The pattern string (a literal, a glob, or a regex source).
     pub pattern: RcStr,
-    /// If true, `pattern` is treated as a regex; otherwise it must match exactly.
-    pub is_regex: bool,
+    /// How this pattern should be matched.
+    pub mode: IgnoreIssueMatchMode,
 }
 
 impl IgnoreIssuePattern {
     /// Test whether the pattern matches the given value.
-    /// For exact patterns, the value must equal the pattern.
-    /// For regex patterns, the regex must match somewhere in the value.
     pub fn matches(&self, value: &str) -> bool {
-        if self.is_regex {
-            regex::Regex::new(&self.pattern).is_ok_and(|re| re.is_match(value))
-        } else {
-            value == self.pattern.as_str()
+        match self.mode {
+            IgnoreIssueMatchMode::ExactString => value == self.pattern.as_str(),
+            IgnoreIssueMatchMode::Glob => {
+                turbo_tasks_fs::glob::Glob::parse(
+                    self.pattern.clone(),
+                    turbo_tasks_fs::glob::GlobOptions::default(),
+                )
+                .is_ok_and(|g| g.matches(value))
+            }
+            IgnoreIssueMatchMode::Regex => {
+                regex::Regex::new(&self.pattern).is_ok_and(|re| re.is_match(value))
+            }
         }
     }
 }

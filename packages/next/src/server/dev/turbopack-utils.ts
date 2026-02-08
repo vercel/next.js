@@ -31,12 +31,10 @@ import {
   getIssueKey,
   isRelevantWarning,
   processIssues,
-  shouldIgnoreIssue,
   renderStyledStringToErrorAnsi,
   type EntryIssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
-import type { NextConfigComplete } from '../../server/config-shared'
 import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../lib/constants'
 
 const onceErrorSet = new Set()
@@ -70,13 +68,7 @@ function shouldEmitOnceWarning(issue: Issue): boolean {
 
 /// Print out an issue to the console which should not block
 /// the build by throwing out or blocking error overlay.
-export function printNonFatalIssue(
-  issue: Issue,
-  ignoreRules?: NextConfigComplete['experimental']['turbopackIgnoreIssue']
-) {
-  if (ignoreRules && shouldIgnoreIssue(issue, ignoreRules)) {
-    return
-  }
+export function printNonFatalIssue(issue: Issue) {
   if (isRelevantWarning(issue) && shouldEmitOnceWarning(issue)) {
     Log.warn(formatIssue(issue))
   }
@@ -84,15 +76,11 @@ export function printNonFatalIssue(
 
 export function processTopLevelIssues(
   currentTopLevelIssues: TopLevelIssuesMap,
-  result: TurbopackResult,
-  ignoreRules?: NextConfigComplete['experimental']['turbopackIgnoreIssue']
+  result: TurbopackResult
 ) {
   currentTopLevelIssues.clear()
 
   for (const issue of result.issues) {
-    if (ignoreRules && shouldIgnoreIssue(issue, ignoreRules)) {
-      continue
-    }
     const issueKey = getIssueKey(issue)
     currentTopLevelIssues.set(issueKey, issue)
   }
@@ -168,7 +156,6 @@ export async function handleRouteType({
   productionRewrites,
   hooks,
   logErrors,
-  ignoreRules,
 }: {
   dev: boolean
   page: string
@@ -185,7 +172,6 @@ export async function handleRouteType({
   readyIds?: ReadyIds // dev
 
   hooks?: HandleRouteTypeHooks // dev
-  ignoreRules?: NextConfigComplete['experimental']['turbopackIgnoreIssue']
 }) {
   const shouldCreateWebpackStats = process.env.TURBOPACK_STATS != null
 
@@ -211,8 +197,7 @@ export async function handleRouteType({
             key,
             writtenEndpoint,
             false,
-            logErrors,
-            ignoreRules
+            logErrors
           )
         }
         await manifestLoader.loadBuildManifest('_app')
@@ -230,8 +215,7 @@ export async function handleRouteType({
             key,
             writtenEndpoint,
             false,
-            logErrors,
-            ignoreRules
+            logErrors
           )
         }
         await manifestLoader.loadPagesManifest('_document')
@@ -271,8 +255,7 @@ export async function handleRouteType({
           serverKey,
           writtenEndpoint,
           false,
-          logErrors,
-          ignoreRules
+          logErrors
         )
       } finally {
         if (dev) {
@@ -358,7 +341,7 @@ export async function handleRouteType({
         entrypoints,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors, ignoreRules)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
       break
     }
@@ -420,7 +403,7 @@ export async function handleRouteType({
         entrypoints,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors, ignoreRules)
+      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
 
       break
     }
@@ -445,7 +428,7 @@ export async function handleRouteType({
         productionRewrites,
         entrypoints,
       })
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors, ignoreRules)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
       break
     }
@@ -599,7 +582,6 @@ export async function handleEntrypoints({
   devRewrites,
   logErrors,
   dev,
-  ignoreRules,
 }: {
   entrypoints: TurbopackResult<RawEntrypoints>
 
@@ -612,7 +594,6 @@ export async function handleEntrypoints({
   logErrors: boolean
 
   dev: HandleEntrypointsDevOpts
-  ignoreRules?: NextConfigComplete['experimental']['turbopackIgnoreIssue']
 }) {
   currentEntrypoints.global.app = entrypoints.pagesAppEndpoint
   currentEntrypoints.global.document = entrypoints.pagesDocumentEndpoint
@@ -699,7 +680,7 @@ export async function handleEntrypoints({
 
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
-      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors, ignoreRules)
+      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
       finishBuilding()
     }
     await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
@@ -743,7 +724,7 @@ export async function handleEntrypoints({
       )
       const writtenEndpoint = await endpoint.writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
-      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors, ignoreRules)
+      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
         manifestLoader.getMiddlewareManifest(key)?.middleware['/']
@@ -883,7 +864,6 @@ export async function handlePagesErrorRoute({
   productionRewrites,
   logErrors,
   hooks,
-  ignoreRules,
 }: {
   currentEntryIssues: EntryIssuesMap
   entrypoints: Entrypoints
@@ -892,7 +872,6 @@ export async function handlePagesErrorRoute({
   productionRewrites: CustomRoutes['rewrites'] | undefined
   logErrors: boolean
   hooks: HandleRouteTypeHooks
-  ignoreRules?: NextConfigComplete['experimental']['turbopackIgnoreIssue']
 }) {
   if (entrypoints.global.app) {
     const key = getEntryKey('pages', 'server', '_app')
@@ -917,7 +896,7 @@ export async function handlePagesErrorRoute({
         }
       }
     )
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors, ignoreRules)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadBuildManifest('_app')
   await manifestLoader.loadPagesManifest('_app')
@@ -945,7 +924,7 @@ export async function handlePagesErrorRoute({
         }
       }
     )
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors, ignoreRules)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadPagesManifest('_document')
 
@@ -972,7 +951,7 @@ export async function handlePagesErrorRoute({
         }
       }
     )
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors, ignoreRules)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadClientBuildManifest('_error')
   await manifestLoader.loadBuildManifest('_error')
