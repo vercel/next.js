@@ -1,6 +1,3 @@
-// @ts-ignore isDisturbed exists on node:stream. Exclude
-import { isDisturbed, isErrored } from 'stream'
-
 const noop = () => {}
 
 let registry: FinalizationRegistry<WeakRef<ReadableStream>> | undefined
@@ -8,17 +5,8 @@ let registry: FinalizationRegistry<WeakRef<ReadableStream>> | undefined
 if (globalThis.FinalizationRegistry) {
   registry = new FinalizationRegistry((weakRef: WeakRef<ReadableStream>) => {
     const stream = weakRef.deref()
-    // Note: isDisturbed/isErrored support WHATWG ReadableStream at runtime but
-    // the types don't reflect this, so we use type assertions.
-    if (
-      stream &&
-      !stream.locked &&
-      !isDisturbed(stream as any) &&
-      !isErrored(stream as any)
-    ) {
-      stream
-        .cancel('Response object has been garbage collected')
-        .then(noop, noop)
+    if (stream && !stream.locked) {
+      stream.cancel('Response object has been garbage collected').then(noop)
     }
   })
 }
