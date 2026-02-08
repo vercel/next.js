@@ -15,6 +15,9 @@ describe('webpack-loader-errors', () => {
       const output = stripAnsi(next.cliOutput)
       // The error output should contain the path of the source file
       expect(output).toContain('string-error.data')
+      // The loader path is not included in the output for string throws:
+      // - webpack: format-webpack-messages strips "Module build failed (from ...)" lines
+      // - turbopack: string throws produce only turbopack-internal stack frames
       // The actual error message should be present (webpack wraps string
       // throws in NonErrorEmittedError)
       expect(output).toContain(
@@ -29,6 +32,12 @@ describe('webpack-loader-errors', () => {
       const output = stripAnsi(next.cliOutput)
       // The error output should contain the path of the source file
       expect(output).toContain('error.data')
+      // Turbopack preserves the loader path in the stack trace.
+      // Webpack strips it via format-webpack-messages filtering
+      // "Module build failed (from ...)" lines.
+      if (isTurbopack) {
+        expect(output).toContain('loaders/error-loader')
+      }
       // The actual error message should be present
       expect(output).toContain('An error thrown by error-loader')
     })
@@ -44,7 +53,7 @@ describe('webpack-loader-errors', () => {
         const output = stripAnsi(next.cliOutput)
         // The unhandled rejection should include the loader path in the
         // stack trace and the error message
-        expect(output).toContain('promise-error-loader')
+        expect(output).toContain('loaders/promise-error-loader')
         expect(output).toContain('An error thrown by promise-error-loader')
       })
     }
@@ -59,7 +68,7 @@ describe('webpack-loader-errors', () => {
         const output = stripAnsi(next.cliOutput)
         // The uncaught exception should include the loader path in the
         // stack trace and the error message
-        expect(output).toContain('timeout-error-loader')
+        expect(output).toContain('loaders/timeout-error-loader')
         expect(output).toContain('An error thrown by timeout-error-loader')
       })
     }
