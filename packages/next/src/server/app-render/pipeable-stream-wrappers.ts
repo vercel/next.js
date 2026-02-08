@@ -145,7 +145,8 @@ export function renderToFlightPipeableStream(
   ) => PipeableStream,
   model: any,
   webpackMap: any,
-  options?: any
+  options?: any,
+  runInContext?: <T>(fn: () => T) => T
 ): Readable {
   const { PassThrough } = getNodeStream()
   const passthrough = new PassThrough()
@@ -162,7 +163,10 @@ export function renderToFlightPipeableStream(
     }
   }
 
-  const { pipe } = renderToPipeableStreamFn(model, webpackMap, options)
-  pipe(passthrough as unknown as Writable)
+  const run = runInContext ?? ((fn: () => any) => fn())
+  const { pipe } = run(() =>
+    renderToPipeableStreamFn(model, webpackMap, options)
+  )
+  run(() => pipe(passthrough as unknown as Writable))
   return passthrough
 }

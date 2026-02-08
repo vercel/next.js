@@ -703,7 +703,7 @@ async function generateDynamicFlightRenderResult(
     options
   )
 
-  if (process.env.NEXT_RUNTIME !== 'edge') {
+  if (process.env.__NEXT_USE_NODE_STREAMS) {
     const { renderToPipeableStream: flightRenderToPipeableStream } =
       ctx.componentMod as any
     if (flightRenderToPipeableStream) {
@@ -723,7 +723,8 @@ async function generateDynamicFlightRenderResult(
           temporaryReferences: options?.temporaryReferences,
           filterStackFrame,
           debugChannel: debugChannel?.serverSide,
-        }
+        },
+        (fn) => workUnitAsyncStorage.run(requestStore, fn)
       )
 
       return new FlightRenderResult(
@@ -829,7 +830,8 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
           {
             ...options,
             environmentName,
-          }
+          },
+          (fn) => workUnitAsyncStorage.run(requestStore, fn)
         )
       },
       () => {
@@ -2992,7 +2994,9 @@ async function renderToStream(
             validationDebugChannelClient
           )
 
-          reactServerResult = new ReactServerResult(serverStream)
+          reactServerResult = new ReactServerResult(serverStream, (fn) =>
+            workUnitAsyncStorage.run(finalRequestStore, fn)
+          )
           requestStore = finalRequestStore
           debugChannel = returnedDebugChannel
         } else {
@@ -3012,7 +3016,9 @@ async function renderToStream(
                 debugChannel: debugChannel?.serverSide,
               }
             )
-          reactServerResult = new ReactServerResult(serverStream)
+          reactServerResult = new ReactServerResult(serverStream, (fn) =>
+            workUnitAsyncStorage.run(requestStore, fn)
+          )
         }
 
         if (debugChannel && setReactDebugChannel) {
@@ -3073,8 +3079,10 @@ async function renderToStream(
                   filterStackFrame,
                   onError: serverComponentsErrorHandler,
                   debugChannel: debugChannel?.serverSide,
-                }
-              )
+                },
+                (fn) => workUnitAsyncStorage.run(requestStore, fn)
+              ),
+              (fn) => workUnitAsyncStorage.run(requestStore, fn)
             )
           } else {
             reactServerResult = new ReactServerResult(
@@ -3088,7 +3096,8 @@ async function renderToStream(
                   onError: serverComponentsErrorHandler,
                   debugChannel: debugChannel?.serverSide,
                 }
-              )
+              ),
+              (fn) => workUnitAsyncStorage.run(requestStore, fn)
             )
           }
         } else {
@@ -3103,7 +3112,8 @@ async function renderToStream(
                 onError: serverComponentsErrorHandler,
                 debugChannel: debugChannel?.serverSide,
               }
-            )
+            ),
+            (fn) => workUnitAsyncStorage.run(requestStore, fn)
           )
         }
       }
@@ -3498,7 +3508,8 @@ async function renderToStream(
               {
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
-              }
+              },
+              (fn) => workUnitAsyncStorage.run(requestStore, fn)
             )
           } else {
             errorServerStream = workUnitAsyncStorage.run(
@@ -3801,7 +3812,8 @@ async function renderWithRestartOnCacheMissInDev(
                 filterStackFrame,
                 debugChannel: debugChannel?.serverSide,
                 signal: initialReactController.signal,
-              }
+              },
+              (fn) => workUnitAsyncStorage.run(requestStore, fn)
             )
             initialReactController.signal.addEventListener('abort', () => {
               initialDataController.abort(initialReactController.signal.reason)
@@ -4009,7 +4021,8 @@ async function renderWithRestartOnCacheMissInDev(
               startTime,
               filterStackFrame,
               debugChannel: debugChannel?.serverSide,
-            }
+            },
+            (fn) => workUnitAsyncStorage.run(requestStore, fn)
           )
 
           // Node stream tee: forward data to two PassThrough streams.

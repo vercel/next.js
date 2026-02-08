@@ -99,9 +99,14 @@ export function prerenderAndAbortInSequentialTasksWithStages<R>(
 // in one that doesn't close even when the underlying is complete.
 export class ReactServerResult {
   private _stream: null | ReadableStream<Uint8Array> | NodeReadable
+  private readonly _runInContext: <T>(fn: () => T) => T
 
-  constructor(stream: ReadableStream<Uint8Array> | NodeReadable) {
+  constructor(
+    stream: ReadableStream<Uint8Array> | NodeReadable,
+    runInContext?: <T>(fn: () => T) => T
+  ) {
     this._stream = stream
+    this._runInContext = runInContext ?? ((fn) => fn())
   }
 
   tee(): ReadableStream<Uint8Array> | NodeReadable {
@@ -121,25 +126,33 @@ export class ReactServerResult {
       // buffer fills (e.g. flight data not pulling yet due to
       // delayDataUntilFirstHtmlChunk), pipe pauses the source, starving
       // the other side (SSR), causing a deadlock.
-      const { PassThrough } =
-        require('node:stream') as typeof import('node:stream')
-      const pt1 = new PassThrough()
-      const pt2 = new PassThrough()
-      const source = this._stream
-      source.on('data', (chunk: Buffer | Uint8Array) => {
-        pt1.write(chunk)
-        pt2.write(chunk)
+      return this._runInContext(() => {
+        const { PassThrough } =
+          require('node:stream') as typeof import('node:stream')
+        const pt1 = new PassThrough()
+        const pt2 = new PassThrough()
+        const source = this._stream as NodeReadable
+        source.on('data', (chunk: Buffer | Uint8Array) => {
+          this._runInContext(() => {
+            pt1.write(chunk)
+            pt2.write(chunk)
+          })
+        })
+        source.on('end', () => {
+          this._runInContext(() => {
+            pt1.end()
+            pt2.end()
+          })
+        })
+        source.on('error', (err) => {
+          this._runInContext(() => {
+            if (!pt1.destroyed) pt1.destroy(err)
+            if (!pt2.destroyed) pt2.destroy(err)
+          })
+        })
+        this._stream = pt1
+        return pt2
       })
-      source.on('end', () => {
-        pt1.end()
-        pt2.end()
-      })
-      source.on('error', (err) => {
-        if (!pt1.destroyed) pt1.destroy(err)
-        if (!pt2.destroyed) pt2.destroy(err)
-      })
-      this._stream = pt1
-      return pt2
     } else {
       throw new Error('Cannot tee a Node.js stream in the edge runtime')
     }
