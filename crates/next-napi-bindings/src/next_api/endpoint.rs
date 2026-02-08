@@ -19,12 +19,9 @@ use turbopack_core::{
     issue::{IssueFilter, PlainIssue},
 };
 
-use crate::next_api::{
-    project::issue_filter_from_project,
-    utils::{
-        DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
-        strongly_consistent_catch_collectables, subscribe,
-    },
+use crate::next_api::utils::{
+    DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
+    strongly_consistent_catch_collectables, subscribe,
 };
 
 #[napi(object)]
@@ -108,13 +105,12 @@ impl Deref for ExternalEndpoint {
 /// `OperationVc<OptionEndpoint>` and extracting ignore rules from its config.
 async fn issue_filter_from_endpoint(
     endpoint_op: OperationVc<OptionEndpoint>,
-) -> Result<IssueFilter> {
+) -> Result<Vc<IssueFilter>> {
     let endpoint_option = endpoint_op.connect().await?;
     if let Some(ep) = &*endpoint_option {
-        let project = ep.project();
-        issue_filter_from_project(project).await
+        Ok(ep.project().issue_filter())
     } else {
-        Ok(IssueFilter::warnings_and_foreign_errors())
+        Ok(IssueFilter::warnings_and_foreign_errors().cell())
     }
 }
 

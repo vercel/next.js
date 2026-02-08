@@ -57,8 +57,8 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
-        StyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage,
+        OptionStyledString, StyledString,
     },
     module::Module,
     module_graph::{
@@ -1084,6 +1084,17 @@ impl Project {
     #[turbo_tasks::function]
     pub fn next_config(&self) -> Vc<NextConfig> {
         *self.next_config
+    }
+
+    /// Build the `IssueFilter` for this project, incorporating any
+    /// `experimental.turbopackIgnoreIssue` rules from the Next.js config.
+    #[turbo_tasks::function]
+    pub async fn issue_filter(self: Vc<Self>) -> Result<Vc<IssueFilter>> {
+        let next_config = self.next_config().await?;
+        let ignore_rules = next_config.turbopack_ignore_issue_rules()?;
+        Ok(IssueFilter::warnings_and_foreign_errors()
+            .with_ignore_rules(ignore_rules)
+            .cell())
     }
 
     #[turbo_tasks::function]

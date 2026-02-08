@@ -12,7 +12,10 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack::module_options::{
     ConditionContentType, ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem,
     WebpackRules, module_options_context::MdxTransformOptions,
@@ -20,8 +23,8 @@ use turbopack::module_options::{
 use turbopack_core::{
     chunk::SourceMapsType,
     issue::{
-        IgnoreIssue, IgnoreIssueMatchMode, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity,
-        IssueStage, OptionStyledString, StyledString,
+        IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage,
+        OptionStyledString, StyledString,
     },
     resolve::ResolveAliasMap,
 };
@@ -981,17 +984,15 @@ pub enum TurbopackIgnoreIssuePathPattern {
     Regex { source: RcStr, flags: RcStr },
 }
 
-impl From<&TurbopackIgnoreIssuePathPattern> for IgnoreIssuePattern {
-    fn from(p: &TurbopackIgnoreIssuePathPattern) -> Self {
-        match p {
-            TurbopackIgnoreIssuePathPattern::Glob { value } => IgnoreIssuePattern {
-                pattern: value.clone(),
-                mode: IgnoreIssueMatchMode::Glob,
-            },
-            TurbopackIgnoreIssuePathPattern::Regex { source, flags } => IgnoreIssuePattern {
-                pattern: regex_source_with_flags(source, flags),
-                mode: IgnoreIssueMatchMode::Regex,
-            },
+impl TurbopackIgnoreIssuePathPattern {
+    fn into_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
+        match self {
+            TurbopackIgnoreIssuePathPattern::Glob { value } => Ok(IgnoreIssuePattern::Glob(
+                Glob::parse(value.clone(), GlobOptions::default())?,
+            )),
+            TurbopackIgnoreIssuePathPattern::Regex { source, flags } => {
+                Ok(IgnoreIssuePattern::Regex(EsRegex::new(source, flags)?))
+            }
         }
     }
 }
@@ -1011,42 +1012,16 @@ pub enum TurbopackIgnoreIssueTextPattern {
     Regex { source: RcStr, flags: RcStr },
 }
 
-impl From<&TurbopackIgnoreIssueTextPattern> for IgnoreIssuePattern {
-    fn from(p: &TurbopackIgnoreIssueTextPattern) -> Self {
-        match p {
-            TurbopackIgnoreIssueTextPattern::String { value } => IgnoreIssuePattern {
-                pattern: value.clone(),
-                mode: IgnoreIssueMatchMode::ExactString,
-            },
-            TurbopackIgnoreIssueTextPattern::Regex { source, flags } => IgnoreIssuePattern {
-                pattern: regex_source_with_flags(source, flags),
-                mode: IgnoreIssueMatchMode::Regex,
-            },
+impl TurbopackIgnoreIssueTextPattern {
+    fn into_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
+        match self {
+            TurbopackIgnoreIssueTextPattern::String { value } => {
+                Ok(IgnoreIssuePattern::ExactString(value.clone()))
+            }
+            TurbopackIgnoreIssueTextPattern::Regex { source, flags } => {
+                Ok(IgnoreIssuePattern::Regex(EsRegex::new(source, flags)?))
+            }
         }
-    }
-}
-
-/// Prepend JS RegExp flags as Rust `regex` inline flags.
-///
-/// For example, JS flags `"i"` become the prefix `"(?i)"` on the pattern
-/// source. Only flags supported by the `regex` crate are forwarded:
-/// `i` (case-insensitive), `m` (multiline), `s` (dotall), `x` (extended).
-fn regex_source_with_flags(source: &RcStr, flags: &RcStr) -> RcStr {
-    if flags.is_empty() {
-        return source.clone();
-    }
-    let mut inline = String::new();
-    for ch in flags.chars() {
-        match ch {
-            'i' | 'm' | 's' | 'x' => inline.push(ch),
-            // `g`, `u`, `y`, `d`, `v` etc. have no Rust regex equivalent; skip.
-            _ => {}
-        }
-    }
-    if inline.is_empty() {
-        source.clone()
-    } else {
-        format!("(?{inline}){source}").into()
     }
 }
 
@@ -2221,16 +2196,26 @@ impl NextConfig {
 impl NextConfig {
     /// Returns the list of ignore-issue rules from the experimental config,
     /// converted to the `IgnoreIssue` type used by `IssueFilter`.
-    pub fn turbopack_ignore_issue_rules(&self) -> Vec<IgnoreIssue> {
+    pub fn turbopack_ignore_issue_rules(&self) -> Result<Vec<IgnoreIssue>> {
         self.experimental
             .turbopack_ignore_issue
             .as_deref()
             .unwrap_or_default()
             .iter()
-            .map(|rule| IgnoreIssue {
-                path: (&rule.path).into(),
-                title: rule.title.as_ref().map(Into::into),
-                description: rule.description.as_ref().map(Into::into),
+            .map(|rule| {
+                Ok(IgnoreIssue {
+                    path: rule.path.into_ignore_pattern()?,
+                    title: rule
+                        .title
+                        .as_ref()
+                        .map(|t| t.into_ignore_pattern())
+                        .transpose()?,
+                    description: rule
+                        .description
+                        .as_ref()
+                        .map(|d| d.into_ignore_pattern())
+                        .transpose()?,
+                })
             })
             .collect()
     }

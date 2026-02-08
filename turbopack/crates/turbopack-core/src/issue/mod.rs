@@ -10,15 +10,24 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
-use bincode::{Decode, Encode};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use serde::{Deserialize, Serialize};
+use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, IntoTraitRef, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc,
     TaskInput, TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault,
     ValueToString, Vc, emit, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{
+    FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
+};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
@@ -235,46 +244,67 @@ where
 #[turbo_tasks::value(transparent)]
 pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
-/// How an ignore-issue pattern should be matched.
-#[derive(TaskInput, Hash, Eq, PartialEq, Clone, Encode, Decode, TraceRawVcs, Debug)]
-pub enum IgnoreIssueMatchMode {
+/// A pattern that can match by exact string, glob, or regex.
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+pub enum IgnoreIssuePattern {
     /// The value must exactly equal the pattern string.
-    ExactString,
+    ExactString(RcStr),
     /// The pattern is treated as a glob (uses turbo-tasks-fs glob matching).
-    Glob,
-    /// The pattern is a regular expression source.
-    Regex,
+    Glob(Glob),
+    /// The pattern is a regular expression (supports ES-style patterns via `EsRegex`).
+    Regex(EsRegex),
 }
 
-/// A pattern that can match by exact string, glob, or regex.
-#[derive(TaskInput, Hash, Eq, PartialEq, Clone, Encode, Decode, TraceRawVcs, Debug)]
-pub struct IgnoreIssuePattern {
-    /// The pattern string (a literal, a glob, or a regex source).
-    pub pattern: RcStr,
-    /// How this pattern should be matched.
-    pub mode: IgnoreIssueMatchMode,
+impl Encode for IgnoreIssuePattern {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        match self {
+            IgnoreIssuePattern::ExactString(s) => {
+                0u8.encode(encoder)?;
+                s.encode(encoder)?;
+            }
+            IgnoreIssuePattern::Glob(g) => {
+                1u8.encode(encoder)?;
+                g.encode(encoder)?;
+            }
+            IgnoreIssuePattern::Regex(r) => {
+                2u8.encode(encoder)?;
+                r.encode(encoder)?;
+            }
+        }
+        Ok(())
+    }
 }
+
+impl<Context> Decode<Context> for IgnoreIssuePattern {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let tag: u8 = Decode::decode(decoder)?;
+        match tag {
+            0 => Ok(IgnoreIssuePattern::ExactString(Decode::decode(decoder)?)),
+            1 => Ok(IgnoreIssuePattern::Glob(Decode::decode(decoder)?)),
+            2 => Ok(IgnoreIssuePattern::Regex(Decode::decode(decoder)?)),
+            _ => Err(DecodeError::OtherString(format!(
+                "invalid IgnoreIssuePattern tag: {tag}"
+            ))),
+        }
+    }
+}
+
+impl_borrow_decode!(IgnoreIssuePattern);
 
 impl IgnoreIssuePattern {
     /// Test whether the pattern matches the given value.
     pub fn matches(&self, value: &str) -> bool {
-        match self.mode {
-            IgnoreIssueMatchMode::ExactString => value == self.pattern.as_str(),
-            IgnoreIssueMatchMode::Glob => turbo_tasks_fs::glob::Glob::parse(
-                self.pattern.clone(),
-                turbo_tasks_fs::glob::GlobOptions::default(),
-            )
-            .is_ok_and(|g| g.matches(value)),
-            IgnoreIssueMatchMode::Regex => {
-                regex::Regex::new(&self.pattern).is_ok_and(|re| re.is_match(value))
-            }
+        match self {
+            IgnoreIssuePattern::ExactString(s) => value == s.as_str(),
+            IgnoreIssuePattern::Glob(glob) => glob.matches(value),
+            IgnoreIssuePattern::Regex(regex) => regex.is_match(value),
         }
     }
 }
 
 /// A rule describing an issue to ignore. `path` is mandatory;
 /// `title` and `description` are optional additional filters.
-#[derive(TaskInput, Hash, Eq, PartialEq, Clone, Encode, Decode, TraceRawVcs, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
 pub struct IgnoreIssue {
     /// File-path pattern (mandatory).
     pub path: IgnoreIssuePattern,
@@ -284,7 +314,28 @@ pub struct IgnoreIssue {
     pub description: Option<IgnoreIssuePattern>,
 }
 
-#[derive(TaskInput, Hash, Eq, PartialEq, Clone, Encode, Decode, TraceRawVcs, Debug)]
+impl Encode for IgnoreIssue {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.path.encode(encoder)?;
+        self.title.encode(encoder)?;
+        self.description.encode(encoder)?;
+        Ok(())
+    }
+}
+
+impl<Context> Decode<Context> for IgnoreIssue {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(IgnoreIssue {
+            path: Decode::decode(decoder)?,
+            title: Decode::decode(decoder)?,
+            description: Decode::decode(decoder)?,
+        })
+    }
+}
+
+impl_borrow_decode!(IgnoreIssue);
+
+#[turbo_tasks::value(shared)]
 pub struct IssueFilter {
     /// The minimum severity for issues
     severity: IssueSeverity,
@@ -294,38 +345,29 @@ pub struct IssueFilter {
     ignore_rules: Vec<IgnoreIssue>,
 }
 
+#[turbo_tasks::value_impl]
 impl IssueFilter {
-    pub fn everything() -> Self {
-        Self {
+    /// A filter that lets everything through.
+    #[turbo_tasks::function]
+    pub fn everything() -> Vc<Self> {
+        IssueFilter {
             severity: IssueSeverity::Info,
             foreign_severity: IssueSeverity::Info,
             ignore_rules: Vec::new(),
         }
-    }
-
-    pub fn warnings_and_foreign_errors() -> Self {
-        Self {
-            severity: IssueSeverity::Warning,
-            foreign_severity: IssueSeverity::Error,
-            ignore_rules: Vec::new(),
-        }
-    }
-
-    /// Create a filter with the given ignore rules.
-    pub fn with_ignore_rules(mut self, rules: Vec<IgnoreIssue>) -> Self {
-        self.ignore_rules = rules;
-        self
+        .cell()
     }
 
     /// Returns true if the issue is allowed by this filter.
-    async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<bool> {
+    #[turbo_tasks::function]
+    pub async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<Vc<bool>> {
         let has_no_ignore_rules = self.ignore_rules.is_empty();
         let is_everything = self.severity == IssueSeverity::Info
             && self.foreign_severity == IssueSeverity::Info
             && has_no_ignore_rules;
 
         if is_everything {
-            return Ok(true);
+            return Ok(Vc::cell(true));
         }
 
         // Check ignore rules first — if any rule matches, the issue is dropped.
@@ -354,13 +396,13 @@ impl IssueFilter {
                     }
                 }
                 // All specified fields matched — ignore this issue.
-                return Ok(false);
+                return Ok(Vc::cell(false));
             }
         }
 
         let severity = issue.into_trait_ref().await?.severity();
         // NOTE: Lower severities are _more_ severe
-        Ok(
+        Ok(Vc::cell(
             if severity <= self.severity || severity <= self.foreign_severity {
                 // we need to check the path to see if it is foreign or not.  Only await the path if
                 // it might possibly matter
@@ -379,7 +421,24 @@ impl IssueFilter {
                 // it is too low severity to match either way
                 false
             },
-        )
+        ))
+    }
+}
+
+impl IssueFilter {
+    /// Construct a filter with the standard warning/foreign-error severities.
+    pub fn warnings_and_foreign_errors() -> Self {
+        IssueFilter {
+            severity: IssueSeverity::Warning,
+            foreign_severity: IssueSeverity::Error,
+            ignore_rules: Vec::new(),
+        }
+    }
+
+    /// Set the ignore rules for this filter.
+    pub fn with_ignore_rules(mut self, rules: Vec<IgnoreIssue>) -> Self {
+        self.ignore_rules = rules;
+        self
     }
 }
 
@@ -418,12 +477,15 @@ impl CapturedIssues {
     }
 
     // Returns all the issues as formatted `PlainIssues`.
-    pub async fn get_plain_issues(&self, filter: IssueFilter) -> Result<Vec<ReadRef<PlainIssue>>> {
+    pub async fn get_plain_issues(
+        &self,
+        filter: Vc<IssueFilter>,
+    ) -> Result<Vec<ReadRef<PlainIssue>>> {
         let mut list = self
             .issues
             .iter()
             .map(async |issue| {
-                if filter.matches(*issue).await? {
+                if *filter.matches(**issue).await? {
                     Ok(Some(
                         PlainIssue::from_issue(**issue, Some(*self.tracer)).await?,
                     ))

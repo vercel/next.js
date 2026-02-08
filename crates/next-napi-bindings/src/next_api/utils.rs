@@ -97,7 +97,7 @@ pub fn root_task_dispose(
 
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
-    filter: IssueFilter,
+    filter: Vc<IssueFilter>,
 ) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     Ok(Arc::new(
         source.peek_issues().get_plain_issues(filter).await?,
@@ -360,7 +360,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 // propagate any actual error results.
 pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     source_op: OperationVc<R>,
-    filter: IssueFilter,
+    filter: Vc<IssueFilter>,
 ) -> Result<(
     Option<ReadRef<R>>,
     Arc<Vec<ReadRef<PlainIssue>>>,
