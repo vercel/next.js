@@ -222,7 +222,7 @@ const FILES = {
           ...FILES,
         },
         dependencies: {
-          vercel: '>=50.12.1',
+          vercel: '>=50.13.2',
         },
         packageJson: {
           scripts: {

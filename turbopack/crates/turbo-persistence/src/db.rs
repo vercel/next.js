@@ -25,14 +25,13 @@ use crate::{
     compaction::selector::{Compactable, get_merge_segments},
     compression::decompress_into_arc,
     constants::{
-        AMQF_AVG_SIZE, AMQF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
-        KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
-        VALUE_BLOCK_CACHE_SIZE,
+        DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
+        MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
     key::{StoreKey, hash_key},
     lookup_entry::{LookupEntry, LookupValue},
     merge_iter::MergeIter,
-    meta_file::{AmqfCache, MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
+    meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
     sst_filter::SstFilter,
@@ -83,7 +82,6 @@ pub struct Statistics {
     pub sst_files: usize,
     pub key_block_cache: CacheStatistics,
     pub value_block_cache: CacheStatistics,
-    pub amqf_cache: CacheStatistics,
     pub hits: u64,
     pub misses: u64,
     pub miss_family: u64,
@@ -119,8 +117,6 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     /// A flag to indicate if a write operation is currently active. Prevents multiple concurrent
     /// write operations.
     active_write_operation: AtomicBool,
-    /// A cache for deserialized AMQF filters.
-    amqf_cache: AmqfCache,
     /// A cache for decompressed key blocks.
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
@@ -181,13 +177,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     .map(|_| DashSet::with_hasher(BuildNoHashHasher::default())),
             }),
             active_write_operation: AtomicBool::new(false),
-            amqf_cache: AmqfCache::with(
-                AMQF_CACHE_SIZE as usize / AMQF_AVG_SIZE,
-                AMQF_CACHE_SIZE,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            ),
             key_block_cache: BlockCache::with(
                 KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
                 KEY_BLOCK_CACHE_SIZE,
@@ -438,7 +427,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Clears all caches of the database.
     pub fn clear_cache(&self) {
-        self.amqf_cache.clear();
         self.key_block_cache.clear();
         self.value_block_cache.clear();
         for meta in self.inner.write().meta_files.iter_mut() {
@@ -456,7 +444,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// for the first queries after opening the database.
     pub fn prepare_all_sst_caches(&self) {
         for meta in self.inner.write().meta_files.iter_mut() {
-            meta.prepare_sst_cache(&self.amqf_cache);
+            meta.prepare_sst_cache();
         }
     }
 
@@ -1373,7 +1361,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 family as u32,
                 hash,
                 key,
-                &self.amqf_cache,
                 &self.key_block_cache,
                 &self.value_block_cache,
             )? {
@@ -1456,7 +1443,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 keys,
                 &mut cells,
                 &mut empty_cells,
-                &self.amqf_cache,
                 &self.key_block_cache,
                 &self.value_block_cache,
             )?;
@@ -1544,7 +1530,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             sst_files: inner.meta_files.iter().map(|m| m.entries().len()).sum(),
             key_block_cache: CacheStatistics::new(&self.key_block_cache),
             value_block_cache: CacheStatistics::new(&self.value_block_cache),
-            amqf_cache: CacheStatistics::new(&self.amqf_cache),
             hits: self.stats.hits_deleted.load(Ordering::Relaxed)
                 + self.stats.hits_small.load(Ordering::Relaxed)
                 + self.stats.hits_blob.load(Ordering::Relaxed),
