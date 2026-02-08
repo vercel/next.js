@@ -13,7 +13,6 @@ mod lifetime_util;
 mod module_asset;
 pub(crate) mod process;
 pub(crate) mod references;
-pub(crate) mod util;
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};

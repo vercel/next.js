@@ -327,6 +327,54 @@ describe('app dir - css', () => {
       })
     })
 
+    describe('css import URLs', () => {
+      it('should not mangle external layers', async () => {
+        const browser = await next.browser('/externalLayer')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).margin`
+          )
+        ).toBe('5px')
+      })
+
+      it('should not mangle relative layers', async () => {
+        const browser = await next.browser('/relativeLayer')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h2')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
+      // Broken in webpack, see https://github.com/vercel/next.js/issues/89602
+      if (process.env.IS_TURBOPACK_TEST) {
+        it('should allow the supports attribute', async () => {
+          const browser = await next.browser('/urlSupports')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+      }
+
+      it('should work with the media attribute', async () => {
+        const browser = await next.browser('/urlMedia')
+        await browser.setDimensions({ width: 1000, height: 1000 })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(255, 255, 255)')
+        await browser.setDimensions({ width: 300, height: 300 })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(0, 0, 0)')
+      })
+    })
+
     if (isNextDev) {
       it('should not affect css orders during HMR', async () => {
         const filePath = 'app/ordering/page.js'

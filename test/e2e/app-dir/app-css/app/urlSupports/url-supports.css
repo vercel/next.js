@@ -1,0 +1,7 @@
+@import url('./not-loaded.css') supports(display: not-real-value);
+@import url('./should-load.css') supports(display: flex);
+
+h1 {
+  /* this should be overwritten by the should-load css */
+  color: rgb(0, 0, 255);
+}
