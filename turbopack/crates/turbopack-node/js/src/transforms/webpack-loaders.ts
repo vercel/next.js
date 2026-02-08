@@ -491,10 +491,31 @@ const transform = (
             '**',
           ]),
         })
-        if (err) return reject(err)
+        if (err) {
+          // Include loader paths in the error so they appear in stack traces.
+          // This is especially important for string throws where the original
+          // stack trace is lost.
+          if (!(err instanceof Error)) {
+            const loaderPaths = loadersWithOptions
+              .map((l) => {
+                try {
+                  return __turbopack_external_require__.resolve(l.loader, {
+                    paths: [contextDir, resourceDir],
+                  })
+                } catch {
+                  return l.loader
+                }
+              })
+              .join(', ')
+            const wrappedErr = new Error(String(err))
+            wrappedErr.stack = `Error: ${String(err)}\n    at loader (${loaderPaths})`
+            return reject(wrappedErr)
+          }
+          return reject(err)
+        }
         if (!result.result) return reject(new Error('No result from loaders'))
         const [source, map] = result.result
-        resolve({
+        const resolvedValue = {
           source: Buffer.isBuffer(source)
             ? { binary: source.toString('base64') }
             : source,
@@ -504,7 +525,12 @@ const transform = (
               : typeof map === 'object'
                 ? JSON.stringify(map)
                 : undefined,
-        })
+        }
+        // Delay resolution by one event loop turn to catch deferred errors
+        // from loaders (e.g. unhandled Promise rejections, setTimeout throws).
+        // During this delay, uncaughtException/unhandledRejection handlers can
+        // fire and send the error via IPC before we send the 'end' message.
+        setTimeout(() => resolve(resolvedValue), 0)
       }
     )
   })

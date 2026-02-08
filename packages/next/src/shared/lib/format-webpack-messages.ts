@@ -86,9 +86,20 @@ function formatMessage(
   }
   let lines = message.split('\n')
 
-  // Strip Webpack-added headers off errors/warnings
+  // Rewrite Webpack-added headers to preserve loader path while removing
+  // the verbose "Module build failed" prefix.
+  // Original format: "Module build failed (from ./loaders/foo-loader.js):"
+  // Rewritten to: "  (from ./loaders/foo-loader.js)"
   // https://github.com/webpack/webpack/blob/master/lib/ModuleError.js
-  lines = lines.filter((line: string) => !/Module [A-z ]+\(from/.test(line))
+  lines = lines
+    .map((line: string) => {
+      const match = /Module [A-z ]+\(from (.+)\):?\s*$/.exec(line)
+      if (match) {
+        return `  (from ${match[1]})`
+      }
+      return line
+    })
+    .filter(Boolean)
 
   // Transform parsing error into syntax error
   // TODO: move this to our ESLint formatter?
