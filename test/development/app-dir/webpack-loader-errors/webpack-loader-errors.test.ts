@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('webpack-loader-errors', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -34,25 +34,34 @@ describe('webpack-loader-errors', () => {
     })
   })
 
-  it('should surface an unhandled rejected Promise from a loader', async () => {
-    await next.fetch('/promise-error')
-    await retry(async () => {
-      const output = stripAnsi(next.cliOutput)
-      // The unhandled rejection should include the loader path in the
-      // stack trace and the error message
-      expect(output).toContain('promise-error-loader')
-      expect(output).toContain('An error thrown by promise-error-loader')
-    })
-  })
+  // Turbopack catches unhandled rejections differently — the error from
+  // promise-error-loader surfaces later attributed to a different file.
+  ;(isTurbopack ? it.skip : it)(
+    'should surface an unhandled rejected Promise from a loader',
+    async () => {
+      await next.fetch('/promise-error')
+      await retry(async () => {
+        const output = stripAnsi(next.cliOutput)
+        // The unhandled rejection should include the loader path in the
+        // stack trace and the error message
+        expect(output).toContain('promise-error-loader')
+        expect(output).toContain('An error thrown by promise-error-loader')
+      })
+    }
+  )
 
-  it('should surface a setTimeout error thrown after loader completion', async () => {
-    await next.fetch('/timeout-error')
-    await retry(async () => {
-      const output = stripAnsi(next.cliOutput)
-      // The uncaught exception should include the loader path in the
-      // stack trace and the error message
-      expect(output).toContain('timeout-error-loader')
-      expect(output).toContain('An error thrown by timeout-error-loader')
-    })
-  })
+  // Turbopack swallows setTimeout errors thrown after loader completion.
+  ;(isTurbopack ? it.skip : it)(
+    'should surface a setTimeout error thrown after loader completion',
+    async () => {
+      await next.fetch('/timeout-error')
+      await retry(async () => {
+        const output = stripAnsi(next.cliOutput)
+        // The uncaught exception should include the loader path in the
+        // stack trace and the error message
+        expect(output).toContain('timeout-error-loader')
+        expect(output).toContain('An error thrown by timeout-error-loader')
+      })
+    }
+  )
 })
