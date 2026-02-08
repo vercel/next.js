@@ -205,15 +205,18 @@ async function httpRequest(url, options = {}) {
   })
 }
 
-async function githubApi(apiPath) {
-  const url = `https://api.github.com${apiPath}`
-  const resp = await httpRequest(url, {
-    headers: {
-      Authorization: `token ${getToken()}`,
-      Accept: 'application/json',
-      'User-Agent': 'next.js-pr-status-script',
-    },
-  })
+async function githubRequest(apiPath, { accept, method, body } = {}) {
+  const url = apiPath.startsWith('https://')
+    ? apiPath
+    : `https://api.github.com${apiPath}`
+  const headers = {
+    Authorization: `token ${getToken()}`,
+    'User-Agent': 'next.js-pr-status-script',
+  }
+  if (accept) headers['Accept'] = accept
+  if (body) headers['Content-Type'] = 'application/json'
+
+  const resp = await httpRequest(url, { method: method || 'GET', headers, body })
 
   if (resp.statusCode < 200 || resp.statusCode >= 300) {
     throw new Error(
@@ -221,45 +224,24 @@ async function githubApi(apiPath) {
     )
   }
 
+  return resp
+}
+
+async function githubApi(apiPath) {
+  const resp = await githubRequest(apiPath, { accept: 'application/json' })
   return JSON.parse(resp.body)
 }
 
 async function githubApiRaw(apiPath) {
-  const url = `https://api.github.com${apiPath}`
-  const resp = await httpRequest(url, {
-    headers: {
-      Authorization: `token ${getToken()}`,
-      'User-Agent': 'next.js-pr-status-script',
-    },
-  })
-
-  if (resp.statusCode < 200 || resp.statusCode >= 300) {
-    throw new Error(
-      `GitHub API error ${resp.statusCode}: ${resp.body.substring(0, 200)}`
-    )
-  }
-
+  const resp = await githubRequest(apiPath)
   return resp.body
 }
 
 async function githubGraphQL(query) {
-  const url = 'https://api.github.com/graphql'
-  const resp = await httpRequest(url, {
+  const resp = await githubRequest('/graphql', {
     method: 'POST',
-    headers: {
-      Authorization: `bearer ${getToken()}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'next.js-pr-status-script',
-    },
     body: JSON.stringify({ query }),
   })
-
-  if (resp.statusCode < 200 || resp.statusCode >= 300) {
-    throw new Error(
-      `GitHub GraphQL error ${resp.statusCode}: ${resp.body.substring(0, 200)}`
-    )
-  }
-
   return JSON.parse(resp.body)
 }
 
@@ -459,8 +441,8 @@ async function getRunMetadata(runId) {
   }
 }
 
-async function getFailedJobs(runId) {
-  const failedJobs = []
+async function paginateJobs(runId, mapFn) {
+  const results = []
   let page = 1
 
   while (true) {
@@ -474,35 +456,26 @@ async function getFailedJobs(runId) {
     }
 
     const pageJobs = data.jobs || []
-    const failed = pageJobs
-      .filter((j) => j.conclusion === 'failure')
-      .map((j) => ({ id: j.id, name: j.name }))
-
-    failedJobs.push(...failed)
+    results.push(...mapFn(pageJobs))
 
     if (pageJobs.length < 100) break
     page++
   }
 
-  return failedJobs
+  return results
+}
+
+async function getFailedJobs(runId) {
+  return paginateJobs(runId, (jobs) =>
+    jobs
+      .filter((j) => j.conclusion === 'failure')
+      .map((j) => ({ id: j.id, name: j.name }))
+  )
 }
 
 async function getAllJobs(runId) {
-  const allJobs = []
-  let page = 1
-
-  while (true) {
-    let data
-    try {
-      data = await githubApi(
-        `/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${runId}/jobs?per_page=100&page=${page}`
-      )
-    } catch {
-      break
-    }
-
-    const pageJobs = data.jobs || []
-    const mapped = pageJobs.map((j) => ({
+  return paginateJobs(runId, (jobs) =>
+    jobs.map((j) => ({
       id: j.id,
       name: j.name,
       status: j.status,
@@ -510,14 +483,7 @@ async function getAllJobs(runId) {
       started_at: j.started_at,
       completed_at: j.completed_at,
     }))
-
-    allJobs.push(...mapped)
-
-    if (pageJobs.length < 100) break
-    page++
-  }
-
-  return allJobs
+  )
 }
 
 function categorizeJobs(jobs) {
@@ -1374,6 +1340,34 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
 }
 
 // ============================================================================
+// File Writing Helpers
+// ============================================================================
+
+async function writeReviewFiles(reviewData) {
+  for (let i = 0; i < reviewData.reviewThreads.length; i++) {
+    const thread = reviewData.reviewThreads[i]
+    await fs.writeFile(
+      path.join(OUTPUT_DIR, `thread-${i + 1}.md`),
+      generateThreadMd(thread, i)
+    )
+  }
+  for (const review of reviewData.reviews) {
+    if (review.body?.trim()) {
+      await fs.writeFile(
+        path.join(OUTPUT_DIR, `review-${review.id}.md`),
+        generateReviewMd(review)
+      )
+    }
+  }
+  for (const comment of reviewData.prComments) {
+    await fs.writeFile(
+      path.join(OUTPUT_DIR, `comment-${comment.id}.md`),
+      generateCommentMd(comment)
+    )
+  }
+}
+
+// ============================================================================
 // Main Function
 // ============================================================================
 
@@ -1464,48 +1458,16 @@ async function main() {
     // Completed run with no failures
     console.log('No failed jobs found.')
 
-    // Write review files if we have PR data
     if (reviewData) {
-      // Write individual thread files
-      for (let i = 0; i < reviewData.reviewThreads.length; i++) {
-        const thread = reviewData.reviewThreads[i]
-        await fs.writeFile(
-          path.join(OUTPUT_DIR, `thread-${i + 1}.md`),
-          generateThreadMd(thread, i)
-        )
-      }
-      // Write individual review files for reviews with comments
-      for (const review of reviewData.reviews) {
-        if (review.body && review.body.trim()) {
-          await fs.writeFile(
-            path.join(OUTPUT_DIR, `review-${review.id}.md`),
-            generateReviewMd(review)
-          )
-        }
-      }
-      // Write individual comment files
-      for (const comment of reviewData.prComments) {
-        await fs.writeFile(
-          path.join(OUTPUT_DIR, `comment-${comment.id}.md`),
-          generateCommentMd(comment)
-        )
-      }
+      await writeReviewFiles(reviewData)
     }
 
-    const emptyCategorizedJobs = {
-      failed: [],
-      inProgress: [],
-      queued: [],
-      succeeded: [],
-      cancelled: [],
-      skipped: [],
-    }
     await fs.writeFile(
       path.join(OUTPUT_DIR, 'index.md'),
       generateIndexMd(
         branchInfo,
         runMetadata,
-        emptyCategorizedJobs,
+        categorizedJobs,
         {},
         reviewData,
         {}
@@ -1539,14 +1501,14 @@ async function main() {
     const testResults = extractTestOutputJson(logs)
 
     // Calculate test counts for index
-    let failed = 0
-    let total = 0
+    let failedCount = 0
+    let totalCount = 0
     for (const result of testResults) {
-      failed += result.numFailedTests || 0
-      total += result.numTotalTests || 0
+      failedCount += result.numFailedTests || 0
+      totalCount += result.numTotalTests || 0
     }
-    if (total > 0) {
-      jobTestCounts[id] = { failed, total }
+    if (totalCount > 0) {
+      jobTestCounts[id] = { failed: failedCount, total: totalCount }
     }
 
     // Extract sections from the log
@@ -1592,30 +1554,7 @@ async function main() {
   // Step 7: Write PR review files if we have PR data
   if (reviewData) {
     console.log('Generating review files...')
-    // Write individual thread files
-    for (let i = 0; i < reviewData.reviewThreads.length; i++) {
-      const thread = reviewData.reviewThreads[i]
-      await fs.writeFile(
-        path.join(OUTPUT_DIR, `thread-${i + 1}.md`),
-        generateThreadMd(thread, i)
-      )
-    }
-    // Write individual review files for reviews with comments
-    for (const review of reviewData.reviews) {
-      if (review.body?.trim()) {
-        await fs.writeFile(
-          path.join(OUTPUT_DIR, `review-${review.id}.md`),
-          generateReviewMd(review)
-        )
-      }
-    }
-    // Write individual comment files
-    for (const comment of reviewData.prComments) {
-      await fs.writeFile(
-        path.join(OUTPUT_DIR, `comment-${comment.id}.md`),
-        generateCommentMd(comment)
-      )
-    }
+    await writeReviewFiles(reviewData)
   }
 
   // Step 8: Check for known flaky tests across branches (skip with --skip-flaky-check)
