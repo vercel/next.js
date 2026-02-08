@@ -89,7 +89,8 @@ static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
 
 /// Next doesn't display warnings from node_modules, so configure turbopack to not report them
 /// either. This matches logic in `packages/next/src/server/dev/turbopack-utils.ts`
-pub const NEXT_ISSUE_FILTER: IssueFilter = IssueFilter::warnings_and_foreign_errors();
+pub static NEXT_ISSUE_FILTER: Lazy<IssueFilter> =
+    Lazy::new(IssueFilter::warnings_and_foreign_errors);
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -1224,7 +1225,7 @@ async fn hmr_update_with_issues_operation(
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_op = project_hmr_update_operation(project, chunk_name, target, state);
     let update = update_op.read_strongly_consistent().await?;
-    let issues = get_issues(update_op, NEXT_ISSUE_FILTER).await?;
+    let issues = get_issues(update_op, NEXT_ISSUE_FILTER.clone()).await?;
     let diagnostics = get_diagnostics(update_op).await?;
     let effects = Arc::new(get_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
@@ -1358,7 +1359,7 @@ async fn get_hmr_chunk_names_with_issues_operation(
 ) -> Result<Vc<HmrChunkNamesWithIssues>> {
     let hmr_chunk_names_op = project_hmr_chunk_names_operation(container, target);
     let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
-    let issues = get_issues(hmr_chunk_names_op, NEXT_ISSUE_FILTER).await?;
+    let issues = get_issues(hmr_chunk_names_op, NEXT_ISSUE_FILTER.clone()).await?;
     let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
     let effects = Arc::new(get_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {

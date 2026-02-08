@@ -235,34 +235,114 @@ where
 #[turbo_tasks::value(transparent)]
 pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
-#[derive(TaskInput, Hash, Eq, PartialEq, Copy, Clone, Encode, Decode, TraceRawVcs, Debug)]
+/// A pattern that can match either by exact string comparison or by regex.
+#[derive(TaskInput, Hash, Eq, PartialEq, Clone, Encode, Decode, TraceRawVcs, Debug)]
+pub struct IgnoreIssuePattern {
+    /// The pattern string (either a literal or a regex source).
+    pub pattern: RcStr,
+    /// If true, `pattern` is treated as a regex; otherwise it must match exactly.
+    pub is_regex: bool,
+}
+
+impl IgnoreIssuePattern {
+    /// Test whether the pattern matches the given value.
+    /// For exact patterns, the value must equal the pattern.
+    /// For regex patterns, the regex must match somewhere in the value.
+    pub fn matches(&self, value: &str) -> bool {
+        if self.is_regex {
+            regex::Regex::new(&self.pattern).is_ok_and(|re| re.is_match(value))
+        } else {
+            value == self.pattern.as_str()
+        }
+    }
+}
+
+/// A rule describing an issue to ignore. `path` is mandatory;
+/// `title` and `description` are optional additional filters.
+#[derive(TaskInput, Hash, Eq, PartialEq, Clone, Encode, Decode, TraceRawVcs, Debug)]
+pub struct IgnoreIssue {
+    /// File-path pattern (mandatory).
+    pub path: IgnoreIssuePattern,
+    /// Title pattern (optional).
+    pub title: Option<IgnoreIssuePattern>,
+    /// Description pattern (optional).
+    pub description: Option<IgnoreIssuePattern>,
+}
+
+#[derive(TaskInput, Hash, Eq, PartialEq, Clone, Encode, Decode, TraceRawVcs, Debug)]
 pub struct IssueFilter {
     /// The minimum severity for issues
     severity: IssueSeverity,
     /// The minimum severity for issues in node_modules
     foreign_severity: IssueSeverity,
+    /// Issues matching any of these rules are ignored (dropped from results).
+    ignore_rules: Vec<IgnoreIssue>,
 }
 
 impl IssueFilter {
-    pub const fn everything() -> Self {
+    pub fn everything() -> Self {
         Self {
             severity: IssueSeverity::Info,
             foreign_severity: IssueSeverity::Info,
+            ignore_rules: Vec::new(),
         }
     }
 
-    pub const fn warnings_and_foreign_errors() -> Self {
+    pub fn warnings_and_foreign_errors() -> Self {
         Self {
             severity: IssueSeverity::Warning,
             foreign_severity: IssueSeverity::Error,
+            ignore_rules: Vec::new(),
         }
     }
 
-    /// Returns true if the issue is allowed by this filter. issue
+    /// Create a filter with the given ignore rules.
+    pub fn with_ignore_rules(mut self, rules: Vec<IgnoreIssue>) -> Self {
+        self.ignore_rules = rules;
+        self
+    }
+
+    /// Returns true if the issue is allowed by this filter.
     async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<bool> {
-        if *self == IssueFilter::everything() {
+        let has_no_ignore_rules = self.ignore_rules.is_empty();
+        let is_everything = self.severity == IssueSeverity::Info
+            && self.foreign_severity == IssueSeverity::Info
+            && has_no_ignore_rules;
+
+        if is_everything {
             return Ok(true);
         }
+
+        // Check ignore rules first — if any rule matches, the issue is dropped.
+        if !has_no_ignore_rules {
+            let file_path = issue.file_path().await?.to_string();
+            let title_str = issue.title().await?.to_unstyled_string();
+            let description_opt = issue.description().await?;
+            let description_text = match description_opt.as_ref() {
+                Some(desc_vc) => Some(desc_vc.await?.to_unstyled_string()),
+                None => None,
+            };
+
+            for rule in &self.ignore_rules {
+                if !rule.path.matches(&file_path) {
+                    continue;
+                }
+                if let Some(ref title_pat) = rule.title
+                    && !title_pat.matches(&title_str)
+                {
+                    continue;
+                }
+                if let Some(ref desc_pat) = rule.description {
+                    match &description_text {
+                        Some(desc) if desc_pat.matches(desc) => {}
+                        _ => continue,
+                    }
+                }
+                // All specified fields matched — ignore this issue.
+                return Ok(false);
+            }
+        }
+
         let severity = issue.into_trait_ref().await?.severity();
         // NOTE: Lower severities are _more_ severe
         Ok(

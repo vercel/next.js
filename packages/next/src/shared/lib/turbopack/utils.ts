@@ -19,6 +19,58 @@ export type TopLevelIssuesMap = IssuesMap
 
 const VERBOSE_ISSUES = !!process.env.NEXT_TURBOPACK_VERBOSE_ISSUES
 
+function patternMatches(pattern: string | RegExp, value: string): boolean {
+  if (typeof pattern === 'string') {
+    return value === pattern
+  }
+  return pattern.test(value)
+}
+
+function renderStyledStringToPlainText(string: StyledString): string {
+  switch (string.type) {
+    case 'text':
+    case 'strong':
+    case 'code':
+      return string.value
+    case 'line':
+      return string.value.map(renderStyledStringToPlainText).join('')
+    case 'stack':
+      return string.value.map(renderStyledStringToPlainText).join('\n')
+    default:
+      throw new Error('Unknown StyledString type', string)
+  }
+}
+
+export function shouldIgnoreIssue(
+  issue: Issue,
+  ignoreRules: NonNullable<
+    NextConfigComplete['experimental']['turbopackIgnoreIssue']
+  >
+): boolean {
+  for (const rule of ignoreRules) {
+    if (!patternMatches(rule.path, issue.filePath)) {
+      continue
+    }
+    if (rule.title !== undefined) {
+      const titleText = renderStyledStringToPlainText(issue.title)
+      if (!patternMatches(rule.title, titleText)) {
+        continue
+      }
+    }
+    if (rule.description !== undefined) {
+      if (!issue.description) {
+        continue
+      }
+      const descText = renderStyledStringToPlainText(issue.description)
+      if (!patternMatches(rule.description, descText)) {
+        continue
+      }
+    }
+    return true
+  }
+  return false
+}
+
 /**
  * An error generated from emitted Turbopack issues. This can include build
  * errors caused by issues with user code.
@@ -56,7 +108,8 @@ export function processIssues(
   key: EntryKey,
   result: TurbopackResult,
   throwIssue: boolean,
-  logErrors: boolean
+  logErrors: boolean,
+  ignoreRules?: NextConfigComplete['experimental']['turbopackIgnoreIssue']
 ) {
   const newIssues = new Map<IssueKey, Issue>()
   currentEntryIssues.set(key, newIssues)
@@ -70,6 +123,10 @@ export function processIssues(
       issue.severity !== 'warning'
     )
       continue
+
+    if (ignoreRules && shouldIgnoreIssue(issue, ignoreRules)) {
+      continue
+    }
 
     const issueKey = getIssueKey(issue)
     newIssues.set(issueKey, issue)

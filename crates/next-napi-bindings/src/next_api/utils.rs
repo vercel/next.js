@@ -367,7 +367,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     Arc<Effects>,
 )> {
     let result = source_op.read_strongly_consistent().await;
-    let issues = get_issues(source_op, NEXT_ISSUE_FILTER).await?;
+    let issues = get_issues(source_op, NEXT_ISSUE_FILTER.clone()).await?;
     let diagnostics = get_diagnostics(source_op).await?;
     let effects = Arc::new(get_effects(source_op).await?);
 

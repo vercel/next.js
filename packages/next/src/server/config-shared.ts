@@ -552,6 +552,17 @@ export interface ExperimentalConfig {
   turbopackInferModuleSideEffects?: boolean
 
   /**
+   * An array of issue filter rules to ignore specific Turbopack issues.
+   * Each rule must have a `path` field (mandatory) and optionally `title` and `description`.
+   * Each field can be a string (exact match) or a RegExp.
+   */
+  turbopackIgnoreIssue?: Array<{
+    path: string | RegExp
+    title?: string | RegExp
+    description?: string | RegExp
+  }>
+
+  /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
    * configuration file is present. This option is enabled by default.
    *

@@ -269,7 +269,7 @@ export async function turbopackBuild(): Promise<{
 
     // First build: without deferred entries (they're renamed to .deferred)
     let entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
-    printBuildErrors(entrypoints, dev)
+    printBuildErrors(entrypoints, dev, config.experimental?.turbopackIgnoreIssue)
 
     let routes = entrypoints.routes
     if (!routes) {
@@ -306,7 +306,7 @@ export async function turbopackBuild(): Promise<{
       // Second build: only build deferred entries
       const deferredEntrypoints =
         await activeProject.writeAllEntrypointsToDisk(appDirOnly)
-      printBuildErrors(deferredEntrypoints, dev)
+      printBuildErrors(deferredEntrypoints, dev, config.experimental?.turbopackIgnoreIssue)
 
       const deferredRoutes = deferredEntrypoints.routes
       if (!deferredRoutes) {
