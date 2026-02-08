@@ -441,13 +441,9 @@ export async function collectStagedSegmentData(
         cache.set(segmentPath, segmentCacheItem)
 
         const segmentTask = async () => {
-          // When using node streams, skip debug channel at segment level to avoid
-          // issues with parallel debug channel bridges. Debug info is still captured
-          // at the combined payload level in createCombinedPayloadStream.
-          const segmentDebugChannel =
-            fullPageDebugChunks && !process.env.__NEXT_USE_NODE_STREAMS
-              ? createDebugChannel()
-              : undefined
+          const segmentDebugChannel = fullPageDebugChunks
+            ? createDebugChannel()
+            : undefined
 
           let segmentStream:
             | ReadableStream<Uint8Array>
@@ -457,8 +453,9 @@ export async function collectStagedSegmentData(
           if (process.env.__NEXT_USE_NODE_STREAMS) {
             const { renderToFlightPipeableStream } =
               require('../pipeable-stream-wrappers') as typeof import('../pipeable-stream-wrappers')
-            // eslint-disable-next-line import/no-extraneous-dependencies
-            const ComponentMod = require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+            const ComponentMod =
+              // eslint-disable-next-line import/no-extraneous-dependencies
+              require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
 
             segmentStream = renderToFlightPipeableStream(
               ComponentMod.renderToPipeableStream,
@@ -492,8 +489,9 @@ export async function collectStagedSegmentData(
             )
             streamIterator = segmentStream
           } else {
-            // eslint-disable-next-line import/no-extraneous-dependencies
-            const { renderToReadableStream } = require('react-server-dom-webpack/server') as typeof import('react-server-dom-webpack/server')
+            const { renderToReadableStream } =
+              // eslint-disable-next-line import/no-extraneous-dependencies
+              require('react-server-dom-webpack/server') as typeof import('react-server-dom-webpack/server')
 
             segmentStream = renderToReadableStream(
               segmentData,
@@ -730,8 +728,9 @@ export async function createCombinedPayloadStream(
       if (process.env.__NEXT_USE_NODE_STREAMS) {
         const { renderToFlightPipeableStream } =
           require('../pipeable-stream-wrappers') as typeof import('../pipeable-stream-wrappers')
-        // eslint-disable-next-line import/no-extraneous-dependencies
-        const ComponentMod = require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+        const ComponentMod =
+          // eslint-disable-next-line import/no-extraneous-dependencies
+          require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
 
         stream = renderToFlightPipeableStream(
           ComponentMod.renderToPipeableStream,
@@ -764,8 +763,9 @@ export async function createCombinedPayloadStream(
         )
         streamIterator = stream
       } else {
-        // eslint-disable-next-line import/no-extraneous-dependencies
-        const { renderToReadableStream } = require('react-server-dom-webpack/server') as typeof import('react-server-dom-webpack/server')
+        const { renderToReadableStream } =
+          // eslint-disable-next-line import/no-extraneous-dependencies
+          require('react-server-dom-webpack/server') as typeof import('react-server-dom-webpack/server')
 
         stream = renderToReadableStream(
           payload,
