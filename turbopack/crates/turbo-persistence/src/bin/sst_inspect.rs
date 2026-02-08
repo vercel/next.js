@@ -82,6 +82,8 @@ struct SstStats {
 
     /// Key compression dictionary size
     key_dict_size: u64,
+    /// Block directory size (block_count * 4 bytes at end of file)
+    block_directory_size: u64,
 
     /// Value sizes by type (inline values track actual bytes)
     inline_value_bytes: u64,
@@ -104,6 +106,7 @@ impl SstStats {
         self.key_blocks.merge(&other.key_blocks);
         self.value_blocks.merge(&other.value_blocks);
         self.key_dict_size += other.key_dict_size;
+        self.block_directory_size += other.block_directory_size;
         self.inline_value_bytes += other.inline_value_bytes;
         self.small_value_refs += other.small_value_refs;
         self.medium_value_refs += other.medium_value_refs;
@@ -243,6 +246,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
 
     let mut stats = SstStats::default();
     stats.key_dict_size = info.key_compression_dictionary_length as u64;
+    stats.block_directory_size = info.block_count as u64 * 4;
     stats.file_size = file_size;
 
     // Calculate offsets
@@ -552,15 +556,35 @@ fn print_sst_details(seq_num: u32, stats: &SstStats) {
         format_bytes(stats.file_size)
     );
 
+    // Per-file overhead
+    let overhead = stats.key_dict_size + stats.block_directory_size;
+    if overhead > 0 {
+        let overhead_pct = if stats.file_size > 0 {
+            (overhead as f64 / stats.file_size as f64) * 100.0
+        } else {
+            0.0
+        };
+        println!("  │");
+        println!(
+            "  │ Per-file Overhead: {} ({:.1}% of file)",
+            format_bytes(overhead),
+            overhead_pct
+        );
+        if stats.key_dict_size > 0 {
+            println!(
+                "  │   Key compression dictionary: {}",
+                format_bytes(stats.key_dict_size)
+            );
+        }
+        println!(
+            "  │   Block directory: {}",
+            format_bytes(stats.block_directory_size)
+        );
+    }
+
     // Block statistics
     println!("  │");
     println!("  │ Block Statistics:");
-    if stats.key_dict_size > 0 {
-        println!(
-            "  │   Key compression dictionary: {}",
-            format_bytes(stats.key_dict_size)
-        );
-    }
     print!("  │   ");
     print_block_stats("Index blocks", &stats.index_blocks);
     print!("  │   ");
@@ -611,14 +635,46 @@ fn print_family_summary(family: u32, sst_count: usize, stats: &SstStats) {
         println!("    Keys per key block: {:.1}", avg_keys_per_block);
     }
 
+    // Per-file overhead
+    let total_overhead = stats.key_dict_size + stats.block_directory_size;
+    if total_overhead > 0 {
+        let overhead_pct = if stats.file_size > 0 {
+            (total_overhead as f64 / stats.file_size as f64) * 100.0
+        } else {
+            0.0
+        };
+        println!();
+        println!(
+            "  Per-file Overhead (total): {} ({:.1}% of total file size)",
+            format_bytes(total_overhead),
+            overhead_pct
+        );
+        if stats.key_dict_size > 0 {
+            println!(
+                "    Key compression dictionaries: {}",
+                format_bytes(stats.key_dict_size)
+            );
+            if sst_count > 0 {
+                println!(
+                    "      Average per file: {}",
+                    format_bytes(stats.key_dict_size / sst_count as u64)
+                );
+            }
+        }
+        println!(
+            "    Block directories: {}",
+            format_bytes(stats.block_directory_size)
+        );
+        if sst_count > 0 {
+            println!(
+                "      Average per file: {}",
+                format_bytes(stats.block_directory_size / sst_count as u64)
+            );
+        }
+    }
+
     println!();
     println!("  Block Statistics:");
-    if stats.key_dict_size > 0 {
-        println!(
-            "    Key compression dictionaries: {} total",
-            format_bytes(stats.key_dict_size)
-        );
-    }
     print!("  ");
     print_block_stats("Index blocks", &stats.index_blocks);
     print!("  ");
