@@ -117,11 +117,7 @@ function connectTunnel(proxy, targetHost, targetPort) {
 
 function handleResponse(res, parsedUrl, options, resolve) {
   // Handle redirects
-  if (
-    res.statusCode >= 300 &&
-    res.statusCode < 400 &&
-    res.headers.location
-  ) {
+  if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
     const redirectUrl = new URL(res.headers.location)
     const newOptions = { ...options }
     // Strip auth header when redirecting to a different host
@@ -216,7 +212,11 @@ async function githubRequest(apiPath, { accept, method, body } = {}) {
   if (accept) headers['Accept'] = accept
   if (body) headers['Content-Type'] = 'application/json'
 
-  const resp = await httpRequest(url, { method: method || 'GET', headers, body })
+  const resp = await httpRequest(url, {
+    method: method || 'GET',
+    headers,
+    body,
+  })
 
   if (resp.statusCode < 200 || resp.statusCode >= 300) {
     throw new Error(
