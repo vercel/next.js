@@ -56,18 +56,48 @@ struct DbConfig {
     compacted: bool,
 }
 
+const KEY_SHARED_PERCENTAGE: usize = 33;
+const KEY_COMPRESSIBLE_PERCENTAGE: usize = 33;
+const VALUE_SHARED_PERCENTAGE: usize = 33;
+const VALUE_COMPRESSIBLE_PERCENTAGE: usize = 33;
+
+/// Generate a random key of the specified size
+fn random_data(
+    rng: &mut SmallRng,
+    size: usize,
+    compressability_percentage: usize,
+    shared_percentage: usize,
+) -> Box<[u8]> {
+    let mut data = vec![0u8; size].into_boxed_slice();
+    if size <= 8 {
+        rng.fill(&mut data[..]);
+    } else {
+        let pos_shared = size * shared_percentage / 100;
+        let pos_compressible = size * (shared_percentage + compressability_percentage) / 100;
+        SmallRng::seed_from_u64(999).fill(&mut data[..pos_shared]);
+        rng.fill(&mut data[pos_compressible..]);
+    }
+    data
+}
+
 /// Generate a random key of the specified size
 fn random_key(rng: &mut SmallRng, size: usize) -> Box<[u8]> {
-    let mut key = vec![0u8; size].into_boxed_slice();
-    rng.fill(&mut key[..]);
-    key
+    random_data(
+        rng,
+        size,
+        KEY_COMPRESSIBLE_PERCENTAGE,
+        KEY_SHARED_PERCENTAGE,
+    )
 }
 
 /// Generate a random value of the specified size
 fn random_value(rng: &mut SmallRng, size: usize) -> Box<[u8]> {
-    let mut value = vec![0u8; size].into_boxed_slice();
-    rng.fill(&mut value[..]);
-    value
+    random_data(
+        rng,
+        size,
+        VALUE_COMPRESSIBLE_PERCENTAGE,
+        VALUE_SHARED_PERCENTAGE,
+    )
 }
 
 /// Prefill a database with the given configuration and return the generated keys
@@ -118,9 +148,23 @@ fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Box<[u8]>>> {
 }
 
 /// Create a temporary directory with a prefilled database and return the generated keys
-fn setup_prefilled_db(config: &DbConfig) -> Result<(TempDir, Vec<Box<[u8]>>)> {
+fn setup_prefilled_db(config: &DbConfig, id: &str) -> Result<(TempDir, Vec<Box<[u8]>>)> {
     let tempdir = tempfile::tempdir()?;
     let keys = prefill_database(tempdir.path(), config)?;
+    // Measure disk usage of the database and print it for informational purposes
+    let db_size = tempdir
+        .path()
+        .read_dir()?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| entry.metadata().ok())
+        .map(|metadata| metadata.len())
+        .sum::<u64>();
+    println!(
+        "\n{id} db size: {}B = {}B per item = {}% of original size",
+        format_number(db_size as usize),
+        format_number(db_size as usize / config.entry_count),
+        (db_size as usize * 100 / (config.entry_count * (config.key_size + config.value_size)))
+    );
     Ok((tempdir, keys))
 }
 
@@ -311,7 +355,7 @@ fn bench_read_get(c: &mut Criterion) {
             );
 
             let db = LazyLock::new(|| {
-                let (tempdir, keys) = setup_prefilled_db(&config).unwrap();
+                let (tempdir, keys) = setup_prefilled_db(&config, &id).unwrap();
                 let db = TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
                     .unwrap();
                 let rng = Mutex::new(SmallRng::seed_from_u64(123));
@@ -431,8 +475,17 @@ fn bench_read_batch_get(c: &mut Criterion) {
                 "uncompacted"
             };
 
+            let id = format!(
+                "key_{}/value_{}/entries_{}/commits_{}/{}",
+                format_number(key_size),
+                format_number(value_size),
+                format_number(entry_count),
+                commit_count,
+                compacted_str,
+            );
+
             let db = LazyLock::new(|| {
-                let (tempdir, stored_keys) = setup_prefilled_db(&config).unwrap();
+                let (tempdir, stored_keys) = setup_prefilled_db(&config, &id).unwrap();
                 let db = TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
                     .unwrap();
                 let rng = Mutex::new(SmallRng::seed_from_u64(456));
@@ -440,37 +493,7 @@ fn bench_read_batch_get(c: &mut Criterion) {
             });
 
             for &batch_size in &batch_sizes {
-                let id = format!(
-                    "key_{}/value_{}/entries_{}/commits_{}/batch_{}/{}",
-                    format_number(key_size),
-                    format_number(value_size),
-                    format_number(entry_count),
-                    commit_count,
-                    format_number(batch_size),
-                    compacted_str,
-                );
-
-                group.bench_function(format!("{id}/hit/uncached"), |b| {
-                    let (_, db, stored_keys, rng) = &*db;
-                    let mut rng = rng.lock();
-                    iter_batched_with_init(
-                        b,
-                        |_| prepare_db_for_benchmarking(db),
-                        |_| {
-                            (0..batch_size)
-                                .map(|_| {
-                                    let idx = rng.random_range(0..stored_keys.len());
-                                    &*stored_keys[idx]
-                                })
-                                .collect::<Vec<_>>()
-                        },
-                        |keys| {
-                            let result = db.batch_get(0, &keys).unwrap();
-                            black_box(result)
-                        },
-                        BatchSize::PerIteration,
-                    );
-                });
+                let id = format!("{id}/batch_{}", format_number(batch_size),);
 
                 group.bench_function(format!("{id}/hit/cached"), |b| {
                     let (_, db, stored_keys, _) = &*db;
@@ -489,25 +512,6 @@ fn bench_read_batch_get(c: &mut Criterion) {
                             black_box(result)
                         },
                         BatchSize::NumBatches(1),
-                    );
-                });
-
-                group.bench_function(format!("{id}/miss/uncached"), |b| {
-                    let (_, db, _, rng) = &*db;
-                    let mut rng = rng.lock();
-                    iter_batched_with_init(
-                        b,
-                        |_| prepare_db_for_benchmarking(db),
-                        |_| {
-                            (0..batch_size)
-                                .map(|_| random_key(&mut rng, key_size))
-                                .collect::<Vec<_>>()
-                        },
-                        |keys| {
-                            let result = db.batch_get(0, &keys).unwrap();
-                            black_box(result)
-                        },
-                        BatchSize::PerIteration,
                     );
                 });
 
@@ -588,7 +592,7 @@ fn bench_compaction(c: &mut Criterion) {
                     commit_count,
                     compacted: false,
                 };
-                let (tempdir, _keys) = setup_prefilled_db(&config).unwrap();
+                let (tempdir, _keys) = setup_prefilled_db(&config, &id).unwrap();
                 let db = TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
                     .unwrap();
                 (tempdir, db)
