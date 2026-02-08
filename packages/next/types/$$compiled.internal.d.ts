@@ -1,5 +1,9 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/package.json'
+declare module 'next/dist/compiled/fast-webstreams/patch.js' {
+  export function patchGlobalWebStreams(): void
+  export function unpatchGlobalWebStreams(): void
+}
 declare module 'next/dist/compiled/postcss-value-parser'
 declare module 'next/dist/compiled/icss-utils'
 declare module 'next/dist/compiled/postcss-modules-values'
