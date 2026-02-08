@@ -2,6 +2,15 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+/**
+ * Normalize a React component stack string into an array of component names.
+ * Strips URLs, line numbers, and other dynamic parts.
+ */
+function normalizeComponentStack(stack: string): string[] {
+  // Match "at ComponentName" patterns, optionally with [Server] tag
+  return stack.match(/at \w+(?:\s+\[Server\])?/g) || []
+}
+
 describe('app-dir - errors', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
@@ -242,6 +251,83 @@ describe('app-dir - errors', () => {
               'A digest property is included on this error instance which may provide additional details about the nature of the error.',
         }),
       ])
+    })
+
+    it('should pass componentStack and ownerStack to error component', async () => {
+      const browser = await next.browser('/client-component')
+
+      await browser
+        .elementByCss('#error-trigger-button')
+        .click()
+        .waitForElementByCss('#error-component-stack')
+
+      if (isNextDev) {
+        expect(
+          normalizeComponentStack(
+            await browser.elementByCss('#error-component-stack').text()
+          )
+        ).toMatchInlineSnapshot(`
+                 [
+                   "at Page",
+                   "at ClientPageRoot",
+                   "at SegmentViewNode",
+                   "at InnerLayoutRouter",
+                   "at RedirectErrorBoundary",
+                   "at RedirectBoundary",
+                   "at HTTPAccessFallbackBoundary",
+                   "at LoadingBoundary",
+                   "at ErrorBoundaryHandler",
+                   "at ErrorBoundary",
+                   "at InnerScrollAndFocusHandler",
+                   "at ScrollAndFocusHandler",
+                   "at RenderFromTemplateContext",
+                   "at SegmentStateProvider",
+                   "at OuterLayoutRouter",
+                   "at InnerLayoutRouter",
+                   "at RedirectErrorBoundary",
+                   "at RedirectBoundary",
+                   "at HTTPAccessFallbackErrorBoundary",
+                   "at HTTPAccessFallbackBoundary",
+                   "at LoadingBoundary",
+                   "at ErrorBoundary",
+                   "at InnerScrollAndFocusHandler",
+                   "at ScrollAndFocusHandler",
+                   "at RenderFromTemplateContext",
+                   "at SegmentStateProvider",
+                   "at OuterLayoutRouter",
+                   "at body",
+                   "at html",
+                   "at RootLayout [Server]",
+                   "at SegmentViewNode",
+                   "at __next_root_layout_boundary__",
+                   "at RedirectErrorBoundary",
+                   "at RedirectBoundary",
+                   "at HTTPAccessFallbackErrorBoundary",
+                   "at HTTPAccessFallbackBoundary",
+                   "at DevRootHTTPAccessFallbackBoundary",
+                   "at AppDevOverlayErrorBoundary",
+                   "at HotReload",
+                   "at Router",
+                   "at ErrorBoundaryHandler",
+                   "at ErrorBoundary",
+                   "at RootErrorBoundary",
+                   "at AppRouter",
+                   "at ServerRoot",
+                   "at Root",
+                 ]
+              `)
+
+        expect(
+          normalizeComponentStack(
+            await browser.elementByCss('#error-owner-stack').text()
+          )
+        ).toMatchInlineSnapshot(`
+          [
+            "at ErrorBoundary",
+            "at OuterLayoutRouter",
+          ]
+        `)
+      }
     })
 
     // production tests
