@@ -1,22 +1,53 @@
-const cacheExports = {
-  unstable_cache: require('next/dist/server/web/spec-extension/unstable-cache')
-    .unstable_cache,
+let cacheExports
 
-  updateTag: require('next/dist/server/web/spec-extension/revalidate')
-    .updateTag,
+if (process.env.NEXT_RUNTIME === '') {
+  const notAvailableInClient = (name) => {
+    return function notAvailable() {
+      throw new Error(`\`${name}\` is only available in a Server Component.`)
+    }
+  }
 
-  revalidateTag: require('next/dist/server/web/spec-extension/revalidate')
-    .revalidateTag,
-  revalidatePath: require('next/dist/server/web/spec-extension/revalidate')
-    .revalidatePath,
+  cacheExports = {
+    unstable_cache: function unstable_cache(cb) {
+      // Legacy behavior: allow importing/using unstable_cache from client bundles
+      // without pulling in server internals.
+      if (typeof cb !== 'function') return cb
+      return function cached() {
+        return cb.apply(this, arguments)
+      }
+    },
+    unstable_noStore: function unstable_noStore() {},
 
-  refresh: require('next/dist/server/web/spec-extension/revalidate').refresh,
+    updateTag: notAvailableInClient('updateTag'),
+    revalidateTag: notAvailableInClient('revalidateTag'),
+    revalidatePath: notAvailableInClient('revalidatePath'),
+    refresh: notAvailableInClient('refresh'),
+    cacheLife: notAvailableInClient('cacheLife'),
+    cacheTag: notAvailableInClient('cacheTag'),
+  }
+} else {
+  // Keep server requires in this branch so browser builds can DCE them.
+  cacheExports = {
+    unstable_cache:
+      require('next/dist/server/web/spec-extension/unstable-cache')
+        .unstable_cache,
 
-  unstable_noStore:
-    require('next/dist/server/web/spec-extension/unstable-no-store')
-      .unstable_noStore,
-  cacheLife: require('next/dist/server/use-cache/cache-life').cacheLife,
-  cacheTag: require('next/dist/server/use-cache/cache-tag').cacheTag,
+    updateTag: require('next/dist/server/web/spec-extension/revalidate')
+      .updateTag,
+
+    revalidateTag: require('next/dist/server/web/spec-extension/revalidate')
+      .revalidateTag,
+    revalidatePath: require('next/dist/server/web/spec-extension/revalidate')
+      .revalidatePath,
+
+    refresh: require('next/dist/server/web/spec-extension/revalidate').refresh,
+
+    unstable_noStore:
+      require('next/dist/server/web/spec-extension/unstable-no-store')
+        .unstable_noStore,
+    cacheLife: require('next/dist/server/use-cache/cache-life').cacheLife,
+    cacheTag: require('next/dist/server/use-cache/cache-tag').cacheTag,
+  }
 }
 
 let didWarnCacheLife = false
