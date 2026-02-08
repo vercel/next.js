@@ -24,6 +24,7 @@ Used by some of the world's largest companies, Next.js enables you to create ful
 ## Documentation
 
 Visit [https://nextjs.org/docs](https://nextjs.org/docs) to view the full documentation.
+
 The documentation includes guides, API references, and explanations of core features such as routing, data fetching, and deployment.
 
 
