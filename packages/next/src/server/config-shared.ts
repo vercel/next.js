@@ -553,8 +553,9 @@ export interface ExperimentalConfig {
 
   /**
    * An array of issue filter rules to ignore specific Turbopack issues.
-   * Each rule must have a `path` field (mandatory) and optionally `title` and `description`.
-   * Each field can be a string (exact match) or a RegExp.
+   * Each rule must have a `path` field (mandatory) and optionally `title`
+   * and `description`. String paths are treated as glob patterns. String
+   * titles/descriptions are exact matches. RegExp values use regex matching.
    */
   turbopackIgnoreIssue?: Array<{
     path: string | RegExp

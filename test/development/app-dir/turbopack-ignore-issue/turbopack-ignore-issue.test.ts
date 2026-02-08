@@ -15,9 +15,6 @@ describe('turbopack-ignore-issue', () => {
               // glob string pattern for path
               path: '**/with-warning/**',
             },
-            {
-              path: '**/with-error/**',
-            },
           ],
         },
       },

@@ -981,6 +981,21 @@ pub enum TurbopackIgnoreIssuePathPattern {
     Regex { source: RcStr, flags: RcStr },
 }
 
+impl From<&TurbopackIgnoreIssuePathPattern> for IgnoreIssuePattern {
+    fn from(p: &TurbopackIgnoreIssuePathPattern) -> Self {
+        match p {
+            TurbopackIgnoreIssuePathPattern::Glob { value } => IgnoreIssuePattern {
+                pattern: value.clone(),
+                mode: IgnoreIssueMatchMode::Glob,
+            },
+            TurbopackIgnoreIssuePathPattern::Regex { source, flags } => IgnoreIssuePattern {
+                pattern: regex_source_with_flags(source, flags),
+                mode: IgnoreIssueMatchMode::Regex,
+            },
+        }
+    }
+}
+
 /// Serialized representation of a text pattern (title/description) for
 /// `turbopackIgnoreIssue`. Strings are serialized as
 /// `{ "type": "string", "value": "..." }` and RegExp as
@@ -994,6 +1009,45 @@ pub enum TurbopackIgnoreIssueTextPattern {
     String { value: RcStr },
     #[serde(rename = "regex")]
     Regex { source: RcStr, flags: RcStr },
+}
+
+impl From<&TurbopackIgnoreIssueTextPattern> for IgnoreIssuePattern {
+    fn from(p: &TurbopackIgnoreIssueTextPattern) -> Self {
+        match p {
+            TurbopackIgnoreIssueTextPattern::String { value } => IgnoreIssuePattern {
+                pattern: value.clone(),
+                mode: IgnoreIssueMatchMode::ExactString,
+            },
+            TurbopackIgnoreIssueTextPattern::Regex { source, flags } => IgnoreIssuePattern {
+                pattern: regex_source_with_flags(source, flags),
+                mode: IgnoreIssueMatchMode::Regex,
+            },
+        }
+    }
+}
+
+/// Prepend JS RegExp flags as Rust `regex` inline flags.
+///
+/// For example, JS flags `"i"` become the prefix `"(?i)"` on the pattern
+/// source. Only flags supported by the `regex` crate are forwarded:
+/// `i` (case-insensitive), `m` (multiline), `s` (dotall), `x` (extended).
+fn regex_source_with_flags(source: &RcStr, flags: &RcStr) -> RcStr {
+    if flags.is_empty() {
+        return source.clone();
+    }
+    let mut inline = String::new();
+    for ch in flags.chars() {
+        match ch {
+            'i' | 'm' | 's' | 'x' => inline.push(ch),
+            // `g`, `u`, `y`, `d`, `v` etc. have no Rust regex equivalent; skip.
+            _ => {}
+        }
+    }
+    if inline.is_empty() {
+        source.clone()
+    } else {
+        format!("(?{inline}){source}").into()
+    }
 }
 
 /// A single rule in `experimental.turbopackIgnoreIssue`.
@@ -2170,60 +2224,15 @@ impl NextConfig {
     pub fn turbopack_ignore_issue_rules(&self) -> Vec<IgnoreIssue> {
         self.experimental
             .turbopack_ignore_issue
-            .as_ref()
-            .map(|rules| {
-                rules
-                    .iter()
-                    .map(|rule| {
-                        let path = match &rule.path {
-                            TurbopackIgnoreIssuePathPattern::Glob { value } => IgnoreIssuePattern {
-                                pattern: value.clone(),
-                                mode: IgnoreIssueMatchMode::Glob,
-                            },
-                            TurbopackIgnoreIssuePathPattern::Regex { source, .. } => {
-                                IgnoreIssuePattern {
-                                    pattern: source.clone(),
-                                    mode: IgnoreIssueMatchMode::Regex,
-                                }
-                            }
-                        };
-                        let title = rule.title.as_ref().map(|t| match t {
-                            TurbopackIgnoreIssueTextPattern::String { value } => {
-                                IgnoreIssuePattern {
-                                    pattern: value.clone(),
-                                    mode: IgnoreIssueMatchMode::ExactString,
-                                }
-                            }
-                            TurbopackIgnoreIssueTextPattern::Regex { source, .. } => {
-                                IgnoreIssuePattern {
-                                    pattern: source.clone(),
-                                    mode: IgnoreIssueMatchMode::Regex,
-                                }
-                            }
-                        });
-                        let description = rule.description.as_ref().map(|d| match d {
-                            TurbopackIgnoreIssueTextPattern::String { value } => {
-                                IgnoreIssuePattern {
-                                    pattern: value.clone(),
-                                    mode: IgnoreIssueMatchMode::ExactString,
-                                }
-                            }
-                            TurbopackIgnoreIssueTextPattern::Regex { source, .. } => {
-                                IgnoreIssuePattern {
-                                    pattern: source.clone(),
-                                    mode: IgnoreIssueMatchMode::Regex,
-                                }
-                            }
-                        });
-                        IgnoreIssue {
-                            path,
-                            title,
-                            description,
-                        }
-                    })
-                    .collect()
-            })
+            .as_deref()
             .unwrap_or_default()
+            .iter()
+            .map(|rule| IgnoreIssue {
+                path: (&rule.path).into(),
+                title: rule.title.as_ref().map(Into::into),
+                description: rule.description.as_ref().map(Into::into),
+            })
+            .collect()
     }
 }
 
