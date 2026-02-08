@@ -75,6 +75,11 @@ describe('dynamic-import-tree-shaking', () => {
     expect($('div').text()).toContain('TREESHAKE_EMPTY_PAGE')
   })
 
+  it('should render member access page', async () => {
+    const $ = await next.render$('/member-access')
+    expect($('div').text()).toContain('TREESHAKE_MEMBER_USED')
+  })
+
   // Tree shaking assertions: unused exports should NOT be in the server bundle
   // Tree shaking is only enabled in production builds, so skip these in dev mode
   if (isProduction) {
@@ -122,5 +127,14 @@ describe('dynamic-import-tree-shaking', () => {
       expect(content).not.toContain('TREESHAKE_EMPTY_USED')
       expect(content).not.toContain('TREESHAKE_EMPTY_UNUSED')
     })
+
+    // Member access on dynamic import is only tree-shaken by Turbopack, not webpack
+    if (process.env.IS_TURBOPACK_TEST) {
+      it('should tree-shake unused export with member access on dynamic import', async () => {
+        const content = await getAllServerContent()
+        expect(content).toContain('TREESHAKE_MEMBER_USED')
+        expect(content).not.toContain('TREESHAKE_MEMBER_UNUSED')
+      })
+    }
   }
 })

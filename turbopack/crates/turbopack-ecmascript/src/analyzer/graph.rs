@@ -1347,24 +1347,33 @@ pub fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstPa
     ast_path.iter().map(|n| n.kind()).collect()
 }
 
-/// Extracts export names from a destructuring pattern on a dynamic import.
+/// Extracts export names from usage patterns on a dynamic import.
 ///
-/// For `const { cat, dog } = await import('./lib')`, returns `Some(["cat", "dog"])`.
+/// Supports two patterns:
+/// 1. Destructuring: `const { cat, dog } = await import('./lib')` → `Some(["cat", "dog"])`
+/// 2. Member access: `(await import('./lib')).cat` → `Some(["cat"])`
+///
 /// For `const {} = await import('./lib')`, returns `Some([])`.
-/// For `const mod = await import('./lib')` or non-destructured patterns, returns `None`.
+/// For `const mod = await import('./lib')` or non-recognized patterns, returns `None`.
 /// For patterns with rest elements or computed keys, returns `None` (conservative).
 fn extract_dynamic_import_export_names(
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
 ) -> Option<SmallVec<[RcStr; 1]>> {
-    // Walk up the AST path from the import() call to find a VarDeclarator.
+    // Walk up the AST path from the import() call to find either:
+    // - A VarDeclarator with object destructuring
+    // - A MemberExpr where the import result is the object
     // Only allow Expr wrappers, AwaitExpr, and ParenExpr as intermediate nodes
-    // to ensure the import result flows directly into the destructuring.
+    // to ensure the import result flows directly into the usage site.
     for node_ref in ast_path.iter().rev() {
         match node_ref {
             AstParentNodeRef::VarDeclarator(decl, VarDeclaratorField::Init) => {
                 return extract_names_from_object_pat(&decl.name);
             }
-            // Allowed intermediate nodes between VarDeclarator(Init) and CallExpr
+            // Member access: (await import('./lib')).someExport
+            AstParentNodeRef::MemberExpr(member, MemberExprField::Obj) => {
+                return extract_name_from_member_prop(&member.prop);
+            }
+            // Allowed intermediate nodes
             AstParentNodeRef::Expr(..)
             | AstParentNodeRef::AwaitExpr(_, AwaitExprField::Arg)
             | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => continue,
@@ -1373,6 +1382,17 @@ fn extract_dynamic_import_export_names(
         }
     }
     None
+}
+
+fn extract_name_from_member_prop(prop: &MemberProp) -> Option<SmallVec<[RcStr; 1]>> {
+    match prop {
+        MemberProp::Ident(ident) => Some(SmallVec::from_buf([ident.sym.as_str().into()])),
+        MemberProp::Computed(ComputedPropName {
+            expr: box Expr::Lit(Lit::Str(s)),
+            ..
+        }) => s.value.as_str().map(|v| SmallVec::from_buf([v.into()])),
+        _ => None,
+    }
 }
 
 fn extract_names_from_object_pat(pat: &Pat) -> Option<SmallVec<[RcStr; 1]>> {
