@@ -1040,6 +1040,8 @@ jobs:
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/use-node-streams-tests-manifest.json"
         export NEXT_TEST_MODE=dev
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
 
         node run-tests.js \
           --timings \
