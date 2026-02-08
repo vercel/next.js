@@ -558,29 +558,25 @@ fn print_sst_details(seq_num: u32, stats: &SstStats) {
 
     // Per-file overhead
     let overhead = stats.key_dict_size + stats.block_directory_size;
-    if overhead > 0 {
-        let overhead_pct = if stats.file_size > 0 {
-            (overhead as f64 / stats.file_size as f64) * 100.0
-        } else {
-            0.0
-        };
-        println!("  │");
-        println!(
-            "  │ Per-file Overhead: {} ({:.1}% of file)",
-            format_bytes(overhead),
-            overhead_pct
-        );
-        if stats.key_dict_size > 0 {
-            println!(
-                "  │   Key compression dictionary: {}",
-                format_bytes(stats.key_dict_size)
-            );
-        }
-        println!(
-            "  │   Block directory: {}",
-            format_bytes(stats.block_directory_size)
-        );
-    }
+    let overhead_pct = if stats.file_size > 0 {
+        (overhead as f64 / stats.file_size as f64) * 100.0
+    } else {
+        0.0
+    };
+    println!("  │");
+    println!(
+        "  │ Per-file Overhead: {} ({:.1}% of file)",
+        format_bytes(overhead),
+        overhead_pct
+    );
+    println!(
+        "  │   Key compression dictionary: {}",
+        format_bytes(stats.key_dict_size)
+    );
+    println!(
+        "  │   Block directory: {}",
+        format_bytes(stats.block_directory_size)
+    );
 
     // Block statistics
     println!("  │");
@@ -637,40 +633,36 @@ fn print_family_summary(family: u32, sst_count: usize, stats: &SstStats) {
 
     // Per-file overhead
     let total_overhead = stats.key_dict_size + stats.block_directory_size;
-    if total_overhead > 0 {
-        let overhead_pct = if stats.file_size > 0 {
-            (total_overhead as f64 / stats.file_size as f64) * 100.0
-        } else {
-            0.0
-        };
-        println!();
+    let overhead_pct = if stats.file_size > 0 {
+        (total_overhead as f64 / stats.file_size as f64) * 100.0
+    } else {
+        0.0
+    };
+    println!();
+    println!(
+        "  Per-file Overhead (total): {} ({:.1}% of total file size)",
+        format_bytes(total_overhead),
+        overhead_pct
+    );
+    println!(
+        "    Key compression dictionaries: {}",
+        format_bytes(stats.key_dict_size)
+    );
+    if sst_count > 0 {
         println!(
-            "  Per-file Overhead (total): {} ({:.1}% of total file size)",
-            format_bytes(total_overhead),
-            overhead_pct
+            "      Average per file: {}",
+            format_bytes(stats.key_dict_size / sst_count as u64)
         );
-        if stats.key_dict_size > 0 {
-            println!(
-                "    Key compression dictionaries: {}",
-                format_bytes(stats.key_dict_size)
-            );
-            if sst_count > 0 {
-                println!(
-                    "      Average per file: {}",
-                    format_bytes(stats.key_dict_size / sst_count as u64)
-                );
-            }
-        }
+    }
+    println!(
+        "    Block directories: {}",
+        format_bytes(stats.block_directory_size)
+    );
+    if sst_count > 0 {
         println!(
-            "    Block directories: {}",
-            format_bytes(stats.block_directory_size)
+            "      Average per file: {}",
+            format_bytes(stats.block_directory_size / sst_count as u64)
         );
-        if sst_count > 0 {
-            println!(
-                "      Average per file: {}",
-                format_bytes(stats.block_directory_size / sst_count as u64)
-            );
-        }
     }
 
     println!();
