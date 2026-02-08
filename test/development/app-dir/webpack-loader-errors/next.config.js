@@ -2,6 +2,26 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  turbopack: {
+    rules: {
+      'error.data': {
+        loaders: [require.resolve('./loaders/error-loader.js')],
+        as: '*.js',
+      },
+      'string-error.data': {
+        loaders: [require.resolve('./loaders/string-error-loader.js')],
+        as: '*.js',
+      },
+      'promise-error.data': {
+        loaders: [require.resolve('./loaders/promise-error-loader.js')],
+        as: '*.js',
+      },
+      'timeout-error.data': {
+        loaders: [require.resolve('./loaders/timeout-error-loader.js')],
+        as: '*.js',
+      },
+    },
+  },
   webpack(config) {
     config.module.rules.push(
       {
