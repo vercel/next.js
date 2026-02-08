@@ -332,9 +332,20 @@ impl ModuleExportUsageInfo {
                 *self = Self::Exports(AutoSet::from_iter([name.clone()]));
                 true
             }
+            (Self::Evaluation, ExportUsage::NamedSet(names)) => {
+                *self = Self::Exports(AutoSet::from_iter(names.iter().cloned()));
+                true
+            }
             (Self::Exports(l), ExportUsage::Named(r)) => {
                 // Merge exports
                 l.insert(r.clone())
+            }
+            (Self::Exports(l), ExportUsage::NamedSet(names)) => {
+                let mut changed = false;
+                for name in names {
+                    changed |= l.insert(name.clone());
+                }
+                changed
             }
             (_, ExportUsage::Evaluation) => false,
         }

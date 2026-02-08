@@ -70,6 +70,11 @@ describe('dynamic-import-tree-shaking', () => {
     expect($('div').text()).toContain('TREESHAKE_DEFAULT_USED')
   })
 
+  it('should render empty destructure page', async () => {
+    const $ = await next.render$('/empty-destructure')
+    expect($('div').text()).toContain('TREESHAKE_EMPTY_PAGE')
+  })
+
   // Tree shaking assertions: unused exports should NOT be in the server bundle
   // Tree shaking is only enabled in production builds, so skip these in dev mode
   if (isProduction) {
@@ -107,6 +112,15 @@ describe('dynamic-import-tree-shaking', () => {
       const content = await getAllServerContent()
       expect(content).toContain('TREESHAKE_DEFAULT_USED')
       expect(content).not.toContain('TREESHAKE_DEFAULT_UNUSED')
+    })
+
+    it('should tree-shake all exports with empty destructured dynamic import', async () => {
+      const content = await getAllServerContent()
+      // Side effects should still be included
+      expect(content).toContain('TREESHAKE_EMPTY_SIDE_EFFECT')
+      // But no exports should be included
+      expect(content).not.toContain('TREESHAKE_EMPTY_USED')
+      expect(content).not.toContain('TREESHAKE_EMPTY_UNUSED')
     })
   }
 })

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use smallvec::SmallVec;
 use swc_core::{
     common::{DUMMY_SP, util::take::Take},
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
@@ -15,7 +16,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        ModuleResolveResult, ResolveErrorMode,
+        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -42,6 +43,11 @@ pub struct EsmAsyncAssetReference {
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
+    /// The export names extracted from destructuring the dynamic import result.
+    /// `None` means no destructuring (all exports used).
+    /// `Some([])` means empty destructuring (only side effects).
+    /// `Some([name, ...])` means specific named exports are used.
+    pub export_names: Option<SmallVec<[RcStr; 1]>>,
 }
 
 impl EsmAsyncAssetReference {
@@ -62,6 +68,7 @@ impl EsmAsyncAssetReference {
         annotations: ImportAnnotations,
         error_mode: ResolveErrorMode,
         import_externals: bool,
+        export_names: Option<SmallVec<[RcStr; 1]>>,
     ) -> Self {
         EsmAsyncAssetReference {
             origin,
@@ -70,6 +77,7 @@ impl EsmAsyncAssetReference {
             annotations,
             error_mode,
             import_externals,
+            export_names,
         }
     }
 }
@@ -91,6 +99,21 @@ impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Async))
+    }
+
+        #[turbo_tasks::function]
+    fn binding_usage(&self) -> Vc<BindingUsage> {
+        let export = match &self.export_names {
+            None => ExportUsage::All,
+            Some(names) if names.is_empty() => ExportUsage::Evaluation,
+            Some(names) if names.len() == 1 => ExportUsage::Named(names[0].clone()),
+            Some(names) => ExportUsage::NamedSet(names.clone()),
+        };
+        BindingUsage {
+            import: Default::default(),
+            export,
+        }
+        .cell()
     }
 }
 

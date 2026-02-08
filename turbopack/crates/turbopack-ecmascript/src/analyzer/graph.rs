@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{Ok, Result};
 use rustc_hash::{FxHashMap, FxHashSet};
+use smallvec::SmallVec;
 use swc_core::{
     atoms::Atom,
     base::try_with_handler,
@@ -203,6 +204,18 @@ pub enum Effect {
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
+    /// A dynamic import() call, potentially with destructured export names.
+    DynamicImport {
+        args: Vec<EffectArg>,
+        ast_path: Vec<AstParentKind>,
+        span: Span,
+        in_try: bool,
+        /// The export names extracted from the destructuring pattern, if any.
+        /// `None` means no destructuring was found (use All).
+        /// `Some([])` means empty destructuring (use Evaluation).
+        /// `Some([name, ...])` means specific named exports are used.
+        export_names: Option<SmallVec<[RcStr; 1]>>,
+    },
     /// Unreachable code, e.g. after a `return` statement.
     Unreachable { start_ast_path: Vec<AstParentKind> },
 }
@@ -235,6 +248,11 @@ impl Effect {
             Effect::Member { obj, prop, .. } => {
                 obj.normalize();
                 prop.normalize();
+            }
+            Effect::DynamicImport { args, .. } => {
+                for arg in args.iter_mut() {
+                    arg.normalize();
+                }
             }
             Effect::ImportedBinding { .. } => {}
             Effect::TypeOf { arg, .. } => {
@@ -1329,6 +1347,58 @@ pub fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstPa
     ast_path.iter().map(|n| n.kind()).collect()
 }
 
+/// Extracts export names from a destructuring pattern on a dynamic import.
+///
+/// For `const { cat, dog } = await import('./lib')`, returns `Some(["cat", "dog"])`.
+/// For `const {} = await import('./lib')`, returns `Some([])`.
+/// For `const mod = await import('./lib')` or non-destructured patterns, returns `None`.
+/// For patterns with rest elements or computed keys, returns `None` (conservative).
+fn extract_dynamic_import_export_names(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+) -> Option<SmallVec<[RcStr; 1]>> {
+    // Walk up the AST path from the import() call to find a VarDeclarator.
+    // Only allow Expr wrappers, AwaitExpr, and ParenExpr as intermediate nodes
+    // to ensure the import result flows directly into the destructuring.
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::VarDeclarator(decl, VarDeclaratorField::Init) => {
+                return extract_names_from_object_pat(&decl.name);
+            }
+            // Allowed intermediate nodes between VarDeclarator(Init) and CallExpr
+            AstParentNodeRef::Expr(..)
+            | AstParentNodeRef::AwaitExpr(_, AwaitExprField::Arg)
+            | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => continue,
+            // Any other node means the import is nested in something else
+            _ => return None,
+        }
+    }
+    None
+}
+
+fn extract_names_from_object_pat(pat: &Pat) -> Option<SmallVec<[RcStr; 1]>> {
+    let Pat::Object(obj_pat) = pat else {
+        return None;
+    };
+    let mut names = SmallVec::new();
+    for prop in &obj_pat.props {
+        match prop {
+            ObjectPatProp::KeyValue(kv) => match &kv.key {
+                PropName::Ident(ident) => names.push(ident.sym.as_str().into()),
+                PropName::Str(s) => match s.value.as_str() {
+                    Some(str_val) => names.push(str_val.into()),
+                    None => return None, // non-UTF-8 string key
+                },
+                _ => return None, // computed key, can't determine statically
+            },
+            ObjectPatProp::Assign(assign) => {
+                names.push(assign.key.sym.as_str().into());
+            }
+            ObjectPatProp::Rest(_) => return None, // rest pattern means all exports needed
+        }
+    }
+    Some(names)
+}
+
 pub fn as_parent_path_with(
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
     additional: AstParentKind,
@@ -1680,13 +1750,13 @@ impl Analyzer<'_> {
 
         match callee {
             Callee::Import(_) => {
-                self.add_effect(Effect::Call {
-                    func: Box::new(JsValue::FreeVar(atom!("import"))),
+                let export_names = extract_dynamic_import_export_names(ast_path);
+                self.add_effect(Effect::DynamicImport {
                     args,
                     ast_path: as_parent_path(ast_path),
                     span,
                     in_try: self.is_in_try(),
-                    new,
+                    export_names,
                 });
             }
             Callee::Expr(box expr) => {
