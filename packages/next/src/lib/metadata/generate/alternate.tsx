@@ -50,7 +50,11 @@ export function AlternatesMetadata({
     types
       ? Object.entries(types).flatMap(([type, descriptors]) =>
           descriptors?.map((descriptor) =>
-            AlternateLink({ rel: 'alternate', type, descriptor })
+            AlternateLink({
+              rel: 'alternate',
+              ...(type && { type }),
+              descriptor,
+            })
           )
         )
       : null,

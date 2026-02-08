@@ -17,6 +17,7 @@ export async function generateMetadata(props, parentResolvingMetadata) {
           { url: '/blog.rss', title: 'rss' },
           { url: '/blog/js.rss', title: 'js title' },
         ],
+        '': [{ url: '/1.0', title: 'v1.0' }],
       },
     },
   }
