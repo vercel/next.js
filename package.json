@@ -206,6 +206,7 @@
     "execa": "2.0.3",
     "expect": "29.7.0",
     "expect-type": "0.14.2",
+    "experimental-fast-webstreams": "0.0.5",
     "express": "4.17.0",
     "faker": "5.5.3",
     "faunadb": "2.6.1",
@@ -344,7 +345,8 @@
       "@types/node@20.17.6": "patches/@types__node@20.17.6.patch",
       "taskr@1.1.0": "patches/taskr@1.1.0.patch",
       "minizlib@3.1.0": "patches/minizlib@3.1.0.patch",
-      "http-proxy@1.18.1": "patches/http-proxy@1.18.1.patch"
+      "http-proxy@1.18.1": "patches/http-proxy@1.18.1.patch",
+      "experimental-fast-webstreams@0.0.5": "patches/experimental-fast-webstreams@0.0.5.patch"
     }
   }
 }

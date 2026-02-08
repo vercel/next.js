@@ -330,6 +330,37 @@ export async function ncc_acorn(task, opts) {
     .target('src/compiled/acorn')
 }
 
+export async function ncc_fast_webstreams(task, opts) {
+  // `experimental-fast-webstreams` provides drop-in faster WebStream
+  // constructors backed by Node.js native streams.
+  // The package is ESM ("type": "module"), but ncc auto-detects this and
+  // outputs ESM. To force CJS output, we temporarily remove the "type" field
+  // from the package.json before bundling, then restore it.
+  const mainEntry = require.resolve('experimental-fast-webstreams')
+  const srcDir = dirname(mainEntry)
+  const pkgJsonPath = join(dirname(srcDir), 'package.json')
+  const originalPkgJson = await fs.readFile(pkgJsonPath, 'utf8')
+  const pkg = JSON.parse(originalPkgJson)
+  delete pkg.type
+  await fs.writeFile(pkgJsonPath, JSON.stringify(pkg, null, 2))
+
+  try {
+    await task
+      .source(relative(__dirname, join(srcDir, 'patch.js')))
+      .ncc({
+        packageName: 'experimental-fast-webstreams',
+        externals: {
+          ...externals,
+          'node:stream': 'node:stream',
+        },
+      })
+      .target('src/compiled/fast-webstreams')
+  } finally {
+    // Restore original package.json
+    await fs.writeFile(pkgJsonPath, originalPkgJson)
+  }
+}
+
 externals['@edge-runtime/cookies'] = 'next/dist/compiled/@edge-runtime/cookies'
 
 export async function ncc_edge_runtime_cookies() {
@@ -2346,6 +2377,7 @@ export async function ncc(task, opts) {
       'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
       'ncc_busboy',
+      'ncc_fast_webstreams',
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
       'ncc_modelcontextprotocol_sdk',
