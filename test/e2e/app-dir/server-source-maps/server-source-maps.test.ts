@@ -199,6 +199,76 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('logged errors include `[errors]` for AggregateError', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-aggregate')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'AggregateError: rsc-error-log-aggregate'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'AggregateError: rsc-error-log-aggregate' +
+          '\n    at logError (app/rsc-error-log-aggregate/page.js:6:26)' +
+          '\n    at Page (app/rsc-error-log-aggregate/page.js:15:3)' +
+          "\n  4 |   const error2 = new TypeError('Error 2')" +
+          "\n  5 |   const rootError = new Error('Root error')" +
+          '\n> 6 |   const aggregateError = new AggregateError(' +
+          '\n    |                          ^' +
+          '\n  7 |     [error1, error2],' +
+          "\n  8 |     'rsc-error-log-aggregate'," +
+          '\n  9 |     { cause: rootError } {' +
+          '\n  [cause]: Error: Root error' +
+          '\n      at logError (app/rsc-error-log-aggregate/page.js:5:21)' +
+          '\n      at Page (app/rsc-error-log-aggregate/page.js:15:3)' +
+          "\n    3 |   const error1 = new Error('Error 1')" +
+          "\n    4 |   const error2 = new TypeError('Error 2')" +
+          "\n  > 5 |   const rootError = new Error('Root error')" +
+          '\n      |                     ^' +
+          '\n    6 |   const aggregateError = new AggregateError(' +
+          '\n    7 |     [error1, error2],' +
+          "\n    8 |     'rsc-error-log-aggregate',," +
+          '\n  [errors]: [' +
+          '\n    Error: Error 1' +
+          '\n        at logError (app/rsc-error-log-aggregate/page.js:3:18)' +
+          '\n        at Page (app/rsc-error-log-aggregate/page.js:15:3)' +
+          '\n      1 | /* global AggregateError */' +
+          '\n      2 | function logError() {' +
+          "\n    > 3 |   const error1 = new Error('Error 1')" +
+          '\n        |                  ^' +
+          "\n      4 |   const error2 = new TypeError('Error 2')" +
+          "\n      5 |   const rootError = new Error('Root error')" +
+          '\n      6 |   const aggregateError = new AggregateError(,' +
+          '\n    TypeError: Error 2' +
+          '\n        at logError (app/rsc-error-log-aggregate/page.js:4:18)' +
+          '\n        at Page (app/rsc-error-log-aggregate/page.js:15:3)' +
+          '\n      2 | function logError() {' +
+          "\n      3 |   const error1 = new Error('Error 1')" +
+          "\n    > 4 |   const error2 = new TypeError('Error 2')" +
+          '\n        |                  ^' +
+          "\n      5 |   const rootError = new Error('Root error')" +
+          '\n      6 |   const aggregateError = new AggregateError(' +
+          '\n      7 |     [error1, error2],' +
+          '\n  ]' +
+          '\n}'
+      )
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        // TODO(veil): relative paths in production
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(app/rsc-error-log-aggregate/page.js:6:26)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain('[errors]:')
+        expect(normalizeCliOutput(next.cliOutput)).toContain('[cause]:')
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
+  })
+
   it('stack frames are ignore-listed in ssr', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length

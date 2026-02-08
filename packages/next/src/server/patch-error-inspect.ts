@@ -451,13 +451,16 @@ function sourceMapError(
   error: Error,
   inspectOptions: util.InspectOptions
 ): Error {
+  // Setting an undefined `cause` would print `[cause]: undefined`
+  const options = error.cause !== undefined ? { cause: error.cause } : undefined
+
   // Create a new Error object with the source mapping applied and then use native
   // Node.js formatting on the result.
   const newError =
-    error.cause !== undefined
-      ? // Setting an undefined `cause` would print `[cause]: undefined`
-        new Error(error.message, { cause: error.cause })
-      : new Error(error.message)
+    error instanceof AggregateError
+      ? // Preserve AggregateError's `errors` instance property
+        new AggregateError(error.errors, error.message, options)
+      : new Error(error.message, options)
 
   // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
   newError.stack = parseAndSourceMap(error, inspectOptions)
