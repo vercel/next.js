@@ -600,23 +600,20 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Runtime::NodeJs => {
             OutputAssetsWithReferenced {
                 assets: ResolvedVc::cell(vec![
-                    ResolvedVc::try_downcast_type::<NodeJsChunkingContext>(
-                        chunking_context.to_resolved().await?,
-                    )
-                    .unwrap()
-                    .entry_chunk_group(
-                        // `expected` expects a completely flat output directory.
-                        chunk_root_path
-                            .join(entry_module.ident().path().await?.file_stem().unwrap())?
-                            .with_extension("entry.js"),
-                        evaluatable_assets,
-                        module_graph,
-                        OutputAssets::empty(),
-                        OutputAssets::empty(),
-                        AvailabilityInfo::root(),
-                    )
-                    .await?
-                    .asset,
+                    chunking_context
+                        .entry_chunk_group(
+                            // `expected` expects a completely flat output directory.
+                            chunk_root_path
+                                .join(entry_module.ident().path().await?.file_stem().unwrap())?
+                                .with_extension("entry.js"),
+                            evaluatable_assets,
+                            module_graph,
+                            OutputAssets::empty(),
+                            OutputAssets::empty(),
+                            AvailabilityInfo::root(),
+                        )
+                        .await?
+                        .asset,
                 ]),
                 referenced_assets: ResolvedVc::cell(vec![]),
                 references: ResolvedVc::cell(vec![]),
