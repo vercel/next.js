@@ -361,7 +361,8 @@ impl ChunkItem for EcmascriptModuleChunkItem {
 impl OutputAssetsReference for EcmascriptModuleChunkItem {
     #[turbo_tasks::function]
     fn references(&self) -> Vc<turbopack_core::output::OutputAssetsWithReferenced> {
-        self.module.chunk_item_output_assets(*self.chunking_context)
+        self.module
+            .chunk_item_output_assets(*self.chunking_context, *self.module_graph)
     }
 }
 
@@ -370,19 +371,20 @@ impl EcmascriptChunkItem for EcmascriptModuleChunkItem {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<EcmascriptChunkItemContent> {
         self.module
-            .chunk_item_content(*self.chunking_context, *self.module_graph, None)
+            .chunk_item_content(*self.chunking_context, *self.module_graph, None, false)
     }
 
     #[turbo_tasks::function]
     fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-        _estimated: bool,
+        estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent> {
         self.module.chunk_item_content(
             *self.chunking_context,
             *self.module_graph,
             async_module_info,
+            estimated,
         )
     }
 }

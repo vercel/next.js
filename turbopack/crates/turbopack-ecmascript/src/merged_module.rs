@@ -117,6 +117,7 @@ impl EcmascriptChunkPlaceable for MergedEcmascriptModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.await?;
         let modules = &module.modules;

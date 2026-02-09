@@ -353,6 +353,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let content = self.module_content(chunking_context, async_module_info);
 

@@ -96,6 +96,7 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let wasm_asset = self.wasm_asset(chunking_context);
         let path = wasm_asset.path().await?;
@@ -116,6 +117,7 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
     async fn chunk_item_output_assets(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let wasm_asset = self.wasm_asset(chunking_context).to_resolved().await?;
         Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![

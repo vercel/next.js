@@ -182,17 +182,22 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         // Delegate to the loader's chunk item content
-        Ok(self
-            .loader()
-            .chunk_item_content(chunking_context, module_graph, async_module_info))
+        Ok(self.loader().chunk_item_content(
+            chunking_context,
+            module_graph,
+            async_module_info,
+            estimated,
+        ))
     }
 
     #[turbo_tasks::function]
     async fn chunk_item_output_assets(
         self: Vc<Self>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let loader_references = self.loader().references().await?;
         references_to_output_assets(&*loader_references).await

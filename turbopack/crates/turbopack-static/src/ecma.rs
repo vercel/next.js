@@ -93,6 +93,7 @@ impl EcmascriptChunkPlaceable for StaticUrlJsModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
         let static_asset = self.static_output_asset(chunking_context);
@@ -143,6 +144,7 @@ impl EcmascriptChunkPlaceable for StaticUrlJsModule {
     fn chunk_item_output_assets(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssetsWithReferenced> {
         static_url_js_output_assets(self, chunking_context)
     }

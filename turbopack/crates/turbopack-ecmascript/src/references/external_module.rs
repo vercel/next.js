@@ -411,6 +411,7 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent> {
         let async_module_options = self.get_async_module().module_options(async_module_info);
 
@@ -421,6 +422,7 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
     async fn chunk_item_output_assets(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let module = self.await?;
         let chunking_context_resolved = chunking_context.to_resolved().await?;

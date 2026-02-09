@@ -41,15 +41,16 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
 
     /// Generate chunk item content directly on the module.
     /// This replaces the need for separate ChunkItem wrapper structs.
+    /// The `estimated` parameter is used during size estimation - when true, implementations
+    /// should avoid calling chunking context APIs that would cause cycles.
     #[turbo_tasks::function]
     fn chunk_item_content(
         self: Vc<Self>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<EcmascriptChunkItemContent> {
-        unimplemented!("chunk_item_content not yet implemented for this module")
-    }
+        _estimated: bool,
+    ) -> Vc<EcmascriptChunkItemContent>;
 
     /// Returns the content identity for cache invalidation.
     /// Override this for modules whose content depends on more than just the module source
@@ -69,6 +70,7 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
     fn chunk_item_output_assets(
         self: Vc<Self>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssetsWithReferenced> {
         OutputAssetsWithReferenced::from_assets(OutputAssets::empty())
     }

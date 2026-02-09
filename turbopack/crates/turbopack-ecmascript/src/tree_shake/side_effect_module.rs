@@ -141,6 +141,7 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.await?;
         let mut code = RopeBuilder::default();

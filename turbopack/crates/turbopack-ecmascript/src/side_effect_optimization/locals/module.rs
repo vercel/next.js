@@ -178,6 +178,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let analyze = self.await?.module.analyze().await?;
         let async_module_options = analyze.async_module.module_options(async_module_info);

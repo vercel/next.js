@@ -269,6 +269,7 @@ impl EcmascriptChunkPlaceable for ModuleCssAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let classes = self.classes().await?;
 

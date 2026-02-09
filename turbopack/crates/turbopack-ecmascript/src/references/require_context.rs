@@ -460,6 +460,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let map = &*self.map.await?;
         let minify = chunking_context.minify_type().await?;
