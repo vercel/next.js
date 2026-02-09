@@ -14,11 +14,13 @@ import {
 const isBotUserAgent =
   typeof window !== 'undefined' && isBot(window.navigator.userAgent)
 
-export type ErrorComponent = React.ComponentType<{
+export type ErrorInfo = {
   error: Error
   reset: () => void
   unstable_retry: () => void
-}>
+}
+
+export type ErrorComponent = React.ComponentType<ErrorInfo>
 
 export interface ErrorBoundaryProps {
   children?: React.ReactNode

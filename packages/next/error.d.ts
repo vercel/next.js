@@ -1,3 +1,3 @@
-import Error from './dist/pages/_error'
-export * from './dist/pages/_error'
+import Error from './dist/api/error'
+export * from './dist/api/error'
 export default Error
