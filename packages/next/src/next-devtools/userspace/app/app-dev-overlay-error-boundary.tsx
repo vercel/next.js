@@ -64,7 +64,7 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
     dispatcher.openErrorOverlay()
   }
 
-  reset() {
+  reset = () => {
     this.setState({ reactError: null })
   }
 
