@@ -1,39 +1,25 @@
 use std::{
+    cmp::Ordering,
     fmt::Display,
     fs::File,
-    hash::BuildHasherDefault,
     io::{BufReader, Seek},
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, OnceLock},
+    sync::OnceLock,
 };
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
-use either::Either;
 use memmap2::{Mmap, MmapOptions};
-use quick_cache::sync::GuardResult;
-use rustc_hash::FxHasher;
 use turbo_bincode::turbo_bincode_decode;
 
 use crate::{
     QueryKey,
+    lookup_entry::LookupValue,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
-
-#[derive(Clone, Default)]
-pub struct AmqfWeighter;
-
-impl quick_cache::Weighter<u32, Arc<qfilter::Filter>> for AmqfWeighter {
-    fn weight(&self, _key: &u32, filter: &Arc<qfilter::Filter>) -> u64 {
-        filter.capacity() + 1
-    }
-}
-
-pub type AmqfCache =
-    quick_cache::sync::Cache<u32, Arc<qfilter::Filter>, AmqfWeighter, BuildHasherDefault<FxHasher>>;
 
 bitfield! {
     #[derive(Clone, Copy, Default)]
@@ -134,30 +120,10 @@ impl MetaEntry {
             .0)
     }
 
-    pub fn amqf(
-        &self,
-        meta: &MetaFile,
-        amqf_cache: &AmqfCache,
-    ) -> Result<impl Deref<Target = qfilter::Filter>> {
-        let use_amqf_cache = self.max_hash - self.min_hash < 1 << 60;
-        Ok(if use_amqf_cache {
-            let amqf = match amqf_cache.get_value_or_guard(&self.sequence_number(), None) {
-                GuardResult::Value(amqf) => amqf,
-                GuardResult::Guard(guard) => {
-                    let amqf = self.deserialize_amqf(meta)?;
-                    let amqf: Arc<qfilter::Filter> = Arc::new(amqf);
-                    let _ = guard.insert(amqf.clone());
-                    amqf
-                }
-                GuardResult::Timeout => unreachable!(),
-            };
-            Either::Left(amqf)
-        } else {
-            let amqf = self.amqf.get_or_try_init(|| {
-                let amqf = self.deserialize_amqf(meta)?;
-                anyhow::Ok(amqf)
-            })?;
-            Either::Right(amqf)
+    pub fn amqf(&self, meta: &MetaFile) -> Result<impl Deref<Target = qfilter::Filter>> {
+        self.amqf.get_or_try_init(|| {
+            let amqf = self.deserialize_amqf(meta)?;
+            anyhow::Ok(amqf)
         })
     }
 
@@ -209,6 +175,27 @@ pub enum MetaLookupResult {
     QuickFilterMiss,
     /// The key was looked up in the SST file. It was in the AMQF filter.
     SstLookup(SstLookupResult),
+}
+
+/// The result of a batch lookup operation.
+#[derive(Default)]
+pub struct MetaBatchLookupResult {
+    /// The key was not found because it is from a different key family.
+    #[cfg(feature = "stats")]
+    pub family_miss: bool,
+    /// The key was not found because it is out of the range of this SST file. But it was the
+    /// correct key family.
+    #[cfg(feature = "stats")]
+    pub range_misses: usize,
+    /// The key was not found because it was not in the AMQF filter. But it was in the range.
+    #[cfg(feature = "stats")]
+    pub quick_filter_misses: usize,
+    /// The key was unsuccessfully looked up in the SST file. It was in the AMQF filter.
+    #[cfg(feature = "stats")]
+    pub sst_misses: usize,
+    /// The key was found in the SST file.
+    #[cfg(feature = "stats")]
+    pub hits: usize,
 }
 
 /// The key family and hash range of an SST file.
@@ -312,6 +299,20 @@ impl MetaFile {
         Ok(file)
     }
 
+    pub fn clear_cache(&mut self) {
+        for entry in self.entries.iter_mut() {
+            entry.amqf.take();
+            entry.sst.take();
+        }
+    }
+
+    pub fn prepare_sst_cache(&self) {
+        for entry in self.entries.iter() {
+            let _ = entry.sst(self);
+            let _ = entry.amqf(self);
+        }
+    }
+
     pub fn sequence_number(&self) -> u32 {
         self.sequence_number
     }
@@ -377,7 +378,6 @@ impl MetaFile {
         key_family: u32,
         key_hash: u64,
         key: &K,
-        amqf_cache: &AmqfCache,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<MetaLookupResult> {
@@ -390,7 +390,7 @@ impl MetaFile {
                 continue;
             }
             {
-                let amqf = entry.amqf(self, amqf_cache)?;
+                let amqf = entry.amqf(self)?;
                 if !amqf.contains_fingerprint(key_hash) {
                     miss_result = MetaLookupResult::QuickFilterMiss;
                     continue;
@@ -405,5 +405,103 @@ impl MetaFile {
             }
         }
         Ok(miss_result)
+    }
+
+    pub fn batch_lookup<K: QueryKey>(
+        &self,
+        key_family: u32,
+        keys: &[K],
+        cells: &mut [(u64, usize, Option<LookupValue>)],
+        empty_cells: &mut usize,
+        key_block_cache: &BlockCache,
+        value_block_cache: &BlockCache,
+    ) -> Result<MetaBatchLookupResult> {
+        if key_family != self.family {
+            #[cfg(feature = "stats")]
+            return Ok(MetaBatchLookupResult {
+                family_miss: true,
+                ..Default::default()
+            });
+            #[cfg(not(feature = "stats"))]
+            return Ok(MetaBatchLookupResult {});
+        }
+        debug_assert!(
+            cells.is_sorted_by_key(|(hash, _, _)| *hash),
+            "Cells must be sorted by key hash"
+        );
+        #[allow(unused_mut, reason = "It's used when stats are enabled")]
+        let mut lookup_result = MetaBatchLookupResult::default();
+        for entry in self.entries.iter().rev() {
+            let start_index = cells
+                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.min_hash).then(Ordering::Greater))
+                .err()
+                .unwrap();
+            if start_index >= cells.len() {
+                #[cfg(feature = "stats")]
+                {
+                    lookup_result.range_misses += 1;
+                }
+                continue;
+            }
+            let end_index = cells
+                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.max_hash).then(Ordering::Less))
+                .err()
+                .unwrap()
+                .checked_sub(1);
+            let Some(end_index) = end_index else {
+                #[cfg(feature = "stats")]
+                {
+                    lookup_result.range_misses += 1;
+                }
+                continue;
+            };
+            if start_index > end_index {
+                #[cfg(feature = "stats")]
+                {
+                    lookup_result.range_misses += 1;
+                }
+                continue;
+            }
+            let amqf = entry.amqf(self)?;
+            for (hash, index, result) in &mut cells[start_index..=end_index] {
+                debug_assert!(
+                    *hash >= entry.min_hash && *hash <= entry.max_hash,
+                    "Key hash out of range"
+                );
+                if result.is_some() {
+                    continue;
+                }
+                if !amqf.contains_fingerprint(*hash) {
+                    #[cfg(feature = "stats")]
+                    {
+                        lookup_result.quick_filter_misses += 1;
+                    }
+                    continue;
+                }
+                let sst_result = entry.sst(self)?.lookup(
+                    *hash,
+                    &keys[*index],
+                    key_block_cache,
+                    value_block_cache,
+                )?;
+                if let SstLookupResult::Found(value) = sst_result {
+                    *result = Some(value);
+                    *empty_cells -= 1;
+                    #[cfg(feature = "stats")]
+                    {
+                        lookup_result.hits += 1;
+                    }
+                    if *empty_cells == 0 {
+                        return Ok(lookup_result);
+                    }
+                } else {
+                    #[cfg(feature = "stats")]
+                    {
+                        lookup_result.sst_misses += 1;
+                    }
+                }
+            }
+        }
+        Ok(lookup_result)
     }
 }

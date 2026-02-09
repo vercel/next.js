@@ -195,6 +195,16 @@ function checkDeprecations(
       )
     }
   }
+
+  // browserDebugInfoInTerminal has moved to logging.browserToTerminal
+  if (userConfig.experimental?.browserDebugInfoInTerminal !== undefined) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'experimental.browserDebugInfoInTerminal',
+      `\`experimental.browserDebugInfoInTerminal\` has been moved to \`logging.browserToTerminal\`. Please update your ${configFileName} file accordingly.`,
+      silent
+    )
+  }
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -372,6 +382,29 @@ function assignDefaultsAndValidate(
   // ensure correct default is set for api-resolver revalidate handling
   if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true
+  }
+
+  // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
+  if (
+    result.logging !== false &&
+    result.experimental?.browserDebugInfoInTerminal !== undefined
+  ) {
+    const loggingConfig = result.logging || {}
+    if (!('browserToTerminal' in loggingConfig)) {
+      const expConfig = result.experimental.browserDebugInfoInTerminal
+      // Convert object config to simple format (level or true)
+      const level =
+        typeof expConfig === 'object' && expConfig !== null
+          ? (expConfig.level ?? true)
+          : expConfig
+      // Map 'verbose' to true since browserToTerminal doesn't support 'verbose'
+      const normalizedValue = level === 'verbose' ? true : level
+
+      result.logging = {
+        ...loggingConfig,
+        browserToTerminal: normalizedValue,
+      }
+    }
   }
 
   if (
@@ -753,10 +786,18 @@ function assignDefaultsAndValidate(
   if (
     typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
   ) {
-    const value = parseInt(
-      result.experimental.serverActions?.bodySizeLimit.toString()
-    )
-    if (isNaN(value) || value < 1) {
+    const bytes =
+      require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+    const bodySizeLimit = result.experimental.serverActions.bodySizeLimit
+    let value: number | null
+
+    if (typeof bodySizeLimit === 'number') {
+      value = bodySizeLimit
+    } else {
+      value = bytes.parse(bodySizeLimit)
+    }
+
+    if (value === null || isNaN(value) || value < 1) {
       throw new Error(
         'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit'
       )
@@ -1358,12 +1399,9 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.cacheComponents
   }
 
-  // Store the distDirRoot in the config before it is modified by the isolatedDevBuild flag
+  // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
-  if (
-    phase === PHASE_DEVELOPMENT_SERVER &&
-    result.experimental.isolatedDevBuild
-  ) {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
   }
 
@@ -1596,8 +1634,7 @@ export default async function loadConfig(
       } else if (configFileName === 'next.config.ts') {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
-          configFileName,
-          cwd: dir,
+          dir,
         })
       } else {
         userConfigModule = await import(pathToFileURL(path).href)

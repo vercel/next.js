@@ -1,0 +1,11 @@
+{
+  "name": "test-self-sync",
+  "type": "module",
+  "exports": {
+    ".": {
+      "module-sync": "./module-sync.js",
+      "import": "./import.js",
+      "default": "./default.js"
+    }
+  }
+}

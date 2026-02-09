@@ -1,8 +1,6 @@
-import { promises as fs } from 'fs'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
-import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+import { getClientReferenceManifest, retry } from 'next-test-utils'
 
 function getServerReferenceIdsFromBundle(source: string): string[] {
   // Reference IDs are strings with [0-9a-f] that are at least 32 characters long.
@@ -33,29 +31,20 @@ describe('app-dir - client-actions-tree-shaking', () => {
   /**
    * Parses the client reference manifest for a given route and returns the client chunks
    */
-  function getClientChunks(appDir: string, route: string): Array<string> {
-    const modulePath = require.resolve(
-      join(appDir, `.next/server/app/${route}_client-reference-manifest.js`)
-    )
-    require(modulePath)
-    const clientManfiest = globalThis.__RSC_MANIFEST[
-      route
-    ] as ClientReferenceManifest
-    delete globalThis.__RSC_MANIFEST[route]
-    delete require.cache[modulePath]
+  function getClientChunks(route: string): Array<string> {
+    const clientManifest = getClientReferenceManifest(next, route)
     const chunks = new Set<string>()
-
     if (process.env.IS_TURBOPACK_TEST) {
       // These only exist for turbopack and are encoded as files
-      // entryJSFiles is a map of moduel name to a set of chunks relative to `.next`
-      for (const entries of Object.values(clientManfiest.entryJSFiles)) {
+      // entryJSFiles is a map of module name to a set of chunks relative to `.next`
+      for (const entries of Object.values(clientManifest.entryJSFiles)) {
         for (const chunk of entries) {
           chunks.add(chunk)
         }
       }
       // client mmodules is a mapping from module name to a set of chunks releative to `/_next/`
       // So strip that prefix and add it to the chunks
-      for (const clientModule of Object.values(clientManfiest.clientModules)) {
+      for (const clientModule of Object.values(clientManifest.clientModules)) {
         for (const chunk of clientModule.chunks) {
           chunks.add(chunk.replace('/_next/', ''))
         }
@@ -63,7 +52,7 @@ describe('app-dir - client-actions-tree-shaking', () => {
     } else {
       // webpack doens't use entryJSFiles, so we need to use clientModules but the format is different.
       // chunks is a sequence of 'chunk-id', chunk-path pairs, so we need to skip the chunk-id
-      for (const clientModule of Object.values(clientManfiest.clientModules)) {
+      for (const clientModule of Object.values(clientManifest.clientModules)) {
         for (let i = 1; i < clientModule.chunks.length; i += 2) {
           chunks.add(clientModule.chunks[i])
         }
@@ -73,25 +62,23 @@ describe('app-dir - client-actions-tree-shaking', () => {
   }
 
   it('should not bundle unused server reference id in client bundles', async () => {
-    const appDir = next.testDir
-
-    const bundle1Files = getClientChunks(appDir, '/route-1/page')
-    const bundle2Files = getClientChunks(appDir, '/route-2/page')
-    const bundle3Files = getClientChunks(appDir, '/route-3/page')
+    const bundle1Files = getClientChunks('/route-1/page')
+    const bundle2Files = getClientChunks('/route-2/page')
+    const bundle3Files = getClientChunks('/route-3/page')
 
     const bundle1Contents = await Promise.all(
       bundle1Files.map((file: string) =>
-        fs.readFile(join(appDir, '.next', file), 'utf8')
+        next.readFile(join(next.distDir, file))
       )
     )
     const bundle2Contents = await Promise.all(
       bundle2Files.map((file: string) =>
-        fs.readFile(join(appDir, '.next', file), 'utf8')
+        next.readFile(join(next.distDir, file))
       )
     )
     const bundle3Contents = await Promise.all(
       bundle3Files.map((file: string) =>
-        fs.readFile(join(appDir, '.next', file), 'utf8')
+        next.readFile(join(next.distDir, file))
       )
     )
 

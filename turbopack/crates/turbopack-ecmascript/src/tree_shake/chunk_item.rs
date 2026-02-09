@@ -150,7 +150,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
                 format!(
                     "{}{TURBOPACK_IMPORT}({});\n",
                     if need_await { "await " } else { "" },
-                    StringifyModuleId(&*side_effect.chunk_item_id(*self.chunking_context).await?)
+                    StringifyModuleId(&side_effect.chunk_item_id(*self.chunking_context).await?)
                 )
                 .as_bytes(),
             );
@@ -160,7 +160,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
             format!(
                 "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));\n",
                 StringifyModuleId(
-                    &*module
+                    &module
                         .resolved_as
                         .chunk_item_id(*self.chunking_context)
                         .await?

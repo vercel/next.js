@@ -1,8 +1,7 @@
 use std::cmp::Ordering;
 
-use smallvec::SmallVec;
-
 use crate::{
+    constants::MAX_INLINE_VALUE_SIZE,
     key::StoreKey,
     static_sorted_file_builder::{Entry, EntryValue},
 };
@@ -12,16 +11,34 @@ pub struct CollectorEntry<K: StoreKey> {
     pub value: CollectorEntryValue,
 }
 
+/// The size threshold for inline storage in CollectorEntryValue, this is the largest value that can
+/// be stored inline without inflating the size of the enum
+pub const TINY_VALUE_THRESHOLD: usize = 22;
+
 pub enum CollectorEntryValue {
-    Small { value: SmallVec<[u8; 16]> },
-    Medium { value: Vec<u8> },
-    Large { blob: u32 },
+    /// Tiny value stored inline (22 16 bytes, no heap allocation)
+    Tiny {
+        value: [u8; TINY_VALUE_THRESHOLD],
+        len: u8,
+    },
+    /// Small value that fits in shared value blocks (> 16 bytes, ≤ MAX_SMALL_VALUE_SIZE)
+    Small {
+        value: Box<[u8]>,
+    },
+    /// Medium value that gets its own value block (> MAX_SMALL_VALUE_SIZE)
+    Medium {
+        value: Box<[u8]>,
+    },
+    Large {
+        blob: u32,
+    },
     Deleted,
 }
 
 impl CollectorEntryValue {
     pub fn len(&self) -> usize {
         match self {
+            CollectorEntryValue::Tiny { len, .. } => *len as usize,
             CollectorEntryValue::Small { value } => value.len(),
             CollectorEntryValue::Medium { value } => value.len(),
             CollectorEntryValue::Large { blob: _ } => 0,
@@ -78,7 +95,21 @@ impl<K: StoreKey> Entry for CollectorEntry<K> {
 
     fn value(&self) -> EntryValue<'_> {
         match &self.value {
-            CollectorEntryValue::Small { value } => EntryValue::Small { value },
+            CollectorEntryValue::Tiny { value, len } => {
+                let slice = &value[..*len as usize];
+                if slice.len() <= MAX_INLINE_VALUE_SIZE {
+                    EntryValue::Inline { value: slice }
+                } else {
+                    EntryValue::Small { value: slice }
+                }
+            }
+            CollectorEntryValue::Small { value } => {
+                if value.len() <= MAX_INLINE_VALUE_SIZE {
+                    EntryValue::Inline { value }
+                } else {
+                    EntryValue::Small { value }
+                }
+            }
             CollectorEntryValue::Medium { value } => EntryValue::Medium { value },
             CollectorEntryValue::Large { blob } => EntryValue::Large { blob: *blob },
             CollectorEntryValue::Deleted => EntryValue::Deleted,

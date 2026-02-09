@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, State, Vc};
-use turbo_tasks_testing::{Registration, register, run_once};
+use turbo_tasks_testing::{Registration, register, run, run_once};
 
 static REGISTRATION: Registration = register!();
 
@@ -134,4 +134,104 @@ async fn compute(input: Vc<ChangingInput>, input2: Vc<ChangingInput>) -> Result<
 async fn compute2(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     let state_value = *input.await?.state.get();
     Ok(Vc::cell(state_value))
+}
+
+// ============================================================================
+// recompute_dependency test - verifies dependent tasks re-execute correctly
+// ============================================================================
+
+/// Tests that when a task's dependency changes, both the inner and outer
+/// tasks re-execute correctly and return updated values.
+/// This tests the basic dependency propagation through a simple two-task chain.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn recompute_dependency() {
+    run(&REGISTRATION, || async {
+        let input = get_dependency_input().resolve().await?;
+        // Reset state to 1 at the start of each iteration (important for multi-run tests)
+        input.await?.state.set(1);
+
+        // Initial execution - establishes dependency chain:
+        // outer_compute -> inner_compute -> input.state
+        let output = outer_compute(input);
+        let read = output.strongly_consistent().await?;
+        println!(
+            "first read: value={}, inner_random={}, outer_random={}",
+            read.value, read.inner_random, read.outer_random
+        );
+        assert_eq!(read.value, 1);
+        let prev_inner_random = read.inner_random;
+        let prev_outer_random = read.outer_random;
+
+        // Change state - should invalidate inner_compute,
+        // which should then invalidate outer_compute
+        println!("changing input");
+        input.await?.state.set(2);
+
+        let read = output.strongly_consistent().await?;
+        println!(
+            "second read: value={}, inner_random={}, outer_random={}",
+            read.value, read.inner_random, read.outer_random
+        );
+
+        // Value should be updated
+        assert_eq!(read.value, 2);
+
+        // Inner task should have re-executed (different random)
+        assert_ne!(
+            read.inner_random, prev_inner_random,
+            "inner_compute should have re-executed"
+        );
+
+        // CRITICAL: Outer task should ALSO have re-executed
+        // This is what the bug broke - outer_compute wasn't being
+        // invalidated because its output_dependent edge was removed
+        assert_ne!(
+            read.outer_random, prev_outer_random,
+            "outer_compute should have re-executed due to dependency on inner_compute"
+        );
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+}
+
+#[turbo_tasks::function]
+fn get_dependency_input() -> Vc<ChangingInput> {
+    ChangingInput {
+        state: State::new(1),
+    }
+    .cell()
+}
+
+#[turbo_tasks::value]
+struct DependencyOutput {
+    value: u32,
+    inner_random: u32,
+    outer_random: u32,
+}
+
+/// Inner task - reads state directly, returns value with embedded random
+#[turbo_tasks::function]
+async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
+    println!("inner_compute()");
+    let value = *input.await?.state.get();
+    // Combine value with random to detect re-execution
+    // Value in lower 16 bits, random in upper 16 bits
+    Ok(Vc::cell(value | (rand::random::<u32>() << 16)))
+}
+
+/// Outer task - depends on inner_compute
+#[turbo_tasks::function]
+async fn outer_compute(input: Vc<ChangingInput>) -> Result<Vc<DependencyOutput>> {
+    println!("outer_compute()");
+    let inner_result = *inner_compute(input).await?;
+    let value = inner_result & 0xFFFF;
+    let inner_random = inner_result >> 16;
+    Ok(DependencyOutput {
+        value,
+        inner_random,
+        outer_random: rand::random(),
+    }
+    .cell())
 }

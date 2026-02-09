@@ -8,7 +8,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
@@ -120,14 +119,6 @@ impl Module for ModuleCssAsset {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl Asset for ModuleCssAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
-    }
-}
-
 /// A CSS class that is exported from a CSS module.
 ///
 /// See [`ModuleCssClasses`] for more information.
@@ -187,8 +178,7 @@ impl ModuleCssAsset {
             .inner(ReferenceType::Css(CssReferenceSubType::Analyze))
             .module();
 
-        let inner = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner)
-            .await?
+        let inner = ResolvedVc::try_sidecast::<Box<dyn ProcessCss>>(inner.to_resolved().await?)
             .context("inner asset should be CSS processable")?;
 
         let result = inner.get_css_with_placeholder().await?;
@@ -387,7 +377,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             ResolvedVc::upcast(css_module);
 
                         let module_id = placeable.chunk_item_id(*self.chunking_context).await?;
-                        let module_id = StringifyJs(&*module_id);
+                        let module_id = StringifyJs(&module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names
                             .push(format!("{TURBOPACK_IMPORT}({module_id})[{original_name}]"));
@@ -445,7 +435,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(&*sm, mappings, None, true, true)?;
+    let map = generate_js_source_map(&*sm, mappings, None, true, true, Default::default())?;
     Ok(map)
 }
 

@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects, trace::TraceRawVcs,
+    Completion, Effects, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ReadRef,
+    ResolvedVc, TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -17,7 +18,6 @@ use turbopack_core::{
     changed::content_changed,
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
-    error::PrettyPrintError,
     file_source::FileSource,
     ident::AssetIdent,
     issue::{
@@ -392,13 +392,13 @@ pub async fn get_evaluate_entries(
             )
             .module();
 
-        let Some(globals_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(globals_module).await?
-        else {
+        let Some(globals_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
+            globals_module.to_resolved().await?,
+        ) else {
             bail!("Internal module is not evaluatable");
         };
 
-        let mut entries = vec![globals_module.to_resolved().await?];
+        let mut entries = vec![globals_module];
         if let Some(runtime_entries) = runtime_entries {
             for &entry in &*runtime_entries.await? {
                 entries.push(entry)

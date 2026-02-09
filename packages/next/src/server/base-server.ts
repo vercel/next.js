@@ -6,6 +6,10 @@ import type {
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
 import type { NextConfig, NextConfigRuntime } from './config-shared'
+import {
+  DEFAULT_MAX_POSTPONED_STATE_SIZE,
+  parseMaxPostponedStateSize,
+} from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -86,6 +90,7 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_INSTANT_TEST_COOKIE,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -320,6 +325,7 @@ export default abstract class Server<
   protected readonly pagesManifest?: PagesManifest
   protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
+  protected readonly deploymentId: string
   protected readonly minimalMode: boolean
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
@@ -450,21 +456,24 @@ export default abstract class Server<
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
 
-    let deploymentId
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
         throw new Error(
           'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
         )
       }
-      deploymentId = process.env.NEXT_DEPLOYMENT_ID
+      this.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = this.deploymentId
+        ? `?dpl=${this.deploymentId}`
+        : ''
     } else {
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
         : this.nextConfig.deploymentId || ''
 
-      deploymentId = id
+      this.deploymentId = id
       process.env.NEXT_DEPLOYMENT_ID = id
+      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = id ? `?dpl=${id}` : ''
     }
 
     this.hostname = hostname
@@ -526,7 +535,6 @@ export default abstract class Server<
       dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: deploymentId,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
       previewProps: this.getPrerenderManifest().preview,
@@ -558,12 +566,20 @@ export default abstract class Server<
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
+        optimisticRouting:
+          this.nextConfig.experimental.optimisticRouting ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          this.nextConfig.experimental.maxPostponedStateSize
+        ),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
+      logServerFunctions:
+        typeof this.nextConfig.logging === 'object' &&
+        Boolean(this.nextConfig.logging.serverFunctions),
     }
 
     this.pagesManifest = this.getPagesManifest()
@@ -1051,11 +1067,34 @@ export default abstract class Server<
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
           ) {
+            // Get the configured max postponed state size.
+            const maxPostponedStateSize =
+              this.nextConfig.experimental.maxPostponedStateSize ??
+              DEFAULT_MAX_POSTPONED_STATE_SIZE
+            const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
+              this.nextConfig.experimental.maxPostponedStateSize
+            )
+            if (maxPostponedStateSizeBytes === undefined) {
+              throw new Error(
+                'maxPostponedStateSize must be a valid number (bytes) or filesize format string (e.g., "5mb")'
+              )
+            }
+
             // Decode the postponed state from the request body, it will come as
             // an array of buffers, so collect them and then concat them to form
             // the string.
             const body: Array<Buffer> = []
+            let size = 0
             for await (const chunk of req.body) {
+              size += Buffer.byteLength(chunk)
+              if (size > maxPostponedStateSizeBytes) {
+                res.statusCode = 413
+                const errorMessage =
+                  `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
+                  `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
+                res.body(errorMessage).send()
+                return
+              }
               body.push(chunk)
             }
             const postponed = Buffer.concat(body).toString('utf8')
@@ -1177,7 +1216,11 @@ export default abstract class Server<
             pathnameBeforeRewrite !== rewrittenParsedUrl.pathname
 
           if (didRewrite && rewrittenParsedUrl.pathname) {
-            addRequestMeta(req, 'rewroteURL', rewrittenParsedUrl.pathname)
+            addRequestMeta(
+              req,
+              'rewrittenPathname',
+              rewrittenParsedUrl.pathname
+            )
           }
 
           const routeParamKeys = new Set<string>()
@@ -1472,7 +1515,7 @@ export default abstract class Server<
 
         if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
           parsedUrl.pathname = parsedMatchedPath.pathname
-          addRequestMeta(req, 'rewroteURL', invokePathnameInfo.pathname)
+          addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
         const normalizeResult = normalizeLocalePath(
           removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
@@ -1749,7 +1792,12 @@ export default abstract class Server<
 
       // In dev, we should not cache pages for any reason.
       if (dev) {
-        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        res.setHeader(
+          'Cache-Control',
+          this.nextConfig.experimental.devCacheControlNoCache
+            ? 'no-cache, must-revalidate'
+            : 'no-store, must-revalidate'
+        )
         cacheControl = undefined
       }
 
@@ -2051,12 +2099,13 @@ export default abstract class Server<
       }
     }
 
-    // Compute the iSSG cache key. We use the rewroteUrl since
+    // Compute the iSSG cache key. We use the rewritten pathname since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
     let urlPathname = parseUrl(req.url || '').pathname || '/'
 
-    let resolvedUrlPathname = getRequestMeta(req, 'rewroteURL') || urlPathname
+    let resolvedUrlPathname =
+      getRequestMeta(req, 'rewrittenPathname') || urlPathname
 
     this.setVaryHeader(req, res, isAppPath, resolvedUrlPathname)
 
@@ -2148,6 +2197,22 @@ export default abstract class Server<
       typeof query.__nextppronly !== 'undefined' &&
       couldSupportPPR
 
+    // Whether the testing API is exposed (dev mode or explicit flag)
+    const exposeTestingApi =
+      this.renderOpts.dev === true ||
+      this.nextConfig.experimental.exposeTestingApiInProductionBuild === true
+
+    // Check for the instant test cookie for MPA navigations (page reload, full
+    // page load) in the Instant Navigation Testing API. Only applies to
+    // document requests (no RSC header) - RSC requests should proceed normally
+    // even during a locked scope, with blocking happening on the client side.
+    const hasInstantTestCookie =
+      exposeTestingApi &&
+      req.headers[RSC_HEADER] === undefined &&
+      typeof req.headers.cookie === 'string' &&
+      req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
+      couldSupportPPR
+
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
@@ -2159,10 +2224,9 @@ export default abstract class Server<
         // Ideally we'd want to check the appConfig to see if this page has PPR
         // enabled or not, but that would require plumbing the appConfig through
         // to the server during development. We assume that the page supports it
-        // but only during development.
-        (hasDebugStaticShellQuery &&
-          (this.renderOpts.dev === true ||
-            this.experimentalTestProxy === true)))
+        // but only during development or when the testing API is exposed.
+        ((hasDebugStaticShellQuery || hasInstantTestCookie) &&
+          (exposeTestingApi || this.experimentalTestProxy === true)))
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -2581,8 +2645,8 @@ export default abstract class Server<
               url: ctx.req.url,
               matchedPath: ctx.req.headers[MATCHED_PATH_HEADER],
               initUrl: getRequestMeta(ctx.req, 'initURL'),
-              didRewrite: !!getRequestMeta(ctx.req, 'rewroteURL'),
-              rewroteUrl: getRequestMeta(ctx.req, 'rewroteURL'),
+              didRewrite: !!getRequestMeta(ctx.req, 'rewrittenPathname'),
+              rewrittenPathname: getRequestMeta(ctx.req, 'rewrittenPathname'),
             },
             null,
             2

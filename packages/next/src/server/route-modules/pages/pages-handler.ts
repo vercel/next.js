@@ -4,7 +4,12 @@ import { RouteKind } from '../../route-kind'
 import { BaseServerSpan } from '../../lib/trace/constants'
 import { getTracer, SpanKind, type Span } from '../../lib/trace/tracer'
 import { formatUrl } from '../../../shared/lib/router/utils/format-url'
-import { addRequestMeta, getRequestMeta } from '../../request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  setRequestMeta,
+  type RequestMeta,
+} from '../../request-meta'
 import { interopDefault } from '../../app-render/interop-default'
 import { getRevalidateReason } from '../../instrumentation/utils'
 import { normalizeDataPath } from '../../../shared/lib/page-path/normalize-data-path'
@@ -23,9 +28,10 @@ import {
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
 } from '../../../lib/constants'
 import path from 'path'
 import { sendRenderResult } from '../../send-payload'
@@ -67,9 +73,13 @@ export const getHandler = ({
     req: IncomingMessage,
     res: ServerResponse,
     ctx: {
-      waitUntil: (prom: Promise<void>) => void
+      waitUntil?: (prom: Promise<void>) => void
+      requestMeta?: RequestMeta
     }
-  ): Promise<void> {
+  ) {
+    if (ctx.requestMeta) {
+      setRequestMeta(req, ctx.requestMeta)
+    }
     if (routeModule.isDev) {
       addRequestMeta(
         req,
@@ -256,7 +266,7 @@ export const getHandler = ({
                     buildId,
                     customServer:
                       Boolean(routerServerContext?.isCustomServer) || undefined,
-                    deploymentId: getDeploymentId(),
+                    deploymentId: getDeploymentId() || '',
                   },
                   renderOpts: {
                     params,
@@ -598,7 +608,7 @@ export const getHandler = ({
           } else {
             // revalidate: false
             cacheControl = {
-              revalidate: CACHE_ONE_YEAR,
+              revalidate: CACHE_ONE_YEAR_SECONDS,
               expire: undefined,
             }
           }
@@ -625,6 +635,10 @@ export const getHandler = ({
           res.statusCode = 404
 
           if (isNextDataRequest) {
+            const deploymentId = getDeploymentId()
+            if (deploymentId) {
+              res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+            }
             res.end('{"notFound":true}')
             return
           }
@@ -633,6 +647,10 @@ export const getHandler = ({
 
         if (result.value.kind === CachedRouteKind.REDIRECT) {
           if (isNextDataRequest) {
+            const deploymentId = getDeploymentId()
+            if (deploymentId) {
+              res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+            }
             res.setHeader('content-type', JSON_CONTENT_TYPE_HEADER)
             res.end(JSON.stringify(result.value.props))
             return
@@ -680,7 +698,12 @@ export const getHandler = ({
 
         // In dev, we should not cache pages for any reason.
         if (routeModule.isDev) {
-          res.setHeader('Cache-Control', 'no-store, must-revalidate')
+          res.setHeader(
+            'Cache-Control',
+            nextConfig.experimental.devCacheControlNoCache
+              ? 'no-cache, must-revalidate'
+              : 'no-store, must-revalidate'
+          )
         }
 
         // Draft mode should never be cached
@@ -698,6 +721,14 @@ export const getHandler = ({
           (isErrorPage && isMinimalMode && res.statusCode === 500)
         ) {
           return null
+        }
+
+        // Add deployment ID header for data requests
+        if (isNextDataRequest && !isErrorPage && !is500Page) {
+          const deploymentId = getDeploymentId()
+          if (deploymentId) {
+            res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+          }
         }
 
         await sendRenderResult({

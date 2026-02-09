@@ -113,7 +113,10 @@ export async function setupFsCheck(opts: {
 }) {
   const getItemsLru = !opts.dev
     ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
-        if (!value) return 0
+        if (!value) {
+          // Null entries (negative cache) still need a non-zero size for LRU eviction
+          return 1
+        }
         return (
           (value.fsPath || '').length +
           value.itemPath.length +
@@ -156,6 +159,7 @@ export async function setupFsCheck(opts: {
       afterFiles: [],
       fallback: [],
     },
+    onMatchHeaders: [],
     headers: [],
   }
   let buildId = 'development'
@@ -334,6 +338,7 @@ export async function setupFsCheck(opts: {
             fallback: [],
           },
       headers: routesManifest.headers,
+      onMatchHeaders: routesManifest.onMatchHeaders,
     }
   } else {
     // dev handling
@@ -359,6 +364,14 @@ export async function setupFsCheck(opts: {
   }
 
   const headers = customRoutes.headers.map((item) =>
+    buildCustomRoute(
+      'header',
+      item,
+      opts.config.basePath,
+      opts.config.experimental.caseSensitiveRoutes
+    )
+  )
+  const onMatchHeaders = customRoutes.onMatchHeaders.map((item) =>
     buildCustomRoute(
       'header',
       item,
@@ -428,6 +441,7 @@ export async function setupFsCheck(opts: {
 
   return {
     headers,
+    onMatchHeaders,
     rewrites,
     redirects,
 

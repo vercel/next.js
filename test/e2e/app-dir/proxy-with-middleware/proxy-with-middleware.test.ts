@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('proxy-with-middleware', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -17,7 +18,9 @@ describe('proxy-with-middleware', () => {
 
     if (isNextDev) {
       await next.start().catch(() => {})
-      expect(next.cliOutput).toContain(message)
+      await retry(async () => {
+        expect(next.cliOutput).toContain(message)
+      })
     } else {
       const { cliOutput } = await next.build()
       expect(cliOutput).toContain(message)

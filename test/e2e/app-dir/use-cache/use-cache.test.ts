@@ -474,6 +474,8 @@ describe('use-cache', () => {
           // [id] route, first entry in generateStaticParams
           expect.stringMatching(/\/a\d/),
           withCacheComponents && '/api',
+          // api/[id] route handler using generateStaticParams with 'use cache' from node_modules
+          expect.stringMatching(/\/api\/\d/),
           // [id] route, second entry in generateStaticParams
           expect.stringMatching(/\/b\d/),
           '/cache-fetch',
@@ -484,6 +486,7 @@ describe('use-cache', () => {
           '/directive-in-node-modules/without-handler',
           '/draft-mode/with-cookies',
           '/draft-mode/without-cookies',
+          '/fetch-revalidate',
           '/form',
           '/imported-from-client',
           '/logs',
@@ -637,9 +640,15 @@ describe('use-cache', () => {
     const browser = await next.browser('/fetch-revalidate')
 
     const initialValue = await browser.elementByCss('#random').text()
-    await browser.refresh()
 
-    expect(await browser.elementByCss('#random').text()).not.toBe(initialValue)
+    // Revalidate is set to 1 second, so after waiting the value should change.
+    await retry(async () => {
+      await browser.refresh()
+
+      expect(await browser.elementByCss('#random').text()).not.toBe(
+        initialValue
+      )
+    })
   })
 
   it('should cache fetch without no-store', async () => {
@@ -1397,17 +1406,85 @@ describe('use-cache', () => {
       expect(initialScale2).toBe(initialScale)
       expect(maximumScale2).toBe(maximumScale)
     })
+    // end withCacheComponents
+  }
 
-    it('caches a higher-order component in a "use cache" module', async () => {
-      const browser = await next.browser('/hoc/foo')
-      const slug = await browser.elementById('slug').text()
-      expect(slug).toBe('foo')
-      const date = await browser.elementById('date').text()
-      expect(date).toBeDateString()
-      await browser.refresh()
-      expect(await browser.elementById('date').text()).toBe(date)
+  it('caches a higher-order component in a "use cache" module', async () => {
+    const browser = await next.browser('/hoc/foo')
+    const slug = await browser.elementById('slug').text()
+    expect(slug).toBe('foo')
+    const date = await browser.elementById('date').text()
+    expect(date).toBeDateString()
+    await browser.refresh()
+    expect(await browser.elementById('date').text()).toBe(date)
+  })
+
+  it('ignores unused arguments in a "use cache" function', async () => {
+    const browser = await next.browser('/unused-args')
+    const initialNumbers = await browser.elementById('numbers').text()
+    await browser.refresh()
+    const numbers = await browser.elementById('numbers').text()
+    expect(numbers).toBe(initialNumbers)
+  })
+
+  if (isNextDev) {
+    it('should not log "use cache" functions called from client', async () => {
+      const browser = await next.browser('/passed-to-client')
+      const outputIndex = next.cliOutput.length
+
+      await browser.elementByCss('#submit-button').click()
+
+      await retry(() => {
+        const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+        // Should have the POST request but not the function log
+        expect(logs).toContain('POST /passed-to-client')
+        expect(logs).not.toContain('└─ ƒ')
+      })
     })
   }
+
+  it('should allow nested short-lived caches after connection()', async () => {
+    // Check the prerendered shell (no JS).
+    let browser = await next.browser('/short-lived-caches', {
+      disableJavaScript: true,
+    })
+
+    // Static content should be in the shell.
+    expect(await browser.elementById('static').text()).toBe('Static content')
+
+    // Explicit long cacheLife should be in the shell despite short-lived inner
+    // caches.
+    expect(
+      await browser.elementById('explicit-long-revalidate-zero').text()
+    ).toBeDateString()
+    expect(
+      await browser.elementById('explicit-long-low-expire').text()
+    ).toBeDateString()
+
+    // Now check with JS enabled to verify dynamic content loads.
+    browser = await next.browser('/short-lived-caches', {
+      pushErrorAsConsoleLog: true,
+    })
+
+    // Dynamic content should eventually render.
+    await retry(async () => {
+      // No explicit outer cacheLife (after connection()).
+      expect(
+        await browser.elementById('revalidate-zero').text()
+      ).toBeDateString()
+      expect(await browser.elementById('low-expire').text()).toBeDateString()
+
+      // Explicit short cacheLife - excluded from prerender.
+      expect(
+        await browser.elementById('explicit-revalidate-zero').text()
+      ).toBeDateString()
+      expect(
+        await browser.elementById('explicit-low-expire').text()
+      ).toBeDateString()
+    })
+
+    await assertNoConsoleErrors(browser)
+  })
 })
 
 async function getSanitizedLogs(browser: Playwright): Promise<string[]> {
@@ -1427,6 +1504,7 @@ function extractResumeDataCacheFromPostponedState(
   const postponedStringLength = parseInt(postponedStringLengthMatch)
 
   return createRenderResumeDataCache(
-    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1)
+    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1),
+    undefined
   )
 }

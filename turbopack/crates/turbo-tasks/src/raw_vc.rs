@@ -9,32 +9,19 @@ use anyhow::Result;
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::{
     CollectiblesSource, ReadCellOptions, ReadConsistency, ReadOutputOptions, ResolvedVc, TaskId,
-    TaskPersistence, TraitTypeId, ValueType, ValueTypeId, VcValueTrait,
-    backend::{CellContent, TypedCellContent},
+    TaskPersistence, TraitTypeId, ValueTypeId, VcValueTrait,
+    backend::TypedCellContent,
     event::EventListener,
     id::{ExecutionId, LocalTaskId},
     manager::{
-        ReadTracking, read_local_output, read_task_cell, read_task_output, with_turbo_tasks,
+        ReadCellTracking, ReadTracking, read_local_output, read_task_output, with_turbo_tasks,
     },
     registry::{self, get_value_type},
     turbo_tasks,
 };
-
-#[derive(Error, Debug)]
-pub enum ResolveTypeError {
-    #[error("no content in the cell")]
-    NoContent,
-    #[error("the content in the cell has no type")]
-    UntypedContent,
-    #[error("content is not available as task execution failed")]
-    TaskError { source: anyhow::Error },
-    #[error("reading the cell content failed")]
-    ReadError { source: anyhow::Error },
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct CellId {
@@ -160,84 +147,11 @@ impl RawVc {
         ReadRawVcFuture::new(self, None)
     }
 
-    pub(crate) async fn resolve_trait(
-        self,
-        trait_type: TraitTypeId,
-    ) -> Result<Option<RawVc>, ResolveTypeError> {
-        self.resolve_type_inner(|value_type_id| {
-            let value_type = get_value_type(value_type_id);
-            (value_type.has_trait(&trait_type), Some(value_type))
-        })
-        .await
-    }
-
-    pub(crate) async fn resolve_value(
-        self,
-        value_type: ValueTypeId,
-    ) -> Result<Option<RawVc>, ResolveTypeError> {
-        self.resolve_type_inner(|cell_value_type| (cell_value_type == value_type, None))
-            .await
-    }
-
-    /// Helper for `resolve_trait` and `resolve_value`.
-    ///
-    /// After finding a cell, returns `Ok(Some(...))` when `conditional` returns
-    /// `true`, and `Ok(None)` when `conditional` returns `false`.
-    ///
-    /// As an optimization, `conditional` may return the `&'static ValueType` to
-    /// avoid a potential extra lookup later.
-    async fn resolve_type_inner(
-        self,
-        conditional: impl FnOnce(ValueTypeId) -> (bool, Option<&'static ValueType>),
-    ) -> Result<Option<RawVc>, ResolveTypeError> {
-        let tt = turbo_tasks();
-        let mut current = self;
-        loop {
-            match current {
-                RawVc::TaskOutput(task) => {
-                    current = read_task_output(&*tt, task, ReadOutputOptions::default())
-                        .await
-                        .map_err(|source| ResolveTypeError::TaskError { source })?;
-                }
-                RawVc::TaskCell(task, index) => {
-                    let (ok, value_type) = conditional(index.type_id);
-                    if !ok {
-                        return Ok(None);
-                    }
-                    let value_type =
-                        value_type.unwrap_or_else(|| registry::get_value_type(index.type_id));
-                    let content = read_task_cell(
-                        &*tt,
-                        task,
-                        index,
-                        ReadCellOptions {
-                            is_serializable_cell_content: value_type.bincode.is_some(),
-                            final_read_hint: false,
-                            tracking: ReadTracking::default(),
-                        },
-                    )
-                    .await
-                    .map_err(|source| ResolveTypeError::ReadError { source })?;
-                    if let TypedCellContent(_, CellContent(Some(_))) = content {
-                        return Ok(Some(RawVc::TaskCell(task, index)));
-                    } else {
-                        return Err(ResolveTypeError::NoContent);
-                    }
-                }
-                RawVc::LocalOutput(execution_id, local_task_id, ..) => {
-                    current = read_local_output(&*tt, execution_id, local_task_id)
-                        .await
-                        .map_err(|source| ResolveTypeError::TaskError { source })?;
-                }
-            }
-        }
-    }
-
     /// See [`crate::Vc::resolve`].
     pub(crate) async fn resolve(self) -> Result<RawVc> {
         self.resolve_inner(ReadOutputOptions {
-            tracking: ReadTracking::default(),
             consistency: ReadConsistency::Eventual,
+            ..Default::default()
         })
         .await
     }
@@ -245,8 +159,8 @@ impl RawVc {
     /// See [`crate::Vc::resolve_strongly_consistent`].
     pub(crate) async fn resolve_strongly_consistent(self) -> Result<RawVc> {
         self.resolve_inner(ReadOutputOptions {
-            tracking: ReadTracking::default(),
             consistency: ReadConsistency::Strong,
+            ..Default::default()
         })
         .await
     }
@@ -398,8 +312,16 @@ impl ReadRawVcFuture {
         }
     }
 
+    /// Make reads strongly consistent.
     pub fn strongly_consistent(mut self) -> Self {
         self.read_output_options.consistency = ReadConsistency::Strong;
+        self
+    }
+
+    /// Track the value as a dependency with an key.
+    pub fn track_with_key(mut self, key: u64) -> Self {
+        self.read_output_options.tracking = ReadTracking::Tracked;
+        self.read_cell_options.tracking = ReadCellTracking::Tracked { key: Some(key) };
         self
     }
 
@@ -410,21 +332,11 @@ impl ReadRawVcFuture {
     /// using it could break cache invalidation.
     pub fn untracked(mut self) -> Self {
         self.read_output_options.tracking = ReadTracking::TrackOnlyError;
-        self.read_cell_options.tracking = ReadTracking::TrackOnlyError;
+        self.read_cell_options.tracking = ReadCellTracking::TrackOnlyError;
         self
     }
 
-    /// This will not track the value or the error as dependency.
-    /// Make sure to handle eventual consistency errors.
-    ///
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    pub fn untracked_including_errors(mut self) -> Self {
-        self.read_output_options.tracking = ReadTracking::Untracked;
-        self.read_cell_options.tracking = ReadTracking::Untracked;
-        self
-    }
-
+    /// Hint that this is the final read of the cell content.
     pub fn final_read_hint(mut self) -> Self {
         self.read_cell_options.final_read_hint = true;
         self

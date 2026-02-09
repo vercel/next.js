@@ -60,6 +60,12 @@ const runTests = (mode = 'server') => {
       expect(page.endsWith('.html')).toBe(true)
     })
 
+    it('should still output 404.js anyway', async () => {
+      expect(
+        await fs.pathExists(join(appDir, '.next/server/pages/404.js'))
+      ).toBeTrue()
+    })
+
     it('should add /404 to pages-manifest correctly', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next', mode, 'pages-manifest.json')

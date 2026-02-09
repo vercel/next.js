@@ -183,10 +183,7 @@ impl TraceFormat for HeaptrackFormat {
         let mut bytes_read = 0;
         let mut outdated_spans = FxHashSet::default();
         let mut store = self.store.write();
-        'outer: loop {
-            let Some(line_end) = buffer.iter().position(|b| *b == b'\n') else {
-                break;
-            };
+        'outer: while let Some(line_end) = buffer.iter().position(|b| *b == b'\n') {
             let full_line = &buffer[..line_end];
             buffer = &buffer[line_end + 1..];
             bytes_read += full_line.len() + 1;

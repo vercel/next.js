@@ -8,6 +8,4 @@ pub enum VisitControlFlow {
     /// The edge is excluded, and the traversal should not continue on the outgoing edges of the
     /// given node.
     Exclude,
-    /// The traversal should abort and return immediately.
-    Abort,
 }
