@@ -154,9 +154,9 @@ export async function pipeNodeReadableToResponse(
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>
 ) {
-  // Guard so webpack can DCE node:stream require for edge builds.
-  // pipe-readable.ts is imported by render-result.ts which is bundled into edge.
-  if (process.env.NEXT_RUNTIME !== 'edge') {
+  // Guard so webpack can DCE node:stream require for non-node builds.
+  // pipe-readable.ts is imported by render-result.ts and can be seen by browser bundles.
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
     try {
       const { errored, destroyed } = res
       if (errored || destroyed) return
