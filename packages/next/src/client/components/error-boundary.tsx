@@ -6,7 +6,10 @@ import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 import { HandleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
-import { publicAppRouterInstance } from './app-router-instance'
+import {
+  AppRouterContext,
+  type AppRouterInstance,
+} from '../../shared/lib/app-router-context.shared-runtime'
 
 const isBotUserAgent =
   typeof window !== 'undefined' && isBot(window.navigator.userAgent)
@@ -43,6 +46,9 @@ export class ErrorBoundaryHandler extends React.Component<
   ErrorBoundaryHandlerProps,
   ErrorBoundaryHandlerState
 > {
+  static contextType = AppRouterContext
+  declare context: AppRouterInstance | null
+
   constructor(props: ErrorBoundaryHandlerProps) {
     super(props)
     this.state = {
@@ -128,7 +134,7 @@ export class ErrorBoundaryHandler extends React.Component<
 
   retry = () => {
     startTransition(() => {
-      publicAppRouterInstance.refresh()
+      this.context?.refresh()
       this.reset()
     })
   }
