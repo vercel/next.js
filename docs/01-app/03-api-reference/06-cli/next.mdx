@@ -41,7 +41,11 @@ The following commands are available:
 
 ### `next dev` options
 
-`next dev` starts the application in development mode with Hot Module Reloading (HMR), error reporting, and more. The following options are available when running `next dev`:
+`next dev` starts the application in development mode with Hot Module Reloading (HMR), error reporting, and more.
+
+> **Good to know**: Development builds output to `.next/dev` instead of `.next`. This allows you to run `next dev` and `next build` concurrently without conflicts.
+
+The following options are available when running `next dev`:
 
 | Option                                   | Description                                                                                                                                          |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -175,7 +179,7 @@ The following options are available for the `next typegen` command:
 | `-h, --help`  | Show all available options.                                                                  |
 | `[directory]` | A directory on which to generate types. If not provided, the current directory will be used. |
 
-Output files are written to `<distDir>/types` (typically: `.next/dev/types` or `.next/types`, see [`isolatedDevBuild`](/docs/app/api-reference/config/next-config-js/isolatedDevBuild)):
+Output files are written to `<distDir>/types` (typically: `.next/dev/types` in development or `.next/types` in production):
 
 ```bash filename="Terminal"
 next typegen

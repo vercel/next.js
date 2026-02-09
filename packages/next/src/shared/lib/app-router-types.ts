@@ -11,6 +11,8 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
+import type { VaryParamsThenable } from './segment-cache/vary-params-decoding'
+
 /** viewport metadata node */
 export type HeadData = React.ReactNode
 
@@ -193,6 +195,21 @@ export type CacheNodeSeedData = [
   isPartial: boolean,
   /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
   hasRuntimePrefetch: boolean,
+  /**
+   * A thenable that resolves to the set of route params this segment accessed
+   * during server rendering. Used by the client router to determine cache key
+   * specificity - segments that only access certain params can be reused across
+   * navigations where unaccessed params change.
+   *
+   * - null thenable: tracking was not enabled for this render (e.g., not a
+   *   prerender). Treat conservatively - assume all params vary.
+   * - Thenable resolves to empty Set: segment accesses no params (e.g., client
+   *   components, or server components that don't read params). Can be shared
+   *   across all param values.
+   * - Thenable resolves to non-empty Set: segment depends on those params.
+   *   Can only reuse when those specific params match.
+   */
+  varyParams: VaryParamsThenable | null,
 ]
 
 export type FlightDataSegment = [
@@ -221,8 +238,8 @@ export type FlightData = Array<FlightDataPath> | string
 export type ActionResult = Promise<any>
 
 export type InitialRSCPayload = {
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** initialCanonicalUrlParts */
   c: string[]
   /** initialRenderedSearch */
@@ -237,12 +254,16 @@ export type InitialRSCPayload = {
   G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** prerendered */
   S: boolean
+  /**
+   * headVaryParams - vary params for the head (metadata) of the response.
+   */
+  h: VaryParamsThenable | null
 }
 
 // Response from `createFromFetch` for normal rendering
 export type NavigationFlightResponse = {
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** flightData */
   f: FlightData
   /** prerendered */
@@ -253,14 +274,16 @@ export type NavigationFlightResponse = {
   i: boolean
   /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
   rp?: [boolean, number]
+  /** headVaryParams */
+  h: VaryParamsThenable | null
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
 export type ActionFlightResponse = {
   /** actionResult */
   a: ActionResult
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** flightData */
   f: FlightData
   /** renderedSearch */

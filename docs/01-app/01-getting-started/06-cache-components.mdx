@@ -310,6 +310,8 @@ export default async function Page() {
 }
 ```
 
+> **Good to know:** A cache is considered "short-lived" when it uses the `seconds` profile, `revalidate: 0`, or `expire` under 5 minutes. Short-lived caches are automatically excluded from prerenders and become dynamic holes instead. If such a cache is nested inside another `use cache` without an explicit `cacheLife`, Next.js will throw an error during prerendering to prevent accidental misconfigurations. See [Prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for details.
+
 See the [`cacheLife` API reference](/docs/app/api-reference/functions/cacheLife) for available profiles and custom configuration options.
 
 ### With runtime data

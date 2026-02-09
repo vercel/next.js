@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import * as cheerio from 'cheerio'
-import { retry } from 'next-test-utils'
+import { getCacheHeader, retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 describe('middleware-static-rewrite', () => {
@@ -85,7 +85,7 @@ describe('middleware-static-rewrite', () => {
       expect(res.status).toBe(200)
 
       if (isNextDeploy) {
-        expect(res.headers.get('x-vercel-cache')).toMatch(/MISS|HIT|PRERENDER/)
+        expect(getCacheHeader(res)).toMatch(/MISS|HIT|PRERENDER/)
       } else {
         expect(res.headers.get('x-nextjs-cache')).toBe(null)
       }
@@ -104,7 +104,7 @@ describe('middleware-static-rewrite', () => {
 
         expect(res.status).toBe(200)
         if (isNextDeploy) {
-          expect(res.headers.get('x-vercel-cache')).toBe('HIT')
+          expect(getCacheHeader(res)).toBe('HIT')
         } else {
           expect(res.headers.get('x-nextjs-cache')).toBe(null)
         }
@@ -213,9 +213,7 @@ describe('middleware-static-rewrite', () => {
       let res = await next.fetch('/not-broken')
 
       expect(res.status).toBe(200)
-      expect(
-        res.headers.get(isNextDeploy ? 'x-vercel-cache' : 'x-nextjs-cache')
-      ).toMatch(/MISS|HIT|PRERENDER/)
+      expect(getCacheHeader(res)).toMatch(/MISS|HIT|PRERENDER/)
 
       let html = await res.text()
       let $ = cheerio.load(html)
@@ -230,9 +228,7 @@ describe('middleware-static-rewrite', () => {
         res = await next.fetch('/not-broken')
 
         expect(res.status).toBe(200)
-        expect(
-          res.headers.get(isNextDeploy ? 'x-vercel-cache' : 'x-nextjs-cache')
-        ).toBe('HIT')
+        expect(getCacheHeader(res)).toBe('HIT')
       })
 
       html = await res.text()

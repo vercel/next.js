@@ -13,6 +13,7 @@ import {
   logStringify,
   safeStringifyWithDepth,
 } from './forward-logs-utils'
+import { getOwnerStack } from './errors/stitched-error'
 
 // Client-side file logger for browser logs
 class ClientFileLogger {
@@ -324,11 +325,10 @@ const stringifyUserArg = (
 }
 
 const createErrorArg = (error: Error) => {
-  const stack = getErrorStack(error)
   return {
     kind: 'formatted-error-arg' as const,
     prefix: error.message ? `${error.name}: ${error.message}` : `${error.name}`,
-    stack,
+    stack: getErrorStackWithOwnerStack(error),
   }
 }
 
@@ -431,6 +431,13 @@ const getErrorStack = (error: Error) => {
   return error.stack || ''
 }
 
+// Get error stack with owner stack appended for source mapping on the server
+const getErrorStackWithOwnerStack = (error: Error) => {
+  const errorStack = getErrorStack(error)
+  const ownerStack = getOwnerStack(error)
+  return ownerStack ? `${errorStack}\n${ownerStack}` : errorStack
+}
+
 export function logUnhandledRejection(reason: unknown) {
   // Always log to client file logger
   const message =
@@ -445,7 +452,10 @@ export function logUnhandledRejection(reason: unknown) {
   }
 
   if (reason instanceof Error) {
-    createUnhandledRejectionErrorEntry(reason, getErrorStack(reason))
+    createUnhandledRejectionErrorEntry(
+      reason,
+      getErrorStackWithOwnerStack(reason)
+    )
     return
   }
   createUnhandledRejectionNonErrorEntry(reason)
@@ -540,7 +550,11 @@ export function forwardUnhandledError(error: Error) {
     return
   }
 
-  createUncaughtErrorEntry(error.name, error.message, getErrorStack(error))
+  createUncaughtErrorEntry(
+    error.name,
+    error.message,
+    getErrorStackWithOwnerStack(error)
+  )
 }
 
 // TODO: this router check is brittle, we need to update based on the current router the user is using

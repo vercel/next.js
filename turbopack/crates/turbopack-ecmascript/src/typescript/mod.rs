@@ -10,7 +10,7 @@ use turbopack_core::{
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences},
     reference_type::CommonJsReferenceSubType,
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
+    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 // TODO remove this
@@ -204,7 +204,7 @@ impl ModuleReference for CompilerReference {
             *self.request,
             CommonJsReferenceSubType::Undefined,
             None,
-            false,
+            ResolveErrorMode::Error,
         )
     }
 }
@@ -284,7 +284,7 @@ impl ModuleReference for TsNodeRequireReference {
             *self.request,
             CommonJsReferenceSubType::Undefined,
             None,
-            false,
+            ResolveErrorMode::Error,
         )
     }
 }

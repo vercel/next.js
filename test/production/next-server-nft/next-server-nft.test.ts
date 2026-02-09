@@ -134,6 +134,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/@swc/helpers/*",
            "/node_modules/client-only/*",
            "/node_modules/detect-libc/*",
+           "/node_modules/next/dist/build/adapter/setup-node-env.external.js",
            "/node_modules/next/dist/build/define-env.js",
            "/node_modules/next/dist/build/duration-to-string.js",
            "/node_modules/next/dist/build/next-config-ts/require-hook.js",

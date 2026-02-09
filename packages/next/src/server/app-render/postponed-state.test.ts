@@ -34,12 +34,16 @@ describe('getDynamicHTMLPostponedState', () => {
     prerenderResumeDataCache.cache.set(
       '1',
       Promise.resolve({
-        value: streamFromString('hello'),
-        tags: [],
-        stale: 0,
-        timestamp: 0,
-        expire: 300,
-        revalidate: 1,
+        entry: {
+          value: streamFromString('hello'),
+          tags: [],
+          stale: 0,
+          timestamp: 0,
+          expire: 300,
+          revalidate: 1,
+        },
+        hasExplicitRevalidate: true,
+        hasExplicitExpire: true,
       })
     )
 
@@ -80,7 +84,7 @@ describe('getDynamicHTMLPostponedState', () => {
 
     expect(value).toBeDefined()
 
-    await expect(streamToString(value!.value)).resolves.toEqual('hello')
+    await expect(streamToString(value!.entry.value)).resolves.toEqual('hello')
   })
 
   it('serializes a HTML postponed state without fallback params', async () => {

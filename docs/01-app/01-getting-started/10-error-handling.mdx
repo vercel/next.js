@@ -206,7 +206,7 @@ Create an error boundary by adding an [`error.js`](/docs/app/api-reference/file-
 
 import { useEffect } from 'react'
 
-export default function Error({
+export default function ErrorPage({
   error,
   reset,
 }: {
@@ -239,7 +239,7 @@ export default function Error({
 
 import { useEffect } from 'react'
 
-export default function Error({ error, reset }) {
+export default function ErrorPage({ error, reset }) {
   useEffect(() => {
     // Log the error to an error reporting service
     console.error(error)
