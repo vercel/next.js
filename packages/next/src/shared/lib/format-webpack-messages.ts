@@ -86,18 +86,20 @@ function formatMessage(
   }
   let lines = message.split('\n')
 
-  // Rewrite Webpack-added headers to preserve loader path while removing
-  // the verbose "Module build failed" prefix.
+  // Extract loader paths from Webpack-added headers and move them to end.
   // Original format: "Module build failed (from ./loaders/foo-loader.js):"
-  // Rewritten to: "  (from ./loaders/foo-loader.js)"
+  // The header line is removed and the path is appended at the end as:
+  //   "  (from ./loaders/foo-loader.js)"
   // https://github.com/webpack/webpack/blob/master/lib/ModuleError.js
+  const loaderPaths: string[] = []
   lines = lines
-    .map((line: string) => {
+    .filter((line: string) => {
       const match = /Module [A-z ]+\(from (.+)\):?\s*$/.exec(line)
       if (match) {
-        return `  (from ${match[1]})`
+        loaderPaths.push(match[1])
+        return false
       }
-      return line
+      return true
     })
     .filter(Boolean)
 
@@ -191,6 +193,13 @@ function formatMessage(
     )
 
     lines = message.split('\n')
+  }
+
+  // Append loader paths at the end (before any remaining stack trace)
+  if (loaderPaths.length > 0) {
+    for (const loaderPath of loaderPaths) {
+      lines.push(`  (from ${loaderPath})`)
+    }
   }
 
   // Remove duplicated newlines
