@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitForNoRedbox, waitForRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('turbopack-ignore-issue', () => {
@@ -14,6 +14,9 @@ describe('turbopack-ignore-issue', () => {
             {
               // glob string pattern for path
               path: '**/with-warning/**',
+            },
+            {
+              path: '**/with-error/**',
             },
           ],
         },
@@ -45,6 +48,19 @@ describe('turbopack-ignore-issue', () => {
       expect(output).not.toContain('a-missing-module-for-testing')
     })
 
+    it('should suppress ignored error from error overlay', async () => {
+      if (!isTurbopack) {
+        // turbopackIgnoreIssue only works with Turbopack
+        return
+      }
+
+      // Navigate to the page with a top-level require of a missing module
+      // (outside try-catch), which normally produces an error shown in the
+      // error overlay.
+      const browser = await next.browser('/with-error')
+      await waitForNoRedbox(browser)
+    })
+
     it('should still show issues for pages without ignore rules', async () => {
       // The home page should compile normally without issues
       const res = await next.fetch('/')
@@ -55,7 +71,7 @@ describe('turbopack-ignore-issue', () => {
   })
 
   describe('without turbopackIgnoreIssue config', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
     })
@@ -73,6 +89,18 @@ describe('turbopack-ignore-issue', () => {
         const output = stripAnsi(next.cliOutput.slice(outputIndex))
         expect(output).toContain('a-missing-module-for-testing')
       })
+    })
+
+    it('should show error in error overlay when not ignored', async () => {
+      if (!isTurbopack) {
+        // turbopackIgnoreIssue only works with Turbopack
+        return
+      }
+
+      // Navigate to the page with a top-level require of a missing module.
+      // Without turbopackIgnoreIssue, the error should appear in the overlay.
+      const browser = await next.browser('/with-error')
+      await waitForRedbox(browser)
     })
   })
 })
