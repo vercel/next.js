@@ -4,8 +4,11 @@ import { RuntimeErrorHandler } from '../../../client/dev/runtime-error-handler'
 import { ErrorBoundary } from '../../../client/components/error-boundary'
 import DefaultGlobalError from '../../../client/components/builtin/global-error'
 import type { GlobalErrorState } from '../../../client/components/app-router-instance'
-import { publicAppRouterInstance } from '../../../client/components/app-router-instance'
 import { SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE } from './segment-explorer-node'
+import {
+  AppRouterContext,
+  type AppRouterInstance,
+} from '../../../shared/lib/app-router-context.shared-runtime'
 
 type AppDevOverlayErrorBoundaryProps = {
   children: React.ReactNode
@@ -60,6 +63,9 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
   AppDevOverlayErrorBoundaryProps,
   AppDevOverlayErrorBoundaryState
 > {
+  static contextType = AppRouterContext
+  declare context: AppRouterInstance | null
+
   state: AppDevOverlayErrorBoundaryState = {
     reactError: null,
     componentStack: undefined,
@@ -95,7 +101,7 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
 
   retry = () => {
     startTransition(() => {
-      publicAppRouterInstance.refresh()
+      this.context?.refresh()
       this.reset()
     })
   }
