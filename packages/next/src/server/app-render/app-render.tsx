@@ -247,37 +247,6 @@ import {
 import { createNodeStreamWithLateRelease } from './instant-validation/stream-utils'
 
 /**
- * Converts a Node Readable to a web ReadableStream using event listeners.
- * We avoid Readable.toWeb() because it internally uses finished() / endOfStream()
- * which checks both sides of Duplex streams (e.g. PassThrough from teeNodeReadable).
- * When the writable side ends before the web consumer fully drains the readable side,
- * endOfStream throws ERR_STREAM_PREMATURE_CLOSE. Using event listeners directly
- * avoids this check entirely.
- */
-function nodeReadableToWebStream(
-  nodeStream: import('node:stream').Readable
-): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      nodeStream.on('data', (chunk: Buffer | Uint8Array) => {
-        controller.enqueue(
-          chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)
-        )
-      })
-      nodeStream.on('end', () => {
-        controller.close()
-      })
-      nodeStream.on('error', (err: Error) => {
-        controller.error(err)
-      })
-    },
-    cancel() {
-      nodeStream.destroy()
-    },
-  })
-}
-
-/**
  * Tees a debug channel's client-side readable into an SSR branch and a
  * browser branch. The browser branch is always a web ReadableStream because
  * setReactDebugChannel sends it to the client via HMR.
@@ -291,9 +260,12 @@ function teeDebugChannelForSsrAndBrowser(debugChannel: DebugChannelPair): {
     const [ssrStream, browserStream] = readable.tee()
     return { ssrStream, browserChannel: { readable: browserStream } }
   } else {
+    const { Readable } = require('node:stream') as typeof import('node:stream')
     // Node Readable: tee natively, convert browser branch to web for HMR
     const [ssrStream, browserNodeStream] = teeNodeReadable(readable)
-    const browserStream = nodeReadableToWebStream(browserNodeStream)
+    const browserStream = Readable.toWeb(
+      browserNodeStream
+    ) as ReadableStream<Uint8Array>
     return { ssrStream, browserChannel: { readable: browserStream } }
   }
 }
@@ -310,7 +282,10 @@ function debugChannelClientForBrowser(debugChannel: DebugChannelPair): {
   if (readable instanceof ReadableStream) {
     return { readable }
   } else {
-    return { readable: nodeReadableToWebStream(readable) }
+    const { Readable } = require('node:stream') as typeof import('node:stream')
+    return {
+      readable: Readable.toWeb(readable) as ReadableStream<Uint8Array>,
+    }
   }
 }
 
