@@ -1,4 +1,5 @@
 import type { Writable, Readable } from 'node:stream'
+import type { PostponedState } from 'react-dom/static'
 
 // Lazy require to avoid webpack trying to resolve node:stream at parse time.
 // When __NEXT_USE_NODE_STREAMS is false, DCE removes all call sites so this
@@ -18,6 +19,29 @@ export interface FizzPipeableStreamResult {
   stream: Readable
   allReady: Promise<void>
   abort: (reason?: unknown) => void
+}
+
+type FlightRenderToPipeableStream =
+  typeof import('react-server-dom-webpack/server.node').renderToPipeableStream
+type FlightRenderToReadableStream =
+  typeof import('react-server-dom-webpack/server.edge').renderToReadableStream
+type FlightModel = Parameters<FlightRenderToReadableStream>[0]
+type FlightWebpackMap = Parameters<FlightRenderToReadableStream>[1]
+type FlightRenderOptions = Parameters<FlightRenderToReadableStream>[2]
+type ResumeToPipeableOptions = Parameters<
+  typeof import('react-dom/server').resumeToPipeableStream
+>[2] & {
+  onHeaders?: NonNullable<RenderToPipeableStreamOptions['onHeaders']>
+  onAllReady?: () => void
+}
+
+function wrapOnHeaders(
+  onHeaders: RenderToPipeableStreamOptions['onHeaders'] | undefined
+): RenderToPipeableStreamOptions['onHeaders'] | undefined {
+  if (!onHeaders) return undefined
+  return (headersDescriptor: Headers | HeadersInit) => {
+    onHeaders(new Headers(headersDescriptor))
+  }
 }
 
 /**
@@ -49,16 +73,11 @@ export function renderToFizzPipeableStream(
     // (e.g. { Link: "..." }), while renderToReadableStream wraps it in a
     // Headers instance. We need to do the same wrapping here so that
     // callers can use headers.forEach().
-    const originalOnHeaders = options?.onHeaders
-    const wrappedOnHeaders = originalOnHeaders
-      ? (headersDescriptor: any) => {
-          originalOnHeaders(new Headers(headersDescriptor))
-        }
-      : undefined
+    const wrappedOnHeaders = wrapOnHeaders(options?.onHeaders)
 
     const { pipe, abort } = renderToPipeableStream(element, {
       ...options,
-      onHeaders: wrappedOnHeaders as any,
+      onHeaders: wrappedOnHeaders,
       onShellReady() {
         pipe(passthrough as unknown as Writable)
         originalOnShellReady?.()
@@ -88,12 +107,12 @@ export function renderToFizzPipeableStream(
 export function resumeToFizzPipeableStream(
   resumeToPipeableStreamFn: (
     children: React.ReactElement,
-    postponedState: any,
-    options?: any
+    postponedState: PostponedState,
+    options?: ResumeToPipeableOptions
   ) => Promise<PipeableStream>,
   element: React.ReactElement,
-  postponedState: any,
-  options?: any
+  postponedState: PostponedState,
+  options?: ResumeToPipeableOptions
 ): Promise<FizzPipeableStreamResult> {
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () => {
     const allReady = new DetachedPromise<void>()
@@ -102,12 +121,7 @@ export function resumeToFizzPipeableStream(
 
     const originalOnAllReady = options?.onAllReady
     // Same onHeaders wrapping as renderToFizzPipeableStream
-    const originalOnHeaders = options?.onHeaders
-    const wrappedOnHeaders = originalOnHeaders
-      ? (headersDescriptor: any) => {
-          originalOnHeaders(new Headers(headersDescriptor))
-        }
-      : undefined
+    const wrappedOnHeaders = wrapOnHeaders(options?.onHeaders)
 
     const { pipe, abort } = await resumeToPipeableStreamFn(
       element,
@@ -138,14 +152,10 @@ export function resumeToFizzPipeableStream(
  * (no shell concept), we pipe to a PassThrough right away.
  */
 export function renderToFlightPipeableStream(
-  renderToPipeableStreamFn: (
-    model: any,
-    webpackMap: any,
-    options?: any
-  ) => PipeableStream,
-  model: any,
-  webpackMap: any,
-  options?: any,
+  renderToPipeableStreamFn: FlightRenderToPipeableStream,
+  model: FlightModel,
+  webpackMap: FlightWebpackMap,
+  options?: FlightRenderOptions,
   runInContext?: <T>(fn: () => T) => T
 ): Readable {
   const { PassThrough } = getNodeStream()
@@ -157,15 +167,30 @@ export function renderToFlightPipeableStream(
   if (options?.debugChannel) {
     const { toNodeDebugChannel } =
       require('./debug-channel-server') as typeof import('./debug-channel-server')
+    const debugChannel = options.debugChannel
+    const isNodeWritable =
+      typeof debugChannel === 'object' &&
+      debugChannel !== null &&
+      'write' in debugChannel &&
+      typeof debugChannel.write === 'function'
+
     options = {
       ...options,
-      debugChannel: toNodeDebugChannel(options.debugChannel),
+      debugChannel: isNodeWritable
+        ? debugChannel
+        : toNodeDebugChannel(
+            debugChannel as import('./debug-channel-server').DebugChannelServer
+          ),
     }
   }
 
-  const run = runInContext ?? ((fn: () => any) => fn())
+  const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
   const { pipe } = run(() =>
-    renderToPipeableStreamFn(model, webpackMap, options)
+    renderToPipeableStreamFn(
+      model,
+      webpackMap,
+      options as Parameters<FlightRenderToPipeableStream>[2]
+    )
   )
   run(() => pipe(passthrough as unknown as Writable))
   return passthrough

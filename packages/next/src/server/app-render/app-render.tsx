@@ -5760,7 +5760,7 @@ async function prerenderToStream(
 
                   return htmlRendererErrorHandler(err, errorInfo)
                 },
-                onHeaders: finalClientOnHeaders as any,
+                onHeaders: finalClientOnHeaders,
                 maxHeadersLength: reactMaxHeadersLength,
                 bootstrapScripts: [bootstrapScript],
               }
@@ -6047,7 +6047,7 @@ async function prerenderToStream(
           />,
           {
             onError: htmlRendererErrorHandler,
-            onHeaders: pprOnHeaders as any,
+            onHeaders: pprOnHeaders,
             maxHeadersLength: reactMaxHeadersLength,
             bootstrapScripts: [bootstrapScript],
           }
