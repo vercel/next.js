@@ -1,5 +1,5 @@
 import type { BinaryStreamOf } from './app-render'
-import type { Readable } from 'node:stream'
+import type { Readable, Transform } from 'node:stream'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
@@ -45,6 +45,7 @@ export function getFlightStream<T>(
     getClientReferenceManifest()
 
   let newResponse: Promise<T>
+  let waitForDebugEnd: Promise<void> | undefined
   if (flightStream instanceof ReadableStream) {
     // The types of flightStream and debugStream should match.
     if (debugStream && !(debugStream instanceof ReadableStream)) {
@@ -76,9 +77,27 @@ export function getFlightStream<T>(
       const { Readable } =
         require('node:stream') as typeof import('node:stream')
 
-      // The types of flightStream and debugStream should match.
-      if (debugStream && !(debugStream instanceof Readable)) {
-        throw new InvariantError('Expected debug stream to be a Readable')
+      // Debug channel always creates web ReadableStreams (dev-only).
+      // Convert to Node.js Readable when using the node stream path.
+      let nodeDebugStream: import('node:stream').Readable | undefined
+      if (debugStream) {
+        if (debugStream instanceof Readable) {
+          nodeDebugStream = debugStream
+        } else {
+          // Cast through any: global ReadableStream and stream/web.ReadableStream
+          // have a minor type mismatch (Promise<void> vs Promise<undefined>).
+          nodeDebugStream = Readable.fromWeb(debugStream as any)
+        }
+
+        // With createFromNodeStream + debugChannel, the response can resolve
+        // before debug stream completion. In restart-on-cache-miss flows this
+        // can leave metadata in the body instead of the head for the request
+        // render. Wait for debug completion for request work units.
+        waitForDebugEnd = new Promise<void>((resolve, reject) => {
+          nodeDebugStream!.once('end', resolve)
+          nodeDebugStream!.once('close', resolve)
+          nodeDebugStream!.once('error', reject)
+        })
       }
 
       // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
@@ -96,7 +115,7 @@ export function getFlightStream<T>(
         {
           findSourceMapURL,
           nonce,
-          debugChannel: debugStream,
+          debugChannel: nodeDebugStream,
           endTime: debugEndTime,
         }
       )
@@ -126,6 +145,12 @@ export function getFlightStream<T>(
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
+        if (waitForDebugEnd) {
+          newResponse = Promise.all([newResponse, waitForDebugEnd]).then(
+            ([flightResponse]) => flightResponse
+          )
+        }
+        break
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -251,4 +276,110 @@ function writeFlightDataInstruction(
       `${scriptStart}self.__next_f.push(${htmlInlinedData})</script>`
     )
   )
+}
+
+function encodeFlightDataChunk(
+  scriptStart: string,
+  chunk: string | Uint8Array
+): Uint8Array {
+  let htmlInlinedData: string
+
+  if (typeof chunk === 'string') {
+    htmlInlinedData = htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
+    )
+  } else {
+    const base64 = btoa(String.fromCodePoint(...chunk))
+    htmlInlinedData = htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
+    )
+  }
+
+  return encoder.encode(
+    `${scriptStart}self.__next_f.push(${htmlInlinedData})</script>`
+  )
+}
+
+/**
+ * Creates a Node.js Readable that provides inline script tag chunks for writing
+ * hydration data to the client outside the React render itself.
+ *
+ * This is the Node.js stream equivalent of createInlinedDataReadableStream.
+ */
+export function createInlinedDataNodeStream(
+  nonce: string | undefined,
+  formState: unknown | null
+): Transform {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new Error(
+      'createInlinedDataNodeStream is not supported in edge runtime'
+    )
+  } else {
+    const startScriptTag = nonce
+      ? `<script nonce=${JSON.stringify(nonce)}>`
+      : '<script>'
+
+    const decoder = new TextDecoder('utf-8', { fatal: true })
+    let bootstrapWritten = false
+
+    const { Transform: NodeTransform } =
+      require('node:stream') as typeof import('node:stream')
+
+    return new NodeTransform({
+      transform(
+        chunk: Uint8Array,
+        _encoding: string,
+        callback: (error?: Error) => void
+      ) {
+        try {
+          if (!bootstrapWritten) {
+            bootstrapWritten = true
+            let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+              JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+            )})`
+
+            if (formState != null) {
+              scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+                JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+              )})`
+            }
+
+            this.push(
+              encoder.encode(`${startScriptTag}${scriptContents}</script>`)
+            )
+          }
+
+          try {
+            const decodedString = decoder.decode(chunk, { stream: true })
+            this.push(encodeFlightDataChunk(startScriptTag, decodedString))
+          } catch {
+            this.push(encodeFlightDataChunk(startScriptTag, chunk))
+          }
+
+          callback()
+        } catch (error) {
+          callback(error as Error)
+        }
+      },
+      flush(callback: (error?: Error) => void) {
+        // If no data was ever received, still write the bootstrap
+        if (!bootstrapWritten) {
+          let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+            JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+          )})`
+
+          if (formState != null) {
+            scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+              JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+            )})`
+          }
+
+          this.push(
+            encoder.encode(`${startScriptTag}${scriptContents}</script>`)
+          )
+        }
+        callback()
+      },
+    })
+  }
 }

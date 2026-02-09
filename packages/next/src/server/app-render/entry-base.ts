@@ -7,8 +7,46 @@ export {
   decodeFormState,
 } from 'react-server-dom-webpack/server'
 
+// Use dynamic require to avoid Turbopack failing to resolve this as a named
+// export from the vendored CJS module.
+/* eslint-disable import/no-extraneous-dependencies */
+export const renderToPipeableStream:
+  | typeof import('react-server-dom-webpack/server.node').renderToPipeableStream
+  | undefined =
+  process.env.NEXT_RUNTIME !== 'edge'
+    ? (
+        require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+      ).renderToPipeableStream
+    : undefined
+/* eslint-enable import/no-extraneous-dependencies */
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { prerender } from 'react-server-dom-webpack/static'
+
+// Use dynamic require to avoid Turbopack failing to resolve this as a named
+// export from the vendored CJS module.
+/* eslint-disable import/no-extraneous-dependencies */
+export const prerenderToNodeStream:
+  | typeof import('react-server-dom-webpack/static').prerenderToNodeStream
+  | undefined =
+  process.env.NEXT_RUNTIME !== 'edge'
+    ? (
+        require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static')
+      ).prerenderToNodeStream
+    : undefined
+/* eslint-enable import/no-extraneous-dependencies */
+
+// chainNodeStreams is used by the app-page.ts build template for PPR resume.
+// We export it from here (pre-compiled runtime bundle) because the template
+// cannot use relative requires (webpack resolves them from the project root).
+export const chainNodeStreams:
+  | typeof import('../stream-utils/node-stream-helpers').chainNodeStreams
+  | undefined =
+  process.env.NEXT_RUNTIME !== 'edge'
+    ? (
+        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+      ).chainNodeStreams
+    : undefined
 
 // TODO: Just re-export `* as ReactServer`
 export { captureOwnerStack, createElement, Fragment } from 'react'
