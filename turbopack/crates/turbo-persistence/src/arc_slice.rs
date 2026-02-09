@@ -2,6 +2,7 @@ use std::{
     borrow::Borrow,
     fmt::{self, Debug, Formatter},
     hash::{Hash, Hasher},
+    io::{self, Read},
     ops::{Deref, Range},
     sync::Arc,
 };
@@ -65,22 +66,18 @@ impl<T: Debug> Debug for ArcSlice<T> {
 
 impl<T: Eq> Eq for ArcSlice<T> {}
 
+impl Read for ArcSlice<u8> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let available = &**self;
+        let len = std::cmp::min(buf.len(), available.len());
+        buf[..len].copy_from_slice(&available[..len]);
+        // Advance the slice view
+        self.data = &available[len..] as *const [u8];
+        Ok(len)
+    }
+}
+
 impl<T> ArcSlice<T> {
-    /// Creates a new `ArcSlice` from a pointer to a slice and an `Arc`.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that the pointer is pointing to a valid slice that is kept alive by
-    /// the `Arc`.
-    pub unsafe fn new_unchecked(data: *const [T], arc: Arc<[T]>) -> Self {
-        Self { data, arc }
-    }
-
-    /// Get the backing arc
-    pub fn full_arc(this: &ArcSlice<T>) -> Arc<[T]> {
-        this.arc.clone()
-    }
-
     /// Returns a new `ArcSlice` that points to a slice of the current slice.
     pub fn slice(self, range: Range<usize>) -> ArcSlice<T> {
         let data = &*self;
@@ -88,6 +85,19 @@ impl<T> ArcSlice<T> {
         Self {
             data,
             arc: self.arc,
+        }
+    }
+
+    /// Creates a sub-slice from a slice reference that points into this ArcSlice's backing data.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `subslice` points to memory within this ArcSlice's
+    /// backing Arc (not just within the current slice view, but anywhere in the original Arc).
+    pub unsafe fn slice_from_subslice(&self, subslice: &[T]) -> ArcSlice<T> {
+        Self {
+            data: subslice as *const [T],
+            arc: self.arc.clone(),
         }
     }
 }

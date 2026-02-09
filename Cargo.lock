@@ -9392,7 +9392,6 @@ dependencies = [
  "serde_json",
  "shrink-to-fit",
  "smallvec",
- "thiserror 1.0.69",
  "tokio",
  "tokio-util",
  "tracing",
