@@ -92,16 +92,14 @@ function formatMessage(
   //   "  (from ./loaders/foo-loader.js)"
   // https://github.com/webpack/webpack/blob/master/lib/ModuleError.js
   const loaderPaths: string[] = []
-  lines = lines
-    .filter((line: string) => {
-      const match = /Module [A-z ]+\(from (.+)\):?\s*$/.exec(line)
-      if (match) {
-        loaderPaths.push(match[1])
-        return false
-      }
-      return true
-    })
-    .filter(Boolean)
+  lines = lines.filter((line: string) => {
+    const match = /Module [A-z ]+\(from (.+)\):?\s*$/.exec(line)
+    if (match) {
+      loaderPaths.push(match[1])
+      return false
+    }
+    return true
+  })
 
   // Transform parsing error into syntax error
   // TODO: move this to our ESLint formatter?

@@ -492,25 +492,33 @@ const transform = (
           ]),
         })
         if (err) {
-          // Include loader paths in the error so they appear in stack traces.
-          // This is especially important for string throws where the original
-          // stack trace is lost.
+          // Resolve loader paths to include in the error message using
+          // the same "(from ...)" style as webpack's format-webpack-messages.
+          const loaderPaths = loadersWithOptions
+            .map((l) => {
+              try {
+                return __turbopack_external_require__.resolve(l.loader, {
+                  paths: [contextDir, resourceDir],
+                })
+              } catch {
+                return l.loader
+              }
+            })
+            .join(', ')
+
           if (!(err instanceof Error)) {
-            const loaderPaths = loadersWithOptions
-              .map((l) => {
-                try {
-                  return __turbopack_external_require__.resolve(l.loader, {
-                    paths: [contextDir, resourceDir],
-                  })
-                } catch {
-                  return l.loader
-                }
-              })
-              .join(', ')
-            const wrappedErr = new Error(String(err))
+            // String throws lose their stack trace, so we create a
+            // synthetic one pointing at the loader.
+            const wrappedErr = new Error(
+              `${String(err)}\n  (from ${loaderPaths})`
+            )
             wrappedErr.stack = `Error: ${String(err)}\n    at loader (${loaderPaths})`
             return reject(wrappedErr)
           }
+
+          // Append "(from ...)" to the error message so the loader path
+          // is visible in the error overlay, matching webpack's style.
+          err.message += `\n  (from ${loaderPaths})`
           return reject(err)
         }
         if (!result.result) return reject(new Error('No result from loaders'))

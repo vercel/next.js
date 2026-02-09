@@ -20,6 +20,14 @@ const nextConfig = {
         loaders: [require.resolve('./loaders/timeout-error-loader.js')],
         as: '*.js',
       },
+      'no-stack-error.data': {
+        loaders: [require.resolve('./loaders/no-stack-error-loader.js')],
+        as: '*.js',
+      },
+      'fs-error.data': {
+        loaders: [require.resolve('./loaders/fs-error-loader.js')],
+        as: '*.js',
+      },
     },
   },
   webpack(config) {
@@ -39,6 +47,14 @@ const nextConfig = {
       {
         test: /timeout-error\.data$/,
         use: [require.resolve('./loaders/timeout-error-loader.js')],
+      },
+      {
+        test: /no-stack-error\.data$/,
+        use: [require.resolve('./loaders/no-stack-error-loader.js')],
+      },
+      {
+        test: /fs-error\.data$/,
+        use: [require.resolve('./loaders/fs-error-loader.js')],
       }
     )
     return config
