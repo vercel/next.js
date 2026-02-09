@@ -945,20 +945,20 @@ fn parse_export_names(val: &str) -> SmallVec<[RcStr; 1]> {
     let val = val.trim();
 
     // Try JSON array format: ["name1", "name2"]
-    if val.starts_with('[') {
-        if let Some(inner) = val.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-            return inner
-                .split(',')
-                .filter_map(|s| {
-                    let s = s.trim();
-                    // Strip quotes from each element
-                    s.strip_prefix('"')
-                        .and_then(|s| s.strip_suffix('"'))
-                        .or_else(|| s.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
-                        .map(|s| s.into())
-                })
-                .collect();
-        }
+    if val.starts_with('[')
+        && let Some(inner) = val.strip_prefix('[').and_then(|s| s.strip_suffix(']'))
+    {
+        return inner
+            .split(',')
+            .filter_map(|s| {
+                let s = s.trim();
+                // Strip quotes from each element
+                s.strip_prefix('"')
+                    .and_then(|s| s.strip_suffix('"'))
+                    .or_else(|| s.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
+                    .map(|s| s.into())
+            })
+            .collect();
     }
 
     // Try single string format: "name"

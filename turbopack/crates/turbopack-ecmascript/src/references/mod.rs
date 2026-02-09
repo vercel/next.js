@@ -1886,6 +1886,35 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
         .try_join()
         .await?;
 
+    handle_dynamic_import_with_linked_args(
+        ast_path,
+        span,
+        &linked_args,
+        handler,
+        origin,
+        source,
+        ignore_dynamic_requests,
+        analysis,
+        error_mode,
+        state.import_externals,
+        export_names,
+    )
+    .await
+}
+
+async fn handle_dynamic_import_with_linked_args(
+    ast_path: &[AstParentKind],
+    span: Span,
+    linked_args: &[JsValue],
+    handler: &Handler,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    source: ResolvedVc<Box<dyn Source>>,
+    ignore_dynamic_requests: bool,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+    error_mode: ResolveErrorMode,
+    import_externals: bool,
+    export_names: Option<SmallVec<[RcStr; 1]>>,
+) -> Result<()> {
     if linked_args.len() == 1 || linked_args.len() == 2 {
         let pat = js_value_to_pattern(&linked_args[0]);
         let options = linked_args.get(1);
@@ -1910,7 +1939,7 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
             .and_then(ImportAnnotations::parse_dynamic)
             .unwrap_or_default();
         if !pat.has_constant_parts() {
-            let (args, hints) = JsValue::explain_args(&linked_args, 10, 2);
+            let (args, hints) = JsValue::explain_args(linked_args, 10, 2);
             handler.span_warn_with_code(
                 span,
                 &format!("import({args}) is very dynamic{hints}",),
@@ -1930,14 +1959,14 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
                 issue_source(source, span),
                 import_annotations,
                 error_mode,
-                state.import_externals,
+                import_externals,
                 export_names,
             ),
             ast_path.to_vec().into(),
         );
         return Ok(());
     }
-    let (args, hints) = JsValue::explain_args(&linked_args, 10, 2);
+    let (args, hints) = JsValue::explain_args(linked_args, 10, 2);
     handler.span_warn_with_code(
         span,
         &format!("import({args}) is not statically analyze-able{hints}",),
@@ -2158,9 +2187,22 @@ where
 
     match func {
         WellKnownFunctionKind::Import => {
-            // Dynamic imports are handled by handle_dynamic_import via Effect::DynamicImport.
-            // This branch should not be reached.
-            unreachable!("Import effects should be handled by Effect::DynamicImport");
+            let args = linked_args().await?;
+            let export_names = attributes.export_names.clone();
+            handle_dynamic_import_with_linked_args(
+                ast_path,
+                span,
+                args,
+                handler,
+                origin,
+                source,
+                ignore_dynamic_requests,
+                analysis,
+                error_mode,
+                state.import_externals,
+                export_names,
+            )
+            .await?;
         }
         WellKnownFunctionKind::Require => {
             let args = linked_args().await?;

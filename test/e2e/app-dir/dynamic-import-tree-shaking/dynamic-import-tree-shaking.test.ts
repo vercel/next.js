@@ -85,6 +85,22 @@ describe('dynamic-import-tree-shaking', () => {
     expect($('div').text()).toContain('TREESHAKE_COMMENT_USED')
   })
 
+  it('should render rest destructure page', async () => {
+    const $ = await next.render$('/rest-destructure')
+    expect($('div').text()).toContain('TREESHAKE_REST_USED')
+  })
+
+  it('should render multiple imports page', async () => {
+    const $ = await next.render$('/multiple-imports')
+    expect($('div').text()).toContain('TREESHAKE_MULTI_A_USED')
+    expect($('div').text()).toContain('TREESHAKE_MULTI_B_USED')
+  })
+
+  it('should render reassign page', async () => {
+    const $ = await next.render$('/reassign')
+    expect($('div').text()).toContain('TREESHAKE_REASSIGN_USED')
+  })
+
   // Tree shaking assertions: unused exports should NOT be in the server bundle
   // Tree shaking is only enabled in production builds, so skip these in dev mode
   if (isProduction) {
@@ -147,5 +163,27 @@ describe('dynamic-import-tree-shaking', () => {
         expect(content).not.toContain('TREESHAKE_MEMBER_UNUSED')
       })
     }
+
+    it('should NOT tree-shake with rest destructured dynamic import', async () => {
+      const content = await getAllServerContent()
+      expect(content).toContain('TREESHAKE_REST_USED')
+      // rest elements prevent tree-shaking, so unused exports should still be present
+      expect(content).toContain('TREESHAKE_REST_UNUSED')
+    })
+
+    it('should tree-shake unused exports with multiple dynamic imports in one file', async () => {
+      const content = await getAllServerContent()
+      expect(content).toContain('TREESHAKE_MULTI_A_USED')
+      expect(content).not.toContain('TREESHAKE_MULTI_A_UNUSED')
+      expect(content).toContain('TREESHAKE_MULTI_B_USED')
+      expect(content).not.toContain('TREESHAKE_MULTI_B_UNUSED')
+    })
+
+    it('should NOT tree-shake with reassigned dynamic import', async () => {
+      const content = await getAllServerContent()
+      expect(content).toContain('TREESHAKE_REASSIGN_USED')
+      // re-assignment prevents destructuring analysis, so unused exports should remain
+      expect(content).toContain('TREESHAKE_REASSIGN_UNUSED')
+    })
   }
 })
