@@ -19,7 +19,7 @@ use turbo_tasks::{
 use crate::{
     chunk::ChunkingType,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraphRef, RefData},
+    module_graph::{GraphTraversalAction, ModuleGraph, RefData},
 };
 
 #[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat, Encode, Decode)]
@@ -82,9 +82,12 @@ impl Hash for RoaringBitmapWrapper {
     }
 }
 
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
+
 #[turbo_tasks::value]
 pub struct ChunkGroupInfo {
-    pub module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+    pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
     #[turbo_tasks(trace_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_groups: FxIndexSet<ChunkGroup>,
@@ -95,6 +98,11 @@ pub struct ChunkGroupInfo {
 
 #[turbo_tasks::value_impl]
 impl ChunkGroupInfo {
+    #[turbo_tasks::function]
+    pub fn module_chunk_groups(&self) -> Vc<ModuleToChunkGroups> {
+        *self.module_chunk_groups
+    }
+
     #[turbo_tasks::function]
     pub async fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<usize>> {
         if let Some(idx) = self.chunk_groups.get_index_of(&chunk_group) {
@@ -372,7 +380,7 @@ impl Ord for TraversalPriority {
     }
 }
 
-pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<ChunkGroupInfo>> {
+pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGroupInfo>> {
     let span_outer = tracing::info_span!(
         "compute chunk group info",
         module_count = tracing::field::Empty,
@@ -736,7 +744,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
         }
 
         Ok(ChunkGroupInfo {
-            module_chunk_groups,
+            module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
             chunk_groups: chunk_groups_map
                 .into_iter()

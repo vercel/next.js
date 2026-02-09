@@ -11,8 +11,9 @@ use parking_lot::{Mutex, MutexGuard};
 use tracing::trace_span;
 
 use crate::{
-    Invalidator, OperationValue, SerializationInvalidator, get_invalidator, mark_session_dependent,
-    mark_stateful, trace::TraceRawVcs,
+    Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
+    get_serialization_invalidator, manager::with_turbo_tasks, mark_session_dependent,
+    trace::TraceRawVcs,
 };
 
 #[derive(Encode, Decode)]
@@ -36,8 +37,13 @@ impl<T> StateInner<T> {
     pub fn set_unconditionally(&mut self, value: T) {
         self.value = value;
         let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
+        let invalidators = take(&mut self.invalidators);
+        if !invalidators.is_empty() {
+            with_turbo_tasks(|tt| {
+                for invalidator in invalidators {
+                    invalidator.invalidate(&**tt);
+                }
+            });
         }
     }
 
@@ -46,8 +52,13 @@ impl<T> StateInner<T> {
             return false;
         }
         let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
+        let invalidators = take(&mut self.invalidators);
+        if !invalidators.is_empty() {
+            with_turbo_tasks(|tt| {
+                for invalidator in invalidators {
+                    invalidator.invalidate(&**tt);
+                }
+            });
         }
         true
     }
@@ -60,8 +71,13 @@ impl<T: PartialEq> StateInner<T> {
         }
         let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         self.value = value;
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
+        let invalidators = take(&mut self.invalidators);
+        if !invalidators.is_empty() {
+            with_turbo_tasks(|tt| {
+                for invalidator in invalidators {
+                    invalidator.invalidate(&**tt);
+                }
+            });
         }
         true
     }
@@ -92,8 +108,13 @@ impl<T> Drop for StateRef<'_, T> {
     fn drop(&mut self) {
         if self.mutated {
             let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-            for invalidator in take(&mut self.inner.invalidators) {
-                invalidator.invalidate();
+            let invalidators = take(&mut self.inner.invalidators);
+            if !invalidators.is_empty() {
+                with_turbo_tasks(|tt| {
+                    for invalidator in invalidators {
+                        invalidator.invalidate(&**tt);
+                    }
+                });
             }
             if let Some(serialization_invalidator) = self.serialization_invalidator {
                 serialization_invalidator.invalidate();
@@ -201,7 +222,7 @@ impl<T> State<T> {
         T: OperationValue,
     {
         Self {
-            serialization_invalidator: mark_stateful(),
+            serialization_invalidator: get_serialization_invalidator(),
             inner: Mutex::new(StateInner::new(value)),
         }
     }
@@ -312,7 +333,6 @@ impl<T> Eq for TransientState<T> {}
 
 impl<T> TransientState<T> {
     pub fn new() -> Self {
-        mark_stateful();
         Self {
             inner: Mutex::new(StateInner::new(None)),
         }
@@ -350,13 +370,6 @@ impl<T> TransientState<T> {
     pub fn set_unconditionally(&self, value: T) {
         let mut inner = self.inner.lock();
         inner.set_unconditionally(Some(value));
-    }
-
-    /// Unset the current value without comparing it with the old value. This
-    /// should only be used if one is sure that the value has changed.
-    pub fn unset_unconditionally(&self) {
-        let mut inner = self.inner.lock();
-        inner.set_unconditionally(None);
     }
 
     /// Updates the current state with the `update` function. The `update`

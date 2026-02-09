@@ -107,11 +107,10 @@ describe('Switchable runtime', () => {
         const browser = await webdriver(context.appPort, '/node', {
           beforePageLoad(page) {
             page.on('request', (request) => {
-              return request.allHeaders().then((headers) => {
-                if (headers['rsc'] === '1') {
-                  flightRequest = request.url()
-                }
-              })
+              const headers = request.headers()
+              if (headers['rsc'] === '1') {
+                flightRequest = request.url()
+              }
             })
           },
         })
@@ -639,11 +638,10 @@ describe('Switchable runtime', () => {
         const browser = await webdriver(context.appPort, '/node', {
           beforePageLoad(page) {
             page.on('request', (request) => {
-              request.allHeaders().then((headers) => {
-                if (headers['rsc'] === '1') {
-                  flightRequest = request.url()
-                }
-              })
+              const headers = request.headers()
+              if (headers['rsc'] === '1') {
+                flightRequest = request.url()
+              }
             })
           },
         })

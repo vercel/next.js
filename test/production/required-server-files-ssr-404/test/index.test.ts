@@ -3,8 +3,14 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextServer, startApp, waitFor } from 'next-test-utils'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  nextServer,
+  renderViaHTTP,
+  startApp,
+  waitFor,
+  withInvocationId,
+} from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Required Server Files', () => {
@@ -22,7 +28,6 @@ describe('Required Server Files', () => {
       let server: Awaited<ReturnType<typeof startApp>>
       let appPort: number
 
-      let buildId: string
       let requiredFilesManifest: any
 
       // This suite unfortunately requires a very bespoke setup to set NEXT_PRIVATE_TEST_HEADERS and
@@ -30,8 +35,6 @@ describe('Required Server Files', () => {
       beforeAll(async () => {
         await next.build()
         await next.deleteFile('pages')
-
-        buildId = (await next.readFile(join('.next/BUILD_ID'))).trim()
 
         requiredFilesManifest = await next.readJSON(
           join('.next/required-server-files.json')
@@ -90,14 +93,24 @@ describe('Required Server Files', () => {
       })
 
       it('should render SSR page correctly', async () => {
-        const html = await renderViaHTTP(appPort, '/')
+        const html = await renderViaHTTP(
+          appPort,
+          '/',
+          undefined,
+          withInvocationId()
+        )
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
 
         expect($('#index').text()).toBe('index page')
         expect(data.hello).toBe('world')
 
-        const html2 = await renderViaHTTP(appPort, '/')
+        const html2 = await renderViaHTTP(
+          appPort,
+          '/',
+          undefined,
+          withInvocationId()
+        )
         const $2 = cheerio.load(html2)
         const data2 = JSON.parse($2('#props').text())
 
@@ -107,7 +120,12 @@ describe('Required Server Files', () => {
       })
 
       it('should render dynamic SSR page correctly', async () => {
-        const html = await renderViaHTTP(appPort, '/dynamic/first')
+        const html = await renderViaHTTP(
+          appPort,
+          '/dynamic/first',
+          undefined,
+          withInvocationId()
+        )
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
 
@@ -115,7 +133,12 @@ describe('Required Server Files', () => {
         expect($('#slug').text()).toBe('first')
         expect(data.hello).toBe('world')
 
-        const html2 = await renderViaHTTP(appPort, '/dynamic/second')
+        const html2 = await renderViaHTTP(
+          appPort,
+          '/dynamic/second',
+          undefined,
+          withInvocationId()
+        )
         const $2 = cheerio.load(html2)
         const data2 = JSON.parse($2('#props').text())
 
@@ -126,7 +149,12 @@ describe('Required Server Files', () => {
       })
 
       it('should render fallback page correctly', async () => {
-        const html = await renderViaHTTP(appPort, '/fallback/first')
+        const html = await renderViaHTTP(
+          appPort,
+          '/fallback/first',
+          undefined,
+          withInvocationId()
+        )
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
 
@@ -135,7 +163,12 @@ describe('Required Server Files', () => {
         expect(data.hello).toBe('world')
 
         await waitFor(2000)
-        const html2 = await renderViaHTTP(appPort, '/fallback/first')
+        const html2 = await renderViaHTTP(
+          appPort,
+          '/fallback/first',
+          undefined,
+          withInvocationId()
+        )
         const $2 = cheerio.load(html2)
         const data2 = JSON.parse($2('#props').text())
 
@@ -144,7 +177,12 @@ describe('Required Server Files', () => {
         expect(isNaN(data2.random)).toBe(false)
         expect(data2.random).not.toBe(data.random)
 
-        const html3 = await renderViaHTTP(appPort, '/fallback/second')
+        const html3 = await renderViaHTTP(
+          appPort,
+          '/fallback/second',
+          undefined,
+          withInvocationId()
+        )
         const $3 = cheerio.load(html3)
         const data3 = JSON.parse($3('#props').text())
 
@@ -155,7 +193,9 @@ describe('Required Server Files', () => {
         const { pageProps: data4 } = JSON.parse(
           await renderViaHTTP(
             appPort,
-            `/_next/data/${buildId}/fallback/third.json`
+            `/_next/data/${next.buildId}/fallback/third.json`,
+            undefined,
+            withInvocationId()
           )
         )
         expect(data4.hello).toBe('world')
@@ -167,11 +207,11 @@ describe('Required Server Files', () => {
           appPort,
           '/some-other-path',
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/',
             },
-          }
+          })
         )
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
@@ -183,11 +223,11 @@ describe('Required Server Files', () => {
           appPort,
           '/some-other-path',
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/',
             },
-          }
+          })
         )
         const $2 = cheerio.load(html2)
         const data2 = JSON.parse($2('#props').text())
@@ -202,11 +242,11 @@ describe('Required Server Files', () => {
           appPort,
           '/some-other-path?nxtPslug=first',
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/dynamic/[slug]',
             },
-          }
+          })
         )
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
@@ -219,11 +259,11 @@ describe('Required Server Files', () => {
           appPort,
           '/some-other-path?slug=second',
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/dynamic/[slug]',
             },
-          }
+          })
         )
         const $2 = cheerio.load(html2)
         const data2 = JSON.parse($2('#props').text())
@@ -239,12 +279,12 @@ describe('Required Server Files', () => {
           appPort,
           '/fallback/first',
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/fallback/first',
               'x-now-route-matches': 'nxtPslug=first',
             },
-          }
+          })
         )
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
@@ -257,12 +297,12 @@ describe('Required Server Files', () => {
           appPort,
           `/fallback/[slug]`,
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/fallback/[slug]',
               'x-now-route-matches': 'nxtPslug=second',
             },
-          }
+          })
         )
         const $2 = cheerio.load(html2)
         const data2 = JSON.parse($2('#props').text())
@@ -276,13 +316,13 @@ describe('Required Server Files', () => {
       it('should return data correctly with x-matched-path', async () => {
         const res = await fetchViaHTTP(
           appPort,
-          `/_next/data/${buildId}/dynamic/first.json?nxtPslug=first`,
+          `/_next/data/${next.buildId}/dynamic/first.json?nxtPslug=first`,
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/dynamic/[slug]',
             },
-          }
+          })
         )
 
         const { pageProps: data } = await res.json()
@@ -292,14 +332,14 @@ describe('Required Server Files', () => {
 
         const res2 = await fetchViaHTTP(
           appPort,
-          `/_next/data/${buildId}/fallback/[slug].json`,
+          `/_next/data/${next.buildId}/fallback/[slug].json`,
           undefined,
-          {
+          withInvocationId({
             headers: {
-              'x-matched-path': `/_next/data/${buildId}/fallback/[slug].json`,
+              'x-matched-path': `/_next/data/${next.buildId}/fallback/[slug].json`,
               'x-now-route-matches': 'nxtPslug=second',
             },
-          }
+          })
         )
 
         const { pageProps: data2 } = await res2.json()
@@ -313,12 +353,12 @@ describe('Required Server Files', () => {
           appPort,
           '/catch-all/[[...rest]]',
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/catch-all/[[...rest]]',
               'x-now-route-matches': '',
             },
-          }
+          })
         )
         const $ = cheerio.load(html)
         const data = JSON.parse($('#props').text())
@@ -331,12 +371,12 @@ describe('Required Server Files', () => {
           appPort,
           '/catch-all/[[...rest]]',
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/catch-all/[[...rest]]',
               'x-now-route-matches': 'nxtPrest=hello',
             },
-          }
+          })
         )
         const $2 = cheerio.load(html2)
         const data2 = JSON.parse($2('#props').text())
@@ -350,13 +390,13 @@ describe('Required Server Files', () => {
           appPort,
           '/catch-all/[[...rest]]',
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/catch-all/[[...rest]]',
               'x-now-route-matches':
                 'nxtPrest=hello/world&catchAll=hello/world',
             },
-          }
+          })
         )
         const $3 = cheerio.load(html3)
         const data3 = JSON.parse($3('#props').text())
@@ -370,11 +410,11 @@ describe('Required Server Files', () => {
           appPort,
           '/catch-all/[[...rest]]',
           { nxtPrest: 'frank' },
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/catch-all/[[...rest]]',
             },
-          }
+          })
         )
         const $4 = cheerio.load(html4)
         const data4 = JSON.parse($4('#props').text())
@@ -388,11 +428,11 @@ describe('Required Server Files', () => {
           appPort,
           '/catch-all/[[...rest]]',
           {},
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/catch-all/[[...rest]]',
             },
-          }
+          })
         )
         const $5 = cheerio.load(html5)
         const data5 = JSON.parse($5('#props').text())
@@ -406,11 +446,11 @@ describe('Required Server Files', () => {
           appPort,
           '/catch-all/[[...rest]]',
           { nxtPrest: 'frank' },
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/catch-all/[[...rest]]',
             },
-          }
+          })
         )
         const $6 = cheerio.load(html6)
         const data6 = JSON.parse($6('#props').text())
@@ -443,11 +483,11 @@ describe('Required Server Files', () => {
             appPort,
             '/partial-catch-all/[domain]/[[...rest]]',
             query,
-            {
+            withInvocationId({
               headers: {
                 'x-matched-path': '/partial-catch-all/[domain]/[[...rest]]',
               },
-            }
+            })
           )
 
           const $ = cheerio.load(html)
@@ -462,13 +502,13 @@ describe('Required Server Files', () => {
       it('should return data correctly with x-matched-path for optional catch-all route', async () => {
         const res = await fetchViaHTTP(
           appPort,
-          `/_next/data/${buildId}/catch-all.json`,
+          `/_next/data/${next.buildId}/catch-all.json`,
           undefined,
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/catch-all/[[...rest]]',
             },
-          }
+          })
         )
 
         const { pageProps: data } = await res.json()
@@ -478,14 +518,14 @@ describe('Required Server Files', () => {
 
         const res2 = await fetchViaHTTP(
           appPort,
-          `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+          `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
           undefined,
-          {
+          withInvocationId({
             headers: {
-              'x-matched-path': `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+              'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
               'x-now-route-matches': 'nxtPrest=hello&rest=hello',
             },
-          }
+          })
         )
 
         const { pageProps: data2 } = await res2.json()
@@ -495,14 +535,14 @@ describe('Required Server Files', () => {
 
         const res3 = await fetchViaHTTP(
           appPort,
-          `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+          `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
           undefined,
-          {
+          withInvocationId({
             headers: {
-              'x-matched-path': `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+              'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
               'x-now-route-matches': 'nxtPrest=hello/world&rest=hello/world',
             },
-          }
+          })
         )
 
         const { pageProps: data3 } = await res3.json()
@@ -521,9 +561,14 @@ describe('Required Server Files', () => {
           '/fallback/another/',
           '/fallback/another',
         ]) {
-          const res = await fetchViaHTTP(appPort, path, undefined, {
-            redirect: 'manual',
-          })
+          const res = await fetchViaHTTP(
+            appPort,
+            path,
+            undefined,
+            withInvocationId({
+              redirect: 'manual',
+            })
+          )
 
           expect(res.status).toBe(200)
         }
@@ -536,11 +581,11 @@ describe('Required Server Files', () => {
           {
             path: 'hello/world',
           },
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/',
             },
-          }
+          })
         )
         const $ = cheerio.load(html)
         expect(JSON.parse($('#router').text()).query).toEqual({
@@ -549,19 +594,34 @@ describe('Required Server Files', () => {
       })
 
       it('should bubble error correctly for gip page', async () => {
-        const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
+        const res = await fetchViaHTTP(
+          appPort,
+          '/errors/gip',
+          { crash: '1' },
+          withInvocationId()
+        )
         expect(res.status).toBe(500)
         expect(await res.text()).toBe('Internal Server Error')
       })
 
       it('should bubble error correctly for gssp page', async () => {
-        const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
+        const res = await fetchViaHTTP(
+          appPort,
+          '/errors/gssp',
+          { crash: '1' },
+          withInvocationId()
+        )
         expect(res.status).toBe(500)
         expect(await res.text()).toBe('Internal Server Error')
       })
 
       it('should bubble error correctly for gsp page', async () => {
-        const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
+        const res = await fetchViaHTTP(
+          appPort,
+          '/errors/gsp/crash',
+          undefined,
+          withInvocationId()
+        )
         expect(res.status).toBe(500)
         expect(await res.text()).toBe('Internal Server Error')
       })
@@ -571,11 +631,11 @@ describe('Required Server Files', () => {
           appPort,
           '/optional-ssp',
           { nxtPrest: '', another: 'value' },
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/optional-ssp/[[...rest]]',
             },
-          }
+          })
         )
 
         const html = await res.text()
@@ -590,11 +650,11 @@ describe('Required Server Files', () => {
           appPort,
           '/optional-ssg',
           { rest: '', another: 'value' },
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/optional-ssg/[[...rest]]',
             },
-          }
+          })
         )
 
         const html = await res.text()
@@ -608,11 +668,11 @@ describe('Required Server Files', () => {
           appPort,
           '/api/optional',
           { nxtPrest: '', another: 'value' },
-          {
+          withInvocationId({
             headers: {
               'x-matched-path': '/api/optional/[[...rest]]',
             },
-          }
+          })
         )
 
         const json = await res.json()
@@ -621,12 +681,17 @@ describe('Required Server Files', () => {
       })
 
       it('should match the index page correctly', async () => {
-        const res = await fetchViaHTTP(appPort, '/', undefined, {
-          headers: {
-            'x-matched-path': '/index',
-          },
-          redirect: 'manual',
-        })
+        const res = await fetchViaHTTP(
+          appPort,
+          '/',
+          undefined,
+          withInvocationId({
+            headers: {
+              'x-matched-path': '/index',
+            },
+            redirect: 'manual',
+          })
+        )
 
         const html = await res.text()
         const $ = cheerio.load(html)
@@ -634,12 +699,17 @@ describe('Required Server Files', () => {
       })
 
       it('should match the root dynamic page correctly', async () => {
-        const res = await fetchViaHTTP(appPort, '/slug-1', undefined, {
-          headers: {
-            'x-matched-path': '/[slug]',
-          },
-          redirect: 'manual',
-        })
+        const res = await fetchViaHTTP(
+          appPort,
+          '/slug-1',
+          undefined,
+          withInvocationId({
+            headers: {
+              'x-matched-path': '/[slug]',
+            },
+            redirect: 'manual',
+          })
+        )
 
         const html = await res.text()
         const $ = cheerio.load(html)
@@ -652,12 +722,17 @@ describe('Required Server Files', () => {
           '/non-existent',
           '/404',
         ]) {
-          const res = await fetchViaHTTP(appPort, pathname, undefined, {
-            headers: {
-              'x-matched-path': '/404',
-              redirect: 'manual',
-            },
-          })
+          const res = await fetchViaHTTP(
+            appPort,
+            pathname,
+            undefined,
+            withInvocationId({
+              headers: {
+                'x-matched-path': '/404',
+                redirect: 'manual',
+              },
+            })
+          )
           expect(res.status).toBe(404)
           expect(await res.text()).toContain('custom 404')
         }
@@ -666,12 +741,17 @@ describe('Required Server Files', () => {
           '/_next/static/chunks/pages/index-abc123.js',
           '/_next/static/some-file.js',
         ]) {
-          const res = await fetchViaHTTP(appPort, pathname, undefined, {
-            headers: {
-              'x-matched-path': '/404',
-              redirect: 'manual',
-            },
-          })
+          const res = await fetchViaHTTP(
+            appPort,
+            pathname,
+            undefined,
+            withInvocationId({
+              headers: {
+                'x-matched-path': '/404',
+                redirect: 'manual',
+              },
+            })
+          )
           expect(res.status).toBe(404)
           expect(res.headers.get('content-type')).toBe(
             'text/plain; charset=utf-8'

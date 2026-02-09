@@ -140,6 +140,16 @@ function SelectionDetails({
         analyzeData.source(selectedSourceIndex) ? (
           <div className="text-xs">
             <div>
+              <span>{formatBytes(compressedSize)}</span>
+              <span className="text-muted-foreground ml-1">
+                compressed (estimated)
+              </span>
+              <InlineHelpTooltip>
+                Estimated compressed size. Modules are compressed in isolation
+                which may differ from their size in the final chunk.
+              </InlineHelpTooltip>
+            </div>
+            <div>
               <span>{formatBytes(size)}</span>{' '}
               <span className="text-muted-foreground">uncompressed</span>
               <InlineHelpTooltip>
@@ -148,17 +158,6 @@ function SelectionDetails({
                 compression like gzip.
               </InlineHelpTooltip>
             </div>
-            <>
-              <div>
-                <span className="text-muted-foreground">About </span>
-                <span>{formatBytes(compressedSize)}</span>
-                <span className="text-muted-foreground ml-1">compressed</span>
-                <InlineHelpTooltip>
-                  Estimated compressed size. Modules are compressed in isolation
-                  which may differ from their size in the final chunk.
-                </InlineHelpTooltip>
-              </div>
-            </>
             {hasChildModules && childModuleCount != null ? (
               <div>
                 <span>{childModuleCount} </span>

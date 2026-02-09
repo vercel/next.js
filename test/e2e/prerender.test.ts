@@ -15,6 +15,7 @@ import {
   renderViaHTTP,
   retry,
   waitFor,
+  getCacheHeader,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
@@ -2299,9 +2300,8 @@ describe('Prerender', () => {
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
-        const cacheHeader = isDeploy ? 'x-vercel-cache' : 'x-nextjs-cache'
 
-        expect(res.headers.get(cacheHeader)).toMatch(/MISS/)
+        expect(getCacheHeader(res)).toMatch(/MISS/)
         expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
 
         // we use retry here as the cache might still be
@@ -2314,7 +2314,7 @@ describe('Prerender', () => {
           const html2 = await res2.text()
           const $2 = cheerio.load(html2)
 
-          expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(getCacheHeader(res2)).toMatch(/(HIT|STALE)/)
           expect(initialTime).toBe($2('#time').text())
         })
 
@@ -2340,7 +2340,7 @@ describe('Prerender', () => {
           const $4 = cheerio.load(html4)
 
           expect($4('#time').text()).not.toBe(initialTime)
-          expect(res4.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(getCacheHeader(res4)).toMatch(/(HIT|STALE)/)
         })
       })
     }

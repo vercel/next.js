@@ -11,6 +11,18 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function checkEvalAvailabilityOnceDev() {
+      if (!hasConfirmedEval) {
+        hasConfirmedEval = !0;
+        try {
+          (0, eval)("null");
+        } catch ($jscomp$unused$catch) {
+          console.error(
+            "eval() is not supported in this environment. This can happen if you started the Node.js process with --disallow-code-generation-from-strings, or if `eval` was patched by other means. React requires eval() in development mode for various debugging features like reconstructing callstacks from a different environment.\nReact will never use eval() in production mode"
+          );
+        }
+      }
+    }
     function resolveClientReference(bundlerConfig, metadata) {
       if (bundlerConfig) {
         var moduleExports = bundlerConfig[metadata[0]];
@@ -447,6 +459,11 @@
         return "$" + (iterable ? "x" : "X") + streamId.toString(16);
       }
       function resolveToJSON(key, value) {
+        "__proto__" === key &&
+          console.error(
+            "Expected not to serialize an object with own property `__proto__`. When parsed this property will be omitted.%s",
+            describeObjectForErrorMessage(this, key)
+          );
         var originalValue = this[key];
         "object" !== typeof originalValue ||
           originalValue === value ||
@@ -691,17 +708,20 @@
         if ("undefined" === typeof value) return "$undefined";
         if ("function" === typeof value) {
           parentReference = knownServerReferences.get(value);
-          if (void 0 !== parentReference)
-            return (
-              (key = JSON.stringify(
-                { id: parentReference.id, bound: parentReference.bound },
-                resolveToJSON
-              )),
-              null === formData && (formData = new FormData()),
-              (parentReference = nextPartId++),
-              formData.set(formFieldPrefix + parentReference, key),
-              "$h" + parentReference.toString(16)
+          if (void 0 !== parentReference) {
+            key = writtenObjects.get(value);
+            if (void 0 !== key) return key;
+            key = JSON.stringify(
+              { id: parentReference.id, bound: parentReference.bound },
+              resolveToJSON
             );
+            null === formData && (formData = new FormData());
+            parentReference = nextPartId++;
+            formData.set(formFieldPrefix + parentReference, key);
+            key = "$h" + parentReference.toString(16);
+            writtenObjects.set(value, key);
+            return key;
+          }
           if (
             void 0 !== temporaryReferences &&
             -1 === key.indexOf(":") &&
@@ -750,8 +770,9 @@
         pendingParts = 0,
         formData = null,
         writtenObjects = new WeakMap(),
-        modelRoot = root,
-        json = serializeModel(root, 0);
+        modelRoot = root;
+      checkEvalAvailabilityOnceDev();
+      var json = serializeModel(root, 0);
       null === formData
         ? resolve(json)
         : (formData.set(formFieldPrefix + "0", json),
@@ -1141,7 +1162,8 @@
           if (
             "function" === typeof value ||
             ("string" === typeof value && 50 < value.length) ||
-            (0 !== kind && 2 !== kind)
+            (0 !== kind && 2 !== kind) ||
+            "bigint" === typeof value
           )
             return 1;
           kind = 2;
@@ -1182,7 +1204,11 @@
             value = "null";
             break;
           } else {
-            if (value.$$typeof === REACT_ELEMENT_TYPE) {
+            if (
+              ("$$typeof" in value && hasOwnProperty.call(value, "$$typeof")
+                ? value.$$typeof
+                : void 0) === REACT_ELEMENT_TYPE
+            ) {
               var typeName = getComponentNameFromType(value.type) || "\u2026",
                 key = value.key;
               value = value.props;
@@ -1334,7 +1360,11 @@
             return;
           }
         case "function":
-          value = "" === value.name ? "() => {}" : value.name + "() {}";
+          value = value.name;
+          value =
+            "" === value || "string" !== typeof value
+              ? "() => {}"
+              : value + "() {}";
           break;
         case "string":
           value =
@@ -2189,7 +2219,14 @@
               }
             }
           }
-          value = value[path[i]];
+          var name = path[i];
+          if (
+            "object" === typeof value &&
+            null !== value &&
+            hasOwnProperty.call(value, name)
+          )
+            value = value[name];
+          else throw Error("Invalid reference.");
         }
         for (
           ;
@@ -2217,7 +2254,7 @@
           }
         }
         var mappedValue = map(response, value, parentObject, key);
-        parentObject[key] = mappedValue;
+        "__proto__" !== key && (parentObject[key] = mappedValue);
         "" === key && null === handler.value && (handler.value = mappedValue);
         if (
           parentObject[0] === REACT_ELEMENT_TYPE &&
@@ -2387,7 +2424,7 @@
             metaData.bound,
             response._encodeFormAction
           );
-          parentObject[key] = resolvedValue;
+          "__proto__" !== key && (parentObject[key] = resolvedValue);
           "" === key &&
             null === handler.value &&
             (handler.value = resolvedValue);
@@ -2646,20 +2683,21 @@
       Object.setPrototypeOf(parentObject, model.prototype);
     }
     function defineLazyGetter(response, chunk, parentObject, key) {
-      Object.defineProperty(parentObject, key, {
-        get: function () {
-          "resolved_model" === chunk.status && initializeModelChunk(chunk);
-          switch (chunk.status) {
-            case "fulfilled":
-              return chunk.value;
-            case "rejected":
-              throw chunk.reason;
-          }
-          return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
-        },
-        enumerable: !0,
-        configurable: !1
-      });
+      "__proto__" !== key &&
+        Object.defineProperty(parentObject, key, {
+          get: function () {
+            "resolved_model" === chunk.status && initializeModelChunk(chunk);
+            switch (chunk.status) {
+              case "fulfilled":
+                return chunk.value;
+              case "rejected":
+                throw chunk.reason;
+            }
+            return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+          },
+          enumerable: !0,
+          configurable: !1
+        });
       return null;
     }
     function extractIterator(response, model) {
@@ -2863,13 +2901,14 @@
                 ? ref.value
                 : defineLazyGetter(response, ref, parentObject, key);
             }
-            Object.defineProperty(parentObject, key, {
-              get: function () {
-                return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
-              },
-              enumerable: !0,
-              configurable: !1
-            });
+            "__proto__" !== key &&
+              Object.defineProperty(parentObject, key, {
+                get: function () {
+                  return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+                },
+                enumerable: !0,
+                configurable: !1
+              });
             return null;
           default:
             return (
@@ -2948,6 +2987,39 @@
           : debugChannelRegistry.register(this, debugChannel, this));
       replayConsole && markAllTracksInOrder();
       this._fromJSON = createFromJSONCallback(this);
+    }
+    function createResponse(
+      bundlerConfig,
+      serverReferenceConfig,
+      moduleLoading,
+      callServer,
+      encodeFormAction,
+      nonce,
+      temporaryReferences,
+      findSourceMapURL,
+      replayConsole,
+      environmentName,
+      debugStartTime,
+      debugEndTime,
+      debugChannel
+    ) {
+      checkEvalAvailabilityOnceDev();
+      bundlerConfig = new ResponseInstance(
+        bundlerConfig,
+        serverReferenceConfig,
+        moduleLoading,
+        callServer,
+        encodeFormAction,
+        nonce,
+        temporaryReferences,
+        findSourceMapURL,
+        replayConsole,
+        environmentName,
+        debugStartTime,
+        debugEndTime,
+        debugChannel
+      )._weakResponse;
+      return bundlerConfig;
     }
     function createStreamState(weakResponse, streamDebugValue) {
       var streamState = {
@@ -3444,9 +3516,10 @@
       try {
         var fn = (0, eval)(encodedName)[name];
       } catch (x) {
-        fn = function (_) {
+        (fn = function (_) {
           return _();
-        };
+        }),
+          Object.defineProperty(fn, "name", { value: name });
       }
       return fn;
     }
@@ -4702,83 +4775,85 @@
     }
     function createFromJSONCallback(response) {
       return function (key, value) {
-        if ("string" === typeof value)
-          return parseModelString(response, this, key, value);
-        if ("object" === typeof value && null !== value) {
-          if (value[0] === REACT_ELEMENT_TYPE)
-            b: {
-              var owner = value[4],
-                stack = value[5];
-              key = value[6];
-              value = {
-                $$typeof: REACT_ELEMENT_TYPE,
-                type: value[1],
-                key: value[2],
-                props: value[3],
-                _owner: void 0 === owner ? null : owner
-              };
-              Object.defineProperty(value, "ref", {
-                enumerable: !1,
-                get: nullRefGetter
-              });
-              value._store = {};
-              Object.defineProperty(value._store, "validated", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: key
-              });
-              Object.defineProperty(value, "_debugInfo", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: null
-              });
-              Object.defineProperty(value, "_debugStack", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: void 0 === stack ? null : stack
-              });
-              Object.defineProperty(value, "_debugTask", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: null
-              });
-              if (null !== initializingHandler) {
-                owner = initializingHandler;
-                initializingHandler = owner.parent;
-                if (owner.errored) {
-                  stack = new ReactPromise("rejected", null, owner.reason);
-                  initializeElement(response, value, null);
-                  owner = {
-                    name: getComponentNameFromType(value.type) || "",
-                    owner: value._owner
-                  };
-                  owner.debugStack = value._debugStack;
-                  supportsCreateTask && (owner.debugTask = value._debugTask);
-                  stack._debugInfo = [owner];
-                  key = createLazyChunkWrapper(stack, key);
-                  break b;
+        if ("__proto__" !== key) {
+          if ("string" === typeof value)
+            return parseModelString(response, this, key, value);
+          if ("object" === typeof value && null !== value) {
+            if (value[0] === REACT_ELEMENT_TYPE)
+              b: {
+                var owner = value[4],
+                  stack = value[5];
+                key = value[6];
+                value = {
+                  $$typeof: REACT_ELEMENT_TYPE,
+                  type: value[1],
+                  key: value[2],
+                  props: value[3],
+                  _owner: void 0 === owner ? null : owner
+                };
+                Object.defineProperty(value, "ref", {
+                  enumerable: !1,
+                  get: nullRefGetter
+                });
+                value._store = {};
+                Object.defineProperty(value._store, "validated", {
+                  configurable: !1,
+                  enumerable: !1,
+                  writable: !0,
+                  value: key
+                });
+                Object.defineProperty(value, "_debugInfo", {
+                  configurable: !1,
+                  enumerable: !1,
+                  writable: !0,
+                  value: null
+                });
+                Object.defineProperty(value, "_debugStack", {
+                  configurable: !1,
+                  enumerable: !1,
+                  writable: !0,
+                  value: void 0 === stack ? null : stack
+                });
+                Object.defineProperty(value, "_debugTask", {
+                  configurable: !1,
+                  enumerable: !1,
+                  writable: !0,
+                  value: null
+                });
+                if (null !== initializingHandler) {
+                  owner = initializingHandler;
+                  initializingHandler = owner.parent;
+                  if (owner.errored) {
+                    stack = new ReactPromise("rejected", null, owner.reason);
+                    initializeElement(response, value, null);
+                    owner = {
+                      name: getComponentNameFromType(value.type) || "",
+                      owner: value._owner
+                    };
+                    owner.debugStack = value._debugStack;
+                    supportsCreateTask && (owner.debugTask = value._debugTask);
+                    stack._debugInfo = [owner];
+                    key = createLazyChunkWrapper(stack, key);
+                    break b;
+                  }
+                  if (0 < owner.deps) {
+                    stack = new ReactPromise("blocked", null, null);
+                    owner.value = value;
+                    owner.chunk = stack;
+                    key = createLazyChunkWrapper(stack, key);
+                    value = initializeElement.bind(null, response, value, key);
+                    stack.then(value, value);
+                    break b;
+                  }
                 }
-                if (0 < owner.deps) {
-                  stack = new ReactPromise("blocked", null, null);
-                  owner.value = value;
-                  owner.chunk = stack;
-                  key = createLazyChunkWrapper(stack, key);
-                  value = initializeElement.bind(null, response, value, key);
-                  stack.then(value, value);
-                  break b;
-                }
+                initializeElement(response, value, null);
+                key = value;
               }
-              initializeElement(response, value, null);
-              key = value;
-            }
-          else key = value;
-          return key;
+            else key = value;
+            return key;
+          }
+          return value;
         }
-        return value;
       };
     }
     function close(weakResponse) {
@@ -4790,7 +4865,7 @@
       );
     }
     function createResponseFromOptions(options) {
-      return new ResponseInstance(
+      return createResponse(
         options.serverConsumerManifest.moduleMap,
         options.serverConsumerManifest.serverModuleMap,
         options.serverConsumerManifest.moduleLoading,
@@ -4811,7 +4886,7 @@
               callback: null
             }
           : void 0
-      )._weakResponse;
+      );
     }
     function startReadingFromStream$1(response, stream, onDone, debugValue) {
       function progress(_ref) {
@@ -4938,6 +5013,7 @@
       React = require("react"),
       decoderOptions = { stream: !0 },
       bind$1 = Function.prototype.bind,
+      hasConfirmedEval = !1,
       hasOwnProperty = Object.prototype.hasOwnProperty,
       chunkCache = new Map(),
       ReactDOMSharedInternals =
@@ -5174,7 +5250,7 @@
       serverConsumerManifest,
       options
     ) {
-      var response = new ResponseInstance(
+      var response = createResponse(
         serverConsumerManifest.moduleMap,
         serverConsumerManifest.serverModuleMap,
         serverConsumerManifest.moduleLoading,
@@ -5190,7 +5266,7 @@
         options && void 0 !== options.debugChannel
           ? { hasReadable: !0, callback: null }
           : void 0
-      )._weakResponse;
+      );
       if (options && options.debugChannel) {
         var streamEndedCount = 0;
         serverConsumerManifest = function () {

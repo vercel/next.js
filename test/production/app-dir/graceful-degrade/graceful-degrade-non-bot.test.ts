@@ -32,9 +32,8 @@ describe('graceful-degrade - non bot', () => {
     expect(await body.getAttribute('class')).not.toBe('body-cls')
 
     const bodyText = await body.text()
-    expect(bodyText).toMatch(
-      /Application error: a client-side exception has occurred while loading/
-    )
+    // Client errors show "This page crashed"
+    expect(bodyText).toMatch(/This page crashed/)
   })
 
   it('should show error boundary when browser errors when error boundary is defined', async () => {

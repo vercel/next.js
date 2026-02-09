@@ -13,36 +13,25 @@ interface ResolvedBuildPaths {
 }
 
 /**
- * Escapes bracket expressions that correspond to existing directories.
- * This allows Next.js dynamic routes like [slug] to work with glob patterns.
+ * Escapes Next.js dynamic route bracket expressions so glob treats them as
+ * literal directory names rather than character classes.
  *
  * e.g., "app/blog/[slug]/** /page.tsx" → "app/blog/\[slug\]/** /page.tsx"
- *       (if app/blog/[slug] directory exists)
  */
-function escapeExistingBrackets(pattern: string, projectDir: string): string {
-  // Match bracket expressions: [name], [...name], [[...name]]
-  const bracketRegex = /\[\[?\.\.\.[^\]]+\]?\]|\[[^\]]+\]/g
-  let lastIndex = 0
-  let result = ''
-  let match: RegExpExecArray | null
-
-  while ((match = bracketRegex.exec(pattern)) !== null) {
-    const pathPrefix = pattern.slice(0, match.index + match[0].length)
-    const exists = fs.existsSync(path.join(projectDir, pathPrefix))
-
-    result += pattern.slice(lastIndex, match.index)
-    result += exists
-      ? match[0].replace(/\[/g, '\\[').replace(/\]/g, '\\]')
-      : match[0]
-    lastIndex = match.index + match[0].length
-  }
-
-  return result + pattern.slice(lastIndex)
+function escapeBrackets(pattern: string): string {
+  // Match Next.js dynamic route patterns: [name], [...name], [[...name]]
+  return pattern.replace(/\[\[?\.\.\.[^\]]+\]?\]|\[[^\]]+\]/g, (match) =>
+    match.replace(/\[/g, '\\[').replace(/\]/g, '\\]')
+  )
 }
 
 /**
  * Resolves glob patterns and explicit paths to actual file paths.
  * Categorizes them into App Router and Pages Router paths.
+ *
+ * Supports negation patterns prefixed with "!" to exclude paths.
+ * e.g., "app/**,!app/[lang]/page.js" includes all App Router paths except
+ * app/[lang]/page.js
  */
 export async function resolveBuildPaths(
   patterns: string[],
@@ -51,33 +40,52 @@ export async function resolveBuildPaths(
   const appPaths: Set<string> = new Set()
   const pagePaths: Set<string> = new Set()
 
+  const includePatterns: string[] = []
+  const excludePatterns: string[] = []
+
   for (const pattern of patterns) {
     const trimmed = pattern.trim()
     if (!trimmed) continue
 
-    try {
-      // Escape brackets that correspond to existing Next.js dynamic route directories
-      const escapedPattern = escapeExistingBrackets(trimmed, projectDir)
-      const matches = (await glob(escapedPattern, {
-        cwd: projectDir,
-      })) as string[]
-
-      if (matches.length === 0) {
-        Log.warn(`Pattern "${trimmed}" did not match any files`)
-      }
-
-      for (const file of matches) {
-        if (!fs.statSync(path.join(projectDir, file)).isDirectory()) {
-          categorizeAndAddPath(file, appPaths, pagePaths)
-        }
-      }
-    } catch (error) {
-      throw new Error(
-        `Failed to resolve pattern "${trimmed}": ${
-          isError(error) ? error.message : String(error)
-        }`
-      )
+    if (trimmed.startsWith('!')) {
+      excludePatterns.push(escapeBrackets(trimmed.slice(1)))
+    } else {
+      includePatterns.push(escapeBrackets(trimmed))
     }
+  }
+
+  // Default to matching all files when only negation patterns are provided.
+  if (includePatterns.length === 0 && excludePatterns.length > 0) {
+    includePatterns.push('**')
+  }
+
+  // Combine patterns using brace expansion: {pattern1,pattern2}
+  const combinedPattern =
+    includePatterns.length === 1
+      ? includePatterns[0]
+      : `{${includePatterns.join(',')}}`
+
+  try {
+    const matches = (await glob(combinedPattern, {
+      cwd: projectDir,
+      ignore: excludePatterns,
+    })) as string[]
+
+    if (matches.length === 0) {
+      Log.warn(`Pattern "${patterns.join(',')}" did not match any files`)
+    }
+
+    for (const file of matches) {
+      if (!fs.statSync(path.join(projectDir, file)).isDirectory()) {
+        categorizeAndAddPath(file, appPaths, pagePaths)
+      }
+    }
+  } catch (error) {
+    throw new Error(
+      `Failed to resolve pattern "${patterns.join(',')}": ${
+        isError(error) ? error.message : String(error)
+      }`
+    )
   }
 
   return {
@@ -88,9 +96,11 @@ export async function resolveBuildPaths(
 
 /**
  * Categorizes a file path to either app or pages router based on its prefix.
+ * For app router, only route-defining files (page.*, route.*) are included.
  *
  * Examples:
  * - "app/page.tsx" → appPaths.add("/page.tsx")
+ * - "app/layout.tsx" → skipped (not a route file)
  * - "pages/index.tsx" → pagePaths.add("/index.tsx")
  */
 function categorizeAndAddPath(
@@ -101,7 +111,10 @@ function categorizeAndAddPath(
   const normalized = filePath.replace(/\\/g, '/')
 
   if (normalized.startsWith('app/')) {
-    appPaths.add('/' + normalized.slice(4))
+    // Only include route-defining files (page.* or route.*)
+    if (/\/(page|route)\.[^/]+$/.test(normalized)) {
+      appPaths.add('/' + normalized.slice(4))
+    }
   } else if (normalized.startsWith('pages/')) {
     pagePaths.add('/' + normalized.slice(6))
   }

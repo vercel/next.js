@@ -15,7 +15,7 @@ use turbopack_core::{
     },
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
-        AliasPattern, ModuleResolveResult, RequestKey, handle_resolve_error,
+        AliasPattern, ModuleResolveResult, RequestKey, ResolveErrorMode, handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
@@ -417,7 +417,7 @@ pub async fn type_resolve(
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
     let context_path = origin.origin_path().await?.parent();
-    let options = origin.resolve_options(ty.clone());
+    let options = origin.resolve_options();
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -472,7 +472,16 @@ pub async fn type_resolve(
             .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
-    handle_resolve_error(result, ty, origin, request, options, false, None).await
+    handle_resolve_error(
+        result,
+        ty,
+        origin,
+        request,
+        options,
+        ResolveErrorMode::Error,
+        None,
+    )
+    .await
 }
 
 #[turbo_tasks::function]

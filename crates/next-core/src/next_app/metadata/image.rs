@@ -5,7 +5,7 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -74,7 +74,7 @@ async fn dynamic_image_metadata_with_generator_source(
 
             export default async function (props) {{
                 const {{ __metadata_id__: _, ...params }} = await props.params
-                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment})
+                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment}, false)
 
                 const {{ generateImageMetadata }} = imageModule
 
@@ -148,7 +148,7 @@ async fn dynamic_image_metadata_without_generator_source(
 
             export default async function (props) {{
                 const {{ __metadata_id__: _, ...params }} = await props.params
-                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment})
+                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment}, false)
 
                 function getImageMetadata(imageMetadata, idParam) {{
                     const data = {{
@@ -229,7 +229,7 @@ pub async fn dynamic_image_metadata_source(
 #[turbo_tasks::function]
 async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<RcStr>>> {
     let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module.to_resolved().await?)
     else {
         return Ok(Default::default());
     };
