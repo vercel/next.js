@@ -178,8 +178,7 @@ impl ModuleCssAsset {
             .inner(ReferenceType::Css(CssReferenceSubType::Analyze))
             .module();
 
-        let inner = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner)
-            .await?
+        let inner = ResolvedVc::try_sidecast::<Box<dyn ProcessCss>>(inner.to_resolved().await?)
             .context("inner asset should be CSS processable")?;
 
         let result = inner.get_css_with_placeholder().await?;

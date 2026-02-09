@@ -121,7 +121,7 @@ pub use crate::{
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError},
+    raw_vc::{CellId, RawVc, ReadRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,

@@ -97,10 +97,11 @@ export async function resetProject({
         resourceConfig: {
           buildMachineType: 'enhanced',
         },
-        env: [
+        environmentVariables: [
           {
             key: 'VERCEL_FORCE_NO_BUILD_CACHE_UPLOAD',
             value: '1',
+            type: 'plain',
             target: ['production', 'preview', 'development'],
           },
         ],

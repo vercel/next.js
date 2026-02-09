@@ -6715,16 +6715,16 @@
           ("function" !== typeof debugChannel.read &&
             "number" !== typeof debugChannel.readyState)
             ? void 0
-            : debugChannel,
-        debugChannelWritable =
-          void 0 !== debugChannel
-            ? "function" === typeof debugChannel.write
-              ? debugChannel
-              : "function" === typeof debugChannel.send
-                ? createFakeWritableFromWebSocket(debugChannel)
-                : void 0
-            : void 0,
-        request = createRequest(
+            : debugChannel;
+      debugChannel =
+        void 0 !== debugChannel
+          ? "function" === typeof debugChannel.write
+            ? debugChannel
+            : "function" === typeof debugChannel.send
+              ? createFakeWritableFromWebSocket(debugChannel)
+              : void 0
+          : void 0;
+      var request = createRequest(
           model,
           turbopackMap,
           options ? options.onError : void 0,
@@ -6733,12 +6733,11 @@
           options ? options.startTime : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
-          void 0 !== debugChannel
+          void 0 !== debugChannelReadable
         ),
         hasStartedFlowing = !1;
       startWork(request);
-      void 0 !== debugChannelWritable &&
-        startFlowingDebug(request, debugChannelWritable);
+      void 0 !== debugChannel && startFlowingDebug(request, debugChannel);
       void 0 !== debugChannelReadable &&
         startReadingFromDebugChannelReadable(request, debugChannelReadable);
       return {
