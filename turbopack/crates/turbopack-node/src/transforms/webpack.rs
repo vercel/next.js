@@ -736,8 +736,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 let import_mg_vc = *import_module_graph;
 
                 // Get the entry module's chunk item ID
-                let entry_chunkable = Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(*module)
-                    .await?
+                let entry_chunkable = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module)
                     .context("importModule: entry module is not chunkable")?;
                 let entry_chunk_item =
                     entry_chunkable.as_chunk_item(import_mg_vc, *self.chunking_context);
@@ -751,18 +750,16 @@ impl EvaluateContext for WebpackLoaderContext {
                 let async_modules_info = import_mg_vc.async_module_info().await?;
                 let mut module_items = Vec::new();
                 for m in import_mg_ref.iter_nodes() {
-                    let Some(chunkable) =
-                        Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(*m).await?
+                    let Some(chunkable) = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(m)
                     else {
                         continue;
                     };
 
                     let chunk_item = chunkable.as_chunk_item(import_mg_vc, *self.chunking_context);
 
-                    let Some(ecma_item) =
-                        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
-                            .await?
-                    else {
+                    let Some(ecma_item) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkItem>>(
+                        chunk_item.to_resolved().await?,
+                    ) else {
                         continue;
                     };
 
