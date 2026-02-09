@@ -7,46 +7,53 @@ export {
   decodeFormState,
 } from 'react-server-dom-webpack/server'
 
+type RenderToPipeableStream = (...args: any[]) => any
+type PrerenderToNodeStream = (...args: any[]) => Promise<{
+  prelude: import('node:stream').Readable
+}>
+
 // Use dynamic require to avoid Turbopack failing to resolve this as a named
 // export from the vendored CJS module.
-/* eslint-disable import/no-extraneous-dependencies */
-export const renderToPipeableStream:
-  | typeof import('react-server-dom-webpack/server.node').renderToPipeableStream
-  | undefined =
-  process.env.NEXT_RUNTIME !== 'edge'
-    ? (
-        require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
-      ).renderToPipeableStream
-    : undefined
-/* eslint-enable import/no-extraneous-dependencies */
+export let renderToPipeableStream: RenderToPipeableStream | undefined
+if (process.env.NEXT_RUNTIME === 'nodejs') {
+  /* eslint-disable import/no-extraneous-dependencies */
+  renderToPipeableStream = (
+    require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+  ).renderToPipeableStream
+  /* eslint-enable import/no-extraneous-dependencies */
+} else {
+  renderToPipeableStream = undefined
+}
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { prerender } from 'react-server-dom-webpack/static'
 
 // Use dynamic require to avoid Turbopack failing to resolve this as a named
 // export from the vendored CJS module.
-/* eslint-disable import/no-extraneous-dependencies */
-export const prerenderToNodeStream:
-  | typeof import('react-server-dom-webpack/static').prerenderToNodeStream
-  | undefined =
-  process.env.NEXT_RUNTIME !== 'edge'
-    ? (
-        require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static')
-      ).prerenderToNodeStream
-    : undefined
-/* eslint-enable import/no-extraneous-dependencies */
+export let prerenderToNodeStream: PrerenderToNodeStream | undefined
+if (process.env.NEXT_RUNTIME === 'nodejs') {
+  /* eslint-disable import/no-extraneous-dependencies */
+  prerenderToNodeStream = (
+    require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static')
+  ).prerenderToNodeStream
+  /* eslint-enable import/no-extraneous-dependencies */
+} else {
+  prerenderToNodeStream = undefined
+}
 
 // chainNodeStreams is used by the app-page.ts build template for PPR resume.
 // We export it from here (pre-compiled runtime bundle) because the template
 // cannot use relative requires (webpack resolves them from the project root).
-export const chainNodeStreams:
+export let chainNodeStreams:
   | typeof import('../stream-utils/node-stream-helpers').chainNodeStreams
-  | undefined =
-  process.env.NEXT_RUNTIME !== 'edge'
-    ? (
-        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-      ).chainNodeStreams
-    : undefined
+  | undefined
+if (process.env.NEXT_RUNTIME === 'nodejs') {
+  chainNodeStreams = (
+    require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
+  ).chainNodeStreams
+} else {
+  chainNodeStreams = undefined
+}
 
 // TODO: Just re-export `* as ReactServer`
 export { captureOwnerStack, createElement, Fragment } from 'react'
@@ -81,7 +88,8 @@ export { taintObjectReference } from './rsc/taint'
 export { collectSegmentData } from './collect-segment-data'
 
 export const InstantValidation =
-  process.env.NODE_ENV === 'development' && process.env.NEXT_RUNTIME !== 'edge'
+  process.env.NODE_ENV === 'development' &&
+  process.env.NEXT_RUNTIME === 'nodejs'
     ? (require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation'))
     : undefined
 
