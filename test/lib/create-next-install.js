@@ -83,11 +83,7 @@ async function createNextInstall({
         pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
-        tmpRepoDir = path.join(
-          tmpDir,
-          `next-repo-${createTempId()}`,
-          subDir
-        )
+        tmpRepoDir = path.join(tmpDir, `next-repo-${createTempId()}`, subDir)
         require('console').log('Creating temp repo dir', tmpRepoDir)
 
         for (const item of [
