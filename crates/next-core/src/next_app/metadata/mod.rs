@@ -226,10 +226,6 @@ pub fn is_metadata_route_file(
     false
 }
 
-pub fn is_static_metadata_route_file(app_dir_relative_path: &str) -> bool {
-    is_metadata_route_file(app_dir_relative_path, &[], true)
-}
-
 /// Remove the 'app' prefix or '/route' suffix, only check the route name since
 /// they're only allowed in root app directory
 ///

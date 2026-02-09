@@ -301,7 +301,11 @@ async fn find_export_from_reexports(
 
         // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
         // target module.
-        if (Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_part).await?).is_none() {
+        if (ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(
+            module_part.to_resolved().await?,
+        ))
+        .is_none()
+        {
             return Ok(find_export_from_reexports(module_part, export_name));
         }
     }
@@ -398,7 +402,7 @@ pub async fn expand_star_exports(
                     if key == "default" {
                         continue;
                     }
-                    esm_exports.entry(key.clone()).or_insert_with(|| asset);
+                    esm_exports.entry(key.clone()).or_insert(asset);
                 }
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =

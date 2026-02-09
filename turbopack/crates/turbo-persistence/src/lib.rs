@@ -27,7 +27,12 @@ mod tests;
 
 pub use arc_slice::ArcSlice;
 pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
-pub use key::{KeyBase, QueryKey, StoreKey};
+pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
+pub use meta_file::MetaEntryFlags;
 pub use parallel_scheduler::{ParallelScheduler, SerialScheduler};
+pub use static_sorted_file::{
+    BlockCache, BlockWeighter, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
+};
+pub use static_sorted_file_builder::{Entry, EntryValue, write_static_stored_file};
 pub use value_buf::ValueBuffer;
 pub use write_batch::WriteBatch;

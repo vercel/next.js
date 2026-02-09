@@ -67,8 +67,7 @@ describe('Cache Components Errors', () => {
         '--experimental-build-mode',
         'generate',
         '--debug-build-paths',
-        // Escape square brackets for pathnames with dynamic segments.
-        `app${pathname.replace(/([[\]])/g, '\\$1')}/page.tsx`,
+        `app${pathname}/page.tsx`,
       ]
 
       if (isDebugPrerender) {
@@ -610,7 +609,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at a (app/dynamic-root/indirection.tsx:7:34)
+                   at <unknown> (app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -1841,7 +1840,7 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1947,12 +1946,9 @@ describe('Cache Components Errors', () => {
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<anonymous>)
                      at main (<anonymous>)
-                     at b (<anonymous>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at c (<anonymous>)
-                     at d (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2104,7 +2100,7 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2582,6 +2578,7 @@ describe('Cache Components Errors', () => {
             })
           }
         })
+
         describe('slow cache', () => {
           if (isNextDev) {
             it('should show a redbox error', async () => {
@@ -2707,6 +2704,108 @@ describe('Cache Components Errors', () => {
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
                    Export encountered an error on /use-cache-low-expire/slow/page: /use-cache-low-expire/slow, exiting the build."
+                  `)
+                }
+              }
+            })
+          }
+        })
+
+        describe('nested', () => {
+          if (isNextDev) {
+            it('should show a redbox error', async () => {
+              const browser = await next.browser('/use-cache-low-expire/nested')
+
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": "A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-low-expire/nested/page.tsx (20:14) @ async Page
+               > 20 |     result = await outerCache()
+                    |              ^",
+                 "stack": [
+                   "async Page app/use-cache-low-expire/nested/page.tsx (20:14)",
+                 ],
+               }
+              `)
+            })
+          } else {
+            it('should error the build', async () => {
+              try {
+                await prerender('/use-cache-low-expire/nested')
+              } catch {
+                // we expect the build to fail
+              }
+
+              const output = getPrerenderOutput(
+                next.cliOutput.slice(cliOutputLength),
+                { isMinified: !isDebugPrerender }
+              )
+
+              if (isTurbopack) {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-low-expire/nested/page: /use-cache-low-expire/nested"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-low-expire/nested/page: /use-cache-low-expire/nested, exiting the build."
+                  `)
+                }
+              } else {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async Page (webpack:///app/use-cache-low-expire/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-low-expire/nested/page: /use-cache-low-expire/nested"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at a (<next-dist-dir>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-low-expire/nested/page: /use-cache-low-expire/nested, exiting the build."
                   `)
                 }
               }
@@ -2847,6 +2946,7 @@ describe('Cache Components Errors', () => {
             })
           }
         })
+
         describe('slow cache', () => {
           if (isNextDev) {
             it('should show a redbox error', async () => {
@@ -2972,6 +3072,110 @@ describe('Cache Components Errors', () => {
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
                    Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
+                  `)
+                }
+              }
+            })
+          }
+        })
+
+        describe('nested', () => {
+          if (isNextDev) {
+            it('should show a redbox error', async () => {
+              const browser = await next.browser(
+                '/use-cache-revalidate-0/nested'
+              )
+
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": "A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-revalidate-0/nested/page.tsx (20:14) @ async Page
+               > 20 |     result = await outerCache()
+                    |              ^",
+                 "stack": [
+                   "async Page app/use-cache-revalidate-0/nested/page.tsx (20:14)",
+                 ],
+               }
+              `)
+            })
+          } else {
+            it('should error the build', async () => {
+              try {
+                await prerender('/use-cache-revalidate-0/nested')
+              } catch {
+                // we expect the build to fail
+              }
+
+              const output = getPrerenderOutput(
+                next.cliOutput.slice(cliOutputLength),
+                { isMinified: !isDebugPrerender }
+              )
+
+              if (isTurbopack) {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested, exiting the build."
+                  `)
+                }
+              } else {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at async Page (webpack:///app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at a (<next-dist-dir>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested, exiting the build."
                   `)
                 }
               }
@@ -3339,7 +3543,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at async h (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                     at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -5408,6 +5612,144 @@ describe('Cache Components Errors', () => {
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/sync-io-node-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
                Export encountered an error on /sync-io-node-crypto/random-uuid/page: /sync-io-node-crypto/random-uuid, exiting the build."
+              `)
+            }
+          }
+        })
+      }
+    })
+
+    describe('IO accessed in Client Components', () => {
+      const pathname = '/client-awaited-io'
+
+      if (isNextDev) {
+        it('should show a collapsed redbox error', async () => {
+          const browser = await next.browser(pathname)
+
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+           To fix this, you can either:
+
+           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+           or
+
+           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/client-awaited-io/client.tsx (6:19) @ Client
+           > 6 |   const data = use(io)
+               |                   ^",
+             "stack": [
+               "Client app/client-awaited-io/client.tsx (6:19)",
+               "Page app/client-awaited-io/page.tsx (5:10)",
+             ],
+           }
+          `)
+        })
+      } else {
+        it('should error the build if IO is accessed in a Client Component', async () => {
+          try {
+            await prerender(pathname)
+          } catch {
+            // we expect the build to fail
+          }
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          if (isTurbopack) {
+            if (isDebugPrerender) {
+              expect(output).toMatchInlineSnapshot(`
+               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   at Client (app/client-awaited-io/client.tsx:5:26)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                 3 | import { use } from 'react'
+                 4 |
+               > 5 | export function Client({ io }: { io: Promise<string> }) {
+                   |                          ^
+                 6 |   const data = use(io)
+                 7 |   return <div>Data: {data}</div>
+                 8 | }
+               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
+               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
+
+               > Export encountered errors on following paths:
+               	/client-awaited-io/page: /client-awaited-io"
+              `)
+            } else {
+              expect(output).toMatchInlineSnapshot(`
+               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   at <unknown> (app/client-awaited-io/client.tsx:5:26)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                 3 | import { use } from 'react'
+                 4 |
+               > 5 | export function Client({ io }: { io: Promise<string> }) {
+                   |                          ^
+                 6 |   const data = use(io)
+                 7 |   return <div>Data: {data}</div>
+                 8 | }
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /client-awaited-io/page: /client-awaited-io, exiting the build."
+              `)
+            }
+          } else {
+            if (isDebugPrerender) {
+              expect(output).toMatchInlineSnapshot(`
+               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   at Client (webpack:///app/client-awaited-io/client.tsx:5:26)
+                   at <FIXME-library-internal>
+               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
+               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
+
+               > Export encountered errors on following paths:
+               	/client-awaited-io/page: /client-awaited-io"
+              `)
+            } else {
+              expect(output).toMatchInlineSnapshot(`
+               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
+                   at k (<next-dist-dir>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
+                   at r (<next-dist-dir>)
+                   at s (<next-dist-dir>)
+                   at t (<next-dist-dir>)
+                   at u (<next-dist-dir>)
+                   at v (<next-dist-dir>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /client-awaited-io/page: /client-awaited-io, exiting the build."
               `)
             }
           }

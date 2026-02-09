@@ -1,6 +1,7 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     condition::ContextCondition,
@@ -10,6 +11,18 @@ use turbopack_core::{
         plugin::{AfterResolvePlugin, BeforeResolvePlugin},
     },
 };
+
+#[derive(Default, Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub enum TsConfigHandling {
+    /// Ignore tsconfig and jsconfig files
+    Disabled,
+    #[default]
+    /// Find corresponding tsconfig files based on the location of the file
+    ContextFile,
+    /// Use the provided config file for all files (if it exists, otherwise fall back to
+    /// ContextFile)
+    Fixed(FileSystemPath),
+}
 
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
@@ -26,7 +39,7 @@ pub struct ResolveOptionsContext {
     pub enable_node_modules: Option<FileSystemPath>,
     /// A specific path to a tsconfig.json file to use for resolving modules. If `None`, one will
     /// be looked up through the filesystem
-    pub tsconfig_path: Option<FileSystemPath>,
+    pub tsconfig_path: TsConfigHandling,
     /// Mark well-known Node.js modules as external imports and load them using
     /// native `require`. e.g. url, querystring, os
     pub enable_node_externals: bool,

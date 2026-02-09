@@ -1,6 +1,6 @@
 use crate::{
     ArcSlice,
-    constants::MAX_SMALL_VALUE_SIZE,
+    constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     static_sorted_file_builder::{Entry, EntryValue},
 };
 
@@ -9,6 +9,8 @@ pub enum LookupValue {
     /// The value was deleted.
     Deleted,
     /// The value is stored in the SST file.
+    ///
+    /// The ArcSlice will be pointing either at a keyblock or a value block in the SST
     Slice { value: ArcSlice<u8> },
     /// The value is stored in a blob file.
     Blob { sequence_number: u32 },
@@ -66,7 +68,9 @@ impl Entry for LookupEntry<'_> {
         match &self.value {
             LazyLookupValue::Eager(LookupValue::Deleted) => EntryValue::Deleted,
             LazyLookupValue::Eager(LookupValue::Slice { value }) => {
-                if value.len() > MAX_SMALL_VALUE_SIZE {
+                if value.len() <= MAX_INLINE_VALUE_SIZE {
+                    EntryValue::Inline { value }
+                } else if value.len() > MAX_SMALL_VALUE_SIZE {
                     EntryValue::Medium { value }
                 } else {
                     EntryValue::Small { value }

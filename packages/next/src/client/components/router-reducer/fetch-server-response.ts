@@ -15,6 +15,7 @@ import type {
 import {
   type NEXT_ROUTER_PREFETCH_HEADER,
   type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  type NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
@@ -33,14 +34,12 @@ import {
   prepareFlightRouterStateForRequest,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
-import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
-import {
-  getRenderedSearch,
-  urlToUrlWithoutFlightMarker,
-} from '../../route-params'
+import { urlToUrlWithoutFlightMarker } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
+import { getNavigationBuildId } from '../../navigation-build-id'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -95,6 +94,7 @@ export type RequestHeaders = {
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
   [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
   [NEXT_REQUEST_ID_HEADER]?: string // dev-only
+  [NEXT_INSTANT_PREFETCH_HEADER]?: '1' // testing API only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
@@ -244,7 +244,11 @@ export async function fetchServerResponse(
 
     const flightResponse = await flightResponsePromise
 
-    if (getAppBuildId() !== flightResponse.b) {
+    if (
+      (res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? flightResponse.b) !==
+      getNavigationBuildId()
+    ) {
+      // The server build does not match the client build.
       return doMpaNavigation(res.url)
     }
 
@@ -256,7 +260,14 @@ export async function fetchServerResponse(
     return {
       flightData: normalizedFlightData,
       canonicalUrl: canonicalUrl,
-      renderedSearch: getRenderedSearch(res),
+      // TODO: We should be able to read this from the rewrite header, not the
+      // Flight response. Theoretically they should always agree, but there are
+      // currently some cases where it's incorrect for interception routes. We
+      // can always trust the value in the response body. However, per-segment
+      // prefetch responses don't embed the value in the body; they rely on the
+      // header alone. So we need to investigate why the header is sometimes
+      // wrong for interception routes.
+      renderedSearch: flightResponse.q as NormalizedSearch,
       couldBeIntercepted: interception,
       prerendered: flightResponse.S,
       postponed,

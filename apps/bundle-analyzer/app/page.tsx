@@ -1,7 +1,6 @@
 'use client'
 
 import type React from 'react'
-import { SizeMode } from '@/lib/treemap-layout'
 
 import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
@@ -13,11 +12,27 @@ import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
 import { Badge } from '@/components/ui/badge'
 import { TreemapSkeleton } from '@/components/ui/skeleton'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { fetchStrict } from '@/lib/utils'
 import { formatBytes } from '@/lib/utils'
+import { SizeMode } from '@/lib/treemap-layout'
+import {
+  Monitor,
+  Server,
+  FileCode,
+  FileJson,
+  Palette,
+  Package,
+} from 'lucide-react'
 
 enum Environment {
   Client = 'client',
@@ -76,7 +91,6 @@ export default function Home() {
     client?: boolean
   } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sizeMode, setSizeMode] = useState(SizeMode.Compressed)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -153,78 +167,19 @@ export default function Home() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
-      <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-4">
-        <div className="basis-1/3 flex">
-          <RouteTypeahead
-            selectedRoute={selectedRoute}
-            onRouteSelected={(route) => {
-              setSelectedRoute(route)
-              setSelectedSourceIndex(null)
-              setFocusedSourceIndex(null)
-            }}
-          />
-        </div>
-
-        <div className="basis-2/3 flex justify-end items-center space-x-4">
-          {analyzeData && (
-            <>
-              <ToggleGroup
-                type="single"
-                value={sizeMode}
-                onValueChange={(value) => {
-                  if (value) setSizeMode(value as SizeMode)
-                }}
-                size="sm"
-              >
-                <ToggleGroupItem value={SizeMode.Uncompressed}>
-                  Uncompressed
-                </ToggleGroupItem>
-                <ToggleGroupItem value={SizeMode.Compressed}>
-                  Compressed
-                </ToggleGroupItem>
-              </ToggleGroup>
-
-              <ControlDivider />
-
-              <ToggleGroup
-                type="single"
-                value={environmentFilter}
-                onValueChange={(value) => {
-                  if (value) setEnvironmentFilter(value as Environment)
-                }}
-                size="sm"
-              >
-                <ToggleGroupItem value={Environment.Client}>
-                  Client
-                </ToggleGroupItem>
-                <ToggleGroupItem value={Environment.Server}>
-                  Server
-                </ToggleGroupItem>
-              </ToggleGroup>
-
-              <ControlDivider />
-
-              <ToggleGroup
-                type="multiple"
-                value={typeFilter}
-                onValueChange={(value) => {
-                  if (value.length > 0) setTypeFilter(value)
-                }}
-                size="sm"
-              >
-                <ToggleGroupItem value="js">JS</ToggleGroupItem>
-                <ToggleGroupItem value="css">CSS</ToggleGroupItem>
-                <ToggleGroupItem value="json">JSON</ToggleGroupItem>
-                <ToggleGroupItem value="asset">Asset</ToggleGroupItem>
-              </ToggleGroup>
-
-              <ControlDivider />
-
-              <FileSearch value={searchQuery} onChange={setSearchQuery} />
-            </>
-          )}
-        </div>
-      </div>
+      <TopBar
+        analyzeData={analyzeData}
+        selectedRoute={selectedRoute}
+        setSelectedRoute={setSelectedRoute}
+        environmentFilter={environmentFilter}
+        setEnvironmentFilter={setEnvironmentFilter}
+        setSelectedSourceIndex={setSelectedSourceIndex}
+        setFocusedSourceIndex={setFocusedSourceIndex}
+        typeFilter={typeFilter}
+        setTypeFilter={setTypeFilter}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+      />
 
       <div className="flex-1 flex min-h-0">
         {error && !analyzeData ? (
@@ -267,7 +222,7 @@ export default function Home() {
                 onHoveredNodeChange={setHoveredNodeInfo}
                 searchQuery={searchQuery}
                 filterSource={filterSource}
-                sizeMode={sizeMode}
+                sizeMode={SizeMode.Compressed}
               />
             </div>
 
@@ -300,7 +255,7 @@ export default function Home() {
                   {hoveredNodeInfo.name}
                 </span>
                 <span className="ml-2 text-muted-foreground">
-                  {`${formatBytes(hoveredNodeInfo.size)} ${sizeMode}`}
+                  {`${formatBytes(hoveredNodeInfo.size)} compressed`}
                 </span>
                 {(hoveredNodeInfo.server || hoveredNodeInfo.client) && (
                   <span className="ml-2 inline-flex gap-1">
@@ -320,6 +275,111 @@ export default function Home() {
         </div>
       )}
     </main>
+  )
+}
+
+const typeFilterOptions = [
+  {
+    value: 'js',
+    label: 'JavaScript',
+    icon: <FileCode className="h-3.5 w-3.5" />,
+  },
+  { value: 'css', label: 'CSS', icon: <Palette className="h-3.5 w-3.5" /> },
+  {
+    value: 'json',
+    label: 'JSON',
+    icon: <FileJson className="h-3.5 w-3.5" />,
+  },
+  {
+    value: 'asset',
+    label: 'Asset',
+    icon: <Package className="h-3.5 w-3.5" />,
+  },
+]
+
+function TopBar({
+  analyzeData,
+  selectedRoute,
+  setSelectedRoute,
+  environmentFilter,
+  setEnvironmentFilter,
+  setSelectedSourceIndex,
+  setFocusedSourceIndex,
+  typeFilter,
+  setTypeFilter,
+  searchQuery,
+  setSearchQuery,
+}: {
+  analyzeData: AnalyzeData | undefined
+  selectedRoute: string | null
+  setSelectedRoute: (route: string | null) => void
+  environmentFilter: Environment
+  setEnvironmentFilter: (env: Environment) => void
+  setSelectedSourceIndex: (index: number | null) => void
+  setFocusedSourceIndex: (index: number | null) => void
+  typeFilter: string[]
+  setTypeFilter: (types: string[]) => void
+  searchQuery: string
+  setSearchQuery: (query: string) => void
+}) {
+  return (
+    <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-3">
+      <div className="flex-1 flex">
+        <RouteTypeahead
+          selectedRoute={selectedRoute}
+          onRouteSelected={(route) => {
+            setSelectedRoute(route)
+            setSelectedSourceIndex(null)
+            setFocusedSourceIndex(null)
+          }}
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        {analyzeData && (
+          <>
+            <Select
+              value={environmentFilter}
+              onValueChange={(value: Environment) =>
+                setEnvironmentFilter(value)
+              }
+            >
+              <SelectTrigger className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={Environment.Client}>
+                  <div className="flex items-center gap-1.5">
+                    <Monitor className="h-3.5 w-3.5" />
+                    <span className="text-xs">Client</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value={Environment.Server}>
+                  <div className="flex items-center gap-1.5">
+                    <Server className="h-3.5 w-3.5" />
+                    <span className="text-xs">Server</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <MultiSelect
+              options={typeFilterOptions}
+              value={typeFilter}
+              onValueChange={setTypeFilter}
+              selectionName={{ singular: 'file type', plural: 'file types' }}
+              triggerIcon={<FileCode className="h-3.5 w-3.5" />}
+              triggerClassName="w-36"
+              aria-label="Filter by file type"
+            />
+
+            <ControlDivider />
+
+            <FileSearch value={searchQuery} onChange={setSearchQuery} />
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 

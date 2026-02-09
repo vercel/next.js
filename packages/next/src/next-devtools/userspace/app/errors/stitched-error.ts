@@ -17,7 +17,13 @@ export function coerceError(value: unknown): Error {
 export function setOwnerStackIfAvailable(error: Error): void {
   // React 18 and prod does not have `captureOwnerStack`
   if ('captureOwnerStack' in React) {
-    setOwnerStack(error, React.captureOwnerStack())
+    const ownerStack = React.captureOwnerStack()
+    // Only set if we captured a valid owner stack, or if none exists yet.
+    // This prevents overwriting a valid owner stack captured earlier
+    // (e.g., in onRecoverableError) with null captured later.
+    if (ownerStack || !ownerStacks.has(error)) {
+      setOwnerStack(error, ownerStack)
+    }
   }
 }
 

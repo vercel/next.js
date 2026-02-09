@@ -65,8 +65,11 @@ pub async fn project_fs(
     watch: bool,
     denied_root_path: RcStr,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs =
-        DiskFileSystem::new_with_denied_path(rcstr!("project"), project_dir, denied_root_path);
+    let disk_fs = DiskFileSystem::new_with_denied_paths(
+        rcstr!("project"),
+        project_dir,
+        vec![denied_root_path],
+    );
     if watch {
         disk_fs.await?.start_watching(None).await?;
     }

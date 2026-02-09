@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkableModule, ChunkingContext, MergeableModule, MergeableModules,
         MergeableModulesExposed,
@@ -78,14 +77,6 @@ impl Module for EcmascriptModuleLocalsModule {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for EcmascriptModuleLocalsModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.module.content()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn analyze(&self) -> Vc<AnalyzeEcmascriptModuleResult> {
@@ -153,10 +144,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
                 EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(..) => {
                     // not included in locals module
                 }
-                EsmExport::LocalBinding(local_name, mutable) => {
+                EsmExport::LocalBinding(local_name, liveness) => {
                     exports.insert(
                         name.clone(),
-                        EsmExport::LocalBinding(local_name.clone(), *mutable),
+                        EsmExport::LocalBinding(local_name.clone(), *liveness),
                     );
                 }
                 EsmExport::Error => {

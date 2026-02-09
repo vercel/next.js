@@ -2,14 +2,21 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { join } from 'node:path'
 
-describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
-  'deployment-id-handling enabled with %s',
-  (envKey) => {
+describe.each([
+  ['NEXT_DEPLOYMENT_ID', ''],
+  ['CUSTOM_DEPLOYMENT_ID', ''],
+  ['NEXT_DEPLOYMENT_ID', ' and runtimeServerDeploymentId'],
+])(
+  'deployment-id-handling enabled with %s%s',
+  (envKey, runtimeServerDeploymentId) => {
     const deploymentId = Date.now() + ''
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       env: {
         [envKey]: deploymentId,
+        RUNTIME_SERVER_DEPLOYMENT_ID: runtimeServerDeploymentId
+          ? '1'
+          : undefined,
       },
     })
 

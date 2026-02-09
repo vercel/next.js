@@ -104,9 +104,9 @@ Routing requests through [`rewrites`](/docs/app/api-reference/config/next-config
 
 ```js filename="proxy.js"
 export async function proxy(request) {
-  const { pathname, search } = req.nextUrl;
+  const { pathname, search } = request.nextUrl
   if (pathname === '/your-path' && myFeatureFlag.isEnabled()) {
-    return NextResponse.rewrite(`${rewriteDomain}${pathname}${search});
+    return NextResponse.rewrite(`${rewriteDomain}${pathname}${search}`)
   }
 }
 ```

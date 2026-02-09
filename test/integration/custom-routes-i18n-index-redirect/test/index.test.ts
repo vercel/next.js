@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import url from 'url'
 import http from 'http'
 import { join } from 'path'
 import {
@@ -35,9 +34,9 @@ const runTests = () => {
         const text = await res.text()
         expect(text).toEqual(dest)
         if (dest.startsWith('/')) {
-          const parsed = url.parse(res.headers.get('location'))
+          const parsed = new URL(res.headers.get('location'))
           expect(parsed.pathname).toBe(dest)
-          expect(parsed.query).toBe(null)
+          expect(parsed.search).toBe('')
         } else {
           expect(res.headers.get('location')).toBe(dest)
         }
