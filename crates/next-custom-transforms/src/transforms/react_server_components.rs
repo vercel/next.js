@@ -100,6 +100,7 @@ enum RSCErrorKind {
     NextSsrDynamicFalseNotAllowed(Span),
     NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
     NextRscErrTaintWithoutConfig((String, Span)),
+    NextRscErrStaleTimeInLayout(Span),
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -121,6 +122,7 @@ enum InvalidExportKind {
     General,
     Metadata,
     RouteSegmentConfig(NextConfigProperty),
+    StaleTimeInLayout,
 }
 
 impl<C: Comments> VisitMut for ReactServerComponents<C> {
@@ -365,6 +367,11 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             format!(
                 "You're importing `{api_name}` from React which requires `experimental.taint: true` in your Next.js config. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/taint"
             ),
+            vec![span],
+        ),
+        RSCErrorKind::NextRscErrStaleTimeInLayout(span) => (
+            "`unstable_staleTime` is not allowed in layout files. Use it in page files instead."
+                .to_string(),
             vec![span],
         ),
     };
@@ -888,7 +895,10 @@ impl ReactServerComponentValidator {
         }
         static RE: Lazy<Regex> =
             Lazy::new(|| Regex::new(r"[\\/](page|layout|route)\.(ts|js)x?$").unwrap());
+        static LAYOUT_RE: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"[\\/]layout\.(ts|js)x?$").unwrap());
         let is_app_entry = RE.is_match(&self.filepath);
+        let is_layout = LAYOUT_RE.is_match(&self.filepath);
 
         if is_app_entry {
             let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
@@ -938,6 +948,14 @@ impl ReactServerComponentValidator {
                                     ),
                                     *span,
                                 ),
+                            );
+                        }
+                    }
+                    "unstable_staleTime" => {
+                        if is_layout {
+                            possibly_invalid_exports.insert(
+                                export_name.clone(),
+                                (InvalidExportKind::StaleTimeInLayout, *span),
                             );
                         }
                     }
@@ -1005,6 +1023,13 @@ impl ReactServerComponentValidator {
                             &self.app_dir,
                             &self.filepath,
                             RSCErrorKind::NextRscErrInvalidApi((export_name.to_string(), *span)),
+                        );
+                    }
+                    InvalidExportKind::StaleTimeInLayout => {
+                        report_error(
+                            &self.app_dir,
+                            &self.filepath,
+                            RSCErrorKind::NextRscErrStaleTimeInLayout(*span),
                         );
                     }
                 }

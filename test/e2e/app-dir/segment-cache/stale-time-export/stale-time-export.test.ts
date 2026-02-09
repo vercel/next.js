@@ -97,11 +97,6 @@ describe('unstable_staleTime - layout build error', () => {
     return
   }
 
-  if (isNextDev) {
-    test('skipped in development', () => {})
-    return
-  }
-
   it('should error when unstable_staleTime is used in a layout', async () => {
     await next.patchFile(
       'app/layout.tsx',
@@ -123,12 +118,17 @@ export default function RootLayout({
         try {
           await next.start()
         } catch {
-          // we expect the build to fail
+          // we expect the build/start to fail
+        }
+
+        if (isNextDev) {
+          // In dev mode, we need to trigger the compilation by visiting the page
+          await next.fetch('/')
         }
 
         await retry(async () => {
           expect(next.cliOutput).toContain(
-            'cannot use `export const unstable_staleTime = ...`. This config is only supported on page segments.'
+            '`unstable_staleTime` is not allowed in layout files. Use it in page files instead.'
           )
         })
       }
