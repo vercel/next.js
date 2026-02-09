@@ -14,8 +14,8 @@ const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
 const flightResponses = new WeakMap<
-  Readable | BinaryStreamOf<any>,
-  Promise<any>
+  Readable | BinaryStreamOf<unknown>,
+  Promise<unknown>
 >()
 const encoder = new TextEncoder()
 
@@ -38,7 +38,7 @@ export function getFlightStream<T>(
   const response = flightResponses.get(flightStream)
 
   if (response) {
-    return response
+    return response as Promise<T>
   }
 
   const { moduleLoading, edgeSSRModuleMapping, ssrModuleMapping } =
@@ -84,9 +84,11 @@ export function getFlightStream<T>(
         if (debugStream instanceof Readable) {
           nodeDebugStream = debugStream
         } else {
-          // Cast through any: global ReadableStream and stream/web.ReadableStream
-          // have a minor type mismatch (Promise<void> vs Promise<undefined>).
-          nodeDebugStream = Readable.fromWeb(debugStream as any)
+          // Cast through unknown: global ReadableStream and stream/web.ReadableStream
+          // differ slightly in type declarations.
+          nodeDebugStream = Readable.fromWeb(
+            debugStream as unknown as import('stream/web').ReadableStream<Uint8Array>
+          )
         }
 
         // With createFromNodeStream + debugChannel, the response can resolve
