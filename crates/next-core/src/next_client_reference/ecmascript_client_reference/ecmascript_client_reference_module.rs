@@ -171,13 +171,13 @@ impl EcmascriptClientReferenceModule {
             .process(Vc::upcast(proxy_source), ReferenceType::Undefined)
             .module();
 
-        let Some(proxy_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(proxy_module).await?
-        else {
+        let Some(proxy_module) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+            proxy_module.to_resolved().await?,
+        ) else {
             bail!("proxy asset is not an ecmascript module");
         };
 
-        Ok(proxy_module)
+        Ok(*proxy_module)
     }
 }
 
@@ -260,11 +260,9 @@ impl ChunkableModule for EcmascriptClientReferenceModule {
         let item = self
             .proxy_module()
             .as_chunk_item(module_graph, *chunking_context);
-        let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
-            .await?
-            .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?
-            .to_resolved()
-            .await?;
+        let ecmascript_item =
+            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(item.to_resolved().await?)
+                .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
 
         Ok(Vc::upcast(
             EcmascriptClientReferenceProxyChunkItem {

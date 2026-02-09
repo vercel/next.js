@@ -5,7 +5,7 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -229,7 +229,7 @@ pub async fn dynamic_image_metadata_source(
 #[turbo_tasks::function]
 async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<RcStr>>> {
     let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module.to_resolved().await?)
     else {
         return Ok(Default::default());
     };

@@ -277,13 +277,10 @@ impl CssChunkItem for CssModuleChunkItem {
                         ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module)
                     {
                         let item = placeable.as_chunk_item(*self.module_graph, *chunking_context);
-                        if let Some(css_item) =
-                            Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(item).await?
-                        {
-                            imports.push(CssImport::Internal(
-                                import_ref,
-                                css_item.to_resolved().await?,
-                            ));
+                        if let Some(css_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(
+                            item.to_resolved().await?,
+                        ) {
+                            imports.push(CssImport::Internal(import_ref, css_item));
                         }
                     }
                 }
@@ -302,10 +299,10 @@ impl CssChunkItem for CssModuleChunkItem {
                         ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module)
                     {
                         let item = placeable.as_chunk_item(*self.module_graph, *chunking_context);
-                        if let Some(css_item) =
-                            Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(item).await?
-                        {
-                            imports.push(CssImport::Composes(css_item.to_resolved().await?));
+                        if let Some(css_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(
+                            item.to_resolved().await?,
+                        ) {
+                            imports.push(CssImport::Composes(css_item));
                         }
                     }
                 }

@@ -70,7 +70,7 @@ pub async fn split_output_asset_into_parts(
     let lines_vc = file_content.lines().to_resolved().await?;
 
     let Some(generate_source_map) =
-        Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(asset).await?
+        ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(asset.to_resolved().await?)
     else {
         return self_mapped(asset, content, lines_vc).await;
     };

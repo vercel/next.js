@@ -43,13 +43,15 @@ async fn to_evaluatable(
     let module = asset_context
         .process(asset, ReferenceType::Entry(EntryReferenceSubType::Runtime))
         .module();
-    let Some(entry) = Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await? else {
+    let Some(entry) =
+        ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module.to_resolved().await?)
+    else {
         bail!(
             "{} is not a valid evaluated entry",
             module.ident().to_string().await?
         )
     };
-    Ok(entry)
+    Ok(*entry)
 }
 
 #[turbo_tasks::value(transparent)]

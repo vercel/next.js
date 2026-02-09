@@ -661,11 +661,11 @@ impl PageEndpoint {
         if matches!(
             *this.pages_project.project().next_mode().await?,
             NextMode::Development
-        ) && let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await?
+        ) && let Some(chunkable) = ResolvedVc::try_downcast(page_loader.to_resolved().await?)
         {
             return Ok(Vc::upcast(HmrEntryModule::new(
                 AssetIdent::from_path(this.page.await?.base_path.clone()),
-                chunkable,
+                *chunkable,
             )));
         }
         Ok(page_loader)
@@ -678,23 +678,23 @@ impl PageEndpoint {
         let client_module = self.client_module();
         let client_main_module = this.pages_project.client_main_module();
 
-        let Some(client_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
-        else {
+        let Some(client_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
+            client_module.to_resolved().await?,
+        ) else {
             bail!("expected an evaluateable asset");
         };
 
-        let Some(client_main_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
-        else {
+        let Some(client_main_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
+            client_main_module.to_resolved().await?,
+        ) else {
             bail!("expected an evaluateable asset");
         };
 
         let evaluatable_assets = this
             .pages_project
             .client_runtime_entries()
-            .with_entry(client_main_module)
-            .with_entry(client_module);
+            .with_entry(*client_main_module)
+            .with_entry(*client_module);
         Ok(evaluatable_assets)
     }
 

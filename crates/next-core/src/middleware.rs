@@ -46,7 +46,7 @@ pub async fn get_middleware_module(
 
     // Validate that the module has the required exports
     if let Some(ecma_module) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*userland_module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(userland_module)
     {
         let exports = ecma_module.get_exports().await?;
 

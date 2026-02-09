@@ -441,11 +441,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .module();
 
     let (evaluatable_assets, entry_modules) = if let Some(ecmascript) =
-        Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module.to_resolved().await?)
     {
         let evaluatable_assets = runtime_entries
             .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(ecmascript);
+            .with_entry(*ecmascript);
         (
             evaluatable_assets,
             evaluatable_assets
@@ -600,9 +600,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Runtime::NodeJs => {
             OutputAssetsWithReferenced {
                 assets: ResolvedVc::cell(vec![
-                    Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
-                        .await?
-                        .unwrap()
+                    chunking_context
                         .entry_chunk_group(
                             // `expected` expects a completely flat output directory.
                             chunk_root_path

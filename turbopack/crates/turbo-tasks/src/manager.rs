@@ -1887,20 +1887,6 @@ pub(crate) async fn read_task_output(
     }
 }
 
-pub(crate) async fn read_task_cell(
-    this: &dyn TurboTasksApi,
-    id: TaskId,
-    index: CellId,
-    options: ReadCellOptions,
-) -> Result<TypedCellContent> {
-    loop {
-        match this.try_read_task_cell(id, index, options)? {
-            Ok(result) => return Ok(result),
-            Err(listener) => listener.await,
-        }
-    }
-}
-
 /// A reference to a task's cell with methods that allow updating the contents
 /// of the cell.
 ///
