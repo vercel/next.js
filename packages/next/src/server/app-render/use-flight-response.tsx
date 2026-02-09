@@ -45,6 +45,7 @@ export function getFlightStream<T>(
     getClientReferenceManifest()
 
   let newResponse: Promise<T>
+  let waitForDebugEnd: Promise<void> | undefined
   if (flightStream instanceof ReadableStream) {
     // The types of flightStream and debugStream should match.
     if (debugStream && !(debugStream instanceof ReadableStream)) {
@@ -87,6 +88,16 @@ export function getFlightStream<T>(
           // have a minor type mismatch (Promise<void> vs Promise<undefined>).
           nodeDebugStream = Readable.fromWeb(debugStream as any)
         }
+
+        // With createFromNodeStream + debugChannel, the response can resolve
+        // before debug stream completion. In restart-on-cache-miss flows this
+        // can leave metadata in the body instead of the head for the request
+        // render. Wait for debug completion for request work units.
+        waitForDebugEnd = new Promise<void>((resolve, reject) => {
+          nodeDebugStream!.once('end', resolve)
+          nodeDebugStream!.once('close', resolve)
+          nodeDebugStream!.once('error', reject)
+        })
       }
 
       // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
@@ -134,6 +145,12 @@ export function getFlightStream<T>(
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
+        if (waitForDebugEnd) {
+          newResponse = Promise.all([newResponse, waitForDebugEnd]).then(
+            ([flightResponse]) => flightResponse
+          )
+        }
+        break
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
