@@ -3,7 +3,7 @@ use std::{collections::HashSet, sync::atomic::AtomicBool};
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use super::{
     ChunkGroupContent, ChunkItemWithAsyncModuleInfo, ChunkingContext,
@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     chunk::{
-        ChunkItem, ChunkableModule, ChunkingType, Chunks,
+        ChunkableModule, ChunkingType, Chunks,
         available_modules::AvailableModuleItem,
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
@@ -37,24 +37,8 @@ use crate::{
 pub struct MakeChunkGroupResult {
     pub chunks: ResolvedVc<Chunks>,
     pub referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    pub references: Vec<ResolvedVc<Box<dyn OutputAssetsReference>>>,
     pub availability_info: AvailabilityInfo,
-    /// Map from async module to its async loader chunk item.
-    /// This preserves the module→loader relationship for async loaders,
-    /// allowing downstream code to look up pre-computed chunk outputs
-    /// instead of recomputing them.
-    #[allow(clippy::type_complexity)]
-    pub async_loaders_by_module:
-        FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, ResolvedVc<Box<dyn ChunkItem>>>,
-}
-
-impl MakeChunkGroupResult {
-    // Returns all the assets referenced by this chunk group.
-    pub fn references(&self) -> Vec<ResolvedVc<Box<dyn OutputAssetsReference>>> {
-        self.async_loaders_by_module
-            .values()
-            .map(|loader| ResolvedVc::upcast(*loader))
-            .collect()
-    }
 }
 
 /// Creates a chunk group from a set of entries.
@@ -137,28 +121,19 @@ pub async fn make_chunk_group(
         } else {
             availability_info
         };
-    // Build async loaders while preserving the module→loader mapping
-    let async_loaders_with_modules: Vec<_> = async_modules
+    let async_loaders = async_modules
         .into_iter()
         .map(async |module| {
-            let loader = chunking_context
+            chunking_context
                 .async_loader_chunk_item(*module, module_graph, async_availability_info)
                 .to_resolved()
-                .await?;
-            Ok((module, loader))
+                .await
         })
         .try_join()
         .await?;
-
-    // Build the module→loader mapping
-    let async_loaders_by_module: FxIndexMap<_, _> = async_loaders_with_modules
-        .iter()
-        .map(|(module, loader)| (*module, *loader))
-        .collect();
-
-    let async_loader_chunk_items = async_loaders_with_modules.iter().map(|(_, chunk_item)| {
+    let async_loader_chunk_items = async_loaders.iter().map(|&chunk_item| {
         ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(ChunkItemWithAsyncModuleInfo {
-            chunk_item: *chunk_item,
+            chunk_item,
             module: None,
             async_info: None,
         })
@@ -190,8 +165,8 @@ pub async fn make_chunk_group(
     Ok(MakeChunkGroupResult {
         chunks,
         referenced_output_assets,
+        references: ResolvedVc::upcast_vec(async_loaders),
         availability_info: new_availability_info,
-        async_loaders_by_module,
     })
 }
 

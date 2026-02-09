@@ -275,6 +275,9 @@ pub struct ProjectOptions {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
+
+    /// Whether to enable persistent caching
+    pub is_persistent_caching_enabled: bool,
 }
 
 pub struct PartialProjectOptions {
@@ -677,6 +680,7 @@ impl ProjectContainer {
         let write_routes_hashes_manifest;
         let current_node_js_version;
         let debug_build_paths;
+        let is_persistent_caching_enabled;
         {
             let options = self.options_state.get();
             let options = options
@@ -702,6 +706,7 @@ impl ProjectContainer {
             write_routes_hashes_manifest = options.write_routes_hashes_manifest;
             current_node_js_version = options.current_node_js_version.clone();
             debug_build_paths = options.debug_build_paths.clone();
+            is_persistent_caching_enabled = options.is_persistent_caching_enabled;
         }
 
         let dist_dir = next_config.dist_dir().owned().await?;
@@ -729,6 +734,7 @@ impl ProjectContainer {
             write_routes_hashes_manifest,
             current_node_js_version,
             debug_build_paths,
+            is_persistent_caching_enabled,
         }
         .cell())
     }
@@ -779,9 +785,9 @@ pub struct Project {
     /// E.g. `.next`
     dist_dir: RcStr,
 
-    /// The root directory of the distDir. Generally the same as `distDir` but when
-    /// `isolatedDevBuild` is true it is the parent directory of `distDir`.  This is used to
-    /// ensure that the bundler doesn't traverse into the output directory.
+    /// The root directory of the distDir. In development mode, this is the parent directory of
+    /// `distDir` since development builds use `{distDir}/dev`. This is used to ensure that the
+    /// bundler doesn't traverse into the output directory.
     dist_dir_root: RcStr,
 
     /// Filesystem watcher options.
@@ -823,6 +829,9 @@ pub struct Project {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     debug_build_paths: Option<DebugBuildPaths>,
+
+    /// Whether to enable persistent caching
+    is_persistent_caching_enabled: bool,
 }
 
 #[turbo_tasks::value]
@@ -1033,6 +1042,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn is_persistent_caching_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.is_persistent_caching_enabled)
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn next_mode(&self) -> Vc<NextMode> {
         *self.mode
     }
@@ -1098,7 +1112,11 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
-        get_client_compile_time_info(self.browserslist_query.clone(), self.define_env.client())
+        get_client_compile_time_info(
+            self.browserslist_query.clone(),
+            self.define_env.client(),
+            self.next_config.report_system_env_inlining(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -1336,6 +1354,7 @@ impl Project {
             self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
+            this.next_config.report_system_env_inlining(),
         ))
     }
 
@@ -1346,6 +1365,7 @@ impl Project {
             self.project_path().owned().await?,
             this.define_env.edge(),
             self.current_node_js_version(),
+            this.next_config.report_system_env_inlining(),
         ))
     }
 
@@ -1493,7 +1513,7 @@ impl Project {
         );
         emit_event(
             "persistentCaching",
-            *config.persistent_caching_enabled().await?,
+            *self.is_persistent_caching_enabled().await?,
         );
 
         emit_event(

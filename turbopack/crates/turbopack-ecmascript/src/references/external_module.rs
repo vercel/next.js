@@ -20,6 +20,7 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences, TracedModuleReference},
     reference_type::ReferenceType,
     resolve::{
+        ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -291,7 +292,7 @@ impl Module for CachedExternalModule {
                             **origin,
                             Request::parse_string(self.request.clone()),
                             Default::default(),
-                            false,
+                            ResolveErrorMode::Error,
                             None,
                         )
                         .await?
@@ -303,7 +304,7 @@ impl Module for CachedExternalModule {
                             Request::parse_string(self.request.clone()),
                             Default::default(),
                             None,
-                            false,
+                            ResolveErrorMode::Error,
                         )
                         .await?
                     }
@@ -311,7 +312,7 @@ impl Module for CachedExternalModule {
                         origin
                             .resolve_asset(
                                 Request::parse_string(self.request.clone()),
-                                origin.resolve_options(ReferenceType::Undefined),
+                                origin.resolve_options(),
                                 ReferenceType::Undefined,
                             )
                             .await?

@@ -84,6 +84,9 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".postcssrc.js",
             ".postcssrc.mjs",
             ".postcssrc.cjs",
+            ".postcssrc.ts",
+            ".postcssrc.mts",
+            ".postcssrc.cts",
             ".config/postcssrc",
             ".config/postcssrc.json",
             ".config/postcssrc.yaml",
@@ -91,9 +94,15 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".config/postcssrc.js",
             ".config/postcssrc.mjs",
             ".config/postcssrc.cjs",
+            ".config/postcssrc.ts",
+            ".config/postcssrc.mts",
+            ".config/postcssrc.cts",
             "postcss.config.js",
             "postcss.config.mjs",
             "postcss.config.cjs",
+            "postcss.config.ts",
+            "postcss.config.mts",
+            "postcss.config.cts",
             "postcss.config.json",
         ]
         .into_iter()
@@ -436,7 +445,7 @@ async fn find_config_in_location(
 impl GenerateSourceMap for PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
-        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*self.source).await?;
+        let source = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.source);
         match source {
             Some(source) => Ok(source.generate_source_map()),
             None => Ok(FileContent::NotFound.cell()),

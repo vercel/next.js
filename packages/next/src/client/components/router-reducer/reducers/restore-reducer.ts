@@ -76,7 +76,12 @@ export function restoreReducer(
     restoredUrl,
     restoredNextUrl,
     FreshnessPolicy.HistoryTraversal,
-    accumulation
+    accumulation,
+    // History traversal doesn't use route prediction, so there's no route
+    // cache entry to mark as having a dynamic rewrite on mismatch. If a
+    // mismatch occurs, the retry handler will traverse the known route tree
+    // to find and mark the entry.
+    null
   )
   return completeTraverseNavigation(
     state,

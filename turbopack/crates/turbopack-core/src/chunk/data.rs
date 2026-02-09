@@ -71,7 +71,8 @@ impl ChunkData {
         };
         let path = path.to_string();
 
-        let Some(output_chunk) = Vc::try_resolve_sidecast::<Box<dyn OutputChunk>>(chunk).await?
+        let Some(output_chunk) =
+            ResolvedVc::try_sidecast::<Box<dyn OutputChunk>>(chunk.to_resolved().await?)
         else {
             return Ok(Vc::cell(Some(
                 ChunkData {

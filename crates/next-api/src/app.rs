@@ -65,7 +65,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     source_map::SourceMapAsset,
     virtual_output::VirtualOutputAsset,
@@ -840,7 +840,7 @@ impl AppProject {
             ))),
             CommonJsReferenceSubType::Undefined,
             None,
-            false,
+            ResolveErrorMode::Error,
         )
         .resolve()
         .await?
@@ -1566,6 +1566,8 @@ impl AppEndpoint {
 
                 if emit_manifests == EmitManifests::Full {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
+                        *module_graphs.full,
+                        *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
                             &*(client_references_chunks.await?),
@@ -1680,6 +1682,8 @@ impl AppEndpoint {
                 let loadable_manifest_output = if emit_manifests == EmitManifests::Full {
                     // create react-loadable-manifest for next/dynamic
                     let dynamic_import_entries = collect_next_dynamic_chunks(
+                        *module_graphs.full,
+                        *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
                             &*(client_references_chunks.await?),

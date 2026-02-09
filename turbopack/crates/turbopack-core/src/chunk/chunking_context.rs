@@ -3,9 +3,7 @@ use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -15,7 +13,6 @@ use crate::{
         ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets,
         availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
     },
-    context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -24,8 +21,8 @@ use crate::{
         module_batches::BatchingConfig,
     },
     output::{
-        ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsWithReferenced,
-        expand_output_assets,
+        ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
+        OutputAssetsWithReferenced, expand_output_assets,
     },
     reference::ModuleReference,
 };
@@ -129,15 +126,8 @@ pub enum ChunkGroupType {
 pub struct ChunkGroupResult {
     pub assets: ResolvedVc<OutputAssets>,
     pub referenced_assets: ResolvedVc<OutputAssets>,
+    pub references: ResolvedVc<OutputAssetsReferences>,
     pub availability_info: AvailabilityInfo,
-    /// Map from async module to its async loader chunk item.
-    /// This preserves the module→loader relationship for async loaders,
-    /// allowing downstream code to look up pre-computed chunk outputs
-    /// instead of recomputing them.
-    #[bincode(with = "turbo_bincode::indexmap")]
-    #[allow(clippy::type_complexity)]
-    pub async_loaders_by_module:
-        FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, ResolvedVc<Box<dyn ChunkItem>>>,
 }
 
 impl ChunkGroupResult {
@@ -145,8 +135,8 @@ impl ChunkGroupResult {
         ChunkGroupResult {
             assets: ResolvedVc::cell(vec![]),
             referenced_assets: ResolvedVc::cell(vec![]),
+            references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
-            async_loaders_by_module: FxIndexMap::default(),
         }
         .cell()
     }
@@ -155,8 +145,8 @@ impl ChunkGroupResult {
         ChunkGroupResult {
             assets: ResolvedVc::cell(vec![]),
             referenced_assets: ResolvedVc::cell(vec![]),
+            references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
-            async_loaders_by_module: FxIndexMap::default(),
         }
         .resolved_cell()
     }
@@ -166,16 +156,10 @@ impl ChunkGroupResult {
 impl ChunkGroupResult {
     #[turbo_tasks::function]
     pub async fn output_assets_with_referenced(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let references: Vec<_> = self
-            .async_loaders_by_module
-            .values()
-            .map(|loader| ResolvedVc::upcast(*loader))
-            .collect();
-
         Ok(OutputAssetsWithReferenced {
             assets: self.assets,
             referenced_assets: self.referenced_assets,
-            references: ResolvedVc::cell(references),
+            references: self.references,
         }
         .cell())
     }
@@ -183,11 +167,6 @@ impl ChunkGroupResult {
     #[turbo_tasks::function]
     pub async fn concatenate(&self, next: Vc<Self>) -> Result<Vc<Self>> {
         let next = next.await?;
-
-        // Merge async_loaders_by_module maps
-        let mut merged_async_loaders = self.async_loaders_by_module.clone();
-        merged_async_loaders.extend(next.async_loaders_by_module.iter().map(|(k, v)| (*k, *v)));
-
         Ok(ChunkGroupResult {
             assets: self.assets.concatenate(*next.assets).to_resolved().await?,
             referenced_assets: self
@@ -195,8 +174,12 @@ impl ChunkGroupResult {
                 .concatenate(*next.referenced_assets)
                 .to_resolved()
                 .await?,
+            references: self
+                .references
+                .concatenate(*next.references)
+                .to_resolved()
+                .await?,
             availability_info: next.availability_info,
-            async_loaders_by_module: merged_async_loaders,
         }
         .cell())
     }
@@ -212,9 +195,11 @@ impl ChunkGroupResult {
                     .copied()
                     .map(ExpandOutputAssetsInput::Asset)
                     .chain(
-                        self.async_loaders_by_module
-                            .values()
-                            .map(|v| ExpandOutputAssetsInput::Reference(ResolvedVc::upcast(*v))),
+                        self.references
+                            .await?
+                            .into_iter()
+                            .copied()
+                            .map(ExpandOutputAssetsInput::Reference),
                     ),
                 false,
             )
@@ -231,13 +216,6 @@ impl ChunkGroupResult {
 
     #[turbo_tasks::function]
     pub async fn referenced_assets(&self) -> Result<Vc<OutputAssets>> {
-        // Derive references from async_loaders_by_module
-        let references = self
-            .async_loaders_by_module
-            .values()
-            .copied()
-            .map(ResolvedVc::upcast);
-
         Ok(Vc::cell(
             expand_output_assets(
                 self.referenced_assets
@@ -245,7 +223,13 @@ impl ChunkGroupResult {
                     .into_iter()
                     .copied()
                     .map(ExpandOutputAssetsInput::Asset)
-                    .chain(references.map(ExpandOutputAssetsInput::Reference)),
+                    .chain(
+                        self.references
+                            .await?
+                            .into_iter()
+                            .copied()
+                            .map(ExpandOutputAssetsInput::Reference),
+                    ),
                 false,
             )
             .await?,
@@ -494,14 +478,17 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn debug_ids_enabled(self: Vc<Self>) -> Vc<bool>;
 
-    /// Returns the worker entrypoint for this chunking context.
-    /// The asset_context should come from the origin where the worker was created.
+    /// Returns the list of global variable names to forward to workers.
+    /// These globals are read from globalThis at worker creation time and passed
+    /// to the worker via URL params.
     #[turbo_tasks::function]
-    async fn worker_entrypoint(
-        self: Vc<Self>,
-        asset_context: Vc<Box<dyn AssetContext>>,
-    ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let _ = asset_context;
+    fn worker_forwarded_globals(self: Vc<Self>) -> Vc<Vec<RcStr>> {
+        Vc::cell(vec![])
+    }
+
+    /// Returns the worker entrypoint for this chunking context.
+    #[turbo_tasks::function]
+    async fn worker_entrypoint(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
         bail!(
             "Worker entrypoint is not supported by {name}",
             name = self.name().await?

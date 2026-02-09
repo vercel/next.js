@@ -166,7 +166,7 @@ impl EcmascriptBuildNodeEntryChunk {
 impl ValueToString for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Build Node Evaluate Chunk"))
+        Vc::cell(rcstr!("Ecmascript Build Node Entry Chunk"))
     }
 }
 

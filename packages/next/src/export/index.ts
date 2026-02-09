@@ -836,6 +836,10 @@ async function exportAppImpl(
         info.hasPostponed = result.hasPostponed
       }
 
+      if (typeof result.hasStaticRsc !== 'undefined') {
+        info.hasStaticRsc = result.hasStaticRsc
+      }
+
       if (typeof result.fetchMetrics !== 'undefined') {
         info.fetchMetrics = result.fetchMetrics
       }

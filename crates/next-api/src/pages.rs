@@ -59,7 +59,7 @@ use turbopack_core::{
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
@@ -562,7 +562,7 @@ impl PagesProject {
                 },
             )),
             EcmaScriptModulesReferenceSubType::Undefined,
-            false,
+            ResolveErrorMode::Error,
             None,
         )
         .await?
@@ -661,11 +661,11 @@ impl PageEndpoint {
         if matches!(
             *this.pages_project.project().next_mode().await?,
             NextMode::Development
-        ) && let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await?
+        ) && let Some(chunkable) = ResolvedVc::try_downcast(page_loader.to_resolved().await?)
         {
             return Ok(Vc::upcast(HmrEntryModule::new(
                 AssetIdent::from_path(this.page.await?.base_path.clone()),
-                chunkable,
+                *chunkable,
             )));
         }
         Ok(page_loader)
@@ -678,23 +678,23 @@ impl PageEndpoint {
         let client_module = self.client_module();
         let client_main_module = this.pages_project.client_main_module();
 
-        let Some(client_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
-        else {
+        let Some(client_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
+            client_module.to_resolved().await?,
+        ) else {
             bail!("expected an evaluateable asset");
         };
 
-        let Some(client_main_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
-        else {
+        let Some(client_main_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
+            client_main_module.to_resolved().await?,
+        ) else {
             bail!("expected an evaluateable asset");
         };
 
         let evaluatable_assets = this
             .pages_project
             .client_runtime_entries()
-            .with_entry(client_main_module)
-            .with_entry(client_module);
+            .with_entry(*client_main_module)
+            .with_entry(*client_module);
         Ok(evaluatable_assets)
     }
 
@@ -927,7 +927,7 @@ impl PageEndpoint {
             let ssr_module_graph = self.ssr_module_graph();
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
-                let client_chunk_group = self.client_chunk_group().await?;
+                let client_availability_info = self.client_chunk_group().await?.availability_info;
 
                 let client_module_graph = self.client_module_graph();
                 let per_page_module_graph = *project.per_page_module_graph().await?;
@@ -966,21 +966,26 @@ impl PageEndpoint {
                     NextDynamicGraphs::new(client_module_graph, per_page_module_graph)
                         .get_next_dynamic_imports_for_endpoint(self.client_module())
                         .await?;
-                Some((next_dynamic_imports, client_chunk_group))
+                Some((next_dynamic_imports, client_availability_info))
             } else {
                 None
             };
 
-            let dynamic_import_entries =
-                if let Some((next_dynamic_imports, client_chunk_group)) = next_dynamic_imports {
-                    collect_next_dynamic_chunks(
-                        next_dynamic_imports,
-                        NextDynamicChunkAvailability::PageChunkGroup(&client_chunk_group),
-                    )
-                    .await?
-                } else {
-                    DynamicImportedChunks::default().resolved_cell()
-                };
+            let dynamic_import_entries = if let Some((
+                next_dynamic_imports,
+                client_availability_info,
+            )) = next_dynamic_imports
+            {
+                collect_next_dynamic_chunks(
+                    self.client_module_graph(),
+                    project.client_chunking_context(),
+                    next_dynamic_imports,
+                    NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
+                )
+                .await?
+            } else {
+                DynamicImportedChunks::default().resolved_cell()
+            };
 
             let chunking_context: Vc<Box<dyn ChunkingContext>> = match runtime {
                 NextRuntime::NodeJs => Vc::upcast(node_chunking_context),

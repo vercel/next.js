@@ -26,7 +26,7 @@ describe('isolated-dev-build', () => {
     })
   })
 
-  it('should use fixed path in next-env.d.ts regardless of isolatedDevBuild', async () => {
+  it('should use fixed path in next-env.d.ts', async () => {
     await retry(async () => {
       // next-env.d.ts should use the fixed path .next/types/routes.d.ts
       // not the dev-specific path .next/dev/types/routes.d.ts

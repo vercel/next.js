@@ -100,6 +100,7 @@ impl AssetIdent {
         let root = self.path.root().await?;
         let path = self.path.clone();
         self.path = root.join(&pattern.replace('*', &path.path))?;
+        self.content_type = None;
         Ok(())
     }
 }

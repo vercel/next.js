@@ -30,16 +30,18 @@ import type {
   ManifestRewriteRoute,
   FunctionsConfigManifest,
   DynamicPrerenderManifestRoute,
+  ManifestHeaderRoute,
 } from '..'
 
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -49,6 +51,7 @@ import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { defaultOverrides } from '../../server/require-hook'
 import { makeIgnoreFn } from '../collect-build-traces'
 import { generateRoutesManifest } from '../generate-routes-manifest'
+import { Bundler } from '../../lib/bundler'
 
 interface SharedRouteFields {
   /**
@@ -406,6 +409,7 @@ export async function handleBuildComplete({
   configOutDir,
   distDir,
   pageKeys,
+  bundler,
   tracingRoot,
   adapterPath,
   appPageKeys,
@@ -432,6 +436,7 @@ export async function handleBuildComplete({
   nextVersion: string
   hasStatic404: boolean
   hasStatic500: boolean
+  bundler: Bundler
   staticPages: Set<string>
   hasNodeMiddleware: boolean
   config: NextConfigComplete
@@ -520,6 +525,15 @@ export async function handleBuildComplete({
         sharedNodeAssets[fileOutputPath] = filePath
       }
 
+      // add "next/setup-node-env" stub so it can be required top-level
+      // TODO: should we make this always available without adapters
+      const setupNodeStubPath = path.join(
+        path.dirname(require.resolve('next/package.json')),
+        'setup-node-env.js'
+      )
+      sharedNodeAssets[path.relative(tracingRoot, setupNodeStubPath)] =
+        require.resolve('next/dist/build/adapter/setup-node-env.external')
+
       const moduleTypes = ['app-page', 'pages'] as const
 
       for (const type of moduleTypes) {
@@ -527,6 +541,8 @@ export async function handleBuildComplete({
         const modulePath = require.resolve(
           `next/dist/server/route-modules/${type}/module.compiled`
         )
+        currentDependencies.push(modulePath)
+
         const contextDir = path.join(
           path.dirname(modulePath),
           'vendored',
@@ -539,16 +555,12 @@ export async function handleBuildComplete({
           }
         }
 
-        const { fileList, esmFileList } = await nodeFileTrace(
-          currentDependencies,
-          {
-            base: tracingRoot,
-            ignore: sharedIgnoreFn,
-          }
-        )
-        esmFileList.forEach((item) => fileList.add(item))
+        for (const dependencyPath of currentDependencies) {
+          const rootRelativeFilePath = path.relative(
+            tracingRoot,
+            dependencyPath
+          )
 
-        for (const rootRelativeFilePath of fileList) {
           if (type === 'pages') {
             pagesSharedNodeAssets[rootRelativeFilePath] = path.join(
               tracingRoot,
@@ -563,28 +575,32 @@ export async function handleBuildComplete({
         }
       }
 
-      // These are modules that are necessary for bootstrapping node env
-      const necessaryNodeDependencies = [
-        require.resolve('next/dist/server/node-environment'),
-        require.resolve('next/dist/server/require-hook'),
-        require.resolve('next/dist/server/node-polyfill-crypto'),
-        ...Object.values(defaultOverrides).filter((item) => path.extname(item)),
-      ]
+      if (bundler !== Bundler.Turbopack) {
+        // These are modules that are necessary for bootstrapping node env
+        const necessaryNodeDependencies = [
+          require.resolve('next/dist/server/node-environment'),
+          require.resolve('next/dist/server/require-hook'),
+          require.resolve('next/dist/server/node-polyfill-crypto'),
+          ...Object.values(defaultOverrides).filter((item) =>
+            path.extname(item)
+          ),
+        ]
 
-      const { fileList, esmFileList } = await nodeFileTrace(
-        necessaryNodeDependencies,
-        {
-          base: tracingRoot,
-          ignore: sharedIgnoreFn,
-        }
-      )
-      esmFileList.forEach((item) => fileList.add(item))
-
-      for (const rootRelativeFilePath of fileList) {
-        sharedNodeAssets[rootRelativeFilePath] = path.join(
-          tracingRoot,
-          rootRelativeFilePath
+        const { fileList, esmFileList } = await nodeFileTrace(
+          necessaryNodeDependencies,
+          {
+            base: tracingRoot,
+            ignore: sharedIgnoreFn,
+          }
         )
+        esmFileList.forEach((item) => fileList.add(item))
+
+        for (const rootRelativeFilePath of fileList) {
+          sharedNodeAssets[rootRelativeFilePath] = path.join(
+            tracingRoot,
+            rootRelativeFilePath
+          )
+        }
       }
 
       if (hasInstrumentationHook) {
@@ -991,6 +1007,11 @@ export async function handleBuildComplete({
             continue
           }
           const normalizedPage = normalizeAppPath(page)
+
+          // Skip static metadata routes - they will be output as static files
+          if (isStaticMetadataFile(normalizedPage)) {
+            continue
+          }
           const pageFile = path.join(appDistDir, `${page}.js`)
           const pageTraceFile = `${pageFile}.nft.json`
           const assets = await handleTraceFiles(pageTraceFile, 'app').catch(
@@ -1085,10 +1106,7 @@ export async function handleBuildComplete({
       const handleAppMeta = async (
         route: string,
         initialOutput: AdapterOutput['PRERENDER'],
-        meta: {
-          postponed?: string
-          segmentPaths?: string[]
-        },
+        meta: AppRouteMeta,
         ctx: {
           htmlAllowQuery?: string[]
           dataAllowQuery?: string[]
@@ -1127,15 +1145,17 @@ export async function handleBuildComplete({
               ) + prefetchSegmentSuffix
 
             // Only use the fallback value when the allowQuery is defined and
-            // is empty, which means that the segments do not vary based on
-            // the route parameters. This is safer than ensuring that we only
-            // use the fallback when this is not a fallback because we know in
-            // this new logic that it doesn't vary based on the route
-            // parameters and therefore can be used for all requests instead.
-            const fallbackPathname =
-              segmentAllowQuery && segmentAllowQuery.length === 0
-                ? path.join(segmentsDir, segmentPath + prefetchSegmentSuffix)
-                : undefined
+            // either: (1) it is empty, meaning segments do not vary by params,
+            // or (2) client param parsing is enabled, meaning the segment
+            // payloads are safe to reuse across params.
+            const shouldAttachSegmentFallback =
+              segmentAllowQuery &&
+              (segmentAllowQuery.length === 0 ||
+                routesManifest.rsc.clientParamParsing)
+
+            const fallbackPathname = shouldAttachSegmentFallback
+              ? path.join(segmentsDir, segmentPath + prefetchSegmentSuffix)
+              : undefined
 
             outputs.prerenders.push({
               id: outputSegmentPath,
@@ -1156,6 +1176,7 @@ export async function handleBuildComplete({
                 initialRevalidate: initialOutput.fallback?.initialRevalidate,
 
                 initialHeaders: {
+                  ...meta.headers,
                   ...initialOutput.fallback?.initialHeaders,
                   vary: varyHeader,
                   'content-type': rscContentTypeHeader,
@@ -1233,6 +1254,7 @@ export async function handleBuildComplete({
           initialHeaders,
           initialStatus,
           dataRoute,
+          prefetchDataRoute,
           renderingMode,
           allowHeader,
           experimentalBypassFor,
@@ -1274,6 +1296,25 @@ export async function handleBuildComplete({
           isAppPage ? appDistDir : pagesDistDir,
           `${normalizePagePath(route)}.${isAppPage && !dataRoute ? 'body' : 'html'}`
         )
+
+        // Check if this is a static metadata route (e.g., /favicon.ico, /icon.png, /opengraph-image.png)
+        // These should be output as static files, not prerenders.
+        if (isStaticMetadataFile(route)) {
+          // For static metadata from app router, check if the .body file exists
+          const staticMetadataFilePath = path.join(
+            appDistDir,
+            `${normalizePagePath(route)}.body`
+          )
+          if (await cachedFilePathCheck(staticMetadataFilePath)) {
+            outputs.staticFiles.push({
+              id: route,
+              pathname: route,
+              type: AdapterOutputType.STATIC_FILE,
+              filePath: staticMetadataFilePath,
+            })
+            continue
+          }
+        }
 
         // we use the static 404 for notFound: true if available
         // if not we do a blocking invoke on first request
@@ -1404,13 +1445,22 @@ export async function handleBuildComplete({
           )
           let postponed = meta.postponed
 
+          const dataRouteToUse =
+            renderingMode === RenderingMode.PARTIALLY_STATIC &&
+            prefetchDataRoute
+              ? prefetchDataRoute
+              : dataRoute
+
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data
             // that should be served as a part of the prerender should
             // be from the prefetch data route. If this isn't enabled
             // for ppr, the only way to get the data is from the data
             // route.
-            dataFilePath = path.join(appDistDir, dataRoute)
+            dataFilePath = path.join(
+              appDistDir,
+              (dataRouteToUse ?? dataRoute)?.replace(/^\//, '')
+            )
           }
 
           if (
@@ -1928,6 +1978,19 @@ export async function handleBuildComplete({
       } satisfies Route
     }
 
+    const buildRouteFromHeader = (route: ManifestHeaderRoute): Route => {
+      const converted = convertHeaders([route])[0]
+      const regex = converted.src || route.regex
+      return {
+        source: route.source,
+        sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+        headers: 'headers' in converted ? converted.headers || {} : {},
+        has: route.has,
+        missing: route.missing,
+        priority: route.internal || undefined,
+      } satisfies Route
+    }
+
     try {
       Log.info(`Running onBuildComplete from ${adapterMod.name}`)
 
@@ -1958,19 +2021,12 @@ export async function handleBuildComplete({
         } satisfies Route
       })
 
-      const headers = routesManifest.headers.map((route) => {
-        const converted = convertHeaders([route])[0]
-        const regex = converted.src || route.regex
-
-        return {
-          source: route.source,
-          sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-          headers: 'headers' in converted ? converted.headers || {} : {},
-          has: route.has,
-          missing: route.missing,
-          priority: route.internal || undefined,
-        } satisfies Route
-      })
+      const headers = routesManifest.headers.map((route) =>
+        buildRouteFromHeader(route)
+      )
+      const onMatchHeaders = routesManifest.onMatchHeaders.map((route) =>
+        buildRouteFromHeader(route)
+      )
 
       await adapterMod.onBuildComplete({
         routing: {
@@ -1986,9 +2042,10 @@ export async function handleBuildComplete({
               // Next.js assets contain a hash or entropy in their filenames, so they
               // are guaranteed to be unique and cacheable indefinitely.
               headers: {
-                'cache-control': `public,max-age=${CACHE_ONE_YEAR},immutable`,
+                'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
               },
             },
+            ...onMatchHeaders,
           ],
           fallback: rewrites.fallback,
           shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
@@ -2001,6 +2058,7 @@ export async function handleBuildComplete({
             config,
             redirects: [],
             headers: [],
+            onMatchHeaders: [],
             rewrites,
             restrictedRedirectPaths: [],
             isAppPPREnabled: config.cacheComponents,

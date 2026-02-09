@@ -14,22 +14,9 @@
  */
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
-import {
-  collectAppFiles,
-  collectPagesFiles,
-  processAppRoutes,
-  processPageRoutes,
-  createPagesMapping,
-} from '../../../build/entries'
-import { createValidFileMatcher } from '../../lib/find-page-file'
-import { PAGE_TYPES } from '../../../lib/page-types'
+import { discoverRoutes } from '../../../build/route-discovery'
 import type { NextConfigComplete } from '../../../server/config-shared'
 import z from 'next/dist/compiled/zod'
-
-interface RouteInfo {
-  route: string
-  type: 'app' | 'page' | 'api'
-}
 
 export function registerGetRoutesTool(
   server: McpServer,
@@ -59,8 +46,6 @@ export function registerGetRoutesTool(
             ? request.routerType
             : undefined
 
-        const routes: RouteInfo[] = []
-
         const { projectPath, nextConfig, pagesDir, appDir } = options
 
         // Check if we have any directories to scan
@@ -81,103 +66,43 @@ export function registerGetRoutesTool(
           (pagesDir && pagesDir.includes('/src/')) ||
           (appDir && appDir.includes('/src/'))
 
-        // Create valid file matcher for filtering
-        const validFileMatcher = createValidFileMatcher(
-          nextConfig.pageExtensions,
-          appDir
-        )
+        const commonOpts = {
+          pageExtensions: nextConfig.pageExtensions,
+          isDev: true,
+          baseDir: projectPath,
+          isSrcDir: !!isSrcDir,
+        } as const
 
-        // Collect and process App Router routes if requested
-        if (appDir && (!routerType || routerType === 'app')) {
-          try {
-            const { appPaths } = await collectAppFiles(appDir, validFileMatcher)
+        // Discover app and pages routes independently so a failure in one
+        // router doesn't prevent the other from returning results.
+        let appRoutes: string[] = []
+        let pageRoutes: string[] = []
 
-            if (appPaths.length > 0) {
-              const mappedAppPages = await createPagesMapping({
-                pagePaths: appPaths,
-                isDev: true,
-                pagesType: PAGE_TYPES.APP,
-                pageExtensions: nextConfig.pageExtensions,
-                pagesDir,
-                appDir,
-                appDirOnly: pagesDir ? false : true,
-              })
+        const wantApp = routerType !== 'pages' && appDir
+        const wantPages = routerType !== 'app' && pagesDir
 
-              const { appRoutes, appRouteHandlers } = processAppRoutes(
-                mappedAppPages,
-                validFileMatcher,
-                projectPath,
-                isSrcDir || false
-              )
+        const [appResult, pagesResult] = await Promise.all([
+          wantApp
+            ? discoverRoutes({ ...commonOpts, appDir }).catch(() => null)
+            : null,
+          wantPages
+            ? discoverRoutes({ ...commonOpts, pagesDir }).catch(() => null)
+            : null,
+        ])
 
-              // Add app page routes
-              for (const { route } of appRoutes) {
-                routes.push({
-                  route,
-                  type: 'app',
-                })
-              }
-
-              // Add app route handlers
-              for (const { route } of appRouteHandlers) {
-                routes.push({
-                  route,
-                  type: 'app',
-                })
-              }
-            }
-          } catch (error) {
-            // Error collecting app routes - continue anyway
-          }
+        if (appResult) {
+          appRoutes = [...appResult.appRoutes, ...appResult.appRouteHandlers]
+            .map((r) => r.route)
+            .sort()
         }
 
-        // Collect and process Pages Router routes if requested
-        if (pagesDir && (!routerType || routerType === 'pages')) {
-          try {
-            const pagePaths = await collectPagesFiles(
-              pagesDir,
-              validFileMatcher
-            )
-
-            if (pagePaths.length > 0) {
-              const mappedPages = await createPagesMapping({
-                pagePaths,
-                isDev: true,
-                pagesType: PAGE_TYPES.PAGES,
-                pageExtensions: nextConfig.pageExtensions,
-                pagesDir,
-                appDir,
-                appDirOnly: false,
-              })
-
-              const { pageRoutes, pageApiRoutes } = processPageRoutes(
-                mappedPages,
-                projectPath,
-                isSrcDir || false
-              )
-
-              // Add page routes
-              for (const { route } of pageRoutes) {
-                routes.push({
-                  route,
-                  type: 'page',
-                })
-              }
-
-              // Add API routes (always included as part of pages router)
-              for (const { route } of pageApiRoutes) {
-                routes.push({
-                  route,
-                  type: 'api',
-                })
-              }
-            }
-          } catch (error) {
-            // Error collecting pages routes - continue anyway
-          }
+        if (pagesResult) {
+          pageRoutes = [...pagesResult.pageRoutes, ...pagesResult.pageApiRoutes]
+            .map((r) => r.route)
+            .sort()
         }
 
-        if (routes.length === 0) {
+        if (appRoutes.length === 0 && pageRoutes.length === 0) {
           return {
             content: [
               {
@@ -190,16 +115,6 @@ export function registerGetRoutesTool(
             ],
           }
         }
-
-        // Group routes by router type
-        const appRoutes = routes
-          .filter((r) => r.type === 'app')
-          .map((r) => r.route)
-          .sort()
-        const pageRoutes = routes
-          .filter((r) => r.type === 'page' || r.type === 'api')
-          .map((r) => r.route)
-          .sort()
 
         // Format the output with grouped routes
         const output = {

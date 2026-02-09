@@ -149,7 +149,7 @@ function findCurrentHostFiberImpl(node) {
 function traverseVisibleHostChildren(child, searchWithinHosts, fn, a, b, c) {
   for (; null !== child; ) {
     if (
-      (5 === child.tag && fn(child, a, b, c)) ||
+      ((5 === child.tag || 6 === child.tag) && fn(child, a, b, c)) ||
       ((22 !== child.tag || null === child.memoizedState) &&
         (searchWithinHosts || 5 !== child.tag) &&
         traverseVisibleHostChildren(
@@ -198,6 +198,7 @@ function findFragmentInstanceSiblings(result, self, child) {
 function getInstanceFromHostFiber(fiber) {
   switch (fiber.tag) {
     case 5:
+    case 6:
       return fiber.stateNode;
     case 3:
       return fiber.stateNode.containerInfo;
@@ -1937,6 +1938,8 @@ var KeyboardEventInterface = assign({}, UIEventInterface, {
     isPrimary: 0
   }),
   SyntheticPointerEvent = createSyntheticEvent(PointerEventInterface),
+  SubmitEventInterface = assign({}, EventInterface, { submitter: 0 }),
+  SyntheticSubmitEvent = createSyntheticEvent(SubmitEventInterface),
   TouchEventInterface = assign({}, UIEventInterface, {
     touches: 0,
     targetTouches: 0,
@@ -7786,6 +7789,12 @@ function updateSuspenseListComponent(current, workInProgress, renderLanes) {
   }
   return workInProgress.child;
 }
+function updateContextProvider(current, workInProgress, renderLanes) {
+  var newProps = workInProgress.pendingProps;
+  pushProvider(workInProgress, workInProgress.type, newProps.value);
+  reconcileChildren(current, workInProgress, newProps.children, renderLanes);
+  return workInProgress.child;
+}
 function bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes) {
   null !== current && (workInProgress.dependencies = current.dependencies);
   workInProgressRootSkippedLanes |= workInProgress.lanes;
@@ -7995,6 +8004,15 @@ function beginWork(current, workInProgress, renderLanes) {
                 workInProgress,
                 current,
                 props,
+                renderLanes
+              );
+              break a;
+            } else if ($$typeof === REACT_CONTEXT_TYPE) {
+              workInProgress.tag = 10;
+              workInProgress.type = current;
+              workInProgress = updateContextProvider(
+                null,
+                workInProgress,
                 renderLanes
               );
               break a;
@@ -8296,12 +8314,7 @@ function beginWork(current, workInProgress, renderLanes) {
         workInProgress.child
       );
     case 10:
-      return (
-        (props = workInProgress.pendingProps),
-        pushProvider(workInProgress, workInProgress.type, props.value),
-        reconcileChildren(current, workInProgress, props.children, renderLanes),
-        workInProgress.child
-      );
+      return updateContextProvider(current, workInProgress, renderLanes);
     case 9:
       return (
         ($$typeof = workInProgress.type._context),
@@ -11226,7 +11239,12 @@ function recursivelyResetForms(parentFiber) {
     for (parentFiber = parentFiber.child; null !== parentFiber; ) {
       var fiber = parentFiber;
       recursivelyResetForms(fiber);
-      5 === fiber.tag && fiber.flags & 1024 && fiber.stateNode.reset();
+      5 === fiber.tag &&
+        fiber.flags & 1024 &&
+        ((fiber = fiber.stateNode),
+        (_enabled = !0),
+        fiber.reset(),
+        (_enabled = !1));
       parentFiber = parentFiber.sibling;
     }
 }
@@ -14819,20 +14837,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1819 = 0;
-  i$jscomp$inline_1819 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1819++
+  var i$jscomp$inline_1810 = 0;
+  i$jscomp$inline_1810 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1810++
 ) {
-  var eventName$jscomp$inline_1820 =
-      simpleEventPluginEvents[i$jscomp$inline_1819],
-    domEventName$jscomp$inline_1821 =
-      eventName$jscomp$inline_1820.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1822 =
-      eventName$jscomp$inline_1820[0].toUpperCase() +
-      eventName$jscomp$inline_1820.slice(1);
+  var eventName$jscomp$inline_1811 =
+      simpleEventPluginEvents[i$jscomp$inline_1810],
+    domEventName$jscomp$inline_1812 =
+      eventName$jscomp$inline_1811.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1813 =
+      eventName$jscomp$inline_1811[0].toUpperCase() +
+      eventName$jscomp$inline_1811.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1821,
-    "on" + capitalizedEvent$jscomp$inline_1822
+    domEventName$jscomp$inline_1812,
+    "on" + capitalizedEvent$jscomp$inline_1813
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15160,6 +15178,9 @@ function dispatchEventForPluginEventSystem(
           case "pointerover":
           case "pointerup":
             SyntheticEventCtor = SyntheticPointerEvent;
+            break;
+          case "submit":
+            SyntheticEventCtor = SyntheticSubmitEvent;
             break;
           case "toggle":
           case "beforetoggle":
@@ -17648,6 +17669,7 @@ FragmentInstance.prototype.focus = function (focusOptions) {
   );
 };
 function setFocusOnFiberIfFocusable(fiber, focusOptions) {
+  if (6 === fiber.tag) return !1;
   fiber = getInstanceFromHostFiber(fiber);
   return setFocusIfFocusable(fiber, focusOptions);
 }
@@ -17698,6 +17720,7 @@ FragmentInstance.prototype.observeUsing = function (observer) {
   );
 };
 function observeChild(child, observer) {
+  if (6 === child.tag) return !1;
   child = getInstanceFromHostFiber(child);
   observer.observe(child);
   return !1;
@@ -17717,6 +17740,7 @@ FragmentInstance.prototype.unobserveUsing = function (observer) {
     ));
 };
 function unobserveChild(child, observer) {
+  if (6 === child.tag) return !1;
   child = getInstanceFromHostFiber(child);
   observer.unobserve(child);
   return !1;
@@ -17734,8 +17758,14 @@ FragmentInstance.prototype.getClientRects = function () {
   return rects;
 };
 function collectClientRects(child, rects) {
-  child = getInstanceFromHostFiber(child);
-  rects.push.apply(rects, child.getClientRects());
+  if (6 === child.tag) {
+    child = child.stateNode;
+    var range = child.ownerDocument.createRange();
+    range.selectNodeContents(child);
+    rects.push.apply(rects, range.getClientRects());
+  } else
+    (child = getInstanceFromHostFiber(child)),
+      rects.push.apply(rects, child.getClientRects());
   return !1;
 }
 FragmentInstance.prototype.getRootNode = function (getRootNodeOptions) {
@@ -17963,9 +17993,23 @@ FragmentInstance.prototype.scrollIntoView = function (alignToTop) {
       result = resolvedAlignToTop ? children.length - 1 : 0;
       result !== (resolvedAlignToTop ? -1 : children.length);
 
-    )
-      getInstanceFromHostFiber(children[result]).scrollIntoView(alignToTop),
-        (result += resolvedAlignToTop ? -1 : 1);
+    ) {
+      parentHostFiber = children[result];
+      if (6 === parentHostFiber.tag) {
+        parentHostFiber = parentHostFiber.stateNode;
+        var range = parentHostFiber.ownerDocument.createRange();
+        range.selectNodeContents(parentHostFiber);
+        parentHostFiber = range.getBoundingClientRect();
+        window.scrollTo(
+          window.scrollX + parentHostFiber.left,
+          resolvedAlignToTop
+            ? window.scrollY + parentHostFiber.top
+            : window.scrollY + parentHostFiber.bottom - window.innerHeight
+        );
+      } else
+        getInstanceFromHostFiber(parentHostFiber).scrollIntoView(alignToTop);
+      result += resolvedAlignToTop ? -1 : 1;
+    }
 };
 function commitNewChildToFragmentInstance(childInstance, fragmentInstance) {
   var eventListeners = fragmentInstance._eventListeners;
@@ -19823,16 +19867,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2237 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2228 = React.version;
 if (
-  "19.3.0-experimental-24d8716e-20260123" !==
-  isomorphicReactPackageVersion$jscomp$inline_2237
+  "19.3.0-experimental-2dd9b7cf-20260208" !==
+  isomorphicReactPackageVersion$jscomp$inline_2228
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2237,
-      "19.3.0-experimental-24d8716e-20260123"
+      isomorphicReactPackageVersion$jscomp$inline_2228,
+      "19.3.0-experimental-2dd9b7cf-20260208"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19852,24 +19896,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2940 = {
+var internals$jscomp$inline_2927 = {
   bundleType: 0,
-  version: "19.3.0-experimental-24d8716e-20260123",
+  version: "19.3.0-experimental-2dd9b7cf-20260208",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-24d8716e-20260123"
+  reconcilerVersion: "19.3.0-experimental-2dd9b7cf-20260208"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2941 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2928 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2941.isDisabled &&
-    hook$jscomp$inline_2941.supportsFiber
+    !hook$jscomp$inline_2928.isDisabled &&
+    hook$jscomp$inline_2928.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2941.inject(
-        internals$jscomp$inline_2940
+      (rendererID = hook$jscomp$inline_2928.inject(
+        internals$jscomp$inline_2927
       )),
-        (injectedHook = hook$jscomp$inline_2941);
+        (injectedHook = hook$jscomp$inline_2928);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -19964,4 +20008,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-experimental-24d8716e-20260123";
+exports.version = "19.3.0-experimental-2dd9b7cf-20260208";

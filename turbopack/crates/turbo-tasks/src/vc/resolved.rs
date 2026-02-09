@@ -260,8 +260,6 @@ where
     ///
     /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
     /// That method provides stronger guarantees, removing the need for a [`Option`] return type.
-    ///
-    /// See also: [`Vc::try_resolve_sidecast`].
     pub fn try_sidecast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: VcValueTrait + ?Sized,
@@ -292,8 +290,6 @@ where
     /// is of the form `Box<dyn L>`, and `L` is a value trait.
     ///
     /// Returns `None` if the underlying value type is not a `K`.
-    ///
-    /// See also: [`Vc::try_resolve_downcast`].
     pub fn try_downcast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: UpcastStrict<T> + VcValueTrait + ?Sized,
@@ -305,8 +301,6 @@ where
     /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K` is a value type.
     ///
     /// Returns `None` if the underlying value type is not a `K`.
-    ///
-    /// See also: [`Vc::try_resolve_downcast_type`].
     pub fn try_downcast_type<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: UpcastStrict<T> + VcValueType,

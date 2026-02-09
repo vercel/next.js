@@ -181,28 +181,23 @@ pnpm prettier-fix      # Fix formatting only
 pnpm types             # TypeScript type checking
 ```
 
-## Investigating CI Test Failures
+## PR Status (CI Failures and Reviews)
 
-**Use `/ci-failures` for automated analysis** - analyzes failing jobs in parallel and groups by test file.
+When the user asks about CI failures, PR reviews, or the status of a PR, run the pr-status script:
+
+```bash
+node scripts/pr-status.js           # Auto-detects PR from current branch
+node scripts/pr-status.js <number>  # Analyze specific PR by number
+```
+
+This fetches CI workflow runs, failed jobs, logs, and PR review comments, generating markdown files in `scripts/pr-status/`.
+
+**Use `/pr-status` for automated analysis** - analyzes failing jobs and review comments in parallel, groups failures by test file.
 
 **CI Analysis Tips:**
 
-- Don't spawn too many parallel agents hitting GitHub API (causes rate limits)
-- Prioritize blocking jobs first: lint, types, then test jobs
-- Use `gh api` for logs (works on in-progress runs), not `gh run view --log`
-
-**Quick triage:**
-
-```bash
-# List failed jobs for a PR
-gh pr checks <pr-number> | grep fail
-
-# Get failed job names
-gh run view <run-id> --json jobs --jq '.jobs[] | select(.conclusion == "failure") | .name'
-
-# Search job logs for errors (completed runs only - use gh api for in-progress)
-gh run view <run-id> --job <job-id> --log 2>&1 | grep -E "FAIL|Error|error:" | head -30
-```
+- Prioritize blocking jobs first: build, lint, types, then test jobs
+- Prioritize CI failures over review comments
 
 **Common failure patterns:**
 
@@ -246,6 +241,13 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 - Keep commit messages concise and descriptive
 - PR descriptions should focus on what changed and why
 - Do NOT mark PRs as "ready for review" (`gh pr ready`) - leave PRs in draft mode and let the user decide when to mark them ready
+
+## Task Decomposition and Verification
+
+- **Split work into smaller, individually verifiable tasks.** Before starting, break the overall goal into incremental steps where each step produces a result that can be checked independently.
+- **Verify each task before moving on to the next.** After completing a step, confirm it works correctly (e.g., run relevant tests, check types, build, or manually inspect output). Do not proceed to the next task until the current one is verified.
+- **Choose the right verification method for each change.** This may include running unit tests, integration tests, type checking, linting, building the project, or inspecting runtime behavior depending on what was changed.
+- **When unclear how to verify a change, ask the user.** If there is no obvious test or verification method for a particular change, ask the user how they would like it verified before moving on.
 
 ## Rebuilding Before Running Tests
 
