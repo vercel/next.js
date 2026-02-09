@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
-use crate::{module::Module, resolve::ModulePart};
+use crate::{loader::WebpackLoaderItem, module::Module, resolve::ModulePart};
 
 /// Named references to inner assets. Modules can use them to allow to
 /// per-module aliases of some requests to already created module assets.
@@ -76,8 +76,11 @@ pub enum EcmaScriptModulesReferenceSubType {
     Import,
     ImportWithType(RcStr),
     /// Import with `turbopackUse` assertion specifying inline loaders.
-    /// The `RcStr` contains the JSON-serialized loader configuration.
-    ImportWithTurbopackUse(RcStr),
+    ImportWithTurbopackUse {
+        loaders: Vec<WebpackLoaderItem>,
+        rename_as: Option<RcStr>,
+        module_type: Option<RcStr>,
+    },
     DynamicImport,
     Custom(u8),
     #[default]
@@ -326,7 +329,7 @@ impl Display for ReferenceType {
             ReferenceType::CommonJs(_) => "commonjs",
             ReferenceType::EcmaScriptModules(sub) => match sub {
                 EcmaScriptModulesReferenceSubType::ImportPart(_) => "EcmaScript Modules (part)",
-                EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse(_) => {
+                EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse { .. } => {
                     "EcmaScript Modules (turbopackUse)"
                 }
                 _ => "EcmaScript Modules",

@@ -305,10 +305,9 @@ This is useful when you want to apply a loader to a specific import without affe
 
 ```tsx filename="app/page.tsx"
 // Apply a raw loader to import a .txt file as a JavaScript module
-import rawText from '../data.txt' with {
-  turbopackUse: [{ loader: 'raw-loader' }],
-  turbopackAs: '*.js',
-}
+import rawText from '../data.txt' with { turbopackUse: [
+  { loader: 'raw-loader' },
+], turbopackAs: '*.js' }
 
 export default function Page() {
   return <p>{rawText}</p>
@@ -317,23 +316,21 @@ export default function Page() {
 
 The following import attributes are supported:
 
-| Attribute           | Description                                                                 |
-| ------------------- | --------------------------------------------------------------------------- |
-| `turbopackUse`      | Array of loaders to apply. Uses the same format as `turbopack.rules[].loaders`. |
-| `turbopackAs`       | Rename pattern for the output (same as `turbopack.rules[].as`). For example, `'*.js'` treats the loader output as JavaScript. |
-| `turbopackModuleType` | Set the module type for the output (same as `turbopack.rules[].type`).      |
+| Attribute             | Description                                                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `turbopackUse`        | Array of loaders to apply. Uses the same format as `turbopack.rules[].loaders`.                                               |
+| `turbopackAs`         | Rename pattern for the output (same as `turbopack.rules[].as`). For example, `'*.js'` treats the loader output as JavaScript. |
+| `turbopackModuleType` | Set the module type for the output (same as `turbopack.rules[].type`).                                                        |
 
 Loaders with options use the same object format as in the `rules` configuration:
 
 ```tsx filename="app/page.tsx"
-import value from '../data.js' with {
-  turbopackUse: [
-    {
-      loader: 'string-replace-loader',
-      options: { search: 'PLACEHOLDER', replace: 'replaced value' },
-    },
-  ],
-}
+import value from '../data.js' with { turbopackUse: [
+  {
+    loader: 'string-replace-loader',
+    options: { search: 'PLACEHOLDER', replace: 'replaced value' },
+  },
+] }
 ```
 
 > **Good to know**: Import attributes with `turbopackUse` are Turbopack-specific and are not supported by webpack. This feature requires the `with` keyword (not `assert`) in your import statements.

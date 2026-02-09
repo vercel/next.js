@@ -58,7 +58,7 @@ use turbopack_ecmascript::{
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use turbopack_json::JsonModuleAsset;
-use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
+use turbopack_node::transforms::webpack::{WebpackLoaderItems, WebpackLoaders};
 use turbopack_resolve::{
     resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
     typescript::type_resolve,
@@ -674,24 +674,14 @@ async fn process_default_internal(
 
     // Handle turbopackUse import assertions: apply inline loaders as source transforms
     if let ReferenceType::EcmaScriptModules(
-        EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse(ref config_json),
+        EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
+            ref loaders,
+            ref rename_as,
+            module_type: _,
+        },
     ) = reference_type
     {
-        let config: serde_json::Value = serde_json::from_str(config_json)
-            .context("Failed to parse turbopackUse configuration")?;
-        let loader_items: Vec<WebpackLoaderItem> = serde_json::from_value(
-            config
-                .get("loaders")
-                .cloned()
-                .unwrap_or(serde_json::Value::Array(vec![])),
-        )
-        .context("Failed to parse turbopackUse loader items")?;
-        let rename_as: Option<RcStr> = config
-            .get("renameAs")
-            .and_then(|v| v.as_str())
-            .map(RcStr::from);
-
-        if !loader_items.is_empty() {
+        if !loaders.is_empty() {
             let module_options_context = module_asset_context.module_options_context().await?;
             let execution_context = module_options_context
                 .execution_context
@@ -730,8 +720,6 @@ async fn process_default_internal(
                 )
             };
 
-            let loaders_vc = WebpackLoaderItems(loader_items).resolved_cell();
-
             let evaluate_context = node_evaluate_asset_context(
                 *execution_context,
                 Some(import_map),
@@ -742,11 +730,12 @@ async fn process_default_internal(
             .to_resolved()
             .await?;
 
+            let loaders_vc = WebpackLoaderItems(loaders.clone()).cell();
             let webpack_loaders = WebpackLoaders::new(
                 *evaluate_context,
                 *execution_context,
-                *loaders_vc,
-                rename_as,
+                loaders_vc,
+                rename_as.clone(),
                 *resolve_options_context,
                 source_maps,
             )
@@ -755,19 +744,15 @@ async fn process_default_internal(
 
             let transforms =
                 Vc::<SourceTransforms>::cell(vec![ResolvedVc::upcast(webpack_loaders)]);
-            current_source = transforms
-                .transform(*current_source)
-                .to_resolved()
-                .await?;
+            current_source = transforms.transform(*current_source).to_resolved().await?;
 
             // If the ident changed (e.g., due to rename_as), re-process from the
             // beginning so the new extension is matched by the correct rules.
             // Use a plain Import reference type to avoid re-applying turbopackUse
             // loaders in the recursive call (which would cause an infinite loop).
             if current_source.ident().to_resolved().await? != ident {
-                let plain_reference_type = ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::Import,
-                );
+                let plain_reference_type =
+                    ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import);
                 if let Some(transition) = module_asset_context
                     .await?
                     .transitions

@@ -97,6 +97,9 @@
                 module: "node:module",
                 annotations: ImportAnnotations {
                     map: {},
+                    turbopack_use_loaders: [],
+                    turbopack_use_rename_as: None,
+                    turbopack_use_module_type: None,
                 },
             },
         ),
@@ -307,6 +310,9 @@
                 module: "node:module",
                 annotations: ImportAnnotations {
                     map: {},
+                    turbopack_use_loaders: [],
+                    turbopack_use_rename_as: None,
+                    turbopack_use_module_type: None,
                 },
             },
         ),

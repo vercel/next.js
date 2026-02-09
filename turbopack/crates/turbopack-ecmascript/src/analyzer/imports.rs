@@ -15,7 +15,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
-use turbopack_core::{issue::IssueSource, source::Source};
+use turbopack_core::{issue::IssueSource, loader::WebpackLoaderItem, source::Source};
 
 use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
@@ -32,9 +32,13 @@ pub struct ImportAnnotations {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     map: BTreeMap<Wtf8Atom, Wtf8Atom>,
-    /// JSON-serialized turbopackUse loader configuration from import assertions.
+    /// Parsed turbopackUse loader configuration from import assertions.
     /// e.g. `import "file" with { turbopackUse: [{ loader: "raw-loader" }] }`
-    turbopack_use: Option<RcStr>,
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    turbopack_use_loaders: Vec<WebpackLoaderItem>,
+    turbopack_use_rename_as: Option<RcStr>,
+    turbopack_use_module_type: Option<RcStr>,
 }
 
 /// Enables a specified transition for the annotated import
@@ -75,9 +79,7 @@ fn expr_to_json_value(expr: &Expr) -> Option<JsonValue> {
                     let kv = prop.as_prop()?.as_key_value()?;
                     let key = match &kv.key {
                         PropName::Ident(ident) => Some(ident.sym.to_string()),
-                        PropName::Str(s) => {
-                            Some(s.value.to_string_lossy().into_owned())
-                        }
+                        PropName::Str(s) => Some(s.value.to_string_lossy().into_owned()),
                         _ => None,
                     }?;
                     let val = expr_to_json_value(&kv.value)?;
@@ -97,6 +99,52 @@ fn expr_to_json_value(expr: &Expr) -> Option<JsonValue> {
     }
 }
 
+/// Parse a SWC object literal expression into a `WebpackLoaderItem`.
+/// Expects an object with a `loader` string field and an optional `options` object field.
+fn expr_to_loader_item(expr: &Expr) -> Option<WebpackLoaderItem> {
+    let Expr::Object(obj) = expr else {
+        return None;
+    };
+    let mut loader: Option<RcStr> = None;
+    let mut options = serde_json::Map::new();
+    for prop in &obj.props {
+        let kv = prop.as_prop()?.as_key_value()?;
+        let key = match &kv.key {
+            PropName::Ident(ident) => ident.sym.to_string(),
+            PropName::Str(s) => s.value.to_string_lossy().into_owned(),
+            _ => continue,
+        };
+        match key.as_str() {
+            "loader" => {
+                if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                    loader = Some(RcStr::from(s.value.to_string_lossy().into_owned()));
+                }
+            }
+            "options" => {
+                if let Some(JsonValue::Object(map)) = expr_to_json_value(&kv.value) {
+                    options = map;
+                }
+            }
+            _ => {}
+        }
+    }
+    Some(WebpackLoaderItem {
+        loader: loader?,
+        options,
+    })
+}
+
+/// Parse a SWC array literal of loader objects into `Vec<WebpackLoaderItem>`.
+fn expr_to_loader_items(expr: &Expr) -> Vec<WebpackLoaderItem> {
+    let Expr::Array(arr) = expr else {
+        return Vec::new();
+    };
+    arr.elems
+        .iter()
+        .filter_map(|e| e.as_ref().and_then(|e| expr_to_loader_item(&e.expr)))
+        .collect()
+}
+
 impl ImportAnnotations {
     pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
         let Some(with) = with else {
@@ -104,9 +152,9 @@ impl ImportAnnotations {
         };
 
         let mut map = BTreeMap::new();
-        let mut turbopack_use_loaders: Option<JsonValue> = None;
-        let mut turbopack_as: Option<String> = None;
-        let mut turbopack_module_type: Option<String> = None;
+        let mut turbopack_use_loaders = Vec::new();
+        let mut turbopack_use_rename_as: Option<RcStr> = None;
+        let mut turbopack_use_module_type: Option<RcStr> = None;
 
         for prop in &with.props {
             let Some(kv) = prop.as_prop().and_then(|p| p.as_key_value()) else {
@@ -119,16 +167,17 @@ impl ImportAnnotations {
                 _ => continue,
             };
 
-            // Handle turbopackUse specially - it's an array of objects, not a string
+            // Handle turbopackUse specially - it's an array of loader objects
             if key_str == "turbopackUse" {
-                turbopack_use_loaders = expr_to_json_value(&kv.value);
+                turbopack_use_loaders = expr_to_loader_items(&kv.value);
                 continue;
             }
 
             // Handle turbopackAs - rename output extension (e.g., "*.js")
             if key_str == "turbopackAs" {
                 if let Some(Lit::Str(s)) = kv.value.as_lit() {
-                    turbopack_as = Some(s.value.to_string_lossy().into_owned());
+                    turbopack_use_rename_as =
+                        Some(RcStr::from(s.value.to_string_lossy().into_owned()));
                 }
                 continue;
             }
@@ -136,7 +185,8 @@ impl ImportAnnotations {
             // Handle turbopackModuleType - override module type (e.g., "ecmascript")
             if key_str == "turbopackModuleType" {
                 if let Some(Lit::Str(s)) = kv.value.as_lit() {
-                    turbopack_module_type = Some(s.value.to_string_lossy().into_owned());
+                    turbopack_use_module_type =
+                        Some(RcStr::from(s.value.to_string_lossy().into_owned()));
                 }
                 continue;
             }
@@ -152,22 +202,11 @@ impl ImportAnnotations {
             }
         }
 
-        // Build the combined turbopack_use JSON if loaders were specified
-        let turbopack_use = turbopack_use_loaders.and_then(|loaders| {
-            let mut obj = serde_json::Map::new();
-            obj.insert("loaders".to_string(), loaders);
-            if let Some(rename_as) = turbopack_as {
-                obj.insert("renameAs".to_string(), JsonValue::String(rename_as));
-            }
-            if let Some(module_type) = turbopack_module_type {
-                obj.insert("moduleType".to_string(), JsonValue::String(module_type));
-            }
-            serde_json::to_string(&obj).ok().map(RcStr::from)
-        });
-
         ImportAnnotations {
             map,
-            turbopack_use,
+            turbopack_use_loaders,
+            turbopack_use_rename_as,
+            turbopack_use_module_type,
         }
     }
 
@@ -198,7 +237,9 @@ impl ImportAnnotations {
 
         Some(ImportAnnotations {
             map,
-            turbopack_use: None,
+            turbopack_use_loaders: Vec::new(),
+            turbopack_use_rename_as: None,
+            turbopack_use_module_type: None,
         })
     }
 
@@ -218,9 +259,24 @@ impl ImportAnnotations {
         self.get(&ATTRIBUTE_MODULE_TYPE)
     }
 
-    /// Returns the JSON-serialized turbopackUse loader configuration, if present
-    pub fn turbopack_use(&self) -> Option<&RcStr> {
-        self.turbopack_use.as_ref()
+    /// Returns the turbopackUse loader items, if any
+    pub fn turbopack_use_loaders(&self) -> &[WebpackLoaderItem] {
+        &self.turbopack_use_loaders
+    }
+
+    /// Returns the turbopackAs rename configuration, if present
+    pub fn turbopack_use_rename_as(&self) -> Option<&RcStr> {
+        self.turbopack_use_rename_as.as_ref()
+    }
+
+    /// Returns the turbopackModuleType override, if present
+    pub fn turbopack_use_module_type(&self) -> Option<&RcStr> {
+        self.turbopack_use_module_type.as_ref()
+    }
+
+    /// Returns true if turbopackUse loaders are configured
+    pub fn has_turbopack_use(&self) -> bool {
+        !self.turbopack_use_loaders.is_empty()
     }
 
     pub fn get(&self, key: &Wtf8Atom) -> Option<&Wtf8Atom> {
@@ -966,11 +1022,7 @@ fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol 
 
 #[cfg(test)]
 mod tests {
-    use swc_core::{
-        atoms::Atom,
-        common::DUMMY_SP,
-        ecma::ast::*,
-    };
+    use swc_core::{atoms::Atom, common::DUMMY_SP, ecma::ast::*};
 
     use super::*;
 
@@ -1017,7 +1069,9 @@ mod tests {
         let result = expr_to_json_value(&expr);
         assert_eq!(
             result,
-            Some(JsonValue::Number(serde_json::Number::from_f64(42.0).unwrap()))
+            Some(JsonValue::Number(
+                serde_json::Number::from_f64(42.0).unwrap()
+            ))
         );
     }
 
@@ -1067,13 +1121,14 @@ mod tests {
     fn test_expr_to_json_value_object() {
         let expr = Expr::Object(ObjectLit {
             span: DUMMY_SP,
-            props: vec![
-                kv_prop(ident_key("loader"), str_lit("raw-loader")),
-            ],
+            props: vec![kv_prop(ident_key("loader"), str_lit("raw-loader"))],
         });
         let result = expr_to_json_value(&expr);
         let mut expected = serde_json::Map::new();
-        expected.insert("loader".to_string(), JsonValue::String("raw-loader".to_string()));
+        expected.insert(
+            "loader".to_string(),
+            JsonValue::String("raw-loader".to_string()),
+        );
         assert_eq!(result, Some(JsonValue::Object(expected)));
     }
 
@@ -1090,10 +1145,7 @@ mod tests {
                         spread: None,
                         expr: Box::new(Expr::Object(ObjectLit {
                             span: DUMMY_SP,
-                            props: vec![kv_prop(
-                                ident_key("loader"),
-                                str_lit("raw-loader"),
-                            )],
+                            props: vec![kv_prop(ident_key("loader"), str_lit("raw-loader"))],
                         })),
                     })],
                 })),
@@ -1101,13 +1153,12 @@ mod tests {
         };
 
         let annotations = ImportAnnotations::parse(Some(&with));
-        let turbopack_use = annotations.turbopack_use();
-        assert!(turbopack_use.is_some());
+        assert!(annotations.has_turbopack_use());
 
-        let parsed: JsonValue = serde_json::from_str(turbopack_use.unwrap()).unwrap();
-        let arr = parsed.as_array().unwrap();
-        assert_eq!(arr.len(), 1);
-        assert_eq!(arr[0]["loader"], "raw-loader");
+        let loaders = annotations.turbopack_use_loaders();
+        assert_eq!(loaders.len(), 1);
+        assert_eq!(loaders[0].loader.as_str(), "raw-loader");
+        assert!(loaders[0].options.is_empty());
     }
 
     #[test]
@@ -1146,14 +1197,12 @@ mod tests {
         };
 
         let annotations = ImportAnnotations::parse(Some(&with));
-        let turbopack_use = annotations.turbopack_use();
-        assert!(turbopack_use.is_some());
+        assert!(annotations.has_turbopack_use());
 
-        let parsed: JsonValue = serde_json::from_str(turbopack_use.unwrap()).unwrap();
-        let arr = parsed.as_array().unwrap();
-        assert_eq!(arr.len(), 1);
-        assert_eq!(arr[0]["loader"], "my-loader");
-        assert_eq!(arr[0]["options"]["flag"], true);
+        let loaders = annotations.turbopack_use_loaders();
+        assert_eq!(loaders.len(), 1);
+        assert_eq!(loaders[0].loader.as_str(), "my-loader");
+        assert_eq!(loaders[0].options["flag"], serde_json::Value::Bool(true));
     }
 
     #[test]
@@ -1165,14 +1214,14 @@ mod tests {
         };
 
         let annotations = ImportAnnotations::parse(Some(&with));
-        assert!(annotations.turbopack_use().is_none());
+        assert!(!annotations.has_turbopack_use());
         assert!(annotations.module_type().is_some());
     }
 
     #[test]
     fn test_parse_empty_with() {
         let annotations = ImportAnnotations::parse(None);
-        assert!(annotations.turbopack_use().is_none());
+        assert!(!annotations.has_turbopack_use());
         assert!(annotations.module_type().is_none());
     }
 }
