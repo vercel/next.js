@@ -541,7 +541,12 @@ export async function collectStagedSegmentData(
             // accumulate Debug chunks
             segmentDebugChannel &&
               (async () => {
-                for await (const chunk of segmentDebugChannel.clientSide.readable.values()) {
+                const readable = segmentDebugChannel.clientSide.readable
+                const iterable =
+                  readable instanceof ReadableStream
+                    ? readable.values()
+                    : (readable as AsyncIterable<Uint8Array>)
+                for await (const chunk of iterable) {
                   segmentCacheItem.debugChunks!.push(chunk)
                 }
               })(),
@@ -811,7 +816,12 @@ export async function createCombinedPayloadStream(
         // Accumulate debug chunks
         debugChannel &&
           (async () => {
-            for await (const chunk of debugChannel.clientSide.readable.values()) {
+            const readable = debugChannel.clientSide.readable
+            const iterable =
+              readable instanceof ReadableStream
+                ? readable.values()
+                : (readable as AsyncIterable<Uint8Array>)
+            for await (const chunk of iterable) {
               debugChunks!.push(chunk)
             }
           })(),

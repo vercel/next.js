@@ -246,6 +246,74 @@ import {
 } from './debug-channel-server'
 import { createNodeStreamWithLateRelease } from './instant-validation/stream-utils'
 
+/**
+ * Converts a Node Readable to a web ReadableStream using event listeners.
+ * We avoid Readable.toWeb() because it internally uses finished() / endOfStream()
+ * which checks both sides of Duplex streams (e.g. PassThrough from teeNodeReadable).
+ * When the writable side ends before the web consumer fully drains the readable side,
+ * endOfStream throws ERR_STREAM_PREMATURE_CLOSE. Using event listeners directly
+ * avoids this check entirely.
+ */
+function nodeReadableToWebStream(
+  nodeStream: import('node:stream').Readable
+): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      nodeStream.on('data', (chunk: Buffer | Uint8Array) => {
+        controller.enqueue(
+          chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)
+        )
+      })
+      nodeStream.on('end', () => {
+        controller.close()
+      })
+      nodeStream.on('error', (err: Error) => {
+        controller.error(err)
+      })
+    },
+    cancel() {
+      nodeStream.destroy()
+    },
+  })
+}
+
+/**
+ * Tees a debug channel's client-side readable into an SSR branch and a
+ * browser branch. The browser branch is always a web ReadableStream because
+ * setReactDebugChannel sends it to the client via HMR.
+ */
+function teeDebugChannelForSsrAndBrowser(debugChannel: DebugChannelPair): {
+  ssrStream: ReadableStream<Uint8Array> | import('node:stream').Readable
+  browserChannel: { readable: ReadableStream<Uint8Array> }
+} {
+  const readable = debugChannel.clientSide.readable
+  if (readable instanceof ReadableStream) {
+    const [ssrStream, browserStream] = readable.tee()
+    return { ssrStream, browserChannel: { readable: browserStream } }
+  } else {
+    // Node Readable: tee natively, convert browser branch to web for HMR
+    const [ssrStream, browserNodeStream] = teeNodeReadable(readable)
+    const browserStream = nodeReadableToWebStream(browserNodeStream)
+    return { ssrStream, browserChannel: { readable: browserStream } }
+  }
+}
+
+/**
+ * Returns a web-shaped { readable: ReadableStream } for the browser side of a
+ * debug channel. When the debug channel already uses web streams, this is a
+ * no-op. When it uses Node streams, we convert to web for HMR delivery.
+ */
+function debugChannelClientForBrowser(debugChannel: DebugChannelPair): {
+  readable: ReadableStream<Uint8Array>
+} {
+  const readable = debugChannel.clientSide.readable
+  if (readable instanceof ReadableStream) {
+    return { readable }
+  } else {
+    return { readable: nodeReadableToWebStream(readable) }
+  }
+}
+
 // NOTE: Only use this for types, access implementations via ComponentMod
 import type * as InstantValidation from './instant-validation/instant-validation'
 
@@ -711,7 +779,11 @@ async function generateDynamicFlightRenderResult(
   const debugChannel = setReactDebugChannel && createDebugChannel()
 
   if (debugChannel) {
-    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
+    setReactDebugChannel(
+      debugChannelClientForBrowser(debugChannel),
+      htmlRequestId,
+      requestId
+    )
   }
 
   const { clientModules } = getClientReferenceManifest()
@@ -998,9 +1070,17 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     if (shouldValidate) {
       let validationDebugChannelClient: Readable | undefined = undefined
       if (returnedDebugChannel) {
-        const [t1, t2] = returnedDebugChannel.clientSide.readable.tee()
-        returnedDebugChannel.clientSide.readable = t1
-        validationDebugChannelClient = nodeStreamFromReadableStream(t2)
+        const readable = returnedDebugChannel.clientSide.readable
+        if (readable instanceof ReadableStream) {
+          const [t1, t2] = readable.tee()
+          returnedDebugChannel.clientSide.readable = t1
+          validationDebugChannelClient = nodeStreamFromReadableStream(t2)
+        } else {
+          // Node Readable: tee natively, no web→Node conversion needed
+          const [t1, t2] = teeNodeReadable(readable)
+          returnedDebugChannel.clientSide.readable = t1
+          validationDebugChannelClient = t2
+        }
       }
       consoleAsyncStorage.run(
         { dim: true },
@@ -1044,7 +1124,11 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   }
 
   if (debugChannel && setReactDebugChannel) {
-    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
+    setReactDebugChannel(
+      debugChannelClientForBrowser(debugChannel),
+      htmlRequestId,
+      requestId
+    )
   }
 
   return new FlightRenderResult(stream, {
@@ -2927,7 +3011,10 @@ async function renderToStream(
     )
 
     let reactServerResult: null | ReactServerResult = null
-    let reactDebugStream: ReadableStream<Uint8Array> | undefined
+    let reactDebugStream:
+      | ReadableStream<Uint8Array>
+      | import('node:stream').Readable
+      | undefined
 
     const setHeader = res.setHeader.bind(res)
     const appendHeader = res.appendHeader.bind(res)
@@ -3003,9 +3090,17 @@ async function renderToStream(
 
           let validationDebugChannelClient: Readable | undefined = undefined
           if (returnedDebugChannel) {
-            const [t1, t2] = returnedDebugChannel.clientSide.readable.tee()
-            returnedDebugChannel.clientSide.readable = t1
-            validationDebugChannelClient = nodeStreamFromReadableStream(t2)
+            const readable = returnedDebugChannel.clientSide.readable
+            if (readable instanceof ReadableStream) {
+              const [t1, t2] = readable.tee()
+              returnedDebugChannel.clientSide.readable = t1
+              validationDebugChannelClient = nodeStreamFromReadableStream(t2)
+            } else {
+              // Node Readable: tee natively, no web→Node conversion needed
+              const [t1, t2] = teeNodeReadable(readable)
+              returnedDebugChannel.clientSide.readable = t1
+              validationDebugChannelClient = t2
+            }
           }
 
           consoleAsyncStorage.run(
@@ -3051,16 +3146,10 @@ async function renderToStream(
         }
 
         if (debugChannel && setReactDebugChannel) {
-          const [readableSsr, readableBrowser] =
-            debugChannel.clientSide.readable.tee()
-
-          reactDebugStream = readableSsr
-
-          setReactDebugChannel(
-            { readable: readableBrowser },
-            htmlRequestId,
-            requestId
-          )
+          const { ssrStream, browserChannel } =
+            teeDebugChannelForSsrAndBrowser(debugChannel)
+          reactDebugStream = ssrStream
+          setReactDebugChannel(browserChannel, htmlRequestId, requestId)
         }
       } else {
         // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
@@ -3076,16 +3165,10 @@ async function renderToStream(
         const debugChannel = setReactDebugChannel && createDebugChannel()
 
         if (debugChannel) {
-          const [readableSsr, readableBrowser] =
-            debugChannel.clientSide.readable.tee()
-
-          reactDebugStream = readableSsr
-
-          setReactDebugChannel(
-            { readable: readableBrowser },
-            htmlRequestId,
-            requestId
-          )
+          const { ssrStream, browserChannel } =
+            teeDebugChannelForSsrAndBrowser(debugChannel)
+          reactDebugStream = ssrStream
+          setReactDebugChannel(browserChannel, htmlRequestId, requestId)
         }
 
         if (process.env.__NEXT_USE_NODE_STREAMS) {

@@ -261,6 +261,24 @@ export function teeNodeReadable(
     states[0].stream.on('close', onLeftClose)
     states[1].stream.on('close', onRightClose)
 
+    // Handle the case where source already ended before we attached listeners.
+    // Node 'end' events fire once, so if the source ended before our listener
+    // was attached (e.g. debug channel completed before tee setup), we'd never
+    // get the event and the branches would hang.
+    //
+    // When readableEnded is true, any data pushed into the Readable sits in the
+    // internal buffer. Adding a 'data' listener switches to flowing mode and
+    // schedules async draining, but we need the data NOW before signaling end.
+    // Manually pull buffered data with source.read() to ensure branches receive
+    // all chunks before being ended.
+    if (source.readableEnded) {
+      let chunk: NodeTeeChunk | null
+      while ((chunk = source.read() as NodeTeeChunk | null) !== null) {
+        onSourceData(chunk)
+      }
+      onSourceEnd()
+    }
+
     return [left, right]
   }
 }
