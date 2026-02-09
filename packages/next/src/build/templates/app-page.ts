@@ -1495,6 +1495,64 @@ export async function handler(
         })
       }
 
+      if (process.env.__NEXT_USE_NODE_STREAMS) {
+        // Node streams path: construct the response as a single Node Readable
+        // chain (cached HTML + optional sentinel + resume render) to avoid
+        // web stream interop issues with Readable.toWeb().
+        const { PassThrough, Readable: NodeReadable } =
+          require('node:stream') as typeof import('node:stream')
+
+        const streams: import('node:stream').Readable[] = [
+          NodeReadable.from(body.toUnchunkedString()),
+        ]
+
+        if (process.env.__NEXT_TEST_MODE) {
+          streams.push(NodeReadable.from('<!-- PPR_BOUNDARY_SENTINEL -->'))
+        }
+
+        const bridge = new PassThrough()
+        streams.push(bridge)
+
+        const combined = entryBase.chainNodeStreams!(...streams)
+
+        const result = new RenderResult(combined, {
+          contentType: body.contentType,
+          metadata: body.metadata as any,
+        })
+
+        doRender({
+          span,
+          postponed: cachedData.postponed,
+          fallbackRouteParams: null,
+          forceStaticRender: false,
+        })
+          .then(async (renderResult) => {
+            if (!renderResult) {
+              throw new Error('Invariant: expected a result to be returned')
+            }
+
+            if (renderResult.value?.kind !== CachedRouteKind.APP_PAGE) {
+              throw new Error(
+                `Invariant: expected a page response, got ${renderResult.value?.kind}`
+              )
+            }
+
+            await renderResult.value.html.pipeToNodeWritable(bridge)
+          })
+          .catch((err) => {
+            bridge.destroy(err instanceof Error ? err : new Error(String(err)))
+          })
+
+        return sendRenderResult({
+          req,
+          res,
+          generateEtags: nextConfig.generateEtags,
+          poweredByHeader: nextConfig.poweredByHeader,
+          result,
+          cacheControl: { revalidate: 0, expire: undefined },
+        })
+      }
+
       // If we're in test mode, we should add a sentinel chunk to the response
       // that's between the static and dynamic parts so we can compare the
       // chunks and add assertions.

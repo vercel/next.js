@@ -1045,5 +1045,18 @@
   "1044": "No router instance found.\nYou should only use \"next/router\" on the client side of your app.\n",
   "1045": "LRUCache: calculateSize returned %s%s, but size must be > 0. Items with size 0 would never be evicted, causing unbounded cache growth.",
   "1046": "`draftMode` must not be used within a Client Component. Next.js should be preventing `draftMode` from being included in Client Components statically, but did not in this case.",
-  "1047": "Extra keys returned from getStaticPaths in %s (%s) Expected: { paths: [], fallback: boolean }\\nSee here for more info: https://nextjs.org/docs/messages/invalid-getstaticpaths-value"
+  "1047": "Extra keys returned from getStaticPaths in %s (%s) Expected: { paths: [], fallback: boolean }\\nSee here for more info: https://nextjs.org/docs/messages/invalid-getstaticpaths-value",
+  "1048": "failed to pipe node readable to response",
+  "1049": "Node.js Readable responses should use the pipeToNodeResponse path directly",
+  "1050": "Node.js Readable responses cannot be coerced to web ReadableStream arrays",
+  "1051": "createRuntimePrefetchNodeTransform is not supported in edge runtime",
+  "1052": "createInlinedDataNodeStream is not supported in edge runtime",
+  "1053": "NODE_STREAMS_PATH_REACHED",
+  "1054": "processNodePrelude is not supported in edge runtime",
+  "1055": "createUnclosingNodeStream is not supported in edge runtime",
+  "1056": "createClosingNodeStream is not supported in edge runtime",
+  "1057": "Cannot tee a Node.js stream in the edge runtime",
+  "1058": "toNodeDebugChannel can only be used in Node.js environments, this is a bug in the Next.js codebase",
+  "1059": "teeNodeReadable is not supported in edge runtime",
+  "1060": "Node stream tee buffered too much pending data while waiting for drain"
 }

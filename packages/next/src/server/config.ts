@@ -1906,6 +1906,15 @@ function enforceExperimentalFeatures(
     config.cacheComponents = true
   }
 
+  // Enable node streams via env var (for CI testing).
+  if (
+    process.env.__NEXT_USE_NODE_STREAMS === 'true' &&
+    (config.experimental.useNodeStreams === undefined ||
+      (isDefaultConfig && !config.experimental.useNodeStreams))
+  ) {
+    config.experimental.useNodeStreams = true
+  }
+
   // TODO: Remove this once using the debug channel is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL === 'true' &&
