@@ -11,10 +11,10 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
+import type { VaryParamsThenable } from './segment-cache/vary-params-decoding'
+
 /** viewport metadata node */
 export type HeadData = React.ReactNode
-
-export type ChildSegmentMap = Map<string, CacheNode>
 
 /**
  * Cache node used in app-router / layout-router.
@@ -48,16 +48,7 @@ export type CacheNode = {
 
   head: HeadData
 
-  loading: LoadingModuleData | Promise<LoadingModuleData>
-
-  parallelRoutes: Map<string, ChildSegmentMap>
-
-  /**
-   * The timestamp of the navigation that last updated the CacheNode's data. If
-   * a CacheNode is reused from a previous navigation, this value is not
-   * updated. Used to track the staleness of the data.
-   */
-  navigatedAt: number
+  slots: Record<string, CacheNode> | null
 }
 
 export type DynamicParamTypes =
@@ -86,21 +77,29 @@ export type DynamicParamTypesShort =
   | 'di(..)'
   | 'di(...)'
 
-export type Segment =
-  | string
-  | [
-      // Param name
-      paramName: string,
-      // Param cache key (almost the same as the value, but arrays are
-      // concatenated into strings)
-      // TODO: We should change this to just be the value. Currently we convert
-      // it back to a value when passing to useParams. It only needs to be
-      // a string when converted to a a cache key, but that doesn't mean we
-      // need to store it as that representation.
-      paramCacheKey: string,
-      // Dynamic param type
-      dynamicParamType: DynamicParamTypesShort,
-    ]
+// The tuple form of a segment, used for dynamic route params
+export type DynamicSegmentTuple = [
+  // Param name
+  paramName: string,
+  // Param cache key (almost the same as the value, but arrays are
+  // concatenated into strings)
+  // TODO: We should change this to just be the value. Currently we convert
+  // it back to a value when passing to useParams. It only needs to be
+  // a string when converted to a a cache key, but that doesn't mean we
+  // need to store it as that representation.
+  paramCacheKey: string,
+  // Dynamic param type
+  dynamicParamType: DynamicParamTypesShort,
+  // Static sibling segments at the same URL level. Used by the client
+  // router to determine if a prefetch can be reused when navigating to
+  // a static sibling of a dynamic route. For example, if the route is
+  // /products/[id] and there's also /products/sale, then staticSiblings
+  // would be ['sale']. null means the siblings are unknown (e.g. in
+  // webpack dev mode).
+  staticSiblings: readonly string[] | null,
+]
+
+export type Segment = string | DynamicSegmentTuple
 
 /**
  * Router state
@@ -108,16 +107,10 @@ export type Segment =
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string | null,
+  refreshState?: CompressedRefreshState | null,
   /**
-   * "refresh" and "refetch", despite being similarly named, have different
-   * semantics:
    * - "refetch" is used during a request to inform the server where rendering
    *   should start from.
-   *
-   * - "refresh" is used by the client to mark that a segment should re-fetch the
-   *   data from the server for the current segment. It uses the "url" property
-   *   above to determine where to fetch from.
    *
    * - "inside-shared-layout" is used during a prefetch request to inform the
    *   server that even if the segment matches, it should be treated as if it's
@@ -137,12 +130,7 @@ export type FlightRouterState = [
    *   make sense for the client to send a FlightRouterState, since this type is
    *   overloaded with concerns.
    */
-  refresh?:
-    | 'refetch'
-    | 'refresh'
-    | 'inside-shared-layout'
-    | 'metadata-only'
-    | null,
+  refresh?: 'refetch' | 'inside-shared-layout' | 'metadata-only' | null,
   isRootLayout?: boolean,
   /**
    * Only present when responding to a tree prefetch request. Indicates whether
@@ -151,6 +139,18 @@ export type FlightRouterState = [
    */
   hasLoadingBoundary?: HasLoadingBoundary,
 ]
+
+/**
+ * When rendering a parallel route, some of the parallel paths may not match
+ * the current URL. In that case, the Next client has to render something,
+ * so it will render whichever was the last route to match that slot. We use
+ * this type to track when this has happened. It's a tuple of the original
+ * URL that was used to fetch the segment, and the (possibly rewritten) search
+ * query that was rendered by the server. The URL is needed when performing
+ * a refresh of the segment, and the search query is needed for looking up
+ * matching entries in the segment cache.
+ */
+export type CompressedRefreshState = [url: string, renderedSearch: string]
 
 export const enum HasLoadingBoundary {
   // There is a loading boundary in this particular segment
@@ -190,10 +190,26 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  loading: LoadingModuleData | Promise<LoadingModuleData>,
+  // TODO: This field is no longer used. Remove it.
+  loading: null,
   isPartial: boolean,
   /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
   hasRuntimePrefetch: boolean,
+  /**
+   * A thenable that resolves to the set of route params this segment accessed
+   * during server rendering. Used by the client router to determine cache key
+   * specificity - segments that only access certain params can be reused across
+   * navigations where unaccessed params change.
+   *
+   * - null thenable: tracking was not enabled for this render (e.g., not a
+   *   prerender). Treat conservatively - assume all params vary.
+   * - Thenable resolves to empty Set: segment accesses no params (e.g., client
+   *   components, or server components that don't read params). Can be shared
+   *   across all param values.
+   * - Thenable resolves to non-empty Set: segment depends on those params.
+   *   Can only reuse when those specific params match.
+   */
+  varyParams: VaryParamsThenable | null,
 ]
 
 export type FlightDataSegment = [
@@ -222,8 +238,8 @@ export type FlightData = Array<FlightDataPath> | string
 export type ActionResult = Promise<any>
 
 export type InitialRSCPayload = {
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** initialCanonicalUrlParts */
   c: string[]
   /** initialRenderedSearch */
@@ -238,12 +254,16 @@ export type InitialRSCPayload = {
   G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** prerendered */
   S: boolean
+  /**
+   * headVaryParams - vary params for the head (metadata) of the response.
+   */
+  h: VaryParamsThenable | null
 }
 
 // Response from `createFromFetch` for normal rendering
 export type NavigationFlightResponse = {
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** flightData */
   f: FlightData
   /** prerendered */
@@ -254,14 +274,16 @@ export type NavigationFlightResponse = {
   i: boolean
   /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
   rp?: [boolean, number]
+  /** headVaryParams */
+  h: VaryParamsThenable | null
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
 export type ActionFlightResponse = {
   /** actionResult */
   a: ActionResult
-  /** buildId */
-  b: string
+  /** buildId, can be empty if the x-nextjs-build-id header is set */
+  b?: string
   /** flightData */
   f: FlightData
   /** renderedSearch */

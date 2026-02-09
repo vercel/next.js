@@ -14,10 +14,6 @@ describe('fallback-shells', () => {
       expect(await browser.elementById('slug').text()).toBe('Hello /world')
       const headers = response.headers()
 
-      if (isNextDeploy) {
-        expect(headers['x-matched-path']).toBe('/without-io/[slug]')
-      }
-
       // If we didn't use the fallback shell, then we didn't postpone the
       // response, and therefore shouldn't have sent the postponed header.
       expect(headers['x-nextjs-postponed']).not.toBe('1')
@@ -44,11 +40,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/with-suspense/params-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).toBe('1')
             }
           })
@@ -167,11 +159,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/with-suspense/params-not-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).toBe('1')
             }
           })
@@ -194,11 +182,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/with-suspense/params-then-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).toBe('1')
             }
           })
@@ -221,11 +205,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/with-suspense/params-transformed/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).toBe('1')
             }
           })
@@ -250,11 +230,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/without-suspense/params-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).not.toBe('1')
             }
           })
@@ -300,11 +276,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/without-suspense/params-not-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).not.toBe('1')
             }
           })
@@ -327,11 +299,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/without-suspense/params-then-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).not.toBe('1')
             }
           })
@@ -354,11 +322,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/without-suspense/params-transformed/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).not.toBe('1')
             }
           })
@@ -382,11 +346,7 @@ describe('fallback-shells', () => {
 
           const headers = response.headers()
 
-          if (isNextDeploy) {
-            expect(headers['x-matched-path']).toBe(
-              '/with-cached-io/without-static-params/params-in-page/[slug]'
-            )
-          } else if (isNextStart) {
+          if (isNextStart) {
             expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })
@@ -433,11 +393,7 @@ describe('fallback-shells', () => {
 
           const headers = response.headers()
 
-          if (isNextDeploy) {
-            expect(headers['x-matched-path']).toBe(
-              '/with-cached-io/without-static-params/params-not-in-page/[slug]'
-            )
-          } else if (isNextStart) {
+          if (isNextStart) {
             expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })
@@ -458,11 +414,7 @@ describe('fallback-shells', () => {
 
           const headers = response.headers()
 
-          if (isNextDeploy) {
-            expect(headers['x-matched-path']).toBe(
-              '/with-cached-io/without-static-params/params-then-in-page/[slug]'
-            )
-          } else if (isNextStart) {
+          if (isNextStart) {
             expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })

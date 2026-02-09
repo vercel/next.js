@@ -7,7 +7,7 @@ pub static TRACING_NEXT_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     [
         &TRACING_OVERVIEW_TARGETS[..],
         &[
-            "next_swc_napi=info",
+            "next_napi_bindings=info",
             "next_swc=info",
             "next_api=info",
             "next_dev=info",
@@ -23,7 +23,7 @@ pub static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     [
         &TRACING_NEXT_OVERVIEW_TARGETS[..],
         &[
-            "next_swc_napi=trace",
+            "next_napi_bindings=trace",
             "next_swc=trace",
             "next_api=trace",
             "next_dev=trace",

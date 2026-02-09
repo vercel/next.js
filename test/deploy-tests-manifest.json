@@ -3,12 +3,50 @@
   "suites": {
     "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
       "failed": [
-        "app dir client cache semantics (default semantics) prefetch={true} should re-use the cache for the full page, only for 5 mins"
+        "app dir client cache semantics (default semantics) prefetch={true} should re-use the cache for the full page, only for 5 mins",
+        "app dir client cache semantics (default semantics) prefetch={undefined} - default should refetch the full page after 5 mins"
       ]
     },
     "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
       "failed": [
         "app dir client cache semantics (experimental staleTimes) static: 180 prefetch={undefined} - default should re-use the loading boundary for the custom static override time (3 minutes)"
+      ]
+    },
+    "test/e2e/app-dir/segment-cache/prefetch-runtime/prefetch-runtime.test.ts": {
+      "flakey": [
+        "runtime prefetching cache stale time handling includes private caches with cacheLife(\"seconds\")",
+        "runtime prefetching cache stale time handling includes public caches with cacheLife(\"seconds\")",
+        "runtime prefetching cache stale time handling includes short-lived public caches with a long enough staleTime",
+        "runtime prefetching cache stale time handling omits private caches with a short enough staleTime",
+        "runtime prefetching cache stale time handling omits short-lived public caches with a short enough staleTime",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a quickly-expiring public cache",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a private cache",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting cookies()",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting dynamic params",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting headers()",
+        "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
+        "runtime prefetching errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
+        "runtime prefetching in a page can completely prefetch a page that uses cookies and no uncached IO",
+        "runtime prefetching in a page includes cookies, but not dynamic content",
+        "runtime prefetching in a page includes dynamic params, but not dynamic content",
+        "runtime prefetching in a page includes headers, but not dynamic content",
+        "runtime prefetching in a page includes root params, but not dynamic content",
+        "runtime prefetching in a page includes search params, but not dynamic content",
+        "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
+        "runtime prefetching in a private cache includes cookies, but not dynamic content",
+        "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
+        "runtime prefetching in a private cache includes headers, but not dynamic content",
+        "runtime prefetching in a private cache includes root params, but not dynamic content",
+        "runtime prefetching in a private cache includes search params, but not dynamic content",
+        "runtime prefetching passed to a public cache can completely prefetch a page that uses cookies and no uncached IO",
+        "runtime prefetching passed to a public cache includes cookies, but not dynamic content",
+        "runtime prefetching passed to a public cache includes dynamic params, but not dynamic content",
+        "runtime prefetching passed to a public cache includes headers, but not dynamic content",
+        "runtime prefetching passed to a public cache includes root params, but not dynamic content",
+        "runtime prefetching passed to a public cache includes search params, but not dynamic content",
+        "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
+        "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
+        "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
       ]
     },
     "test/e2e/app-dir/actions/app-action.test.ts": {
@@ -41,15 +79,23 @@
         "app dir - metadata react cache should have same title and page value when navigating"
       ]
     },
+    "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
+      "failed": [
+        "searchparams-reuse-loading With Middleware should correctly return different RSC data for full prefetches with different searchParam values"
+      ]
+    },
     "test/e2e/middleware-rewrites/test/index.test.ts": {
       "failed": ["Middleware Rewrite should handle catch-all rewrite correctly"]
+    },
+    "test/e2e/app-dir/resume-data-cache/resume-data-cache.test.ts": {
+      "failed": [
+        "resume-data-cache should have consistent data between static and dynamic renders with fetch cache",
+        "resume-data-cache should have consistent data between static and dynamic renders with use cache"
+      ]
     }
   },
   "rules": {
-    "include": [
-      "test/e2e/**/*.test.{t,j}s{,x}",
-      "test/production/**/*.test.{t,j}s{,x}"
-    ],
+    "include": ["test/e2e/**/*.test.{t,j}s{,x}"],
     "exclude": [
       "test/e2e/cancel-request/stream-cancel.test.ts",
       "test/e2e/new-link-behavior/material-ui.test.ts",

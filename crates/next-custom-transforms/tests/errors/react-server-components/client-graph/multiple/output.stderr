@@ -1,13 +1,15 @@
-  x You are attempting to export "metadata" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://nextjs.org/
-  | docs/app/api-reference/directives/use-client
+  x You are attempting to export "metadata" from a component marked with "use client", which is disallowed. "metadata" must be resolved on the server before the page component is rendered. Keep your
+  | page as a Server Component and move Client Component logic to a separate file. Read more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata#why-generatemetadata-is-server-
+  | component-only
   | 
   | 
    ,-[input.js:1:1]
  1 | export const metadata = {}
    :              ^^^^^^^^
    `----
-  x You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://
-  | nextjs.org/docs/app/api-reference/directives/use-client
+  x You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed. "generateMetadata" must be resolved on the server before the page component is
+  | rendered. Keep your page as a Server Component and move Client Component logic to a separate file. Read more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata#why-
+  | generatemetadata-is-server-component-only
   | 
   | 
    ,-[input.js:3:1]

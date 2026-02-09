@@ -113,6 +113,53 @@ For type completion of `params` and `searchParams`, you can type the first argum
 > - React [`cache` can be used](/docs/app/guides/caching#react-cache-function) if `fetch` is unavailable.
 > - [File-based metadata](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
 
+## Why `generateMetadata` is Server Component only
+
+`generateMetadata` and the `metadata` export are only supported in Server Components because metadata must be resolved on the server before the page component is rendered. This allows Next.js to include the metadata in the initial HTML response.
+
+If you need to use Client Component features, keep your `page.tsx` as a Server Component and move the Client Component logic to a separate file:
+
+```tsx filename="app/page.tsx" switcher
+import type { Metadata } from 'next'
+import { InteractiveComponent } from './interactive-component'
+
+export const metadata: Metadata = {
+  title: 'My Page',
+}
+
+export default function Page() {
+  return <InteractiveComponent />
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { InteractiveComponent } from './interactive-component'
+
+export const metadata = {
+  title: 'My Page',
+}
+
+export default function Page() {
+  return <InteractiveComponent />
+}
+```
+
+```tsx filename="app/interactive-component.tsx" switcher
+'use client'
+
+export function InteractiveComponent() {
+  // Client-side interactivity (hooks, event handlers, etc.)
+}
+```
+
+```jsx filename="app/interactive-component.js" switcher
+'use client'
+
+export function InteractiveComponent() {
+  // Client-side interactivity (hooks, event handlers, etc.)
+}
+```
+
 ## Reference
 
 ### Parameters
@@ -1217,12 +1264,11 @@ Streaming metadata at runtime while the rest of the page is fully prerenderable 
 
 To resolve this, you have two options. If metadata depends on external data but not runtime data, use `use cache`:
 
-```tsx filename="app/blog/[slug]/page.tsx" highlight={2}
-export async function generateMetadata({ params }) {
+```tsx filename="app/page.tsx" highlight={2}
+export async function generateMetadata() {
   'use cache'
-  const { slug } = await params
-  const post = await db.getPost(slug)
-  return { title: post.title }
+  const { title, description } = await db.query('site-metadata')
+  return { title, description }
 }
 ```
 

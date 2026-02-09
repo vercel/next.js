@@ -11,7 +11,9 @@ describe('instrumentation-order', () => {
     await next.fetch('/')
 
     await retry(async () => {
-      const serverLog = next.cliOutput.split('Starting...')[1]
+      // `next.cliOutput` includes both `next build` and `next start` in the production test run
+      // Because of that we have to split the output by `Ready in` and get the second part only
+      const serverLog = next.cliOutput.split('Ready in')[1]
       const cliOutputLines = serverLog.split('\n')
 
       const ORDERED_LOGS = [

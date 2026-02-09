@@ -1,4 +1,6 @@
-use anyhow::Result;
+use std::fmt::Display;
+
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
@@ -152,4 +154,71 @@ pub enum ModuleType {
         source_ty: WebAssemblySourceType,
     },
     Custom(ResolvedVc<Box<dyn CustomModuleType>>),
+}
+
+impl Display for ModuleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModuleType::Ecmascript { .. } => write!(f, "Ecmascript"),
+            ModuleType::Typescript { .. } => write!(f, "Typescript"),
+            ModuleType::TypescriptDeclaration { .. } => write!(f, "TypescriptDeclaration"),
+            ModuleType::EcmascriptExtensionless { .. } => write!(f, "EcmascriptExtensionless"),
+            ModuleType::Json => write!(f, "Json"),
+            ModuleType::Raw => write!(f, "Raw"),
+            ModuleType::NodeAddon => write!(f, "NodeAddon"),
+            ModuleType::CssModule => write!(f, "CssModule"),
+            ModuleType::Css { .. } => write!(f, "Css"),
+            ModuleType::StaticUrlJs { .. } => write!(f, "StaticUrlJs"),
+            ModuleType::StaticUrlCss { .. } => write!(f, "StaticUrlCss"),
+            ModuleType::InlinedBytesJs => write!(f, "InlinedBytesJs"),
+            ModuleType::WebAssembly { .. } => write!(f, "WebAssembly"),
+            ModuleType::Custom(_) => write!(f, "Custom"),
+        }
+    }
+}
+
+impl ModuleType {
+    /// Creates a ModuleType from a string identifier.
+    /// This is used for user-configured module types in turbopack rules.
+    pub fn from_str_with_defaults(
+        type_str: &str,
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
+        options: ResolvedVc<EcmascriptOptions>,
+        environment: Option<ResolvedVc<Environment>>,
+    ) -> Result<Self> {
+        Ok(match type_str {
+            "asset" => ModuleType::StaticUrlJs { tag: None },
+            "ecmascript" => ModuleType::Ecmascript {
+                preprocess,
+                main,
+                postprocess,
+                options,
+            },
+            "typescript" => ModuleType::Typescript {
+                preprocess,
+                main,
+                postprocess,
+                tsx: false,
+                analyze_types: false,
+                options,
+            },
+            "css" => ModuleType::Css {
+                ty: CssModuleAssetType::Default,
+                environment,
+            },
+            "css-module" => ModuleType::CssModule,
+            "wasm" => ModuleType::WebAssembly {
+                source_ty: WebAssemblySourceType::Binary,
+            },
+            "raw" => ModuleType::Raw,
+            "node" => ModuleType::NodeAddon,
+            "bytes" => ModuleType::InlinedBytesJs,
+            _ => bail!(
+                "Unknown module type: {type_str:?}. Valid types are: asset, ecmascript, \
+                 typescript, css, css-module, wasm, raw, node, bytes"
+            ),
+        })
+    }
 }

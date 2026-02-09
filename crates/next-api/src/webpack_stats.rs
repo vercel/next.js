@@ -56,7 +56,7 @@ where
     };
 
     let asset_reasons = {
-        let module_graph = module_graph.read_graphs().await?;
+        let module_graph = module_graph.await?;
         let mut edges = vec![];
         module_graph.traverse_edges_unordered(|parent, current| {
             if let Some((parent_node, r)) = parent {
@@ -155,7 +155,7 @@ where
                 .await?;
             Ok(WebpackStatsModule {
                 name: chunk_item.asset_ident().path().await?.path.clone(),
-                id: chunk_item.id().owned().await?,
+                id: chunk_item.id().await?,
                 identifier: chunk_item.asset_ident().to_string().owned().await?,
                 chunks: chunks.into_iter().collect(),
                 size,

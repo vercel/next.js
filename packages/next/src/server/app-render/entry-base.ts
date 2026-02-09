@@ -13,7 +13,10 @@ export { prerender } from 'react-server-dom-webpack/static'
 // TODO: Just re-export `* as ReactServer`
 export { captureOwnerStack, createElement, Fragment } from 'react'
 
-export { default as LayoutRouter } from '../../client/components/layout-router'
+export {
+  default as LayoutRouter,
+  LoadingBoundaryProvider,
+} from '../../client/components/layout-router'
 export { default as RenderFromTemplateContext } from '../../client/components/render-from-template-context'
 export { workAsyncStorage } from '../app-render/work-async-storage.external'
 export { workUnitAsyncStorage } from './work-unit-async-storage.external'
@@ -38,6 +41,11 @@ export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 export { Postpone } from './rsc/postpone'
 export { taintObjectReference } from './rsc/taint'
 export { collectSegmentData } from './collect-segment-data'
+
+export const InstantValidation =
+  process.env.NODE_ENV === 'development' && process.env.NEXT_RUNTIME !== 'edge'
+    ? (require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation'))
+    : undefined
 
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
