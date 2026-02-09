@@ -55,9 +55,20 @@ export function teeNodeReadable(
       return states[0].pendingBytes + states[1].pendingBytes
     }
 
+    function areAllOpenBranchesBlocked(): boolean {
+      for (const state of states) {
+        if (state.closed) continue
+        if (!state.waitingDrain && state.pending.length === 0) {
+          return false
+        }
+      }
+      return true
+    }
+
     function maybePauseSource() {
       if (
         !source.isPaused() &&
+        areAllOpenBranchesBlocked() &&
         totalPendingBytes() >= MAX_NODE_TEE_PENDING_BYTES
       ) {
         source.pause()
@@ -68,7 +79,8 @@ export function teeNodeReadable(
       if (
         source.isPaused() &&
         !sourceEnded &&
-        totalPendingBytes() < MAX_NODE_TEE_PENDING_BYTES / 2
+        (totalPendingBytes() < MAX_NODE_TEE_PENDING_BYTES / 2 ||
+          !areAllOpenBranchesBlocked())
       ) {
         source.resume()
       }
@@ -103,19 +115,38 @@ export function teeNodeReadable(
       }
     }
 
-    function maybeEnd() {
+    function maybeCleanupAfterSourceEnd() {
       if (!sourceEnded || failed) return
       for (const state of states) {
-        if (!state.closed && (state.waitingDrain || state.pending.length > 0)) {
-          return
+        if (
+          state.closed ||
+          state.stream.destroyed ||
+          state.stream.writableEnded
+        ) {
+          continue
         }
+        return
       }
       cleanup()
-      for (const state of states) {
-        if (!state.closed && !state.stream.destroyed) {
-          state.stream.end()
-        }
+    }
+
+    function maybeEndBranch(state: NodeTeeState) {
+      if (
+        failed ||
+        state.closed ||
+        state.stream.destroyed ||
+        state.stream.writableEnded
+      ) {
+        return
       }
+      if (!sourceEnded) return
+      if (state.pending.length > 0) return
+      // Do not wait for drain here. A write() that returned false has already
+      // enqueued its chunk into the stream's internal buffer. Waiting for
+      // drain before ending can deadlock when this branch is intentionally
+      // consumed later than its sibling.
+      state.stream.end()
+      maybeCleanupAfterSourceEnd()
     }
 
     function enqueue(state: NodeTeeState, chunk: NodeTeeChunk) {
@@ -146,15 +177,24 @@ export function teeNodeReadable(
 
     function flushPending(state: NodeTeeState) {
       if (state.closed || failed) return
-      while (!state.waitingDrain && state.pending.length > 0) {
+      while (state.pending.length > 0) {
+        if (!sourceEnded && state.waitingDrain) {
+          break
+        }
         const chunk = state.pending.shift()!
         state.pendingBytes -= chunkByteLength(chunk)
         if (!state.stream.write(chunk)) {
           state.waitingDrain = true
+          if (!sourceEnded) {
+            break
+          }
         }
       }
+      if (sourceEnded) {
+        maybeEndBranch(state)
+        return
+      }
       maybeResumeSource()
-      maybeEnd()
     }
 
     const onSourceData = (chunk: NodeTeeChunk) => {
@@ -168,7 +208,11 @@ export function teeNodeReadable(
     const onSourceEnd = () => {
       runInContext(() => {
         sourceEnded = true
-        maybeEnd()
+        flushPending(states[0])
+        flushPending(states[1])
+        maybeEndBranch(states[0])
+        maybeEndBranch(states[1])
+        maybeCleanupAfterSourceEnd()
       })
     }
     const onSourceError = (error: Error) => {
