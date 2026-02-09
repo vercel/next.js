@@ -4,7 +4,7 @@ import stripAnsi from 'strip-ansi'
 
 describe('turbopack-ignore-issue', () => {
   describe('with turbopackIgnoreIssue config', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       // turbopackIgnoreIssue is turbopack-only
       skipDeployment: true,
@@ -23,6 +23,11 @@ describe('turbopack-ignore-issue', () => {
     if (skipped) return
 
     it('should suppress ignored warning from cli output', async () => {
+      if (!isTurbopack) {
+        // turbopackIgnoreIssue only works with Turbopack
+        return
+      }
+
       // Trigger compilation of the warning page
       const outputIndex = next.cliOutput.length
       await next.fetch('/with-warning')
