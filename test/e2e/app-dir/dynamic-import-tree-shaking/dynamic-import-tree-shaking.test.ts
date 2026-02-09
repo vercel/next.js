@@ -80,6 +80,11 @@ describe('dynamic-import-tree-shaking', () => {
     expect($('div').text()).toContain('TREESHAKE_MEMBER_USED')
   })
 
+  it('should render webpack-exports-comment page', async () => {
+    const $ = await next.render$('/webpack-exports-comment')
+    expect($('div').text()).toContain('TREESHAKE_COMMENT_USED')
+  })
+
   // Tree shaking assertions: unused exports should NOT be in the server bundle
   // Tree shaking is only enabled in production builds, so skip these in dev mode
   if (isProduction) {
@@ -126,6 +131,12 @@ describe('dynamic-import-tree-shaking', () => {
       // But no exports should be included
       expect(content).not.toContain('TREESHAKE_EMPTY_USED')
       expect(content).not.toContain('TREESHAKE_EMPTY_UNUSED')
+    })
+
+    it('should tree-shake unused export with webpackExports comment', async () => {
+      const content = await getAllServerContent()
+      expect(content).toContain('TREESHAKE_COMMENT_USED')
+      expect(content).not.toContain('TREESHAKE_COMMENT_UNUSED')
     })
 
     // Member access on dynamic import is only tree-shaken by Turbopack, not webpack

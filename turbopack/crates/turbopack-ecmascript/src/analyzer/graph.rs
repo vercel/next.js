@@ -1770,7 +1770,14 @@ impl Analyzer<'_> {
 
         match callee {
             Callee::Import(_) => {
-                let export_names = extract_dynamic_import_export_names(ast_path);
+                // Prefer webpackExports/turbopackExports comment (authoritative when present)
+                let attrs = self.eval_context.imports.get_attributes(span);
+                let export_names = if let Some(names) = &attrs.export_names {
+                    Some(names.clone())
+                } else {
+                    // Fall back to AST path walking (works when import is not wrapped)
+                    extract_dynamic_import_export_names(ast_path)
+                };
                 self.add_effect(Effect::DynamicImport {
                     args,
                     ast_path: as_parent_path(ast_path),

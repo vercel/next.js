@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import-destructure-empty/input/index.js"],"sourcesContent":["async function main() {\n  const {} = await import('./lib')\n}\n\nmain()\n"],"names":["main"],"mappings":"AAAA,eAAeA;IACb,MAAM,EAAE,GAAG;AACb;AAEAA"}}]
+}

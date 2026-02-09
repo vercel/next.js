@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import-webpack-exports/input/lib.js"],"sourcesContent":["let dog = 'dog'\n\ndog += '!'\n\nconsole.log(dog)\n\nfunction getDog() {\n  return dog\n}\n\ndog += '!'\n\nconsole.log(dog)\n\nfunction setDog(newDog) {\n  dog = newDog\n}\n\ndog += '!'\n\nconsole.log(dog)\n\nexport const dogRef = {\n  initial: dog,\n  get: getDog,\n  set: setDog,\n}\n\nexport let cat = 'cat'\n\nexport const initialCat = cat\n\nexport function getChimera() {\n  return cat + dog\n}\n"],"names":["dog","console","log","getDog","setDog","newDog","dogRef","initial","get","set","cat","initialCat","getChimera"],"mappings":"AAAA,IAAIA,MAAM;AAEVA,OAAO;AAEPC,QAAQC,GAAG,CAACF;AAEZ,SAASG;IACP,OAAOH;AACT;AAEAA,OAAO;AAEPC,QAAQC,GAAG,CAACF;AAEZ,SAASI,OAAOC,MAAM;IACpBL,MAAMK;AACR;AAEAL,OAAO;AAEPC,QAAQC,GAAG,CAACF;AAEL,MAAMM,SAAS;IACpBC,SAASP;IACTQ,KAAKL;IACLM,KAAKL;AACP;AAEO,IAAIM,MAAM;AAEV,MAAMC,aAAaD;AAEnB,SAASE;IACd,OAAOF,MAAMV;AACf"}}]
+}

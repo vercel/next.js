@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import-destructure-nested/input/index.js"],"sourcesContent":["async function main() {\n  const {\n    dogRef: { get },\n  } = await import('./lib')\n  console.log(get())\n}\n\nmain()\n"],"names":["main","dogRef","get","console","log"],"mappings":"AAAA,eAAeA;IACb,MAAM,EACJC,QAAQ,EAAEC,GAAG,EAAE,EAChB,GAAG;IACJC,QAAQC,GAAG,CAACF;AACd;AAEAF"}}]
+}

@@ -4052,6 +4052,18 @@ mod tests {
                                 ));
                                 obj_steps + prop_steps
                             }
+                            Effect::DynamicImport { args, .. } => {
+                                let new_args =
+                                    handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                                resolved.push((
+                                    format!("{parent} -> {i} dynamic import"),
+                                    JsValue::call(
+                                        Box::new(JsValue::FreeVar("import".into())),
+                                        new_args,
+                                    ),
+                                ));
+                                0
+                            }
                             Effect::Unreachable { .. } => {
                                 resolved.push((
                                     format!("{parent} -> {i} unreachable"),
