@@ -1,5 +1,7 @@
 # Next.js Development Guide
 
+> **Note:** `CLAUDE.md` is a symlink to `AGENTS.md`. They are the same file.
+
 ## Codebase structure
 
 ### Monorepo Overview
@@ -54,12 +56,12 @@ pnpm --filter=next exec taskr <task>
 
 ## Fast Local Development
 
-For iterative development, use watch mode + fast test execution:
+For iterative development, always use watch mode + skip-isolate (not full builds):
 
 **1. Start watch build in background:**
 
 ```bash
-# Runs taskr in watch mode - auto-rebuilds on file changes
+# Auto-rebuilds on file changes (~1-2s per change vs ~60s full build)
 # Use Bash(run_in_background=true) to keep working while it runs
 pnpm --filter=next dev
 ```
@@ -67,14 +69,16 @@ pnpm --filter=next dev
 **2. Run tests fast (no isolation, no packing):**
 
 ```bash
-# NEXT_SKIP_ISOLATE=1 - skip packing Next.js for each test (much faster)
+# NEXT_SKIP_ISOLATE=1 - skip packing Next.js for each test (~100s faster)
 # testonly - runs with --runInBand (no worker isolation overhead)
 NEXT_SKIP_ISOLATE=1 NEXT_TEST_MODE=dev pnpm testonly test/path/to/test.ts
 ```
 
 **3. When done, kill the background watch process.**
 
-Only use full `pnpm --filter=next build` for one-off builds (after branch switch, before CI push).
+**For type errors only:** Use `pnpm --filter=next types` (~10s) instead of full `pnpm --filter=next build` (~60s).
+
+Only use full `pnpm --filter=next build` for: branch switches, before CI push, or runtime bundle changes (taskfile.js / next-runtime.webpack-config.js).
 
 **Always rebuild after switching branches:**
 
@@ -82,6 +86,19 @@ Only use full `pnpm --filter=next build` for one-off builds (after branch switch
 git checkout <branch>
 pnpm build   # Required before running tests (Turborepo dedupes if unchanged)
 ```
+
+**When NOT to use NEXT_SKIP_ISOLATE:** Drop it when testing module resolution changes (new require() paths, new exports from entry-base.ts, edge route imports). Without isolation, the test uses local dist/ directly, hiding resolution failures that occur when Next.js is packed as a real npm package.
+
+## Bundler Selection
+
+Turbopack is the default bundler for both `next dev` and `next build`. To force webpack:
+
+```bash
+next build --webpack        # Production build with webpack
+next dev --webpack          # Dev server with webpack
+```
+
+There is no `--no-turbopack` flag.
 
 ## Testing
 
@@ -103,6 +120,12 @@ pnpm test-dev-turbo test/development/
 - `pnpm test-start-turbo` - Production build+start with Turbopack
 - `pnpm test-start-webpack` - Production build+start with Webpack
 
+**Run tests headless** (no browser window): Set `HEADLESS=true` when running e2e tests unless you need visual browser debugging:
+
+```bash
+HEADLESS=true pnpm test-dev-turbo test/path/to/test.ts
+```
+
 **Other test commands:**
 
 - `pnpm test-unit` - Run unit tests only (fast, no browser)
@@ -121,6 +144,20 @@ Generating tests using `pnpm new-test` is mandatory.
 # type: e2e | production | development | unit
 
 pnpm new-test --args true my-feature e2e
+```
+
+**Analyzing test output efficiently:**
+
+Never re-run the same test suite with different grep filters. Capture output once to a file, then read from it:
+
+```bash
+# Run once, save everything
+HEADLESS=true pnpm test-dev-turbo test/path/to/test.ts > /tmp/test-output.log 2>&1
+
+# Then analyze without re-running
+grep "●" /tmp/test-output.log            # Failed test names
+grep -A5 "Error:" /tmp/test-output.log   # Error details
+tail -5 /tmp/test-output.log             # Summary
 ```
 
 ## Writing Tests
@@ -196,6 +233,7 @@ This fetches CI workflow runs, failed jobs, logs, and PR review comments, genera
 
 **CI Analysis Tips:**
 
+- **Assume test failures are NOT flaky by default.** Investigate every failure as if it is caused by the current changes until proven otherwise. However, check the **Known Flaky Tests** section in pr-status output for historical data before deep-diving into a failure.
 - Prioritize blocking jobs first: build, lint, types, then test jobs
 - Prioritize CI failures over review comments
 
@@ -235,6 +273,29 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 - Use `DEBUG=next:*` for debug logging
 - Use `NEXT_TELEMETRY_DISABLED=1` when testing locally
 
+## Context-Efficient Workflows
+
+**Reading large files** (>500 lines, e.g. `app-render.tsx`):
+
+- Grep first to find relevant line numbers, then read targeted ranges with `offset`/`limit`
+- Never re-read the same section of a file without code changes in between
+- For generated files (`dist/`, `node_modules/`, `.next/`): search only, don't read
+
+**Build & test output:**
+
+- Capture to file once, then analyze: `pnpm build 2>&1 | tee /tmp/build.log`
+- Don't re-run the same test command without code changes; re-analyze saved output instead
+
+**Batch edits before building:**
+
+- Group related edits across files, then run one build, not build-per-edit
+- Use `pnpm --filter=next types` (~10s) to check type errors without full rebuild
+
+**External API calls (gh, curl):**
+
+- Save response to variable or file: `JOBS=$(gh api ...) && echo "$JOBS" | jq '...'`
+- Don't re-fetch the same API data to analyze from different angles
+
 ## Commit and PR Style
 
 - Do NOT add "Generated with Claude Code" or co-author footers to commits or PRs
@@ -249,6 +310,14 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 - **Choose the right verification method for each change.** This may include running unit tests, integration tests, type checking, linting, building the project, or inspecting runtime behavior depending on what was changed.
 - **When unclear how to verify a change, ask the user.** If there is no obvious test or verification method for a particular change, ask the user how they would like it verified before moving on.
 
+**Pre-validate before committing** to avoid slow lint-staged failures (~2 min each):
+
+```bash
+# Run exactly what the pre-commit hook runs on your changed files:
+pnpm prettier --with-node-modules --ignore-path .prettierignore --write <files>
+npx eslint --config eslint.config.mjs --fix <files>
+```
+
 ## Rebuilding Before Running Tests
 
 When running Next.js integration tests, you must rebuild if source files have changed:
@@ -259,10 +328,30 @@ When running Next.js integration tests, you must rebuild if source files have ch
 
 ## Development Anti-Patterns
 
+### Adding Experimental Flags
+
+All flags need: `config-shared.ts` (type) → `config-schema.ts` (zod). If the flag is consumed in user-bundled code (client components, edge routes, `app-page.ts` template), also add it to `define-env.ts` for build-time injection. Runtime-only flags consumed exclusively in pre-compiled bundles can skip `define-env.ts`.
+
+Beyond that, it depends on where the flag is consumed:
+
+**Client/bundled code only** (e.g. `__NEXT_PPR` in client components): `define-env.ts` is sufficient. Webpack/Turbopack replaces `process.env.X` at the user's build time.
+
+**Pre-compiled runtime bundles** (e.g. code in `app-render.tsx`): The flag must also be set as a real `process.env` var at runtime, because `app-render.tsx` runs from pre-compiled bundles where `define-env.ts` doesn't reach. Two approaches:
+
+- **Runtime env var**: Set in `next-server.ts` + `export/worker.ts`. Both code paths stay in one bundle. Simple but increases bundle size.
+- **Separate bundle variant**: Add DefinePlugin entry in `next-runtime.webpack-config.js` (scoped to `bundleType === 'app'`), new taskfile tasks, update `module.compiled.js` selector, and still set env var in `next-server.ts` + `export/worker.ts` for bundle selection. Eliminates dead code but adds build complexity.
+
+For runtime flags, also add the field to the `NextConfigRuntime` Pick type in `config-shared.ts`.
+
 ### Test Gotchas
 
+- **Cache components enables PPR by default**: When `__NEXT_CACHE_COMPONENTS=true`, most app-dir pages use PPR implicitly. Dedicated `ppr-full/` and `ppr/` test suites are mostly `describe.skip` (migrating to cache components). To test PPR codepaths, run normal app-dir e2e tests with `__NEXT_CACHE_COMPONENTS=true` rather than looking for explicit PPR test suites.
+- **Quick smoke testing with toy apps**: For fast feedback, generate a minimal test fixture with `pnpm new-test --args true <name> e2e`, then run the dev server directly with `node packages/next/dist/bin/next dev --port <port>` and `curl --max-time 10`. This avoids the overhead of the full test harness and gives immediate feedback on hangs/crashes.
 - Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
 - Don't rely on exact log messages - filter by content patterns, find sequences not positions
+- **Snapshot tests vary by env flags**: Tests with inline snapshots can produce different output depending on env flags. When updating snapshots, always run the test with the exact env flags the CI job uses (check `.github/workflows/build_and_test.yml` `afterBuild:` sections). Turbopack resolves `react-dom/server.edge` (no Node APIs like `renderToPipeableStream`), while webpack resolves the `.node` build (has them).
+- **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules with relative paths because they won't be resolvable from the user's project. Instead, export new helpers from `entry-base.ts` (which is part of the pre-compiled runtime bundle where relative requires work) and access them via `entryBase.*` in the template.
+- **Reproducing CI failures locally**: Always match the exact CI env vars (check `pr-status` output for "Job Environment Variables"). Key differences: `IS_WEBPACK_TEST=1` forces webpack (turbopack is default), `NEXT_SKIP_ISOLATE=1` skips packing next.js (hides module resolution failures). Always run without `NEXT_SKIP_ISOLATE` when verifying module resolution fixes.
 
 ### Rust/Cargo
 
@@ -274,6 +363,42 @@ When running Next.js integration tests, you must rebuild if source files have ch
 - `findSourceMap()` needs `--enable-source-maps` flag or returns undefined
 - Source map paths vary (webpack: `./src/`, tsc: `src/`) - try multiple formats
 - `process.cwd()` in stack trace formatting produces different paths in tests vs production
+
+### Pre-compiled Runtime Bundles
+
+Server rendering code (`app-render.tsx`, route modules) is NOT bundled during the user's `next build`. It runs from pre-compiled runtime bundles at `dist/compiled/next-server/app-page*.runtime.*.js`.
+
+- **Built by**: `next-runtime.webpack-config.js` (rspack) via `taskfile.js` bundle tasks
+- **Selected at runtime by**: `src/server/route-modules/app-page/module.compiled.js` based on `process.env` vars
+- **Variants**: `{turbo/webpack} × {experimental/stable/nodestreams/experimental-nodestreams} × {dev/prod}` = up to 16 bundles per route type
+- **Key implication**: `process.env.X` checks in `app-render.tsx` are either replaced by DefinePlugin at runtime-bundle-build time, or read as actual env vars at server startup. They are NOT affected by the user's webpack/Turbopack defines from `define-env.ts`.
+- **Adding a new feature flag**: Either leave it as a runtime env var (both code paths in bundle), or create new bundle variants (separate DefinePlugin value per variant, new taskfile tasks, updated `module.compiled.js` selector)
+- **Gotcha**: DefinePlugin entries in `next-runtime.webpack-config.js` must be scoped to the correct `bundleType` (e.g. `app` only, not `server`) to avoid replacing assignment targets in `next-server.ts`
+- **Edge runtime is different**: Edge routes do NOT use pre-compiled runtime bundles. They are compiled by the user's webpack/Turbopack, so `define-env.ts` controls DCE. Feature flags that gate `node:*` imports must be forced to `false` for edge builds in `define-env.ts` (`isEdgeServer ? false : flagValue`), otherwise webpack will try to resolve `node:stream` etc. and fail.
+- **Webpack DCE for `require()` calls**: Webpack only DCEs a `require()` when it sits inside the dead branch of an `if/else` whose condition DefinePlugin can evaluate at compile time. An early-return or `throw` before the `require()` does NOT work: webpack doesn't do control-flow analysis for throws/returns, so the `require()` is still traced. The correct pattern is `if (dead) { ... } else { require('node:stream') }`. Bare `if (live) { require(...) }` without else works for inline `node:*` specifiers but NOT for `require('./some-module')` that pulls a new file into the module graph. Always test edge changes with `pnpm test-start-webpack` on `test/e2e/app-dir/app/standalone.test.ts` (has edge routes), not with `NEXT_SKIP_ISOLATE=1` which skips the full webpack compilation.
+- **TypeScript + DCE interaction**: Use `if/else` (not two independent `if` blocks) when assigning a variable conditionally on `process.env.X`. TypeScript cannot prove exhaustiveness across `if (flag) { x = a }; if (!flag) { x = b }` and will error with "variable used before being assigned". The `if/else` pattern satisfies both TypeScript (definite assignment) and webpack DCE (DefinePlugin replaces the condition, making one branch dead code).
+
+### Stale Native Binary
+
+If Turbopack produces unexpected errors after switching branches or pulling, check if `packages/next-swc/native/*.node` is stale. Delete it and run `pnpm install` to get the npm-published binary instead of a locally-built one.
+
+### Vendored React Packages & Types
+
+React is NOT resolved from `node_modules` for **App Router**. It's vendored into `packages/next/src/compiled/` during `pnpm build` (task: `copy_vendor_react()` in `taskfile.js`). Pages Router resolves React from `node_modules` normally.
+
+- **Type declarations**: `packages/next/types/$$compiled.internal.d.ts` contains `declare module` blocks for vendored React packages. When adding new APIs (e.g. `renderToPipeableStream`, `prerenderToNodeStream`), you must add type declarations here. The bare specifier types (e.g. `declare module 'react-server-dom-webpack/server'`) are what source code in `src/` imports against.
+- **Two channels**: stable (`compiled/react/`) and experimental (`compiled/react-experimental/`). The runtime bundle webpack config (`next-runtime.webpack-config.js`) aliases to the correct channel via `makeAppAliases({ experimental })`.
+- **Turbopack remap**: `react-server-dom-webpack/*` is silently remapped to `react-server-dom-turbopack/*` by Turbopack's import map. Code says "webpack" everywhere but Turbopack gets its own bindings.
+- **Adding Node.js-only React APIs** (e.g. `renderToPipeableStream`): These exist in `.node` builds but not in the type definitions. Use dynamic `require()` behind a `process.env` guard. Add type declarations to `$$compiled.internal.d.ts`. For the `import/no-extraneous-dependencies` eslint rule, use block-level disable/enable (safest for multi-line patterns):
+
+  ```typescript
+  /* eslint-disable import/no-extraneous-dependencies */
+  const ComponentMod =
+    require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+  /* eslint-enable import/no-extraneous-dependencies */
+  ```
+
+  If using `eslint-disable-next-line`, the comment must be on the line immediately before the `require()` call, NOT before the `const` declaration. When the `const` and `require()` are on different lines, this is error-prone. Prefer block-level disable/enable.
 
 ### Documentation Code Blocks
 
