@@ -129,6 +129,7 @@ describe('use-cache-segment-configs', () => {
 
          Import trace for requested module:
          // TODO(veil): Fix broken import trace for Webpack loader resource.
+           (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)
 
 
          > Build failed because of webpack errors
@@ -150,7 +151,14 @@ function getBuildOutput(cliOutput: string): string {
           '// TODO(veil): Fix broken import trace for Webpack loader resource.'
         )
       } else {
-        lines.push(stripAnsi(line))
+        const stripped = stripAnsi(line)
+        // Normalize non-deterministic pnpm store paths
+        lines.push(
+          stripped.replace(
+            /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
+            './node_modules/'
+          )
+        )
       }
     } else if (
       line.includes('Build error occurred') ||

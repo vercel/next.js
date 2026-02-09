@@ -15,7 +15,11 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
     await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
-      source: await getRedboxSource(browser),
+      // Normalize non-deterministic pnpm store paths in webpack loader attribution
+      source: (await getRedboxSource(browser)).replace(
+        /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
+        './node_modules/'
+      ),
     }
 
     if (process.env.IS_TURBOPACK_TEST) {
@@ -68,7 +72,9 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
           4 | 
           5 | export default function Page() {
           6 |   return <DynamicClient />
-            \`----"
+            \`----
+
+           (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)"
         `)
     }
   })

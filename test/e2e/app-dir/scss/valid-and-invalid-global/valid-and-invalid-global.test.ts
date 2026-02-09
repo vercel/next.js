@@ -34,7 +34,11 @@ describe('Valid and Invalid Global CSS with Custom App', () => {
       const browser = await next.browser('/')
 
       await waitForRedbox(browser)
-      const errorSource = await getRedboxSource(browser)
+      // Normalize non-deterministic pnpm store paths in webpack loader attribution
+      const errorSource = (await getRedboxSource(browser)).replace(
+        /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
+        './node_modules/'
+      )
 
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
@@ -56,7 +60,8 @@ describe('Valid and Invalid Global CSS with Custom App', () => {
          "./styles/global.scss
          Global CSS cannot be imported from files other than your Custom <App>. Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to pages/_app.js. Or convert the import to Component-Level CSS (CSS Modules).
          Read more: https://nextjs.org/docs/messages/css-global
-         Location: pages/index.js"
+         Location: pages/index.js
+           (from ./node_modules/next/dist/build/webpack/loaders/error-loader.js)"
         `)
       }
     })

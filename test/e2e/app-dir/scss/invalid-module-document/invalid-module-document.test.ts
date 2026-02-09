@@ -37,7 +37,11 @@ import { waitForRedbox, getRedboxSource } from 'next-test-utils'
         const browser = await next.browser('/')
 
         await waitForRedbox(browser)
-        const errorSource = await getRedboxSource(browser)
+        // Normalize non-deterministic pnpm store paths in webpack loader attribution
+        const errorSource = (await getRedboxSource(browser)).replace(
+          /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
+          './node_modules/'
+        )
 
         if (isRspack) {
           expect(errorSource).toMatchInlineSnapshot(`
@@ -48,7 +52,8 @@ import { waitForRedbox, getRedboxSource } from 'next-test-utils'
           expect(errorSource).toMatchInlineSnapshot(`
            "./styles.module.scss
            CSS cannot be imported within pages/_document.js. Please move global styles to pages/_app.js.
-           Location: pages/_document.js"
+           Location: pages/_document.js
+             (from ./node_modules/next/dist/build/webpack/loaders/error-loader.js)"
           `)
         }
       })

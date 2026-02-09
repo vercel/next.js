@@ -157,9 +157,12 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       (content) => content.replace('</div>', 'div'),
       async () => {
         await waitForRedbox(browser)
-        const source = next.normalizeTestDirContent(
-          await getRedboxSource(browser)
-        )
+        const source = next
+          .normalizeTestDirContent(await getRedboxSource(browser))
+          .replace(
+            /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
+            './node_modules/'
+          )
 
         if (process.env.IS_TURBOPACK_TEST) {
           expect(source).toMatchInlineSnapshot(`
@@ -220,7 +223,8 @@ export function runErrorRecoveryHmrTest(nextConfig: {
                          Syntax Error
 
                      Import trace for requested module:
-                     ./pages/hmr/about2.js"
+                     ./pages/hmr/about2.js
+                       (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)"
                   `)
         }
       }

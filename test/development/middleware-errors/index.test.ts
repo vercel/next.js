@@ -543,7 +543,8 @@ describe('middleware - development errors', () => {
             :                            ^
             \`----
          Caused by:
-             Syntax Error",
+             Syntax Error
+           (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)",
            "stack": [],
          }
         `)
@@ -628,7 +629,8 @@ describe('middleware - development errors', () => {
             :                            ^
             \`----
          Caused by:
-             Syntax Error",
+             Syntax Error
+           (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)",
            "stack": [],
          }
         `)

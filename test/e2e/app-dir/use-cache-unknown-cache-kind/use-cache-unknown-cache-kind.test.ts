@@ -77,13 +77,14 @@ describe('use-cache-unknown-cache-kind', () => {
             ,-[1:1]
           1 | 'use cache: custom'
             : ^^^^^^^^^^^^^^^^^^^
-          2 | 
+          2 |
           3 | export default async function Page() {
           4 |   return <p>hello world</p>
             \`----
 
          Import trace for requested module:
          ./app/page.tsx
+           (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)
 
 
          > Build failed because of webpack errors
@@ -109,7 +110,11 @@ describe('use-cache-unknown-cache-kind', () => {
       await waitForRedbox(browser)
 
       const errorDescription = await getRedboxDescription(browser)
-      const errorSource = await getRedboxSource(browser)
+      // Normalize non-deterministic pnpm store paths in webpack loader attribution
+      const errorSource = (await getRedboxSource(browser)).replace(
+        /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
+        './node_modules/'
+      )
 
       if (isTurbopack) {
         expect(errorDescription).toMatchInlineSnapshot(
@@ -159,10 +164,12 @@ describe('use-cache-unknown-cache-kind', () => {
             ,-[1:1]
           1 | 'use cache: custom'
             : ^^^^^^^^^^^^^^^^^^^
-          2 | 
+          2 |
           3 | export default async function Page() {
           4 |   return <p>hello world</p>
-            \`----"
+            \`----
+
+           (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)"
         `)
       }
     })
@@ -203,7 +210,14 @@ function getBuildOutput(cliOutput: string): string {
         break
       }
 
-      lines.push(stripAnsi(line))
+      const stripped = stripAnsi(line)
+      // Normalize non-deterministic pnpm store paths
+      lines.push(
+        stripped.replace(
+          /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
+          './node_modules/'
+        )
+      )
     } else if (
       line.includes('Build error occurred') ||
       line.includes('Failed to compile')
