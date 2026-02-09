@@ -238,17 +238,7 @@ function writeInitialInstructions(
   scriptStart: string,
   formState: unknown | null
 ) {
-  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-  )})`
-
-  if (formState != null) {
-    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-    )})`
-  }
-
-  controller.enqueue(encoder.encode(`${scriptStart}${scriptContents}</script>`))
+  controller.enqueue(encodeInitialFlightData(scriptStart, formState))
 }
 
 function writeFlightDataInstruction(
@@ -302,6 +292,23 @@ function encodeFlightDataChunk(
   )
 }
 
+function encodeInitialFlightData(
+  scriptStart: string,
+  formState: unknown | null
+): Uint8Array {
+  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+  )})`
+
+  if (formState != null) {
+    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+    )})`
+  }
+
+  return encoder.encode(`${scriptStart}${scriptContents}</script>`)
+}
+
 /**
  * Creates a Node.js Readable that provides inline script tag chunks for writing
  * hydration data to the client outside the React render itself.
@@ -336,19 +343,7 @@ export function createInlinedDataNodeStream(
         try {
           if (!bootstrapWritten) {
             bootstrapWritten = true
-            let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-              JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-            )})`
-
-            if (formState != null) {
-              scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-                JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-              )})`
-            }
-
-            this.push(
-              encoder.encode(`${startScriptTag}${scriptContents}</script>`)
-            )
+            this.push(encodeInitialFlightData(startScriptTag, formState))
           }
 
           try {
@@ -366,19 +361,7 @@ export function createInlinedDataNodeStream(
       flush(callback: (error?: Error) => void) {
         // If no data was ever received, still write the bootstrap
         if (!bootstrapWritten) {
-          let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-            JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-          )})`
-
-          if (formState != null) {
-            scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-              JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-            )})`
-          }
-
-          this.push(
-            encoder.encode(`${startScriptTag}${scriptContents}</script>`)
-          )
+          this.push(encodeInitialFlightData(startScriptTag, formState))
         }
         callback()
       },
