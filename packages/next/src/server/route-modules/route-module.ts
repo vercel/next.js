@@ -631,7 +631,7 @@ export abstract class RouteModule<
       // onRequestError below
       ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
-    const manifests = await this.loadManifests(srcPage, absoluteProjectDir)
+    const manifests = this.loadManifests(srcPage, absoluteProjectDir)
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
