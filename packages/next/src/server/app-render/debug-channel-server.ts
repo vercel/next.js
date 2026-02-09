@@ -95,60 +95,68 @@ function createWebDebugChannel(): DebugChannelPair {
 }
 
 function createNodeDebugChannel(): DebugChannelPair {
-  const { Readable, Writable } =
-    require('node:stream') as typeof import('node:stream')
+  // Guard so webpack can DCE node:stream require for edge builds.
+  // Webpack resolves all require() calls during module graph construction,
+  // even inside functions that are never called. The if/else with a
+  // DefinePlugin-replaceable condition is the only pattern webpack DCEs.
+  if (!process.env.__NEXT_USE_NODE_STREAMS) {
+    throw new Error('createNodeDebugChannel requires Node.js streams support')
+  } else {
+    const { Readable, Writable } =
+      require('node:stream') as typeof import('node:stream')
 
-  // The read side is a plain Readable (NOT a PassThrough/Duplex).
-  // PassThrough is a Transform (Duplex) which has both readable and writable
-  // sides. Node's `for await...of` uses endOfStream() internally, which checks
-  // both sides of a Duplex. Ending the writable side triggers a 'close' event
-  // that endOfStream interprets as ERR_STREAM_PREMATURE_CLOSE before the
-  // async iterator finishes consuming the readable side. A plain Readable has
-  // no writable side, so endOfStream only checks readable completion via
-  // push(null), which works cleanly with async iteration.
-  // autoDestroy: false is critical. By default (Node 16+), a push-mode Readable
-  // that receives push(null) gets auto-destroyed if nobody is consuming it yet.
-  // If the render completes and the event loop ticks before the tee is set up,
-  // the Readable is destroyed and won't emit 'data' events for buffered data.
-  const reader = new Readable({ read() {}, autoDestroy: false })
+    // The read side is a plain Readable (NOT a PassThrough/Duplex).
+    // PassThrough is a Transform (Duplex) which has both readable and writable
+    // sides. Node's `for await...of` uses endOfStream() internally, which checks
+    // both sides of a Duplex. Ending the writable side triggers a 'close' event
+    // that endOfStream interprets as ERR_STREAM_PREMATURE_CLOSE before the
+    // async iterator finishes consuming the readable side. A plain Readable has
+    // no writable side, so endOfStream only checks readable completion via
+    // push(null), which works cleanly with async iteration.
+    // autoDestroy: false is critical. By default (Node 16+), a push-mode Readable
+    // that receives push(null) gets auto-destroyed if nobody is consuming it yet.
+    // If the render completes and the event loop ticks before the tee is set up,
+    // the Readable is destroyed and won't emit 'data' events for buffered data.
+    const reader = new Readable({ read() {}, autoDestroy: false })
 
-  // The write side must be a plain Writable (NOT a Duplex/PassThrough).
-  // React's renderToPipeableStream checks `typeof debugChannel.read === 'function'`
-  // to detect a bidirectional channel. If it finds .read(), it reads from the
-  // same object expecting debug commands back from the client, which causes
-  // "Unknown command" errors when it reads its own output.
-  //
-  // autoDestroy: false is critical. Without it, the Writable auto-destroys
-  // after end(), triggering its destroy() handler which explicitly destroys
-  // the reader. The reader may not be consumed yet (tee setup happens later
-  // after an async gap), so destroying it would discard buffered debug data.
-  const writer = new Writable({
-    autoDestroy: false,
-    write(
-      chunk: Buffer | Uint8Array,
-      _encoding: string,
-      callback: (error?: Error | null) => void
-    ) {
-      reader.push(chunk)
-      callback()
-    },
-    final(callback: (error?: Error | null) => void) {
-      reader.push(null)
-      callback()
-    },
-    destroy(err, callback) {
-      reader.destroy(err ?? undefined)
-      callback(err)
-    },
-  })
+    // The write side must be a plain Writable (NOT a Duplex/PassThrough).
+    // React's renderToPipeableStream checks `typeof debugChannel.read === 'function'`
+    // to detect a bidirectional channel. If it finds .read(), it reads from the
+    // same object expecting debug commands back from the client, which causes
+    // "Unknown command" errors when it reads its own output.
+    //
+    // autoDestroy: false is critical. Without it, the Writable auto-destroys
+    // after end(), triggering its destroy() handler which explicitly destroys
+    // the reader. The reader may not be consumed yet (tee setup happens later
+    // after an async gap), so destroying it would discard buffered debug data.
+    const writer = new Writable({
+      autoDestroy: false,
+      write(
+        chunk: Buffer | Uint8Array,
+        _encoding: string,
+        callback: (error?: Error | null) => void
+      ) {
+        reader.push(chunk)
+        callback()
+      },
+      final(callback: (error?: Error | null) => void) {
+        reader.push(null)
+        callback()
+      },
+      destroy(err, callback) {
+        reader.destroy(err ?? undefined)
+        callback(err)
+      },
+    })
 
-  return {
-    // Plain Writable: has .write() but NOT .read(), so React uses it
-    // write-only. The isNodeWritable check in pipeable-stream-wrappers.ts
-    // also passes, skipping toNodeDebugChannel().
-    serverSide: writer,
-    // Plain Readable: available for tee or direct consumption.
-    // No writable side means for-await-of works without ERR_STREAM_PREMATURE_CLOSE.
-    clientSide: { readable: reader },
+    return {
+      // Plain Writable: has .write() but NOT .read(), so React uses it
+      // write-only. The isNodeWritable check in pipeable-stream-wrappers.ts
+      // also passes, skipping toNodeDebugChannel().
+      serverSide: writer,
+      // Plain Readable: available for tee or direct consumption.
+      // No writable side means for-await-of works without ERR_STREAM_PREMATURE_CLOSE.
+      clientSide: { readable: reader },
+    }
   }
 }
