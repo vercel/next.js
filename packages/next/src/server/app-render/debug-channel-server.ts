@@ -62,9 +62,9 @@ export function createDebugChannel(): DebugChannelPair | undefined {
 
   if (process.env.__NEXT_USE_NODE_STREAMS) {
     return createNodeDebugChannel()
+  } else {
+    return createWebDebugChannel()
   }
-
-  return createWebDebugChannel()
 }
 
 function createWebDebugChannel(): DebugChannelPair {
