@@ -392,13 +392,13 @@ pub async fn get_evaluate_entries(
             )
             .module();
 
-        let Some(globals_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(globals_module).await?
-        else {
+        let Some(globals_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
+            globals_module.to_resolved().await?,
+        ) else {
             bail!("Internal module is not evaluatable");
         };
 
-        let mut entries = vec![globals_module.to_resolved().await?];
+        let mut entries = vec![globals_module];
         if let Some(runtime_entries) = runtime_entries {
             for &entry in &*runtime_entries.await? {
                 entries.push(entry)
