@@ -31,6 +31,15 @@ pub const DATA_THRESHOLD_PER_COMPACTED_FILE: usize = 256 * 1024 * 1024;
 /// MAX_ENTRIES_PER_INITIAL_FILE and DATA_THRESHOLD_PER_INITIAL_FILE.
 pub const THREAD_LOCAL_SIZE_SHIFT: usize = 7;
 
+/// The maximum bytes that should go into a single small value block.
+pub const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 4 * MAX_SMALL_VALUE_SIZE;
+
+/// Maximum number of value blocks per SST file.
+/// Must leave room for key blocks + index block within u16::MAX total blocks.
+/// Uses u16::MAX / 2 to account for the 50/50 merge-and-split at end of compaction,
+/// which can double the block count before splitting.
+pub const MAX_VALUE_BLOCK_COUNT: usize = u16::MAX as usize / 2;
+
 /// Maximum RAM bytes for key block cache
 pub const KEY_BLOCK_CACHE_SIZE: u64 = 400 * 1024 * 1024;
 pub const KEY_BLOCK_AVG_SIZE: usize = 16 * 1024;
