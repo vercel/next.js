@@ -10,12 +10,19 @@ import {
   parseLineNumberFromCodeFrameLine,
 } from './parse-code-frame'
 
-type CodeFrameProps = {
+interface CodeFrameProps {
   stackFrame: StackFrame
   codeFrame: string
+  selectedFrameIndex: number
+  tabGroupId: string
 }
 
-export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
+export function CodeFrame({
+  stackFrame,
+  codeFrame,
+  selectedFrameIndex,
+  tabGroupId,
+}: CodeFrameProps) {
   const parsedLineStates = useMemo(() => {
     const decodedLines = groupCodeFrameLines(formatCodeFrame(codeFrame))
 
@@ -34,10 +41,17 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
   })
 
   const fileExtension = stackFrame?.file?.split('.').pop()
+  const tabPanelId = `${tabGroupId}-panel-${selectedFrameIndex}`
+  const tabId = `${tabGroupId}-tab-${selectedFrameIndex}`
 
   // TODO: make the caret absolute
   return (
-    <div data-nextjs-codeframe>
+    <div
+      data-nextjs-codeframe
+      role="tabpanel"
+      id={tabPanelId}
+      aria-labelledby={tabId}
+    >
       <div className="code-frame-header">
         {/* TODO: This is <div> in `Terminal` component.
         Changing now will require multiple test snapshots updates.

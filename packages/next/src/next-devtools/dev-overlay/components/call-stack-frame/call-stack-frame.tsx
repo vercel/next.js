@@ -1,25 +1,48 @@
 import type { OriginalStackFrame } from '../../../shared/stack-frame'
 
+import { useCallback } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { ExternalIcon, SourceMappingErrorIcon } from '../../icons/external'
 import { getStackFrameFile } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 
-export const CallStackFrame: React.FC<{
+export function CallStackFrame({
+  frame,
+  index,
+  isSelected,
+  onSelect,
+  tabGroupId,
+}: {
   frame: OriginalStackFrame
-}> = function CallStackFrame({ frame }) {
+  index: number
+  isSelected: boolean
+  onSelect?: (index: number) => void
+  tabGroupId: string
+}) {
   // TODO: ability to expand resolved frames
 
   const f = frame.originalStackFrame ?? frame.sourceStackFrame
-  const hasOriginalCodeFrame = Boolean(frame.originalCodeFrame)
+  const hasSource = Boolean(frame.originalCodeFrame)
+  const isSelectable = Boolean(onSelect)
   const open = useOpenInEditor(
-    hasOriginalCodeFrame
+    hasSource
       ? {
           file: f.file,
           line1: f.line1 ?? 1,
           column1: f.column1 ?? 1,
         }
       : undefined
+  )
+
+  const handleSelect = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (event.metaKey) {
+        open()
+      } else if (onSelect) {
+        onSelect(index)
+      }
+    },
+    [onSelect, index, open]
   )
 
   // Formatted file source could be empty. e.g. <anonymous> will be formatted to empty string,
@@ -30,26 +53,61 @@ export const CallStackFrame: React.FC<{
     return null
   }
 
+  const tabPanelId = `${tabGroupId}-panel-${index}`
+  const tabId = `${tabGroupId}-tab-${index}`
+  const describedById = `${tabGroupId}-tab-${index}-label`
+  const labelledById = `${tabGroupId}-tab-${index}-description`
+
+  // Using the "faux nested interactive controls" pattern:
+  // https://piccalil.li/blog/accessible-faux-nested-interactive-controls/
+  // The main button uses a ::after pseudo-element to cover the whole frame area.
+  // Other buttons are positioned with higher z-index to be clickable above it.
   return (
     <div
       data-nextjs-call-stack-frame
-      data-nextjs-call-stack-frame-no-source={!hasOriginalCodeFrame}
+      data-nextjs-call-stack-frame-index={index}
+      data-nextjs-call-stack-frame-no-source={!hasSource}
       data-nextjs-call-stack-frame-ignored={frame.ignored}
+      data-nextjs-call-stack-frame-selectable={isSelectable}
+      role="tab"
+      id={tabId}
+      aria-controls={tabPanelId}
+      aria-describedby={describedById}
+      aria-labelledby={labelledById}
+      aria-selected={isSelected}
+      tabIndex={isSelected ? 0 : -1}
     >
       <div className="call-stack-frame-method-name">
-        <HotlinkedText text={f.methodName} />
-        {hasOriginalCodeFrame && (
+        {isSelectable ? (
           <button
+            type="button"
+            onClick={handleSelect}
+            className="call-stack-frame-select-button"
+            id={labelledById}
+            tabIndex={-1}
+          >
+            <HotlinkedText text={f.methodName} />
+          </button>
+        ) : (
+          <span>
+            <HotlinkedText text={f.methodName} />
+          </span>
+        )}
+        {hasSource && (
+          <button
+            type="button"
             onClick={open}
-            className="open-in-editor-button"
+            className="call-stack-frame-action-button open-in-editor-button"
             aria-label={`Open ${f.methodName} in editor`}
+            tabIndex={-1}
           >
             <ExternalIcon width={16} height={16} />
           </button>
         )}
         {frame.error ? (
           <button
-            className="source-mapping-error-button"
+            type="button"
+            className="call-stack-frame-action-button source-mapping-error-button"
             onClick={() => console.error(frame.reason)}
             title="Sourcemapping failed. Click to log cause of error."
           >
@@ -58,8 +116,9 @@ export const CallStackFrame: React.FC<{
         ) : null}
       </div>
       <span
-        className="call-stack-frame-file"
-        data-has-original-code-frame={hasOriginalCodeFrame}
+        className="call-stack-frame-file-source"
+        data-has-source={hasSource}
+        id={describedById}
       >
         {stackFrameFile}
       </span>
@@ -83,8 +142,9 @@ export const CALL_STACK_FRAME_STYLES = `
     opacity: 0.6;
   }
 
+  /* Container for the faux nested interactive controls pattern */
   [data-nextjs-call-stack-frame] {
-    user-select: text;
+    position: relative;
     display: block;
     box-sizing: border-box;
 
@@ -96,6 +156,21 @@ export const CALL_STACK_FRAME_STYLES = `
     padding: 6px 8px;
 
     border-radius: var(--rounded-lg);
+    transition: background-color 150ms ease;
+  }
+
+  [data-nextjs-call-stack-frame]:focus-visible {
+    outline: var(--focus-ring);
+    /* offset --focus-right width. Chrome's default choice to restrict the childs outline by the parent looks bad. */
+    outline-offset: -2px;
+  }
+
+  [data-nextjs-call-stack-frame-selectable="true"]:hover {
+    background-color: var(--color-gray-100);
+  }
+
+  [data-nextjs-call-stack-frame][aria-selected="true"] {
+    background-color: var(--color-gray-200);
   }
 
   .call-stack-frame-method-name {
@@ -117,6 +192,32 @@ export const CALL_STACK_FRAME_STYLES = `
     }
   }
 
+  /* Main select button with ::after covering the whole frame */
+  .call-stack-frame-select-button {
+    all: unset;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  /* The ::after pseudo-element covers the whole frame area */
+  .call-stack-frame-select-button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  .call-stack-frame-select-button:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Action buttons positioned above the select button's ::after */
+  .call-stack-frame-action-button {
+    position: relative;
+    z-index: 1;
+  }
+
   .open-in-editor-button, .source-mapping-error-button {
     display: flex;
     align-items: center;
@@ -136,14 +237,19 @@ export const CALL_STACK_FRAME_STYLES = `
     }
 
     &:hover {
-      background: var(--color-gray-100);
+      /* 
+       * if we're hovering the secondary actions, we're also hovering the parent.
+       * Invert back to create sufficient contrast against the parent's hover background color.
+       */
+      background: var(--color-background-100);
+      outline: 1px solid var(--color-font);
     }
   }
 
-  .call-stack-frame-file {
+  .call-stack-frame-file-source {
+    display: block;
     color: var(--color-gray-900);
     font-size: var(--size-14);
     line-height: var(--size-20);
-    word-wrap: break-word;
   }
 `

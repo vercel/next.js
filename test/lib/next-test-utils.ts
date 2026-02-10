@@ -1866,7 +1866,7 @@ export async function getStackFramesContent(browser) {
     await Promise.all(
       stackFrameElements.map(async (frame) => {
         const functionNameEl = await frame.$('.call-stack-frame-method-name')
-        const fileEl = await frame.$('[data-has-original-code-frame="true"]')
+        const fileEl = await frame.$('[data-has-source="true"]')
         const functionName = functionNameEl
           ? await functionNameEl.innerText()
           : ''

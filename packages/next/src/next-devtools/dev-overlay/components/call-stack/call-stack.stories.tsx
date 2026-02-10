@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
+import { useState } from 'react'
 import { CallStack } from './call-stack'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
 
@@ -59,31 +60,52 @@ const ignoredFrame = {
 export const SingleFrame: Story = {
   args: {
     frames: [frame],
+    isIgnoreListOpen: false,
+    ignoredFramesTally: 0,
+    onToggleIgnoreList: () => {},
+    selectedFrameIndex: 0,
+    onFrameSelect: () => {},
+    tabGroupId: 'storybook-call-stack',
   },
 }
 
-export const MultipleFrames: Story = {
-  args: {
-    frames: [
-      frame,
-      {
-        ...frame,
-        originalStackFrame: {
-          ...frame.originalStackFrame,
-          methodName: 'ParentComponent',
-          lineNumber: 5,
-        },
-      },
-      ...Array(5).fill(ignoredFrame),
-      {
-        ...frame,
-        originalStackFrame: {
-          ...frame.originalStackFrame,
-          methodName: 'GrandparentComponent',
-          lineNumber: 1,
-        },
-      },
-      ...Array(5).fill(ignoredFrame),
-    ],
+const multipleFrames = [
+  frame,
+  {
+    ...frame,
+    originalStackFrame: {
+      ...frame.originalStackFrame,
+      methodName: 'ParentComponent',
+      lineNumber: 5,
+    },
   },
+  ...Array(5).fill(ignoredFrame),
+  {
+    ...frame,
+    originalStackFrame: {
+      ...frame.originalStackFrame,
+      methodName: 'GrandparentComponent',
+      lineNumber: 1,
+    },
+  },
+  ...Array(5).fill(ignoredFrame),
+]
+
+function InteractiveCallStack() {
+  const [selectedFrameIndex, setSelectedFrameIndex] = useState<number | null>(0)
+  return (
+    <CallStack
+      frames={multipleFrames}
+      isIgnoreListOpen={false}
+      ignoredFramesTally={10}
+      onToggleIgnoreList={() => {}}
+      selectedFrameIndex={selectedFrameIndex}
+      onFrameSelect={setSelectedFrameIndex}
+      tabGroupId="storybook-call-stack"
+    />
+  )
+}
+
+export const MultipleFrames: Story = {
+  render: () => <InteractiveCallStack />,
 }

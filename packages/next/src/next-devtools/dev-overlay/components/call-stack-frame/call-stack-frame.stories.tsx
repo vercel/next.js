@@ -57,12 +57,29 @@ export const HasSource: Story = {
       ...frame,
       originalCodeFrame: 'export default function MyComponent() {',
     },
+    index: 0,
+    isSelected: false,
+    onSelect: () => {},
+  },
+}
+
+export const HasSourceSelected: Story = {
+  args: {
+    frame: {
+      ...frame,
+      originalCodeFrame: 'export default function MyComponent() {',
+    },
+    index: 0,
+    isSelected: true,
+    onSelect: () => {},
   },
 }
 
 export const NoSource: Story = {
   args: {
     frame,
+    index: 0,
+    isSelected: false,
   },
 }
 
@@ -75,5 +92,7 @@ export const AnonymousSource: Story = {
         file: '<anonymous>',
       },
     },
+    index: 0,
+    isSelected: false,
   },
 }
