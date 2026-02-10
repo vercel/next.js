@@ -82,25 +82,26 @@ impl WebAssemblyModuleAsset {
     async fn loader_as_resolve_origin(self: Vc<Self>) -> Result<Vc<Box<dyn ResolveOrigin>>> {
         let module = self.loader_as_module();
 
-        let Some(esm_asset) = Vc::try_resolve_sidecast::<Box<dyn ResolveOrigin>>(module).await?
+        let Some(esm_asset) =
+            ResolvedVc::try_sidecast::<Box<dyn ResolveOrigin>>(module.to_resolved().await?)
         else {
             bail!("WASM loader was not processed into an EcmascriptModuleAsset");
         };
 
-        Ok(esm_asset)
+        Ok(*esm_asset)
     }
 
     #[turbo_tasks::function]
     async fn loader(self: Vc<Self>) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
         let module = self.loader_as_module();
 
-        let Some(esm_asset) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
-        else {
+        let Some(esm_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+            module.to_resolved().await?,
+        ) else {
             bail!("WASM loader was not processed into an EcmascriptModuleAsset");
         };
 
-        Ok(esm_asset)
+        Ok(*esm_asset)
     }
 
     #[turbo_tasks::function]
@@ -259,9 +260,9 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         let loader_asset = self.module.loader();
         let item = loader_asset.as_chunk_item(*self.module_graph, *self.chunking_context);
 
-        let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
-            .await?
-            .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
+        let ecmascript_item =
+            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(item.to_resolved().await?)
+                .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
 
         let chunk_item_content = ecmascript_item
             .content_with_async_module_info(async_module_info, false)

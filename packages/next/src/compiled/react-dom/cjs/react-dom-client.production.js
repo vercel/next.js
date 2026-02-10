@@ -1967,6 +1967,8 @@ var KeyboardEventInterface = assign({}, UIEventInterface, {
     isPrimary: 0
   }),
   SyntheticPointerEvent = createSyntheticEvent(PointerEventInterface),
+  SubmitEventInterface = assign({}, EventInterface, { submitter: 0 }),
+  SyntheticSubmitEvent = createSyntheticEvent(SubmitEventInterface),
   TouchEventInterface = assign({}, UIEventInterface, {
     touches: 0,
     targetTouches: 0,
@@ -2155,14 +2157,14 @@ var isInputEventSupported = !1;
 if (canUseDOM) {
   var JSCompiler_inline_result$jscomp$312;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_473 = "oninput" in document;
-    if (!isSupported$jscomp$inline_473) {
-      var element$jscomp$inline_474 = document.createElement("div");
-      element$jscomp$inline_474.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_473 =
-        "function" === typeof element$jscomp$inline_474.oninput;
+    var isSupported$jscomp$inline_472 = "oninput" in document;
+    if (!isSupported$jscomp$inline_472) {
+      var element$jscomp$inline_473 = document.createElement("div");
+      element$jscomp$inline_473.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_472 =
+        "function" === typeof element$jscomp$inline_473.oninput;
     }
-    JSCompiler_inline_result$jscomp$312 = isSupported$jscomp$inline_473;
+    JSCompiler_inline_result$jscomp$312 = isSupported$jscomp$inline_472;
   } else JSCompiler_inline_result$jscomp$312 = !1;
   isInputEventSupported =
     JSCompiler_inline_result$jscomp$312 &&
@@ -7506,6 +7508,12 @@ function updateSuspenseListComponent(current, workInProgress, renderLanes) {
   }
   return workInProgress.child;
 }
+function updateContextProvider(current, workInProgress, renderLanes) {
+  var newProps = workInProgress.pendingProps;
+  pushProvider(workInProgress, workInProgress.type, newProps.value);
+  reconcileChildren(current, workInProgress, newProps.children, renderLanes);
+  return workInProgress.child;
+}
 function bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes) {
   null !== current && (workInProgress.dependencies = current.dependencies);
   workInProgressRootSkippedLanes |= workInProgress.lanes;
@@ -7715,6 +7723,15 @@ function beginWork(current, workInProgress, renderLanes) {
                 workInProgress,
                 current,
                 props,
+                renderLanes
+              );
+              break a;
+            } else if ($$typeof === REACT_CONTEXT_TYPE) {
+              workInProgress.tag = 10;
+              workInProgress.type = current;
+              workInProgress = updateContextProvider(
+                null,
+                workInProgress,
                 renderLanes
               );
               break a;
@@ -8016,12 +8033,7 @@ function beginWork(current, workInProgress, renderLanes) {
         workInProgress.child
       );
     case 10:
-      return (
-        (props = workInProgress.pendingProps),
-        pushProvider(workInProgress, workInProgress.type, props.value),
-        reconcileChildren(current, workInProgress, props.children, renderLanes),
-        workInProgress.child
-      );
+      return updateContextProvider(current, workInProgress, renderLanes);
     case 9:
       return (
         ($$typeof = workInProgress.type._context),
@@ -10816,7 +10828,12 @@ function recursivelyResetForms(parentFiber) {
     for (parentFiber = parentFiber.child; null !== parentFiber; ) {
       var fiber = parentFiber;
       recursivelyResetForms(fiber);
-      5 === fiber.tag && fiber.flags & 1024 && fiber.stateNode.reset();
+      5 === fiber.tag &&
+        fiber.flags & 1024 &&
+        ((fiber = fiber.stateNode),
+        (_enabled = !0),
+        fiber.reset(),
+        (_enabled = !1));
       parentFiber = parentFiber.sibling;
     }
 }
@@ -13455,20 +13472,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1695 = 0;
-  i$jscomp$inline_1695 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1695++
+  var i$jscomp$inline_1686 = 0;
+  i$jscomp$inline_1686 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1686++
 ) {
-  var eventName$jscomp$inline_1696 =
-      simpleEventPluginEvents[i$jscomp$inline_1695],
-    domEventName$jscomp$inline_1697 =
-      eventName$jscomp$inline_1696.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1698 =
-      eventName$jscomp$inline_1696[0].toUpperCase() +
-      eventName$jscomp$inline_1696.slice(1);
+  var eventName$jscomp$inline_1687 =
+      simpleEventPluginEvents[i$jscomp$inline_1686],
+    domEventName$jscomp$inline_1688 =
+      eventName$jscomp$inline_1687.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1689 =
+      eventName$jscomp$inline_1687[0].toUpperCase() +
+      eventName$jscomp$inline_1687.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1697,
-    "on" + capitalizedEvent$jscomp$inline_1698
+    domEventName$jscomp$inline_1688,
+    "on" + capitalizedEvent$jscomp$inline_1689
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -13790,6 +13807,9 @@ function dispatchEventForPluginEventSystem(
           case "pointerover":
           case "pointerup":
             SyntheticEventCtor = SyntheticPointerEvent;
+            break;
+          case "submit":
+            SyntheticEventCtor = SyntheticSubmitEvent;
             break;
           case "toggle":
           case "beforetoggle":
@@ -18050,16 +18070,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2044 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2035 = React.version;
 if (
-  "19.3.0-canary-230772f9-20260128" !==
-  isomorphicReactPackageVersion$jscomp$inline_2044
+  "19.3.0-canary-272441a9-20260209" !==
+  isomorphicReactPackageVersion$jscomp$inline_2035
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2044,
-      "19.3.0-canary-230772f9-20260128"
+      isomorphicReactPackageVersion$jscomp$inline_2035,
+      "19.3.0-canary-272441a9-20260209"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18079,24 +18099,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2634 = {
+var internals$jscomp$inline_2621 = {
   bundleType: 0,
-  version: "19.3.0-canary-230772f9-20260128",
+  version: "19.3.0-canary-272441a9-20260209",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-230772f9-20260128"
+  reconcilerVersion: "19.3.0-canary-272441a9-20260209"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2635 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2622 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2635.isDisabled &&
-    hook$jscomp$inline_2635.supportsFiber
+    !hook$jscomp$inline_2622.isDisabled &&
+    hook$jscomp$inline_2622.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2635.inject(
-        internals$jscomp$inline_2634
+      (rendererID = hook$jscomp$inline_2622.inject(
+        internals$jscomp$inline_2621
       )),
-        (injectedHook = hook$jscomp$inline_2635);
+        (injectedHook = hook$jscomp$inline_2622);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18182,4 +18202,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-230772f9-20260128";
+exports.version = "19.3.0-canary-272441a9-20260209";

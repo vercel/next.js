@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
@@ -174,5 +174,51 @@ impl Display for ModuleType {
             ModuleType::WebAssembly { .. } => write!(f, "WebAssembly"),
             ModuleType::Custom(_) => write!(f, "Custom"),
         }
+    }
+}
+
+impl ModuleType {
+    /// Creates a ModuleType from a string identifier.
+    /// This is used for user-configured module types in turbopack rules.
+    pub fn from_str_with_defaults(
+        type_str: &str,
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
+        options: ResolvedVc<EcmascriptOptions>,
+        environment: Option<ResolvedVc<Environment>>,
+    ) -> Result<Self> {
+        Ok(match type_str {
+            "asset" => ModuleType::StaticUrlJs { tag: None },
+            "ecmascript" => ModuleType::Ecmascript {
+                preprocess,
+                main,
+                postprocess,
+                options,
+            },
+            "typescript" => ModuleType::Typescript {
+                preprocess,
+                main,
+                postprocess,
+                tsx: false,
+                analyze_types: false,
+                options,
+            },
+            "css" => ModuleType::Css {
+                ty: CssModuleAssetType::Default,
+                environment,
+            },
+            "css-module" => ModuleType::CssModule,
+            "wasm" => ModuleType::WebAssembly {
+                source_ty: WebAssemblySourceType::Binary,
+            },
+            "raw" => ModuleType::Raw,
+            "node" => ModuleType::NodeAddon,
+            "bytes" => ModuleType::InlinedBytesJs,
+            _ => bail!(
+                "Unknown module type: {type_str:?}. Valid types are: asset, ecmascript, \
+                 typescript, css, css-module, wasm, raw, node, bytes"
+            ),
+        })
     }
 }

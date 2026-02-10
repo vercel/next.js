@@ -445,7 +445,7 @@ async fn find_config_in_location(
 impl GenerateSourceMap for PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
-        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*self.source).await?;
+        let source = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.source);
         match source {
             Some(source) => Ok(source.generate_source_map()),
             None => Ok(FileContent::NotFound.cell()),

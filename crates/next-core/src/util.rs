@@ -5,13 +5,17 @@ use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
 use serde::{Deserialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
     asset::AssetContent,
-    compile_time_info::{CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment},
+    compile_time_info::{
+        CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment, FreeVarReference,
+        FreeVarReferences,
+    },
     condition::ContextCondition,
+    issue::IssueSeverity,
     source::Source,
     virtual_source::VirtualSource,
 };
@@ -56,6 +60,147 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
     }
 
     CompileTimeDefines(defines)
+}
+
+/// Emits warnings or errors when inlining frequently changing Vercel system env vars
+pub fn free_var_references_with_vercel_system_env_warnings(
+    defines: CompileTimeDefines,
+    severity: IssueSeverity,
+) -> FreeVarReferences {
+    // List of system env vars:
+    //   not available as NEXT_PUBLIC_* anyway:
+    //      CI
+    //      VERCEL
+    //      VERCEL_SKEW_PROTECTION_ENABLED
+    //      VERCEL_AUTOMATION_BYPASS_SECRET
+    //      VERCEL_GIT_PROVIDER
+    //      VERCEL_GIT_REPO_SLUG
+    //      VERCEL_GIT_REPO_OWNER
+    //      VERCEL_GIT_REPO_ID
+    //      VERCEL_OIDC_TOKEN
+    //
+    //   constant:
+    //      VERCEL_PROJECT_PRODUCTION_URL
+    //      VERCEL_REGION
+    //      VERCEL_PROJECT_ID
+    //
+    //   suboptimal (changes production main branch VS preview branches):
+    //      VERCEL_ENV
+    //      VERCEL_TARGET_ENV
+    //
+    //   bad (changes per branch):
+    //      VERCEL_BRANCH_URL
+    //      VERCEL_GIT_COMMIT_REF
+    //      VERCEL_GIT_PULL_REQUEST_ID
+    //
+    //   catastrophic (changes per commit):
+    //      NEXT_DEPLOYMENT_ID
+    //      VERCEL_URL
+    //      VERCEL_DEPLOYMENT_ID
+    //      VERCEL_GIT_COMMIT_SHA
+    //      VERCEL_GIT_COMMIT_MESSAGE
+    //      VERCEL_GIT_COMMIT_AUTHOR_LOGIN
+    //      VERCEL_GIT_COMMIT_AUTHOR_NAME
+    //      VERCEL_GIT_PREVIOUS_SHA
+
+    let entries = defines
+        .0
+        .into_iter()
+        .map(|(k, value)| (k, FreeVarReference::Value(value)));
+
+    fn wrap_report_next_public_usage(
+        public_env_var: &str,
+        inner: Option<Box<FreeVarReference>>,
+        severity: IssueSeverity,
+    ) -> FreeVarReference {
+        let message = match public_env_var {
+            "NEXT_PUBLIC_NEXT_DEPLOYMENT_ID" | "NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID" => {
+                rcstr!(
+                    "The deployment id is being inlined.\nThis variable changes frequently, \
+                     causing slower deploy times and worse browser client-side caching. Use \
+                     `process.env.NEXT_DEPLOYMENT_ID` instead to access the same value without \
+                     inlining, for faster deploy times and better browser client-side caching."
+                )
+            }
+            "NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA" => {
+                rcstr!(
+                    "The commit hash is being inlined.\nThis variable changes frequently, causing \
+                     slower deploy times and worse browser client-side caching. Consider using \
+                     `process.env.NEXT_DEPLOYMENT_ID` to identify a deployment. Alternatively, \
+                     use `process.env.VERCEL_GIT_COMMIT_SHA` in server side code and for browser \
+                     code, remove it."
+                )
+            }
+            "NEXT_PUBLIC_VERCEL_BRANCH_URL" | "NEXT_PUBLIC_VERCEL_URL" => format!(
+                "The deployment url system environment variable is being inlined.\nThis variable \
+                 changes frequently, causing slower deploy times and worse browser client-side \
+                 caching. For server-side code, replace with `process.env.{}` and for browser \
+                 code, read `location.host` instead.",
+                public_env_var.strip_prefix("NEXT_PUBLIC_").unwrap(),
+            )
+            .into(),
+            _ => format!(
+                "A system environment variable is being inlined.\nThis variable changes \
+                 frequently, causing slower deploy times and worse browser client-side caching. \
+                 For server-side code, replace with `process.env.{}` and for browser code, try to \
+                 remove it.",
+                public_env_var.strip_prefix("NEXT_PUBLIC_").unwrap(),
+            )
+            .into(),
+        };
+        FreeVarReference::ReportUsage {
+            message,
+            severity,
+            inner,
+        }
+    }
+
+    let mut list = fxindexset!(
+        "NEXT_PUBLIC_NEXT_DEPLOYMENT_ID",
+        "NEXT_PUBLIC_VERCEL_BRANCH_URL",
+        "NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_LOGIN",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_AUTHOR_NAME",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_MESSAGE",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA",
+        "NEXT_PUBLIC_VERCEL_GIT_PREVIOUS_SHA",
+        "NEXT_PUBLIC_VERCEL_GIT_PULL_REQUEST_ID",
+        "NEXT_PUBLIC_VERCEL_URL",
+    );
+
+    let mut entries: FxIndexMap<_, _> = entries
+        .map(|(k, value)| {
+            let value = if let &[
+                DefinableNameSegment::Name(a),
+                DefinableNameSegment::Name(b),
+                DefinableNameSegment::Name(public_env_var),
+            ] = &&*k
+                && a == "process"
+                && b == "env"
+                && list.swap_remove(&**public_env_var)
+            {
+                wrap_report_next_public_usage(public_env_var, Some(Box::new(value)), severity)
+            } else {
+                value
+            };
+            (k, value)
+        })
+        .collect();
+
+    // For the remaining ones, still add a warning, but without replacement
+    for public_env_var in list {
+        entries.insert(
+            vec![
+                rcstr!("process").into(),
+                rcstr!("env").into(),
+                DefinableNameSegment::Name(public_env_var.into()),
+            ],
+            wrap_report_next_public_usage(public_env_var, None, severity),
+        );
+    }
+
+    FreeVarReferences(entries)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
@@ -409,4 +554,14 @@ pub fn module_styles_rule_condition() -> RuleCondition {
         RuleCondition::ContentTypeStartsWith("text/sass+module".into()),
         RuleCondition::ContentTypeStartsWith("text/scss+module".into()),
     ])
+}
+
+/// Returns the list of global variables that should be forwarded from the main
+/// context to web workers. These are Next.js-specific globals that need to be
+/// available in worker contexts.
+pub fn worker_forwarded_globals() -> Vec<RcStr> {
+    vec![
+        rcstr!("NEXT_DEPLOYMENT_ID"),
+        rcstr!("NEXT_CLIENT_ASSET_SUFFIX"),
+    ]
 }

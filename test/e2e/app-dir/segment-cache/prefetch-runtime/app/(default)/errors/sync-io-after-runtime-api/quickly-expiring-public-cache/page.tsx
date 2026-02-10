@@ -2,8 +2,8 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../../shared'
 import { cacheLife } from 'next/cache'
 
-export const unstable_prefetch = {
-  mode: 'runtime',
+export const unstable_instant = {
+  prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
 
