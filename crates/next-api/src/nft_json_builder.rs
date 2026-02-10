@@ -27,7 +27,8 @@ impl AssetLocation {
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct AssetReference {
     location: AssetLocation,
-    hash: RcStr,
+    /// `None` for files that are written after tracing, and so can't be hashed yet.
+    hash: Option<RcStr>,
     /// Present for symlinks.
     symlink_target: Option<AssetLocation>,
 }
@@ -67,7 +68,7 @@ impl Serialize for NftSymlink {
 #[serde(rename_all = "camelCase")]
 struct NftFileList {
     files: Vec<RcStr>,
-    file_hashes: Vec<RcStr>,
+    file_hashes: Vec<Option<RcStr>>,
     symlinks: Vec<NftSymlink>,
 }
 
@@ -185,8 +186,20 @@ impl NftJsonBuilder {
         };
         self.asset_refs.push(AssetReference {
             location,
-            hash,
+            hash: Some(hash),
             symlink_target,
+        });
+        Ok(())
+    }
+
+    /// Adds a file that doesn't exist yet when the trace is written, and so has no content to
+    /// hash. Its hash is serialized as `null`.
+    pub fn add_unhashed(&mut self, path: FileSystemPath) -> Result<()> {
+        let location = self.location_for_path(&path)?;
+        self.asset_refs.push(AssetReference {
+            location,
+            hash: None,
+            symlink_target: None,
         });
         Ok(())
     }

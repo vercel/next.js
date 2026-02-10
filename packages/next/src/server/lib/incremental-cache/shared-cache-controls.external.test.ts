@@ -1,7 +1,7 @@
 import type {
-  DynamicPrerenderManifestRoute,
-  PrerenderManifestRoute,
-  PrerenderManifest,
+  DynamicPrerenderManifestRouteRuntime,
+  PrerenderManifestRuntime,
+  PrerenderManifestRouteRuntime,
 } from '../../../build'
 import { RenderingMode } from '../../../build/rendering-mode'
 import { SharedCacheControls } from './shared-cache-controls.external'
@@ -17,31 +17,24 @@ const appRoute = (sourceRoute: string) => ({
 
 describe('SharedCacheControls', () => {
   let sharedCacheControls: SharedCacheControls
-  let prerenderManifest: Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>
+  let prerenderManifest: PrerenderManifestRuntime
 
   beforeEach(() => {
     prerenderManifest = {
+      version: 4,
       routes: {
         '/route1': {
           initialRevalidateSeconds: 10,
           initialExpireSeconds: undefined,
-          dataRoute: null,
-          srcRoute: null,
           prefetchDataRoute: null,
-          experimentalPPR: undefined,
           renderingMode: RenderingMode.STATIC,
-          allowHeader: [],
-        } satisfies PrerenderManifestRoute,
+        } satisfies PrerenderManifestRouteRuntime,
         '/route2': {
           initialRevalidateSeconds: 20,
           initialExpireSeconds: 40,
-          dataRoute: null,
-          srcRoute: null,
           prefetchDataRoute: null,
-          experimentalPPR: undefined,
           renderingMode: RenderingMode.STATIC,
-          allowHeader: [],
-        } satisfies PrerenderManifestRoute,
+        } satisfies PrerenderManifestRouteRuntime,
       },
       dynamicRoutes: {
         '/route4': {
@@ -51,16 +44,10 @@ describe('SharedCacheControls', () => {
           fallbackRootParams: undefined,
           fallbackSourceRoute: undefined,
           fallbackRouteParams: undefined,
-          dataRoute: null,
-          dataRouteRegex: null,
-          prefetchDataRoute: null,
-          prefetchDataRouteRegex: null,
-          routeRegex: '',
-          experimentalPPR: undefined,
           renderingMode: RenderingMode.PARTIALLY_STATIC,
-          allowHeader: [],
-        } satisfies DynamicPrerenderManifestRoute,
+        } satisfies DynamicPrerenderManifestRouteRuntime,
       },
+      notFoundRoutes: [],
     }
     sharedCacheControls = new SharedCacheControls(prerenderManifest)
   })

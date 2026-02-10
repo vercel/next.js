@@ -18,9 +18,9 @@ export interface NftFileList {
   /**
    * Turbopack extension: A parallel array to `files` with the same indices and
    * length containing file content hashes. For symlinks, this stores the hash
-   * of the target path.
+   * of the target path. `null` for a file that is written after tracing.
    */
-  fileHashes?: string[]
+  fileHashes?: (string | null)[]
   /**
    * Turbopack extension: Explicit symlink mapping information.
    *
@@ -111,7 +111,8 @@ export type NftSymlink =
 export interface MappedNftFileEntry {
   source: string
   destination: string
-  hash?: string
+  /** `null` when the trace lists the file without a hash. */
+  hash?: string | null
   /**
    * If the `NftJson` has a top-level `symlink` field, it can be assumed that an
    * `undefined` value here means that the file is not a symlink.
