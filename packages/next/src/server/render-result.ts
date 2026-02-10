@@ -368,7 +368,7 @@ export default class RenderResult<
     // If the response is a Node.js Readable, pipe directly without
     // going through web stream conversion.
     if (
-      process.env.NEXT_RUNTIME === 'nodejs' &&
+      process.env.__NEXT_USE_NODE_STREAMS &&
       this.isNodeReadable(this.response)
     ) {
       const { pipeNodeReadableToResponse } =
@@ -388,7 +388,7 @@ export default class RenderResult<
   public async pipeToNodeWritable(
     writable: import('node:stream').Writable
   ): Promise<void> {
-    if (process.env.NEXT_RUNTIME === 'nodejs') {
+    if (process.env.__NEXT_USE_NODE_STREAMS) {
       const { pipeline } =
         require('node:stream/promises') as typeof import('node:stream/promises')
 

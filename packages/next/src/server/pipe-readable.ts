@@ -154,9 +154,9 @@ export async function pipeNodeReadableToResponse(
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>
 ) {
-  // Guard so webpack can DCE node:stream require for non-node builds.
-  // pipe-readable.ts is imported by render-result.ts and can be seen by browser bundles.
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
+  // Guard so webpack can DCE node:stream require when the node-streams
+  // runtime path is disabled.
+  if (process.env.__NEXT_USE_NODE_STREAMS) {
     try {
       const { errored, destroyed } = res
       if (errored || destroyed) return
