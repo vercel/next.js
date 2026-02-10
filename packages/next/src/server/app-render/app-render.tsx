@@ -532,6 +532,14 @@ async function generateDynamicRSCPayload(
   if (!options?.skipPageRendering) {
     const preloadCallbacks: PreloadCallbacks = []
 
+    // If we're performing instant validation, we need to render the whole tree,
+    // without skipping shared layouts.
+    const renderAllSegments =
+      process.env.NODE_ENV === 'development' &&
+      ctx.renderOpts.cacheComponents &&
+      !options?.actionResult && // Only for navigations
+      (await anySegmentNeedsInstantValidation(loaderTree))
+
     const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
       parsedQuery: query,
@@ -573,6 +581,7 @@ async function generateDynamicRSCPayload(
         rootLayoutIncluded: false,
         preloadCallbacks,
         MetadataOutlet,
+        renderAllSegments,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -806,7 +815,12 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     renderOpts,
     requestId,
     workStore,
-    componentMod: { createElement },
+    componentMod: {
+      createElement,
+      routeModule: {
+        userland: { loaderTree },
+      },
+    },
     url,
   } = ctx
 
@@ -834,11 +848,13 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     onFlightDataRenderError
   )
 
-  // We only validate RSC requests if it is for HMR refreshes since we know we
-  // will render all the layouts necessary to perform the validation.
+  // We validate RSC requests for HMR refreshes and client navigations when
+  // instant configs exist, since we render all the layouts necessary to perform
+  // the validation in those cases.
   const shouldValidate =
     !isBypassingCachesInDev(renderOpts, initialRequestStore) &&
-    initialRequestStore.isHmrRefresh === true
+    (initialRequestStore.isHmrRefresh === true ||
+      (await anySegmentNeedsInstantValidation(loaderTree)))
 
   const getPayload = async (requestStore: RequestStore) => {
     const payload: RSCPayload &
