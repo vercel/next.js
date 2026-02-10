@@ -12,6 +12,13 @@ describe('next/jest image qualities config', () => {
     next = await createNext({
       skipStart: true,
       files: {
+        'next.config.js': `
+module.exports = {
+  images: {
+    qualities: [90, 100],
+  },
+}
+        `,
         app: new FileRef(path.join(appDir, 'app')),
         'jest.config.js': `
 const nextJest = require('next/jest')
@@ -25,13 +32,6 @@ const customJestConfig = {
 }
 
 module.exports = createJestConfig(customJestConfig)
-        `,
-        'next.config.js': `
-module.exports = {
-  images: {
-    qualities: [90, 100],
-  },
-}
         `,
         [`tests/image.test.tsx`]: `
 import Image from 'next/image'
