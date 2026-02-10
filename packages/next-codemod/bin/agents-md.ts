@@ -14,6 +14,7 @@ import {
   collectDocFiles,
   buildDocTree,
   generateClaudeMdIndex,
+  derivePackageTag,
   injectIntoClaudeMd,
   ensureGitignoreEntry,
 } from '../lib/agents-md'
@@ -104,10 +105,17 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   const docFiles = collectDocFiles(docsPath)
   const sections = buildDocTree(docFiles)
 
+  // Derive the npm dist-tag from our own package version so the
+  // regeneration instruction in the output preserves it
+  // (e.g. "npx @next/codemod@canary agents-md …")
+  const codemodPackageJson = require('../package.json')
+  const packageTag = derivePackageTag(codemodPackageJson.version)
+
   const indexContent = generateClaudeMdIndex({
     docsPath: docsLinkPath,
     sections,
     outputFile: targetFile,
+    packageTag,
   })
 
   const newContent = injectIntoClaudeMd(existingContent, indexContent)
