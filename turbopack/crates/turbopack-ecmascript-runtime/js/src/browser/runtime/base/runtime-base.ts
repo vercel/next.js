@@ -58,27 +58,6 @@ type ChunkList = {
   source: 'entry' | 'dynamic'
 }
 
-enum SourceType {
-  /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   * SourceData is a ChunkPath.
-   */
-  Runtime = 0,
-  /**
-   * The module was instantiated because a parent module imported it.
-   * SourceData is a ModuleId.
-   */
-  Parent = 1,
-  /**
-   * The module was instantiated because it was included in a chunk's hot module
-   * update.
-   * SourceData is an array of ModuleIds or undefined.
-   */
-  Update = 2,
-}
-
-type SourceData = ChunkPath | ModuleId | ModuleId[] | undefined
 interface RuntimeBackend {
   registerChunk: (
     chunkPath: ChunkPath | ChunkScript,

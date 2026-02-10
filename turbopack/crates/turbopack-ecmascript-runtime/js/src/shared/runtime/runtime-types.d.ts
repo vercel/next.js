@@ -77,6 +77,14 @@ type ModuleCache<M> = Record<ModuleId, M>
 // TODO properly type values here
 type ModuleFactories = Map<ModuleId, Function>
 /**
+ * Constraint for module factory functions used in HMR.
+ * Platform-specific runtimes define their own ModuleFactory types that must satisfy this constraint.
+ */
+type ModuleFactoryFunction<
+  TModule extends Module,
+  TContext extends TurbopackBaseContext<TModule>,
+> = (this: TContext, ...args: unknown[]) => unknown
+/**
  * This is an alternating, non-empty arrow of module factory functions and module ids
  * `[id1, id2..., factory1, id3, factory2, id4, id5, factory3]`
  * There can be multiple ids to support scope hoisted merged modules
