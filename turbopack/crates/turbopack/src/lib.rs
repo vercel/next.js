@@ -672,10 +672,10 @@ async fn process_default_internal(
     let mut current_source = source;
     let mut current_module_type = None;
 
-    // Handle turbopackUse import assertions: apply inline loaders as source transforms
+    // Handle turbopackLoader import attributes: apply inline loader as source transform
     if let ReferenceType::EcmaScriptModules(
         EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
-            ref loaders,
+            ref loader,
             ref rename_as,
             ref module_type,
         },
@@ -726,7 +726,7 @@ async fn process_default_internal(
         .to_resolved()
         .await?;
 
-        let loaders_vc = WebpackLoaderItems(loaders.clone()).cell();
+        let loaders_vc = WebpackLoaderItems(vec![loader.clone()]).cell();
         let webpack_loaders = WebpackLoaders::new(
             *evaluate_context,
             *execution_context,

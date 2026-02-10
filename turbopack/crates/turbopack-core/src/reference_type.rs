@@ -75,9 +75,9 @@ pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
     ImportWithType(RcStr),
-    /// Import with `turbopackUse` assertion specifying inline loaders.
+    /// Import with `turbopackLoader` attribute specifying an inline loader.
     ImportWithTurbopackUse {
-        loaders: Vec<WebpackLoaderItem>,
+        loader: WebpackLoaderItem,
         rename_as: Option<RcStr>,
         module_type: Option<RcStr>,
     },

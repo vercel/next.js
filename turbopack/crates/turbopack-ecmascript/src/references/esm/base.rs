@@ -408,11 +408,11 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = if self.annotations.has_turbopack_use() {
+        let ty = if let Some(loader) = self.annotations.turbopack_loader() {
             EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
-                loaders: self.annotations.turbopack_use_loaders().to_vec(),
-                rename_as: self.annotations.turbopack_use_rename_as().cloned(),
-                module_type: self.annotations.turbopack_use_module_type().cloned(),
+                loader: loader.clone(),
+                rename_as: self.annotations.turbopack_rename_as().cloned(),
+                module_type: self.annotations.turbopack_module_type().cloned(),
             }
         } else if let Some(module_type) = self.annotations.module_type() {
             EcmaScriptModulesReferenceSubType::ImportWithType(RcStr::from(

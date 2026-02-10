@@ -299,15 +299,13 @@ Available module types:
 
 ### Inline loader configuration with import attributes
 
-You can apply Turbopack loaders to individual imports using the `with` clause (import attributes). This uses the same loader syntax as the `turbopack.rules` configuration, but is specified per-import rather than globally.
+You can apply a Turbopack loader to an individual import using the `with` clause (import attributes). This is specified per-import rather than globally via `turbopack.rules`.
 
 This is useful when you want to apply a loader to a specific import without affecting all files of that type.
 
 ```tsx filename="app/page.tsx"
 // Apply a raw loader to import a .txt file as a JavaScript module
-import rawText from '../data.txt' with { turbopackUse: [
-  { loader: 'raw-loader' },
-], turbopackAs: '*.js' }
+import rawText from '../data.txt' with { turbopackLoader: 'raw-loader', turbopackAs: '*.js' }
 
 export default function Page() {
   return <p>{rawText}</p>
@@ -316,24 +314,20 @@ export default function Page() {
 
 The following import attributes are supported:
 
-| Attribute             | Description                                                                                                                   |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `turbopackUse`        | Array of loaders to apply. Uses the same format as `turbopack.rules[].loaders`.                                               |
-| `turbopackAs`         | Rename pattern for the output (same as `turbopack.rules[].as`). For example, `'*.js'` treats the loader output as JavaScript. |
-| `turbopackModuleType` | Set the module type for the output (same as `turbopack.rules[].type`).                                                        |
+| Attribute                | Description                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `turbopackLoader`        | The loader to apply (e.g. `'raw-loader'`).                                                                                    |
+| `turbopackLoaderOptions` | JSON string of loader options (e.g. `'{"search":"X","replace":"Y"}'`).                                                        |
+| `turbopackAs`            | Rename pattern for the output (same as `turbopack.rules[].as`). For example, `'*.js'` treats the loader output as JavaScript. |
+| `turbopackModuleType`    | Set the module type for the output (same as `turbopack.rules[].type`).                                                        |
 
-Loaders with options use the same object format as in the `rules` configuration:
+Loaders with options pass a JSON-encoded string via `turbopackLoaderOptions`:
 
 ```tsx filename="app/page.tsx"
-import value from '../data.js' with { turbopackUse: [
-  {
-    loader: 'string-replace-loader',
-    options: { search: 'PLACEHOLDER', replace: 'replaced value' },
-  },
-] }
+import value from '../data.js' with { turbopackLoader: 'string-replace-loader', turbopackLoaderOptions: '{"search":"PLACEHOLDER","replace":"replaced value"}' }
 ```
 
-> **Good to know**: Import attributes with `turbopackUse` are Turbopack-specific and are not supported by webpack. This feature requires the `with` keyword (not `assert`) in your import statements.
+> **Good to know**: Import attributes with `turbopackLoader` are Turbopack-specific and are not supported by webpack. This feature requires the `with` keyword (not `assert`) in your import statements.
 
 ### Resolving aliases
 
@@ -394,7 +388,7 @@ The option automatically adds a polyfill for debug IDs to the JavaScript bundle 
 
 | Version  | Changes                                              |
 | -------- | ---------------------------------------------------- |
-| `16.2.0` | `turbopackUse` import attributes were added.         |
+| `16.2.0` | `turbopackLoader` import attributes were added.      |
 | `16.2.0` | `turbopack.rules.*.type` was added.                  |
 | `16.2.0` | `turbopack.rules.*.condition.contentType` was added. |
 | `16.2.0` | `turbopack.rules.*.condition.query` was added.       |
