@@ -1100,6 +1100,7 @@ impl PageEndpoint {
                         NftJsonAsset::new(
                             project,
                             Some(pages_function_name(&this.original_name).into()),
+                            Some(this.pathname.clone()),
                             *ssr_entry_chunk,
                             additional_assets,
                             self.trace_result(),

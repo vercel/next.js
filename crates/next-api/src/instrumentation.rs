@@ -188,9 +188,16 @@ impl InstrumentationEndpoint {
             let mut output_assets = vec![chunk];
             if *this.project.should_write_nft_manifests().await? {
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
-                        .to_resolved()
-                        .await?,
+                    NftJsonAsset::new(
+                        *this.project,
+                        None,
+                        None,
+                        *chunk,
+                        vec![],
+                        self.trace_result(),
+                    )
+                    .to_resolved()
+                    .await?,
                 ));
             }
             Ok(Vc::cell(output_assets))

@@ -70,7 +70,6 @@ export async function createIncrementalCache({
       routes: {},
       dynamicRoutes: {},
       notFoundRoutes: [],
-      preview: previewProps,
     },
     fs: nodeFs,
     serverDistDir: path.join(distDir, 'server'),

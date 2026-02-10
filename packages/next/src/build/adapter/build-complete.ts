@@ -15,7 +15,11 @@ import {
   normalizeAppPath,
   selectAppPageEntry,
 } from '../../shared/lib/router/utils/app-paths'
-import { AdapterOutputType, type PHASE_TYPE } from '../../shared/lib/constants'
+import {
+  AdapterOutputType,
+  PRERENDER_MANIFEST,
+  type PHASE_TYPE,
+} from '../../shared/lib/constants'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import {
   convertRedirects,
@@ -733,7 +737,8 @@ export async function handleBuildComplete({
           assets,
           assetsHashes,
           repoRoot,
-          `${entryFilePath}.nft.json`
+          `${entryFilePath}.nft.json`,
+          config.outputHashSalt || ''
         )
         Object.assign(
           assets,
@@ -2576,7 +2581,8 @@ async function getSharedNodeAssets({
       sharedNodeAssets,
       sharedNodeAssetsHashes,
       repoRoot,
-      path.join(distDir, 'server', 'instrumentation.js.nft.json')
+      path.join(distDir, 'server', 'instrumentation.js.nft.json'),
+      salt
     )
 
     const fileOutputPath = path.relative(
@@ -2598,6 +2604,11 @@ async function getSharedNodeAssets({
   for (const file of requiredServerFiles) {
     // add to shared node assets
     const filePath = path.join(dir, file)
+    if (filePath === path.join(distDir, PRERENDER_MANIFEST)) {
+      // Ignore, this is not needed at runtime and we already pass all of this information via the
+      // adapter API instead.
+      continue
+    }
     const fileOutputPath = path.relative(repoRoot, filePath)
     await pushAsset(
       sharedNodeAssets,
@@ -2641,25 +2652,26 @@ async function loadNFT(
   assets: Record<string, string>,
   assetsHashes: Record<string, string>,
   repoRoot: string,
-  traceFilePath: string
+  traceFilePath: string,
+  salt: string
 ): Promise<{ entryHash?: string }> {
   const { files, fileHashes, entryHash } = (await JSON.parse(
     await fs.readFile(traceFilePath, 'utf8')
   )) as {
     files: string[]
-    fileHashes?: string[]
+    fileHashes?: (string | null)[]
     entryHash?: string
   }
 
   const traceFileDir = path.dirname(traceFilePath)
   for (let i = 0; i < files.length; i++) {
     const relativeFile = files[i]
-    const contentHash = fileHashes?.[i]
     const tracedFilePath = path.join(traceFileDir, relativeFile)
     const fileOutputPath = path.relative(repoRoot, tracedFilePath)
     assets[fileOutputPath] = tracedFilePath
-    if (contentHash) {
-      assetsHashes[fileOutputPath] = contentHash
+    if (fileHashes) {
+      const hash = fileHashes[i] ?? (await hashFile(salt, tracedFilePath))
+      assetsHashes[fileOutputPath] = hash
     }
   }
   return { entryHash }

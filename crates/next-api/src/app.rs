@@ -1831,6 +1831,7 @@ impl AppEndpoint {
                         NftJsonAsset::new(
                             project,
                             Some(app_function_name(&app_entry.original_name).into()),
+                            Some(app_entry.pathname.clone()),
                             *rsc_chunk,
                             client_reference_manifest
                                 .iter()
