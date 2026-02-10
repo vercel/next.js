@@ -219,7 +219,7 @@ export async function handler(
 
   const context: AppRouteRouteHandlerContext = {
     params,
-    prerenderManifest,
+    prerenderManifestPreview: prerenderManifest.preview,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
