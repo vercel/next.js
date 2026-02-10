@@ -5,6 +5,7 @@ import type { NextRequest } from '../../web/spec-extension/request'
 import type { NextURL } from '../../web/next-url'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 import {
   RouteModule,
@@ -87,7 +88,6 @@ import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
-import type { __ApiPreviewProps } from '../../api-utils'
 
 export class WrappedNextRouterError {
   constructor(

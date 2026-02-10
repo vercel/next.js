@@ -9,6 +9,7 @@ import type { MiddlewareManifest } from '../../../build/webpack/plugins/middlewa
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 import path from 'path'
 import fs from 'fs/promises'
@@ -45,7 +46,6 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
-import type { __ApiPreviewProps } from '../../api-utils'
 
 export type FsOutput = {
   type:
