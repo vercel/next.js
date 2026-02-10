@@ -44,6 +44,7 @@ import {
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import type { SegmentRequestKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
+import { holdCleanup, releaseCleanup } from './lru'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -150,6 +151,12 @@ export type PrefetchTask = {
    * We also use this field to check whether a task is currently in the queue.
    */
   _heapIndex: number
+
+  /**
+   * True while this task is holding LRU cleanup. Set on task creation,
+   * cleared on task completion or cancellation.
+   */
+  _holdingCleanup: boolean
 
   /**
    * Called when the prefetch task finishes (either completed or canceled).
@@ -264,7 +271,13 @@ export function schedulePrefetchTask(
   onInvalidate: null | (() => void),
   _onComplete?: () => void
 ): PrefetchTask {
-  // Spawn a new prefetch task
+  // Spawn a new prefetch task. Hold LRU cleanup until the task completes so
+  // that, when links remount, existing cache entries have a chance to be read
+  // (and moved to the LRU head) before eviction runs. Without this, cleanup
+  // can fire between scheduler batches and evict entries that haven't been
+  // touched yet, causing a cascade of unnecessary re-fetches.
+  holdCleanup()
+
   const task: PrefetchTask = {
     key,
     treeAtTimeOfPrefetch,
@@ -279,6 +292,7 @@ export function schedulePrefetchTask(
     isCanceled: false,
     onInvalidate,
     _heapIndex: -1,
+    _holdingCleanup: true,
   }
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     task._onComplete = _onComplete
@@ -308,6 +322,10 @@ export function cancelPrefetchTask(task: PrefetchTask): void {
   // does not get added back to the queue when it's pinged by the network.
   task.isCanceled = true
   heapDelete(taskHeap, task)
+  if (task._holdingCleanup) {
+    task._holdingCleanup = false
+    releaseCleanup()
+  }
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     // Call completion callback. In practice this shouldn't be reached for
     // test-initiated prefetches since cancellation is only used by the Link
@@ -338,6 +356,10 @@ export function reschedulePrefetchTask(
   // Un-cancel the task, in case it was previously canceled.
   task.isCanceled = false
   task.phase = PrefetchPhase.RouteTree
+  if (!task._holdingCleanup) {
+    task._holdingCleanup = true
+    holdCleanup()
+  }
 
   // Assign a new sort ID to move it ahead of all other tasks at the same
   // priority level. (Higher sort IDs are processed first.)
@@ -548,6 +570,10 @@ function processQueueInMicrotask() {
           heapResift(taskHeap, task)
         } else {
           // The prefetch is complete. Continue to the next task.
+          if (task._holdingCleanup) {
+            task._holdingCleanup = false
+            releaseCleanup()
+          }
           if (process.env.__NEXT_EXPOSE_TESTING_API) {
             // Notify the Instant Navigation Testing API that the prefetch has
             // completed, so it can proceed with navigation.

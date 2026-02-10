@@ -13,9 +13,11 @@ describe('segment cache memory pressure', () => {
 
   it('evicts least recently used prefetch data once cache size exceeds limit', async () => {
     let act: ReturnType<typeof createRouterAct>
+    let page: Page
     const browser = await next.browser('/memory-pressure', {
-      beforePageLoad(page) {
-        act = createRouterAct(page)
+      beforePageLoad(p) {
+        page = p
+        act = createRouterAct(p)
       },
     })
 
@@ -35,13 +37,15 @@ describe('segment cache memory pressure', () => {
     )
 
     // Switching to tab 2 causes the cache to overflow, evicting the prefetch
-    // for the Page 0 link.
+    // for the Page 0 link. Count the prefetch requests during this first visit.
+    const firstVisitCounter = countPrefetchRequests(page)
     await act(
       async () => {
         await switchToTab2.click()
       },
       { includes: 'Page 1.' }
     )
+    const firstVisitCount = firstVisitCounter.stop()
 
     // Switching back to tab 1 initiates a new prefetch for Page 0. If
     // there are no requests, that means the prefetch was not evicted correctly.
@@ -53,6 +57,26 @@ describe('segment cache memory pressure', () => {
         includes: 'Page 0.',
       }
     )
+
+    // Switch back to tab 2 again. Most prefetch data should still be in the
+    // cache from the first visit — only the entries evicted by LRU cleanup
+    // should need to be re-fetched.
+    const secondVisitCounter = countPrefetchRequests(page)
+    await act(async () => {
+      await switchToTab2.click()
+    }, null)
+    const secondVisitCount = secondVisitCounter.stop()
+
+    try {
+      expect(secondVisitCount).toBeLessThan(firstVisitCount * 0.5)
+    } catch {
+      throw new Error(
+        `Expected second visit to reuse cached prefetch data, but it made ` +
+          `almost as many requests as the first visit.\n` +
+          `  First visit:  ${firstVisitCount} prefetch requests\n` +
+          `  Second visit: ${secondVisitCount} prefetch requests`
+      )
+    }
   })
 
   it('does not leak memory when repeatedly triggering prefetches', async () => {
@@ -177,4 +201,20 @@ function waitForPrefetchesToSettle(page: Page, quietMs = 200): Promise<void> {
   page.on('requestfailed', onRequestDone)
 
   return promise
+}
+
+function countPrefetchRequests(page: Page): { stop: () => number } {
+  let count = 0
+  function onRequest(req: PlaywrightRequest) {
+    if (req.headers()['next-router-segment-prefetch']) {
+      count++
+    }
+  }
+  page.on('request', onRequest)
+  return {
+    stop() {
+      page.off('request', onRequest)
+      return count
+    },
+  }
 }

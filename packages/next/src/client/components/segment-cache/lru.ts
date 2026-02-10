@@ -7,6 +7,7 @@ import type { UnknownMapEntry } from './cache-map'
 let head: UnknownMapEntry | null = null
 let didScheduleCleanup: boolean = false
 let lruSize: number = 0
+let cleanupHoldCount: number = 0
 
 // TODO: I chose the max size somewhat arbitrarily. Consider setting this based
 // on navigator.deviceMemory, or some other heuristic. We should make this
@@ -95,8 +96,17 @@ export function deleteFromLru(deleted: UnknownMapEntry) {
   }
 }
 
+export function holdCleanup() {
+  cleanupHoldCount++
+}
+
+export function releaseCleanup() {
+  cleanupHoldCount--
+  ensureCleanupIsScheduled()
+}
+
 function ensureCleanupIsScheduled() {
-  if (didScheduleCleanup || lruSize <= maxLruSize) {
+  if (didScheduleCleanup || lruSize <= maxLruSize || cleanupHoldCount > 0) {
     return
   }
   didScheduleCleanup = true
@@ -105,6 +115,13 @@ function ensureCleanupIsScheduled() {
 
 function cleanup() {
   didScheduleCleanup = false
+
+  if (cleanupHoldCount > 0) {
+    // Cleanup is deferred because there are active prefetch tasks that haven't
+    // finished reading from the cache yet. Once all holds are released,
+    // releaseCleanup will re-schedule cleanup if still needed.
+    return
+  }
 
   // Evict entries until we're at 90% capacity. We can assume this won't
   // infinite loop because even if `maxLruSize` were 0, eventually
