@@ -48,7 +48,7 @@ impl Endpoint for EmptyEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
-        Ok(*self.await?.project)
+    fn project(&self) -> Vc<Project> {
+        *self.project
     }
 }
