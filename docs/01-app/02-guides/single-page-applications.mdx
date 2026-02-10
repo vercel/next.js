@@ -33,7 +33,7 @@ Let's explore common patterns used to build SPAs and how Next.js solves them.
 
 ### Using React’s `use` within a Context Provider
 
-We recommend fetching data in a parent component (or layout), returning the Promise, and then unwrapping the value in a Client Component with React’s [`use` hook](https://react.dev/reference/react/use).
+We recommend fetching data in a parent component (or layout), returning the Promise, and then unwrapping the value in a Client Component with React’s [`use` API](https://react.dev/reference/react/use).
 
 Next.js can start data fetching early on the server. In this example, that’s the root layout — the entry point to your application. The server can immediately begin streaming a response to the client.
 
