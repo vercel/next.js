@@ -69,6 +69,7 @@ import {
   DEFAULT_MAX_POSTPONED_STATE_SIZE,
   parseMaxPostponedStateSize,
 } from '../../shared/lib/size-limit'
+import { chainNodeStreams } from '../../server/stream-utils/chain-node-streams'
 
 // These are injected by the loader afterwards.
 
@@ -1513,7 +1514,7 @@ export async function handler(
         const bridge = new PassThrough()
         streams.push(bridge)
 
-        const combined = entryBase.chainNodeStreams!(...streams)
+        const combined = chainNodeStreams(...streams)
 
         const result = new RenderResult(combined, {
           contentType: body.contentType,

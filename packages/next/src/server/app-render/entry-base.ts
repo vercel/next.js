@@ -48,17 +48,6 @@ if (process.env.__NEXT_USE_NODE_STREAMS) {
 } else {
   chainNodeStreams = undefined
 }
-
-// chainNodeStreams is used by the app-page.ts build template for PPR resume.
-// We export it from here (pre-compiled runtime bundle) because the template
-// cannot use relative requires (webpack resolves them from the project root).
-export const chainNodeStreams: ((...args: any[]) => any) | undefined =
-  process.env.NEXT_RUNTIME !== 'edge'
-    ? (
-        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-      ).chainNodeStreams
-    : undefined
-
 // TODO: Just re-export `* as ReactServer`
 export { captureOwnerStack, createElement, Fragment } from 'react'
 

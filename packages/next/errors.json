@@ -1063,5 +1063,6 @@
   "1062": "createNodeDebugChannel requires Node.js streams support",
   "1063": "toNodeDebugChannel cannot be used in edge/web runtime, this is a bug in the Next.js codebase",
   "1064": "debug-channel-server.node.ts must not be loaded in edge runtime. Import from debug-channel-server.compiled instead.",
-  "1065": "debug-channel-server.node.ts must not be loaded in edge runtime. Import from debug-channel-server instead."
+  "1065": "debug-channel-server.node.ts must not be loaded in edge runtime. Import from debug-channel-server instead.",
+  "1066": "Invariant: Node.js stream chaining is only available in node streams mode"
 }
