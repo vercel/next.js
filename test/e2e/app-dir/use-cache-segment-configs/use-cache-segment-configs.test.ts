@@ -129,7 +129,6 @@ describe('use-cache-segment-configs', () => {
 
          Import trace for requested module:
          // TODO(veil): Fix broken import trace for Webpack loader resource.
-           (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)
 
 
          > Build failed because of webpack errors

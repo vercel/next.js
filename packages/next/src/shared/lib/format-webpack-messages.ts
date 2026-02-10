@@ -196,7 +196,10 @@ function formatMessage(
   // Append loader paths at the end (before any remaining stack trace)
   if (loaderPaths.length > 0) {
     for (const loaderPath of loaderPaths) {
-      lines.push(`  (from ${loaderPath})`)
+      // Don't show internal Next.js loader paths — they're noise for users
+      if (!/[/\\]next[/\\]dist[/\\]/.test(loaderPath)) {
+        lines.push(`  (from ${loaderPath})`)
+      }
     }
   }
 

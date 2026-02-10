@@ -515,8 +515,7 @@ describe('ReactRefreshLogBox', () => {
            Syntax Error
        Import trace for requested module:
        ./index.js
-       ./pages/index.js
-         (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)",
+       ./pages/index.js",
          "stack": [],
        }
       `)

@@ -223,8 +223,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
                          Syntax Error
 
                      Import trace for requested module:
-                     ./pages/hmr/about2.js
-                       (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)"
+                     ./pages/hmr/about2.js"
                   `)
         }
       }
