@@ -135,3 +135,50 @@ export default function RootLayout({
     )
   })
 })
+
+describe('unstable_staleTime - cacheComponents build error', () => {
+  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    skipDeployment: true,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  it('should error when unstable_staleTime is used with cacheComponents', async () => {
+    await next.patchFile(
+      'next.config.js',
+      `module.exports = {
+  cacheComponents: true,
+}
+`,
+      async () => {
+        try {
+          await next.start()
+        } catch {
+          // we expect the build/start to fail
+        }
+
+        if (isNextDev) {
+          // In dev mode, we need to trigger the compilation by visiting a page
+          // with unstable_staleTime
+          await next.fetch('/stale-5-minutes')
+        }
+
+        await retry(async () => {
+          if (isTurbopack) {
+            expect(next.cliOutput).toContain(
+              '"unstable_staleTime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+            )
+          } else {
+            expect(next.cliOutput).toContain(
+              'cannot use `export const unstable_staleTime = ...` when `cacheComponents` is enabled.'
+            )
+          }
+        })
+      }
+    )
+  })
+})
