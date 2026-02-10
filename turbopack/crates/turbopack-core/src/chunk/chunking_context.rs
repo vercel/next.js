@@ -362,6 +362,14 @@ pub trait ChunkingContext {
         .cell()
     }
 
+    /// Returns a constant suffix to append to asset URLs referenced in CSS (e.g., `url()` for
+    /// images and fonts). Since CSS is static text and cannot use runtime JavaScript globals,
+    /// this must be a constant string known at build time (e.g., `?dpl=<deployment_id>`).
+    #[turbo_tasks::function]
+    fn css_url_suffix(self: Vc<Self>) -> Vc<Option<RcStr>> {
+        Vc::cell(None)
+    }
+
     #[turbo_tasks::function]
     fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)

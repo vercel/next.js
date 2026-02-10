@@ -156,6 +156,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn css_url_suffix(mut self, suffix: Option<RcStr>) -> Self {
+        self.chunking_context.css_url_suffix = suffix;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -226,6 +231,8 @@ pub struct NodeJsChunkingContext {
     debug_ids: bool,
     /// Global variable names to forward to workers (e.g. NEXT_DEPLOYMENT_ID)
     worker_forwarded_globals: Vec<RcStr>,
+    /// Constant suffix to append to asset URLs in CSS (e.g., `?dpl=<deployment_id>`).
+    css_url_suffix: Option<RcStr>,
 }
 
 impl NodeJsChunkingContext {
@@ -270,6 +277,7 @@ impl NodeJsChunkingContext {
                 chunking_configs: Default::default(),
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
+                css_url_suffix: None,
             },
         }
     }
@@ -490,6 +498,11 @@ impl ChunkingContext for NodeJsChunkingContext {
                 suffix: AssetSuffix::Inferred,
             })
             .cell()
+    }
+
+    #[turbo_tasks::function]
+    fn css_url_suffix(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.css_url_suffix.clone())
     }
 
     #[turbo_tasks::function]

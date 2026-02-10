@@ -318,6 +318,12 @@ const plugin = (options: any = {}) => {
               let hash = query ? '?' : ''
               hash += hashOrQuery ? `#${hashOrQuery}` : ''
 
+              // Append deployment ID suffix to asset URLs
+              if (options.deploymentId) {
+                const separator = hash.includes('?') ? '&' : '?'
+                hash += `${separator}dpl=${options.deploymentId}`
+              }
+
               const { needToResolveURL, rootContext } = options
               const request = requestify(
                 pathname,

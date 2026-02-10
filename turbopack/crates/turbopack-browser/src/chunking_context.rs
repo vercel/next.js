@@ -243,6 +243,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn css_url_suffix(mut self, suffix: Option<RcStr>) -> Self {
+        self.chunking_context.css_url_suffix = suffix;
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -337,6 +342,8 @@ pub struct BrowserChunkingContext {
     /// The global variable name used for chunk loading.
     /// Default: "TURBOPACK"
     chunk_loading_global: Option<RcStr>,
+    /// Constant suffix to append to asset URLs in CSS (e.g., `?dpl=<deployment_id>`).
+    css_url_suffix: Option<RcStr>,
 }
 
 impl BrowserChunkingContext {
@@ -388,6 +395,7 @@ impl BrowserChunkingContext {
                 should_use_absolute_url_references: false,
                 worker_forwarded_globals: vec![],
                 chunk_loading_global: Default::default(),
+                css_url_suffix: None,
             },
         }
     }
@@ -682,6 +690,11 @@ impl ChunkingContext for BrowserChunkingContext {
                 suffix: AssetSuffix::Inferred,
             })
             .cell()
+    }
+
+    #[turbo_tasks::function]
+    fn css_url_suffix(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.css_url_suffix.clone())
     }
 
     #[turbo_tasks::function]
