@@ -66,7 +66,7 @@ export async function exportAppRoute(
   // the route and the context for the request.
   const context: AppRouteRouteHandlerContext = {
     params,
-    prerenderManifestPreview: {
+    previewProps: {
       previewModeEncryptionKey: '',
       previewModeId: '',
       previewModeSigningKey: '',

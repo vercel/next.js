@@ -114,7 +114,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: WorkStoreContext['renderOpts'] &
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
-  prerenderManifestPreview: DeepReadonly<__ApiPreviewProps>
+  previewProps: DeepReadonly<__ApiPreviewProps>
   sharedContext: AppRouteSharedContext
 }
 
@@ -726,7 +726,7 @@ export class AppRouteRouteModule extends RouteModule<
       req.nextUrl,
       implicitTags,
       undefined,
-      context.prerenderManifestPreview
+      context.previewProps
     )
 
     const workStore = createWorkStore(staticGenerationContext)

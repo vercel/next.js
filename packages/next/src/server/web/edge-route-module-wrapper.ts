@@ -99,7 +99,7 @@ export class EdgeRouteModuleWrapper {
     // match (if any).
     const context: AppRouteRouteHandlerContext = {
       params,
-      prerenderManifestPreview: previewProps,
+      previewProps,
       renderOpts: {
         supportsDynamicResponse: true,
         waitUntil,

@@ -164,7 +164,7 @@ export async function setupFsCheck(opts: {
     headers: [],
   }
   let buildId = 'development'
-  let prerenderManifestPreview: __ApiPreviewProps
+  let previewProps: __ApiPreviewProps
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
@@ -235,7 +235,7 @@ export async function setupFsCheck(opts: {
       await fs.readFile(routesManifestPath, 'utf8')
     ) as RoutesManifest
 
-    prerenderManifestPreview = (
+    previewProps = (
       JSON.parse(
         await fs.readFile(prerenderManifestPath, 'utf8')
       ) as PrerenderManifest
@@ -347,7 +347,7 @@ export async function setupFsCheck(opts: {
     // dev handling
     customRoutes = await loadCustomRoutes(opts.config)
 
-    prerenderManifestPreview = {
+    previewProps = {
       previewModeId: (require('crypto') as typeof import('crypto'))
         .randomBytes(16)
         .toString('hex'),
@@ -457,7 +457,7 @@ export async function setupFsCheck(opts: {
 
     devVirtualFsItems: new Set<string>(),
 
-    prerenderManifestPreview,
+    previewProps,
     middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
 
     ensureCallback(fn: typeof ensureFn) {
