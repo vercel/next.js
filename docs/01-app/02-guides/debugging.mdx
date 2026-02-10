@@ -120,6 +120,18 @@ next start --inspect
 # next build --inspect is currently not supported
 ```
 
+If you're running Next.js through a package manager script (e.g. `npm run dev`), you need to use `--` to forward flags to the `next` CLI:
+
+```bash filename="Terminal"
+npm run dev -- --inspect
+# or
+yarn dev --inspect
+# or
+pnpm dev --inspect
+```
+
+> **Good to know**: With `npm`, flags after `npm run <script>` are consumed by npm itself unless separated with `--`. This is not required for `yarn` or `pnpm`, which forward flags directly to the script.
+
 The value of `--inspect` is passed to the underlying Node.js process. Check out the [`--inspect` docs for advanced use cases](https://nodejs.org/api/cli.html#--inspecthostport).
 
 > **Good to know**: Use `--inspect=0.0.0.0` to allow remote debugging access outside localhost, such as when running the app in a Docker container.

@@ -13,6 +13,8 @@ Basic usage:
 npx next [command] [options]
 ```
 
+> **Good to know**: If you run Next.js through `npm run dev` (or `build`/`start`), you must use `--` before any CLI flags so that `npm` forwards them to `next` instead of consuming them itself. For example: `npm run dev -- --port 3001`. This is not required for `yarn`, `pnpm`, or `bun`, which forward flags directly.
+
 ## Reference
 
 The following options are available:
