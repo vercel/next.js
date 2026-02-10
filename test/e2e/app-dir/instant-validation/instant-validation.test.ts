@@ -19,20 +19,25 @@ describe.each([
   }
 
   it('valid - static prefetch - suspense around runtime and dynamic', async () => {
-    const browser = await next.browser('/static/suspense-around-dynamic')
+    const browser = await next.browser(
+      '/suspense-in-root/static/suspense-around-dynamic'
+    )
     await browser.elementByCss('main')
     await waitForNoErrorToast(browser)
   })
   it('valid - runtime prefetch - suspense only around dynamic', async () => {
-    const browser = await next.browser('/runtime/suspense-around-dynamic')
+    const browser = await next.browser(
+      '/suspense-in-root/runtime/suspense-around-dynamic'
+    )
     await browser.elementByCss('main')
     await waitForNoErrorToast(browser)
   })
 
   it('invalid - static prefetch - missing suspense around runtime', async () => {
     const browser = await next.browser(
-      '/static/missing-suspense-around-runtime'
+      '/suspense-in-root/static/missing-suspense-around-runtime'
     )
+    await browser.elementByCss('main')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Runtime data was accessed outside of <Suspense>
@@ -52,19 +57,20 @@ describe.each([
      Learn more: https://nextjs.org/docs/messages/blocking-route",
        "environmentLabel": "Server",
        "label": "Blocking Route",
-       "source": "app/(suspense-in-root)/static/missing-suspense-around-runtime/page.tsx (6:16) @ Page
+       "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (6:16) @ Page
      > 6 |   await cookies()
          |                ^",
        "stack": [
-         "Page app/(suspense-in-root)/static/missing-suspense-around-runtime/page.tsx (6:16)",
+         "Page app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (6:16)",
        ],
      }
     `)
   })
   it('invalid - static prefetch - missing suspense around dynamic', async () => {
     const browser = await next.browser(
-      '/static/missing-suspense-around-dynamic'
+      '/suspense-in-root/static/missing-suspense-around-dynamic'
     )
+    await browser.elementByCss('main')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Data that blocks navigation was accessed outside of <Suspense>
@@ -82,19 +88,20 @@ describe.each([
      Learn more: https://nextjs.org/docs/messages/blocking-route",
        "environmentLabel": "Server",
        "label": "Blocking Route",
-       "source": "app/(suspense-in-root)/static/missing-suspense-around-dynamic/page.tsx (6:19) @ Page
+       "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (6:19) @ Page
      > 6 |   await connection()
          |                   ^",
        "stack": [
-         "Page app/(suspense-in-root)/static/missing-suspense-around-dynamic/page.tsx (6:19)",
+         "Page app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (6:19)",
        ],
      }
     `)
   })
   it('invalid - runtime prefetch - missing suspense around dynamic', async () => {
     const browser = await next.browser(
-      '/runtime/missing-suspense-around-dynamic'
+      '/suspense-in-root/runtime/missing-suspense-around-dynamic'
     )
+    await browser.elementByCss('main')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Data that blocks navigation was accessed outside of <Suspense>
@@ -112,12 +119,12 @@ describe.each([
      Learn more: https://nextjs.org/docs/messages/blocking-route",
        "environmentLabel": "Server",
        "label": "Blocking Route",
-       "source": "app/(suspense-in-root)/runtime/missing-suspense-around-dynamic/page.tsx (25:19) @ Dynamic
+       "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (25:19) @ Dynamic
      > 25 |   await connection()
           |                   ^",
        "stack": [
-         "Dynamic app/(suspense-in-root)/runtime/missing-suspense-around-dynamic/page.tsx (25:19)",
-         "Page app/(suspense-in-root)/runtime/missing-suspense-around-dynamic/page.tsx (18:9)",
+         "Dynamic app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (25:19)",
+         "Page app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (18:9)",
        ],
      }
     `)
@@ -125,8 +132,9 @@ describe.each([
 
   it('invalid - static prefetch - missing suspense around dynamic in a layout', async () => {
     const browser = await next.browser(
-      '/static/missing-suspense-around-dynamic-layout'
+      '/suspense-in-root/static/missing-suspense-around-dynamic-layout'
     )
+    await browser.elementByCss('main')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Runtime data was accessed outside of <Suspense>
@@ -146,19 +154,20 @@ describe.each([
      Learn more: https://nextjs.org/docs/messages/blocking-route",
        "environmentLabel": "Server",
        "label": "Blocking Route",
-       "source": "app/(suspense-in-root)/static/missing-suspense-around-dynamic-layout/layout.tsx (7:16) @ Layout
+       "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (7:16) @ Layout
      >  7 |   await cookies()
           |                ^",
        "stack": [
-         "Layout app/(suspense-in-root)/static/missing-suspense-around-dynamic-layout/layout.tsx (7:16)",
+         "Layout app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (7:16)",
        ],
      }
     `)
   })
   it('invalid - runtime prefetch - missing suspense around dynamic in a layout', async () => {
     const browser = await next.browser(
-      '/runtime/missing-suspense-around-dynamic-layout'
+      '/suspense-in-root/runtime/missing-suspense-around-dynamic-layout'
     )
+    await browser.elementByCss('main')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Data that blocks navigation was accessed outside of <Suspense>
@@ -176,11 +185,11 @@ describe.each([
      Learn more: https://nextjs.org/docs/messages/blocking-route",
        "environmentLabel": "Server",
        "label": "Blocking Route",
-       "source": "app/(suspense-in-root)/runtime/missing-suspense-around-dynamic-layout/layout.tsx (10:19) @ Layout
+       "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (10:19) @ Layout
      > 10 |   await connection()
           |                   ^",
        "stack": [
-         "Layout app/(suspense-in-root)/runtime/missing-suspense-around-dynamic-layout/layout.tsx (10:19)",
+         "Layout app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (10:19)",
        ],
      }
     `)
@@ -188,8 +197,9 @@ describe.each([
 
   it('invalid - static prefetch - missing suspense around params', async () => {
     const browser = await next.browser(
-      '/static/missing-suspense-around-params/123'
+      '/suspense-in-root/static/missing-suspense-around-params/123'
     )
+    await browser.elementByCss('main')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Runtime data was accessed outside of <Suspense>
@@ -209,18 +219,20 @@ describe.each([
      Learn more: https://nextjs.org/docs/messages/blocking-route",
        "environmentLabel": "Server",
        "label": "Blocking Route",
-       "source": "app/(suspense-in-root)/static/missing-suspense-around-params/[param]/page.tsx (17:21) @ Runtime
+       "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (17:21) @ Runtime
      > 17 |   const { param } = await params
           |                     ^",
        "stack": [
-         "Runtime app/(suspense-in-root)/static/missing-suspense-around-params/[param]/page.tsx (17:21)",
-         "Page app/(suspense-in-root)/static/missing-suspense-around-params/[param]/page.tsx (11:7)",
+         "Runtime app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (17:21)",
+         "Page app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (11:7)",
        ],
      }
     `)
   })
   it('valid - runtime prefetch - does not require Suspense around params', async () => {
-    const browser = await next.browser('/runtime/no-suspense-around-params/123')
+    const browser = await next.browser(
+      '/suspense-in-root/runtime/no-suspense-around-params/123'
+    )
     await browser.elementByCss('main')
     await waitForNoErrorToast(browser)
   })
@@ -235,13 +247,16 @@ describe.each([
     // where putting an assertion on a segment would mean that it must be visible
     // in all navigations (which would require that its parent layouts must never
     // block the children slots)
-    const browser = await next.browser('/static/valid-blocked-children')
+    const browser = await next.browser('/default/static/valid-blocked-children')
     await browser.elementByCss('main')
     await waitForNoErrorToast(browser)
   })
 
   it('invalid - static prefetch - suspense too high', async () => {
-    const browser = await next.browser('/static/suspense-too-high')
+    const browser = await next.browser(
+      '/suspense-in-root/static/suspense-too-high'
+    )
+    await browser.elementByCss('main')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Runtime data was accessed outside of <Suspense>
@@ -261,17 +276,20 @@ describe.each([
      Learn more: https://nextjs.org/docs/messages/blocking-route",
        "environmentLabel": "Server",
        "label": "Blocking Route",
-       "source": "app/(suspense-in-root)/static/suspense-too-high/page.tsx (6:16) @ Page
+       "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (6:16) @ Page
      > 6 |   await cookies()
          |                ^",
        "stack": [
-         "Page app/(suspense-in-root)/static/suspense-too-high/page.tsx (6:16)",
+         "Page app/suspense-in-root/static/suspense-too-high/page.tsx (6:16)",
        ],
      }
     `)
   })
   it('invalid - runtime prefetch - suspense too high', async () => {
-    const browser = await next.browser('/runtime/suspense-too-high')
+    const browser = await next.browser(
+      '/suspense-in-root/runtime/suspense-too-high'
+    )
+    await browser.elementByCss('main')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Data that blocks navigation was accessed outside of <Suspense>
@@ -289,29 +307,32 @@ describe.each([
      Learn more: https://nextjs.org/docs/messages/blocking-route",
        "environmentLabel": "Server",
        "label": "Blocking Route",
-       "source": "app/(suspense-in-root)/runtime/suspense-too-high/page.tsx (26:19) @ Dynamic
+       "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (26:19) @ Dynamic
      > 26 |   await connection()
           |                   ^",
        "stack": [
-         "Dynamic app/(suspense-in-root)/runtime/suspense-too-high/page.tsx (26:19)",
-         "Page app/(suspense-in-root)/runtime/suspense-too-high/page.tsx (19:9)",
+         "Dynamic app/suspense-in-root/runtime/suspense-too-high/page.tsx (26:19)",
+         "Page app/suspense-in-root/runtime/suspense-too-high/page.tsx (19:9)",
        ],
      }
     `)
   })
 
   it('invalid - runtime prefetch - sync IO after runtime API', async () => {
-    const browser = await next.browser('/runtime/invalid-sync-io')
+    const browser = await next.browser(
+      '/suspense-in-root/runtime/invalid-sync-io'
+    )
+    await browser.elementByCss('main')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "description": "Route "/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
+       "description": "Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
        "environmentLabel": "Server",
        "label": "Console Error",
-       "source": "app/(suspense-in-root)/runtime/invalid-sync-io/page.tsx (10:20) @ Page
+       "source": "app/suspense-in-root/runtime/invalid-sync-io/page.tsx (10:20) @ Page
      > 10 |   const now = Date.now()
           |                    ^",
        "stack": [
-         "Page app/(suspense-in-root)/runtime/invalid-sync-io/page.tsx (10:20)",
+         "Page app/suspense-in-root/runtime/invalid-sync-io/page.tsx (10:20)",
          "Page <anonymous>",
        ],
      }
@@ -320,8 +341,9 @@ describe.each([
 
   it('invalid - missing suspense around dynamic (with loading.js)', async () => {
     const browser = await next.browser(
-      '/static/invalid-only-loading-around-dynamic'
+      '/suspense-in-root/static/invalid-only-loading-around-dynamic'
     )
+    await browser.elementByCss('main')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Data that blocks navigation was accessed outside of <Suspense>
@@ -339,12 +361,12 @@ describe.each([
      Learn more: https://nextjs.org/docs/messages/blocking-route",
        "environmentLabel": "Server",
        "label": "Blocking Route",
-       "source": "app/(suspense-in-root)/static/invalid-only-loading-around-dynamic/page.tsx (32:19) @ Dynamic
+       "source": "app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (32:19) @ Dynamic
      > 32 |   await connection()
           |                   ^",
        "stack": [
-         "Dynamic app/(suspense-in-root)/static/invalid-only-loading-around-dynamic/page.tsx (32:19)",
-         "Page app/(suspense-in-root)/static/invalid-only-loading-around-dynamic/page.tsx (19:9)",
+         "Dynamic app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (32:19)",
+         "Page app/suspense-in-root/static/invalid-only-loading-around-dynamic/page.tsx (19:9)",
        ],
      }
     `)
@@ -352,14 +374,17 @@ describe.each([
 
   describe('blocking', () => {
     it('valid - blocking layout with unstable_instant = false is allowed to block', async () => {
-      const browser = await next.browser('/static/blocking-layout')
+      const browser = await next.browser(
+        '/suspense-in-root/static/blocking-layout'
+      )
       await browser.elementByCss('main')
       await waitForNoErrorToast(browser)
     })
     it('invalid - missing suspense inside blocking layout', async () => {
       const browser = await next.browser(
-        '/static/blocking-layout/missing-suspense-around-dynamic'
+        '/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic'
       )
+      await browser.elementByCss('main')
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Runtime data was accessed outside of <Suspense>
@@ -379,24 +404,26 @@ describe.each([
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/(suspense-in-root)/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (6:16) @ Page
+         "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (6:16) @ Page
        > 6 |   await cookies()
            |                ^",
          "stack": [
-           "Page app/(suspense-in-root)/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (6:16)",
+           "Page app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (6:16)",
          ],
        }
       `)
     })
 
     it('valid - blocking page inside a static layout is allowed if the layout has suspense', async () => {
-      const browser = await next.browser('/static/valid-blocking-inside-static')
+      const browser = await next.browser(
+        '/default/static/valid-blocking-inside-static'
+      )
       await browser.elementByCss('main')
       await waitForNoErrorToast(browser)
     })
     it('valid - blocking page inside a runtime layout is allowed if the layout has suspense', async () => {
       const browser = await next.browser(
-        '/runtime/valid-blocking-inside-runtime'
+        '/suspense-in-root/runtime/valid-blocking-inside-runtime'
       )
       await browser.elementByCss('main')
       await waitForNoErrorToast(browser)
@@ -404,8 +431,9 @@ describe.each([
 
     it('invalid - blocking page inside a static layout is not allowed if the layout has no suspense', async () => {
       const browser = await next.browser(
-        '/static/invalid-blocking-inside-static'
+        '/suspense-in-root/static/invalid-blocking-inside-static'
       )
+      await browser.elementByCss('main')
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Runtime data was accessed outside of <Suspense>
@@ -425,19 +453,20 @@ describe.each([
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/(suspense-in-root)/static/invalid-blocking-inside-static/page.tsx (6:16) @ BlockingPage
+         "source": "app/suspense-in-root/static/invalid-blocking-inside-static/page.tsx (6:16) @ BlockingPage
        > 6 |   await cookies()
            |                ^",
          "stack": [
-           "BlockingPage app/(suspense-in-root)/static/invalid-blocking-inside-static/page.tsx (6:16)",
+           "BlockingPage app/suspense-in-root/static/invalid-blocking-inside-static/page.tsx (6:16)",
          ],
        }
       `)
     })
     it('invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense', async () => {
       const browser = await next.browser(
-        '/runtime/invalid-blocking-inside-runtime'
+        '/suspense-in-root/runtime/invalid-blocking-inside-runtime'
       )
+      await browser.elementByCss('main')
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Data that blocks navigation was accessed outside of <Suspense>
@@ -455,11 +484,11 @@ describe.each([
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/(suspense-in-root)/runtime/invalid-blocking-inside-runtime/page.tsx (6:19) @ BlockingPage
+         "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/page.tsx (6:19) @ BlockingPage
        > 6 |   await connection()
            |                   ^",
          "stack": [
-           "BlockingPage app/(suspense-in-root)/runtime/invalid-blocking-inside-runtime/page.tsx (6:19)",
+           "BlockingPage app/suspense-in-root/runtime/invalid-blocking-inside-runtime/page.tsx (6:19)",
          ],
        }
       `)
@@ -469,8 +498,9 @@ describe.each([
   describe('invalid - missing suspense in parallel slot', () => {
     it('index', async () => {
       const browser = await next.browser(
-        '/static/missing-suspense-in-parallel-route'
+        '/suspense-in-root/static/missing-suspense-in-parallel-route'
       )
+      await browser.elementByCss('main')
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Runtime data was accessed outside of <Suspense>
@@ -490,11 +520,11 @@ describe.each([
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/(suspense-in-root)/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16) @ IndexSlot
+         "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16) @ IndexSlot
        > 4 |   await cookies()
            |                ^",
          "stack": [
-           "IndexSlot app/(suspense-in-root)/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16)",
+           "IndexSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16)",
          ],
        }
       `)
@@ -502,8 +532,9 @@ describe.each([
 
     it('subpage', async () => {
       const browser = await next.browser(
-        '/static/missing-suspense-in-parallel-route/foo'
+        '/suspense-in-root/static/missing-suspense-in-parallel-route/foo'
       )
+      await browser.elementByCss('main')
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Runtime data was accessed outside of <Suspense>
@@ -523,11 +554,11 @@ describe.each([
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/(suspense-in-root)/static/missing-suspense-in-parallel-route/@slot/foo/page.tsx (4:16) @ FooSlot
+         "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/foo/page.tsx (4:16) @ FooSlot
        > 4 |   await cookies()
            |                ^",
          "stack": [
-           "FooSlot app/(suspense-in-root)/static/missing-suspense-in-parallel-route/@slot/foo/page.tsx (4:16)",
+           "FooSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/foo/page.tsx (4:16)",
          ],
        }
       `)
@@ -535,8 +566,9 @@ describe.each([
 
     it('default slot', async () => {
       const browser = await next.browser(
-        '/static/missing-suspense-in-parallel-route/bar'
+        '/suspense-in-root/static/missing-suspense-in-parallel-route/bar'
       )
+      await browser.elementByCss('main')
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Runtime data was accessed outside of <Suspense>
@@ -556,11 +588,11 @@ describe.each([
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/(suspense-in-root)/static/missing-suspense-in-parallel-route/@slot/default.tsx (4:16) @ DefaultSlot
+         "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/default.tsx (4:16) @ DefaultSlot
        > 4 |   await cookies()
            |                ^",
          "stack": [
-           "DefaultSlot app/(suspense-in-root)/static/missing-suspense-in-parallel-route/@slot/default.tsx (4:16)",
+           "DefaultSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/default.tsx (4:16)",
          ],
        }
       `)
@@ -569,18 +601,22 @@ describe.each([
 
   describe('disabling validation', () => {
     it('in a layout', async () => {
-      const browser = await next.browser('/disable-validation/in-layout')
+      const browser = await next.browser(
+        '/suspense-in-root/disable-validation/in-layout'
+      )
       await browser.elementByCss('main')
       await waitForNoErrorToast(browser)
     })
     it('in a page', async () => {
-      const browser = await next.browser('/disable-validation/in-page')
+      const browser = await next.browser(
+        '/suspense-in-root/disable-validation/in-page'
+      )
       await browser.elementByCss('main')
       await waitForNoErrorToast(browser)
     })
     it('in a page with a parent that has a config', async () => {
       const browser = await next.browser(
-        '/disable-validation/in-page-with-outer'
+        '/suspense-in-root/disable-validation/in-page-with-outer'
       )
       await browser.elementByCss('main')
       await waitForNoErrorToast(browser)
