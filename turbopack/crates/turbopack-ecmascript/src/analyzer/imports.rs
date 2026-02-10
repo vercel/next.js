@@ -944,29 +944,13 @@ fn parse_directives(
 fn parse_export_names(val: &str) -> SmallVec<[RcStr; 1]> {
     let val = val.trim();
 
-    // Try JSON array format: ["name1", "name2"]
-    if val.starts_with('[')
-        && let Some(inner) = val.strip_prefix('[').and_then(|s| s.strip_suffix(']'))
-    {
-        return inner
-            .split(',')
-            .filter_map(|s| {
-                let s = s.trim();
-                // Strip quotes from each element
-                s.strip_prefix('"')
-                    .and_then(|s| s.strip_suffix('"'))
-                    .or_else(|| s.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
-                    .map(|s| s.into())
-            })
-            .collect();
+    // Try parsing as JSON array of strings
+    if let Ok(names) = serde_json::from_str::<Vec<String>>(val) {
+        return names.into_iter().map(|s| s.into()).collect();
     }
 
-    // Try single string format: "name"
-    if let Some(name) = val
-        .strip_prefix('"')
-        .and_then(|s| s.strip_suffix('"'))
-        .or_else(|| val.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
-    {
+    // Try parsing as a single JSON string
+    if let Ok(name) = serde_json::from_str::<String>(val) {
         return SmallVec::from_buf([name.into()]);
     }
 
