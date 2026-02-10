@@ -324,7 +324,17 @@ async function startWatcher(
   const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
   await fs.promises.writeFile(
     prerenderManifestPath,
-    JSON.stringify({ preview: opts.fsChecker.previewProps }, null, 2)
+    JSON.stringify(
+      {
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: opts.fsChecker.previewProps,
+      },
+      null,
+      2
+    )
   )
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
