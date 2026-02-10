@@ -2,7 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 import { retry } from 'next-test-utils'
-
 ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
   'segment cache - export const unstable_staleTime',
   () => {
