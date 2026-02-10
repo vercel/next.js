@@ -10,13 +10,7 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
-use bincode::{
-    Decode, Encode,
-    de::Decoder,
-    enc::Encoder,
-    error::{DecodeError, EncodeError},
-    impl_borrow_decode,
-};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
@@ -245,7 +239,7 @@ where
 pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
 /// A pattern that can match by exact string, glob, or regex.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum IgnoreIssuePattern {
     /// The value must exactly equal the pattern string.
     ExactString(RcStr),
@@ -254,42 +248,6 @@ pub enum IgnoreIssuePattern {
     /// The pattern is a regular expression (supports ES-style patterns via `EsRegex`).
     Regex(EsRegex),
 }
-
-impl Encode for IgnoreIssuePattern {
-    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        match self {
-            IgnoreIssuePattern::ExactString(s) => {
-                0u8.encode(encoder)?;
-                s.encode(encoder)?;
-            }
-            IgnoreIssuePattern::Glob(g) => {
-                1u8.encode(encoder)?;
-                g.encode(encoder)?;
-            }
-            IgnoreIssuePattern::Regex(r) => {
-                2u8.encode(encoder)?;
-                r.encode(encoder)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl<Context> Decode<Context> for IgnoreIssuePattern {
-    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        let tag: u8 = Decode::decode(decoder)?;
-        match tag {
-            0 => Ok(IgnoreIssuePattern::ExactString(Decode::decode(decoder)?)),
-            1 => Ok(IgnoreIssuePattern::Glob(Decode::decode(decoder)?)),
-            2 => Ok(IgnoreIssuePattern::Regex(Decode::decode(decoder)?)),
-            _ => Err(DecodeError::OtherString(format!(
-                "invalid IgnoreIssuePattern tag: {tag}"
-            ))),
-        }
-    }
-}
-
-impl_borrow_decode!(IgnoreIssuePattern);
 
 impl IgnoreIssuePattern {
     /// Test whether the pattern matches the given value.
@@ -304,7 +262,7 @@ impl IgnoreIssuePattern {
 
 /// A rule describing an issue to ignore. `path` is mandatory;
 /// `title` and `description` are optional additional filters.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct IgnoreIssue {
     /// File-path pattern (mandatory).
     pub path: IgnoreIssuePattern,
@@ -313,27 +271,6 @@ pub struct IgnoreIssue {
     /// Description pattern (optional).
     pub description: Option<IgnoreIssuePattern>,
 }
-
-impl Encode for IgnoreIssue {
-    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        self.path.encode(encoder)?;
-        self.title.encode(encoder)?;
-        self.description.encode(encoder)?;
-        Ok(())
-    }
-}
-
-impl<Context> Decode<Context> for IgnoreIssue {
-    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        Ok(IgnoreIssue {
-            path: Decode::decode(decoder)?,
-            title: Decode::decode(decoder)?,
-            description: Decode::decode(decoder)?,
-        })
-    }
-}
-
-impl_borrow_decode!(IgnoreIssue);
 
 #[turbo_tasks::value(shared)]
 pub struct IssueFilter {
@@ -370,11 +307,35 @@ impl IssueFilter {
             return Ok(Vc::cell(true));
         }
 
-        // Fetch the file path once — it's used by both ignore rules and severity
+        // Fetch the file path once — it's used by both severity and ignore-rule
         // checks.
         let file_path = issue.file_path().await?;
 
-        // Check ignore rules first — if any rule matches, the issue is dropped.
+        // Check severity first — this is cheap and avoids fetching
+        // title/description for issues that would be filtered out anyway.
+        let severity = issue.into_trait_ref().await?.severity();
+        // NOTE: Lower severities are _more_ severe
+        let severity_allowed = if severity <= self.severity || severity <= self.foreign_severity {
+            // we need to check the path to see if it is foreign or not.  Only await the
+            // path if it might possibly matter
+            if severity <= self.severity && severity <= self.foreign_severity {
+                // it matches no matter where the path is
+                true
+            } else if ContextCondition::InNodeModules.matches(&file_path) {
+                severity <= self.foreign_severity
+            } else {
+                severity <= self.severity
+            }
+        } else {
+            // it is too low severity to match either way
+            false
+        };
+
+        if !severity_allowed {
+            return Ok(Vc::cell(false));
+        }
+
+        // Check ignore rules — if any rule matches, the issue is dropped.
         // Title and description are fetched lazily: only when a rule's path
         // matches and the rule also specifies a title/description pattern.
         if !has_no_ignore_rules {
@@ -412,25 +373,7 @@ impl IssueFilter {
             }
         }
 
-        let severity = issue.into_trait_ref().await?.severity();
-        // NOTE: Lower severities are _more_ severe
-        Ok(Vc::cell(
-            if severity <= self.severity || severity <= self.foreign_severity {
-                // we need to check the path to see if it is foreign or not.  Only await the
-                // path if it might possibly matter
-                if severity <= self.severity && severity <= self.foreign_severity {
-                    // it matches no matter where the path is
-                    true
-                } else if ContextCondition::InNodeModules.matches(&file_path) {
-                    severity <= self.foreign_severity
-                } else {
-                    severity <= self.severity
-                }
-            } else {
-                // it is too low severity to match either way
-                false
-            },
-        ))
+        Ok(Vc::cell(true))
     }
 }
 
