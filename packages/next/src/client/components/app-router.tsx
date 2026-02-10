@@ -523,7 +523,7 @@ function Router({
   return (
     <>
       <HistoryUpdater appRouterState={state} />
-      <RuntimeStyles />
+      {process.env.TURBOPACK ? null : <RuntimeStylesForWebpack />}
       <NavigationPromisesContext.Provider
         value={instrumentedNavigationPromises}
       >
@@ -583,24 +583,30 @@ export default function AppRouter({
   )
 }
 
-const runtimeStyles = new Set<string>()
-let runtimeStyleChanged = new Set<() => void>()
+let runtimeStyles: Set<string> | undefined
+let runtimeStyleChanged: Set<() => void> | undefined
+if (!process.env.TURBOPACK && typeof window !== 'undefined') {
+  runtimeStyles = new Set<string>()
+  runtimeStyleChanged = new Set<() => void>()
 
-globalThis._N_E_STYLE_LOAD = function (href: string) {
-  let len = runtimeStyles.size
-  runtimeStyles.add(href)
-  if (runtimeStyles.size !== len) {
-    runtimeStyleChanged.forEach((cb) => cb())
+  globalThis._N_E_STYLE_LOAD = function (href: string) {
+    if (!runtimeStyles || !runtimeStyleChanged) return Promise.resolve()
+    let len = runtimeStyles.size
+    runtimeStyles.add(href)
+    if (runtimeStyles.size !== len) {
+      runtimeStyleChanged.forEach((cb) => cb())
+    }
+    // TODO figure out how to get a promise here
+    // But maybe it's not necessary as react would block rendering until it's loaded
+    return Promise.resolve()
   }
-  // TODO figure out how to get a promise here
-  // But maybe it's not necessary as react would block rendering until it's loaded
-  return Promise.resolve()
 }
 
-function RuntimeStyles() {
+function RuntimeStylesForWebpack() {
   const [, forceUpdate] = React.useState(0)
-  const renderedStylesSize = runtimeStyles.size
+  const renderedStylesSize = runtimeStyles?.size ?? 0
   useEffect(() => {
+    if (!runtimeStyles || !runtimeStyleChanged) return
     const changed = () => forceUpdate((c) => c + 1)
     runtimeStyleChanged.add(changed)
     if (renderedStylesSize !== runtimeStyles.size) {
@@ -612,7 +618,7 @@ function RuntimeStyles() {
   }, [renderedStylesSize, forceUpdate])
 
   const dplId = getDeploymentIdQueryOrEmptyString()
-  return [...runtimeStyles].map((href, i) => (
+  return [...(runtimeStyles || [])].map((href, i) => (
     <link
       key={i}
       rel="stylesheet"
