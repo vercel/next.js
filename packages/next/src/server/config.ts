@@ -379,6 +379,39 @@ function assignDefaultsAndValidate(
     },
   }
 
+  // Parse and merge environment variables for allowed origins
+  if (process.env.NEXT_ALLOWED_DEV_ORIGINS) {
+    const envOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS.split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+
+    if (envOrigins.length > 0) {
+      result.allowedDevOrigins = [
+        ...(result.allowedDevOrigins || []),
+        ...envOrigins,
+      ]
+    }
+  }
+
+  // Parse and merge environment variables for server actions allowed origins
+  if (process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS) {
+    const envOrigins = process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS.split(
+      ','
+    )
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+
+    if (envOrigins.length > 0) {
+      if (!result.experimental.serverActions) {
+        result.experimental.serverActions = {}
+      }
+      result.experimental.serverActions.allowedOrigins = [
+        ...(result.experimental.serverActions.allowedOrigins || []),
+        ...envOrigins,
+      ]
+    }
+  }
+
   // ensure correct default is set for api-resolver revalidate handling
   if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true
