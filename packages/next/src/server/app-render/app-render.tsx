@@ -541,7 +541,9 @@ async function generateDynamicRSCPayload(
       process.env.NODE_ENV === 'development' &&
       ctx.renderOpts.cacheComponents &&
       !options?.actionResult && // Only for navigations
-      (await anySegmentNeedsInstantValidation(loaderTree))
+      ((await anySegmentNeedsInstantValidation(loaderTree)) ||
+        // for testing, also enable this whenever __NEXT_CACHE_COMPONENTS is on
+        process.env.__NEXT_CACHE_COMPONENTS === 'true')
 
     const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
