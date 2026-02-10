@@ -1866,6 +1866,7 @@
       "Terminal Logging (Webpack) App Router - Client Components should forward client component logs in app router",
       "Terminal Logging (Webpack) App Router - Client Components should show source-mapped errors for client components",
       "Terminal Logging (Webpack) App Router - Edge Runtime should handle edge runtime errors with source mapping",
+      "Terminal Logging (Webpack) App Router - Hydration Errors should show hydration errors with owner stack trace",
       "Terminal Logging (Webpack) App Router - Server Components should not re-log server component logs",
       "Terminal Logging (Webpack) App Router - Server Components should show source-mapped errors for server components",
       "Terminal Logging (Webpack) Pages Router should forward client component logs",
@@ -2522,6 +2523,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/report-system-env-var-inlining/report-system-env-var-inlining.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "report-system-env-var-inlining should report when inlining system env vars"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/sass-error/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -2776,10 +2786,11 @@
   },
   "test/e2e/app-dir/actions-navigation/index.test.ts": {
     "passed": [
-      "app-dir action handling should handle actions correctly after following a relative link",
+      "app-dir action handling should handle actions correctly after following a relative link"
+    ],
+    "failed": [
       "app-dir action handling should handle actions correctly after navigation / redirection events"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2816,6 +2827,15 @@
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js disabled",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js enabled",
       "unrecognized server actions should error when POSTing a urlencoded action to a nonexistent page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions-unused-args/actions-unused-args.test.ts": {
+    "passed": [
+      "actions-unused-args should not call server actions with unused arguments"
     ],
     "failed": [],
     "pending": [],
@@ -3218,6 +3238,8 @@
       "app dir - css css support client layouts should support global css inside client layouts",
       "app dir - css css support client pages should support css modules inside client pages",
       "app dir - css css support client pages should support global css inside client pages",
+      "app dir - css css support css import URLs should not mangle relative layers",
+      "app dir - css css support css import URLs should work with the media attribute",
       "app dir - css css support css ordering should have inner layers take precedence over outer layers",
       "app dir - css css support multiple entries should deduplicate styles on the module level",
       "app dir - css css support multiple entries should only include the same style once in the flight data",
@@ -3248,7 +3270,9 @@
       "app dir - css sass support server pages should support global sass/scss inside server pages",
       "app dir - css sass support server pages should support sass/scss modules inside server pages"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - css css support css import URLs should not mangle external layers"
+    ],
     "pending": [
       "app dir - css css support multiple entries should only inject the same style once if used by different layers",
       "app dir - css css support multiple entries should only load chunks for the css module that is used by the specific entrypoint",
@@ -4364,8 +4388,10 @@
       "Cache Components Errors Dev Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should show a collapsed redbox error",
       "Cache Components Errors Dev IO accessed in Client Components should show a collapsed redbox error",
       "Cache Components Errors Dev Inside `use cache` cacheLife with expire < 5 minutes microtasky cache should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` cacheLife with expire < 5 minutes nested should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` cacheLife with expire < 5 minutes slow cache should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` cacheLife with revalidate: 0 microtasky cache should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` cacheLife with revalidate: 0 nested should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` cacheLife with revalidate: 0 slow cache should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` catching an error at runtime should show a collapsed redbox error",
       "Cache Components Errors Dev Inside `use cache` cookies should show a redbox error",
@@ -5690,6 +5716,96 @@
     "passed": [
       "initial-css-order should serve styles in the correct order for global-not-found",
       "initial-css-order should serve styles in the correct order for the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts": {
+    "passed": [
+      "instant-navigation-testing-api logs an error when attempting to nest instant scopes",
+      "instant-navigation-testing-api reload followed by MPA navigation, both block dynamic data",
+      "instant-navigation-testing-api renders full prefetch content instantly when prefetch={true}",
+      "instant-navigation-testing-api renders prefetched loading shell instantly during navigation",
+      "instant-navigation-testing-api renders runtime-prefetched content instantly during navigation",
+      "instant-navigation-testing-api renders static shell on MPA navigation via plain anchor",
+      "instant-navigation-testing-api renders static shell on page reload",
+      "instant-navigation-testing-api subsequent navigations after instant scope are not locked",
+      "instant-navigation-testing-api successive MPA navigations within instant scope"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/instant-validation-static-shells/instant-validation-static-shells.test.ts": {
+    "passed": [
+      "instant validation - opting out of static shells does not require a static shell if a layout is configured as blocking",
+      "instant validation - opting out of static shells does not require a static shell if a page is configured as blocking",
+      "instant validation - opting out of static shells does not require a static shell if a root layouts is configured as blocking",
+      "instant validation - with debug channel requires a static shell if a below a static layout page is configured as blocking errors in dev",
+      "instant validation - without debug channel requires a static shell if a below a static layout page is configured as blocking errors in dev"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/instant-validation/instant-validation.test.ts": {
+    "passed": [
+      "instant validation - with debug channel blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
+      "instant validation - with debug channel blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
+      "instant validation - with debug channel blocking invalid - missing suspense inside blocking layout",
+      "instant validation - with debug channel blocking valid - blocking layout with unstable_instant = false is allowed to block",
+      "instant validation - with debug channel blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
+      "instant validation - with debug channel blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
+      "instant validation - with debug channel disabling validation in a layout",
+      "instant validation - with debug channel disabling validation in a page",
+      "instant validation - with debug channel disabling validation in a page with a parent that has a config",
+      "instant validation - with debug channel invalid - missing suspense around dynamic (with loading.js)",
+      "instant validation - with debug channel invalid - missing suspense in parallel slot default slot",
+      "instant validation - with debug channel invalid - missing suspense in parallel slot index",
+      "instant validation - with debug channel invalid - missing suspense in parallel slot subpage",
+      "instant validation - with debug channel invalid - runtime prefetch - missing suspense around dynamic",
+      "instant validation - with debug channel invalid - runtime prefetch - missing suspense around dynamic in a layout",
+      "instant validation - with debug channel invalid - runtime prefetch - suspense too high",
+      "instant validation - with debug channel invalid - runtime prefetch - sync IO after runtime API",
+      "instant validation - with debug channel invalid - static prefetch - missing suspense around dynamic",
+      "instant validation - with debug channel invalid - static prefetch - missing suspense around dynamic in a layout",
+      "instant validation - with debug channel invalid - static prefetch - missing suspense around params",
+      "instant validation - with debug channel invalid - static prefetch - missing suspense around runtime",
+      "instant validation - with debug channel invalid - static prefetch - suspense too high",
+      "instant validation - with debug channel valid - runtime prefetch - does not require Suspense around params",
+      "instant validation - with debug channel valid - runtime prefetch - suspense only around dynamic",
+      "instant validation - with debug channel valid - static prefetch - suspense around runtime and dynamic",
+      "instant validation - with debug channel valid - target segment not visible in all navigations",
+      "instant validation - without debug channel blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
+      "instant validation - without debug channel blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
+      "instant validation - without debug channel blocking invalid - missing suspense inside blocking layout",
+      "instant validation - without debug channel blocking valid - blocking layout with unstable_instant = false is allowed to block",
+      "instant validation - without debug channel blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
+      "instant validation - without debug channel blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
+      "instant validation - without debug channel disabling validation in a layout",
+      "instant validation - without debug channel disabling validation in a page",
+      "instant validation - without debug channel disabling validation in a page with a parent that has a config",
+      "instant validation - without debug channel invalid - missing suspense around dynamic (with loading.js)",
+      "instant validation - without debug channel invalid - missing suspense in parallel slot default slot",
+      "instant validation - without debug channel invalid - missing suspense in parallel slot index",
+      "instant validation - without debug channel invalid - missing suspense in parallel slot subpage",
+      "instant validation - without debug channel invalid - runtime prefetch - missing suspense around dynamic",
+      "instant validation - without debug channel invalid - runtime prefetch - missing suspense around dynamic in a layout",
+      "instant validation - without debug channel invalid - runtime prefetch - suspense too high",
+      "instant validation - without debug channel invalid - runtime prefetch - sync IO after runtime API",
+      "instant validation - without debug channel invalid - static prefetch - missing suspense around dynamic",
+      "instant validation - without debug channel invalid - static prefetch - missing suspense around dynamic in a layout",
+      "instant validation - without debug channel invalid - static prefetch - missing suspense around params",
+      "instant validation - without debug channel invalid - static prefetch - missing suspense around runtime",
+      "instant validation - without debug channel invalid - static prefetch - suspense too high",
+      "instant validation - without debug channel valid - runtime prefetch - does not require Suspense around params",
+      "instant validation - without debug channel valid - runtime prefetch - suspense only around dynamic",
+      "instant validation - without debug channel valid - static prefetch - suspense around runtime and dynamic",
+      "instant validation - without debug channel valid - target segment not visible in all navigations"
     ],
     "failed": [],
     "pending": [],
@@ -9207,9 +9323,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
-    "passed": [
-      "segment cache (deployment skew) should not run during dev or deploy test runs"
-    ],
+    "passed": ["segment cache (deployment skew) should not run during dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -9262,10 +9376,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/no-prefetch/no-prefetch.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "navigating without a prefetch can show a loading boundary from the dynamic response"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9437,8 +9551,10 @@
       "app-dir - server source maps handles invalid sourcemaps gracefully",
       "app-dir - server source maps ignore-lists anonymous rsc stack frame sandwiches",
       "app-dir - server source maps ignore-lists anonymous ssr stack frame sandwiches",
+      "app-dir - server source maps logged errors collapse deeply nested causes at depth 2",
       "app-dir - server source maps logged errors have a sourcemapped `cause`",
       "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
+      "app-dir - server source maps logged errors include `[errors]` for AggregateError",
       "app-dir - server source maps logged errors preserve their name",
       "app-dir - server source maps stack frames are ignore-listed in ssr",
       "app-dir - server source maps thrown SSR errors"
@@ -9922,6 +10038,7 @@
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache replays logs from \"use cache\" functions",
       "use-cache shares caches between the page/layout and generateMetadata",
+      "use-cache should allow nested short-lived caches after connection()",
       "use-cache should be able to revalidate a page using revalidateTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
@@ -10104,6 +10221,7 @@
     "passed": [
       "app dir - workers should have access to NEXT_DEPLOYMENT_ID in web worker",
       "app dir - workers should not bundle web workers with string specifiers",
+      "app dir - workers should support loading PNG files in web workers",
       "app dir - workers should support loading WASM files in workers",
       "app dir - workers should support module web workers with dynamic imports",
       "app dir - workers should support shared workers",
@@ -10518,6 +10636,30 @@
       "custom-cache-handler-image should evict oldest entries when cache exceeds max size",
       "custom-cache-handler-image should miss cache for evicted entries",
       "custom-cache-handler-image should use custom cache handler for image optimization"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/deferred-entries/deferred-entries.test.ts": {
+    "passed": [
+      "deferred-entries webpack should build app router dynamic route with generateStaticParams when using deferred entries",
+      "deferred-entries webpack should build app router metadata routes when using deferred entries",
+      "deferred-entries webpack should build app router route handler when using deferred entries",
+      "deferred-entries webpack should build deferred entry successfully",
+      "deferred-entries webpack should build pages router API routes when using deferred entries",
+      "deferred-entries webpack should build pages router dynamic getStaticPaths/getStaticProps route when using deferred entries",
+      "deferred-entries webpack should build pages router getServerSideProps route when using deferred entries",
+      "deferred-entries webpack should build pages router getStaticProps routes when using deferred entries",
+      "deferred-entries webpack should build pages router route with no data fetching when using deferred entries",
+      "deferred-entries webpack should build pages router routes when using deferred entries",
+      "deferred-entries webpack should call onBeforeDeferredEntries before building deferred entry",
+      "deferred-entries webpack should call onBeforeDeferredEntries during HMR even when non-deferred entry changes",
+      "deferred-entries webpack should handle successive non-deferred edits without callback looping",
+      "deferred-entries webpack should render app router current time on every request",
+      "deferred-entries webpack should render timestamp written by onBeforeDeferredEntries in deferred source file",
+      "deferred-entries webpack should update deferred rendered timestamp during HMR when non-deferred entry changes"
     ],
     "failed": [],
     "pending": [],
@@ -12507,6 +12649,17 @@
   "test/e2e/pages-performance-mark/index.test.ts": {
     "passed": [
       "pages performance mark should render the page correctly without crashing with performance mark"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/pages-ssg-data-deployment-skew/pages-ssg-data-deployment-skew.test.ts": {
+    "passed": [
+      "pages ssg data deployment skew - hard navigate when a new deployment occurs development mode gsp to gssp",
+      "pages ssg data deployment skew - hard navigate when a new deployment occurs development mode index to gsp",
+      "pages ssg data deployment skew - hard navigate when a new deployment occurs header with deployment id header is set on data routes"
     ],
     "failed": [],
     "pending": [],
@@ -22195,20 +22348,6 @@
       "Dynamic Routing production mode should render nested dynamic page",
       "Dynamic Routing production mode should render normal route"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/ssg-data-404/test/index.test.ts": {
-    "passed": [
-      "SSG data 404 - hard navigate when a new deployment occurs development mode gsp to gssp",
-      "SSG data 404 - hard navigate when a new deployment occurs development mode index to gsp",
-      "SSG data 404 - hard navigate when a new deployment occurs production mode with build id gsp to gssp",
-      "SSG data 404 - hard navigate when a new deployment occurs production mode with build id index to gsp",
-      "SSG data 404 - hard navigate when a new deployment occurs production mode with deployment id gsp to gssp",
-      "SSG data 404 - hard navigate when a new deployment occurs production mode with deployment id index to gsp"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
