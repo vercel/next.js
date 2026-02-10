@@ -1,6 +1,6 @@
 import type {
-  DynamicPrerenderManifestRoute,
-  PrerenderManifest,
+  DynamicPrerenderManifestRouteRuntime,
+  PrerenderManifestRuntime,
 } from '../../../../build'
 import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
 import {
@@ -27,7 +27,7 @@ type Matcher = {
   /**
    * The route that matches the source.
    */
-  route: DeepReadonly<DynamicPrerenderManifestRoute>
+  route: DeepReadonly<DynamicPrerenderManifestRouteRuntime>
 }
 
 /**
@@ -39,7 +39,7 @@ export class PrerenderManifestMatcher {
   private readonly matchers: Array<Matcher>
   constructor(
     pathname: string,
-    prerenderManifest: DeepReadonly<PrerenderManifest>
+    prerenderManifest: DeepReadonly<PrerenderManifestRuntime>
   ) {
     this.matchers = Object.entries(prerenderManifest.dynamicRoutes)
       .filter(([source, route]) => {
@@ -59,7 +59,7 @@ export class PrerenderManifestMatcher {
    */
   public match(
     pathname: string
-  ): DeepReadonly<DynamicPrerenderManifestRoute> | null {
+  ): DeepReadonly<DynamicPrerenderManifestRouteRuntime> | null {
     // Iterate over the matchers. They're already in the correct order of
     // specificity as they were inserted into the prerender manifest that way
     // and iterating over them with Object.entries guarantees that.

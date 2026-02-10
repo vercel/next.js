@@ -379,6 +379,37 @@ export type PrerenderManifest = {
 
 export type PreviewPropsManifest = __ApiPreviewProps
 
+export type PrerenderManifestRouteRuntime = Pick<
+  PrerenderManifestRoute,
+  | 'renderingMode'
+  | 'initialRevalidateSeconds'
+  | 'initialExpireSeconds'
+  // prefetchDataRoute is only checked for existence, in packages/next/src/build/templates/app-page.ts
+  | 'prefetchDataRoute'
+>
+
+export type DynamicPrerenderManifestRouteRuntime = Pick<
+  DynamicPrerenderManifestRoute,
+  | 'renderingMode'
+  | 'fallback'
+  | 'fallbackRevalidate'
+  | 'fallbackExpire'
+  | 'fallbackSourceRoute'
+  | 'fallbackRouteParams'
+>
+
+export type PrerenderManifestRuntime = {
+  version: 4
+  routes: {
+    [route: string]: PrerenderManifestRouteRuntime
+  }
+  dynamicRoutes: {
+    [route: string]: DynamicPrerenderManifestRouteRuntime
+  }
+  notFoundRoutes: string[]
+  preview: __ApiPreviewProps
+}
+
 type ManifestBuiltRoute = {
   /**
    * The route pattern used to match requests for this route.

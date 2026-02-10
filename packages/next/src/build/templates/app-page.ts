@@ -406,8 +406,9 @@ export async function handler(
   // If PPR is enabled, and this is a RSC request (but not a prefetch), then
   // we can use this fact to only generate the flight data for the request
   // because we can't cache the HTML (as it's also dynamic).
-  const staticPrefetchDataRoute =
+  const staticPrefetchDataRoute = Boolean(
     prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+  )
 
   let isDynamicRSCRequest =
     isRoutePPREnabled &&
