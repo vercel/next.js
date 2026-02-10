@@ -414,6 +414,9 @@ export async function startServer(
               cleanupListeners?.runAll().catch(console.error),
             ])
 
+            // Flush any remaining traces to the trace file on shutdown
+            await flushAllTraces()
+
             // Flush telemetry if this is a dev server
             if (isDev) {
               try {
