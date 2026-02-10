@@ -30,15 +30,12 @@ function normalizeSrc(src: string): string {
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-// This is replaced by webpack define plugin
-const globalImageConfig =
-  typeof globalThis !== 'undefined'
-    ? ((globalThis as any).__NEXT_IMAGE_OPTS as ImageConfigComplete | undefined)
-    : undefined
-
+// This is replaced by webpack define plugin.
+// In Jest (no webpack), it is a JSON string set via process.env.
 const configEnv =
-  (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete | undefined) ??
-  globalImageConfig
+  typeof process.env.__NEXT_IMAGE_OPTS === 'string'
+    ? (JSON.parse(process.env.__NEXT_IMAGE_OPTS) as ImageConfigComplete)
+    : (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete | undefined)
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,
