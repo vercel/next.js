@@ -263,7 +263,7 @@ async function startWatcher(
           }),
           telemetry: opts.telemetry,
           rewrites: opts.fsChecker.rewrites,
-          previewProps: opts.fsChecker.prerenderManifest.preview,
+          previewProps: opts.fsChecker.prerenderManifestPreview,
           resetFetch,
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
@@ -324,7 +324,11 @@ async function startWatcher(
   const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
   await fs.promises.writeFile(
     prerenderManifestPath,
-    JSON.stringify(opts.fsChecker.prerenderManifest, null, 2)
+    JSON.stringify(
+      { preview: opts.fsChecker.prerenderManifestPreview },
+      null,
+      2
+    )
   )
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {

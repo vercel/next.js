@@ -45,6 +45,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 export type FsOutput = {
   type:
@@ -163,7 +164,7 @@ export async function setupFsCheck(opts: {
     headers: [],
   }
   let buildId = 'development'
-  let prerenderManifest: PrerenderManifest
+  let prerenderManifestPreview: __ApiPreviewProps
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
@@ -234,9 +235,11 @@ export async function setupFsCheck(opts: {
       await fs.readFile(routesManifestPath, 'utf8')
     ) as RoutesManifest
 
-    prerenderManifest = JSON.parse(
-      await fs.readFile(prerenderManifestPath, 'utf8')
-    ) as PrerenderManifest
+    prerenderManifestPreview = (
+      JSON.parse(
+        await fs.readFile(prerenderManifestPath, 'utf8')
+      ) as PrerenderManifest
+    ).preview
 
     const middlewareManifest = JSON.parse(
       await fs.readFile(middlewareManifestPath, 'utf8').catch(() => '{}')
@@ -344,22 +347,16 @@ export async function setupFsCheck(opts: {
     // dev handling
     customRoutes = await loadCustomRoutes(opts.config)
 
-    prerenderManifest = {
-      version: 4,
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      preview: {
-        previewModeId: (require('crypto') as typeof import('crypto'))
-          .randomBytes(16)
-          .toString('hex'),
-        previewModeSigningKey: (require('crypto') as typeof import('crypto'))
-          .randomBytes(32)
-          .toString('hex'),
-        previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
-          .randomBytes(32)
-          .toString('hex'),
-      },
+    prerenderManifestPreview = {
+      previewModeId: (require('crypto') as typeof import('crypto'))
+        .randomBytes(16)
+        .toString('hex'),
+      previewModeSigningKey: (require('crypto') as typeof import('crypto'))
+        .randomBytes(32)
+        .toString('hex'),
+      previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
+        .randomBytes(32)
+        .toString('hex'),
     }
   }
 
@@ -460,7 +457,7 @@ export async function setupFsCheck(opts: {
 
     devVirtualFsItems: new Set<string>(),
 
-    prerenderManifest,
+    prerenderManifestPreview,
     middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
 
     ensureCallback(fn: typeof ensureFn) {

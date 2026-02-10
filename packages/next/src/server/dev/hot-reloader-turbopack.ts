@@ -372,7 +372,7 @@ export async function createHotReloaderTurbopack(
       }),
       buildId,
       encryptionKey,
-      previewProps: opts.fsChecker.prerenderManifest.preview,
+      previewProps: opts.fsChecker.prerenderManifestPreview,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling: false,
       writeRoutesHashesManifest: false,
