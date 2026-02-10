@@ -30,6 +30,7 @@ import type {
   ManifestRewriteRoute,
   FunctionsConfigManifest,
   DynamicPrerenderManifestRoute,
+  ManifestHeaderRoute,
 } from '..'
 
 import {
@@ -40,6 +41,7 @@ import {
 } from '../../lib/constants'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -1005,6 +1007,11 @@ export async function handleBuildComplete({
             continue
           }
           const normalizedPage = normalizeAppPath(page)
+
+          // Skip static metadata routes - they will be output as static files
+          if (isStaticMetadataFile(normalizedPage)) {
+            continue
+          }
           const pageFile = path.join(appDistDir, `${page}.js`)
           const pageTraceFile = `${pageFile}.nft.json`
           const assets = await handleTraceFiles(pageTraceFile, 'app').catch(
@@ -1289,6 +1296,25 @@ export async function handleBuildComplete({
           isAppPage ? appDistDir : pagesDistDir,
           `${normalizePagePath(route)}.${isAppPage && !dataRoute ? 'body' : 'html'}`
         )
+
+        // Check if this is a static metadata route (e.g., /favicon.ico, /icon.png, /opengraph-image.png)
+        // These should be output as static files, not prerenders.
+        if (isStaticMetadataFile(route)) {
+          // For static metadata from app router, check if the .body file exists
+          const staticMetadataFilePath = path.join(
+            appDistDir,
+            `${normalizePagePath(route)}.body`
+          )
+          if (await cachedFilePathCheck(staticMetadataFilePath)) {
+            outputs.staticFiles.push({
+              id: route,
+              pathname: route,
+              type: AdapterOutputType.STATIC_FILE,
+              filePath: staticMetadataFilePath,
+            })
+            continue
+          }
+        }
 
         // we use the static 404 for notFound: true if available
         // if not we do a blocking invoke on first request
@@ -1952,6 +1978,19 @@ export async function handleBuildComplete({
       } satisfies Route
     }
 
+    const buildRouteFromHeader = (route: ManifestHeaderRoute): Route => {
+      const converted = convertHeaders([route])[0]
+      const regex = converted.src || route.regex
+      return {
+        source: route.source,
+        sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+        headers: 'headers' in converted ? converted.headers || {} : {},
+        has: route.has,
+        missing: route.missing,
+        priority: route.internal || undefined,
+      } satisfies Route
+    }
+
     try {
       Log.info(`Running onBuildComplete from ${adapterMod.name}`)
 
@@ -1982,19 +2021,12 @@ export async function handleBuildComplete({
         } satisfies Route
       })
 
-      const headers = routesManifest.headers.map((route) => {
-        const converted = convertHeaders([route])[0]
-        const regex = converted.src || route.regex
-
-        return {
-          source: route.source,
-          sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-          headers: 'headers' in converted ? converted.headers || {} : {},
-          has: route.has,
-          missing: route.missing,
-          priority: route.internal || undefined,
-        } satisfies Route
-      })
+      const headers = routesManifest.headers.map((route) =>
+        buildRouteFromHeader(route)
+      )
+      const onMatchHeaders = routesManifest.onMatchHeaders.map((route) =>
+        buildRouteFromHeader(route)
+      )
 
       await adapterMod.onBuildComplete({
         routing: {
@@ -2013,6 +2045,7 @@ export async function handleBuildComplete({
                 'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
               },
             },
+            ...onMatchHeaders,
           ],
           fallback: rewrites.fallback,
           shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
@@ -2025,6 +2058,7 @@ export async function handleBuildComplete({
             config,
             redirects: [],
             headers: [],
+            onMatchHeaders: [],
             rewrites,
             restrictedRedirectPaths: [],
             isAppPPREnabled: config.cacheComponents,

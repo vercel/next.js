@@ -694,7 +694,7 @@ pub trait AliasTemplate {
 
 #[cfg(test)]
 mod test {
-    use std::assert_matches::assert_matches;
+    use core::assert_matches;
 
     use anyhow::Result;
     use turbo_rcstr::rcstr;

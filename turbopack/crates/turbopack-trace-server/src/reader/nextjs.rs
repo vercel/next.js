@@ -28,10 +28,7 @@ impl TraceFormat for NextJsFormat {
     fn read(&mut self, mut buffer: &[u8], _reuse: &mut Self::Reused) -> anyhow::Result<usize> {
         let mut bytes_read = 0;
         let mut outdated_spans = FxHashSet::default();
-        loop {
-            let Some(line_end) = buffer.iter().position(|b| *b == b'\n') else {
-                break;
-            };
+        while let Some(line_end) = buffer.iter().position(|b| *b == b'\n') {
             let line = &buffer[..line_end];
             buffer = &buffer[line_end + 1..];
             bytes_read += line.len() + 1;

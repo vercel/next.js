@@ -15,7 +15,7 @@ import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-pat
 import { HTTP_METHODS } from '../../../../server/web/http'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import { getPageFromPath } from '../../../entries'
+import { getPageFromPath } from '../../../route-discovery'
 import type { PageExtensions } from '../../../page-extensions-type'
 import { getProxiedPluginState } from '../../../build-context'
 

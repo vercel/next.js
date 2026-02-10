@@ -123,6 +123,7 @@ export interface StartServerOptions {
   keepAliveTimeout?: number
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
+  experimentalServerFastRefresh?: boolean
 }
 
 export async function getRequestHandlers({

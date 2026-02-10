@@ -232,13 +232,11 @@ export async function fetchServerResponse(
       // TODO: This should only be reachable if legacy PPR is enabled (i.e. PPR
       // without Cache Components). Remove this branch once legacy PPR
       // is deleted.
-      const flightStream = postponed
-        ? createUnclosingPrefetchStream(res.body)
-        : res.body
       flightResponsePromise =
         createFromNextReadableStream<NavigationFlightResponse>(
-          flightStream,
-          headers
+          res.body,
+          headers,
+          { allowPartialStream: postponed }
         )
     }
 
@@ -354,12 +352,10 @@ export async function createFetch<T>(
   // info includes the latency from the client to the server. The internal timer
   // in React starts as soon as `createFromFetch` is called.
   //
-  // The only case where we don't do this is during a prefetch, because we have
-  // to do some extra processing of the response stream (see
-  // `createUnclosingPrefetchStream`). But this is fine, because a top-level
-  // prefetch response never blocks a navigation; if it hasn't already been
-  // written into the cache by the time the navigation happens, the router will
-  // go straight to a dynamic request.
+  // The only case where we don't do this is during a prefetch, because a
+  // top-level prefetch response never blocks a navigation; if it hasn't already
+  // been written into the cache by the time the navigation happens, the router
+  // will go straight to a dynamic request.
   let flightResponsePromise = shouldImmediatelyDecode
     ? createFromNextFetch<T>(fetchPromise, headers)
     : null
@@ -462,12 +458,14 @@ export async function createFetch<T>(
 
 export function createFromNextReadableStream<T>(
   flightStream: ReadableStream<Uint8Array>,
-  requestHeaders: RequestHeaders
+  requestHeaders: RequestHeaders,
+  options?: { allowPartialStream?: boolean }
 ): Promise<T> {
   return createFromReadableStream(flightStream, {
     callServer,
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
+    unstable_allowPartialStream: options?.allowPartialStream,
   })
 }
 
@@ -479,38 +477,5 @@ function createFromNextFetch<T>(
     callServer,
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
-  })
-}
-
-function createUnclosingPrefetchStream(
-  originalFlightStream: ReadableStream<Uint8Array>
-): ReadableStream<Uint8Array> {
-  // When PPR is enabled, prefetch streams may contain references that never
-  // resolve, because that's how we encode dynamic data access. In the decoded
-  // object returned by the Flight client, these are reified into hanging
-  // promises that suspend during render, which is effectively what we want.
-  // The UI resolves when it switches to the dynamic data stream
-  // (via useDeferredValue(dynamic, static)).
-  //
-  // However, the Flight implementation currently errors if the server closes
-  // the response before all the references are resolved. As a cheat to work
-  // around this, we wrap the original stream in a new stream that never closes,
-  // and therefore doesn't error.
-  const reader = originalFlightStream.getReader()
-  return new ReadableStream({
-    async pull(controller) {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (!done) {
-          // Pass to the target stream and keep consuming the Flight response
-          // from the server.
-          controller.enqueue(value)
-          continue
-        }
-        // The server stream has closed. Exit, but intentionally do not close
-        // the target stream.
-        return
-      }
-    },
   })
 }

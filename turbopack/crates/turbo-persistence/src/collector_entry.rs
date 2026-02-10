@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use crate::{
+    constants::MAX_INLINE_VALUE_SIZE,
     key::StoreKey,
     static_sorted_file_builder::{Entry, EntryValue},
 };
@@ -94,12 +95,21 @@ impl<K: StoreKey> Entry for CollectorEntry<K> {
 
     fn value(&self) -> EntryValue<'_> {
         match &self.value {
-            // Tiny values are stored the same way as Small in the SST file, they just have an
-            // optimized representation here
-            CollectorEntryValue::Tiny { value, len } => EntryValue::Small {
-                value: &value[..*len as usize],
-            },
-            CollectorEntryValue::Small { value } => EntryValue::Small { value },
+            CollectorEntryValue::Tiny { value, len } => {
+                let slice = &value[..*len as usize];
+                if slice.len() <= MAX_INLINE_VALUE_SIZE {
+                    EntryValue::Inline { value: slice }
+                } else {
+                    EntryValue::Small { value: slice }
+                }
+            }
+            CollectorEntryValue::Small { value } => {
+                if value.len() <= MAX_INLINE_VALUE_SIZE {
+                    EntryValue::Inline { value }
+                } else {
+                    EntryValue::Small { value }
+                }
+            }
             CollectorEntryValue::Medium { value } => EntryValue::Medium { value },
             CollectorEntryValue::Large { blob } => EntryValue::Large { blob: *blob },
             CollectorEntryValue::Deleted => EntryValue::Deleted,
