@@ -28,11 +28,30 @@ const requestHandler = nextServer.getRequestHandler()
 
 const port = parseInt(process.env.PORT, 10) || 3000
 
-require('http')
-  .createServer((req, res) => {
-    return requestHandler(req, res)
+const server = require('http').createServer((req, res) => {
+  return requestHandler(req, res)
+})
+
+server.listen(port, () => {
+  console.timeEnd('next-cold-start')
+  console.log('Listening on port ' + port)
+})
+
+let shuttingDown = false
+function shutdown() {
+  if (shuttingDown) return
+  shuttingDown = true
+
+  // Allow Node to exit cleanly so --cpu-prof/--heap-prof outputs are flushed.
+  server.close(() => {
+    process.exit(0)
   })
-  .listen(port, () => {
-    console.timeEnd('next-cold-start')
-    console.log('Listening on port ' + port)
-  })
+
+  // Fallback in case active keep-alive connections prevent close callback.
+  setTimeout(() => {
+    process.exit(1)
+  }, 5000).unref()
+}
+
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)
