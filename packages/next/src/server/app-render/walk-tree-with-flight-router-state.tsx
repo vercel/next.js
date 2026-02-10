@@ -37,7 +37,6 @@ export async function walkTreeWithFlightRouterState({
   ctx,
   preloadCallbacks,
   MetadataOutlet,
-  renderAllSegments,
 }: {
   loaderTreeToFilter: LoaderTree
   parentParams: { [key: string]: string | string[] }
@@ -51,7 +50,6 @@ export async function walkTreeWithFlightRouterState({
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
   MetadataOutlet: React.ComponentType
-  renderAllSegments?: boolean
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -97,8 +95,6 @@ export async function walkTreeWithFlightRouterState({
    * Decide if the current segment is where rendering has to start.
    */
   const renderComponentsOnThisLevel =
-    // If requested, do not omit shared segments (used for validation, when we need the full payload)
-    renderAllSegments ||
     // No further router state available
     !flightRouterState ||
     // Segment in router state does not match current segment
@@ -288,7 +284,6 @@ export async function walkTreeWithFlightRouterState({
       rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
       preloadCallbacks,
       MetadataOutlet,
-      renderAllSegments,
     })
 
     for (const subPath of subPaths) {
@@ -297,6 +292,70 @@ export async function walkTreeWithFlightRouterState({
   }
 
   return paths
+}
+
+/**
+ * A simplified version of `walkTreeWithFlightRouterState` that doesn't skip any layouts
+ * but returns a result of the same shape.
+ * Intended to be used for instant validation, where we need the complete tree.
+ */
+export async function createFullTreeFlightDataForNavigation({
+  loaderTree,
+  rscHead,
+  injectedCSS,
+  injectedJS,
+  injectedFontPreloadTags,
+  ctx,
+  preloadCallbacks,
+  MetadataOutlet,
+}: {
+  loaderTree: LoaderTree
+  flightRouterState?: FlightRouterState
+  rscHead: HeadData
+  injectedCSS: Set<string>
+  injectedJS: Set<string>
+  injectedFontPreloadTags: Set<string>
+  ctx: AppRenderContext
+  preloadCallbacks: PreloadCallbacks
+  MetadataOutlet: React.ComponentType
+}): Promise<[rootSegment: FlightDataPath]> {
+  const {
+    renderOpts: { experimental },
+    query,
+    getDynamicParamFromSegment,
+  } = ctx
+
+  const routerState = createFlightRouterStateFromLoaderTree(
+    loaderTree,
+    getDynamicParamFromSegment,
+    query
+  )
+  const rootSegment = routerState[0]
+
+  const seedData = await createComponentTree({
+    ctx,
+    loaderTree,
+    parentParams: {},
+    injectedCSS,
+    injectedJS,
+    injectedFontPreloadTags,
+    rootLayoutIncluded: false,
+    preloadCallbacks,
+    authInterrupts: experimental.authInterrupts,
+    MetadataOutlet,
+  })
+
+  return [
+    [
+      // TODO: app-render slices this Segment off.
+      // why is that valid, and why are we including it in the first place?
+      rootSegment,
+      routerState,
+      seedData,
+      rscHead,
+      false,
+    ] satisfies FlightDataSegment,
+  ]
 }
 
 /*
