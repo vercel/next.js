@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 function Tab0() {
-  return 'Intentionally empty'
+  return <p id="tab-0-content">Intentionally empty</p>
 }
 
 function Tab1() {
@@ -111,7 +111,7 @@ export default function MemoryPressure() {
           Tab 2
         </label>
       </div>
-      <div>{tab}</div>
+      <div id="tab-content">{tab}</div>
     </form>
   )
 }
