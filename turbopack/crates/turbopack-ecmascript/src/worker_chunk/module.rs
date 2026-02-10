@@ -2,10 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{
-        ChunkGroupType, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption,
-    },
+    chunk::{ChunkGroupType, ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption},
     context::AssetContext,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -112,7 +109,12 @@ impl WorkerModuleReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for WorkerModuleReference {
+impl ModuleReference for WorkerModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        *ModuleResolveResult::module(self.module)
+    }
+
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Isolated {
@@ -122,14 +124,6 @@ impl ChunkableModuleReference for WorkerModuleReference {
             },
             merge_tag: None,
         }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for WorkerModuleReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *ModuleResolveResult::module(self.module)
     }
 }
 

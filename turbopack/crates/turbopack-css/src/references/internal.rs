@@ -1,10 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbopack_core::{
-    chunk::ChunkableModuleReference, module::Module, reference::ModuleReference,
-    resolve::ModuleResolveResult,
-};
+use turbopack_core::{module::Module, reference::ModuleReference, resolve::ModuleResolveResult};
 
 /// A reference to an internal CSS asset.
 #[turbo_tasks::value]
@@ -39,6 +36,3 @@ impl ValueToString for InternalCssAssetReference {
         ))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for InternalCssAssetReference {}

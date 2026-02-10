@@ -2,7 +2,6 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::ChunkableModuleReference,
     reference::ModuleReference,
     reference_type::CssReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
@@ -53,6 +52,3 @@ impl ValueToString for CssModuleComposeReference {
         ))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for CssModuleComposeReference {}

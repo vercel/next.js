@@ -6,7 +6,7 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
@@ -39,6 +39,11 @@ impl ModuleReference for EsmModuleIdAssetReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         self.inner.resolve_reference()
     }
+
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        self.inner.chunking_type()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -48,14 +53,6 @@ impl ValueToString for EsmModuleIdAssetReference {
         Ok(Vc::cell(
             format!("module id of {}", self.inner.to_string().await?,).into(),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        self.inner.chunking_type()
     }
 }
 
