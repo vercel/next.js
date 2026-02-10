@@ -21,10 +21,10 @@ export const useFrames = (
   return React.use(frames())
 }
 
-export async function getErrorByType(
+export function getErrorByType(
   event: SupportedErrorEvent,
   isAppDir: boolean
-): Promise<ReadyRuntimeError> {
+): ReadyRuntimeError {
   const readyRuntimeError: ReadyRuntimeError = {
     id: event.id,
     runtime: true,
