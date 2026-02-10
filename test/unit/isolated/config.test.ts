@@ -224,7 +224,7 @@ describe('config', () => {
     })
   })
 
-  describe('Environment variable support for allowed origins', () => {
+  describe('Environment variable support for allowedDevOrigins', () => {
     it('Should merge NEXT_ALLOWED_DEV_ORIGINS with config allowedDevOrigins', async () => {
       const originalEnv = process.env.NEXT_ALLOWED_DEV_ORIGINS
       process.env.NEXT_ALLOWED_DEV_ORIGINS = 'example.com,*.test.com'
@@ -282,55 +282,6 @@ describe('config', () => {
           delete process.env.NEXT_ALLOWED_DEV_ORIGINS
         } else {
           process.env.NEXT_ALLOWED_DEV_ORIGINS = originalEnv
-        }
-      }
-    })
-
-    it('Should merge NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS with config', async () => {
-      const originalEnv = process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS
-      process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS = 'api.example.com'
-
-      try {
-        const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
-          customConfig: {
-            experimental: {
-              serverActions: {
-                allowedOrigins: ['localhost'],
-              },
-            },
-          },
-        })
-        expect(config.experimental.serverActions?.allowedOrigins).toContain(
-          'localhost'
-        )
-        expect(config.experimental.serverActions?.allowedOrigins).toContain(
-          'api.example.com'
-        )
-      } finally {
-        if (originalEnv === undefined) {
-          delete process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS
-        } else {
-          process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS = originalEnv
-        }
-      }
-    })
-
-    it('Should create serverActions config from NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS when not set', async () => {
-      const originalEnv = process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS
-      process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS = 'api.example.com'
-
-      try {
-        const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
-          customConfig: {},
-        })
-        expect(config.experimental.serverActions?.allowedOrigins).toContain(
-          'api.example.com'
-        )
-      } finally {
-        if (originalEnv === undefined) {
-          delete process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS
-        } else {
-          process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS = originalEnv
         }
       }
     })

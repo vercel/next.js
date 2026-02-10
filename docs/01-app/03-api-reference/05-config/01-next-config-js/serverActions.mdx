@@ -9,8 +9,6 @@ Options for configuring Server Actions behavior in your Next.js application.
 
 A list of extra safe origin domains from which Server Actions can be invoked. Next.js compares the origin of a Server Action request with the host domain, ensuring they match to prevent CSRF attacks. If not provided, only the same origin is allowed.
 
-### Configuration File
-
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
 
@@ -22,16 +20,6 @@ module.exports = {
   },
 }
 ```
-
-### Environment Variable
-
-You can also configure allowed origins using the `NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS` environment variable. This is useful for sandboxed or containerized environments where you don't want to modify the user's configuration file:
-
-```bash
-NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS="my-proxy.com,*.my-proxy.com" npm run dev
-```
-
-The environment variable accepts a comma-separated list of origins. Values from the environment variable are merged with any values specified in `next.config.js`, allowing both sources to work together.
 
 ## `bodySizeLimit`
 
