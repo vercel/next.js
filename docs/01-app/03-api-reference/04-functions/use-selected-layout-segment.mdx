@@ -35,6 +35,7 @@ export default function ExampleClientComponent() {
 >
 > - Since `useSelectedLayoutSegment` is a [Client Component](/docs/app/getting-started/server-and-client-components) hook, and Layouts are [Server Components](/docs/app/getting-started/server-and-client-components) by default, `useSelectedLayoutSegment` is usually called via a Client Component that is imported into a Layout.
 > - `useSelectedLayoutSegment` only returns the segment one level down. To return all active segments, see [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments)
+> - `useSelectedLayoutSegment` reflects the file-system route **not** the pathname, therefore in a [Catch-all](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments) route it will return all segments as a single string instead of only the segment one level down.
 
 ## Parameters
 
