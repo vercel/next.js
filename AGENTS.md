@@ -386,6 +386,8 @@ Server rendering code (`app-render.tsx`, route modules) is NOT bundled during th
 - **Key implication**: `process.env.X` checks in `app-render.tsx` are either replaced by DefinePlugin at runtime-bundle-build time, or read as actual env vars at server startup. They are NOT affected by the user's webpack/Turbopack defines from `define-env.ts`.
 - **Adding a new feature flag**: Either leave it as a runtime env var (both code paths in bundle), or create new bundle variants (separate DefinePlugin value per variant, new taskfile tasks, updated `module.compiled.js` selector)
 - **Gotcha**: DefinePlugin entries in `next-runtime.webpack-config.js` must be scoped to the correct `bundleType` (e.g. `app` only, not `server`) to avoid replacing assignment targets in `next-server.ts`
+- **react-server layer**: Only `entry-base.ts` is compiled in rspack's `(react-server)` layer. ALL imports from `react-server-dom-webpack/*` (Flight server/static APIs) must go through `entry-base.ts`. Other files like `stream-ops.node.ts` or `app-render.tsx` must access Flight APIs via the `ComponentMod` parameter (which is the `entry-base.ts` module exposed through the `app-page.ts` build template). Direct imports from `react-server-dom-webpack/server.node` or `react-server-dom-webpack/static` in files outside `entry-base.ts` will fail at runtime with "The react-server condition must be enabled". Dev mode may mask this error, but production workers fail immediately.
+- **Compile-time switcher pattern**: Platform-specific code (node vs web) uses a `.js` switcher file that `require()`s either `.node.ts` or `.web.ts` based on a `process.env` flag. A `.d.ts` file declares the shared API surface. Types are defined canonically in `.node.ts` and imported via `import type` by `.web.ts`. Examples: `stream-ops.js` and `debug-channel-server.js` (gated on `__NEXT_USE_NODE_STREAMS`).
 - **Edge runtime is different**: Edge routes do NOT use pre-compiled runtime bundles. They are compiled by the user's webpack/Turbopack, so `define-env.ts` controls DCE. Feature flags that gate `node:*` imports must be forced to `false` for edge builds in `define-env.ts` (`isEdgeServer ? false : flagValue`), otherwise webpack will try to resolve `node:stream` etc. and fail.
 - **Webpack DCE for `require()` calls**: Webpack only DCEs a `require()` when it sits inside the dead branch of an `if/else` whose condition DefinePlugin can evaluate at compile time. An early-return or `throw` before the `require()` does NOT work: webpack doesn't do control-flow analysis for throws/returns, so the `require()` is still traced. The correct pattern is `if (dead) { ... } else { require('node:stream') }`. Bare `if (live) { require(...) }` without else works for inline `node:*` specifiers but NOT for `require('./some-module')` that pulls a new file into the module graph. Always test edge changes with `pnpm test-start-webpack` on `test/e2e/app-dir/app/standalone.test.ts` (has edge routes), not with `NEXT_SKIP_ISOLATE=1` which skips the full webpack compilation.
 - **TypeScript + DCE interaction**: Use `if/else` (not two independent `if` blocks) when assigning a variable conditionally on `process.env.X`. TypeScript cannot prove exhaustiveness across `if (flag) { x = a }; if (!flag) { x = b }` and will error with "variable used before being assigned". The `if/else` pattern satisfies both TypeScript (definite assignment) and webpack DCE (DefinePlugin replaces the condition, making one branch dead code).
@@ -401,13 +403,23 @@ React is NOT resolved from `node_modules` for **App Router**. It's vendored into
 - **Type declarations**: `packages/next/types/$$compiled.internal.d.ts` contains `declare module` blocks for vendored React packages. When adding new APIs (e.g. `renderToPipeableStream`, `prerenderToNodeStream`), you must add type declarations here. The bare specifier types (e.g. `declare module 'react-server-dom-webpack/server'`) are what source code in `src/` imports against.
 - **Two channels**: stable (`compiled/react/`) and experimental (`compiled/react-experimental/`). The runtime bundle webpack config (`next-runtime.webpack-config.js`) aliases to the correct channel via `makeAppAliases({ experimental })`.
 - **Turbopack remap**: `react-server-dom-webpack/*` is silently remapped to `react-server-dom-turbopack/*` by Turbopack's import map. Code says "webpack" everywhere but Turbopack gets its own bindings.
-- **Adding Node.js-only React APIs** (e.g. `renderToPipeableStream`): These exist in `.node` builds but not in the type definitions. Use dynamic `require()` behind a `process.env` guard. Add type declarations to `$$compiled.internal.d.ts`. For the `import/no-extraneous-dependencies` eslint rule, use block-level disable/enable (safest for multi-line patterns):
+- **Adding Node.js-only React APIs** (e.g. `renderToPipeableStream`): These exist in `.node` builds but not in the type definitions. Add type declarations to `$$compiled.internal.d.ts`. **Important**: `require('react-server-dom-webpack/...')` only works inside `entry-base.ts` (react-server layer). Export the API from `entry-base.ts` behind a `process.env` guard, then access it via `ComponentMod` in other files. For the `import/no-extraneous-dependencies` eslint rule, use block-level disable/enable (safest for multi-line patterns):
 
   ```typescript
+  // In entry-base.ts (react-server layer) only:
   /* eslint-disable import/no-extraneous-dependencies */
-  const ComponentMod =
-    require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+  export let renderToPipeableStream: ... | undefined
+  if (process.env.__NEXT_USE_NODE_STREAMS) {
+    renderToPipeableStream = (
+      require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+    ).renderToPipeableStream
+  } else {
+    renderToPipeableStream = undefined
+  }
   /* eslint-enable import/no-extraneous-dependencies */
+
+  // In other files, access via ComponentMod:
+  ComponentMod.renderToPipeableStream!(payload, clientModules, opts)
   ```
 
   If using `eslint-disable-next-line`, the comment must be on the line immediately before the `require()` call, NOT before the `const` declaration. When the `const` and `require()` are on different lines, this is error-prone. Prefer block-level disable/enable.
