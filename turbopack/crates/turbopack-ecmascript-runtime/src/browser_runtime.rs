@@ -30,7 +30,7 @@ pub async fn get_browser_runtime_code(
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
-        rcstr!("shared/runtime-utils.ts"),
+        rcstr!("shared/runtime/runtime-utils.ts"),
         generate_source_map,
     );
 

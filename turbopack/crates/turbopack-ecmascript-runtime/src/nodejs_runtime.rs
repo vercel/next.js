@@ -18,7 +18,7 @@ pub async fn get_nodejs_runtime_code(
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
-        rcstr!("shared/runtime-utils.ts"),
+        rcstr!("shared/runtime/runtime-utils.ts"),
         generate_source_map,
     );
     let shared_base_external_utils_code = embed_static_code(
@@ -38,7 +38,7 @@ pub async fn get_nodejs_runtime_code(
     );
     let runtime_code = embed_static_code(
         asset_context,
-        rcstr!("nodejs/runtime.ts"),
+        rcstr!("nodejs/runtime/runtime-base.ts"),
         generate_source_map,
     );
 

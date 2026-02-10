@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/// <reference path="./hmr-types.d.ts" />
-/// <reference path="../shared/runtime-utils.ts" />
-/// <reference path="../shared-node/base-externals-utils.ts" />
-/// <reference path="../shared-node/node-externals-utils.ts" />
-/// <reference path="../shared-node/node-wasm-utils.ts" />
+/// <reference path="../hmr-types.d.ts" />
+/// <reference path="../../shared/runtime/runtime-utils.ts" />
+/// <reference path="../../shared-node/base-externals-utils.ts" />
+/// <reference path="../../shared-node/node-externals-utils.ts" />
+/// <reference path="../../shared-node/node-wasm-utils.ts" />
 
 enum SourceType {
   /**

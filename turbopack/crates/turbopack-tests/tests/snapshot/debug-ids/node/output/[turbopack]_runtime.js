@@ -503,7 +503,7 @@ function applyModuleFactoryName(factory) {
         value: 'module evaluation'
     });
 }
-/// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared/runtime/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
 /// If a fn requires node.js specific behavior, it should be placed in `node-external-utils` instead.
@@ -565,7 +565,7 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
     return ABSOLUTE_ROOT;
 }
 Context.prototype.P = resolveAbsolutePath;
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime/runtime-utils.ts" />
 function readWebAssemblyAsResponse(path) {
     const { createReadStream } = require('fs');
     const { Readable } = require('stream');
@@ -586,11 +586,11 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
     const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
     return instance.exports;
 }
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./hmr-types.d.ts" />
-/// <reference path="../shared/runtime-utils.ts" />
-/// <reference path="../shared-node/base-externals-utils.ts" />
-/// <reference path="../shared-node/node-externals-utils.ts" />
-/// <reference path="../shared-node/node-wasm-utils.ts" />
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../hmr-types.d.ts" />
+/// <reference path="../../shared/runtime/runtime-utils.ts" />
+/// <reference path="../../shared-node/base-externals-utils.ts" />
+/// <reference path="../../shared-node/node-externals-utils.ts" />
+/// <reference path="../../shared-node/node-wasm-utils.ts" />
 var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's

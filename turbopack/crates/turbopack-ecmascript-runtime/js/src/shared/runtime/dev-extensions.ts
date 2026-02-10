@@ -1,4 +1,4 @@
-/// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="../runtime/runtime-utils.ts" />
 
 /**
  * Extensions to the shared runtime types that are specific to the development

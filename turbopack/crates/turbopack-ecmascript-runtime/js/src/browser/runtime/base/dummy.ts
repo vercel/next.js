@@ -7,7 +7,7 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="../../../shared/runtime/runtime-utils.ts" />
 /// <reference path="../../../shared/require-type.d.ts" />
 
 declare var BACKEND: RuntimeBackend
