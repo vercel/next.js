@@ -92,7 +92,10 @@ import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
-import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
+import {
+  walkTreeWithFlightRouterState,
+  createFullTreeFlightDataForNavigation,
+} from './walk-tree-with-flight-router-state'
 import { createComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import {
@@ -532,6 +535,14 @@ async function generateDynamicRSCPayload(
   if (!options?.skipPageRendering) {
     const preloadCallbacks: PreloadCallbacks = []
 
+    // If we're performing instant validation, we need to render the whole tree,
+    // without skipping shared layouts.
+    const needsFullTree =
+      process.env.NODE_ENV === 'development' &&
+      ctx.renderOpts.cacheComponents &&
+      !options?.actionResult && // Only for navigations
+      (await anySegmentNeedsInstantValidation(loaderTree))
+
     const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
       parsedQuery: query,
@@ -542,38 +553,50 @@ async function generateDynamicRSCPayload(
       serveStreamingMetadata,
     })
 
-    flightData = (
-      await walkTreeWithFlightRouterState({
-        ctx,
-        loaderTreeToFilter: loaderTree,
-        parentParams: {},
-        flightRouterState,
-        // For flight, render metadata inside leaf page
-        rscHead: createElement(
-          Fragment,
-          {
-            key: flightDataPathHeadKey,
-          },
-          createElement(NonIndex, {
-            createElement,
-            pagePath: ctx.pagePath,
-            statusCode: ctx.res.statusCode,
-            isPossibleServerAction: ctx.isPossibleServerAction,
-          }),
-          createElement(Viewport, {
-            key: getFlightViewportKey(requestId),
-          }),
-          createElement(Metadata, {
-            key: getFlightMetadataKey(requestId),
-          })
-        ),
-        injectedCSS: new Set(),
-        injectedJS: new Set(),
-        injectedFontPreloadTags: new Set(),
-        rootLayoutIncluded: false,
-        preloadCallbacks,
-        MetadataOutlet,
+    const rscHead = createElement(
+      Fragment,
+      {
+        key: flightDataPathHeadKey,
+      },
+      createElement(NonIndex, {
+        createElement,
+        pagePath: ctx.pagePath,
+        statusCode: ctx.res.statusCode,
+        isPossibleServerAction: ctx.isPossibleServerAction,
+      }),
+      createElement(Viewport, {
+        key: getFlightViewportKey(requestId),
+      }),
+      createElement(Metadata, {
+        key: getFlightMetadataKey(requestId),
       })
+    )
+
+    flightData = (
+      needsFullTree
+        ? await createFullTreeFlightDataForNavigation({
+            ctx,
+            loaderTree,
+            rscHead,
+            injectedCSS: new Set(),
+            injectedJS: new Set(),
+            injectedFontPreloadTags: new Set(),
+            preloadCallbacks,
+            MetadataOutlet,
+          })
+        : await walkTreeWithFlightRouterState({
+            ctx,
+            loaderTreeToFilter: loaderTree,
+            parentParams: {},
+            flightRouterState,
+            rscHead,
+            injectedCSS: new Set(),
+            injectedJS: new Set(),
+            injectedFontPreloadTags: new Set(),
+            rootLayoutIncluded: false,
+            preloadCallbacks,
+            MetadataOutlet,
+          })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
 
@@ -806,7 +829,12 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     renderOpts,
     requestId,
     workStore,
-    componentMod: { createElement },
+    componentMod: {
+      createElement,
+      routeModule: {
+        userland: { loaderTree },
+      },
+    },
     url,
   } = ctx
 
@@ -834,11 +862,13 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     onFlightDataRenderError
   )
 
-  // We only validate RSC requests if it is for HMR refreshes since we know we
-  // will render all the layouts necessary to perform the validation.
+  // We validate RSC requests for HMR refreshes and client navigations when
+  // instant configs exist, since we render all the layouts necessary to perform
+  // the validation in those cases.
   const shouldValidate =
     !isBypassingCachesInDev(renderOpts, initialRequestStore) &&
-    initialRequestStore.isHmrRefresh === true
+    (initialRequestStore.isHmrRefresh === true ||
+      (await anySegmentNeedsInstantValidation(loaderTree)))
 
   const getPayload = async (requestStore: RequestStore) => {
     const payload: RSCPayload &
