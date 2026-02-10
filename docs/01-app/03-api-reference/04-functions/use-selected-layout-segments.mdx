@@ -71,6 +71,13 @@ For example, given the Layouts and URLs below, the returned segments would be:
 | `app/dashboard/layout.js` | `/dashboard`          | `[]`                        |
 | `app/dashboard/layout.js` | `/dashboard/settings` | `['settings']`              |
 
+For catch-all routes (`[...slug]`), all matched path segments are returned as a single joined string within the array:
+
+| Layout                    | Visited URL       | Returned Segments    |
+| ------------------------- | ----------------- | -------------------- |
+| `app/layout.js`           | `/blog/a/b/c`     | `['blog', 'a/b/c']`  |
+| `app/blog/layout.js`      | `/blog/a/b/c`     | `['a/b/c']`          |
+
 ## Version History
 
 | Version   | Changes                                 |
