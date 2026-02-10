@@ -361,7 +361,7 @@ Next.js supports linting with either ESLint or Biome. Choose a linter and run it
 If your project previously used `next lint`, migrate your scripts to the ESLint CLI with the codemod:
 
 ```bash filename="Terminal"
-npx @next/codemod@canary next-lint-to-eslint-cli .
+npx @next/codemod@latest next-lint-to-eslint-cli .
 ```
 
 If you use ESLint, create an explicit config (recommended `eslint.config.mjs`). ESLint supports both [the legacy `.eslintrc.*` and the newer `eslint.config.mjs` formats](https://eslint.org/docs/latest/use/configure/configuration-files#configuring-eslint). See the [ESLint API reference](/docs/app/api-reference/config/eslint#with-core-web-vitals) for a recommended setup.
