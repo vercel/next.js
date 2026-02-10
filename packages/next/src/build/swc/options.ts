@@ -356,6 +356,7 @@ export function getJestSWCOptions({
   if (imageConfig) {
     baseOptions.jsc.transform.optimizer.globals = {
       envs: {
+        ...baseOptions.jsc.transform.optimizer.globals?.env,
         __NEXT_IMAGE_OPTS: JSON.stringify(imageConfig),
       },
     } as any
