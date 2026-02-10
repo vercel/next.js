@@ -390,6 +390,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             .map(|stats| stats.increment_cache_miss(task_type.native_fn));
     }
 
+    /// Reconstructs a full [`TurboTasksExecutionError`] from the compact [`TaskError`] storage
+    /// representation. For [`TaskError::TaskChain`], this looks up the source error from the last
+    /// task's output and rebuilds the nested `TaskContext` wrappers with `TurboTasksCallApi`
+    /// references for lazy name resolution.
     fn task_error_to_turbo_tasks_execution_error(
         &self,
         error: &TaskError,

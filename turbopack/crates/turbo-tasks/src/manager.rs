@@ -95,8 +95,10 @@ pub trait TurboTasksCallApi: Sync + Send {
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
     fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>);
 
+    /// Sends a compilation event to subscribers.
     fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>);
 
+    /// Returns a human-readable name for the given task.
     fn get_task_name(&self, task: TaskId) -> String;
 }
 

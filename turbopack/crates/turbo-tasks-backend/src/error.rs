@@ -1,3 +1,12 @@
+//! Compact error representation for storage in the turbo-tasks backend.
+//!
+//! [`TurboTasksExecutionError`] contains the whole chain of errors. That is expensive to store and
+//! we would duplicate error messages for many tasks. [`TaskError`] is a backend-internal
+//! representation that replaces nested [`TurboTasksExecutionError::TaskContext`] chains with a flat
+//! list of [`TaskId`]s (`TaskChain`), and omits the actual error message behind them. The actual
+//! error content is recovered at read time by looking up the task's output, and task names are
+//! resolved lazily via `TurboTasksCallApi::get_task_name`.
+
 use std::sync::Arc;
 
 use bincode::{Decode, Encode};
@@ -8,26 +17,39 @@ use turbo_tasks::{
     backend::{TurboTasksExecutionError, TurboTasksExecutionErrorMessage},
 };
 
+/// An error with a message and an optional cause.
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub struct TaskErrorItem {
     pub message: TurboTasksExecutionErrorMessage,
     pub source: Option<TaskError>,
 }
 
+/// Context for a local task that failed.
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub struct LocalTaskContext {
     pub name: RcStr,
     pub source: Option<TaskError>,
 }
 
+/// Compact, serializable representation of a task execution error.
+///
+/// `TaskContext` chains are collapsed into a flat [`TaskChain`](TaskError::TaskChain) of
+/// [`TaskId`]s. The source error is not stored in the chain; it is recovered by looking up the
+/// output of the last task in the chain.
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub enum TaskError {
     Panic(Arc<TurboTasksPanic>),
     Error(Box<TaskErrorItem>),
     LocalTaskContext(Box<LocalTaskContext>),
+    /// A chain of task IDs representing nested `TaskContext` wrappers. The last element is the
+    /// innermost task whose output holds the actual error. Earlier elements are outer tasks that
+    /// propagated the error. The source error is not stored here. The task id acts as a pointer to
+    /// the originating task's output.
     TaskChain(SmallVec<[TaskId; 4]>),
 }
 
+/// Converts a [`TurboTasksExecutionError`] into the compact [`TaskError`] representation.
+/// Nested `TaskContext` chains are flattened into a single [`TaskError::TaskChain`].
 impl From<&TurboTasksExecutionError> for TaskError {
     fn from(value: &TurboTasksExecutionError) -> Self {
         match value {
@@ -63,6 +85,7 @@ impl From<&TurboTasksExecutionError> for TaskError {
     }
 }
 
+/// Compares optional errors across the two representations.
 fn eq_option(this: &Option<TaskError>, other: &Option<TurboTasksExecutionError>) -> bool {
     match (this, other) {
         (Some(this), Some(other)) => this == other,
@@ -71,6 +94,9 @@ fn eq_option(this: &Option<TaskError>, other: &Option<TurboTasksExecutionError>)
     }
 }
 
+/// Cross-type equality used to detect whether a task's stored error has changed (to avoid
+/// unnecessary dirty-flagging). For `TaskChain`, only the task ID chain is compared — the source
+/// error content is not checked because the chain acts as a pointer to the originating task.
 impl PartialEq<TurboTasksExecutionError> for TaskError {
     fn eq(&self, other: &TurboTasksExecutionError) -> bool {
         match (self, other) {

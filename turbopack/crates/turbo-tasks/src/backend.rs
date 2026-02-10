@@ -296,6 +296,9 @@ pub struct TurboTasksError {
     pub source: Option<TurboTasksExecutionError>,
 }
 
+/// Error context indicating that a task's execution failed. Stores a `task_id` and a reference to
+/// the `TurboTasksCallApi` so that the task name can be resolved lazily at display time (via
+/// [`TurboTasksCallApi::get_task_name`]) rather than eagerly at error creation time.
 #[derive(Clone)]
 pub struct TurboTaskContextError {
     pub turbo_tasks: Arc<dyn TurboTasksCallApi>,
@@ -342,6 +345,8 @@ impl Debug for TurboTaskContextError {
     }
 }
 
+/// Error context for a local task that failed. Unlike [`TurboTaskContextError`],
+/// this stores the task name directly since local tasks don't have a [`TaskId`].
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub struct TurboTaskLocalContextError {
     pub name: RcStr,
@@ -357,6 +362,8 @@ pub enum TurboTasksExecutionError {
 }
 
 impl TurboTasksExecutionError {
+    /// Wraps this error in a [`TaskContext`](TurboTasksExecutionError::TaskContext) layer
+    /// identifying the normal task that encountered the error.
     pub fn with_task_context(
         self,
         task_id: TaskId,
@@ -368,6 +375,9 @@ impl TurboTasksExecutionError {
             source: Some(self),
         }))
     }
+
+    /// Wraps this error in a [`LocalTaskContext`](TurboTasksExecutionError::LocalTaskContext) layer
+    /// identifying the local task that encountered the error.
     pub fn with_local_task_context(self, name: String) -> Self {
         TurboTasksExecutionError::LocalTaskContext(Arc::new(TurboTaskLocalContextError {
             name: RcStr::from(name),
@@ -627,5 +637,7 @@ pub trait Backend: Sync + Send {
 
     fn is_tracking_dependencies(&self) -> bool;
 
+    /// Returns a human-readable name for the given task. Used by error display formatting
+    /// to lazily resolve task names instead of storing them eagerly in error objects.
     fn get_task_name(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) -> String;
 }
