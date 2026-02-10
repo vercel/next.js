@@ -26,12 +26,6 @@ export const metadata: Metadata = {
     "Node.js",
     "Nginx",
   ],
-  authors: [
-    {
-      name: "Kristiyan Velkov",
-      url: "https://www.linkedin.com/in/kristiyan-velkov-763130b3/",
-    },
-  ],
   openGraph: {
     title: "Next.js Docker Example - Standalone & Static Export",
     description:
