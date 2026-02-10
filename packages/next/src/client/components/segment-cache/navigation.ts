@@ -57,7 +57,6 @@ export function navigate(
 
   const cacheKey = createCacheKey(href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
-
   if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
     return navigateUsingPrefetchedRouteTree(
