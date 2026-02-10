@@ -2,5 +2,5 @@
   "version": 3,
   "sources": [],
   "sections": [
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import-then-function/input/index.js"],"sourcesContent":["function main() {\n  import('./lib').then(function({ cat, default: def }) {\n    console.log(cat, def)\n  })\n}\n\nmain()\n"],"names":["main","then","cat","default","def","console","log"],"mappings":"AAAA,SAASA;IACP,kLAAgBC,IAAI,CAAC,SAAS,EAAEC,GAAG,EAAEC,SAASC,GAAG,EAAE;QACjDC,QAAQC,GAAG,CAACJ,KAAKE;IACnB;AACF;AAEAJ"}}]
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import-then-function/input/index.js"],"sourcesContent":["function main() {\n  import('./lib').then(function ({ cat, default: def }) {\n    console.log(cat, def)\n  })\n}\n\nmain()\n"],"names":["main","then","cat","default","def","console","log"],"mappings":"AAAA,SAASA;IACP,kLAAgBC,IAAI,CAAC,SAAU,EAAEC,GAAG,EAAEC,SAASC,GAAG,EAAE;QAClDC,QAAQC,GAAG,CAACJ,KAAKE;IACnB;AACF;AAEAJ"}}]
 }
