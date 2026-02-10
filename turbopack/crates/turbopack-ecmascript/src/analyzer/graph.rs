@@ -1361,23 +1361,31 @@ fn extract_dynamic_import_export_names(
 ) -> Option<SmallVec<[RcStr; 1]>> {
     // Walk up the AST path from the import() call to find either:
     // - A VarDeclarator with object destructuring
-    // - A MemberExpr where the import result is the object
+    // - A MemberExpr where the import result is the object (only after AwaitExpr)
     // Only allow Expr wrappers, AwaitExpr, and ParenExpr as intermediate nodes
     // to ensure the import result flows directly into the usage site.
+    let mut seen_await = false;
     for node_ref in ast_path.iter().rev() {
         match node_ref {
             AstParentNodeRef::VarDeclarator(decl, VarDeclaratorField::Init) => {
                 return extract_names_from_object_pat(&decl.name);
             }
             // Member access: (await import('./lib')).someExport
-            AstParentNodeRef::MemberExpr(member, MemberExprField::Obj) => {
+            // Only valid after AwaitExpr — without await, it's a Promise method
+            // (e.g. import('./lib').then(...))
+            AstParentNodeRef::MemberExpr(member, MemberExprField::Obj) if seen_await => {
                 return extract_name_from_member_prop(&member.prop);
             }
+            AstParentNodeRef::AwaitExpr(_, AwaitExprField::Arg) => {
+                seen_await = true;
+                continue;
+            }
             // Allowed intermediate nodes
-            AstParentNodeRef::Expr(..)
-            | AstParentNodeRef::AwaitExpr(_, AwaitExprField::Arg)
-            | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => continue,
-            // Any other node means the import is nested in something else
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
+                continue;
+            }
+            // Any other node (including MemberExpr without await) means the import
+            // is nested in something else
             _ => return None,
         }
     }

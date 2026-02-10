@@ -1850,6 +1850,12 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
     attributes: &ImportAttributes,
     export_names: Option<SmallVec<[RcStr; 1]>>,
 ) -> Result<()> {
+    // If the import has a webpackIgnore/turbopackIgnore comment, skip processing
+    // so the import expression is preserved as-is in the output.
+    if attributes.ignore {
+        return Ok(());
+    }
+
     let &AnalysisState {
         handler,
         origin,
