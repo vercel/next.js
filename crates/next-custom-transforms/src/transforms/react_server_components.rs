@@ -370,7 +370,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             vec![span],
         ),
         RSCErrorKind::NextRscErrStaleTimeInLayout(span) => (
-            "`unstable_staleTime` is not allowed in layout files. Use it in page files instead."
+            "`unstable_staleTime` is only supported in pages, but you're using it in a layout. Please remove it."
                 .to_string(),
             vec![span],
         ),

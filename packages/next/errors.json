@@ -989,5 +989,6 @@
   "988": "Invalid \\`deploymentId\\` configuration: must be a string. See https://nextjs.org/docs/messages/deploymentid-not-a-string",
   "989": "Invalid \\`deploymentId\\` configuration: contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed. See https://nextjs.org/docs/messages/deploymentid-invalid-characters",
   "990": "Page \"%s\" cannot use \\`export const unstable_staleTime = ...\\` when \\`cacheComponents\\` is enabled.",
-  "991": "Layout \"%s\" cannot use \\`export const unstable_staleTime = ...\\`. This config is only supported on page segments."
+  "991": "Layout \"%s\" cannot use \\`export const unstable_staleTime = ...\\`. This config is only supported on page segments.",
+  "992": "\\`unstable_staleTime\\` is only supported in pages, but you're using it in a layout. Please remove it."
 }

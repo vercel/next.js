@@ -128,7 +128,7 @@ export default function RootLayout({
 
         await retry(async () => {
           expect(next.cliOutput).toContain(
-            '`unstable_staleTime` is not allowed in layout files. Use it in page files instead.'
+            "`unstable_staleTime` is only supported in pages, but you're using it in a layout. Please remove it."
           )
         })
       }

@@ -699,7 +699,7 @@ export async function getAppPageStaticInfo({
   // unstable_staleTime is only supported on page segments, not layouts
   if ('unstable_staleTime' in config && /\/layout\.[^/]+$/.test(pageFilePath)) {
     throw new Error(
-      `Layout "${page}" cannot use \`export const unstable_staleTime = ...\`. This config is only supported on page segments.`
+      `\`unstable_staleTime\` is only supported in pages, but you're using it in a layout. Please remove it.`
     )
   }
 
