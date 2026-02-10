@@ -42,6 +42,35 @@ Next.js can be deployed to any provider that supports [Docker](https://www.docke
 
 Docker deployments support all Next.js features. Learn how to [configure them](/docs/app/guides/self-hosting) for your infrastructure.
 
+### Using `output: "standalone"`
+
+For Docker deployments, we recommend using [`output: "standalone"`](/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files) in your `next.config.js`. This uses [Output File Tracing](/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files) to include only the files necessary to run your application, significantly reducing the Docker image size.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'standalone',
+}
+
+module.exports = nextConfig
+```
+
+The standalone output generates a minimal `server.js` file that can be used instead of `next start`. This avoids copying all of `node_modules` into your Docker image since the standalone output traces the required files automatically.
+
+In your `Dockerfile`, instead of running `next start`, you can run the generated `server.js`:
+
+```dockerfile
+# Copy the standalone output
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+ENV HOSTNAME="0.0.0.0"
+CMD ["node", "server.js"]
+```
+
+> **Good to know:** If your application needs specific native `node_modules` binaries that are not included in the standalone trace, or you prefer a simpler setup, you can use `next start` directly with a full `node_modules` install in your Docker image instead.
+
 > **Note for development:** While Docker is excellent for production deployments, consider using local development (`npm run dev`) instead of Docker during development on Mac and Windows for better performance. [Learn more about optimizing local development](/docs/app/guides/local-development).
 
 ### Templates

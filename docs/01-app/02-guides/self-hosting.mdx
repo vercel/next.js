@@ -34,6 +34,22 @@ Proxy uses the [Edge runtime](/docs/app/api-reference/edge), a subset of all ava
 
 If you are looking to add logic (or use an external package) that requires all Node.js APIs, you might be able to move this logic to a [layout](/docs/app/api-reference/file-conventions/layout) as a [Server Component](/docs/app/getting-started/server-and-client-components). For example, checking [headers](/docs/app/api-reference/functions/headers) and [redirecting](/docs/app/api-reference/functions/redirect). You can also use headers, cookies, or query parameters to [redirect](/docs/app/api-reference/config/next-config-js/redirects#header-cookie-and-query-matching) or [rewrite](/docs/app/api-reference/config/next-config-js/rewrites#header-cookie-and-query-matching) through `next.config.js`. If that does not work, you can also use a [custom server](/docs/pages/guides/custom-server).
 
+## Docker
+
+When deploying Next.js in a Docker container, you may want to use [`output: "standalone"`](/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files) to create a self-contained build. This traces the required files for your application and produces a minimal `server.js` that can be run without installing `node_modules`.
+
+This can significantly reduce the Docker image size. For example, the [official Docker example](https://github.com/vercel/next.js/tree/canary/examples/with-docker) uses a multistage build with standalone output to produce an image of approximately 110 MB, compared to around 1 GB with a full `node_modules` install.
+
+When using standalone mode, set the `HOSTNAME` environment variable to `0.0.0.0` to ensure the server is accessible outside the container:
+
+```dockerfile
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000
+CMD ["node", "server.js"]
+```
+
+> **Good to know:** If your application relies on specific native binaries from `node_modules` that are not included in the standalone trace, you can use `next start` with a full `node_modules` install instead.
+
 ## Environment Variables
 
 Next.js can support both build time and runtime environment variables.
