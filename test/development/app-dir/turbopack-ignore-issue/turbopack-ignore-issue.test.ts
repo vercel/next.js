@@ -18,6 +18,18 @@ describe('turbopack-ignore-issue', () => {
             {
               path: '**/with-error/**',
             },
+            {
+              path: '**/server-with-warning/**',
+            },
+            {
+              path: '**/server-with-error/**',
+            },
+            {
+              path: '**/route-with-warning/**',
+            },
+            {
+              path: '**/route-with-error/**',
+            },
           ],
         },
       },
@@ -61,6 +73,68 @@ describe('turbopack-ignore-issue', () => {
       await waitForNoRedbox(browser)
     })
 
+    it('should suppress ignored server component warning from cli output', async () => {
+      if (!isTurbopack) {
+        return
+      }
+
+      const outputIndex = next.cliOutput.length
+      await next.fetch('/server-with-warning')
+
+      await retry(async () => {
+        const output = stripAnsi(next.cliOutput.slice(outputIndex))
+        expect(output).toContain('GET /server-with-warning')
+      })
+
+      const output = stripAnsi(next.cliOutput.slice(outputIndex))
+      expect(output).not.toContain(
+        'a-missing-module-for-server-warning-testing'
+      )
+    })
+
+    it('should suppress ignored server component error from error overlay', async () => {
+      if (!isTurbopack) {
+        return
+      }
+
+      const browser = await next.browser('/server-with-error')
+      await waitForNoRedbox(browser)
+    })
+
+    it('should suppress ignored route handler warning from cli output', async () => {
+      if (!isTurbopack) {
+        return
+      }
+
+      const outputIndex = next.cliOutput.length
+      await next.fetch('/route-with-warning')
+
+      await retry(async () => {
+        const output = stripAnsi(next.cliOutput.slice(outputIndex))
+        expect(output).toContain('GET /route-with-warning')
+      })
+
+      const output = stripAnsi(next.cliOutput.slice(outputIndex))
+      expect(output).not.toContain('a-missing-module-for-route-warning-testing')
+    })
+
+    it('should suppress ignored route handler error from cli output', async () => {
+      if (!isTurbopack) {
+        return
+      }
+
+      const outputIndex = next.cliOutput.length
+      await next.fetch('/route-with-error')
+
+      await retry(async () => {
+        const output = stripAnsi(next.cliOutput.slice(outputIndex))
+        expect(output).toContain('GET /route-with-error')
+      })
+
+      const output = stripAnsi(next.cliOutput.slice(outputIndex))
+      expect(output).not.toContain('a-missing-module-for-route-error-testing')
+    })
+
     it('should still show issues for pages without ignore rules', async () => {
       // The home page should compile normally without issues
       const res = await next.fetch('/')
@@ -101,6 +175,49 @@ describe('turbopack-ignore-issue', () => {
       // Without turbopackIgnoreIssue, the error should appear in the overlay.
       const browser = await next.browser('/with-error')
       await waitForRedbox(browser)
+    })
+
+    it('should show server component warning in cli output when not ignored', async () => {
+      const outputIndex = next.cliOutput.length
+      await next.fetch('/server-with-warning')
+
+      await retry(async () => {
+        const output = stripAnsi(next.cliOutput.slice(outputIndex))
+        expect(output).toContain('a-missing-module-for-server-warning-testing')
+      })
+    })
+
+    it('should show server component error in error overlay when not ignored', async () => {
+      if (!isTurbopack) {
+        return
+      }
+
+      const browser = await next.browser('/server-with-error')
+      await waitForRedbox(browser)
+    })
+
+    it('should show route handler warning in cli output when not ignored', async () => {
+      const outputIndex = next.cliOutput.length
+      await next.fetch('/route-with-warning')
+
+      await retry(async () => {
+        const output = stripAnsi(next.cliOutput.slice(outputIndex))
+        expect(output).toContain('a-missing-module-for-route-warning-testing')
+      })
+    })
+
+    it('should show route handler error in cli output when not ignored', async () => {
+      if (!isTurbopack) {
+        return
+      }
+
+      const outputIndex = next.cliOutput.length
+      await next.fetch('/route-with-error')
+
+      await retry(async () => {
+        const output = stripAnsi(next.cliOutput.slice(outputIndex))
+        expect(output).toContain('a-missing-module-for-route-error-testing')
+      })
     })
   })
 })

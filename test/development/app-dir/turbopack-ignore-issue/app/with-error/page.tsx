@@ -1,7 +1,9 @@
 'use client'
 
-const missing = require('a-missing-module-for-error-testing')
+if (Math.random() < 0) {
+  require('a-missing-module-for-error-testing')
+}
 
 export default function Page() {
-  return <p>error page {String(missing)}</p>
+  return <p>error page</p>
 }
