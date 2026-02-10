@@ -5,9 +5,8 @@ import type { UnknownMapEntry } from './cache-map'
 // remove a new cache entry, or when an entry changes size.
 
 let head: UnknownMapEntry | null = null
-let didScheduleCleanup: boolean = false
+let scheduleCleanup: () => void = cleanup
 let lruSize: number = 0
-let cleanupHoldCount: number = 0
 
 // TODO: I chose the max size somewhat arbitrarily. Consider setting this based
 // on navigator.deviceMemory, or some other heuristic. We should make this
@@ -96,30 +95,19 @@ export function deleteFromLru(deleted: UnknownMapEntry) {
   }
 }
 
-export function holdCleanup() {
-  cleanupHoldCount++
-}
-
-export function releaseCleanup() {
-  cleanupHoldCount--
-  ensureCleanupIsScheduled()
-}
-
 function ensureCleanupIsScheduled() {
-  if (didScheduleCleanup || lruSize <= maxLruSize || cleanupHoldCount > 0) {
+  if (lruSize <= maxLruSize) {
     return
   }
-  didScheduleCleanup = true
-  requestCleanupCallback(cleanup)
+  scheduleCleanup()
 }
 
-function cleanup() {
-  didScheduleCleanup = false
+export function registerScheduleCleanup(cb: () => void) {
+  scheduleCleanup = cb
+}
 
-  if (cleanupHoldCount > 0) {
-    // Cleanup is deferred because there are active prefetch tasks that haven't
-    // finished reading from the cache yet. Once all holds are released,
-    // releaseCleanup will re-schedule cleanup if still needed.
+export function cleanup() {
+  if (lruSize <= maxLruSize) {
     return
   }
 
@@ -137,8 +125,3 @@ function cleanup() {
     }
   }
 }
-
-const requestCleanupCallback =
-  typeof requestIdleCallback === 'function'
-    ? requestIdleCallback
-    : (cb: () => void) => setTimeout(cb, 0)
