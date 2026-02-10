@@ -45,7 +45,7 @@ use turbopack_core::{
 use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
-    TreeShakingMode,
+    EcmascriptOptions, TreeShakingMode,
     chunk::EcmascriptChunkPlaceable,
     references::{
         FollowExportsResult,
@@ -677,103 +677,123 @@ async fn process_default_internal(
         EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
             ref loaders,
             ref rename_as,
-            module_type: _,
+            ref module_type,
         },
     ) = reference_type
     {
-        if !loaders.is_empty() {
-            let module_options_context = module_asset_context.module_options_context().await?;
-            let execution_context = module_options_context
-                .execution_context
-                .context("execution_context is required for turbopackUse import assertions")?;
-            let execution_context_value = execution_context.await?;
+        let module_options_context = module_asset_context.module_options_context().await?;
+        let webpack_loaders_options = module_options_context
+            .enable_webpack_loaders
+            .as_ref()
+            .context(
+                "turbopackUse import assertions require webpack loaders to be enabled \
+                 (enable_webpack_loaders)",
+            )?
+            .await?;
+        let execution_context = module_options_context
+            .execution_context
+            .context("execution_context is required for turbopackUse import assertions")?;
+        let execution_context_value = execution_context.await?;
 
-            let resolve_options_context = module_asset_context
-                .resolve_options_context()
-                .to_resolved()
-                .await?;
-            let source_maps = matches!(
-                module_options_context.ecmascript.source_maps,
-                SourceMapsType::Full
-            );
+        let resolve_options_context = module_asset_context
+            .resolve_options_context()
+            .to_resolved()
+            .await?;
+        let source_maps = matches!(
+            module_options_context.ecmascript.source_maps,
+            SourceMapsType::Full
+        );
 
-            // Determine the import map for loader-runner
-            let import_map = if let Some(ref webpack_loaders_options) =
-                module_options_context.enable_webpack_loaders
-            {
-                let webpack_loaders_options = webpack_loaders_options.await?;
-                if let Some(loader_runner_package) = webpack_loaders_options.loader_runner_package {
-                    package_import_map_from_import_mapping(
-                        rcstr!("loader-runner"),
-                        *loader_runner_package,
-                    )
-                } else {
-                    package_import_map_from_context(
-                        rcstr!("loader-runner"),
-                        execution_context_value.project_path.clone(),
-                    )
-                }
-            } else {
-                package_import_map_from_context(
-                    rcstr!("loader-runner"),
-                    execution_context_value.project_path.clone(),
-                )
-            };
+        // Determine the import map for loader-runner
+        let loader_runner_package = webpack_loaders_options.loader_runner_package;
 
-            let evaluate_context = node_evaluate_asset_context(
-                *execution_context,
-                Some(import_map),
+        let import_map = if let Some(loader_runner_package) = loader_runner_package {
+            package_import_map_from_import_mapping(rcstr!("loader-runner"), *loader_runner_package)
+        } else {
+            package_import_map_from_context(
+                rcstr!("loader-runner"),
+                execution_context_value.project_path.clone(),
+            )
+        };
+
+        let evaluate_context = node_evaluate_asset_context(
+            *execution_context,
+            Some(import_map),
+            None,
+            Layer::new(rcstr!("turbopack_use_loaders")),
+            false,
+        )
+        .to_resolved()
+        .await?;
+
+        let loaders_vc = WebpackLoaderItems(loaders.clone()).cell();
+        let webpack_loaders = WebpackLoaders::new(
+            *evaluate_context,
+            *execution_context,
+            loaders_vc,
+            rename_as.clone(),
+            *resolve_options_context,
+            source_maps,
+        )
+        .to_resolved()
+        .await?;
+
+        let transforms = Vc::<SourceTransforms>::cell(vec![ResolvedVc::upcast(webpack_loaders)]);
+        current_source = transforms.transform(*current_source).to_resolved().await?;
+
+        // If turbopackModuleType is specified, skip rule matching and directly
+        // apply the requested module type with empty transforms (loader output
+        // is already processed).
+        if let Some(type_str) = module_type {
+            let empty_transforms = EcmascriptInputTransforms::empty().to_resolved().await?;
+            let default_options = EcmascriptOptions::default().resolved_cell();
+            let module_type = ModuleType::from_str_with_defaults(
+                type_str,
+                empty_transforms,
+                empty_transforms,
+                empty_transforms,
+                default_options,
                 None,
-                Layer::new(rcstr!("turbopack_use_loaders")),
+            )?;
+            return apply_module_type(
+                current_source,
+                module_asset_context,
+                module_type.cell(),
+                part,
+                inner_assets,
+                None,
                 false,
             )
-            .to_resolved()
-            .await?;
+            .await;
+        }
 
-            let loaders_vc = WebpackLoaderItems(loaders.clone()).cell();
-            let webpack_loaders = WebpackLoaders::new(
-                *evaluate_context,
-                *execution_context,
-                loaders_vc,
-                rename_as.clone(),
-                *resolve_options_context,
-                source_maps,
-            )
-            .to_resolved()
-            .await?;
-
-            let transforms =
-                Vc::<SourceTransforms>::cell(vec![ResolvedVc::upcast(webpack_loaders)]);
-            current_source = transforms.transform(*current_source).to_resolved().await?;
-
-            // If the ident changed (e.g., due to rename_as), re-process from the
-            // beginning so the new extension is matched by the correct rules.
-            // Use a plain Import reference type to avoid re-applying turbopackUse
-            // loaders in the recursive call (which would cause an infinite loop).
-            if current_source.ident().to_resolved().await? != ident {
-                let plain_reference_type =
-                    ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import);
-                if let Some(transition) = module_asset_context
-                    .await?
-                    .transitions
-                    .await?
-                    .get_by_rules(current_source, &plain_reference_type)
-                    .await?
-                {
-                    return Ok(transition.process(
-                        *current_source,
-                        module_asset_context,
-                        plain_reference_type,
-                    ));
-                } else {
-                    return Box::pin(process_default(
-                        module_asset_context,
-                        current_source,
-                        plain_reference_type,
-                        processed_rules,
-                    ))
-                    .await;
-                }
+        // If the ident changed (e.g., due to rename_as), re-process from the
+        // beginning so the new extension is matched by the correct rules.
+        // Use a plain Import reference type to avoid re-applying turbopackUse
+        // loaders in the recursive call (which would cause an infinite loop).
+        if current_source.ident().to_resolved().await? != ident {
+            let plain_reference_type =
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import);
+            if let Some(transition) = module_asset_context
+                .await?
+                .transitions
+                .await?
+                .get_by_rules(current_source, &plain_reference_type)
+                .await?
+            {
+                return Ok(transition.process(
+                    *current_source,
+                    module_asset_context,
+                    plain_reference_type,
+                ));
+            } else {
+                return Box::pin(process_default(
+                    module_asset_context,
+                    current_source,
+                    plain_reference_type,
+                    processed_rules,
+                ))
+                .await;
             }
         }
     }

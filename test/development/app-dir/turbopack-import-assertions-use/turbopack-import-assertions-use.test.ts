@@ -21,4 +21,14 @@ describe('turbopack-import-assertions-use', () => {
     const $ = await next.render$('/')
     expect($('#replaced').text()).toBe('Value is: turbopackUse works!')
   })
+
+  it('should apply raw loader with turbopackModuleType ecmascript', async () => {
+    const $ = await next.render$('/')
+    expect($('#module-type').text()).toBe('Hello via module type')
+  })
+
+  it('should apply identity loader with turbopackModuleType json', async () => {
+    const $ = await next.render$('/')
+    expect($('#json-type').text()).toBe('Hello from JSON module type')
+  })
 })
