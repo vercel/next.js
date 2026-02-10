@@ -101,6 +101,16 @@ describe('dynamic-import-tree-shaking', () => {
     expect($('div').text()).toContain('TREESHAKE_REASSIGN_USED')
   })
 
+  it('should render then-arrow-destructure page', async () => {
+    const $ = await next.render$('/then-arrow-destructure')
+    expect($('div').text()).toContain('TREESHAKE_THEN_ARROW_USED')
+  })
+
+  it('should render then-function-destructure page', async () => {
+    const $ = await next.render$('/then-function-destructure')
+    expect($('div').text()).toContain('TREESHAKE_THEN_FUNC_USED')
+  })
+
   // Tree shaking assertions: unused exports should NOT be in the server bundle
   // Tree shaking is only enabled in production builds, so skip these in dev mode
   if (isProduction) {
@@ -185,5 +195,20 @@ describe('dynamic-import-tree-shaking', () => {
       // re-assignment prevents destructuring analysis, so unused exports should remain
       expect(content).toContain('TREESHAKE_REASSIGN_UNUSED')
     })
+
+    // .then() callback destructuring is only tree-shaken by Turbopack, not webpack
+    if (process.env.IS_TURBOPACK_TEST) {
+      it('should tree-shake unused export with .then() arrow destructured dynamic import', async () => {
+        const content = await getAllServerContent()
+        expect(content).toContain('TREESHAKE_THEN_ARROW_USED')
+        expect(content).not.toContain('TREESHAKE_THEN_ARROW_UNUSED')
+      })
+
+      it('should tree-shake unused export with .then() function destructured dynamic import', async () => {
+        const content = await getAllServerContent()
+        expect(content).toContain('TREESHAKE_THEN_FUNC_USED')
+        expect(content).not.toContain('TREESHAKE_THEN_FUNC_UNUSED')
+      })
+    }
   }
 })

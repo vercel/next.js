@@ -43,8 +43,10 @@ pub struct EsmAsyncAssetReference {
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
-    /// The export names extracted from destructuring the dynamic import result.
-    /// `None` means no destructuring (all exports used).
+    /// The export names extracted from the dynamic import usage pattern.
+    /// Detected from destructured await, member access on await, .then()
+    /// callback destructuring, or webpackExports/turbopackExports comments.
+    /// `None` means no pattern found (all exports used).
     /// `Some([])` means empty destructuring (only side effects).
     /// `Some([name, ...])` means specific named exports are used.
     pub export_names: Option<SmallVec<[RcStr; 1]>>,
