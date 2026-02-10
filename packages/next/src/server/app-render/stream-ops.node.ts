@@ -6,14 +6,12 @@
 import type { Readable } from 'node:stream'
 import { Readable as NodeReadable } from 'node:stream'
 
- 
 import type { PostponedState, PrerenderOptions } from 'react-dom/static'
 import {
   resumeAndPrerenderToNodeStream,
   prerenderToNodeStream,
 } from 'react-dom/static'
 import * as ReactDOMServer from 'react-dom/server'
- 
 
 import {
   renderToFlightPipeableStream,
