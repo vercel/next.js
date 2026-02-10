@@ -113,24 +113,21 @@ For React-specific debugging, install the [React Developer Tools](https://react.
 
 To debug server-side Next.js code with browser DevTools, you need to pass the `--inspect` flag:
 
-```bash filename="Terminal"
-next dev --inspect
-# or
-next start --inspect
-# next build --inspect is currently not supported
-```
-
-If you're running Next.js through a package manager script (e.g. `npm run dev`), you need to use `--` to forward flags to the `next` CLI:
-
-```bash filename="Terminal"
-npm run dev -- --inspect
-# or
-yarn dev --inspect
-# or
+```bash package="pnpm"
 pnpm dev --inspect
 ```
 
-> **Good to know**: With `npm`, flags after `npm run <script>` are consumed by npm itself unless separated with `--`. This is not required for `yarn` or `pnpm`, which forward flags directly to the script.
+```bash package="npm"
+npm run dev -- --inspect
+```
+
+```bash package="yarn"
+yarn dev --inspect
+```
+
+```bash package="bun"
+bun run dev --inspect
+```
 
 The value of `--inspect` is passed to the underlying Node.js process. Check out the [`--inspect` docs for advanced use cases](https://nodejs.org/api/cli.html#--inspecthostport).
 
