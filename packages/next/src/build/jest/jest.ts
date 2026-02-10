@@ -117,6 +117,12 @@ export default function nextJest(options: { dir?: string } = {}) {
         isEsmProject,
         pagesDir,
       }
+      // Populate process.env.__NEXT_IMAGE_OPTS early so the Image component
+      // can read image config in Jest (where there is no webpack define plugin).
+      if (nextConfig?.images) {
+        process.env.__NEXT_IMAGE_OPTS = JSON.stringify(nextConfig.images)
+      }
+
       return {
         ...resolvedJestConfig,
 
@@ -192,11 +198,6 @@ export default function nextJest(options: { dir?: string } = {}) {
           '/.next/',
           ...(resolvedJestConfig.watchPathIgnorePatterns || []),
         ],
-        globals: {
-          // Expose Next.js image config to tests so Image components can access it
-          __NEXT_IMAGE_OPTS: nextConfig?.images,
-          ...(resolvedJestConfig.globals || {}),
-        },
       }
     }
   }
