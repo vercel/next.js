@@ -4,5 +4,5 @@
     // environment, we need WebWorker for WebAssembly types
     "lib": ["ESNext", "WebWorker"]
   },
-  "include": ["*.ts"]
+  "include": ["*.ts", "runtime/runtime-utils.ts", "runtime/runtime-types.d.ts"]
 }
