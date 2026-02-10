@@ -18,6 +18,8 @@ const flightResponses = new WeakMap<
   Promise<unknown>
 >()
 const encoder = new TextEncoder()
+const INLINE_FLIGHT_PAYLOAD_SUFFIX = ')</script>'
+const BINARY_TO_BASE64_CHUNK_SIZE = 0x8000
 
 const findSourceMapURL =
   process.env.NODE_ENV !== 'production'
@@ -226,31 +228,44 @@ function writeInitialInstructions(
   controller.enqueue(encodeInitialFlightData(scriptStart, formState))
 }
 
+function encodeBase64Chunk(chunk: Uint8Array): string {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(
+      chunk.buffer,
+      chunk.byteOffset,
+      chunk.byteLength
+    ).toString('base64')
+  }
+
+  const parts: string[] = []
+  for (let i = 0; i < chunk.length; i += BINARY_TO_BASE64_CHUNK_SIZE) {
+    const slice = chunk.subarray(i, i + BINARY_TO_BASE64_CHUNK_SIZE)
+    parts.push(String.fromCharCode(...slice))
+  }
+  return btoa(parts.join(''))
+}
+
+function encodeFlightPayload(chunk: string | Uint8Array): string {
+  if (typeof chunk === 'string') {
+    return htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
+    )
+  }
+
+  // Binary payloads are base64 and cannot include script-breaking tokens.
+  const base64 = encodeBase64Chunk(chunk)
+  return `[${INLINE_FLIGHT_PAYLOAD_BINARY},"${base64}"]`
+}
+
 function writeFlightDataInstruction(
   controller: ReadableStreamDefaultController,
   scriptStart: string,
   chunk: string | Uint8Array
 ) {
-  let htmlInlinedData: string
-
-  if (typeof chunk === 'string') {
-    htmlInlinedData = htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
-    )
-  } else {
-    // The chunk cannot be embedded as a UTF-8 string in the script tag.
-    // Instead let's inline it in base64.
-    // Credits to Devon Govett (devongovett) for the technique.
-    // https://github.com/devongovett/rsc-html-stream
-    const base64 = btoa(String.fromCodePoint(...chunk))
-    htmlInlinedData = htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
-    )
-  }
-
+  const htmlInlinedData = encodeFlightPayload(chunk)
   controller.enqueue(
     encoder.encode(
-      `${scriptStart}self.__next_f.push(${htmlInlinedData})</script>`
+      `${scriptStart}self.__next_f.push(${htmlInlinedData}${INLINE_FLIGHT_PAYLOAD_SUFFIX}`
     )
   )
 }
@@ -259,21 +274,9 @@ function encodeFlightDataChunk(
   scriptStart: string,
   chunk: string | Uint8Array
 ): Uint8Array {
-  let htmlInlinedData: string
-
-  if (typeof chunk === 'string') {
-    htmlInlinedData = htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
-    )
-  } else {
-    const base64 = btoa(String.fromCodePoint(...chunk))
-    htmlInlinedData = htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
-    )
-  }
-
+  const htmlInlinedData = encodeFlightPayload(chunk)
   return encoder.encode(
-    `${scriptStart}self.__next_f.push(${htmlInlinedData})</script>`
+    `${scriptStart}self.__next_f.push(${htmlInlinedData}${INLINE_FLIGHT_PAYLOAD_SUFFIX}`
   )
 }
 
