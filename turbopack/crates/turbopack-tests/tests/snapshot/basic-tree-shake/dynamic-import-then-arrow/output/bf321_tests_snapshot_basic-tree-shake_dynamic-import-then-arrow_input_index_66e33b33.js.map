@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import-then-arrow/input/index.js"],"sourcesContent":["function main() {\n  import('./lib').then(({ cat }) => {\n    console.log(cat)\n  })\n}\n\nmain()\n"],"names":["main","then","cat","console","log"],"mappings":"AAAA,SAASA;IACP,+KAAgBC,IAAI,CAAC,CAAC,EAAEC,GAAG,EAAE;QAC3BC,QAAQC,GAAG,CAACF;IACd;AACF;AAEAF"}}]
-}
