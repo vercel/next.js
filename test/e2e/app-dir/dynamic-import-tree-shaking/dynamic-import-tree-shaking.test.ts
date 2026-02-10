@@ -3,13 +3,11 @@ import fs from 'fs'
 import path from 'path'
 
 describe('dynamic-import-tree-shaking', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
   if (skipped) return
-
-  const isProduction = process.env.NEXT_TEST_MODE === 'start'
 
   // Recursively read all .js files in a directory
   function getAllServerFiles(dir: string): string[] {
@@ -113,7 +111,7 @@ describe('dynamic-import-tree-shaking', () => {
 
   // Tree shaking assertions: unused exports should NOT be in the server bundle
   // Tree shaking is only enabled in production builds, so skip these in dev mode
-  if (isProduction) {
+  if (isNextStart) {
     it('should tree-shake unused export with const destructured dynamic import', async () => {
       const content = await getAllServerContent()
       expect(content).toContain('TREESHAKE_CONST_USED')
@@ -166,7 +164,7 @@ describe('dynamic-import-tree-shaking', () => {
     })
 
     // Member access on dynamic import is only tree-shaken by Turbopack, not webpack
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       it('should tree-shake unused export with member access on dynamic import', async () => {
         const content = await getAllServerContent()
         expect(content).toContain('TREESHAKE_MEMBER_USED')
@@ -197,7 +195,7 @@ describe('dynamic-import-tree-shaking', () => {
     })
 
     // .then() callback destructuring is only tree-shaken by Turbopack, not webpack
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       it('should tree-shake unused export with .then() arrow destructured dynamic import', async () => {
         const content = await getAllServerContent()
         expect(content).toContain('TREESHAKE_THEN_ARROW_USED')
