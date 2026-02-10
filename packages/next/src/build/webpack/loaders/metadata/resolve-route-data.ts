@@ -1,6 +1,8 @@
 import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
 import { resolveArray } from '../../../../lib/metadata/generate/utils'
 
+const knownRuleKeys = new Set(['userAgent', 'allow', 'disallow', 'crawlDelay'])
+
 // convert robots data to txt string
 export function resolveRobots(data: MetadataRoute.Robots): string {
   let content = ''
@@ -24,6 +26,16 @@ export function resolveRobots(data: MetadataRoute.Robots): string {
     }
     if (rule.crawlDelay) {
       content += `Crawl-delay: ${rule.crawlDelay}\n`
+    }
+    // Output non-standard directives (e.g. Request-Rate, Visit-time)
+    for (const [key, value] of Object.entries(rule)) {
+      if (knownRuleKeys.has(key) || value == null) {
+        continue
+      }
+      const values = Array.isArray(value) ? value : [value]
+      for (const v of values) {
+        content += `${key}: ${v}\n`
+      }
     }
     content += '\n'
   }

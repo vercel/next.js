@@ -29,6 +29,95 @@ describe('resolveRouteData', () => {
       `)
     })
 
+    it('should resolve robots.txt with non-standard directives', () => {
+      const data: MetadataRoute.Robots = {
+        rules: [
+          {
+            userAgent: 'SeznamBot',
+            allow: '/',
+            'Request-Rate': '10/1m',
+          },
+          {
+            userAgent: '*',
+            allow: '/',
+            disallow: '/admin',
+            'Visit-time': '0600-0845',
+          },
+        ],
+      }
+      const content = resolveRobots(data)
+      expect(content).toMatchInlineSnapshot(`
+        "User-Agent: SeznamBot
+        Allow: /
+        Request-Rate: 10/1m
+
+        User-Agent: *
+        Allow: /
+        Disallow: /admin
+        Visit-time: 0600-0845
+
+        "
+      `)
+    })
+
+    it('should resolve robots.txt with array values in non-standard directives', () => {
+      const data: MetadataRoute.Robots = {
+        rules: {
+          userAgent: '*',
+          allow: '/',
+          'No-Index': ['/private', '/tmp'],
+        },
+      }
+      const content = resolveRobots(data)
+      expect(content).toMatchInlineSnapshot(`
+        "User-Agent: *
+        Allow: /
+        No-Index: /private
+        No-Index: /tmp
+
+        "
+      `)
+    })
+
+    it('should resolve robots.txt with numeric and boolean non-standard directives', () => {
+      const data: MetadataRoute.Robots = {
+        rules: {
+          userAgent: '*',
+          allow: '/',
+          'Custom-Delay': 5,
+          'Some-Flag': true,
+        },
+      }
+      const content = resolveRobots(data)
+      expect(content).toMatchInlineSnapshot(`
+        "User-Agent: *
+        Allow: /
+        Custom-Delay: 5
+        Some-Flag: true
+
+        "
+      `)
+    })
+
+    it('should skip non-standard directives with null or undefined values', () => {
+      const data: MetadataRoute.Robots = {
+        rules: {
+          userAgent: '*',
+          allow: '/',
+          Included: 'yes',
+          Skipped: undefined,
+        },
+      }
+      const content = resolveRobots(data)
+      expect(content).toMatchInlineSnapshot(`
+        "User-Agent: *
+        Allow: /
+        Included: yes
+
+        "
+      `)
+    })
+
     it('should error with ts when specify both wildcard userAgent and specific userAgent', () => {
       const data1: MetadataRoute.Robots = {
         rules: [
