@@ -34,7 +34,9 @@ use turbopack_core::{
     module_graph::{ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry},
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
+        ResolveErrorMode,
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
+        origin::PlainResolveOrigin,
         parse::Request,
         pattern::Pattern,
         resolve,
@@ -46,7 +48,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkItem;
 use turbopack_resolve::{
-    ecmascript::get_condition_maps, resolve::resolve_options,
+    ecmascript::{esm_resolve, get_condition_maps},
+    resolve::resolve_options,
     resolve_options_context::ResolveOptionsContext,
 };
 
@@ -677,49 +680,27 @@ impl EvaluateContext for WebpackLoaderContext {
                 lookup_path,
                 request,
             } => {
-                let Some(resolve_options_context) = self.resolve_options_context else {
-                    bail!("Resolve options are not available in this context");
-                };
                 let lookup_path = self.cwd.join(&lookup_path)?;
 
-                // Resolve using the project's resolve options (same as the
-                // Resolve handler) with ESM reference type so TS/JSON
-                // extensions are resolved.
                 let request_vc = Request::parse(Pattern::Constant(request.clone()));
-                let options = resolve_options(lookup_path.clone(), *resolve_options_context);
-
-                let resolved = resolve(
-                    lookup_path.clone(),
-                    ReferenceType::EcmaScriptModules(
-                        EcmaScriptModulesReferenceSubType::ImportModule,
-                    ),
+                let origin =
+                    PlainResolveOrigin::new(*self.evaluate_context, lookup_path.join("_")?);
+                let resolved = esm_resolve(
+                    Vc::upcast(origin),
                     request_vc,
-                    options,
-                );
+                    EcmaScriptModulesReferenceSubType::ImportModule,
+                    ResolveErrorMode::Error,
+                    None,
+                )
+                .await?;
 
-                let Some(source) = *resolved.first_source().await? else {
+                let Some(module) = *resolved.first_module().await? else {
                     bail!(
                         "importModule: unable to resolve {} in {}",
                         request,
                         lookup_path.value_to_string().await?
                     );
                 };
-
-                // Process the source through Turbopack's compilation
-                // pipeline (SWC for TypeScript, JSON parsing, etc.)
-                let process_result = self
-                    .evaluate_context
-                    .process(
-                        *source,
-                        ReferenceType::EcmaScriptModules(
-                            EcmaScriptModulesReferenceSubType::ImportModule,
-                        ),
-                    )
-                    .await?;
-                let ProcessResult::Module(module) = &*process_result else {
-                    bail!("importModule: failed to process source into a module");
-                };
-                let module = *module;
 
                 // Build a module graph from the resolved module and its
                 // transitive dependencies
