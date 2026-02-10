@@ -108,6 +108,67 @@ const moduleHotState: Map<Module, HotState> = new Map()
  */
 const queuedInvalidatedModules: Set<ModuleId> = new Set()
 
+// --- HMR side-effect auto-cleanup ---
+// Tracks timers created during module top-level execution so they can be
+// automatically cleaned up when the module is disposed during HMR.
+// Only active while a module factory is being evaluated (patch-and-restore).
+// @see https://github.com/vercel/next.js/issues/69098
+const moduleTimers = new Map<ModuleId, Set<ReturnType<typeof setInterval>>>()
+let trackingModuleId: ModuleId | null = null
+const _origSetInterval =
+  typeof setInterval !== 'undefined' ? setInterval : undefined
+const _origSetTimeout =
+  typeof setTimeout !== 'undefined' ? setTimeout : undefined
+const _origClearInterval =
+  typeof clearInterval !== 'undefined' ? clearInterval : undefined
+const _origClearTimeout =
+  typeof clearTimeout !== 'undefined' ? clearTimeout : undefined
+
+function startTrackingSideEffects(moduleId: ModuleId): void {
+  trackingModuleId = moduleId
+  moduleTimers.set(moduleId, new Set())
+
+  if (_origSetInterval) {
+    ;(globalThis as any).setInterval = (
+      cb: Function,
+      ms?: number,
+      ...args: any[]
+    ) => {
+      const h = _origSetInterval(cb as any, ms, ...args)
+      moduleTimers.get(trackingModuleId!)?.add(h)
+      return h
+    }
+  }
+  if (_origSetTimeout) {
+    ;(globalThis as any).setTimeout = (
+      cb: Function,
+      ms?: number,
+      ...args: any[]
+    ) => {
+      const h = _origSetTimeout(cb as any, ms, ...args)
+      moduleTimers.get(trackingModuleId!)?.add(h)
+      return h
+    }
+  }
+}
+
+function stopTrackingSideEffects(): void {
+  trackingModuleId = null
+  if (_origSetInterval) (globalThis as any).setInterval = _origSetInterval
+  if (_origSetTimeout) (globalThis as any).setTimeout = _origSetTimeout
+}
+
+function cleanupTrackedSideEffects(moduleId: ModuleId): void {
+  const timers = moduleTimers.get(moduleId)
+  if (timers) {
+    for (const h of timers) {
+      _origClearInterval?.(h)
+      _origClearTimeout?.(h as any)
+    }
+    moduleTimers.delete(moduleId)
+  }
+}
+
 /**
  * Gets or instantiates a runtime module.
  */
@@ -241,7 +302,14 @@ function instantiateModule(
         exports,
         refresh
       )
-      moduleFactory(context, module, exports)
+      // Track timers created during module evaluation for auto-cleanup on HMR.
+      // @see https://github.com/vercel/next.js/issues/69098
+      startTrackingSideEffects(id)
+      try {
+        moduleFactory(context, module, exports)
+      } finally {
+        stopTrackingSideEffects()
+      }
     })
   } catch (error) {
     module.error = error as any
@@ -516,6 +584,11 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
   for (const disposeHandler of hotState.disposeHandlers) {
     disposeHandler(data)
   }
+
+  // Auto-cleanup timers tracked during module evaluation.
+  // Runs after user dispose handlers so manual cleanup takes precedence.
+  // @see https://github.com/vercel/next.js/issues/69098
+  cleanupTrackedSideEffects(moduleId)
 
   // This used to warn in `getOrInstantiateModuleFromParent` when a disposed
   // module is still importing other modules.
