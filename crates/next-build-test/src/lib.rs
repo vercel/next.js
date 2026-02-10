@@ -8,7 +8,7 @@ use std::{str::FromStr, time::Instant};
 use anyhow::{Context, Result};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
-    project::{ProjectContainer, ProjectOptions},
+    project::{HmrTarget, ProjectContainer, ProjectOptions},
     route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -257,7 +257,7 @@ async fn hmr(
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
     let idents = tt
-        .run(async move { project.hmr_identifiers().await })
+        .run(async move { project.hmr_chunk_names(HmrTarget::Client).await })
         .await?;
     let start = Instant::now();
     for ident in idents {
@@ -270,8 +270,10 @@ async fn hmr(
             let session = session.clone();
             async move {
                 let project = project.project();
-                let state = project.hmr_version_state(ident.clone(), session);
-                project.hmr_update(ident.clone(), state).await?;
+                let state = project.hmr_version_state(ident.clone(), HmrTarget::Client, session);
+                project
+                    .hmr_update(ident.clone(), HmrTarget::Client, state)
+                    .await?;
                 Ok(Vc::<()>::cell(()))
             }
         });

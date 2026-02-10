@@ -18,7 +18,7 @@ use next_api::{
         RouteOperation,
     },
     project::{
-        DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions, Project,
+        DebugBuildPaths, DefineEnv, DraftModeOptions, HmrTarget, PartialProjectOptions, Project,
         ProjectContainer, ProjectOptions, WatchOptions,
     },
     route::Endpoint,
@@ -1206,12 +1206,23 @@ struct HmrUpdateWithIssues {
 }
 
 #[turbo_tasks::function(operation)]
+fn project_hmr_update_operation(
+    project: ResolvedVc<Project>,
+    chunk_name: RcStr,
+    target: HmrTarget,
+    state: ResolvedVc<VersionState>,
+) -> Vc<Update> {
+    project.hmr_update(chunk_name, target, *state)
+}
+
+#[turbo_tasks::function(operation)]
 async fn hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
-    identifier: RcStr,
+    chunk_name: RcStr,
     state: ResolvedVc<VersionState>,
+    target: HmrTarget,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
-    let update_op = project_hmr_update_operation(project, identifier, state);
+    let update_op = project_hmr_update_operation(project, chunk_name, target, state);
     let update = update_op.read_strongly_consistent().await?;
     let issues = get_issues(update_op, NEXT_ISSUE_FILTER).await?;
     let diagnostics = get_diagnostics(update_op).await?;
@@ -1225,42 +1236,42 @@ async fn hmr_update_with_issues_operation(
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
-fn project_hmr_update_operation(
-    project: ResolvedVc<Project>,
-    identifier: RcStr,
-    state: ResolvedVc<VersionState>,
-) -> Vc<Update> {
-    project.hmr_update(identifier, *state)
-}
-
-#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func))]
+#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    identifier: RcStr,
+    chunk_name: RcStr,
+    target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    let hmr_target = target
+        .parse::<HmrTarget>()
+        .map_err(napi::Error::from_reason)?;
+
     let container = project.container;
     let session = TransientInstance::new(());
     subscribe(
         project.turbopack_ctx.clone(),
         func,
         {
-            let outer_identifier = identifier.clone();
+            let outer_chunk_name = chunk_name.clone();
             let session = session.clone();
             move || {
-                let identifier: RcStr = outer_identifier.clone();
+                let chunk_name: RcStr = outer_chunk_name.clone();
                 let session = session.clone();
                 async move {
                     let project = container.project().to_resolved().await?;
                     let state = project
-                        .hmr_version_state(identifier.clone(), session)
+                        .hmr_version_state(chunk_name.clone(), hmr_target, session)
                         .to_resolved()
                         .await?;
 
-                    let update_op =
-                        hmr_update_with_issues_operation(project, identifier.clone(), state);
+                    let update_op = hmr_update_with_issues_operation(
+                        project,
+                        chunk_name.clone(),
+                        state,
+                        hmr_target,
+                    );
                     let update = update_op.read_strongly_consistent().await?;
                     let HmrUpdateWithIssues {
                         update,
@@ -1295,7 +1306,7 @@ pub fn project_hmr_events(
                 .collect::<Vec<_>>();
 
             let identifier = ResourceIdentifier {
-                path: identifier.clone(),
+                path: chunk_name.clone(),
                 headers: None,
             };
             let update = match update.as_deref() {
@@ -1320,29 +1331,38 @@ pub fn project_hmr_events(
 }
 
 #[napi(object)]
-struct HmrIdentifiers {
-    pub identifiers: Vec<RcStr>,
+struct HmrChunkNames {
+    pub chunk_names: Vec<RcStr>,
 }
 
 #[turbo_tasks::value(serialization = "none")]
-struct HmrIdentifiersWithIssues {
-    identifiers: ReadRef<Vec<RcStr>>,
+struct HmrChunkNamesWithIssues {
+    chunk_names: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function(operation)]
-async fn get_hmr_identifiers_with_issues_operation(
+fn project_hmr_chunk_names_operation(
     container: ResolvedVc<ProjectContainer>,
-) -> Result<Vc<HmrIdentifiersWithIssues>> {
-    let hmr_identifiers_op = project_container_hmr_identifiers_operation(container);
-    let hmr_identifiers = hmr_identifiers_op.read_strongly_consistent().await?;
-    let issues = get_issues(hmr_identifiers_op, NEXT_ISSUE_FILTER).await?;
-    let diagnostics = get_diagnostics(hmr_identifiers_op).await?;
-    let effects = Arc::new(get_effects(hmr_identifiers_op).await?);
-    Ok(HmrIdentifiersWithIssues {
-        identifiers: hmr_identifiers,
+    target: HmrTarget,
+) -> Vc<Vec<RcStr>> {
+    container.hmr_chunk_names(target)
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_hmr_chunk_names_with_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+    target: HmrTarget,
+) -> Result<Vc<HmrChunkNamesWithIssues>> {
+    let hmr_chunk_names_op = project_hmr_chunk_names_operation(container, target);
+    let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
+    let issues = get_issues(hmr_chunk_names_op, NEXT_ISSUE_FILTER).await?;
+    let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
+    let effects = Arc::new(get_effects(hmr_chunk_names_op).await?);
+    Ok(HmrChunkNamesWithIssues {
+        chunk_names: hmr_chunk_names,
         issues,
         diagnostics,
         effects,
@@ -1350,44 +1370,42 @@ async fn get_hmr_identifiers_with_issues_operation(
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
-fn project_container_hmr_identifiers_operation(
-    container: ResolvedVc<ProjectContainer>,
-) -> Vc<Vec<RcStr>> {
-    container.hmr_identifiers()
-}
-
-#[tracing::instrument(level = "info", name = "get HMR identifiers", skip_all)]
+#[tracing::instrument(level = "info", name = "get HMR chunk names", skip(project, func), fields(target = %target))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_hmr_identifiers_subscribe(
+pub fn project_hmr_chunk_names_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    let hmr_target = target
+        .parse::<HmrTarget>()
+        .map_err(napi::Error::from_reason)?;
+
     let container = project.container;
     subscribe(
         project.turbopack_ctx.clone(),
         func,
         move || async move {
-            let hmr_identifiers_with_issues_op =
-                get_hmr_identifiers_with_issues_operation(container);
-            let HmrIdentifiersWithIssues {
-                identifiers,
+            let hmr_chunk_names_with_issues_op =
+                get_hmr_chunk_names_with_issues_operation(container, hmr_target);
+            let HmrChunkNamesWithIssues {
+                chunk_names,
                 issues,
                 diagnostics,
                 effects,
-            } = &*hmr_identifiers_with_issues_op
+            } = &*hmr_chunk_names_with_issues_op
                 .read_strongly_consistent()
                 .await?;
             effects.apply().await?;
 
-            Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
+            Ok((chunk_names.clone(), issues.clone(), diagnostics.clone()))
         },
         move |ctx| {
-            let (identifiers, issues, diagnostics) = ctx.value;
+            let (chunk_names, issues, diagnostics) = ctx.value;
 
             Ok(vec![TurbopackResult {
-                result: HmrIdentifiers {
-                    identifiers: ReadRef::into_owned(identifiers),
+                result: HmrChunkNames {
+                    chunk_names: ReadRef::into_owned(chunk_names),
                 },
                 issues: issues
                     .iter()

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+/// <reference path="./hmr-types.d.ts" />
 /// <reference path="../shared/runtime-utils.ts" />
 /// <reference path="../shared-node/base-externals-utils.ts" />
 /// <reference path="../shared-node/node-externals-utils.ts" />
@@ -336,6 +337,16 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
   return regexJsUrl.test(chunkUrlOrPath)
 }
+
+function __turbopack_server_hmr_apply__(
+  _update: NodeJsPartialHmrUpdate
+): boolean {
+  // TODO: Implement actual HMR logic to update module factories
+  // For now, just return true to indicate we "accepted" the update
+  return true
+}
+
+globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__
 
 module.exports = (sourcePath: ChunkPath) => ({
   m: (id: ModuleId) => getOrInstantiateRuntimeModule(sourcePath, id),
