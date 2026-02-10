@@ -315,14 +315,16 @@ const plugin = (options: any = {}) => {
 
               const [pathname, query, hashOrQuery] = url.split(/(\?)?#/, 3)
 
-              let hash = query ? '?' : ''
-              hash += hashOrQuery ? `#${hashOrQuery}` : ''
+              let hash = ''
 
-              // Append deployment ID suffix to asset URLs
-              if (options.deploymentId) {
-                const separator = hash.includes('?') ? '&' : '?'
-                hash += `${separator}dpl=${options.deploymentId}`
+              // Build query string with deployment ID before the hash fragment
+              if (query || options.deploymentId) {
+                hash += '?'
               }
+              if (options.deploymentId) {
+                hash += `dpl=${options.deploymentId}`
+              }
+              hash += hashOrQuery ? `#${hashOrQuery}` : ''
 
               const { needToResolveURL, rootContext } = options
               const request = requestify(

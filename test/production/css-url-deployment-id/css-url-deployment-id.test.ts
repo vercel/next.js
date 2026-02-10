@@ -6,6 +6,7 @@ describe('css-url-deployment-id', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    dependencies: { sass: '1.54.0' },
   })
 
   it('should include dpl query in CSS url() references for images and fonts', async () => {
@@ -49,7 +50,8 @@ describe('css-url-deployment-id', () => {
 
     // Filter to only asset URLs (images and fonts), excluding data URIs
     const assetUrls = urlMatches.filter(
-      (u) => !u.includes('data:') && (u.includes('.png') || u.includes('.woff2'))
+      (u) =>
+        !u.includes('data:') && (u.includes('.png') || u.includes('.woff2'))
     )
 
     expect(assetUrls.length).toBeGreaterThanOrEqual(1)
@@ -92,7 +94,7 @@ describe('css-url-deployment-id', () => {
     }
 
     // Find image references from CSS modules (page.module.css)
-    const imageUrls = (allCssContent.match(/url\([^)]+\.png[^)]*\)/g) || [])
+    const imageUrls = allCssContent.match(/url\([^)]+\.png[^)]*\)/g) || []
     expect(imageUrls.length).toBeGreaterThanOrEqual(1)
 
     for (const imageUrl of imageUrls) {
@@ -100,7 +102,7 @@ describe('css-url-deployment-id', () => {
     }
 
     // Find font references from CSS modules
-    const fontUrls = (allCssContent.match(/url\([^)]+\.woff2[^)]*\)/g) || [])
+    const fontUrls = allCssContent.match(/url\([^)]+\.woff2[^)]*\)/g) || []
     expect(fontUrls.length).toBeGreaterThanOrEqual(1)
 
     for (const fontUrl of fontUrls) {
