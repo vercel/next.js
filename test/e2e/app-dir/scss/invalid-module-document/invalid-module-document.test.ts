@@ -52,8 +52,7 @@ import { waitForRedbox, getRedboxSource } from 'next-test-utils'
           expect(errorSource).toMatchInlineSnapshot(`
            "./styles.module.scss
            CSS cannot be imported within pages/_document.js. Please move global styles to pages/_app.js.
-           Location: pages/_document.js
-             (from ./node_modules/next/dist/build/webpack/loaders/error-loader.js)"
+           Location: pages/_document.js"
           `)
         }
       })

@@ -77,7 +77,7 @@ describe('use-cache-unknown-cache-kind', () => {
             ,-[1:1]
           1 | 'use cache: custom'
             : ^^^^^^^^^^^^^^^^^^^
-          2 |
+          2 | 
           3 | export default async function Page() {
           4 |   return <p>hello world</p>
             \`----
@@ -163,7 +163,7 @@ describe('use-cache-unknown-cache-kind', () => {
             ,-[1:1]
           1 | 'use cache: custom'
             : ^^^^^^^^^^^^^^^^^^^
-          2 |
+          2 | 
           3 | export default async function Page() {
           4 |   return <p>hello world</p>
             \`----"

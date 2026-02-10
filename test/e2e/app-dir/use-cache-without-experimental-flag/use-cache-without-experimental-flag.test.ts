@@ -91,7 +91,6 @@ describe('use-cache-without-experimental-flag', () => {
 
          Import trace for requested module:
          ./app/page.tsx
-           (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)
 
 
          > Build failed because of webpack errors
@@ -169,9 +168,7 @@ describe('use-cache-without-experimental-flag', () => {
           2 | 
           3 | export default async function Page() {
           4 |   return <p>hello world</p>
-            \`----
-
-           (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)"
+            \`----"
         `)
       }
     })

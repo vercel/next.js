@@ -70,9 +70,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
             :  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
           3 |   return <p>hello world</p>
           4 | }
-            \`----
-
-           (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js)"
+            \`----"
         `)
       }
     })

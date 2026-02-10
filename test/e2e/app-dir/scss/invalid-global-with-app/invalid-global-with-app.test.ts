@@ -60,8 +60,7 @@ describe('Invalid Global CSS with Custom App', () => {
          "./styles/global.scss
          Global CSS cannot be imported from files other than your Custom <App>. Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to pages/_app.js. Or convert the import to Component-Level CSS (CSS Modules).
          Read more: https://nextjs.org/docs/messages/css-global
-         Location: pages/index.js
-           (from ./node_modules/next/dist/build/webpack/loaders/error-loader.js)"
+         Location: pages/index.js"
         `)
       }
     })
