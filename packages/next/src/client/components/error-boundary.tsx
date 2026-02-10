@@ -6,7 +6,6 @@ import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 import { HandleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
-import { publicAppRouterInstance } from './app-router-instance'
 import {
   AppRouterContext,
   type AppRouterInstance,
@@ -118,7 +117,6 @@ export class ErrorBoundaryHandler extends React.Component<
 
   retry = () => {
     startTransition(() => {
-      publicAppRouterInstance.refresh()
       this.context?.refresh()
       this.reset()
     })
