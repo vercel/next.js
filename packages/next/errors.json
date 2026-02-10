@@ -1060,5 +1060,8 @@
   "1059": "teeNodeReadable is not supported in edge runtime",
   "1060": "Node stream tee buffered too much pending data while waiting for drain",
   "1061": "Debug channel readable is not a ReadableStream but node streams are not enabled, this is a bug in the Next.js codebase",
-  "1062": "createNodeDebugChannel requires Node.js streams support"
+  "1062": "createNodeDebugChannel requires Node.js streams support",
+  "1063": "toNodeDebugChannel cannot be used in edge/web runtime, this is a bug in the Next.js codebase",
+  "1064": "debug-channel-server.node.ts must not be loaded in edge runtime. Import from debug-channel-server.compiled instead.",
+  "1065": "debug-channel-server.node.ts must not be loaded in edge runtime. Import from debug-channel-server instead."
 }

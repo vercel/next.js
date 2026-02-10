@@ -204,16 +204,16 @@ export default class RenderResult<
         )
       }
 
-      if (
-        process.env.NEXT_RUNTIME === 'nodejs' &&
-        this.isNodeReadable(this.response)
-      ) {
-        const { nodeStreamToString } =
-          require('./stream-utils/node-stream-helpers') as typeof import('./stream-utils/node-stream-helpers')
-        return nodeStreamToString(this.response)
+      if (process.env.__NEXT_USE_NODE_STREAMS) {
+        if (this.isNodeReadable(this.response)) {
+          const { nodeStreamToString } =
+            require('./stream-utils/node-stream-helpers') as typeof import('./stream-utils/node-stream-helpers')
+          return nodeStreamToString(this.response)
+        }
+        return streamToString(this.readable)
+      } else {
+        return streamToString(this.readable)
       }
-
-      return streamToString(this.readable)
     }
 
     return this.response

@@ -11,7 +11,7 @@ import type {
   InitialRSCPayload,
   FlightDataPath,
 } from '../../shared/lib/app-router-types'
-import type { Readable, Transform } from 'node:stream'
+import type { Readable } from 'node:stream'
 import {
   workAsyncStorage,
   type WorkStore,
@@ -32,10 +32,6 @@ import RenderResult, {
   type RenderResultOptions,
 } from '../render-result'
 import {
-  renderToInitialFizzStream,
-  streamToString,
-} from '../stream-utils/node-web-streams-helper'
-import {
   chainStreams,
   continueFizzStream,
   continueDynamicPrerender,
@@ -43,15 +39,20 @@ import {
   continueDynamicHTMLResume,
   continueStaticFallbackPrerender,
   streamToBuffer,
+  streamToString,
   createInlinedDataStream,
   createPendingStream,
   createOnHeadersCallback,
   resumeAndAbort,
   renderToFlightStream,
+  renderToFizzStream,
+  resumeToFizzStream,
   getServerPrerender,
   getClientPrerender,
   processPrelude as processPreludeOp,
   createDocumentClosingStream,
+  nodeReadableToWeb,
+  pipeRuntimePrefetchTransform,
 } from './stream-ops'
 import { stripInternalQueries } from '../internal-utils'
 import {
@@ -124,10 +125,7 @@ import {
   getPostponedFromState,
 } from './postponed-state'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
-import {
-  getFlightStream,
-  createInlinedDataReadableStream,
-} from './use-flight-response'
+import { getFlightStream } from './use-flight-response'
 import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
@@ -259,13 +257,10 @@ function teeDebugChannelForSsrAndBrowser(debugChannel: DebugChannelPair): {
   if (readable instanceof ReadableStream) {
     const [ssrStream, browserStream] = readable.tee()
     return { ssrStream, browserChannel: { readable: browserStream } }
-  } else if (process.env.__NEXT_USE_NODE_STREAMS) {
-    const { Readable } = require('node:stream') as typeof import('node:stream')
+  } else if (process.env.__NEXT_USE_NODE_STREAMS && nodeReadableToWeb) {
     // Node Readable: tee natively, convert browser branch to web for HMR
     const [ssrStream, browserNodeStream] = teeNodeReadable(readable)
-    const browserStream = Readable.toWeb(
-      browserNodeStream
-    ) as ReadableStream<Uint8Array>
+    const browserStream = nodeReadableToWeb(browserNodeStream)
     return { ssrStream, browserChannel: { readable: browserStream } }
   } else {
     throw new Error(
@@ -285,10 +280,9 @@ function debugChannelClientForBrowser(debugChannel: DebugChannelPair): {
   const readable = debugChannel.clientSide.readable
   if (readable instanceof ReadableStream) {
     return { readable }
-  } else if (process.env.__NEXT_USE_NODE_STREAMS) {
-    const { Readable } = require('node:stream') as typeof import('node:stream')
+  } else if (process.env.__NEXT_USE_NODE_STREAMS && nodeReadableToWeb) {
     return {
-      readable: Readable.toWeb(readable) as ReadableStream<Uint8Array>,
+      readable: nodeReadableToWeb(readable),
     }
   } else {
     throw new Error(
@@ -728,13 +722,7 @@ async function generateDynamicFlightRenderResult(
     waitUntil?: Promise<unknown>
   }
 ): Promise<RenderResult> {
-  const {
-    componentMod: { renderToReadableStream },
-    htmlRequestId,
-    renderOpts,
-    requestId,
-    workStore,
-  } = ctx
+  const { htmlRequestId, renderOpts, requestId, workStore } = ctx
 
   const {
     dev = false,
@@ -780,41 +768,8 @@ async function generateDynamicFlightRenderResult(
     options
   )
 
-  if (process.env.__NEXT_USE_NODE_STREAMS) {
-    const { renderToPipeableStream: flightRenderToPipeableStream } =
-      ctx.componentMod as any
-    if (flightRenderToPipeableStream) {
-      const { renderToFlightPipeableStream } =
-        require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-      const flightNodeStream = renderToFlightPipeableStream(
-        (...args: any[]) =>
-          workUnitAsyncStorage.run(
-            requestStore,
-            flightRenderToPipeableStream,
-            ...args
-          ),
-        rscPayload,
-        clientModules,
-        {
-          onError,
-          temporaryReferences: options?.temporaryReferences,
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-        },
-        (fn) => workUnitAsyncStorage.run(requestStore, fn)
-      )
-
-      return new FlightRenderResult(
-        flightNodeStream,
-        { fetchMetrics: workStore.fetchMetrics },
-        options?.waitUntil
-      )
-    }
-  }
-
-  const flightReadableStream = workUnitAsyncStorage.run(
-    requestStore,
-    renderToReadableStream,
+  const flightStream = renderToFlightStream(
+    ctx.componentMod,
     rscPayload,
     clientModules,
     {
@@ -822,11 +777,12 @@ async function generateDynamicFlightRenderResult(
       temporaryReferences: options?.temporaryReferences,
       filterStackFrame,
       debugChannel: debugChannel?.serverSide,
-    }
+    },
+    (fn) => workUnitAsyncStorage.run(requestStore, fn)
   )
 
   return new FlightRenderResult(
-    flightReadableStream,
+    flightStream,
     { fetchMetrics: workStore.fetchMetrics },
     options?.waitUntil
   )
@@ -844,9 +800,6 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   options: Omit<RenderToReadableStreamServerOptions, 'environmentName'>
 ) {
-  const {
-    componentMod: { renderToReadableStream },
-  } = ctx
   // We're rendering while bypassing caches,
   // so we have no hope of showing a useful runtime stage.
   // But we still want things like `params` to show up in devtools correctly,
@@ -892,40 +845,24 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
   const { clientModules } = getClientReferenceManifest()
   const rscPayload = await getPayload(requestStore)
 
-  if (process.env.__NEXT_USE_NODE_STREAMS) {
-    const { renderToFlightPipeableStream } =
-      require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-    return await workUnitAsyncStorage.run(
-      requestStore,
-      scheduleInSequentialTasks,
-      () => {
-        stageController.advanceStage(RenderStage.Static)
-        return renderToFlightPipeableStream(
-          ctx.componentMod.renderToPipeableStream!,
-          rscPayload,
-          clientModules,
-          {
-            ...options,
-            environmentName,
-          },
-          (fn) => workUnitAsyncStorage.run(requestStore, fn)
-        )
-      },
-      () => {
-        stageController.advanceStage(RenderStage.Dynamic)
-      }
-    )
-  }
+  const runInContext = <T,>(fn: () => T): T =>
+    workUnitAsyncStorage.run(requestStore, fn)
 
   return await workUnitAsyncStorage.run(
     requestStore,
     scheduleInSequentialTasks,
     () => {
       stageController.advanceStage(RenderStage.Static)
-      return renderToReadableStream(rscPayload, clientModules, {
-        ...options,
-        environmentName,
-      })
+      return renderToFlightStream(
+        ctx.componentMod,
+        rscPayload,
+        clientModules,
+        {
+          ...options,
+          environmentName,
+        },
+        runInContext
+      )
     },
     () => {
       stageController.advanceStage(RenderStage.Dynamic)
@@ -1051,13 +988,16 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     )
 
     if (shouldValidate) {
-      let validationDebugChannelClient: Readable | undefined = undefined
+      let validationDebugChannelClient:
+        | Readable
+        | ReadableStream<Uint8Array>
+        | undefined = undefined
       if (returnedDebugChannel) {
         const readable = returnedDebugChannel.clientSide.readable
         if (readable instanceof ReadableStream) {
           const [t1, t2] = readable.tee()
           returnedDebugChannel.clientSide.readable = t1
-          validationDebugChannelClient = nodeStreamFromReadableStream(t2)
+          validationDebugChannelClient = t2
         } else {
           // Node Readable: tee natively, no web→Node conversion needed
           const [t1, t2] = teeNodeReadable(readable)
@@ -1347,229 +1287,6 @@ async function prospectiveRuntimeServerPrerender(
     return null
   }
 }
-/**
- * Updates the runtime prefetch metadata in the RSC payload as it streams:
- *   "rp":[<sentinel>] -> "rp":[<isPartial>,<staleTime>]
- *
- * We use a transform stream to do this to avoid needing to trigger an additional render.
- * A random sentinel number guarantees no collision with user data.
- */
-function createRuntimePrefetchTransformStream(
-  sentinel: number,
-  isPartial: boolean,
-  staleTime: number
-): TransformStream<Uint8Array, Uint8Array> {
-  const encoder = new TextEncoder()
-
-  // Search for: [<sentinel>]
-  // Replace with: [<isPartial>,<staleTime>]
-  const search = encoder.encode(`[${sentinel}]`)
-  const first = search[0]
-  const replace = encoder.encode(`[${isPartial},${staleTime}]`)
-  const searchLen = search.length
-
-  let currentChunk: Uint8Array | null = null
-  let found = false
-
-  function processChunk(
-    controller: TransformStreamDefaultController<Uint8Array>,
-    nextChunk: null | Uint8Array
-  ) {
-    if (found) {
-      if (nextChunk) {
-        controller.enqueue(nextChunk)
-      }
-      return
-    }
-
-    if (currentChunk) {
-      // We can't search past the index that can contain a full match
-      let exclusiveUpperBound = currentChunk.length - (searchLen - 1)
-      if (nextChunk) {
-        // If we have any overflow bytes we can search up to the chunk's final byte
-        exclusiveUpperBound += Math.min(nextChunk.length, searchLen - 1)
-      }
-      if (exclusiveUpperBound < 1) {
-        // we can't match the current chunk.
-        controller.enqueue(currentChunk)
-        currentChunk = nextChunk // advance so we don't process this chunk again
-        return
-      }
-
-      let currentIndex = currentChunk.indexOf(first)
-
-      // check the current candidate match if it is within the bounds of our search space for the currentChunk
-      candidateLoop: while (
-        -1 < currentIndex &&
-        currentIndex < exclusiveUpperBound
-      ) {
-        // We already know index 0 matches because we used indexOf to find the candidateIndex so we start at index 1
-        let matchIndex = 1
-        while (matchIndex < searchLen) {
-          const candidateIndex = currentIndex + matchIndex
-          const candidateValue =
-            candidateIndex < currentChunk.length
-              ? currentChunk[candidateIndex]
-              : // if we ever hit this condition it is because there is a nextChunk we can read from
-                nextChunk![candidateIndex - currentChunk.length]
-          if (candidateValue !== search[matchIndex]) {
-            // No match, reset and continue the search from the next position
-            currentIndex = currentChunk.indexOf(first, currentIndex + 1)
-            continue candidateLoop
-          }
-          matchIndex++
-        }
-        // We found a complete match. currentIndex is our starting point to replace the value.
-        found = true
-        // enqueue everything up to the match
-        controller.enqueue(currentChunk.subarray(0, currentIndex))
-        // enqueue the replacement value
-        controller.enqueue(replace)
-        // If there are bytes in the currentChunk after the match enqueue them
-        if (currentIndex + searchLen < currentChunk.length) {
-          controller.enqueue(currentChunk.slice(currentIndex + searchLen))
-        }
-        // If we have a next chunk we enqueue it now
-        if (nextChunk) {
-          // if replacement spills over to the next chunk we first exclude the replaced bytes
-          const overflowBytes = currentIndex + searchLen - currentChunk.length
-          const truncatedChunk =
-            overflowBytes > 0 ? nextChunk!.subarray(overflowBytes) : nextChunk
-          controller.enqueue(truncatedChunk)
-        }
-        // We are now in found mode and don't need to track currentChunk anymore
-        currentChunk = null
-        return
-      }
-      // No match found in this chunk, emit it and wait for the next one
-      controller.enqueue(currentChunk)
-    }
-
-    // Advance to the next chunk
-    currentChunk = nextChunk
-  }
-
-  return new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      processChunk(controller, chunk)
-    },
-    flush(controller) {
-      processChunk(controller, null)
-    },
-  })
-}
-
-/**
- * Node.js Transform equivalent of createRuntimePrefetchTransformStream.
- * Performs the same sentinel replacement but using Node.js native streams.
- */
-function createRuntimePrefetchNodeTransform(
-  sentinel: number,
-  isPartial: boolean,
-  staleTime: number
-): Transform {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new Error(
-      'createRuntimePrefetchNodeTransform is not supported in edge runtime'
-    )
-  } else {
-    const { Transform: NodeTransform } =
-      require('node:stream') as typeof import('node:stream')
-    const encoder = new TextEncoder()
-
-    const search = encoder.encode(`[${sentinel}]`)
-    const first = search[0]
-    const replace = encoder.encode(`[${isPartial},${staleTime}]`)
-    const searchLen = search.length
-
-    let currentChunk: Uint8Array | null = null
-    let found = false
-
-    function processChunk(
-      transform: InstanceType<typeof NodeTransform>,
-      nextChunk: null | Uint8Array
-    ) {
-      if (found) {
-        if (nextChunk) {
-          transform.push(nextChunk)
-        }
-        return
-      }
-
-      if (currentChunk) {
-        let exclusiveUpperBound = currentChunk.length - (searchLen - 1)
-        if (nextChunk) {
-          exclusiveUpperBound += Math.min(nextChunk.length, searchLen - 1)
-        }
-        if (exclusiveUpperBound < 1) {
-          transform.push(currentChunk)
-          currentChunk = nextChunk
-          return
-        }
-
-        let currentIndex = currentChunk.indexOf(first)
-
-        candidateLoop: while (
-          -1 < currentIndex &&
-          currentIndex < exclusiveUpperBound
-        ) {
-          let matchIndex = 1
-          while (matchIndex < searchLen) {
-            const candidateIndex = currentIndex + matchIndex
-            const candidateValue =
-              candidateIndex < currentChunk.length
-                ? currentChunk[candidateIndex]
-                : nextChunk![candidateIndex - currentChunk.length]
-            if (candidateValue !== search[matchIndex]) {
-              currentIndex = currentChunk.indexOf(first, currentIndex + 1)
-              continue candidateLoop
-            }
-            matchIndex++
-          }
-          found = true
-          transform.push(currentChunk.subarray(0, currentIndex))
-          transform.push(replace)
-          if (currentIndex + searchLen < currentChunk.length) {
-            transform.push(currentChunk.slice(currentIndex + searchLen))
-          }
-          if (nextChunk) {
-            const overflowBytes = currentIndex + searchLen - currentChunk.length
-            const truncatedChunk =
-              overflowBytes > 0 ? nextChunk!.subarray(overflowBytes) : nextChunk
-            transform.push(truncatedChunk)
-          }
-          currentChunk = null
-          return
-        }
-        transform.push(currentChunk)
-      }
-
-      currentChunk = nextChunk
-    }
-
-    return new NodeTransform({
-      transform(chunk: Uint8Array, _encoding, callback) {
-        try {
-          processChunk(this, chunk)
-          callback()
-          // eslint-disable-next-line @typescript-eslint/no-shadow
-        } catch (error) {
-          callback(error as Error)
-        }
-      },
-      flush(callback) {
-        try {
-          processChunk(this, null)
-          callback()
-          // eslint-disable-next-line @typescript-eslint/no-shadow
-        } catch (error) {
-          callback(error as Error)
-        }
-      },
-    })
-  } // end else (NEXT_RUNTIME !== 'edge')
-}
-
 async function finalRuntimeServerPrerender(
   ctx: AppRenderContext,
   getPayload: () => any,
@@ -1681,26 +1398,12 @@ async function finalRuntimeServerPrerender(
   // Update the RSC payload stream to replace the sentinel with actual values.
   // React has already serialized the payload with the sentinel, so we need to transform the stream.
   const collectedStale = selectStaleTime(finalServerPrerenderStore.stale)
-  if (process.env.__NEXT_USE_NODE_STREAMS) {
-    const { safePipe } =
-      require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-    result.prelude = safePipe(
-      result.prelude as Readable,
-      createRuntimePrefetchNodeTransform(
-        runtimePrefetchSentinel,
-        serverIsDynamic,
-        collectedStale
-      )
-    )
-  } else {
-    result.prelude = (result.prelude as ReadableStream<Uint8Array>).pipeThrough(
-      createRuntimePrefetchTransformStream(
-        runtimePrefetchSentinel,
-        serverIsDynamic,
-        collectedStale
-      )
-    )
-  }
+  result.prelude = pipeRuntimePrefetchTransform(
+    result.prelude as any,
+    runtimePrefetchSentinel,
+    serverIsDynamic,
+    collectedStale
+  ) as typeof result.prelude
 
   return {
     result,
@@ -2484,17 +2187,7 @@ async function renderToHTMLOrFlightImpl(
       metadata.renderResumeDataCache = response.renderResumeDataCache
     }
 
-    let streamString: string
-    if (
-      process.env.NEXT_RUNTIME !== 'edge' &&
-      !(response.stream instanceof ReadableStream)
-    ) {
-      const { nodeStreamToString: nodeToString } =
-        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-      streamString = await nodeToString(response.stream as Readable)
-    } else {
-      streamString = await streamToString(response.stream as ReadableStream)
-    }
+    const streamString = await streamToString(response.stream)
     return new RenderResult(streamString, options)
   } else {
     // We're rendering dynamically
@@ -2859,10 +2552,7 @@ async function renderToStream(
   const {
     basePath,
     buildManifest,
-    ComponentMod: {
-      createElement,
-      renderToReadableStream: serverRenderToReadableStream,
-    },
+    ComponentMod: { createElement },
     crossOrigin,
     dev = false,
     experimental,
@@ -3071,13 +2761,16 @@ async function renderToStream(
             serverComponentsErrorHandler
           )
 
-          let validationDebugChannelClient: Readable | undefined = undefined
+          let validationDebugChannelClient:
+            | Readable
+            | ReadableStream<Uint8Array>
+            | undefined = undefined
           if (returnedDebugChannel) {
             const readable = returnedDebugChannel.clientSide.readable
             if (readable instanceof ReadableStream) {
               const [t1, t2] = readable.tee()
               returnedDebugChannel.clientSide.readable = t1
-              validationDebugChannelClient = nodeStreamFromReadableStream(t2)
+              validationDebugChannelClient = t2
             } else {
               // Node Readable: tee natively, no web→Node conversion needed
               const [t1, t2] = teeNodeReadable(readable)
@@ -3154,63 +2847,22 @@ async function renderToStream(
           setReactDebugChannel(browserChannel, htmlRequestId, requestId)
         }
 
-        if (process.env.__NEXT_USE_NODE_STREAMS) {
-          const flightRenderToPipeableStream = (renderOpts.ComponentMod as any)
-            .renderToPipeableStream
-          if (flightRenderToPipeableStream) {
-            const { renderToFlightPipeableStream } =
-              require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-            reactServerResult = new ReactServerResult(
-              renderToFlightPipeableStream(
-                (...args: any[]) =>
-                  workUnitAsyncStorage.run(
-                    requestStore,
-                    flightRenderToPipeableStream,
-                    ...args
-                  ),
-                RSCPayload,
-                clientModules,
-                {
-                  filterStackFrame,
-                  onError: serverComponentsErrorHandler,
-                  debugChannel: debugChannel?.serverSide,
-                },
-                (fn) => workUnitAsyncStorage.run(requestStore, fn)
-              ),
-              (fn) => workUnitAsyncStorage.run(requestStore, fn)
-            )
-          } else {
-            reactServerResult = new ReactServerResult(
-              workUnitAsyncStorage.run(
-                requestStore,
-                serverRenderToReadableStream,
-                RSCPayload,
-                clientModules,
-                {
-                  filterStackFrame,
-                  onError: serverComponentsErrorHandler,
-                  debugChannel: debugChannel?.serverSide,
-                }
-              ),
-              (fn) => workUnitAsyncStorage.run(requestStore, fn)
-            )
-          }
-        } else {
-          reactServerResult = new ReactServerResult(
-            workUnitAsyncStorage.run(
-              requestStore,
-              serverRenderToReadableStream,
-              RSCPayload,
-              clientModules,
-              {
-                filterStackFrame,
-                onError: serverComponentsErrorHandler,
-                debugChannel: debugChannel?.serverSide,
-              }
-            ),
-            (fn) => workUnitAsyncStorage.run(requestStore, fn)
-          )
-        }
+        const runInContext = <T,>(fn: () => T): T =>
+          workUnitAsyncStorage.run(requestStore, fn)
+        reactServerResult = new ReactServerResult(
+          renderToFlightStream(
+            ctx.componentMod,
+            RSCPayload,
+            clientModules,
+            {
+              filterStackFrame,
+              onError: serverComponentsErrorHandler,
+              debugChannel: debugChannel?.serverSide,
+            },
+            runInContext
+          ),
+          runInContext
+        )
       }
 
       // React doesn't start rendering synchronously but we want the RSC render to have a chance to start
@@ -3225,44 +2877,15 @@ async function renderToStream(
           // We have a complete HTML Document in the prerender but we need to
           // still include the new server component render because it was not included
           // in the static prelude.
-          const teed = reactServerResult.tee()
-
-          if (
-            process.env.__NEXT_USE_NODE_STREAMS &&
-            !(teed instanceof ReadableStream)
-          ) {
-            const { createInlinedDataNodeStream } =
-              require('./use-flight-response') as typeof import('./use-flight-response')
-            const {
-              chainNodeStreams,
-              createDocumentClosingNodeStream,
-              safePipe,
-            } =
-              require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-            const inlinedDataStream = safePipe(
-              teed as Readable,
-              createInlinedDataNodeStream(nonce, formState)
-            )
-
-            if (renderSpan.isRecording()) renderSpan.end()
-            return chainNodeStreams(
-              inlinedDataStream,
-              createDocumentClosingNodeStream()
-            )
-          }
-
-          const inlinedReactServerDataStream = createInlinedDataReadableStream(
-            teed as ReadableStream<Uint8Array>,
+          const inlinedDataStream = createInlinedDataStream(
+            reactServerResult.tee(),
             nonce,
             formState
           )
 
           // End the span since there's no async rendering in this path
           if (renderSpan.isRecording()) renderSpan.end()
-          return chainStreams(
-            inlinedReactServerDataStream,
-            createDocumentClosingStream()
-          )
+          return chainStreams(inlinedDataStream, createDocumentClosingStream())
         } else if (postponedState) {
           // We assume we have dynamic HTML requiring a resume render to complete
           const { postponed, preludeState } =
@@ -3288,86 +2911,23 @@ async function renderToStream(
             tracingMetadata: tracingMetadata,
           })
 
-          // Use Node.js pipeable stream resume when available
-          if (process.env.__NEXT_USE_NODE_STREAMS) {
-            const reactDomServer =
-              require('react-dom/server') as typeof import('react-dom/server')
-            if ('resumeToPipeableStream' in reactDomServer) {
-              const { resumeToFizzPipeableStream } =
-                require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-              const { continueDynamicHTMLResumeNode, safePipe } =
-                require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-
-              const { createInlinedDataNodeStream } =
-                require('./use-flight-response') as typeof import('./use-flight-response')
-              const { stream: htmlNodeStream, allReady } =
-                await resumeToFizzPipeableStream(
-                  (...args: any[]) =>
-                    workUnitAsyncStorage.run(
-                      requestStore,
-                      (reactDomServer as any).resumeToPipeableStream,
-                      ...args
-                    ),
-                  resumeAppElement,
-                  postponed,
-                  { onError: htmlRendererErrorHandler, nonce }
-                )
-
-              allReady.finally(() => {
-                if (renderSpan.isRecording()) renderSpan.end()
-              })
-
-              const consumed = reactServerResult.consume()
-              const { Readable: NodeReadable } =
-                require('node:stream') as typeof import('node:stream')
-              let inlinedDataStream: Readable | ReadableStream<Uint8Array>
-              if (consumed instanceof NodeReadable) {
-                inlinedDataStream = safePipe(
-                  consumed,
-                  createInlinedDataNodeStream(nonce, formState)
-                )
-              } else {
-                inlinedDataStream = createInlinedDataReadableStream(
-                  consumed as ReadableStream<Uint8Array>,
-                  nonce,
-                  formState
-                )
-              }
-
-              return await continueDynamicHTMLResumeNode(htmlNodeStream, {
-                delayDataUntilFirstHtmlChunk:
-                  preludeState === DynamicHTMLPreludeState.Empty,
-                inlinedDataStream: inlinedDataStream as any,
-                getServerInsertedHTML,
-                getServerInsertedMetadata,
-                deploymentId: ctx.sharedContext.deploymentId,
-              })
-            }
-          }
-
-          // Fallback: web stream resume
-          const resume = (
-            require('react-dom/server') as typeof import('react-dom/server')
-          ).resume
-
-          const htmlStream = await workUnitAsyncStorage.run(
-            requestStore,
-            resume,
+          const { stream: htmlStream, allReady } = await resumeToFizzStream(
             resumeAppElement,
             postponed,
-            { onError: htmlRendererErrorHandler, nonce }
+            { onError: htmlRendererErrorHandler, nonce },
+            (fn) => workUnitAsyncStorage.run(requestStore, fn)
           )
 
           // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-          htmlStream.allReady.finally(() => {
+          allReady.finally(() => {
             if (renderSpan.isRecording()) renderSpan.end()
           })
 
           return await continueDynamicHTMLResume(htmlStream, {
             delayDataUntilFirstHtmlChunk:
               preludeState === DynamicHTMLPreludeState.Empty,
-            inlinedDataStream: createInlinedDataReadableStream(
-              reactServerResult.consume() as ReadableStream<Uint8Array>,
+            inlinedDataStream: createInlinedDataStream(
+              reactServerResult.consume(),
               nonce,
               formState
             ),
@@ -3416,87 +2976,25 @@ async function renderToStream(
         formState,
       }
 
-      // Use Node.js pipeable stream rendering when available
-      if (process.env.__NEXT_USE_NODE_STREAMS) {
-        const reactDomServer =
-          require('react-dom/server') as typeof import('react-dom/server')
-        if ('renderToPipeableStream' in reactDomServer) {
-          const { renderToFizzPipeableStream } =
-            require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-          const { continueFizzStreamNode: continueFizzStreamNodeFn, safePipe } =
-            require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-
-          const { createInlinedDataNodeStream } =
-            require('./use-flight-response') as typeof import('./use-flight-response')
-          const { stream: htmlNodeStream, allReady } =
-            await renderToFizzPipeableStream(
-              (...args: any[]) =>
-                workUnitAsyncStorage.run(
-                  requestStore,
-                  (reactDomServer as any).renderToPipeableStream,
-                  ...args
-                ),
-              appElement,
-              fizzOptions
-            )
-
-          allReady.finally(() => {
-            if (renderSpan.isRecording()) renderSpan.end()
-          })
-
-          const consumed = reactServerResult.consume()
-          const { Readable: NodeReadable } =
-            require('node:stream') as typeof import('node:stream')
-          let inlinedDataStream: Readable | ReadableStream<Uint8Array>
-          if (consumed instanceof NodeReadable) {
-            inlinedDataStream = safePipe(
-              consumed,
-              createInlinedDataNodeStream(nonce, formState)
-            )
-          } else {
-            inlinedDataStream = createInlinedDataReadableStream(
-              consumed as ReadableStream<Uint8Array>,
-              nonce,
-              formState
-            )
-          }
-
-          return await continueFizzStreamNodeFn(htmlNodeStream, {
-            inlinedDataStream: inlinedDataStream as any,
-            isStaticGeneration: generateStaticHTML,
-            allReady,
-            deploymentId: ctx.sharedContext.deploymentId,
-            getServerInsertedHTML,
-            getServerInsertedMetadata,
-            validateRootLayout: dev,
-          })
-        }
-      }
-
-      // Fallback: web stream rendering (Edge runtime or if renderToPipeableStream not available)
-      const renderToReadableStream = (
-        require('react-dom/server') as typeof import('react-dom/server')
-      ).renderToReadableStream
-
-      const htmlStream = await workUnitAsyncStorage.run(
-        requestStore,
-        renderToReadableStream,
+      const { stream: htmlStream, allReady } = await renderToFizzStream(
         appElement,
-        fizzOptions
+        fizzOptions,
+        (fn) => workUnitAsyncStorage.run(requestStore, fn)
       )
 
       // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-      htmlStream.allReady.finally(() => {
+      allReady.finally(() => {
         if (renderSpan.isRecording()) renderSpan.end()
       })
 
       return await continueFizzStream(htmlStream, {
-        inlinedDataStream: createInlinedDataReadableStream(
-          reactServerResult.consume() as ReadableStream<Uint8Array>,
+        inlinedDataStream: createInlinedDataStream(
+          reactServerResult.consume(),
           nonce,
           formState
         ),
         isStaticGeneration: generateStaticHTML,
+        allReady,
         deploymentId: ctx.sharedContext.deploymentId,
         getServerInsertedHTML,
         getServerInsertedMetadata,
@@ -3571,9 +3069,7 @@ async function renderToStream(
       )
 
       let errorRSCPayload: InitialRSCPayload
-      let errorServerStream:
-        | ReturnType<typeof serverRenderToReadableStream>
-        | Readable
+      let errorServerStream: import('./stream-ops').AnyStream
 
       try {
         errorRSCPayload = await workUnitAsyncStorage.run(
@@ -3585,51 +3081,16 @@ async function renderToStream(
           errorType
         )
 
-        if (process.env.__NEXT_USE_NODE_STREAMS) {
-          const flightRenderToPipeableStream = (renderOpts.ComponentMod as any)
-            .renderToPipeableStream
-          if (flightRenderToPipeableStream) {
-            const { renderToFlightPipeableStream } =
-              require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-            errorServerStream = renderToFlightPipeableStream(
-              (...args: any[]) =>
-                workUnitAsyncStorage.run(
-                  requestStore,
-                  flightRenderToPipeableStream,
-                  ...args
-                ),
-              errorRSCPayload,
-              clientModules,
-              {
-                filterStackFrame,
-                onError: serverComponentsErrorHandler,
-              },
-              (fn) => workUnitAsyncStorage.run(requestStore, fn)
-            )
-          } else {
-            errorServerStream = workUnitAsyncStorage.run(
-              requestStore,
-              serverRenderToReadableStream,
-              errorRSCPayload,
-              clientModules,
-              {
-                filterStackFrame,
-                onError: serverComponentsErrorHandler,
-              }
-            )
-          }
-        } else {
-          errorServerStream = workUnitAsyncStorage.run(
-            requestStore,
-            serverRenderToReadableStream,
-            errorRSCPayload,
-            clientModules,
-            {
-              filterStackFrame,
-              onError: serverComponentsErrorHandler,
-            }
-          )
-        }
+        errorServerStream = renderToFlightStream(
+          ctx.componentMod,
+          errorRSCPayload,
+          clientModules,
+          {
+            filterStackFrame,
+            onError: serverComponentsErrorHandler,
+          },
+          (fn) => workUnitAsyncStorage.run(requestStore, fn)
+        )
 
         if (reactServerResult === null) {
           // We errored when we did not have an RSC stream to read from. This is not just a render
@@ -3646,120 +3107,35 @@ async function renderToStream(
         const generateStaticHTML =
           supportsDynamicResponse !== true || !!shouldWaitOnAllReady
 
-        // Use Node.js pipeable stream rendering for error path when available
-        if (process.env.__NEXT_USE_NODE_STREAMS) {
-          const reactDomServer =
-            require('react-dom/server') as typeof import('react-dom/server')
-          if ('renderToPipeableStream' in reactDomServer) {
-            const { renderToFizzPipeableStream } =
-              require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-            const {
-              continueFizzStreamNode: continueFizzStreamNodeFn,
-              safePipe,
-            } =
-              require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-
-            const { createInlinedDataNodeStream } =
-              require('./use-flight-response') as typeof import('./use-flight-response')
-
-            const { stream: htmlNodeStream, allReady } =
-              await renderToFizzPipeableStream(
-                (...args: any[]) =>
-                  workUnitAsyncStorage.run(
-                    requestStore,
-                    (reactDomServer as any).renderToPipeableStream,
-                    ...args
-                  ),
-                <ErrorApp
-                  reactServerStream={errorServerStream}
-                  ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                  preinitScripts={errorPreinitScripts}
-                  nonce={nonce}
-                  images={ctx.renderOpts.images}
-                />,
-                {
-                  nonce,
-                  bootstrapScriptContent,
-                  bootstrapScripts: [errorBootstrapScript],
-                  formState,
-                }
-              )
-
-            allReady.finally(() => {
-              if (renderSpan.isRecording()) renderSpan.end()
-            })
-
-            const consumed = reactServerResult.consume()
-            const { Readable: NodeReadable } =
-              require('node:stream') as typeof import('node:stream')
-            let inlinedDataStream: Readable | ReadableStream<Uint8Array>
-            if (consumed instanceof NodeReadable) {
-              inlinedDataStream = safePipe(
-                consumed,
-                createInlinedDataNodeStream(nonce, formState)
-              )
-            } else {
-              inlinedDataStream = createInlinedDataReadableStream(
-                consumed as ReadableStream<Uint8Array>,
-                nonce,
-                formState
-              )
-            }
-
-            return await continueFizzStreamNodeFn(htmlNodeStream, {
-              inlinedDataStream: inlinedDataStream as any,
-              isStaticGeneration: generateStaticHTML,
-              deploymentId: ctx.sharedContext.deploymentId,
-              getServerInsertedHTML: makeGetServerInsertedHTML({
-                polyfills,
-                renderServerInsertedHTML,
-                serverCapturedErrors: [],
-                basePath,
-                tracingMetadata: tracingMetadata,
-              }),
-              getServerInsertedMetadata,
-              validateRootLayout: dev,
-            })
-          }
-        }
-
-        // Fallback: web stream error rendering
-        const fizzStream = await workUnitAsyncStorage.run(
-          requestStore,
-          renderToInitialFizzStream,
-          {
-            ReactDOMServer:
-              require('react-dom/server') as typeof import('react-dom/server'),
-            element: (
-              <ErrorApp
-                reactServerStream={errorServerStream}
-                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                preinitScripts={errorPreinitScripts}
-                nonce={nonce}
-                images={ctx.renderOpts.images}
-              />
-            ),
-            streamOptions: {
+        const { stream: errorHtmlStream, allReady: errorAllReady } =
+          await renderToFizzStream(
+            <ErrorApp
+              reactServerStream={errorServerStream}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              preinitScripts={errorPreinitScripts}
+              nonce={nonce}
+              images={ctx.renderOpts.images}
+            />,
+            {
               nonce,
               bootstrapScriptContent,
-              // Include hydration scripts in the HTML
               bootstrapScripts: [errorBootstrapScript],
               formState,
             },
-          }
-        )
+            (fn) => workUnitAsyncStorage.run(requestStore, fn)
+          )
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-        fizzStream.allReady.finally(() => {
+        errorAllReady.finally(() => {
           if (renderSpan.isRecording()) renderSpan.end()
         })
 
-        return await continueFizzStream(fizzStream, {
-          inlinedDataStream: createInlinedDataReadableStream(
+        return await continueFizzStream(errorHtmlStream, {
+          inlinedDataStream: createInlinedDataStream(
             // This is intentionally using the readable datastream from the
             // main render rather than the flight data from the error page
             // render
-            reactServerResult.consume() as ReadableStream<Uint8Array>,
+            reactServerResult.consume(),
             nonce,
             formState
           ),
@@ -3890,30 +3266,37 @@ async function renderWithRestartOnCacheMissInDev(
           initialStageController.advanceStage(RenderStage.Static)
           startTime = performance.now() + performance.timeOrigin
 
-          if (process.env.__NEXT_USE_NODE_STREAMS) {
-            const { renderToFlightPipeableStream } =
-              require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
+          const runInContext = <T,>(fn: () => T): T =>
+            workUnitAsyncStorage.run(requestStore, fn)
 
-            const stream = renderToFlightPipeableStream(
-              ComponentMod.renderToPipeableStream!,
-              initialRscPayload,
-              clientModules,
-              {
-                onError,
-                environmentName,
-                startTime,
-                filterStackFrame,
-                debugChannel: debugChannel?.serverSide,
-                signal: initialReactController.signal,
-              },
-              (fn) => workUnitAsyncStorage.run(requestStore, fn)
-            )
-            initialReactController.signal.addEventListener('abort', () => {
-              initialDataController.abort(initialReactController.signal.reason)
-            })
+          const stream = renderToFlightStream(
+            ComponentMod,
+            initialRscPayload,
+            clientModules,
+            {
+              onError,
+              environmentName,
+              startTime,
+              filterStackFrame,
+              debugChannel: debugChannel?.serverSide,
+              signal: initialReactController.signal,
+            },
+            runInContext
+          )
+          // If we abort the render, we want to reject the stage-dependent promises as well.
+          // Note that we want to install this listener after the render is started
+          // so that it runs after react is finished running its abort code.
+          initialReactController.signal.addEventListener('abort', () => {
+            initialDataController.abort(initialReactController.signal.reason)
+          })
+
+          if (
+            process.env.__NEXT_USE_NODE_STREAMS &&
+            !(stream instanceof ReadableStream)
+          ) {
             const [continuationStream, accumulatingStream] = teeNodeReadable(
-              stream,
-              (fn) => workUnitAsyncStorage.run(requestStore, fn)
+              stream as import('node:stream').Readable,
+              runInContext
             )
             const accumulatedChunksPromise = accumulateNodeStreamChunks(
               accumulatingStream,
@@ -3926,26 +3309,9 @@ async function renderWithRestartOnCacheMissInDev(
             }
           }
 
-          const stream = ComponentMod.renderToReadableStream(
-            initialRscPayload,
-            clientModules,
-            {
-              onError,
-              environmentName,
-              startTime,
-              filterStackFrame,
-              debugChannel: debugChannel?.serverSide,
-              signal: initialReactController.signal,
-            }
-          )
-          // If we abort the render, we want to reject the stage-dependent promises as well.
-          // Note that we want to install this listener after the render is started
-          // so that it runs after react is finished running its abort code.
-          initialReactController.signal.addEventListener('abort', () => {
-            initialDataController.abort(initialReactController.signal.reason)
-          })
-
-          const [continuationStream, accumulatingStream] = stream.tee()
+          const [continuationStream, accumulatingStream] = (
+            stream as ReadableStream<Uint8Array>
+          ).tee()
           const accumulatedChunksPromise = accumulateStreamChunks(
             accumulatingStream,
             initialStageController,
@@ -4082,27 +3448,30 @@ async function renderWithRestartOnCacheMissInDev(
         finalStageController.advanceStage(RenderStage.Static)
         startTime = performance.now() + performance.timeOrigin
 
-        if (process.env.__NEXT_USE_NODE_STREAMS) {
-          const { renderToFlightPipeableStream } =
-            require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
+        const runInContext = <T,>(fn: () => T): T =>
+          workUnitAsyncStorage.run(requestStore, fn)
 
-          const stream = renderToFlightPipeableStream(
-            ComponentMod.renderToPipeableStream!,
-            finalRscPayload,
-            clientModules,
-            {
-              onError,
-              environmentName,
-              startTime,
-              filterStackFrame,
-              debugChannel: debugChannel?.serverSide,
-            },
-            (fn) => workUnitAsyncStorage.run(requestStore, fn)
-          )
+        const stream = renderToFlightStream(
+          ComponentMod,
+          finalRscPayload,
+          clientModules,
+          {
+            onError,
+            environmentName,
+            startTime,
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+          },
+          runInContext
+        )
 
+        if (
+          process.env.__NEXT_USE_NODE_STREAMS &&
+          !(stream instanceof ReadableStream)
+        ) {
           const [continuationStream, accumulatingStream] = teeNodeReadable(
-            stream,
-            (fn) => workUnitAsyncStorage.run(requestStore, fn)
+            stream as import('node:stream').Readable,
+            runInContext
           )
           const accumulatedChunksPromise = accumulateNodeStreamChunks(
             accumulatingStream,
@@ -4115,19 +3484,9 @@ async function renderWithRestartOnCacheMissInDev(
           }
         }
 
-        const stream = ComponentMod.renderToReadableStream(
-          finalRscPayload,
-          clientModules,
-          {
-            onError,
-            environmentName,
-            startTime,
-            filterStackFrame,
-            debugChannel: debugChannel?.serverSide,
-          }
-        )
-
-        const [continuationStream, accumulatingStream] = stream.tee()
+        const [continuationStream, accumulatingStream] = (
+          stream as ReadableStream<Uint8Array>
+        ).tee()
         const accumulatedChunksPromise = accumulateStreamChunks(
           accumulatingStream,
           finalStageController,
@@ -4347,7 +3706,7 @@ async function logMessagesAndSendErrorsToBrowser(
   messages: unknown[],
   ctx: AppRenderContext
 ): Promise<void> {
-  const { componentMod: ComponentMod, htmlRequestId, renderOpts } = ctx
+  const { htmlRequestId, renderOpts } = ctx
   const { sendErrorsToBrowser } = renderOpts
 
   const errors: Error[] = []
@@ -4378,11 +3737,19 @@ async function logMessagesAndSendErrorsToBrowser(
 
     const { clientModules } = getClientReferenceManifest()
 
-    const errorsRscStream = ComponentMod.renderToReadableStream(
+    const errorsFlightStream = renderToFlightStream(
+      ctx.componentMod,
       errors,
       clientModules,
       { filterStackFrame }
     )
+
+    // sendErrorsToBrowser expects a web ReadableStream. In node-streams mode,
+    // renderToFlightStream returns a Node Readable, so convert it.
+    const errorsRscStream =
+      errorsFlightStream instanceof ReadableStream
+        ? errorsFlightStream
+        : nodeReadableToWeb!(errorsFlightStream as any)
 
     sendErrorsToBrowser(errorsRscStream, htmlRequestId)
   }
@@ -4404,7 +3771,7 @@ async function spawnStaticShellValidationInDev(
   ctx: AppRenderContext,
   requestStore: RequestStore,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  debugChannelClient: Readable | undefined
+  debugChannelClient: Readable | ReadableStream<Uint8Array> | undefined
 ): Promise<void> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -4444,9 +3811,22 @@ async function spawnStaticShellValidationInDev(
   let debugChunks: Uint8Array[] | null = null
   if (debugChannelClient) {
     debugChunks = []
-    debugChannelClient.on('data', (c) => {
-      debugChunks!.push(c)
-    })
+    if (debugChannelClient instanceof ReadableStream) {
+      // Web ReadableStream: pump via reader (non-nodestreams debug channel)
+      const reader = debugChannelClient.getReader()
+      ;(async () => {
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          debugChunks!.push(value)
+        }
+      })()
+    } else {
+      // Node Readable: use .on('data') event listener
+      debugChannelClient.on('data', (c) => {
+        debugChunks!.push(c)
+      })
+    }
   }
 
   const accumulatedChunks = await accumulatedChunksPromise
@@ -6353,67 +5733,24 @@ async function prerenderToStream(
           )
         )
 
-      // Legacy prerender uses Fizz renderToReadableStream / renderToPipeableStream.
-      // The node path uses renderToFizzPipeableStream wrapper; the web path uses
-      // renderToReadableStream directly. Since these Fizz render functions differ
-      // significantly in their return types and calling conventions, we keep the
-      // compile-time branch here.
-      let htmlStream:
-        | ReadableStream<Uint8Array>
-        | import('node:stream').Readable
-      if (process.env.__NEXT_USE_NODE_STREAMS) {
-        const { renderToFizzPipeableStream } =
-          require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-        const reactDomServer =
-          require('react-dom/server') as typeof import('react-dom/server')
-        const { stream } = await renderToFizzPipeableStream(
-          (...args: any[]) =>
-            workUnitAsyncStorage.run(
-              prerenderLegacyStore,
-              (reactDomServer as any).renderToPipeableStream,
-              ...args
-            ),
-          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-          <App
-            reactServerStream={reactServerResult.asUnclosingFlightStream()}
-            reactDebugStream={undefined}
-            debugEndTime={undefined}
-            preinitScripts={preinitScripts}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            nonce={nonce}
-            images={ctx.renderOpts.images}
-          />,
-          {
-            onError: htmlRendererErrorHandler,
-            nonce,
-            bootstrapScripts: [bootstrapScript],
-          }
-        )
-        htmlStream = stream
-      } else {
-        const renderToReadableStream = (
-          require('react-dom/server') as typeof import('react-dom/server')
-        ).renderToReadableStream
-        htmlStream = await workUnitAsyncStorage.run(
-          prerenderLegacyStore,
-          renderToReadableStream,
-          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-          <App
-            reactServerStream={reactServerResult.asUnclosingFlightStream()}
-            reactDebugStream={undefined}
-            debugEndTime={undefined}
-            preinitScripts={preinitScripts}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            nonce={nonce}
-            images={ctx.renderOpts.images}
-          />,
-          {
-            onError: htmlRendererErrorHandler,
-            nonce,
-            bootstrapScripts: [bootstrapScript],
-          }
-        )
-      }
+      const { stream: htmlStream } = await renderToFizzStream(
+        // eslint-disable-next-line @next/internal/no-ambiguous-jsx
+        <App
+          reactServerStream={reactServerResult.asUnclosingFlightStream()}
+          reactDebugStream={undefined}
+          debugEndTime={undefined}
+          preinitScripts={preinitScripts}
+          ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+          nonce={nonce}
+          images={ctx.renderOpts.images}
+        />,
+        {
+          onError: htmlRendererErrorHandler,
+          nonce,
+          bootstrapScripts: [bootstrapScript],
+        },
+        (fn) => workUnitAsyncStorage.run(prerenderLegacyStore, fn)
+      )
 
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(
@@ -6552,159 +5889,41 @@ async function prerenderToStream(
       errorType
     )
 
-    if (process.env.__NEXT_USE_NODE_STREAMS) {
-      const { renderToFlightPipeableStream } =
-        require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-      const { renderToFizzPipeableStream } =
-        require('./pipeable-stream-wrappers') as typeof import('./pipeable-stream-wrappers')
-      const { continueFizzStreamNode: continueFizzStreamNodeFn, safePipe } =
-        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-      const { nodeStreamToBuffer: nodeStreamToBufferFn } =
-        require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-      const { createInlinedDataNodeStream: createInlinedDataNodeStreamFn } =
-        require('./use-flight-response') as typeof import('./use-flight-response')
+    const runInLegacyContext = <T,>(fn: () => T): T =>
+      workUnitAsyncStorage.run(prerenderLegacyStore, fn)
 
-      const errorFlightNodeStream = workUnitAsyncStorage.run(
-        prerenderLegacyStore,
-        renderToFlightPipeableStream,
-        ComponentMod.renderToPipeableStream!,
-        errorRSCPayload,
-        clientModules,
-        {
-          filterStackFrame,
-          onError: serverComponentsErrorHandler,
-        }
-      )
-
-      try {
-        const reactDomServer =
-          require('react-dom/server') as typeof import('react-dom/server')
-        const { stream: htmlNodeStream } = await renderToFizzPipeableStream(
-          (...args: any[]) =>
-            workUnitAsyncStorage.run(
-              prerenderLegacyStore,
-              (reactDomServer as any).renderToPipeableStream,
-              ...args
-            ),
-          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-          <ErrorApp
-            reactServerStream={errorFlightNodeStream}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            preinitScripts={errorPreinitScripts}
-            nonce={nonce}
-            images={ctx.renderOpts.images}
-          />,
-          {
-            nonce,
-            bootstrapScripts: [errorBootstrapScript],
-            formState,
-          }
-        )
-
-        if (shouldGenerateStaticFlightData(workStore)) {
-          const flightData = await nodeStreamToBufferFn(
-            reactServerPrerenderResult.asNodeStream()
-          )
-          metadata.flightData = flightData
-          metadata.segmentData = await collectSegmentData(
-            flightData,
-            prerenderLegacyStore,
-            ComponentMod,
-            renderOpts
-          )
-        }
-
-        const flightNodeStream =
-          reactServerPrerenderResult.consumeAsNodeStream()
-
-        return {
-          digestErrorsMap: reactServerErrorsByDigest,
-          ssrErrors: allCapturedErrors,
-          stream: await continueFizzStreamNodeFn(htmlNodeStream, {
-            inlinedDataStream: safePipe(
-              flightNodeStream,
-              createInlinedDataNodeStreamFn(nonce, formState)
-            ),
-            isStaticGeneration: true,
-            getServerInsertedHTML: makeGetServerInsertedHTML({
-              polyfills,
-              renderServerInsertedHTML,
-              serverCapturedErrors: [],
-              basePath,
-              tracingMetadata: tracingMetadata,
-            }),
-            getServerInsertedMetadata,
-            validateRootLayout: dev,
-            deploymentId: ctx.sharedContext.deploymentId,
-          }),
-          dynamicAccess: null,
-          collectedRevalidate:
-            prerenderStore !== null
-              ? prerenderStore.revalidate
-              : INFINITE_CACHE,
-          collectedExpire:
-            prerenderStore !== null ? prerenderStore.expire : INFINITE_CACHE,
-          collectedStale: selectStaleTime(
-            prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE
-          ),
-          collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
-        }
-      } catch (finalErr: any) {
-        if (
-          process.env.NODE_ENV === 'development' &&
-          isHTTPAccessFallbackError(finalErr)
-        ) {
-          const { bailOnRootNotFound } =
-            require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
-          bailOnRootNotFound()
-        }
-        throw finalErr
-      }
-    }
-
-    const errorServerStream = workUnitAsyncStorage.run(
-      prerenderLegacyStore,
-      ComponentMod.renderToReadableStream,
+    const errorServerStream = renderToFlightStream(
+      ComponentMod,
       errorRSCPayload,
       clientModules,
       {
         filterStackFrame,
         onError: serverComponentsErrorHandler,
-      }
+      },
+      runInLegacyContext
     )
 
     try {
-      // TODO we should use the same prerender semantics that we initially rendered
-      // with in this case too. The only reason why this is ok atm is because it's essentially
-      // an empty page and no user code runs.
-      const fizzStream = await workUnitAsyncStorage.run(
-        prerenderLegacyStore,
-        renderToInitialFizzStream,
+      const { stream: errorHtmlStream } = await renderToFizzStream(
+        // eslint-disable-next-line @next/internal/no-ambiguous-jsx
+        <ErrorApp
+          reactServerStream={errorServerStream}
+          ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+          preinitScripts={errorPreinitScripts}
+          nonce={nonce}
+          images={ctx.renderOpts.images}
+        />,
         {
-          ReactDOMServer:
-            require('react-dom/server') as typeof import('react-dom/server'),
-          element: (
-            // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-            <ErrorApp
-              reactServerStream={errorServerStream}
-              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              preinitScripts={errorPreinitScripts}
-              nonce={nonce}
-              images={ctx.renderOpts.images}
-            />
-          ),
-          streamOptions: {
-            nonce,
-            // Include hydration scripts in the HTML
-            bootstrapScripts: [errorBootstrapScript],
-            formState,
-          },
-        }
+          nonce,
+          bootstrapScripts: [errorBootstrapScript],
+          formState,
+        },
+        runInLegacyContext
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(
-          reactServerPrerenderResult.asStream()
+          reactServerPrerenderResult.asFlightStream()
         )
         metadata.flightData = flightData
         metadata.segmentData = await collectSegmentData(
@@ -6717,15 +5936,13 @@ async function prerenderToStream(
 
       // This is intentionally using the readable datastream from the main
       // render rather than the flight data from the error page render
-      const flightStream = reactServerPrerenderResult.consumeAsStream()
+      const flightStream = reactServerPrerenderResult.consumeAsFlightStream()
 
       return {
-        // Returning the error that was thrown so it can be used to handle
-        // the response in the caller.
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
-        stream: await continueFizzStream(fizzStream, {
-          inlinedDataStream: createInlinedDataReadableStream(
+        stream: await continueFizzStream(errorHtmlStream, {
+          inlinedDataStream: createInlinedDataStream(
             flightStream,
             nonce,
             formState
@@ -6898,31 +6115,4 @@ function WarnForBypassCachesInDev({ route }: { route: string }) {
     `Route ${route} is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev`
   )
   return null
-}
-
-function nodeStreamFromReadableStream<T>(stream: ReadableStream<T>) {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      'nodeStreamFromReadableStream cannot be used in the edge runtime'
-    )
-  } else {
-    const reader = stream.getReader()
-
-    const { Readable } = require('node:stream') as typeof import('node:stream')
-
-    return new Readable({
-      read() {
-        reader
-          .read()
-          .then(({ done, value }) => {
-            if (done) {
-              this.push(null)
-            } else {
-              this.push(value)
-            }
-          })
-          .catch((err) => this.destroy(err))
-      },
-    })
-  }
 }

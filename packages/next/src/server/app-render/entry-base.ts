@@ -9,39 +9,31 @@ export {
   decodeFormState,
 } from 'react-server-dom-webpack/server'
 
-type RenderToPipeableStream = (...args: any[]) => any
-type PrerenderToNodeStream = (...args: any[]) => Promise<{
-  prelude: import('node:stream').Readable
-}>
-
-// Use dynamic require to avoid Turbopack failing to resolve this as a named
-// export from the vendored CJS module.
-export let renderToPipeableStream: RenderToPipeableStream | undefined
-if (process.env.NEXT_RUNTIME === 'nodejs') {
-  /* eslint-disable import/no-extraneous-dependencies */
-  renderToPipeableStream = (
-    require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
-  ).renderToPipeableStream
-  /* eslint-enable import/no-extraneous-dependencies */
-} else {
-  renderToPipeableStream = undefined
-}
-
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { prerender } from 'react-server-dom-webpack/static'
 
-// Use dynamic require to avoid Turbopack failing to resolve this as a named
-// export from the vendored CJS module.
-export let prerenderToNodeStream: PrerenderToNodeStream | undefined
-if (process.env.NEXT_RUNTIME === 'nodejs') {
-  /* eslint-disable import/no-extraneous-dependencies */
+// Node.js-specific Flight APIs, needed by stream-ops.node.ts via ComponentMod.
+// These must be exported from entry-base (react-server layer) because direct
+// imports from react-server-dom-webpack/* fail outside this layer.
+/* eslint-disable import/no-extraneous-dependencies */
+export let renderToPipeableStream:
+  | typeof import('react-server-dom-webpack/server.node').renderToPipeableStream
+  | undefined
+export let prerenderToNodeStream:
+  | typeof import('react-server-dom-webpack/static').prerenderToNodeStream
+  | undefined
+if (process.env.__NEXT_USE_NODE_STREAMS) {
+  renderToPipeableStream = (
+    require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+  ).renderToPipeableStream
   prerenderToNodeStream = (
     require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static')
   ).prerenderToNodeStream
-  /* eslint-enable import/no-extraneous-dependencies */
 } else {
+  renderToPipeableStream = undefined
   prerenderToNodeStream = undefined
 }
+/* eslint-enable import/no-extraneous-dependencies */
 
 // chainNodeStreams is used by the app-page.ts build template for PPR resume.
 // We export it from here (pre-compiled runtime bundle) because the template
@@ -49,7 +41,7 @@ if (process.env.NEXT_RUNTIME === 'nodejs') {
 export let chainNodeStreams:
   | typeof import('../stream-utils/node-stream-helpers').chainNodeStreams
   | undefined
-if (process.env.NEXT_RUNTIME === 'nodejs') {
+if (process.env.__NEXT_USE_NODE_STREAMS) {
   chainNodeStreams = (
     require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
   ).chainNodeStreams

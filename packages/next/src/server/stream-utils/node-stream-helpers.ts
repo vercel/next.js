@@ -833,3 +833,154 @@ export async function continueDynamicHTMLResumeNode(
 export function createDocumentClosingNodeStream(): Readable {
   return nodeStreamFromString(CLOSE_TAG)
 }
+
+// ---------------------------------------------------------------------------
+// Conversion helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts a Node Readable to a web ReadableStream.
+ * Thin wrapper around Node.js Readable.toWeb().
+ */
+export function nodeReadableToWeb(
+  readable: Readable
+): ReadableStream<Uint8Array> {
+  const { Readable: NodeReadable } = getNodeStream()
+  return NodeReadable.toWeb(readable) as ReadableStream<Uint8Array>
+}
+
+/**
+ * Converts a web ReadableStream to a Node Readable.
+ * Useful for instant-validation which expects Node Readables.
+ */
+export function nodeStreamFromReadableStream<T>(
+  stream: ReadableStream<T>
+): Readable {
+  const reader = stream.getReader()
+  const { Readable: NodeReadable } = getNodeStream()
+  return new NodeReadable({
+    read() {
+      reader
+        .read()
+        .then(({ done, value }) => {
+          if (done) {
+            this.push(null)
+          } else {
+            this.push(value)
+          }
+        })
+        .catch((err) => this.destroy(err))
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Runtime prefetch transform (Node.js)
+// ---------------------------------------------------------------------------
+
+/**
+ * Node.js Transform that replaces the runtime prefetch sentinel in an RSC
+ * payload stream: `[<sentinel>]` -> `[<isPartial>,<staleTime>]`.
+ *
+ * This is the Node.js equivalent of createRuntimePrefetchTransformStream
+ * in node-web-streams-helper.ts.
+ */
+export function createRuntimePrefetchNodeTransform(
+  sentinel: number,
+  isPartial: boolean,
+  staleTime: number
+): Transform {
+  const { Transform: NodeTransform } = getNodeStream()
+  const enc = new TextEncoder()
+
+  const search = enc.encode(`[${sentinel}]`)
+  const first = search[0]
+  const replace = enc.encode(`[${isPartial},${staleTime}]`)
+  const searchLen = search.length
+
+  let currentChunk: Uint8Array | null = null
+  let found = false
+
+  function processChunk(
+    transform: InstanceType<typeof NodeTransform>,
+    nextChunk: null | Uint8Array
+  ) {
+    if (found) {
+      if (nextChunk) {
+        transform.push(nextChunk)
+      }
+      return
+    }
+
+    if (currentChunk) {
+      let exclusiveUpperBound = currentChunk.length - (searchLen - 1)
+      if (nextChunk) {
+        exclusiveUpperBound += Math.min(nextChunk.length, searchLen - 1)
+      }
+      if (exclusiveUpperBound < 1) {
+        transform.push(currentChunk)
+        currentChunk = nextChunk
+        return
+      }
+
+      let currentIndex = currentChunk.indexOf(first)
+
+      candidateLoop: while (
+        -1 < currentIndex &&
+        currentIndex < exclusiveUpperBound
+      ) {
+        let matchIndex = 1
+        while (matchIndex < searchLen) {
+          const candidateIndex = currentIndex + matchIndex
+          const candidateValue =
+            candidateIndex < currentChunk.length
+              ? currentChunk[candidateIndex]
+              : nextChunk![candidateIndex - currentChunk.length]
+          if (candidateValue !== search[matchIndex]) {
+            currentIndex = currentChunk.indexOf(first, currentIndex + 1)
+            continue candidateLoop
+          }
+          matchIndex++
+        }
+        found = true
+        transform.push(currentChunk.subarray(0, currentIndex))
+        transform.push(replace)
+        if (currentIndex + searchLen < currentChunk.length) {
+          transform.push(currentChunk.slice(currentIndex + searchLen))
+        }
+        if (nextChunk) {
+          const overflowBytes = currentIndex + searchLen - currentChunk.length
+          const truncatedChunk =
+            overflowBytes > 0 ? nextChunk!.subarray(overflowBytes) : nextChunk
+          transform.push(truncatedChunk)
+        }
+        currentChunk = null
+        return
+      }
+      transform.push(currentChunk)
+    }
+
+    currentChunk = nextChunk
+  }
+
+  return new NodeTransform({
+    transform(chunk: Uint8Array, _encoding, callback) {
+      try {
+        processChunk(this, chunk)
+        callback()
+         
+      } catch (error) {
+        callback(error as Error)
+      }
+    },
+    flush(callback) {
+      try {
+        processChunk(this, null)
+        callback()
+         
+      } catch (error) {
+        callback(error as Error)
+      }
+    },
+  })
+}
