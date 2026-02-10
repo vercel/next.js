@@ -107,6 +107,22 @@ export default function nextJest(options: { dir?: string } = {}) {
         .concat(DEFAULT_TRANSPILED_PACKAGES)
         .join('|')
 
+      // In production, webpack DefinePlugin replaces process.env.__NEXT_IMAGE_OPTS
+      // with an object literal at compile time. Pass the same image config shape
+      // to the SWC transformer so it performs the same compile-time replacement
+      // during Jest transforms.
+      const imageConfig = nextConfig?.images
+        ? {
+            deviceSizes: nextConfig.images.deviceSizes,
+            imageSizes: nextConfig.images.imageSizes,
+            qualities: nextConfig.images.qualities,
+            path: nextConfig.images.path,
+            loader: nextConfig.images.loader,
+            dangerouslyAllowSVG: nextConfig.images.dangerouslyAllowSVG,
+            unoptimized: nextConfig.images.unoptimized,
+          }
+        : undefined
+
       const jestTransformerConfig: JestTransformerConfig = {
         modularizeImports: nextConfig?.modularizeImports,
         swcPlugins: nextConfig?.experimental?.swcPlugins,
@@ -116,11 +132,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         serverComponents,
         isEsmProject,
         pagesDir,
-      }
-      // Populate process.env.__NEXT_IMAGE_OPTS early so the Image component
-      // can read image config in Jest (where there is no webpack define plugin).
-      if (nextConfig?.images) {
-        process.env.__NEXT_IMAGE_OPTS = JSON.stringify(nextConfig.images)
+        imageConfig,
       }
 
       return {

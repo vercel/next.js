@@ -33,12 +33,8 @@ import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
 
-// This is replaced by webpack define plugin.
-// In Jest (no webpack), it is a JSON string set via process.env.
-const configEnv =
-  typeof process.env.__NEXT_IMAGE_OPTS === 'string'
-    ? (JSON.parse(process.env.__NEXT_IMAGE_OPTS) as ImageConfigComplete)
-    : (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete | undefined)
+// This is replaced by webpack define plugin
+const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 
 if (typeof window === 'undefined') {
   ;(globalThis as any).__NEXT_IMAGE_IMPORTED = true
