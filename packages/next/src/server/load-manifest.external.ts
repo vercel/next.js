@@ -122,7 +122,7 @@ export function loadManifestFromRelativePath<T extends object>({
   projectDir: string
   distDir: string
   manifest: string
-  shouldCache?: boolean
+  shouldCache: boolean
   cache?: Map<string, unknown>
   skipParse?: boolean
   handleMissing?: boolean
