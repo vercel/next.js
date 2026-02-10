@@ -1,4 +1,4 @@
-use crate::constants::{MAX_SMALL_VALUE_BLOCK_SIZE, MAX_VALUE_BLOCK_COUNT};
+use crate::constants::{MAX_VALUE_BLOCK_COUNT, MIN_SMALL_VALUE_BLOCK_SIZE};
 
 /// Tracks the number of value blocks that will be created for a set of entries.
 /// Used to prevent exceeding the u16 block index limit in SST files.
@@ -19,11 +19,10 @@ impl ValueBlockCountTracker {
         if is_medium {
             self.value_block_count += 1;
         } else if small_value_size > 0 {
-            if self.current_small_value_block_size + small_value_size > MAX_SMALL_VALUE_BLOCK_SIZE {
+            self.current_small_value_block_size += small_value_size;
+            if self.current_small_value_block_size >= MIN_SMALL_VALUE_BLOCK_SIZE {
                 self.value_block_count += 1;
-                self.current_small_value_block_size = small_value_size;
-            } else {
-                self.current_small_value_block_size += small_value_size;
+                self.current_small_value_block_size = 0;
             }
         }
     }

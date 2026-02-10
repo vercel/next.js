@@ -5,9 +5,9 @@ pub const MAX_MEDIUM_VALUE_SIZE: usize = 64 * 1024 * 1024;
 // Note this must fit into 2 bytes length
 // Note that a medium value has 14 bytes of extra overhead compared to a small value.
 // Note that we want to benefit from better compression by merging small values together, so we can
-// avoid a compression dictionary. Note that medium values can be copied without decompression
-// during compaction.
-pub const MAX_SMALL_VALUE_SIZE: usize = 1024;
+// avoid a compression dictionary. At ≥4kB block size, compression works well without a dictionary.
+// Note that medium values can be copied without decompression during compaction.
+pub const MAX_SMALL_VALUE_SIZE: usize = 4096;
 
 /// Maximum size for inline values stored directly in key blocks.
 /// Currently 8 bytes (break-even with the 8-byte indirection overhead).
@@ -31,8 +31,10 @@ pub const DATA_THRESHOLD_PER_COMPACTED_FILE: usize = 256 * 1024 * 1024;
 /// MAX_ENTRIES_PER_INITIAL_FILE and DATA_THRESHOLD_PER_INITIAL_FILE.
 pub const THREAD_LOCAL_SIZE_SHIFT: usize = 7;
 
-/// The maximum bytes that should go into a single small value block.
-pub const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 4 * MAX_SMALL_VALUE_SIZE;
+/// The minimum bytes that should accumulate before emitting a small value block.
+/// Blocks are emitted once they reach this size, so actual block sizes range from
+/// MIN_SMALL_VALUE_BLOCK_SIZE to MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE.
+pub const MIN_SMALL_VALUE_BLOCK_SIZE: usize = 8 * 1024;
 
 /// Maximum number of value blocks per SST file.
 /// Must leave room for key blocks + index block within u16::MAX total blocks.
