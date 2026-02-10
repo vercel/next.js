@@ -43,12 +43,6 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     type ReadTransaction<'l>;
     fn next_free_task_id(&self) -> Result<TaskId>;
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>>;
-    fn serialize(
-        &self,
-        task: TaskId,
-        data: &TaskStorage,
-        category: SpecificTaskDataCategory,
-    ) -> Result<SmallVec<[u8; 16]>>;
 
     fn save_snapshot<I>(
         &self,
@@ -74,16 +68,6 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         tx: Option<&Self::ReadTransaction<'_>>,
         key: &CachedTaskType,
     ) -> Result<Option<TaskId>>;
-    /// # Safety
-    ///
-    /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn reverse_lookup_task_cache(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_id: TaskId,
-    ) -> Result<Option<Arc<CachedTaskType>>>;
-
-    /// Lookup and decode fields directly into TaskStorage.
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
@@ -136,14 +120,7 @@ where
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
         either::for_both!(self, this => this.uncompleted_operations())
     }
-    fn serialize(
-        &self,
-        task: TaskId,
-        data: &TaskStorage,
-        category: SpecificTaskDataCategory,
-    ) -> Result<SmallVec<[u8; 16]>> {
-        either::for_both!(self, this => this.serialize(task, data, category))
-    }
+
     fn save_snapshot<I>(
         &self,
         operations: Vec<Arc<AnyOperation>>,
@@ -187,23 +164,6 @@ where
             Either::Right(this) => {
                 let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
                 unsafe { this.forward_lookup_task_cache(tx, key) }
-            }
-        }
-    }
-
-    unsafe fn reverse_lookup_task_cache(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        task_id: TaskId,
-    ) -> Result<Option<Arc<CachedTaskType>>> {
-        match self {
-            Either::Left(this) => {
-                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.reverse_lookup_task_cache(tx, task_id) }
-            }
-            Either::Right(this) => {
-                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.reverse_lookup_task_cache(tx, task_id) }
             }
         }
     }

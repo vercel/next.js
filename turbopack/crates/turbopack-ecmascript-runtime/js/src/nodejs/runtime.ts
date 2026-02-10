@@ -27,6 +27,7 @@ interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
   R: ResolvePathFromModule
   x: ExternalRequire
   y: ExternalImport
+  q: ExportUrl
 }
 
 const nodeContextPrototype = Context.prototype as TurbopackNodeBuildContext
@@ -62,6 +63,18 @@ function resolvePathFromModule(
   return url.pathToFileURL(resolved).href
 }
 nodeContextPrototype.R = resolvePathFromModule
+
+/**
+ * Exports a URL value. No suffix is added in Node.js runtime.
+ */
+function exportUrl(
+  this: TurbopackBaseContext<Module>,
+  urlValue: string,
+  id: ModuleId | undefined
+) {
+  exportValue.call(this, urlValue, id)
+}
+nodeContextPrototype.q = exportUrl
 
 function loadRuntimeChunk(sourcePath: ChunkPath, chunkData: ChunkData): void {
   if (typeof chunkData === 'string') {
@@ -178,15 +191,39 @@ function loadWebAssemblyModule(
 }
 contextPrototype.u = loadWebAssemblyModule
 
-function getWorkerURL(
-  _entrypoint: ChunkPath,
-  _moduleChunks: ChunkPath[],
-  _shared: boolean
-): URL {
-  throw new Error('Worker urls are not implemented yet for Node.js')
+/**
+ * Creates a Node.js worker thread by instantiating the given WorkerConstructor
+ * with the appropriate path and options, including forwarded globals.
+ *
+ * @param WorkerConstructor The Worker constructor from worker_threads
+ * @param workerPath Path to the worker entry chunk
+ * @param workerOptions options to pass to the Worker constructor (optional)
+ */
+function createWorker(
+  WorkerConstructor: { new (path: string, options?: object): unknown },
+  workerPath: string,
+  workerOptions?: { workerData?: unknown; [key: string]: unknown }
+): unknown {
+  // Build the forwarded globals object
+  const forwardedGlobals: Record<string, unknown> = {}
+  for (const name of WORKER_FORWARDED_GLOBALS) {
+    forwardedGlobals[name] = (globalThis as Record<string, unknown>)[name]
+  }
+
+  // Merge workerData with forwarded globals
+  const existingWorkerData = workerOptions?.workerData || {}
+  const options = {
+    ...workerOptions,
+    workerData: {
+      ...(typeof existingWorkerData === 'object' ? existingWorkerData : {}),
+      __turbopack_globals__: forwardedGlobals,
+    },
+  }
+
+  return new WorkerConstructor(workerPath, options)
 }
 
-nodeContextPrototype.b = getWorkerURL
+nodeContextPrototype.b = createWorker
 
 function instantiateModule(
   id: ModuleId,

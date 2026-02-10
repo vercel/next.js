@@ -122,7 +122,7 @@ export interface RenderOptsPartial {
     errorsRscStream: ReadableStream<Uint8Array>,
     htmlRequestId: string
   ) => void
-  nextExport?: boolean
+  isBuildTimePrerendering?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError
   isDraftMode?: boolean
@@ -138,6 +138,7 @@ export interface RenderOptsPartial {
     bodySizeLimit?: SizeLimit
     allowedOrigins?: string[]
   }
+  logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
   htmlLimitedBots: string | undefined

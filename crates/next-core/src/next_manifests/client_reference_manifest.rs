@@ -171,8 +171,8 @@ async fn build_manifest(
         let runtime_server_deployment_id_available =
             *next_config.runtime_server_deployment_id_available().await?;
         let suffix_path = if !runtime_server_deployment_id_available {
-            let chunk_suffix_path = next_config.chunk_suffix_path().owned().await?;
-            chunk_suffix_path.unwrap_or_default()
+            let asset_suffix_path = next_config.asset_suffix_path().owned().await?;
+            asset_suffix_path.unwrap_or_default()
         } else {
             rcstr!("")
         };
@@ -199,20 +199,21 @@ async fn build_manifest(
             .try_flat_join()
             .await?;
 
-        let async_modules = async_module_info
-            .is_async_multiple(Vc::cell(
-                client_references_ecmascript
-                    .iter()
-                    .flat_map(|(r, r_val)| {
-                        [
-                            ResolvedVc::upcast(*r),
-                            ResolvedVc::upcast(r_val.client_module),
-                            ResolvedVc::upcast(r_val.ssr_module),
-                        ]
+            let async_modules = client_references_ecmascript
+                .iter()
+                .flat_map(|(r, r_val)| {
+                    [
+                        ResolvedVc::upcast(*r),
+                        ResolvedVc::upcast(r_val.client_module),
+                        ResolvedVc::upcast(r_val.ssr_module),
+                    ]
+                }).map(async move |asset| {
+                    Ok(if async_module_info.is_async(asset).await? {
+                        Some(asset)
+                    } else {
+                        None
                     })
-                    .collect(),
-            ))
-            .await?;
+                }).try_flat_join().await?;
 
         async fn cached_chunk_paths(
             cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath>,

@@ -125,6 +125,12 @@ export class LRUCache<T> {
    */
   public set(key: string, value: T): void {
     const size = this.calculateSize?.(value) ?? 1
+    if (size <= 0) {
+      throw new Error(
+        `LRUCache: calculateSize returned ${size}, but size must be > 0. ` +
+          `Items with size 0 would never be evicted, causing unbounded cache growth.`
+      )
+    }
     if (size > this.maxSize) {
       console.warn('Single item size exceeds maxSize')
       return

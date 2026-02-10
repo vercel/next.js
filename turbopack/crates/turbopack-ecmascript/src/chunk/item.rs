@@ -5,7 +5,8 @@ use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    NonLocalValue, PrettyPrintError, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -14,7 +15,6 @@ use turbopack_core::{
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
     code_builder::{Code, CodeBuilder},
-    error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     output::OutputAssetsReference,
     source_map::utils::{absolute_fileify_source_map, relative_fileify_source_map},
@@ -47,7 +47,9 @@ pub enum RewriteSourcePath {
     None,
 }
 
-#[turbo_tasks::value(shared)]
+// Note we don't want to persist this as `module_factory_with_code_generation_issue` is already
+// persisted and we want to avoid duplicating it.
+#[turbo_tasks::value(shared, serialization = "none")]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
@@ -282,6 +284,7 @@ async fn module_factory_with_code_generation_issue(
                 title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                     .resolved_cell(),
                 message: StyledString::Text(error_message).resolved_cell(),
+                source: None,
             }
             .resolved_cell()
             .emit();

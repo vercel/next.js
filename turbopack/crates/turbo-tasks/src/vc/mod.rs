@@ -32,9 +32,9 @@ pub use self::{
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
 use crate::{
-    CellId, RawVc, ResolveTypeError,
+    CellId, RawVc,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
-    keyed::Keyed,
+    keyed::{KeyedAccess, KeyedEq},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::read::{ReadContainsKeyedVcFuture, ReadKeyedVcFuture},
@@ -506,70 +506,6 @@ where
     }
 }
 
-impl<T> Vc<T>
-where
-    T: VcValueTrait + ?Sized,
-{
-    /// Attempts to sidecast the given `Vc<Box<dyn T>>` to a `Vc<Box<dyn K>>`.
-    /// This operation also resolves the `Vc`.
-    ///
-    /// Returns `None` if the underlying value type does not implement `K`.
-    ///
-    /// **Note:** if the trait T is required to implement K, use
-    /// `Vc::upcast(vc).resolve()` instead. This provides stronger guarantees,
-    /// removing the need for a `Result` return type.
-    pub async fn try_resolve_sidecast<K>(vc: Self) -> Result<Option<Vc<K>>, ResolveTypeError>
-    where
-        K: VcValueTrait + ?Sized,
-    {
-        debug_assert!(
-            <K as VcValueTrait>::get_trait_type_id() != <T as VcValueTrait>::get_trait_type_id(),
-            "Attempted to cast a type {} to itself, which is pointless. Use the value directly \
-             instead.",
-            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id()).global_name
-        );
-        let raw_vc: RawVc = vc.node;
-        let raw_vc = raw_vc
-            .resolve_trait(<K as VcValueTrait>::get_trait_type_id())
-            .await?;
-        Ok(raw_vc.map(|raw_vc| Vc {
-            node: raw_vc,
-            _t: PhantomData,
-        }))
-    }
-
-    /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K`
-    /// is of the form `Box<dyn L>`, and `L` is a value trait.
-    /// This operation also resolves the `Vc`.
-    ///
-    /// Returns `None` if the underlying value type is not a `K`.
-    pub async fn try_resolve_downcast<K>(vc: Self) -> Result<Option<Vc<K>>, ResolveTypeError>
-    where
-        K: UpcastStrict<T> + VcValueTrait + ?Sized,
-    {
-        Self::try_resolve_sidecast(vc).await
-    }
-
-    /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K`
-    /// is a value type.
-    /// This operation also resolves the `Vc`.
-    ///
-    /// Returns `None` if the underlying value type is not a `K`.
-    pub async fn try_resolve_downcast_type<K>(vc: Self) -> Result<Option<Vc<K>>, ResolveTypeError>
-    where
-        K: UpcastStrict<T> + VcValueType,
-    {
-        let raw_vc: RawVc = vc.node;
-        let raw_vc = raw_vc
-            .resolve_value(<K as VcValueType>::get_value_type_id())
-            .await?;
-        Ok(raw_vc.map(|raw_vc| Vc {
-            node: raw_vc,
-            _t: PhantomData,
-        }))
-    }
-}
-
 impl<T> From<RawVc> for Vc<T>
 where
     T: ?Sized,
@@ -674,22 +610,26 @@ where
 impl<T> Vc<T>
 where
     T: VcValueType,
-    VcReadTarget<T>: Keyed,
-    <VcReadTarget<T> as Keyed>::Key: Hash,
+    VcReadTarget<T>: KeyedEq,
 {
     /// Read the value and selects a keyed value from it. Only depends on the used key instead of
     /// the full value.
-    pub fn get<'l>(self, key: &'l <VcReadTarget<T> as Keyed>::Key) -> ReadKeyedVcFuture<'l, T> {
+    pub fn get<'l, Q>(self, key: &'l Q) -> ReadKeyedVcFuture<'l, T, Q>
+    where
+        Q: Hash + ?Sized,
+        VcReadTarget<T>: KeyedAccess<Q>,
+    {
         let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
         future.get(key)
     }
 
     /// Read the value and checks if it contains the given key. Only depends on the used key instead
     /// of the full value.
-    pub fn contains_key<'l>(
-        self,
-        key: &'l <VcReadTarget<T> as Keyed>::Key,
-    ) -> ReadContainsKeyedVcFuture<'l, T> {
+    pub fn contains_key<'l, Q>(self, key: &'l Q) -> ReadContainsKeyedVcFuture<'l, T, Q>
+    where
+        Q: Hash + ?Sized,
+        VcReadTarget<T>: KeyedAccess<Q>,
+    {
         let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
         future.contains_key(key)
     }

@@ -1,16 +1,17 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/5c1d0_turbopack-tests_tests_snapshot_swc_transforms_preset_env_input_index_5aaf1327.js",
     {"otherChunks":["output/turbopack_crates_turbopack-tests_tests_snapshot_e54bacca._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
-if (!Array.isArray(globalThis.TURBOPACK)) {
+if (!Array.isArray(globalThis["TURBOPACK"])) {
     return;
 }
 
 const CHUNK_BASE_PATH = "";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const RUNTIME_PUBLIC_PATH = "";
-const CHUNK_SUFFIX = "";
+const ASSET_SUFFIX = "";
+const WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -798,6 +799,58 @@ function _async_to_generator(fn) {
         });
     };
 }
+function _define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
+function _object_spread(target) {
+    for(var i = 1; i < arguments.length; i++){
+        var source = arguments[i] != null ? arguments[i] : {};
+        var ownKeys = Object.keys(source);
+        if (typeof Object.getOwnPropertySymbols === "function") {
+            ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function(sym) {
+                return Object.getOwnPropertyDescriptor(source, sym).enumerable;
+            }));
+        }
+        ownKeys.forEach(function(key) {
+            _define_property(target, key, source[key]);
+        });
+    }
+    return target;
+}
+function ownKeys(object, enumerableOnly) {
+    var keys = Object.keys(object);
+    if (Object.getOwnPropertySymbols) {
+        var symbols = Object.getOwnPropertySymbols(object);
+        if (enumerableOnly) {
+            symbols = symbols.filter(function(sym) {
+                return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+            });
+        }
+        keys.push.apply(keys, symbols);
+    }
+    return keys;
+}
+function _object_spread_props(target, source) {
+    source = source != null ? source : {};
+    if (Object.getOwnPropertyDescriptors) {
+        Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+        ownKeys(Object(source)).forEach(function(key) {
+            Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+        });
+    }
+    return target;
+}
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
         label: 0,
@@ -1181,31 +1234,68 @@ browserContextPrototype.R = resolvePathFromModule;
 }
 browserContextPrototype.P = resolveAbsolutePath;
 /**
- * Returns a URL for the worker.
+ * Exports a URL with the static suffix appended.
+ */ function exportUrl(url, id) {
+    exportValue.call(this, `${url}${ASSET_SUFFIX}`, id);
+}
+browserContextPrototype.q = exportUrl;
+/**
+ * Creates a worker by instantiating the given WorkerConstructor with the
+ * appropriate URL and options.
+ *
  * The entrypoint is a pre-compiled worker runtime file. The params configure
  * which module chunks to load and which module to run as the entry point.
  *
+ * The params are a JSON array of the following structure:
+ * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
+ *
+ * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint URL path to the worker entrypoint chunk
  * @param moduleChunks list of module chunk paths to load
- * @param shared whether this is a SharedWorker (uses querystring for URL identity)
- */ function getWorkerURL(entrypoint, moduleChunks, shared) {
+ * @param workerOptions options to pass to the Worker constructor (optional)
+ */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
+    var isSharedWorker = WorkerConstructor.name === 'SharedWorker';
+    var chunkUrls = moduleChunks.map(function(chunk) {
+        return getChunkRelativeUrl(chunk);
+    }).reverse();
+    var params = [
+        chunkUrls,
+        ASSET_SUFFIX
+    ];
+    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+    try {
+        for(var _iterator = WORKER_FORWARDED_GLOBALS[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+            var globalName = _step.value;
+            params.push(globalThis[globalName]);
+        }
+    } catch (err) {
+        _didIteratorError = true;
+        _iteratorError = err;
+    } finally{
+        try {
+            if (!_iteratorNormalCompletion && _iterator.return != null) {
+                _iterator.return();
+            }
+        } finally{
+            if (_didIteratorError) {
+                throw _iteratorError;
+            }
+        }
+    }
     var url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
-    var params = {
-        S: CHUNK_SUFFIX,
-        N: globalThis.NEXT_DEPLOYMENT_ID,
-        NC: moduleChunks.map(function(chunk) {
-            return getChunkRelativeUrl(chunk);
-        })
-    };
     var paramsJson = JSON.stringify(params);
-    if (shared) {
+    if (isSharedWorker) {
         url.searchParams.set('params', paramsJson);
     } else {
         url.hash = '#params=' + encodeURIComponent(paramsJson);
     }
-    return url;
+    // Remove type: "module" from options since our worker entrypoint is not a module
+    var options = workerOptions ? _object_spread_props(_object_spread({}, workerOptions), {
+        type: undefined
+    }) : undefined;
+    return new WorkerConstructor(url, options);
 }
-browserContextPrototype.b = getWorkerURL;
+browserContextPrototype.b = createWorker;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
@@ -1216,16 +1306,45 @@ browserContextPrototype.b = getWorkerURL;
  */ function getChunkRelativeUrl(chunkPath) {
     return `${CHUNK_BASE_PATH}${chunkPath.split('/').map(function(p) {
         return encodeURIComponent(p);
-    }).join('/')}${CHUNK_SUFFIX}`;
+    }).join('/')}${ASSET_SUFFIX}`;
 }
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
     }
-    var chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined' ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute('src');
+    var chunkUrl = chunkScript.src;
     var src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
     var path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
+}
+/**
+ * Return the ChunkUrl from a ChunkScript.
+ */ function getUrlFromScript(chunk) {
+    if (typeof chunk === 'string') {
+        return getChunkRelativeUrl(chunk);
+    } else {
+        // This is already exactly what we want
+        return chunk.src;
+    }
+}
+/**
+ * Determine the chunk to register. Note that this function has side-effects!
+ */ function getChunkFromRegistration(chunk) {
+    if (typeof chunk === 'string') {
+        return chunk;
+    } else if (!chunk) {
+        if (typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined') {
+            return {
+                src: TURBOPACK_NEXT_CHUNK_URLS.pop()
+            };
+        } else {
+            throw new Error('chunk path empty but not in a worker');
+        }
+    } else {
+        return {
+            src: chunk.getAttribute('src')
+        };
+    }
 }
 var regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
@@ -1307,7 +1426,7 @@ function instantiateModule(id, sourceType, sourceData) {
 }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function registerChunk(registration) {
-    var chunkPath = getPathFromScript(registration[0]);
+    var chunk = getChunkFromRegistration(registration[0]);
     var runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {
@@ -1316,7 +1435,7 @@ function registerChunk(registration) {
         runtimeParams = undefined;
         installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories);
     }
-    return BACKEND.registerChunk(chunkPath, runtimeParams);
+    return BACKEND.registerChunk(chunk, runtimeParams);
 }
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
@@ -1452,11 +1571,11 @@ function _ts_generator(thisArg, body) {
  * It will be appended to the base runtime code.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime-types.d.ts" />
-function getChunkSuffixFromScriptSrc() {
-    var _self_TURBOPACK_CHUNK_SUFFIX;
+function getAssetSuffixFromScriptSrc() {
+    var _self_TURBOPACK_ASSET_SUFFIX;
     var _document_currentScript_getAttribute, _document_currentScript_getAttribute1, _document_currentScript, _document;
-    // TURBOPACK_CHUNK_SUFFIX is set in web workers
-    return ((_self_TURBOPACK_CHUNK_SUFFIX = self.TURBOPACK_CHUNK_SUFFIX) !== null && _self_TURBOPACK_CHUNK_SUFFIX !== void 0 ? _self_TURBOPACK_CHUNK_SUFFIX : (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute1 = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute1 === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript_getAttribute1.call(_document_currentScript, 'src')) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
+    // TURBOPACK_ASSET_SUFFIX is set in web workers
+    return ((_self_TURBOPACK_ASSET_SUFFIX = self.TURBOPACK_ASSET_SUFFIX) !== null && _self_TURBOPACK_ASSET_SUFFIX !== void 0 ? _self_TURBOPACK_ASSET_SUFFIX : (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute1 = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute1 === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript_getAttribute1.call(_document_currentScript, 'src')) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
 }
 var BACKEND;
 /**
@@ -1464,13 +1583,14 @@ var BACKEND;
  */ var chunkResolvers = new Map();
 (function() {
     BACKEND = {
-        registerChunk: function registerChunk(chunkPath, params) {
+        registerChunk: function registerChunk(chunk, params) {
             return _async_to_generator(function() {
-                var chunkUrl, resolver, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, otherChunkData, otherChunkPath, otherChunkUrl, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleId;
+                var chunkPath, chunkUrl, resolver, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, otherChunkData, otherChunkPath, otherChunkUrl, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleId;
                 return _ts_generator(this, function(_state) {
                     switch(_state.label){
                         case 0:
-                            chunkUrl = getChunkRelativeUrl(chunkPath);
+                            chunkPath = getPathFromScript(chunk);
+                            chunkUrl = getUrlFromScript(chunk);
                             resolver = getOrCreateResolver(chunkUrl);
                             resolver.resolve();
                             if (params == null) {
@@ -1716,8 +1836,8 @@ var BACKEND;
         return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
-const chunksToRegister = globalThis.TURBOPACK;
-globalThis.TURBOPACK = { push: registerChunk };
+const chunksToRegister = globalThis["TURBOPACK"];
+globalThis["TURBOPACK"] = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
 })();
 

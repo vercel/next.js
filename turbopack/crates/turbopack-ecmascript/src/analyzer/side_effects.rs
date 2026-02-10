@@ -94,6 +94,10 @@ static KNOWN_PURE_FUNCTIONS: phf::Map<&'static str, phf::Set<&'static str>> = ph
     "Array" => phf_set! {
         "isArray", "from", "of",
     },
+    // Symbol static methods
+    "Symbol" => phf_set! {
+        "for", "keyFor"
+    },
 };
 
 /// Known pure global functions that can be called directly (not as methods).
@@ -1362,6 +1366,15 @@ mod tests {
         no_side_effects!(
             test_global_symbol_constructor_as_function,
             "const sym = Symbol('description');"
+        );
+
+        // Symbol.for() is pure
+        no_side_effects!(test_symbol_for, "const sym = Symbol.for('description');");
+
+        // Symbol.keyFor() is pure
+        no_side_effects!(
+            test_symbol_key_for,
+            "const description = Symbol.keyFor(sym);"
         );
 
         // Global pure function with impure argument is impure

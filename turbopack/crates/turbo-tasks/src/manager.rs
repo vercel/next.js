@@ -35,7 +35,7 @@ use crate::{
     event::{Event, EventListener},
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
     id_factory::IdFactoryWithReuse,
-    keyed::Keyed,
+    keyed::KeyedEq,
     macro_helpers::NativeFunction,
     magic_any::MagicAny,
     message_queue::{CompilationEvent, CompilationEventQueue},
@@ -1887,20 +1887,6 @@ pub(crate) async fn read_task_output(
     }
 }
 
-pub(crate) async fn read_task_cell(
-    this: &dyn TurboTasksApi,
-    id: TaskId,
-    index: CellId,
-    options: ReadCellOptions,
-) -> Result<TypedCellContent> {
-    loop {
-        match this.try_read_task_cell(id, index, options)? {
-            Ok(result) => return Ok(result),
-            Err(listener) => listener.await,
-        }
-    }
-}
-
 /// A reference to a task's cell with methods that allow updating the contents
 /// of the cell.
 ///
@@ -2040,8 +2026,8 @@ impl CurrentCellRef {
     pub fn keyed_compare_and_update<T>(&self, new_value: T)
     where
         T: PartialEq + VcValueType,
-        VcReadTarget<T>: Keyed,
-        <VcReadTarget<T> as Keyed>::Key: std::hash::Hash,
+        VcReadTarget<T>: KeyedEq,
+        <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
         self.conditional_update(|old_value| {
             let Some(old_value) = old_value else {
@@ -2069,8 +2055,8 @@ impl CurrentCellRef {
         new_shared_reference: SharedReference,
     ) where
         T: VcValueType + PartialEq,
-        VcReadTarget<T>: Keyed,
-        <VcReadTarget<T> as Keyed>::Key: std::hash::Hash,
+        VcReadTarget<T>: KeyedEq,
+        <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
         self.conditional_update_with_shared_reference(|old_sr| {
             let Some(old_sr) = old_sr else {

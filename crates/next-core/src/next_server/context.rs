@@ -15,13 +15,13 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
-        UnusedReferences, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
+        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
-    free_var_references,
+    issue::IssueSeverity,
     module_graph::binding_usage_info::OptionBindingUsageInfo,
     target::CompileTarget,
 };
@@ -73,8 +73,9 @@ use crate::{
     },
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
-        get_transpiled_packages, internal_assets_conditions, load_next_js_jsonc_file,
-        module_styles_rule_condition,
+        free_var_references_with_vercel_system_env_warnings, get_transpiled_packages,
+        internal_assets_conditions, load_next_js_jsonc_file, module_styles_rule_condition,
+        worker_forwarded_globals,
     },
 };
 
@@ -356,8 +357,15 @@ async fn next_server_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileT
 }
 
 #[turbo_tasks::function]
-async fn next_server_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVarReferences>> {
-    Ok(free_var_references!(..defines(&*define_env.await?).into_iter()).cell())
+async fn next_server_free_vars(
+    define_env: Vc<OptionEnvMap>,
+    report_system_env_inlining: Vc<IssueSeverity>,
+) -> Result<Vc<FreeVarReferences>> {
+    Ok(free_var_references_with_vercel_system_env_warnings(
+        defines(&*define_env.await?),
+        *report_system_env_inlining.await?,
+    )
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -365,6 +373,7 @@ pub async fn get_server_compile_time_info(
     cwd: Vc<FileSystemPath>,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
+    report_system_env_inlining: Vc<IssueSeverity>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -379,7 +388,11 @@ pub async fn get_server_compile_time_info(
         .await?,
     )
     .defines(next_server_defines(define_env).to_resolved().await?)
-    .free_var_references(next_server_free_vars(define_env).to_resolved().await?)
+    .free_var_references(
+        next_server_free_vars(define_env, report_system_env_inlining)
+            .to_resolved()
+            .await?,
+    )
     .cell()
     .await
 }
@@ -553,11 +566,11 @@ pub async fn get_server_module_options_context(
 
     // A set of custom ecma transform rules being applied to server context.
     let source_transform_rules: Vec<ModuleRule> = vec![
-        get_swc_ecma_transform_plugin_rule(next_config, project_path.clone()).await?,
-        get_relay_transform_rule(next_config, project_path.clone()).await?,
-        get_emotion_transform_rule(next_config).await?,
-        get_react_remove_properties_transform_rule(next_config).await?,
         get_remove_console_transform_rule(next_config).await?,
+        get_react_remove_properties_transform_rule(next_config).await?,
+        get_emotion_transform_rule(next_config).await?,
+        get_relay_transform_rule(next_config, project_path.clone()).await?,
+        get_swc_ecma_transform_plugin_rule(next_config, project_path.clone()).await?,
     ]
     .into_iter()
     .flatten()
@@ -578,6 +591,7 @@ pub async fn get_server_module_options_context(
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
+            enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
             source_maps,
@@ -620,32 +634,32 @@ pub async fn get_server_module_options_context(
 
     let module_options_context = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
-            next_server_rules.extend(page_transform_rules);
+            next_server_rules.extend(source_transform_rules);
             if let ServerContextType::Pages { .. } = ty {
                 next_server_rules.push(
                     get_next_react_server_components_transform_rule(next_config, false, None)
                         .await?,
                 );
             }
-
-            next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(page_transform_rules);
 
             foreign_next_server_rules.extend(internal_custom_rules);
 
-            let url_rewrite_behavior = Some(
+            let (url_rewrite_behavior, static_url_tag) = {
                 //https://github.com/vercel/next.js/blob/bbb730e5ef10115ed76434f250379f6f53efe998/packages/next/src/build/webpack-config.ts#L1384
                 if let ServerContextType::PagesApi { .. } = ty {
-                    UrlRewriteBehavior::Full
+                    (Some(UrlRewriteBehavior::Full), None)
                 } else {
-                    UrlRewriteBehavior::Relative
-                },
-            );
+                    (Some(UrlRewriteBehavior::Relative), Some(rcstr!("client")))
+                }
+            };
 
             let module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
                     esm_url_rewrite_behavior: url_rewrite_behavior,
                     ..module_options_context.ecmascript
                 },
+                static_url_tag,
                 ..module_options_context
             };
 
@@ -697,12 +711,21 @@ pub async fn get_server_module_options_context(
         ServerContextType::AppSSR { app_dir, .. } => {
             foreign_next_server_rules.extend(internal_custom_rules);
 
-            next_server_rules.extend(page_transform_rules.clone());
+            next_server_rules.extend(source_transform_rules);
             next_server_rules.push(
                 get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
                     .await?,
             );
-            next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(page_transform_rules.clone());
+
+            let module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
+                    ..module_options_context.ecmascript
+                },
+                static_url_tag: Some(rcstr!("client")),
+                ..module_options_context
+            };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
                 module_rules: foreign_next_server_rules.clone(),
@@ -752,8 +775,6 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
-            next_server_rules.extend(page_transform_rules);
-
             let client_directive_transformer = ecmascript_client_reference_transition_name.map(
                 |ecmascript_client_reference_transition_name| {
                     get_ecma_transform_rule(
@@ -766,16 +787,25 @@ pub async fn get_server_module_options_context(
                 },
             );
 
-            foreign_next_server_rules.extend(client_directive_transformer.clone());
             foreign_next_server_rules.extend(internal_custom_rules);
+            foreign_next_server_rules.extend(client_directive_transformer.clone());
 
-            next_server_rules.extend(client_directive_transformer.clone());
+            next_server_rules.extend(source_transform_rules);
             next_server_rules.push(
                 get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
             );
+            next_server_rules.extend(client_directive_transformer.clone());
+            next_server_rules.extend(page_transform_rules);
 
-            next_server_rules.extend(source_transform_rules);
+            let module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
+                    ..module_options_context.ecmascript
+                },
+                static_url_tag: Some(rcstr!("client")),
+                ..module_options_context
+            };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
                 module_rules: foreign_next_server_rules.clone(),
@@ -823,8 +853,6 @@ pub async fn get_server_module_options_context(
             app_dir,
             ecmascript_client_reference_transition_name,
         } => {
-            next_server_rules.extend(source_transform_rules);
-
             let mut common_next_server_rules = vec![
                 get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
@@ -844,6 +872,9 @@ pub async fn get_server_module_options_context(
 
             next_server_rules.extend(common_next_server_rules.iter().cloned());
             internal_custom_rules.extend(common_next_server_rules);
+            foreign_next_server_rules.extend(internal_custom_rules.clone());
+
+            next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
@@ -853,7 +884,7 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
-                module_rules: internal_custom_rules.clone(),
+                module_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -1044,6 +1075,12 @@ pub async fn get_server_chunking_context_with_client_assets(
         next_mode.runtime_type(),
     )
     .asset_prefix(Some(asset_prefix))
+    .url_behavior_override(
+        rcstr!("client"),
+        UrlBehavior {
+            suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+        },
+    )
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -1058,7 +1095,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1129,6 +1167,12 @@ pub async fn get_server_chunking_context(
     .client_roots_override(rcstr!("client"), client_root.clone())
     .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
     .asset_prefix_override(rcstr!("client"), asset_prefix)
+    .url_behavior_override(
+        rcstr!("client"),
+        UrlBehavior {
+            suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+        },
+    )
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
@@ -1142,7 +1186,8 @@ pub async fn get_server_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);

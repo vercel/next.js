@@ -1,6 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Fields, Ident, ItemStruct, Meta, Token, Type, punctuated::Punctuated, spanned::Spanned};
+use syn::{
+    Fields, Ident, ItemStruct, Meta, Token, Type, Visibility, punctuated::Punctuated,
+    spanned::Spanned,
+};
 
 /// Derives the TaskStorage trait and generates optimized storage structures.
 pub fn task_storage(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -42,6 +45,7 @@ fn task_storage_impl(input: TokenStream) -> TokenStream {
 /// along with pre-computed values like the PascalCase variant name.
 #[derive(Debug, Clone)]
 struct FieldInfo {
+    is_pub: bool,
     /// The field's identifier (snake_case)
     field_name: Ident,
     /// The PascalCase variant name for use in LazyField enum
@@ -59,6 +63,12 @@ struct FieldInfo {
     /// If true, use Default::default() semantics instead of Option for inline direct fields.
     /// The field type should be T (not Option<T>), and empty is represented by T::default().
     use_default: bool,
+    /// If true, shrink this collection after task execution completes.
+    /// Empty collections are removed entirely from the lazy vec.
+    shrink_on_completion: bool,
+    /// If true, drop this field entirely after execution completes if the task is immutable.
+    /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
+    drop_on_completion_if_immutable: bool,
 }
 
 impl FieldInfo {
@@ -89,12 +99,13 @@ impl FieldInfo {
 
     /// Generate the full `self.track_modification(...)` call for this field.
     fn track_modification_call(&self) -> TokenStream {
+        let field_name_str = self.field_name.to_string();
         match self.category {
             Category::Data => {
-                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data); }
+                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data, #field_name_str); }
             }
             Category::Meta => {
-                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); }
+                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta, #field_name_str); }
             }
             Category::Transient => {
                 quote! {
@@ -301,9 +312,6 @@ impl FieldInfo {
             proc_macro2::Span::call_site(),
         )
     }
-    fn shrink_ident(&self) -> syn::Ident {
-        self.prefixed_ident("shrink")
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -342,6 +350,7 @@ fn expect_string_literal<'a>(expr: &'a syn::Expr, attr_name: &str) -> Option<&'a
 fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let field_name = field.ident.as_ref().unwrap().clone();
     let field_type = field.ty.clone();
+    let is_pub = matches!(field.vis, Visibility::Public(_));
 
     // Pre-compute the PascalCase variant name once
     let variant_name = syn::Ident::new(&to_pascal_case(&field_name.to_string()), field_name.span());
@@ -352,6 +361,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut inline = false; // Default is lazy (not inline)
     let mut filter_transient = false;
     let mut use_default = false;
+    let mut shrink_on_completion = false;
+    let mut drop_on_completion_if_immutable = false;
 
     // Find and parse the field attribute
     if let Some(attr) = field.attrs.iter().find(|attr| {
@@ -445,19 +456,25 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                         continue;
                     };
 
-                    match ident.to_string().as_str() {
-                        "inline" => inline = true,
-                        "filter_transient" => filter_transient = true,
-                        "default" => use_default = true,
-                        other => {
-                            meta.span()
-                                .unwrap()
-                                .error(format!(
-                                    "unknown modifier `{other}`, expected `inline`, \
-                                     `filter_transient`, or `default`"
-                                ))
-                                .emit();
-                        }
+                    if ident == "inline" {
+                        inline = true;
+                    } else if ident == "filter_transient" {
+                        filter_transient = true;
+                    } else if ident == "default" {
+                        use_default = true;
+                    } else if ident == "shrink_on_completion" {
+                        shrink_on_completion = true;
+                    } else if ident == "drop_on_completion_if_immutable" {
+                        drop_on_completion_if_immutable = true;
+                    } else {
+                        meta.span()
+                            .unwrap()
+                            .error(format!(
+                                "unknown modifier `{ident}`, expected `inline`, \
+                                 `filter_transient`, `default`, `shrink_on_completion`, or \
+                                 `drop_on_completion_if_immutable`"
+                            ))
+                            .emit();
                     }
                 }
                 Meta::List(list) => {
@@ -521,6 +538,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     };
 
     FieldInfo {
+        is_pub,
         field_name,
         variant_name,
         field_type,
@@ -529,6 +547,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         lazy: !inline, // Default is lazy; inline = true means lazy = false
         filter_transient,
         use_default,
+        shrink_on_completion,
+        drop_on_completion_if_immutable,
     }
 }
 
@@ -547,19 +567,6 @@ impl GroupedFields {
     // Flag field iterators
     // =========================================================================
 
-    /// Returns an iterator over all flag fields (persisted first, then transient).
-    /// This ordering is important for bitfield generation.
-    fn all_flags(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.persisted_flags().chain(self.transient_flags())
-    }
-
-    /// Returns an iterator over persisted (non-transient) flag fields.
-    fn persisted_flags(&self) -> impl Iterator<Item = &FieldInfo> {
-        self.fields
-            .iter()
-            .filter(|f| f.is_flag() && !f.is_transient())
-    }
-
     /// Returns an iterator over transient flag fields.
     fn transient_flags(&self) -> impl Iterator<Item = &FieldInfo> {
         self.fields
@@ -567,14 +574,33 @@ impl GroupedFields {
             .filter(|f| f.is_flag() && f.is_transient())
     }
 
-    /// Returns the count of persisted flag fields.
-    fn persisted_flags_count(&self) -> usize {
-        self.persisted_flags().count()
-    }
-
     /// Returns true if there are any flag fields.
     fn has_flags(&self) -> bool {
         self.fields.iter().any(|f| f.is_flag())
+    }
+
+    /// Returns an iterator over persisted meta category flag fields.
+    fn persisted_meta_flags(&self) -> impl Iterator<Item = &FieldInfo> {
+        self.fields
+            .iter()
+            .filter(|f| f.is_flag() && !f.is_transient() && f.category == Category::Meta)
+    }
+
+    /// Returns an iterator over persisted data category flag fields.
+    fn persisted_data_flags(&self) -> impl Iterator<Item = &FieldInfo> {
+        self.fields
+            .iter()
+            .filter(|f| f.is_flag() && !f.is_transient() && f.category == Category::Data)
+    }
+
+    /// Returns the count of persisted meta flag fields.
+    fn persisted_meta_flags_count(&self) -> usize {
+        self.persisted_meta_flags().count()
+    }
+
+    /// Returns the count of persisted data flag fields.
+    fn persisted_data_flags_count(&self) -> usize {
+        self.persisted_data_flags().count()
     }
 
     // =========================================================================
@@ -722,17 +748,42 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
 
 /// Generate the TaskFlags bitfield using the bitfield crate.
 ///
-/// Persisted flags come first (bits 0-N), then transient flags (bits N+1-M).
-/// This allows serializing only the persisted portion.
+/// Flags are ordered as: persisted meta, persisted data, transient.
+/// This allows separate masks for meta and data category serialization.
+///
+/// Bit layout: [meta flags: 0..M] [data flags: M..M+D] [transient: M+D..]
 fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
-    let all_flags: Vec<_> = grouped_fields.all_flags().collect();
+    let all_flags: Vec<_> = grouped_fields
+        .persisted_meta_flags()
+        .chain(grouped_fields.persisted_data_flags())
+        .chain(grouped_fields.transient_flags())
+        .collect();
 
     // If no flags, don't generate the bitfield
     if all_flags.is_empty() {
         return quote! {};
     }
 
-    let persisted_count = grouped_fields.persisted_flags_count();
+    let meta_count = grouped_fields.persisted_meta_flags_count();
+    let data_count = grouped_fields.persisted_data_flags_count();
+    let persisted_count = meta_count + data_count;
+
+    // Ensure counts fit within u16 bitfield (and u8 for individual categories)
+    assert!(
+        meta_count <= 8,
+        "Too many persisted meta flags ({meta_count}), maximum is 8 (though this could be \
+         expanded)"
+    );
+    assert!(
+        data_count <= 8,
+        "Too many persisted data flags ({data_count}), maximum is 8 (though this could be \
+         expanded)"
+    );
+    assert!(
+        all_flags.len() <= 16,
+        "Too many total flags ({}), maximum is 16 (though this could be expanded)",
+        all_flags.len()
+    );
 
     // Generate bitfield accessors
     // Format: pub field_name, set_field_name: bit_index;
@@ -750,14 +801,32 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
         })
         .collect();
 
-    // Generate the persisted bits mask
-    let persisted_mask = (1u16 << persisted_count) - 1;
+    // Generate masks for each category
+    // Meta flags are in bits 0..meta_count
+    // Data flags are in bits meta_count..meta_count+data_count
+    // Combined persisted mask covers both
+    let meta_mask = if meta_count > 0 {
+        (1u16 << meta_count) - 1
+    } else {
+        0
+    };
+    let data_mask = if data_count > 0 {
+        ((1u16 << data_count) - 1) << meta_count
+    } else {
+        0
+    };
+    let persisted_mask = if persisted_count > 0 {
+        (1u16 << persisted_count) - 1
+    } else {
+        0
+    };
 
     quote! {
         bitfield::bitfield! {
             #[doc = "Combined bitfield for task flags."]
-            #[doc = "Persisted flags are in the lower bits (0 to N-1)."]
-            #[doc = "Transient flags are in the higher bits (N and above)."]
+            #[doc = ""]
+            #[doc = "Bit layout: [meta flags: 0..M] [data flags: M..M+D] [transient: M+D..]"]
+            #[doc = "This ordering allows separate masks for per-category serialization."]
             #[derive(Clone, Default, PartialEq, Eq)]
             pub struct TaskFlags(u16);
             impl Debug;
@@ -767,7 +836,13 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
 
         #[automatically_derived]
         impl TaskFlags {
-            #[doc = "Mask for persisted flags (lower bits only)"]
+            #[doc = "Mask for persisted meta flags"]
+            pub const META_MASK: u16 = #meta_mask;
+
+            #[doc = "Mask for persisted data flags"]
+            pub const DATA_MASK: u16 = #data_mask;
+
+            #[doc = "Mask for all persisted flags (meta + data)"]
             pub const PERSISTED_MASK: u16 = #persisted_mask;
 
             #[doc = "Get the raw bits value"]
@@ -775,12 +850,40 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
                 self.0
             }
 
-            #[doc = "Get only the persisted bits (for serialization)"]
+            #[doc = "Get only the persisted meta bits (for meta serialization)"]
+            pub fn persisted_meta_bits(&self) -> u8 {
+                // Meta bits are in the lowest positions (bits 0..meta_count),
+                // and we assert meta_count <= 8, so this fits in a u8
+                (self.0 & Self::META_MASK) as u8
+            }
+
+            #[doc = "Get only the persisted data bits (for data serialization)"]
+            pub fn persisted_data_bits(&self) -> u8 {
+                // Data bits are in positions meta_count..meta_count+data_count,
+                // so we shift right to get them into the low bits.
+                // We assert data_count <= 8, so this fits in a u8
+                ((self.0 & Self::DATA_MASK) >> #meta_count) as u8
+            }
+
+            #[doc = "Get all persisted bits (for serialization)"]
             pub fn persisted_bits(&self) -> u16 {
                 self.0 & Self::PERSISTED_MASK
             }
 
-            #[doc = "Set bits from a raw value, preserving transient flags"]
+            #[doc = "Set meta bits from a raw value, preserving other flags"]
+            pub fn set_persisted_meta_bits(&mut self, bits: u8) {
+                // Meta bits go in the lowest positions (bits 0..meta_count)
+                self.0 = (self.0 & !Self::META_MASK) | (bits as u16 & Self::META_MASK);
+            }
+
+            #[doc = "Set data bits from a raw value, preserving other flags"]
+            pub fn set_persisted_data_bits(&mut self, bits: u8) {
+                // Data bits go in positions meta_count..meta_count+data_count,
+                // so we shift left to place them correctly
+                self.0 = (self.0 & !Self::DATA_MASK) | (((bits as u16) << #meta_count) & Self::DATA_MASK);
+            }
+
+            #[doc = "Set all persisted bits from a raw value, preserving transient flags"]
             pub fn set_persisted_bits(&mut self, bits: u16) {
                 self.0 = (self.0 & !Self::PERSISTED_MASK) | (bits & Self::PERSISTED_MASK);
             }
@@ -952,7 +1055,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         #[doc = "Unified typed storage containing all task fields."]
         #[doc = "This is designed to be embedded in the actual InnerStorage for incremental migration."]
         #[automatically_derived]
-        #[derive(Debug, Default, PartialEq, turbo_tasks::ShrinkToFit)]
+        #[derive(Debug, Default, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
         pub struct TaskStorage {
             #(#field_defs,)*
@@ -1013,6 +1116,11 @@ fn generate_field_accessors(field: &FieldInfo) -> TokenStream {
 fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
+    let vis = if field.is_pub {
+        quote! {pub}
+    } else {
+        quote! {}
+    };
 
     let get_name = field.get_ident();
     let set_name = field.set_ident();
@@ -1022,7 +1130,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
     if field.is_inline() && field.use_default {
         // Inline with default: field is T stored directly, uses Default::default() for "empty"
         quote! {
-            fn #get_name(&self) -> Option<&#field_type> {
+            #vis fn #get_name(&self) -> Option<&#field_type> {
                 if self.#field_name != #field_type::default() {
                     Some(&self.#field_name)
                 } else {
@@ -1030,7 +1138,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
                 }
             }
 
-            fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
+            #vis fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
                 let old = std::mem::replace(&mut self.#field_name, value);
                 if old != #field_type::default() {
                     Some(old)
@@ -1039,7 +1147,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
                 }
             }
 
-            fn #take_name(&mut self) -> Option<#field_type> {
+            #vis fn #take_name(&mut self) -> Option<#field_type> {
                 let old = std::mem::take(&mut self.#field_name);
                 if old != #field_type::default() {
                     Some(old)
@@ -1053,15 +1161,15 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
         let inner_type = extract_option_inner_type(field_type);
 
         quote! {
-            fn #get_name(&self) -> Option<&#inner_type> {
+            #vis fn #get_name(&self) -> Option<&#inner_type> {
                 self.#field_name.as_ref()
             }
 
-            fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
+            #vis fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
                 self.#field_name.replace(value)
             }
 
-            fn #take_name(&mut self) -> Option<#inner_type> {
+            #vis fn #take_name(&mut self) -> Option<#inner_type> {
                 self.#field_name.take()
             }
         }
@@ -1073,16 +1181,16 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
         let constructor = field.lazy_constructor(quote! { value });
 
         quote! {
-            fn #get_name(&self) -> Option<&#field_type> {
+            #vis fn #get_name(&self) -> Option<&#field_type> {
                 self.find_lazy(#extractor)
             }
 
             #[doc = "Set the field value, returning the old value if present."]
-            fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
+            #vis fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
                 self.set_lazy(#matches_closure, #unwrap_owned, #constructor)
             }
 
-            fn #take_name(&mut self) -> Option<#field_type> {
+            #vis fn #take_name(&mut self) -> Option<#field_type> {
                 self.take_lazy(#matches_closure, #unwrap_owned)
             }
 
@@ -1090,7 +1198,7 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
             #[doc = ""]
             #[doc = "Unlike `get_or_create_lazy` for collections, this does NOT allocate"]
             #[doc = "if the field is absent - it returns None instead."]
-            fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
+            #vis fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
                 self.find_lazy_mut(#extractor)
             }
         }
@@ -1106,19 +1214,24 @@ fn generate_collection_field_accessors(
     let ref_name = field.ref_ident();
     let mut_name = field.mut_ident();
     let take_name = field.take_ident();
+    let vis = if field.is_pub {
+        quote! {pub}
+    } else {
+        quote! {}
+    };
 
     if field.is_inline() {
         // Inline: direct field access
         quote! {
-            fn #ref_name(&self) -> &#field_type {
+            #vis fn #ref_name(&self) -> &#field_type {
                 &self.#field_name
             }
 
-            fn #mut_name(&mut self) -> &mut #field_type {
+            #vis fn #mut_name(&mut self) -> &mut #field_type {
                 &mut self.#field_name
             }
 
-            fn #take_name(&mut self) -> #field_type {
+            #vis fn #take_name(&mut self) -> #field_type {
                 std::mem::take(&mut self.#field_name)
             }
         }
@@ -1130,11 +1243,11 @@ fn generate_collection_field_accessors(
         let constructor = field.lazy_constructor(quote! { Default::default() });
 
         quote! {
-            fn #ref_name(&self) -> Option<&#field_type> {
+            #vis fn #ref_name(&self) -> Option<&#field_type> {
                 self.find_lazy(#extractor)
             }
 
-            fn #mut_name(&mut self) -> &mut #field_type {
+            #vis fn #mut_name(&mut self) -> &mut #field_type {
                 self.get_or_create_lazy(
                     #matches_closure,
                     #unwrap_closure,
@@ -1142,7 +1255,7 @@ fn generate_collection_field_accessors(
                 )
             }
 
-            fn #take_name(&mut self) -> Option<#field_type> {
+            #vis fn #take_name(&mut self) -> Option<#field_type> {
                 self.take_lazy(
                     #matches_closure,
                     #unwrap_closure,
@@ -1163,15 +1276,13 @@ fn generate_collection_field_accessors(
 fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> TokenStream {
     let mut trait_methods = TokenStream::new();
 
-    // Generate accessor methods for all non-flag fields (inline and lazy)
-    for field in grouped_fields.all_fields() {
+    // Generate accessor methods for all fields (including flags)
+    for field in &grouped_fields.fields {
         trait_methods.extend(generate_trait_accessor_methods(field));
     }
 
-    // Generate accessor methods for flag fields
-    for field in grouped_fields.all_flags() {
-        trait_methods.extend(generate_flag_trait_accessor_methods(field));
-    }
+    // Generate cleanup_after_execution method
+    let cleanup_method = generate_cleanup_after_execution(grouped_fields);
 
     quote! {
         #[doc = "Trait for typed storage accessors."]
@@ -1198,7 +1309,7 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
             #[doc = "Should be called after confirming that data actually changed."]
             #[doc = "This is separate from `typed_mut()` to allow optimizations where"]
             #[doc = "we only track modifications when something actually changes."]
-            fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory);
+            fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory, name: &str);
 
             #[doc = "Verify that the task was accessed with the correct category before reading/writing."]
             #[doc = ""]
@@ -1221,6 +1332,9 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
             fn shrink_to_fit(&mut self) {
                 self.typed_mut().shrink_to_fit();
             }
+
+
+            #cleanup_method
 
             #trait_methods
 
@@ -1271,12 +1385,10 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             };
 
             let set_ops = generate_autoset_ops(field);
-            let shrink_accessor = generate_shrink_accessor(field);
 
             quote! {
                 #base_accessor
                 #set_ops
-                #shrink_accessor
             }
         }
         StorageType::CounterMap => {
@@ -1306,12 +1418,10 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             };
 
             let countermap_ops = generate_countermap_ops(field);
-            let shrink_accessor = generate_shrink_accessor(field);
 
             quote! {
                 #base_accessor
                 #countermap_ops
-                #shrink_accessor
             }
         }
         StorageType::AutoMap => {
@@ -1340,17 +1450,37 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             };
 
             let automap_ops = generate_automap_ops(field);
-            let shrink_accessor = generate_shrink_accessor(field);
 
             quote! {
                 #base_accessor
                 #automap_ops
-                #shrink_accessor
             }
         }
         StorageType::Flag => {
-            // Flag fields have accessors generated on TaskFlags, not TaskStorageAccessors
-            unreachable!("Flag fields should not reach generate_trait_accessor_methods")
+            // Flag fields are stored in the TaskFlags bitfield
+            let field_name = &field.field_name;
+            let set_name = field.set_ident();
+            let track_modification = field.track_modification_call();
+
+            quote! {
+                #[doc = "Get the flag value"]
+                fn #field_name(&self) -> bool {
+                    #check_access
+                    self.typed().flags.#field_name()
+                }
+
+                #[doc = "Set the flag value"]
+                #[doc = ""]
+                #[doc = "Only tracks modification if the value actually changes."]
+                fn #set_name(&mut self, value: bool) {
+                    #check_access
+                    let current = self.typed().flags.#field_name();
+                    if current != value {
+                        self.typed_mut().flags.#set_name(value);
+                        #track_modification
+                    }
+                }
+            }
         }
     }
 }
@@ -1496,6 +1626,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     let track_modification = field.track_modification_call();
     let mut_expr = field.collection_mut_expr();
     let ref_expr = field.collection_ref_expr();
+
     let take_expr = field.direct_take_expr();
     let is_option = field.is_option_ref();
 
@@ -2009,41 +2140,143 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     }
 }
 
-/// Generate shrink_to_fit accessor for a collection field.
+/// Generate the cleanup_after_execution method that processes lazy fields in a single pass.
 ///
-/// For collection fields (AutoSet, AutoMap, CounterMap), generates a `shrink_{field_name}()`
-/// method that calls `shrink_to_fit()` on the underlying collection.
-///
-/// This does NOT track modifications or check access since shrinking doesn't
-/// semantically change the data - it only reduces memory usage.
-///
-/// For lazy fields, avoids allocation if the collection doesn't exist.
-fn generate_shrink_accessor(field: &FieldInfo) -> TokenStream {
-    let shrink_name = field.shrink_ident();
-    let field_name = &field.field_name;
-    let is_lazy = field.lazy;
+/// This method:
+/// 1. Queries `self.typed().flags.immutable()` once
+/// 2. Shrinks any inline collection fields with `shrink_on_completion`
+/// 3. Uses swap_retain pattern to process all lazy fields in one pass
+/// 4. For fields with `shrink_on_completion`: shrink or remove if empty
+/// 5. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
+fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStream {
+    // Generate shrink calls for inline collection fields with shrink_on_completion
+    let mut inline_shrinks = Vec::new();
+    for field in grouped_fields.all_inline() {
+        if field.is_flag() {
+            continue;
+        }
+        if !field.shrink_on_completion {
+            continue;
+        }
+        // Only collection types can be shrunk
+        let is_collection = matches!(
+            field.storage_type,
+            StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+        );
+        if is_collection {
+            let field_name = &field.field_name;
+            inline_shrinks.push(quote! {
+                typed.#field_name.shrink_to_fit();
+            });
+        }
+    }
 
-    let shrink_body = if is_lazy {
-        // For lazy fields, use find_lazy_mut to avoid allocating
-        let extractor = field.lazy_extractor_closure();
-        quote! {
-            if let Some(collection) = self.typed_mut().find_lazy_mut(#extractor) {
-                collection.shrink_to_fit();
-            }
+    // Generate match arms for lazy fields that have cleanup attributes
+    let mut match_arms = Vec::new();
+
+    for field in grouped_fields.all_lazy() {
+        // Skip flags - they're in the bitfield, not the lazy vec
+        if field.is_flag() {
+            continue;
         }
-    } else {
-        // For inline fields, access the field directly
-        quote! {
-            self.typed_mut().#field_name.shrink_to_fit();
+
+        let variant_name = &field.variant_name;
+        let shrink = field.shrink_on_completion;
+        let drop_if_immutable = field.drop_on_completion_if_immutable;
+
+        // Skip fields with no cleanup attributes
+        if !shrink && !drop_if_immutable {
+            continue;
         }
-    };
+
+        // Determine whether this is a collection type that can be shrunk
+        let is_collection = matches!(
+            field.storage_type,
+            StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+        );
+
+        // Each arm returns bool: true = keep, false = remove
+        let arm_body = match (shrink, drop_if_immutable, is_collection) {
+            // shrink_on_completion + drop_on_completion_if_immutable + collection
+            (true, true, true) => quote! {
+                if is_immutable {
+                    false // drop for immutable tasks
+                } else if c.is_empty() {
+                    false // remove empty
+                } else {
+                    c.shrink_to_fit();
+                    true // keep
+                }
+            },
+            // shrink_on_completion only + collection
+            (true, false, true) => quote! {
+                if c.is_empty() {
+                    false // remove empty
+                } else {
+                    c.shrink_to_fit();
+                    true // keep
+                }
+            },
+            // drop_on_completion_if_immutable only + collection
+            (false, true, true) => quote! {
+                !is_immutable // keep if mutable, drop if immutable
+            },
+            // shrink_on_completion + drop_on_completion_if_immutable + direct value
+            (true, true, false) => quote! {
+                !is_immutable // keep if mutable, drop if immutable
+            },
+            // shrink_on_completion only + direct value (unusual but handle it)
+            (true, false, false) => quote! {
+                true // keep (direct values don't need shrinking)
+            },
+            // drop_on_completion_if_immutable only + direct value
+            (false, true, false) => quote! {
+                !is_immutable // keep if mutable, drop if immutable
+            },
+            // No attributes (shouldn't reach here due to continue above)
+            (false, false, _) => unreachable!(),
+        };
+
+        match_arms.push(quote! {
+            LazyField::#variant_name(c) => #arm_body,
+        });
+    }
 
     quote! {
-        #[doc = "Shrink the collection to fit its current contents, releasing excess memory."]
+        #[doc = "Clean up task storage after execution completes."]
         #[doc = ""]
-        #[doc = "This does NOT track modifications since it doesn't change the data semantically."]
-        fn #shrink_name(&mut self) {
-            #shrink_body
+        #[doc = "This method performs a single pass over lazy fields to:"]
+        #[doc = "- Shrink collections marked with `shrink_on_completion`"]
+        #[doc = "- Remove empty collections"]
+        #[doc = "- Drop fields marked with `drop_on_completion_if_immutable` for immutable tasks"]
+        #[doc = ""]
+        #[doc = "This is more efficient than calling individual shrink_* methods, which would"]
+        #[doc = "each scan the lazy vec separately (O(n²) vs O(n))."]
+        #[doc = ""]
+        #[doc = "Uses swap_remove pattern for O(1) removal (order not preserved)."]
+        fn cleanup_after_execution(&mut self) {
+            let typed = self.typed_mut();
+            let is_immutable = typed.flags.immutable();
+
+            // Shrink inline collection fields (always present, not in lazy vec)
+            #(#inline_shrinks)*
+
+            // swap_retain pattern: iterate with manual index, swap_remove to delete
+            let mut i = 0;
+            while i < typed.lazy.len() {
+                let keep = match &mut typed.lazy[i] {
+                    #(#match_arms)*
+                    // Fields without cleanup attributes - keep as-is
+                    _ => true,
+                };
+                if keep {
+                    i += 1;
+                } else {
+                    typed.lazy.swap_remove(i);
+                }
+            }
+
+            typed.lazy.shrink_to_fit();
         }
     }
 }
@@ -2137,37 +2370,6 @@ fn to_pascal_case(s: &str) -> String {
     s.split('_').map(capitalize).collect::<String>()
 }
 
-/// Generates trait accessor methods for a flag field (stored in TaskFlags bitfield)
-fn generate_flag_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
-    let field_name = &field.field_name;
-    let set_name = field.set_ident();
-
-    // Flags use check_access_call() which handles transient vs non-transient
-    let check_access = field.check_access_call();
-    // All flags modify meta category (they're stored in the flags bitfield which is meta)
-    let track_modification = quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta); };
-
-    quote! {
-        #[doc = "Get the flag value"]
-        fn #field_name(&self) -> bool {
-            #check_access
-            self.typed().flags.#field_name()
-        }
-
-        #[doc = "Set the flag value"]
-        #[doc = ""]
-        #[doc = "Only tracks modification if the value actually changes."]
-        fn #set_name(&mut self, value: bool) {
-            #check_access
-            let current = self.typed().flags.#field_name();
-            if current != value {
-                self.typed_mut().flags.#set_name(value);
-                #track_modification
-            }
-        }
-    }
-}
-
 /// Generate encode body for a category (inline fields + lazy fields).
 fn gen_encode_body(grouped_fields: &GroupedFields, category: Category) -> TokenStream {
     let inline: Vec<_> = grouped_fields
@@ -2212,29 +2414,49 @@ fn gen_decode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
 /// - `decode_data<D>(&mut self, decoder: &mut D)` - Decode data category fields
 ///
 /// Only persistent (non-transient) fields are encoded/decoded.
+/// Flags are encoded/decoded per-category using separate masks.
 fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream {
-    let has_flags = grouped_fields.persisted_flags().next().is_some();
+    let has_meta_flags = grouped_fields.persisted_meta_flags().next().is_some();
+    let has_data_flags = grouped_fields.persisted_data_flags().next().is_some();
 
     let encode_meta_body = gen_encode_body(grouped_fields, Category::Meta);
     let encode_data_body = gen_encode_body(grouped_fields, Category::Data);
     let decode_meta_body = gen_decode_body(grouped_fields, Category::Meta);
     let decode_data_body = gen_decode_body(grouped_fields, Category::Data);
 
-    let encode_flags = if has_flags {
+    let encode_meta_flags = if has_meta_flags {
         quote! {
-            // Encode only the persisted flag bits
-            let persisted_flags = self.flags.persisted_bits();
-            bincode::Encode::encode(&persisted_flags, encoder)?;
+            // Encode only the persisted meta flag bits
+            let meta_flags = self.flags.persisted_meta_bits();
+            bincode::Encode::encode(&meta_flags, encoder)?;
         }
     } else {
         quote! {}
     };
 
-    let decode_flags = if has_flags {
+    let encode_data_flags = if has_data_flags {
         quote! {
-            // Decode only the persisted flag bits, preserving transient bits
-            let persisted_flags: u16 = bincode::Decode::decode(decoder)?;
-            self.flags.set_persisted_bits(persisted_flags);
+            // Encode only the persisted data flag bits
+            let data_flags = self.flags.persisted_data_bits();
+            bincode::Encode::encode(&data_flags, encoder)?;
+        }
+    } else {
+        quote! {}
+    };
+
+    let decode_meta_flags = if has_meta_flags {
+        quote! {
+            // Decode only the persisted meta flag bits, preserving other flags
+            self.flags.set_persisted_meta_bits(bincode::Decode::decode(decoder)?);
+        }
+    } else {
+        quote! {}
+    };
+
+    let decode_data_flags = if has_data_flags {
+        quote! {
+            // Decode only the persisted data flag bits, preserving other flags
+            self.flags.set_persisted_data_bits(bincode::Decode::decode(decoder)?);
         }
     } else {
         quote! {}
@@ -2250,7 +2472,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 encoder: &mut E,
             ) -> Result<(), bincode::error::EncodeError> {
                 #encode_meta_body
-                #encode_flags
+                #encode_meta_flags
                 Ok(())
             }
 
@@ -2261,6 +2483,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 encoder: &mut E,
             ) -> Result<(), bincode::error::EncodeError> {
                 #encode_data_body
+                #encode_data_flags
                 Ok(())
             }
 
@@ -2271,7 +2494,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 decoder: &mut D,
             ) -> Result<(), bincode::error::DecodeError> {
                 #decode_meta_body
-                #decode_flags
+                #decode_meta_flags
                 Ok(())
             }
 
@@ -2282,6 +2505,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 decoder: &mut D,
             ) -> Result<(), bincode::error::DecodeError> {
                 #decode_data_body
+                #decode_data_flags
                 Ok(())
             }
         }
@@ -2581,7 +2805,9 @@ fn gen_restore_inline_for_category(
 /// - `restore_data_from(&mut self, source)` - Restore data fields from source
 /// - `restore_all_from(&mut self, source)` - Restore all fields from source
 fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStream {
-    let has_flags = grouped_fields.persisted_flags().next().is_some();
+    let has_meta_flags = grouped_fields.persisted_meta_flags().next().is_some();
+    let has_data_flags = grouped_fields.persisted_data_flags().next().is_some();
+    let has_any_flags = has_meta_flags || has_data_flags;
 
     // Generate field operations by category
     let clone_meta_inline = gen_clone_inline_for_category(grouped_fields, Category::Meta);
@@ -2592,21 +2818,57 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
     let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
 
-    // Generate flags handling for clone/merge
-    let clone_meta_flags = if has_flags {
+    // Generate flags handling for clone - per category
+    let clone_meta_flags = if has_meta_flags {
         quote! {
-            // Clone persisted flags
+            // Clone persisted meta flags
+            snapshot.flags.set_persisted_meta_bits(self.flags.persisted_meta_bits());
+        }
+    } else {
+        quote! {}
+    };
+
+    let clone_data_flags = if has_data_flags {
+        quote! {
+            // Clone persisted data flags
+            snapshot.flags.set_persisted_data_bits(self.flags.persisted_data_bits());
+        }
+    } else {
+        quote! {}
+    };
+
+    let clone_all_flags = if has_any_flags {
+        quote! {
+            // Clone all persisted flags
             snapshot.flags.set_persisted_bits(self.flags.persisted_bits());
         }
     } else {
         quote! {}
     };
 
-    let restore_flags = if has_flags {
+    // Generate flags handling for restore - per category
+    let restore_meta_flags = if has_meta_flags {
         quote! {
-            // Restore persisted flags (preserve transient flags)
-            let persisted_bits = source.flags.persisted_bits();
-            self.flags.set_persisted_bits(persisted_bits);
+            // Restore persisted meta flags (preserve other flags)
+            self.flags.set_persisted_meta_bits(source.flags.persisted_meta_bits());
+        }
+    } else {
+        quote! {}
+    };
+
+    let restore_data_flags = if has_data_flags {
+        quote! {
+            // Restore persisted data flags (preserve other flags)
+            self.flags.set_persisted_data_bits(source.flags.persisted_data_bits());
+        }
+    } else {
+        quote! {}
+    };
+
+    let restore_all_flags = if has_any_flags {
+        quote! {
+            // Restore all persisted flags (preserve transient flags)
+            self.flags.set_persisted_bits(source.flags.persisted_bits());
         }
     } else {
         quote! {}
@@ -2629,7 +2891,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 // Clone inline data fields
                 #(#clone_data_inline)*
 
-                #clone_meta_flags
+                #clone_all_flags
 
                 // Clone all persistent lazy fields (both meta and data)
                 for field in &self.lazy {
@@ -2677,6 +2939,8 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
                 // Clone inline data fields
                 #(#clone_data_inline)*
+
+                #clone_data_flags
 
                 // Clone lazy data fields (only persistent ones)
                 for field in &self.lazy {
@@ -2733,7 +2997,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 // Inline meta fields - direct assignment
                 #(#restore_meta_inline)*
 
-                #restore_flags
+                #restore_meta_flags
 
                 // Extend lazy vec with persistent meta fields from source
                 self.lazy.extend(
@@ -2754,6 +3018,8 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
                 // Inline data fields - direct assignment
                 #(#restore_data_inline)*
+
+                #restore_data_flags
 
                 // Extend lazy vec with persistent data fields from source
                 self.lazy.extend(
@@ -2778,7 +3044,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 // Inline data fields - direct assignment
                 #(#restore_data_inline)*
 
-                #restore_flags
+                #restore_all_flags
 
                 // Extend lazy vec with all persistent fields from source
                 self.lazy.extend(
