@@ -10,7 +10,6 @@ error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url
       10 |   background-image: url('missing3.png');
       11 | }
       12 | 
-      13 | 
   
   
   

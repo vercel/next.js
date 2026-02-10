@@ -86,22 +86,6 @@ impl<'a> ModuleReferencesVisitor<'a> {
     }
 }
 
-fn convert_loc(source: ResolvedVc<Box<dyn Source>>, line: u32, column: u32) -> IssueSource {
-    // Convert from 1-based to 0-based indexing.
-    IssueSource::from_line_col(
-        source,
-        SourcePos {
-            line: line - 1,
-            column: column - 1,
-        },
-        SourcePos {
-            line: line - 1,
-            // The IssueSource end column is exclusive, so -1+1=0
-            column,
-        },
-    )
-}
-
 impl Visitor<'_> for ModuleReferencesVisitor<'_> {
     type Error = Infallible;
 
@@ -121,7 +105,13 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                     Request::parse(RcStr::from(src).into()),
                     ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).cell(),
                     self.import_context.map(|ctx| *ctx),
-                    convert_loc(self.source, issue_span.line, issue_span.column),
+                    IssueSource::from_single_line_col(
+                        self.source,
+                        SourcePos {
+                            line: issue_span.line,
+                            column: issue_span.column - 1,
+                        },
+                    ),
                 )));
 
                 *rule = CssRule::Ignored;
@@ -146,7 +136,13 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
             let vc = UrlAssetReference::new(
                 *self.origin,
                 Request::parse(RcStr::from(src).into()),
-                convert_loc(self.source, issue_span.line, issue_span.column),
+                IssueSource::from_single_line_col(
+                    self.source,
+                    SourcePos {
+                        line: issue_span.line - 1,
+                        column: issue_span.column - 1,
+                    },
+                ),
             );
 
             self.references.push(Vc::upcast(vc));

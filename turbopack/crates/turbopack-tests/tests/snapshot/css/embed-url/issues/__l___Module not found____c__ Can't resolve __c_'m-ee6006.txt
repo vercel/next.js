@@ -9,7 +9,6 @@ error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url
          +                     ^
       11 | }
       12 | 
-      13 | 
   
   
   
