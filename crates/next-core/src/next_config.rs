@@ -1399,6 +1399,9 @@ pub struct OptionFileSystemPath(Option<FileSystemPath>);
 pub struct OptionServerActions(Option<ServerActions>);
 
 #[turbo_tasks::value(transparent)]
+pub struct IgnoreIssues(Vec<IgnoreIssue>);
+
+#[turbo_tasks::value(transparent)]
 pub struct OptionJsonValue(
     #[bincode(with = "turbo_bincode::serde_self_describing")] pub Option<serde_json::Value>,
 );
@@ -2191,13 +2194,13 @@ impl NextConfig {
             ),
         }
     }
-}
 
-impl NextConfig {
     /// Returns the list of ignore-issue rules from the experimental config,
     /// converted to the `IgnoreIssue` type used by `IssueFilter`.
-    pub fn turbopack_ignore_issue_rules(&self) -> Result<Vec<IgnoreIssue>> {
-        self.experimental
+    #[turbo_tasks::function]
+    pub fn turbopack_ignore_issue_rules(&self) -> Result<Vc<IgnoreIssues>> {
+        let rules = self
+            .experimental
             .turbopack_ignore_issue
             .as_deref()
             .unwrap_or_default()
@@ -2217,7 +2220,8 @@ impl NextConfig {
                         .transpose()?,
                 })
             })
-            .collect()
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Vc::cell(rules))
     }
 }
 

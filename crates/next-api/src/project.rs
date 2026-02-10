@@ -1090,10 +1090,9 @@ impl Project {
     /// `experimental.turbopackIgnoreIssue` rules from the Next.js config.
     #[turbo_tasks::function]
     pub async fn issue_filter(self: Vc<Self>) -> Result<Vc<IssueFilter>> {
-        let next_config = self.next_config().await?;
-        let ignore_rules = next_config.turbopack_ignore_issue_rules()?;
+        let ignore_rules = self.next_config().turbopack_ignore_issue_rules().await?;
         Ok(IssueFilter::warnings_and_foreign_errors()
-            .with_ignore_rules(ignore_rules)
+            .with_ignore_rules(ignore_rules.to_vec())
             .cell())
     }
 
