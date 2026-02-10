@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_aec19b5a.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_aec19b5a.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 if ("TURBOPACK compile-time truthy", 1) {
@@ -58,6 +58,11 @@ if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 ("TURBOPACK compile-time value", "development") != 'production' && console.log('development');
 ("TURBOPACK compile-time value", "development") == 'production' && console.log('production');
 console.log(("TURBOPACK compile-time value", "/ROOT/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input"));
+// Test that WARNED_VALUE triggers a warning but still gets replaced
+console.log(("TURBOPACK compile-time value", "replacement"));
+if (("TURBOPACK compile-time value", "replacement") === 'replacement') {
+    console.log('warning replacement works');
+}
 }),
 ]);
 

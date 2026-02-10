@@ -32,9 +32,7 @@ pub use server_actions::get_server_actions_transform_rule;
 use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
-use turbopack_core::reference_type::{
-    EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType,
-};
+use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
 
 use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
@@ -123,25 +121,6 @@ pub(crate) fn module_rule_match_pages_page_file(
         module_rule_match_js_no_url(enable_mdx_rs),
         RuleCondition::ResourcePathInExactDirectory(pages_directory),
     ])
-}
-
-pub(crate) fn get_import_type_bytes_rule() -> ModuleRule {
-    // Move this into turbopack once the feature is standardized
-    ModuleRule::new(
-        RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
-        )),
-        vec![ModuleRuleEffect::ModuleType(ModuleType::InlinedBytesJs)],
-    )
-}
-
-pub(crate) fn get_import_type_json_rule() -> ModuleRule {
-    ModuleRule::new(
-        RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::ImportWithType("json".into()),
-        )),
-        vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
-    )
 }
 
 pub(crate) enum EcmascriptTransformStage {

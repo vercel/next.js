@@ -23,6 +23,12 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  createVaryParamsAccumulator,
+  emptyVaryParamsAccumulator,
+  getVaryParamsThenable,
+  type VaryParamsAccumulator,
+} from './vary-params'
 import type {
   UseCacheLayoutProps,
   UseCachePageProps,
@@ -219,11 +225,14 @@ async function createComponentTreeInternal(
       })
     : []
 
-  const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
+  const instantConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
     : undefined
   /** Whether this segment should use a runtime prefetch instead of a static prefetch. */
-  const hasRuntimePrefetch = prefetchConfig?.mode === 'runtime'
+  const hasRuntimePrefetch =
+    instantConfig && typeof instantConfig === 'object'
+      ? instantConfig.prefetch === 'runtime'
+      : false
 
   const [Forbidden, forbiddenStyles] =
     authInterrupts && forbidden
@@ -713,7 +722,10 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch
+      hasRuntimePrefetch,
+      // No user-provided component, so no params will be accessed. Use the
+      // pre-resolved empty tracker.
+      emptyVaryParamsAccumulator
     )
   }
 
@@ -750,11 +762,21 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       true,
-      hasRuntimePrefetch
+      hasRuntimePrefetch,
+      // force-dynamic postpones without rendering the component, so no params
+      // are accessed. The vary params are empty.
+      emptyVaryParamsAccumulator
     )
   }
 
   const isClientComponent = isClientReference(layoutOrPageMod)
+
+  const varyParamsAccumulator =
+    isClientComponent && cacheComponents
+      ? // Client components with Cache Components enabled don't receive params
+        // from the server, so they have an empty vary params set.
+        emptyVaryParamsAccumulator
+      : createVaryParamsAccumulator()
 
   if (
     process.env.NODE_ENV === 'development' &&
@@ -806,13 +828,18 @@ async function createComponentTreeInternal(
       // their usage in case the current render mode tracks dynamic API usage.
       const params = createServerParamsForServerSegment(
         currentParams,
-        workStore
+        workStore,
+        varyParamsAccumulator
       )
 
       // If we are passing searchParams to a server component Page we need to
       // track their usage in case the current render mode tracks dynamic API
       // usage.
-      let searchParams = createServerSearchParamsForServerPage(query, workStore)
+      let searchParams = createServerSearchParamsForServerPage(
+        query,
+        workStore,
+        varyParamsAccumulator
+      )
 
       if (isUseCacheFunction(PageComponent)) {
         const UseCachePageComponent: ComponentType<UseCachePageProps> =
@@ -863,7 +890,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch
+      hasRuntimePrefetch,
+      varyParamsAccumulator
     )
   } else {
     const SegmentComponent = Component
@@ -981,7 +1009,8 @@ async function createComponentTreeInternal(
     } else {
       const params = createServerParamsForServerSegment(
         currentParams,
-        workStore
+        workStore,
+        varyParamsAccumulator
       )
 
       let serverSegment: React.ReactNode
@@ -1076,7 +1105,8 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      hasRuntimePrefetch
+      hasRuntimePrefetch,
+      varyParamsAccumulator
     )
   }
 }
@@ -1227,7 +1257,8 @@ function createSeedData(
   parallelRoutes: Record<string, CacheNodeSeedData | null>,
   loading: LoadingModuleData | null,
   isPossiblyPartialResponse: boolean,
-  hasRuntimePrefetch: boolean
+  hasRuntimePrefetch: boolean,
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): CacheNodeSeedData {
   if (loading !== null) {
     // If a loading.tsx boundary is present, wrap the component data in an
@@ -1248,5 +1279,6 @@ function createSeedData(
     null,
     isPossiblyPartialResponse,
     hasRuntimePrefetch,
+    varyParamsAccumulator ? getVaryParamsThenable(varyParamsAccumulator) : null,
   ]
 }

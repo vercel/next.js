@@ -19,7 +19,8 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
-        ExternalType, ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve,
+        ExternalType, ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request,
+        url_resolve,
     },
 };
 
@@ -59,7 +60,7 @@ pub struct UrlAssetReference {
     request: ResolvedVc<Request>,
     rendering: Rendering,
     issue_source: IssueSource,
-    in_try: bool,
+    error_mode: ResolveErrorMode,
     url_rewrite_behavior: UrlRewriteBehavior,
 }
 
@@ -69,7 +70,7 @@ impl UrlAssetReference {
         request: ResolvedVc<Request>,
         rendering: Rendering,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         url_rewrite_behavior: UrlRewriteBehavior,
     ) -> Self {
         UrlAssetReference {
@@ -77,7 +78,7 @@ impl UrlAssetReference {
             request,
             rendering,
             issue_source,
-            in_try,
+            error_mode,
             url_rewrite_behavior,
         }
     }
@@ -96,7 +97,7 @@ impl ModuleReference for UrlAssetReference {
             *self.request,
             ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl),
             Some(self.issue_source),
-            self.in_try,
+            self.error_mode,
         )
     }
 }

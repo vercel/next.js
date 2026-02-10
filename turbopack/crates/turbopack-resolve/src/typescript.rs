@@ -15,7 +15,7 @@ use turbopack_core::{
     },
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
-        AliasPattern, ModuleResolveResult, RequestKey, handle_resolve_error,
+        AliasPattern, ModuleResolveResult, RequestKey, ResolveErrorMode, handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
@@ -472,7 +472,16 @@ pub async fn type_resolve(
             .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
-    handle_resolve_error(result, ty, origin, request, options, false, None).await
+    handle_resolve_error(
+        result,
+        ty,
+        origin,
+        request,
+        options,
+        ResolveErrorMode::Error,
+        None,
+    )
+    .await
 }
 
 #[turbo_tasks::function]

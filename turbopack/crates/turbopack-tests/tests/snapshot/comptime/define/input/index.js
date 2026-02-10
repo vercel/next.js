@@ -61,3 +61,9 @@ p.env.NODE_ENV != 'production' && console.log('development')
 p.env.NODE_ENV == 'production' && console.log('production')
 
 console.log(__dirname)
+
+// Test that WARNED_VALUE triggers a warning but still gets replaced
+console.log(WARNED_VALUE)
+if (WARNED_VALUE === 'replacement') {
+  console.log('warning replacement works')
+}
