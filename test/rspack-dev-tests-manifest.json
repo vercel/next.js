@@ -10021,11 +10021,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
-    "passed": [
-      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set",
-      "use-cache-without-experimental-flag should show a build error"
+    "passed": ["use-cache-without-experimental-flag should show a build error"],
+    "failed": [
+      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
