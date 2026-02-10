@@ -21,6 +21,44 @@ module.exports = async function () {
   const mjsTitle = mjsConfig.mjsTitle
   const mjsEsmLabel = mjsConfig.esmLabel
 
+  // --- resolveAlias tests ---
+  let aliasValue = 'unsupported'
+  let aliasDepLabel = 'unsupported'
+  try {
+    // importModule with alias as the request
+    const aliasModule = await this.importModule('alias-data')
+    const aliasData = aliasModule.default || aliasModule
+    aliasValue = aliasData.aliasValue
+
+    // importModule on a module whose dependency uses an alias
+    const aliasConfigPath = path.resolve(__dirname, 'alias-config.mjs')
+    const aliasConfigModule = await this.importModule(aliasConfigPath)
+    const aliasConfig = aliasConfigModule.default || aliasConfigModule
+    aliasDepLabel = aliasConfig.depLabel
+  } catch (e) {
+    // resolveAlias may not be supported in all contexts
+    console.error('resolveAlias importModule failed:', e)
+  }
+
+  // --- loader rules tests ---
+  let customDataValue = 'unsupported'
+  let consumedValue = 'unsupported'
+  try {
+    // importModule on a file that requires a custom loader rule
+    const customDataPath = path.resolve(__dirname, 'values.custom-data')
+    const customDataModule = await this.importModule(customDataPath)
+    customDataValue = customDataModule.default || customDataModule
+
+    // importModule on a module whose dependency needs a custom loader rule
+    const dataConsumerPath = path.resolve(__dirname, 'data-consumer.mjs')
+    const dataConsumerModule = await this.importModule(dataConsumerPath)
+    const dataConsumer = dataConsumerModule.default || dataConsumerModule
+    consumedValue = dataConsumer.consumedValue
+  } catch (e) {
+    // loader rules may not be supported in importModule in all contexts
+    console.error('loader rules importModule failed:', e)
+  }
+
   // Try importing the wasm+URL+dynamic-import module (supported in
   // Turbopack, not in webpack's importModule)
   let imageUrl = 'unsupported'
@@ -61,5 +99,9 @@ module.exports = async function () {
     export const mjsImageUrl = ${JSON.stringify(mjsImageUrl)};
     export const mjsWasmAddResult = ${JSON.stringify(mjsWasmAddResult)};
     export const mjsDynamicValue = ${JSON.stringify(mjsDynamicValue)};
+    export const aliasValue = ${JSON.stringify(aliasValue)};
+    export const aliasDepLabel = ${JSON.stringify(aliasDepLabel)};
+    export const customDataValue = ${JSON.stringify(customDataValue)};
+    export const consumedValue = ${JSON.stringify(consumedValue)};
   `
 }

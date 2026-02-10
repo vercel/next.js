@@ -12,6 +12,10 @@ import {
   mjsImageUrl,
   mjsWasmAddResult,
   mjsDynamicValue,
+  aliasValue,
+  aliasDepLabel,
+  customDataValue,
+  consumedValue,
 } from './file.test-file'
 
 export default function Page() {
@@ -30,6 +34,10 @@ export default function Page() {
       <p id="mjs-image-url">{mjsImageUrl}</p>
       <p id="mjs-wasm-add-result">{mjsWasmAddResult}</p>
       <p id="mjs-dynamic-value">{mjsDynamicValue}</p>
+      <p id="alias-value">{aliasValue}</p>
+      <p id="alias-dep-label">{aliasDepLabel}</p>
+      <p id="custom-data-value">{customDataValue}</p>
+      <p id="consumed-value">{consumedValue}</p>
     </div>
   )
 }

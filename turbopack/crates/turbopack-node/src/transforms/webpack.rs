@@ -129,11 +129,13 @@ impl SourceTransform for WebpackLoaders {
     fn transform(
         self: ResolvedVc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Box<dyn Source>> {
         Vc::upcast(
             WebpackLoadersProcessedAsset {
                 transform: self,
                 source,
+                asset_context,
             }
             .cell(),
         )
@@ -144,6 +146,7 @@ impl SourceTransform for WebpackLoaders {
 struct WebpackLoadersProcessedAsset {
     transform: ResolvedVc<WebpackLoaders>,
     source: ResolvedVc<Box<dyn Source>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -297,6 +300,7 @@ impl WebpackLoadersProcessedAsset {
                 evaluate_context: transform.evaluate_context,
                 module_graph,
                 resolve_options_context: Some(transform.resolve_options_context),
+                asset_context: self.asset_context,
                 args: vec![
                     ResolvedVc::cell(content),
                     // We need to pass the query string to the loader
@@ -493,6 +497,7 @@ pub struct WebpackLoaderContext {
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
+    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
 }
@@ -683,8 +688,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 let lookup_path = self.cwd.join(&lookup_path)?;
 
                 let request_vc = Request::parse(Pattern::Constant(request.clone()));
-                let origin =
-                    PlainResolveOrigin::new(*self.evaluate_context, lookup_path.join("_")?);
+                let origin = PlainResolveOrigin::new(*self.asset_context, lookup_path.join("_")?);
                 let resolved = esm_resolve(
                     Vc::upcast(origin),
                     request_vc,

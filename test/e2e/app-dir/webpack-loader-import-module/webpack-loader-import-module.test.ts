@@ -23,6 +23,15 @@ describe('webpack-loader-import-module', () => {
     expect($('#mjs-title').text()).toBe('ESM Config Works')
     expect($('#mjs-esm-label').text()).toBe('hello from esm')
 
+    // resolveAlias: importModule with alias as request
+    expect($('#alias-value').text()).toBe('resolved via alias')
+    // resolveAlias: dependency of importModule target uses alias
+    expect($('#alias-dep-label').text()).toBe('hello from esm')
+    // loader rules: importModule on file requiring custom loader
+    expect($('#custom-data-value').text()).toBe('hello from custom loader')
+    // loader rules: dependency of importModule target needs custom loader
+    expect($('#consumed-value').text()).toBe('hello from custom loader')
+
     if (isTurbopack) {
       // new URL('./image.png', import.meta.url) in url-wasm-data.ts
       expect($('#image-url').text()).toContain('image')

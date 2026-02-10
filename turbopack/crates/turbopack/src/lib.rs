@@ -829,8 +829,10 @@ async fn process_default_internal(
                         return Ok(ProcessResult::Ignore.cell());
                     }
                     ModuleRuleEffect::SourceTransforms(transforms) => {
-                        current_source =
-                            transforms.transform(*current_source).to_resolved().await?;
+                        current_source = transforms
+                            .transform(*current_source, Vc::upcast(module_asset_context))
+                            .to_resolved()
+                            .await?;
                         if current_source.ident().to_resolved().await? != ident {
                             // The ident has been changed, so we need to apply new rules.
                             if let Some(transition) = module_asset_context
