@@ -15,6 +15,7 @@ const COMMON_ALLOWED_EVENTS = ['memory-usage']
 const DEV_ALLOWED_EVENTS = new Set([
   ...COMMON_ALLOWED_EVENTS,
   'client-hmr-latency',
+  'render-path',
   'hot-reloader',
   'webpack-invalid-client',
   'webpack-invalidated-server',

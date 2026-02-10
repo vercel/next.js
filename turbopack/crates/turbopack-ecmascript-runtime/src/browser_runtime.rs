@@ -30,7 +30,7 @@ pub async fn get_browser_runtime_code(
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
-        rcstr!("shared/runtime-utils.ts"),
+        rcstr!("shared/runtime/runtime-utils.ts"),
         generate_source_map,
     );
 
@@ -38,6 +38,7 @@ pub async fn get_browser_runtime_code(
     match runtime_type {
         RuntimeType::Production => runtime_base_code.push("browser/runtime/base/build-base.ts"),
         RuntimeType::Development => {
+            runtime_base_code.push("shared/runtime/hmr-runtime.ts");
             runtime_base_code.push("browser/runtime/base/dev-base.ts");
         }
         #[cfg(feature = "test")]
