@@ -36,13 +36,12 @@ describe('turbopack-ignore-issue', () => {
     })
 
     if (skipped) return
+    if (!isTurbopack) {
+      it('should skip tests since turbopackIgnoreIssue only works with Turbopack', () => {})
+      return
+    }
 
     it('should suppress ignored warning from cli output', async () => {
-      if (!isTurbopack) {
-        // turbopackIgnoreIssue only works with Turbopack
-        return
-      }
-
       // Trigger compilation of the warning page
       const outputIndex = next.cliOutput.length
       await next.fetch('/with-warning')
@@ -61,11 +60,6 @@ describe('turbopack-ignore-issue', () => {
     })
 
     it('should suppress ignored error from error overlay', async () => {
-      if (!isTurbopack) {
-        // turbopackIgnoreIssue only works with Turbopack
-        return
-      }
-
       // Navigate to the page with a top-level require of a missing module
       // (outside try-catch), which normally produces an error shown in the
       // error overlay.
@@ -74,10 +68,6 @@ describe('turbopack-ignore-issue', () => {
     })
 
     it('should suppress ignored server component warning from cli output', async () => {
-      if (!isTurbopack) {
-        return
-      }
-
       const outputIndex = next.cliOutput.length
       await next.fetch('/server-with-warning')
 
@@ -93,19 +83,11 @@ describe('turbopack-ignore-issue', () => {
     })
 
     it('should suppress ignored server component error from error overlay', async () => {
-      if (!isTurbopack) {
-        return
-      }
-
       const browser = await next.browser('/server-with-error')
       await waitForNoRedbox(browser)
     })
 
     it('should suppress ignored route handler warning from cli output', async () => {
-      if (!isTurbopack) {
-        return
-      }
-
       const outputIndex = next.cliOutput.length
       await next.fetch('/route-with-warning')
 
@@ -119,10 +101,6 @@ describe('turbopack-ignore-issue', () => {
     })
 
     it('should suppress ignored route handler error from cli output', async () => {
-      if (!isTurbopack) {
-        return
-      }
-
       const outputIndex = next.cliOutput.length
       await next.fetch('/route-with-error')
 

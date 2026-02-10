@@ -967,6 +967,20 @@ function bindingToApi(
 
     // Serialize turbopackIgnoreIssue rules: convert RegExp to {source, flags}
     if (nextConfigSerializable.experimental?.turbopackIgnoreIssue) {
+      function serializePatternField(
+        value: string | RegExp,
+        stringType: 'glob' | 'string'
+      ) {
+        if (value instanceof RegExp) {
+          return {
+            type: 'regex' as const,
+            source: value.source,
+            flags: value.flags,
+          }
+        }
+        return { type: stringType, value }
+      }
+
       nextConfigSerializable.experimental = {
         ...nextConfigSerializable.experimental,
         turbopackIgnoreIssue:
@@ -976,34 +990,15 @@ function bindingToApi(
               title?: string | RegExp
               description?: string | RegExp
             }) => ({
-              path:
-                rule.path instanceof RegExp
-                  ? {
-                      type: 'regex',
-                      source: rule.path.source,
-                      flags: rule.path.flags,
-                    }
-                  : { type: 'glob', value: rule.path },
+              path: serializePatternField(rule.path, 'glob'),
               title:
-                rule.title == null
-                  ? undefined
-                  : rule.title instanceof RegExp
-                    ? {
-                        type: 'regex',
-                        source: rule.title.source,
-                        flags: rule.title.flags,
-                      }
-                    : { type: 'string', value: rule.title },
+                rule.title != null
+                  ? serializePatternField(rule.title, 'string')
+                  : undefined,
               description:
-                rule.description == null
-                  ? undefined
-                  : rule.description instanceof RegExp
-                    ? {
-                        type: 'regex',
-                        source: rule.description.source,
-                        flags: rule.description.flags,
-                      }
-                    : { type: 'string', value: rule.description },
+                rule.description != null
+                  ? serializePatternField(rule.description, 'string')
+                  : undefined,
             })
           ),
       }

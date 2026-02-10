@@ -59,6 +59,8 @@ Each rule in the `turbopackIgnoreIssue` array is an object with the following fi
 
 An issue is suppressed when it matches the `path` **and** all other specified fields in a rule. If only `path` is provided, any issue from a matching file is suppressed.
 
+> **Good to know:** Issue titles and descriptions may change between Turbopack versions. The `path` field is generally stable, but is not guaranteed to remain consistent for all issue types. When possible, prefer using `path` patterns over `title` or `description` matching.
+
 ### `path`
 
 A **glob pattern** (when a string) or **regular expression** that matches against the file path where the issue originated.
