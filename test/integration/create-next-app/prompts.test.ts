@@ -25,7 +25,6 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
-          '--no-turbopack',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
@@ -65,7 +64,6 @@ describe('create-next-app prompts', () => {
           projectName,
           '--app',
           '--eslint',
-          '--no-turbopack',
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
@@ -103,7 +101,6 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
-          '--no-turbopack',
           '--no-src-dir',
           '--no-import-alias',
           '--no-react-compiler',
@@ -140,7 +137,6 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
-          '--no-turbopack',
           '--no-tailwind',
           '--no-src-dir',
           '--no-react-compiler',
@@ -253,8 +249,6 @@ describe('create-next-app prompts', () => {
 
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
-      // Verify webpack is not in dev script
-      expect(pkg.scripts.dev).not.toContain('--webpack')
     })
   })
 
@@ -273,7 +267,6 @@ describe('create-next-app prompts', () => {
         srcDir: false,
         importAlias: '@/*',
         customizeImportAlias: false,
-        turbopack: false,
         reactCompiler: false,
       })
 
