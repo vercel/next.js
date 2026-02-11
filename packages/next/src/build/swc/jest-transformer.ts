@@ -48,7 +48,7 @@ export interface JestTransformerConfig extends TransformerConfig {
   modularizeImports?: NextConfig['modularizeImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
-  imageConfig?: Record<string, unknown>
+  imageConfig?: Partial<NextConfig['images']>
 }
 
 // Jest use the `vm` [Module API](https://nodejs.org/api/vm.html#vm_class_vm_module) for ESM.
