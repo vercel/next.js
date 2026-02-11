@@ -912,6 +912,38 @@ importers:
         specifier: 2.0.11
         version: 2.0.11
 
+  bench/table-1000-items-client-component:
+    dependencies:
+      next:
+        specifier: workspace:*
+        version: link:../../packages/next
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.10
+        version: 19.2.10
+      pretty-ms:
+        specifier: ^7.0.1
+        version: 7.0.1
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.2
+
+  bench/table-1000-items-server-component:
+    dependencies:
+      next:
+        specifier: workspace:*
+        version: link:../../packages/next
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.10
+        version: 19.2.10
+      pretty-ms:
+        specifier: ^7.0.1
+        version: 7.0.1
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.2
+
   bench/vercel:
     dependencies:
       '@szmarczak/http-timer':
@@ -8982,9 +9014,6 @@ packages:
   cssstyle@2.3.0:
     resolution: {integrity: sha512-AZL67abkUzIuvcHqk7c09cezpGNcxUxU4Ioi/05xHk4DQeTkWmGYftIE6ctU6AEt+Gn4n1lDStOtj7FKycP71A==}
     engines: {node: '>=8'}
-
-  csstype@3.1.2:
-    resolution: {integrity: sha512-I7K1Uu0MBPzaFKg4nI5Q7Vs2t+3gWWW648spaF+Rg7pI9ds18Ugn+lvg4SHczUdKlHI5LWBXyqfS8+DufyBsgQ==}
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
@@ -20105,7 +20134,7 @@ snapshots:
       '@emotion/memoize': 0.8.1
       '@emotion/unitless': 0.8.1
       '@emotion/utils': 1.2.1
-      csstype: 3.1.2
+      csstype: 3.2.3
 
   '@emotion/sheet@1.2.2': {}
 
@@ -26830,8 +26859,6 @@ snapshots:
     dependencies:
       cssom: 0.3.8
 
-  csstype@3.1.2: {}
-
   csstype@3.2.3: {}
 
   cuss@1.21.0: {}
@@ -27347,7 +27374,7 @@ snapshots:
   dom-helpers@5.2.1:
     dependencies:
       '@babel/runtime': 7.27.0
-      csstype: 3.1.2
+      csstype: 3.2.3
 
   dom-serializer@0.1.1:
     dependencies:
