@@ -429,6 +429,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 };
                 let error = error.map_or_else(
                     || {
+                        // Eventual consistency will cause errors to no longer be available
                         TurboTasksExecutionError::Panic(Arc::new(TurboTasksPanic {
                             message: TurboTasksExecutionErrorMessage::PIISafe(Cow::Borrowed(
                                 "Error no longer available",
