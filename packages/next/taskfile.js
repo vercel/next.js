@@ -31,6 +31,12 @@ export async function copy_regenerator_runtime(task, opts) {
     .target('src/compiled/regenerator-runtime')
 }
 
+export async function copy_docs(task, opts) {
+  // Copy documentation from repo root into the package
+  const docsSource = join(__dirname, '../../docs')
+  await task.source(join(docsSource, '**/*')).target('dist/docs')
+}
+
 export async function copy_styled_jsx_assets(task, opts) {
   // we copy the styled-jsx types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
@@ -2188,7 +2194,7 @@ export async function ncc_safe_stable_stringify(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
+    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets', 'copy_docs'],
     opts
   )
 }

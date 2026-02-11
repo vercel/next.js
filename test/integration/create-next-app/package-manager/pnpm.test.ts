@@ -39,6 +39,7 @@ describe('create-next-app with package manager pnpm', () => {
           '--no-tailwind',
           '--no-import-alias',
           '--no-react-compiler',
+          '--no-agents-md',
         ],
         nextTgzFilename,
         {
@@ -68,6 +69,7 @@ describe('create-next-app with package manager pnpm', () => {
           '--no-tailwind',
           '--no-import-alias',
           '--no-react-compiler',
+          '--no-agents-md',
         ],
         nextTgzFilename,
         {
@@ -102,6 +104,7 @@ describe('create-next-app with package manager pnpm', () => {
           '--no-tailwind',
           '--no-import-alias',
           '--no-react-compiler',
+          '--no-agents-md',
           '--skip-install',
         ],
         nextTgzFilename,
@@ -133,6 +136,7 @@ describe('create-next-app with package manager pnpm', () => {
           '--no-tailwind',
           '--no-import-alias',
           '--no-react-compiler',
+          '--no-agents-md',
           '--skip-install',
         ],
         nextTgzFilename,
