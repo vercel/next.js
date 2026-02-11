@@ -54,7 +54,7 @@ function filterBrowserLogs(output: string): string {
            3 | export default function Page() {
            4 |   return <div>Test page under app/</div>
 
-         Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic"
+         Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs"
         `)
         // Count occurrences of the layout error at the specific location
         // Filter out browser logs to avoid counting forwarded browser errors
@@ -69,10 +69,10 @@ function filterBrowserLogs(output: string): string {
         expect(next.cliOutput).toContain('./app/edge-with-layout/layout.tsx')
         expect(next.cliOutput).toContain('./app/edge-with-layout/edge/page.tsx')
         expect(next.cliOutput).toContain(
-          '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+          '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
         )
         expect(next.cliOutput).toContain(
-          '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+          '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
         )
         // Count occurrences of the layout error at the specific location
         const layoutErrorMatches = next.cliOutput.match(

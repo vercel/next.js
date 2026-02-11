@@ -151,11 +151,11 @@ describe('Cache Components Dev Errors', () => {
         } else if (isRspack) {
           await expect(browser).toDisplayRedbox(`
            {
-             "description": "  ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic",
+             "description": "  ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs",
              "environmentLabel": null,
              "label": "Build Error",
              "source": "./app/page.tsx
-             ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic
+             ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs
                    │    ,-[1:1]
                    │  1 | export const revalidate = 10
                    │    :              ^^^^^^^^^^
@@ -170,11 +170,11 @@ describe('Cache Components Dev Errors', () => {
         } else {
           await expect(browser).toDisplayRedbox(`
            {
-             "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic",
+             "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs",
              "environmentLabel": null,
              "label": "Build Error",
              "source": "./app/page.tsx
-           Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic
+           Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs
               ,-[1:1]
             1 | export const revalidate = 10
               :              ^^^^^^^^^^

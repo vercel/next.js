@@ -38,31 +38,31 @@ describe('cache-components-segment-configs', () => {
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic"`
+          `"  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs"`
         )
       }
       expect(redbox.source).toContain(
-        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
       )
     } else {
       expect(next.cliOutput).toContain('./app/dynamic-params/[slug]/page.tsx')
       expect(next.cliOutput).toContain(
-        '"dynamicParams" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+        '"dynamicParams" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
       )
       expect(next.cliOutput).toContain('./app/dynamic/nested/page.tsx')
       expect(next.cliOutput).toContain('./app/dynamic/page.tsx')
       expect(next.cliOutput).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
       )
 
       expect(next.cliOutput).toContain('./app/fetch-cache/page.tsx')
       expect(next.cliOutput).toContain(
-        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
       )
 
       expect(next.cliOutput).toContain('./app/revalidate/page.tsx')
       expect(next.cliOutput).toContain(
-        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
       )
     }
   })
@@ -99,16 +99,16 @@ describe('cache-components-segment-configs', () => {
             )
           } else {
             expect(redbox.description).toMatchInlineSnapshot(
-              `"  x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic"`
+              `"  x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs"`
             )
           }
           expect(redbox.source).toContain(
-            '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+            '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
           )
         } else {
           await retry(async () => {
             expect(next.cliOutput).toContain(
-              '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+              '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
             )
 
             // the stack trace is different between turbopack/webpack

@@ -121,10 +121,10 @@ impl NextConfigProperty {
     fn docs_url(&self) -> &'static str {
         match self {
             NextConfigProperty::CacheComponents => {
-                "https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic"
+                "https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs"
             }
             NextConfigProperty::UseCache => {
-                "https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic"
+                "https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs"
             }
         }
     }

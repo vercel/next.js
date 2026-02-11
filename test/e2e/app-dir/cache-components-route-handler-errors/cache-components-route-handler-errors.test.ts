@@ -38,27 +38,27 @@ describe('cache-components-route-handler-errors', () => {
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"  x Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic"`
+          `"  x Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs"`
         )
       }
       expect(redbox.source).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
       )
     } else {
       // In build mode, check for all three errors in the output
       expect(next.cliOutput).toContain('./app/route-with-dynamic/route.ts')
       expect(next.cliOutput).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
       )
 
       expect(next.cliOutput).toContain('./app/route-with-revalidate/route.ts')
       expect(next.cliOutput).toContain(
-        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
       )
 
       expect(next.cliOutput).toContain('./app/route-with-fetchcache/route.ts')
       expect(next.cliOutput).toContain(
-        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic'
+        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#migrating-route-segment-configs'
       )
     }
   })
