@@ -22,8 +22,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkableModuleReference, ChunkingContext, MinifyType,
-        ModuleChunkItemIdExt,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption,
+        MinifyType, ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
@@ -283,10 +283,15 @@ impl ModuleReference for RequireContextAssetReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::module(ResolvedVc::upcast(self.inner))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for RequireContextAssetReference {}
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl ValueToString for RequireContextAssetReference {
@@ -369,10 +374,15 @@ impl ModuleReference for ResolvedModuleReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *self.0
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for ResolvedModuleReference {}
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl ValueToString for ResolvedModuleReference {
