@@ -8,10 +8,7 @@ use swc_core::{
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
 use turbopack_core::{
-    chunk::{
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        ModuleChunkItemIdExt,
-    },
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
     module::Module,
     reference::ModuleReference,
     resolve::{BindingUsage, ExportUsage, ImportUsage, ModulePart, ModuleResolveResult},
@@ -131,10 +128,7 @@ impl ModuleReference for EcmascriptModulePartReference {
 
         Ok(*ModuleResolveResult::module(module))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Parallel {

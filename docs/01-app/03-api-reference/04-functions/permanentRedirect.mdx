@@ -29,6 +29,16 @@ permanentRedirect(path, type)
 
 By default, `permanentRedirect` will use `push` (adding a new entry to the browser history stack) in [Server Actions](/docs/app/getting-started/updating-data) and `replace` (replacing the current URL in the browser history stack) everywhere else. You can override this behavior by specifying the `type` parameter.
 
+The `RedirectType` object contains the available options for the `type` parameter.
+
+```ts
+import { permanentRedirect, RedirectType } from 'next/navigation'
+
+permanentRedirect('/redirect-to', RedirectType.replace)
+// or
+permanentRedirect('/redirect-to', RedirectType.push)
+```
+
 The `type` parameter has no effect when used in Server Components.
 
 ## Returns

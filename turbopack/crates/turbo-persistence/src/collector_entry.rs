@@ -45,6 +45,22 @@ impl CollectorEntryValue {
             CollectorEntryValue::Deleted => 0,
         }
     }
+
+    /// Returns true if this value gets its own dedicated value block.
+    pub fn is_medium_value(&self) -> bool {
+        matches!(self, CollectorEntryValue::Medium { .. })
+    }
+
+    /// Returns the value size if it will be packed into a small value block, or 0 otherwise.
+    pub fn small_value_size(&self) -> usize {
+        match self {
+            CollectorEntryValue::Tiny { len, .. } if (*len as usize) > MAX_INLINE_VALUE_SIZE => {
+                *len as usize
+            }
+            CollectorEntryValue::Small { value } => value.len(),
+            _ => 0,
+        }
+    }
 }
 
 pub struct EntryKey<K: StoreKey> {

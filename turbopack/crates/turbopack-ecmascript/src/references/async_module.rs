@@ -11,7 +11,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModuleReference, ChunkingContext, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
@@ -88,9 +88,6 @@ struct AsyncModuleIdents(
 async fn get_inherit_async_referenced_asset(
     r: ResolvedVc<Box<dyn ModuleReference>>,
 ) -> Result<Option<ReadRef<ReferencedAsset>>> {
-    let Some(r) = ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(r) else {
-        return Ok(None);
-    };
     let Some(ty) = &*r.chunking_type().await? else {
         return Ok(None);
     };
