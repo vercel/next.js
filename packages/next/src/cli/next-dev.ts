@@ -261,7 +261,7 @@ const nextDev = async (
   )
 
   for (const [key, value] of Object.entries(experimentalFlags)) {
-    sessionSpan.setAttribute(key, String(value))
+    sessionSpan.setAttribute(key, value)
   }
 
   initializeTraceState({
