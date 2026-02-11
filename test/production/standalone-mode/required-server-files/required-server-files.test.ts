@@ -518,8 +518,8 @@ describe('required server files', () => {
 
   it('should not 404 for onlyGenerated on-demand revalidate in minimal mode', async () => {
     const previewProps = JSON.parse(
-      await next.readFile('standalone/.next/prerender-manifest.json')
-    ).preview
+      await next.readFile('standalone/.next/preview-props.json')
+    )
 
     const res = await fetchViaHTTP(
       appPort,

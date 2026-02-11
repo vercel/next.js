@@ -373,6 +373,8 @@ export type PrerenderManifest = {
   routes: { [route: string]: PrerenderManifestRoute }
   dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
   notFoundRoutes: string[]
+  /** @deprecated only kept for the builder, use PreviewPropsManifest within Next.js itself */
+  preview: __ApiPreviewProps
 }
 
 export type PreviewPropsManifest = __ApiPreviewProps
@@ -2733,6 +2735,7 @@ export default async function build(
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
+        preview: previewProps,
       }
 
       const tbdPrerenderRoutes: string[] = []
@@ -3966,6 +3969,7 @@ export default async function build(
           routes: {},
           dynamicRoutes: {},
           notFoundRoutes: [],
+          preview: previewProps,
         })
       }
 

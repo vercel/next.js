@@ -218,6 +218,7 @@ export abstract class RouteModule<
           dynamicRoutes: {},
           notFoundRoutes: [],
           version: 4,
+          preview: getEdgePreviewProps(),
         } as const,
         previewProps: getEdgePreviewProps(),
         routesManifest: {

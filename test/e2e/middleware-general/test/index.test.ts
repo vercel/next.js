@@ -273,8 +273,8 @@ describe('Middleware Runtime', () => {
 
       it('should not run middleware for on-demand revalidate', async () => {
         const bypassToken = (
-          await fs.readJSON(join(next.testDir, '.next/prerender-manifest.json'))
-        ).preview.previewModeId
+          await fs.readJSON(join(next.testDir, '.next/preview-props.json'))
+        ).previewModeId
 
         const res = await fetchViaHTTP(next.url, '/ssg/first', undefined, {
           headers: {

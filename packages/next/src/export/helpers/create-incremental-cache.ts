@@ -53,23 +53,24 @@ export async function createIncrementalCache({
     }
   }
 
+  let previewProps = {
+    previewModeEncryptionKey: '',
+    previewModeId: '',
+    previewModeSigningKey: '',
+  }
   const incrementalCache = new IncrementalCache({
     dev: false,
     requestHeaders: requestHeaders || {},
     flushToDisk,
     maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
-    previewProps: {
-      previewModeEncryptionKey: '',
-      previewModeId: '',
-      previewModeSigningKey: '',
-    },
+    previewProps,
     prerenderManifest: {
       version: 4,
       routes: {},
       dynamicRoutes: {},
-
       notFoundRoutes: [],
+      preview: previewProps,
     },
     fs: nodeFs,
     serverDistDir: path.join(distDir, 'server'),

@@ -14,6 +14,11 @@ function createMockPrerenderManifest(
     routes: {},
     dynamicRoutes,
     notFoundRoutes: [],
+    preview: {
+      previewModeId: 'test-preview-id',
+      previewModeEncryptionKey: 'test-encryption-key',
+      previewModeSigningKey: 'test-signing-key',
+    },
   }
 }
 
