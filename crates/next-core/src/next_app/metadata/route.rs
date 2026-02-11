@@ -136,6 +136,7 @@ async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
 async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
+    let ext = path.extension();
 
     let cache_control = if mode.is_production() {
         CACHE_HEADER_REVALIDATE
@@ -204,7 +205,8 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(&format!("{stem}--route-entry.js"))?,
+        path.parent()
+            .join(&format!("{stem}.{ext}--route-entry.js"))?,
         AssetContent::file(FileContent::Content(file).cell()),
     );
 
