@@ -19,6 +19,12 @@ const flightResponses = new WeakMap<
 >()
 const encoder = new TextEncoder()
 const INLINE_FLIGHT_PAYLOAD_SUFFIX = ')</script>'
+const INLINE_FLIGHT_PAYLOAD_BINARY_PREFIX = `[${INLINE_FLIGHT_PAYLOAD_BINARY},"`
+const INLINE_FLIGHT_PAYLOAD_BINARY_SUFFIX = '"]'
+const INLINE_FLIGHT_PAYLOAD_BINARY_PREFIX_LENGTH =
+  INLINE_FLIGHT_PAYLOAD_BINARY_PREFIX.length
+const INLINE_FLIGHT_PAYLOAD_BINARY_SUFFIX_LENGTH =
+  INLINE_FLIGHT_PAYLOAD_BINARY_SUFFIX.length
 const BINARY_TO_BASE64_CHUNK_SIZE = 0x8000
 
 const findSourceMapURL =
@@ -230,6 +236,9 @@ function writeInitialInstructions(
 
 function encodeBase64Chunk(chunk: Uint8Array): string {
   if (typeof Buffer !== 'undefined') {
+    if (Buffer.isBuffer(chunk)) {
+      return chunk.toString('base64')
+    }
     return Buffer.from(
       chunk.buffer,
       chunk.byteOffset,
@@ -248,13 +257,58 @@ function encodeBase64Chunk(chunk: Uint8Array): string {
 function encodeFlightPayload(chunk: string | Uint8Array): string {
   if (typeof chunk === 'string') {
     return htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
+      `[${INLINE_FLIGHT_PAYLOAD_DATA},${JSON.stringify(chunk)}]`
     )
   }
 
   // Binary payloads are base64 and cannot include script-breaking tokens.
   const base64 = encodeBase64Chunk(chunk)
-  return `[${INLINE_FLIGHT_PAYLOAD_BINARY},"${base64}"]`
+  return `${INLINE_FLIGHT_PAYLOAD_BINARY_PREFIX}${base64}${INLINE_FLIGHT_PAYLOAD_BINARY_SUFFIX}`
+}
+
+function encodeFlightDataChunkNode(
+  scriptPrefix: Buffer,
+  scriptSuffix: Buffer,
+  chunk: string | Uint8Array
+): Buffer {
+  if (typeof chunk === 'string') {
+    const payload = htmlEscapeJsonString(
+      `[${INLINE_FLIGHT_PAYLOAD_DATA},${JSON.stringify(chunk)}]`
+    )
+    const payloadByteLength = Buffer.byteLength(payload)
+    const chunkBuffer = Buffer.allocUnsafe(
+      scriptPrefix.length + payloadByteLength + scriptSuffix.length
+    )
+
+    let offset = scriptPrefix.copy(chunkBuffer, 0)
+    offset += chunkBuffer.write(payload, offset, payloadByteLength, 'utf8')
+    scriptSuffix.copy(chunkBuffer, offset)
+    return chunkBuffer
+  }
+
+  const base64 = encodeBase64Chunk(chunk)
+  const chunkBuffer = Buffer.allocUnsafe(
+    scriptPrefix.length +
+      INLINE_FLIGHT_PAYLOAD_BINARY_PREFIX_LENGTH +
+      base64.length +
+      INLINE_FLIGHT_PAYLOAD_BINARY_SUFFIX_LENGTH +
+      scriptSuffix.length
+  )
+
+  let offset = scriptPrefix.copy(chunkBuffer, 0)
+  offset += chunkBuffer.write(
+    INLINE_FLIGHT_PAYLOAD_BINARY_PREFIX,
+    offset,
+    'ascii'
+  )
+  offset += chunkBuffer.write(base64, offset, 'ascii')
+  offset += chunkBuffer.write(
+    INLINE_FLIGHT_PAYLOAD_BINARY_SUFFIX,
+    offset,
+    'ascii'
+  )
+  scriptSuffix.copy(chunkBuffer, offset)
+  return chunkBuffer
 }
 
 function writeFlightDataInstruction(
@@ -267,16 +321,6 @@ function writeFlightDataInstruction(
     encoder.encode(
       `${scriptStart}self.__next_f.push(${htmlInlinedData}${INLINE_FLIGHT_PAYLOAD_SUFFIX}`
     )
-  )
-}
-
-function encodeFlightDataChunk(
-  scriptStart: string,
-  chunk: string | Uint8Array
-): Uint8Array {
-  const htmlInlinedData = encodeFlightPayload(chunk)
-  return encoder.encode(
-    `${scriptStart}self.__next_f.push(${htmlInlinedData}${INLINE_FLIGHT_PAYLOAD_SUFFIX}`
   )
 }
 
@@ -315,6 +359,8 @@ export function createInlinedDataNodeStream(
     const startScriptTag = nonce
       ? `<script nonce=${JSON.stringify(nonce)}>`
       : '<script>'
+    const scriptPrefix = Buffer.from(`${startScriptTag}self.__next_f.push(`)
+    const scriptSuffix = Buffer.from(INLINE_FLIGHT_PAYLOAD_SUFFIX)
 
     const decoder = new TextDecoder('utf-8', { fatal: true })
     let bootstrapWritten = false
@@ -336,9 +382,17 @@ export function createInlinedDataNodeStream(
 
           try {
             const decodedString = decoder.decode(chunk, { stream: true })
-            this.push(encodeFlightDataChunk(startScriptTag, decodedString))
+            this.push(
+              encodeFlightDataChunkNode(
+                scriptPrefix,
+                scriptSuffix,
+                decodedString
+              )
+            )
           } catch {
-            this.push(encodeFlightDataChunk(startScriptTag, chunk))
+            this.push(
+              encodeFlightDataChunkNode(scriptPrefix, scriptSuffix, chunk)
+            )
           }
 
           callback()
