@@ -59,8 +59,20 @@ Learn more in the documentation [here](/docs/app/guides/mcp).
 
 To update to Next.js version 16, you can use the `upgrade` [codemod](/docs/app/guides/upgrading/codemods#160):
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm dlx @next/codemod@canary upgrade latest
+```
+
+```bash package="npm"
 npx @next/codemod@canary upgrade latest
+```
+
+```bash package="yarn"
+yarn dlx @next/codemod@canary upgrade latest
+```
+
+```bash package="bun"
+bunx @next/codemod@canary upgrade latest
 ```
 
 The [codemod](/docs/app/guides/upgrading/codemods#160) is able to:
@@ -73,8 +85,20 @@ The [codemod](/docs/app/guides/upgrading/codemods#160) is able to:
 
 If you prefer to do it manually, install the latest Next.js and React versions:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add next@latest react@latest react-dom@latest
+```
+
+```bash package="npm"
 npm install next@latest react@latest react-dom@latest
+```
+
+```bash package="yarn"
+yarn add next@latest react@latest react-dom@latest
+```
+
+```bash package="bun"
+bun add next@latest react@latest react-dom@latest
 ```
 
 If you are using TypeScript, ensure you also upgrade `@types/react` and `@types/react-dom` to their latest versions.
@@ -408,8 +432,20 @@ module.exports = nextConfig
 
 Install the latest version of the React Compiler plugin:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add -D babel-plugin-react-compiler
+```
+
+```bash package="npm"
 npm install -D babel-plugin-react-compiler
+```
+
+```bash package="yarn"
+yarn add -D babel-plugin-react-compiler
+```
+
+```bash package="bun"
+bun add -D babel-plugin-react-compiler
 ```
 
 > **Good to know:** Expect compile times in development and during builds to be higher when enabling this option as the React Compiler relies on Babel.
@@ -877,8 +913,20 @@ Additionally, a lockfile mechanism prevents multiple `next dev` or `next build` 
 
 Since the development server outputs to `.next/dev`, the [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
 
-```bash
+```bash package="pnpm"
+pnpm next internal trace .next/dev/trace-turbopack
+```
+
+```bash package="npm"
 npx next internal trace .next/dev/trace-turbopack
+```
+
+```bash package="yarn"
+yarn next internal trace .next/dev/trace-turbopack
+```
+
+```bash package="bun"
+bunx next internal trace .next/dev/trace-turbopack
 ```
 
 ## Parallel Routes `default.js` requirement
@@ -1038,8 +1086,20 @@ The `next lint` command has been removed. Use Biome or ESLint directly. `next bu
 
 A codemod is available to automate migration:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm dlx @next/codemod@canary next-lint-to-eslint-cli .
+```
+
+```bash package="npm"
 npx @next/codemod@canary next-lint-to-eslint-cli .
+```
+
+```bash package="yarn"
+yarn dlx @next/codemod@canary next-lint-to-eslint-cli .
+```
+
+```bash package="bun"
+bunx @next/codemod@canary next-lint-to-eslint-cli .
 ```
 
 The `eslint` option in the Next.js config file is also removed.
