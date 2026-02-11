@@ -176,7 +176,7 @@ To display validation errors or messages, turn the component that defines the `<
 
 When using `useActionState`, the Server function signature will change to receive a new `prevState` or `initialState` parameter as its first argument.
 
-```tsx filename="app/actions.ts" highlight={4} switcher
+```tsx filename="app/actions.ts" highlight={5} switcher
 'use server'
 
 import { z } from 'zod'
@@ -189,7 +189,7 @@ export async function createUser(initialState: any, formData: FormData) {
 }
 ```
 
-```jsx filename="app/actions.ts" highlight={4} switcher
+```jsx filename="app/actions.ts" highlight={7} switcher
 'use server'
 
 import { z } from 'zod'
