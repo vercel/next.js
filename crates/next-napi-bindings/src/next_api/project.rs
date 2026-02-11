@@ -82,7 +82,7 @@ use crate::{
 
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
-const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
+const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(200);
 static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
 static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
     Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
@@ -602,8 +602,8 @@ impl CompilationEvent for SlowFilesystemEvent {
     fn message(&self) -> String {
         format!(
             "Slow filesystem detected. The benchmark took {}ms. If {} is a network drive, \
-             consider moving it to a local folder. If you have an antivirus enabled, consider \
-             excluding your project directory.",
+             consider moving it to a local folder.\n\
+            See more: https://nextjs.org/docs/app/guides/local-development",
             self.duration_ms, self.directory
         )
     }
