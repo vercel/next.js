@@ -233,6 +233,28 @@ Turbopack can be configured via `next.config.js` (or `next.config.ts`) under the
 - **`resolveExtensions`**
   Change or extend file extensions for module resolution.
 
+Additionally, the following experimental options are available under `experimental` in `next.config.js`:
+
+| Option                                                                                                       | Description                                                                            | Default (dev) | Default (build)               |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------- | ----------------------------- |
+| [`turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)   | Enable filesystem cache for the dev server.                                            | `true`        | N/A                           |
+| [`turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) | Enable filesystem cache for builds.                                                    | N/A           | `false`                       |
+| [`turbopackIgnoreIssue`](/docs/app/api-reference/config/next-config-js/turbopackIgnoreIssue)                 | Suppress specific Turbopack errors and warnings from the CLI output and error overlay. | `[]`          | `[]`                          |
+| `turbopackMinify`                                                                                            | Enable minification.                                                                   | `false`       | `true`                        |
+| `turbopackSourceMaps`                                                                                        | Enable source maps.                                                                    | `true`        | `productionBrowserSourceMaps` |
+| `turbopackInputSourceMaps`                                                                                   | Enable extraction of source maps from input files.                                     | `true`        | `true`                        |
+| `turbopackTreeShaking`                                                                                       | Use advanced module-fragments tree shaking instead of the default reexports-only mode. | `false`       | `false`                       |
+| `turbopackRemoveUnusedImports`                                                                               | Enable removing unused imports. Requires `turbopackRemoveUnusedExports`.               | `false`       | `true`                        |
+| `turbopackRemoveUnusedExports`                                                                               | Enable removing unused exports.                                                        | `false`       | `true`                        |
+| `turbopackInferModuleSideEffects`                                                                            | Enable local analysis to infer side-effect-free modules for better tree shaking.       | `true`        | `true`                        |
+| `turbopackScopeHoisting`                                                                                     | Enable scope hoisting. Always disabled in dev mode.                                    | `false`       | `true`                        |
+| `turbopackClientSideNestedAsyncChunking`                                                                     | Enable nested async chunking for client-side assets.                                   | `false`       | `true`                        |
+| `turbopackServerSideNestedAsyncChunking`                                                                     | Enable nested async chunking for server-side assets.                                   | `false`       | `false`                       |
+| `turbopackImportTypeBytes`                                                                                   | Enable support for `with {type: "bytes"}` for ESM imports.                             | `false`       | `false`                       |
+| `turbopackUseBuiltinBabel`                                                                                   | Enable automatic Babel loader configuration when a Babel config file is present.       | `true`        | `true`                        |
+| `turbopackUseBuiltinSass`                                                                                    | Enable automatic Sass loader configuration.                                            | `true`        | `true`                        |
+| `turbopackModuleIds`                                                                                         | Module ID strategy: `'named'` or `'deterministic'`.                                    | `'named'`     | `'deterministic'`             |
+
 ```js filename="next.config.js"
 module.exports = {
   turbopack: {

@@ -1734,6 +1734,11 @@ impl Endpoint for PageEndpoint {
             vec![ssr_module_graph]
         }))
     }
+
+    #[turbo_tasks::function]
+    async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
+        Ok(self.await?.pages_project.project())
+    }
 }
 
 #[turbo_tasks::value]

@@ -57,8 +57,8 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
-        StyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage,
+        OptionStyledString, StyledString,
     },
     module::Module,
     module_graph::{
@@ -1086,6 +1086,16 @@ impl Project {
         *self.next_config
     }
 
+    /// Build the `IssueFilter` for this project, incorporating any
+    /// `experimental.turbopackIgnoreIssue` rules from the Next.js config.
+    #[turbo_tasks::function]
+    pub async fn issue_filter(self: Vc<Self>) -> Result<Vc<IssueFilter>> {
+        let ignore_rules = self.next_config().turbopack_ignore_issue_rules().await?;
+        Ok(IssueFilter::warnings_and_foreign_errors()
+            .with_ignore_rules(ignore_rules.to_vec())
+            .cell())
+    }
+
     #[turbo_tasks::function]
     pub(super) fn is_persistent_caching_enabled(&self) -> Vc<bool> {
         Vc::cell(self.is_persistent_caching_enabled)
@@ -1845,7 +1855,7 @@ impl Project {
     async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
-            return Ok(Vc::upcast(EmptyEndpoint::new()));
+            return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
@@ -2029,7 +2039,7 @@ impl Project {
     ) -> Result<Vc<Box<dyn Endpoint>>> {
         let instrumentation = self.find_instrumentation();
         let FindContextFileResult::Found(fs_path, _) = &*instrumentation.await? else {
-            return Ok(Vc::upcast(EmptyEndpoint::new()));
+            return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)

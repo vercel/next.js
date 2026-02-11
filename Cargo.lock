@@ -9823,6 +9823,7 @@ dependencies = [
  "tokio",
  "tracing",
  "turbo-bincode",
+ "turbo-esregex",
  "turbo-frozenmap",
  "turbo-prehash",
  "turbo-rcstr",

@@ -12,13 +12,16 @@ use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
+use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, IntoTraitRef, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc,
     TaskInput, TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault,
     ValueToString, Vc, emit, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{
+    FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
+};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
@@ -235,56 +238,159 @@ where
 #[turbo_tasks::value(transparent)]
 pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
-#[derive(TaskInput, Hash, Eq, PartialEq, Copy, Clone, Encode, Decode, TraceRawVcs, Debug)]
+/// A pattern that can match by exact string, glob, or regex.
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum IgnoreIssuePattern {
+    /// The value must exactly equal the pattern string.
+    ExactString(RcStr),
+    /// The pattern is treated as a glob (uses turbo-tasks-fs glob matching).
+    Glob(Glob),
+    /// The pattern is a regular expression (supports ES-style patterns via `EsRegex`).
+    Regex(EsRegex),
+}
+
+impl IgnoreIssuePattern {
+    /// Test whether the pattern matches the given value.
+    pub fn matches(&self, value: &str) -> bool {
+        match self {
+            IgnoreIssuePattern::ExactString(s) => value == s.as_str(),
+            IgnoreIssuePattern::Glob(glob) => glob.matches(value),
+            IgnoreIssuePattern::Regex(regex) => regex.is_match(value),
+        }
+    }
+}
+
+/// A rule describing an issue to ignore. `path` is mandatory;
+/// `title` and `description` are optional additional filters.
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub struct IgnoreIssue {
+    /// File-path pattern (mandatory).
+    pub path: IgnoreIssuePattern,
+    /// Title pattern (optional).
+    pub title: Option<IgnoreIssuePattern>,
+    /// Description pattern (optional).
+    pub description: Option<IgnoreIssuePattern>,
+}
+
+#[turbo_tasks::value(shared)]
 pub struct IssueFilter {
     /// The minimum severity for issues
     severity: IssueSeverity,
     /// The minimum severity for issues in node_modules
     foreign_severity: IssueSeverity,
+    /// Issues matching any of these rules are ignored (dropped from results).
+    ignore_rules: Vec<IgnoreIssue>,
+}
+
+#[turbo_tasks::value_impl]
+impl IssueFilter {
+    /// A filter that lets everything through.
+    #[turbo_tasks::function]
+    pub fn everything() -> Vc<Self> {
+        IssueFilter {
+            severity: IssueSeverity::Info,
+            foreign_severity: IssueSeverity::Info,
+            ignore_rules: Vec::new(),
+        }
+        .cell()
+    }
+
+    /// Returns true if the issue is allowed by this filter.
+    #[turbo_tasks::function]
+    pub async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<Vc<bool>> {
+        let has_no_ignore_rules = self.ignore_rules.is_empty();
+        let is_everything = self.severity == IssueSeverity::Info
+            && self.foreign_severity == IssueSeverity::Info
+            && has_no_ignore_rules;
+
+        if is_everything {
+            return Ok(Vc::cell(true));
+        }
+
+        // Fetch the file path once — it's used by both severity and ignore-rule
+        // checks.
+        let file_path = issue.file_path().await?;
+
+        // Check severity first — this is cheap and avoids fetching
+        // title/description for issues that would be filtered out anyway.
+        let severity = issue.into_trait_ref().await?.severity();
+        // NOTE: Lower severities are _more_ severe
+        let severity_allowed = if severity <= self.severity || severity <= self.foreign_severity {
+            // we need to check the path to see if it is foreign or not.  Only await the
+            // path if it might possibly matter
+            if severity <= self.severity && severity <= self.foreign_severity {
+                // it matches no matter where the path is
+                true
+            } else if ContextCondition::InNodeModules.matches(&file_path) {
+                severity <= self.foreign_severity
+            } else {
+                severity <= self.severity
+            }
+        } else {
+            // it is too low severity to match either way
+            false
+        };
+
+        if !severity_allowed {
+            return Ok(Vc::cell(false));
+        }
+
+        // Check ignore rules — if any rule matches, the issue is dropped.
+        // Title and description are fetched lazily: only when a rule's path
+        // matches and the rule also specifies a title/description pattern.
+        if !has_no_ignore_rules {
+            let file_path_str = file_path.to_string();
+            let mut title_str: Option<String> = None;
+            let mut description_text: Option<Option<String>> = None;
+
+            for rule in &self.ignore_rules {
+                if !rule.path.matches(&file_path_str) {
+                    continue;
+                }
+                if let Some(ref title_pat) = rule.title {
+                    if title_str.is_none() {
+                        title_str = Some(issue.title().await?.to_unstyled_string());
+                    }
+                    if !title_pat.matches(title_str.as_deref().unwrap()) {
+                        continue;
+                    }
+                }
+                if let Some(ref desc_pat) = rule.description {
+                    if description_text.is_none() {
+                        let desc_opt = issue.description().await?;
+                        description_text = Some(match desc_opt.as_ref() {
+                            Some(desc_vc) => Some(desc_vc.await?.to_unstyled_string()),
+                            None => None,
+                        });
+                    }
+                    match description_text.as_ref().unwrap().as_deref() {
+                        Some(desc) if desc_pat.matches(desc) => {}
+                        _ => continue,
+                    }
+                }
+                // All specified fields matched — ignore this issue.
+                return Ok(Vc::cell(false));
+            }
+        }
+
+        Ok(Vc::cell(true))
+    }
 }
 
 impl IssueFilter {
-    pub const fn everything() -> Self {
-        Self {
-            severity: IssueSeverity::Info,
-            foreign_severity: IssueSeverity::Info,
-        }
-    }
-
-    pub const fn warnings_and_foreign_errors() -> Self {
-        Self {
+    /// Construct a filter with the standard warning/foreign-error severities.
+    pub fn warnings_and_foreign_errors() -> Self {
+        IssueFilter {
             severity: IssueSeverity::Warning,
             foreign_severity: IssueSeverity::Error,
+            ignore_rules: Vec::new(),
         }
     }
 
-    /// Returns true if the issue is allowed by this filter. issue
-    async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<bool> {
-        if *self == IssueFilter::everything() {
-            return Ok(true);
-        }
-        let severity = issue.into_trait_ref().await?.severity();
-        // NOTE: Lower severities are _more_ severe
-        Ok(
-            if severity <= self.severity || severity <= self.foreign_severity {
-                // we need to check the path to see if it is foreign or not.  Only await the path if
-                // it might possibly matter
-                if severity <= self.severity && severity <= self.foreign_severity {
-                    // it matches no matter where the path is
-                    true
-                } else {
-                    let path = issue.file_path().await?;
-                    if ContextCondition::InNodeModules.matches(&path) {
-                        severity <= self.foreign_severity
-                    } else {
-                        severity <= self.severity
-                    }
-                }
-            } else {
-                // it is too low severity to match either way
-                false
-            },
-        )
+    /// Set the ignore rules for this filter.
+    pub fn with_ignore_rules(mut self, rules: Vec<IgnoreIssue>) -> Self {
+        self.ignore_rules = rules;
+        self
     }
 }
 
@@ -323,12 +429,15 @@ impl CapturedIssues {
     }
 
     // Returns all the issues as formatted `PlainIssues`.
-    pub async fn get_plain_issues(&self, filter: IssueFilter) -> Result<Vec<ReadRef<PlainIssue>>> {
+    pub async fn get_plain_issues(
+        &self,
+        filter: Vc<IssueFilter>,
+    ) -> Result<Vec<ReadRef<PlainIssue>>> {
         let mut list = self
             .issues
             .iter()
             .map(async |issue| {
-                if filter.matches(*issue).await? {
+                if *filter.matches(**issue).await? {
                     Ok(Some(
                         PlainIssue::from_issue(**issue, Some(*self.tracer)).await?,
                     ))

@@ -965,6 +965,45 @@ function bindingToApi(
       nextConfigSerializable.turbopack = turbopack
     }
 
+    // Serialize turbopackIgnoreIssue rules: convert RegExp to {source, flags}
+    if (nextConfigSerializable.experimental?.turbopackIgnoreIssue) {
+      function serializePatternField(
+        value: string | RegExp,
+        stringType: 'glob' | 'string'
+      ) {
+        if (value instanceof RegExp) {
+          return {
+            type: 'regex' as const,
+            source: value.source,
+            flags: value.flags,
+          }
+        }
+        return { type: stringType, value }
+      }
+
+      nextConfigSerializable.experimental = {
+        ...nextConfigSerializable.experimental,
+        turbopackIgnoreIssue:
+          nextConfigSerializable.experimental.turbopackIgnoreIssue.map(
+            (rule: {
+              path: string | RegExp
+              title?: string | RegExp
+              description?: string | RegExp
+            }) => ({
+              path: serializePatternField(rule.path, 'glob'),
+              title:
+                rule.title != null
+                  ? serializePatternField(rule.title, 'string')
+                  : undefined,
+              description:
+                rule.description != null
+                  ? serializePatternField(rule.description, 'string')
+                  : undefined,
+            })
+          ),
+      }
+    }
+
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 

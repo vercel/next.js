@@ -253,4 +253,9 @@ impl Endpoint for InstrumentationEndpoint {
         let module_graph = this.project.module_graph(module).to_resolved().await?;
         Ok(Vc::cell(vec![module_graph]))
     }
+
+    #[turbo_tasks::function]
+    fn project(&self) -> Vc<Project> {
+        *self.project
+    }
 }

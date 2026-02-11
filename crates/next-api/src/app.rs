@@ -2122,6 +2122,11 @@ impl Endpoint for AppEndpoint {
             .await?;
         Ok(Vc::cell(vec![module_graphs.full]))
     }
+
+    #[turbo_tasks::function]
+    async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
+        Ok(self.await?.app_project.project())
+    }
 }
 
 #[turbo_tasks::value]

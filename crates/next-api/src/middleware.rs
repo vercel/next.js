@@ -393,4 +393,9 @@ impl Endpoint for MiddlewareEndpoint {
             .await?;
         Ok(Vc::cell(vec![module_graph]))
     }
+
+    #[turbo_tasks::function]
+    fn project(&self) -> Vc<Project> {
+        *self.project
+    }
 }
