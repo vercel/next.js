@@ -35,11 +35,11 @@ describe('use-cache-segment-configs', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "  ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.",
+           "description": "  ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "<FIXME-nextjs-internal-source>
-           ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+           ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic
                  │    ,-[1:1]
                  │  1 | export const runtime = 'edge'
                  │    :              ^^^^^^^
@@ -55,11 +55,11 @@ describe('use-cache-segment-configs', () => {
         // FIXME: Fix broken import trace for Webpack loader resource.
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "  x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.",
+           "description": "  x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "<FIXME-nextjs-internal-source>
-         Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic
             ,-[1:1]
           1 | export const runtime = 'edge'
             :              ^^^^^^^
@@ -87,7 +87,7 @@ describe('use-cache-segment-configs', () => {
            3 | export default function Page() {
            4 |   return <div>This page uses \`export const runtime\`.</div>
 
-         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic
 
 
              at <unknown> (./app/runtime/page.tsx:1:14)
@@ -97,7 +97,7 @@ describe('use-cache-segment-configs', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          // TODO(veil): Fix broken import trace for Webpack loader resource.
-           ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+           ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic
                  │    ,-[1:1]
                  │  1 | export const runtime = 'edge'
                  │    :              ^^^^^^^
@@ -118,7 +118,7 @@ describe('use-cache-segment-configs', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          // TODO(veil): Fix broken import trace for Webpack loader resource.
-         Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it. Learn more: https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic
             ,-[1:1]
           1 | export const runtime = 'edge'
             :              ^^^^^^^

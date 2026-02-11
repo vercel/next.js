@@ -117,6 +117,19 @@ impl Display for NextConfigProperty {
     }
 }
 
+impl NextConfigProperty {
+    fn docs_url(&self) -> &'static str {
+        match self {
+            NextConfigProperty::CacheComponents => {
+                "https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic"
+            }
+            NextConfigProperty::UseCache => {
+                "https://nextjs.org/docs/app/getting-started/cache-components#dynamic--force-dynamic"
+            }
+        }
+    }
+}
+
 enum InvalidExportKind {
     General,
     Metadata,
@@ -358,7 +371,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             vec![span],
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
-            format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
+            format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it. Learn more: {}", property.docs_url()),
             vec![span],
         ),
         RSCErrorKind::NextRscErrTaintWithoutConfig((api_name, span)) => (
