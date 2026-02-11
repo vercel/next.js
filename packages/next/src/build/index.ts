@@ -4041,6 +4041,7 @@ export default async function build(
         })
 
         for (const [page, manifest] of prerenderRoutes) {
+          await mkdir(path.join(distDir, 'server', page), { recursive: true })
           await writePrerenderManifest(
             path.join(distDir, 'server', page),
             manifest
