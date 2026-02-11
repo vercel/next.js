@@ -10,10 +10,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        ModuleChunkItemIdExt,
-    },
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
     environment::Rendering,
     issue::IssueSource,
     reference::ModuleReference,
@@ -100,6 +97,14 @@ impl ModuleReference for UrlAssetReference {
             self.error_mode,
         )
     }
+
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -109,17 +114,6 @@ impl ValueToString for UrlAssetReference {
         Ok(Vc::cell(
             format!("new URL({})", self.request.to_string().await?,).into(),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for UrlAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        }))
     }
 }
 

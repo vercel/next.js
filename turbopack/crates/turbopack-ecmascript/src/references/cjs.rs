@@ -10,7 +10,7 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext},
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
@@ -67,6 +67,14 @@ impl ModuleReference for CjsAssetReference {
             self.error_mode,
         )
     }
+
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -78,9 +86,6 @@ impl ValueToString for CjsAssetReference {
         ))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for CjsAssetReference {}
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
@@ -119,6 +124,14 @@ impl ModuleReference for CjsRequireAssetReference {
             self.error_mode,
         )
     }
+
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -130,9 +143,6 @@ impl ValueToString for CjsRequireAssetReference {
         ))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for CjsRequireAssetReference {}
 
 impl IntoCodeGenReference for CjsRequireAssetReference {
     fn into_code_gen_reference(
@@ -246,6 +256,14 @@ impl ModuleReference for CjsRequireResolveAssetReference {
             self.error_mode,
         )
     }
+
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -257,9 +275,6 @@ impl ValueToString for CjsRequireResolveAssetReference {
         ))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for CjsRequireResolveAssetReference {}
 
 impl IntoCodeGenReference for CjsRequireResolveAssetReference {
     fn into_code_gen_reference(

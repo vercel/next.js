@@ -8,8 +8,8 @@ use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule,
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
+        AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
+        ChunkingType, ChunkingTypeOption,
     },
     code_builder::CodeBuilder,
     context::AssetContext,
@@ -365,21 +365,18 @@ impl EcmascriptClientReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EcmascriptClientReference {
+impl ModuleReference for EcmascriptClientReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        *ModuleResolveResult::module(self.module)
+    }
+
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Isolated {
             _ty: self.ty,
             merge_tag: self.merge_tag.clone(),
         }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for EcmascriptClientReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *ModuleResolveResult::module(self.module)
     }
 }
 

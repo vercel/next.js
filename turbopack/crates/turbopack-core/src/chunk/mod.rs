@@ -44,8 +44,6 @@ use crate::{
         module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
     },
     output::{OutputAssets, OutputAssetsReference},
-    reference::ModuleReference,
-    resolve::BindingUsage,
 };
 
 /// A module id, which can be a number or string
@@ -389,28 +387,6 @@ impl ChunkingType {
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingTypeOption(Option<ChunkingType>);
-
-/// A [ModuleReference] implementing this trait and returning Some(_) for
-/// [ChunkableModuleReference::chunking_type] are considered as potentially
-/// chunkable references. When all [Module]s of such a reference implement
-/// [ChunkableModule] they are placed in [Chunk]s during chunking.
-/// They are even potentially placed in the same [Chunk] when a chunk type
-/// specific interface is implemented.
-#[turbo_tasks::value_trait]
-pub trait ChunkableModuleReference: ModuleReference + ValueToString {
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        }))
-    }
-
-    #[turbo_tasks::function]
-    fn binding_usage(self: Vc<Self>) -> Vc<BindingUsage> {
-        BindingUsage::all()
-    }
-}
 
 pub struct ChunkGroupContent {
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,

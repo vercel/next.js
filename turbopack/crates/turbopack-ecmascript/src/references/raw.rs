@@ -4,7 +4,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingType, ChunkingTypeOption},
     file_source::FileSource,
     issue::IssueSource,
     raw_module::RawModule,
@@ -76,9 +76,7 @@ impl ModuleReference for FileSourceReference {
         .instrument(span)
         .await
     }
-}
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for FileSourceReference {
+
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Traced))
@@ -216,10 +214,7 @@ impl ModuleReference for DirAssetReference {
         .instrument(span)
         .await
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for DirAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Traced))

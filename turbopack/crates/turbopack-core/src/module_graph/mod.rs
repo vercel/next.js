@@ -675,7 +675,7 @@ impl ModuleGraph {
     /// Analyze the module graph and remove unused references (by determining the used exports and
     /// removing unused imports).
     ///
-    /// In particular, this removes ChunkableModuleReference-s that list only unused exports in the
+    /// In particular, this removes ModuleReference-s that list only unused exports in the
     /// `import_usage()`
     #[turbo_tasks::function(operation)]
     pub async fn from_single_graph_without_unused_references(
@@ -691,7 +691,7 @@ impl ModuleGraph {
     /// Analyze the module graph and remove unused references (by determining the used exports and
     /// removing unused imports).
     ///
-    /// In particular, this removes ChunkableModuleReference-s that list only unused exports in the
+    /// In particular, this removes ModuleReference-s that list only unused exports in the
     /// `import_usage()`
     #[turbo_tasks::function(operation)]
     pub async fn from_graphs_without_unused_references(
@@ -1562,7 +1562,7 @@ struct SingleModuleGraphBuilder<'a> {
     /// Whether to walk ChunkingType::Traced references
     include_traced: bool,
 
-    /// Whether to read ChunkableModuleReference::binding_usage()
+    /// Whether to read ModuleReference::binding_usage()
     include_binding_usage: bool,
 }
 impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'_> {

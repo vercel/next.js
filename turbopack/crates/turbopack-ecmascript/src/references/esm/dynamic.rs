@@ -10,7 +10,7 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
     environment::ChunkLoading,
     issue::IssueSource,
     reference::ModuleReference,
@@ -87,6 +87,11 @@ impl ModuleReference for EsmAsyncAssetReference {
         )
         .await
     }
+
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Async))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -96,14 +101,6 @@ impl ValueToString for EsmAsyncAssetReference {
         Ok(Vc::cell(
             format!("dynamic import {}", self.request.to_string().await?,).into(),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Async))
     }
 }
 

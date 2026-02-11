@@ -9,7 +9,7 @@ use lightningcss::{
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext},
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext},
@@ -141,6 +141,14 @@ impl ModuleReference for ImportAssetReference {
             Some(self.issue_source),
         ))
     }
+
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -205,6 +213,3 @@ impl CodeGenerateable for ImportAssetReference {
         Ok(CodeGeneration { imports }.cell())
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for ImportAssetReference {}

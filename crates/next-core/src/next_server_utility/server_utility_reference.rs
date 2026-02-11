@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingType, ChunkingTypeOption},
     module::Module,
     reference::ModuleReference,
     resolve::ModuleResolveResult,
@@ -36,18 +36,15 @@ impl ValueToString for NextServerUtilityModuleReference {
     }
 }
 
+pub static NEXT_SERVER_UTILITY_MERGE_TAG: Lazy<RcStr> = Lazy::new(|| rcstr!("next-server-utility"));
+
 #[turbo_tasks::value_impl]
 impl ModuleReference for NextServerUtilityModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::module(self.asset)
     }
-}
 
-pub static NEXT_SERVER_UTILITY_MERGE_TAG: Lazy<RcStr> = Lazy::new(|| rcstr!("next-server-utility"));
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for NextServerUtilityModuleReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Shared {

@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::ChunkableModuleReference,
+    chunk::{ChunkingType, ChunkingTypeOption},
     reference::ModuleReference,
     reference_type::CssReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
@@ -42,6 +42,14 @@ impl ModuleReference for CssModuleComposeReference {
             None,
         )
     }
+
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -53,6 +61,3 @@ impl ValueToString for CssModuleComposeReference {
         ))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for CssModuleComposeReference {}
