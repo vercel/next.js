@@ -9,9 +9,23 @@ The Next.js CLI allows you to develop, build, start your application, and more.
 
 Basic usage:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm next [command] [options]
+```
+
+```bash package="npm"
 npx next [command] [options]
 ```
+
+```bash package="yarn"
+yarn next [command] [options]
+```
+
+```bash package="bun"
+bunx next [command] [options]
+```
+
+> **Good to know**: With `npm run`, use `--` before CLI flags so npm forwards them to `next`. This is not required for `pnpm`, `yarn`, or `bun`.
 
 ## Reference
 
@@ -212,8 +226,20 @@ The following options are available for the `next upgrade` command:
 
 `next experimental-analyze` analyzes your application's bundle output using [Turbopack](/docs/app/api-reference/turbopack). This command helps you understand the size and composition of your bundles, including JavaScript, CSS, and other assets. This command doesn't produce an application build.
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm next experimental-analyze
+```
+
+```bash package="npm"
 npx next experimental-analyze
+```
+
+```bash package="yarn"
+yarn next experimental-analyze
+```
+
+```bash package="bun"
+bunx next experimental-analyze
 ```
 
 By default, the command starts a local server after analysis completes, allowing you to explore your bundle composition in the browser. The analyzer lets you:
