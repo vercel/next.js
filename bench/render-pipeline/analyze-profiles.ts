@@ -378,7 +378,12 @@ async function main() {
 
   if (!webAnalysis && !nodeAnalysis) {
     console.log('\nNo CPU profiles found in this artifact run.')
-    console.log('Run benchmark with --capture-cpu=true first.')
+    console.log(
+      'This analyzer reads only <mode>/<mode>.cpuprofile artifacts (not trace-event JSON or next-runtime-trace.log).'
+    )
+    console.log(
+      'Run benchmark with --capture-cpu=true, e.g. pnpm bench:render-pipeline --scenario=full --stream-mode=node --capture-cpu=true'
+    )
     return
   }
 

@@ -18,6 +18,7 @@ pnpm --filter=next build
 ## 2. End-to-end benchmark (full app render path)
 
 This measures the full request path (`renderToHTMLOrFlight`) through `bench/next-minimal-server`.
+In `scenario=full` and `scenario=all`, `--capture-cpu` defaults to `true`.
 
 Node streams only:
 
@@ -117,7 +118,6 @@ pnpm bench:render-pipeline \
   --scenario=full \
   --stream-mode=node \
   --build-full=true \
-  --capture-cpu=true \
   --capture-trace=true \
   --capture-next-trace=true \
   --json-out=bench/render-pipeline/artifacts/<run>/results.json \

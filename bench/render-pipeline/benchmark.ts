@@ -174,7 +174,7 @@ Full benchmark options:
   --timeout-ms=<number>                         (default: 30000)
 
 Profiling and trace options:
-  --capture-cpu=true|false                      (default: false)
+  --capture-cpu=true|false                      (default: true for scenario=full|all, false for scenario=micro)
   --capture-heap=true|false                     (default: false)
   --capture-trace=true|false                    (default: false)
   --capture-next-trace=true|false               (default: true)
@@ -247,6 +247,8 @@ function parseCli(): CliOptions {
 
   const routes = parseRoutes(args.get('routes'))
   const buildFull = parseBoolean(args.get('build-full') ?? 'true')
+  const defaultCaptureCpu =
+    scenarioRaw === 'full' || scenarioRaw === 'all' ? 'true' : 'false'
   const shouldForceBuildFull =
     (scenarioRaw === 'full' || scenarioRaw === 'all') &&
     streamModeRaw === 'both' &&
@@ -273,7 +275,7 @@ function parseCli(): CliOptions {
     timeoutMs: parseNumberArg(args, 'timeout-ms', 30_000),
     port: parseNumberArg(args, 'port', 3199),
 
-    captureCpu: parseBoolean(args.get('capture-cpu') ?? 'false'),
+    captureCpu: parseBoolean(args.get('capture-cpu') ?? defaultCaptureCpu),
     captureHeap: parseBoolean(args.get('capture-heap') ?? 'false'),
     captureTrace: parseBoolean(args.get('capture-trace') ?? 'false'),
     captureNextTrace: parseBoolean(args.get('capture-next-trace') ?? 'true'),

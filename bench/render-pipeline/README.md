@@ -16,6 +16,9 @@ Run end-to-end benchmark (default stress routes):
 pnpm bench:render-pipeline --scenario=full --stream-mode=both
 ```
 
+For `scenario=full` and `scenario=all`, CPU profiles are captured by default.
+Disable with `--capture-cpu=false` if you want lower-overhead runs.
+
 Skip rebuild for faster iteration (after you already built once):
 
 ```bash
@@ -39,7 +42,6 @@ Capture CPU profiles + Node trace events + Next trace logs:
 pnpm bench:render-pipeline \
   --scenario=full \
   --stream-mode=both \
-  --capture-cpu=true \
   --capture-trace=true \
   --capture-next-trace=true
 ```
