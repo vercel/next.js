@@ -407,9 +407,7 @@ The key must be a base64-encoded value with a valid AES key length (16, 24, or 3
 openssl rand -base64 32
 ```
 
-> **Good to know:** This variable must be available at **build time** and is saved to the build cache. For details on how the key is resolved at runtime, see the [Self-Hosting guide](/docs/app/guides/self-hosting#server-functions-encryption-key).
-
-This is an advanced use case where consistent encryption behavior across multiple deployments is critical for your application. You should consider standard security practices such as key rotation and signing.
+This is an advanced use case where consistent encryption behavior across multiple deployments is critical for your application. You should consider standard security practices such as key rotation and signing. See the [Self-Hosting guide](/docs/app/guides/self-hosting#server-functions-encryption-key) for deployment-specific considerations.
 
 ### Allowed origins (advanced)
 
