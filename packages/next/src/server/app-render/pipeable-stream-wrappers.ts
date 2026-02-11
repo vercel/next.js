@@ -1,4 +1,4 @@
-import type { Writable, Readable } from 'node:stream'
+import type { Readable } from 'node:stream'
 import type { PostponedState } from 'react-dom/static'
 
 // Lazy require to avoid webpack trying to resolve node:stream at parse time.
@@ -79,7 +79,7 @@ export function renderToFizzPipeableStream(
       ...options,
       onHeaders: wrappedOnHeaders,
       onShellReady() {
-        pipe(passthrough as unknown as Writable)
+        pipe(passthrough)
         originalOnShellReady?.()
         shellReady.resolve({
           stream: passthrough,
@@ -136,7 +136,7 @@ export function resumeToFizzPipeableStream(
       }
     )
 
-    pipe(passthrough as unknown as Writable)
+    pipe(passthrough)
 
     return {
       stream: passthrough,
@@ -192,6 +192,6 @@ export function renderToFlightPipeableStream(
       options as Parameters<FlightRenderToPipeableStream>[2]
     )
   )
-  run(() => pipe(passthrough as unknown as Writable))
+  run(() => pipe(passthrough))
   return passthrough
 }

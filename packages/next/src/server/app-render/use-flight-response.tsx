@@ -92,10 +92,10 @@ export function getFlightStream<T>(
         if (debugStream instanceof Readable) {
           nodeDebugStream = debugStream
         } else {
-          // Cast through unknown: global ReadableStream and stream/web.ReadableStream
-          // differ slightly in type declarations.
+          // Node's fromWeb() overload expects stream/web.ReadableStream.
+          // Convert from the global ReadableStream type to satisfy that overload.
           nodeDebugStream = Readable.fromWeb(
-            debugStream as unknown as import('stream/web').ReadableStream<Uint8Array>
+            debugStream as import('stream/web').ReadableStream<Uint8Array>
           )
         }
       }

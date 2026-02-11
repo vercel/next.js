@@ -138,7 +138,7 @@ export async function resumeAndAbort(
     postponed,
     opts
   )
-  return prelude as unknown as Readable
+  return prelude as Readable
 }
 
 export function renderToFlightStream(
@@ -198,11 +198,11 @@ export async function resumeToFizzStream(
 export function getServerPrerender(
   ComponentMod: ServerPrerenderComponentMod
 ): (...args: any[]) => any {
-  return ComponentMod.prerenderToNodeStream! as unknown as (
-    ...args: any[]
-  ) => any
+  return ComponentMod.prerenderToNodeStream!
 }
 
+// Keep the same exported signature as stream-ops.web.ts. In node mode the
+// underlying API returns a Node prelude stream instead of a web stream.
 export const getClientPrerender: typeof import('react-dom/static').prerender =
   prerenderToNodeStream as unknown as typeof getClientPrerender
 
