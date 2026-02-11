@@ -5,7 +5,6 @@ import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
 import * as ciEnvironment from '../server/ci-info'
 import {
-  CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
@@ -48,6 +47,14 @@ import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
+
+export const CONFIG_FILES = [
+  'next.config.js',
+  'next.config.mjs',
+  'next.config.ts',
+  // @ts-expect-error -- TODO: Needs @types/node >= v22.10.0
+  ...(process?.features?.typescript ? ['next.config.mts'] : []),
+]
 
 function normalizeNextConfigZodErrors(
   error: ZodError<NextConfig>

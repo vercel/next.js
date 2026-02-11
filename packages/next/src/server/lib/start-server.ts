@@ -22,10 +22,8 @@ import setupDebug from 'next/dist/compiled/debug'
 import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import {
-  CONFIG_FILES,
-  PHASE_DEVELOPMENT_SERVER,
-} from '../../shared/lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
+import { CONFIG_FILES } from '../config'
 import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
