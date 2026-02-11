@@ -1799,7 +1799,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         } else if let Some(value) = task.get_transient_task_type() {
             value.to_string()
         } else {
-            panic!("Every task must have a type\n{:#?}", task);
+            "unknown".to_string()
         }
     }
 
