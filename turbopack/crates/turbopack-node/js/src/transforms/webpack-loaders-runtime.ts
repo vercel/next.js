@@ -285,12 +285,11 @@ export async function executeModules(
       throw new Error('dynamic usage of require is not supported')
     }
 
-    // .q — export URL (for static assets and raw wasm modules)
+    // .q — export URL (for static assets and raw wasm modules).
+    // Sets module.exports to the URL string directly (matching the
+    // full runtime's exportUrl → exportValue behavior).
     ctx.q = (url: string) => {
-      defineProp(moduleObj.exports, 'default', {
-        value: url,
-        enumerable: true,
-      })
+      moduleObj.exports = url
       urlToModuleId.set(url, moduleObj.id)
     }
 
@@ -305,6 +304,26 @@ export async function executeModules(
       }
       return assetUrl
     }
+
+    // .U — relativeURL constructor (for UrlRewriteBehavior::Relative).
+    // Creates a pseudo URL object with relative path, matching the full
+    // Turbopack runtime's relativeURL in runtime-utils.ts.
+    ctx.U = function relativeURL(this: any, inputUrl: string) {
+      const realUrl = new URL(inputUrl, 'x:/')
+      const values: Record<string, any> = {}
+      for (const key in realUrl) values[key] = (realUrl as any)[key]
+      values.href = inputUrl
+      values.pathname = inputUrl.replace(/[?#].*/, '')
+      values.origin = values.protocol = ''
+      values.toString = values.toJSON = (..._args: Array<any>) => inputUrl
+      for (const key in values)
+        Object.defineProperty(this, key, {
+          enumerable: true,
+          configurable: true,
+          value: values[key],
+        })
+    }
+    ctx.U.prototype = URL.prototype
 
     // .w — async WebAssembly instantiation
     ctx.w = async (chunkPath: string, _edgeModule: any, importsObj: any) => {
