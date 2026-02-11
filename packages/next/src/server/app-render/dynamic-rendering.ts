@@ -980,16 +980,10 @@ export function logDisallowedDynamicError(
 ): void {
   console.error(error)
 
-  if (!workStore.dev) {
-    if (workStore.hasReadableErrorStacks) {
-      console.error(
-        `To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error.`
-      )
-    } else {
-      console.error(`To get a more detailed stack trace and pinpoint the issue, try one of the following:
+  if (process.env.NODE_ENV !== 'development') {
+    console.error(`To get a more detailed stack trace and pinpoint the issue, try one of the following:
   - Start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error.
   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.`)
-    }
   }
 }
 

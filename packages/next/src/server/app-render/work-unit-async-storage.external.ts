@@ -18,6 +18,7 @@ import type {
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
+import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { StagedRenderingController } from './staged-rendering'
@@ -414,11 +415,12 @@ export function getRenderResumeDataCache(
   }
 }
 
+const isDevServer = process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER
+
 export function getHmrRefreshHash(
-  workStore: WorkStore,
   workUnitStore: WorkUnitStore
 ): string | undefined {
-  if (workStore.dev) {
+  if (isDevServer) {
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
@@ -440,11 +442,8 @@ export function getHmrRefreshHash(
   return undefined
 }
 
-export function isHmrRefresh(
-  workStore: WorkStore,
-  workUnitStore: WorkUnitStore
-): boolean {
-  if (workStore.dev) {
+export function isHmrRefresh(workUnitStore: WorkUnitStore): boolean {
+  if (isDevServer) {
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
@@ -466,10 +465,9 @@ export function isHmrRefresh(
 }
 
 export function getServerComponentsHmrCache(
-  workStore: WorkStore,
   workUnitStore: WorkUnitStore
 ): ServerComponentsHmrCache | undefined {
-  if (workStore.dev) {
+  if (isDevServer) {
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':

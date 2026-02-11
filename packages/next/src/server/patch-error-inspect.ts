@@ -5,6 +5,7 @@ import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import {
   type ModernSourceMapPayload,
+  devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
@@ -112,14 +113,15 @@ interface SourceMappedFrame {
 function createUnsourcemappedFrame(
   frame: SourcemappableStackFrame
 ): SourceMappedFrame {
+  const file = devirtualizeReactServerURL(frame.file)
   return {
     stack: {
-      file: frame.file,
+      file,
       line1: frame.line1,
       column1: frame.column1,
       methodName: frame.methodName,
       arguments: frame.arguments,
-      ignored: shouldIgnoreListGeneratedFrame(frame.file),
+      ignored: shouldIgnoreListGeneratedFrame(file),
     },
     code: null,
   }
@@ -159,7 +161,7 @@ function getSourcemappedFrameIfPossible(
   let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
-    let sourceURL = frame.file
+    let sourceURL = devirtualizeReactServerURL(frame.file)
     // e.g. "/Users/foo/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
     // or "C:\Users\foo\APP\.next\server\chunks\ssr\[root-of-the-server]__2934a0._.js"
     // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js".

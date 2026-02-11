@@ -65,6 +65,7 @@ import {
 import { isExternalURL } from '../../app-router-utils'
 import { FreshnessPolicy } from '../ppr-navigations'
 import { invalidateBfCache } from '../../segment-cache/bfcache'
+import { PHASE_DEVELOPMENT_SERVER } from '../../../../shared/lib/constants'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -74,7 +75,7 @@ let createDebugChannel:
   | undefined
 
 if (
-  process.env.NODE_ENV !== 'production' &&
+  process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER &&
   process.env.__NEXT_REACT_DEBUG_CHANNEL
 ) {
   createDebugChannel = (
@@ -123,7 +124,7 @@ async function fetchServerAction(
     headers[NEXT_URL] = nextUrl
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER) {
     if (self.__next_r) {
       headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
     }

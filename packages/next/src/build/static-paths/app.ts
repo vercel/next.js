@@ -28,6 +28,7 @@ import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/emp
 import type { AppRouteModule } from '../../server/route-modules/app-route/module.compiled'
 import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
+import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -836,7 +837,7 @@ export async function buildAppStaticPaths({
   )
 
   const supportsRoutePreGeneration =
-    hadAllParamsGenerated || process.env.NODE_ENV === 'production'
+    hadAllParamsGenerated || process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
 
   const fallbackMode = dynamicParams
     ? supportsRoutePreGeneration

@@ -40,6 +40,7 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../../../shared/lib/constants'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -51,7 +52,7 @@ let createDebugChannel:
   | undefined
 
 if (
-  process.env.NODE_ENV !== 'production' &&
+  process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER &&
   process.env.__NEXT_REACT_DEBUG_CHANNEL
 ) {
   createDebugChannel = (
@@ -322,7 +323,7 @@ export async function createFetch<T>(
     headers['x-deployment-id'] = deploymentId
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER) {
     if (self.__next_r) {
       headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
     }

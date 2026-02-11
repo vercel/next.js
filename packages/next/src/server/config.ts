@@ -1894,6 +1894,16 @@ function enforceExperimentalFeatures(
       false,
       configuredExperimentalFeatures
     )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'allowDevelopmentBuild',
+      true,
+      configuredExperimentalFeatures
+    )
+
+    // @ts-expect-error not readonly
+    process.env.NODE_ENV = 'development'
   }
 
   // TODO: Remove this once we've made Cache Components the default.

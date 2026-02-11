@@ -1,8 +1,9 @@
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
-// Only setup devtools in development
-if (process.env.NODE_ENV !== 'production') {
+// Only set up devtools for the dev server.
+if (process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER) {
   require('../next-devtools/userspace/app/app-dev-overlay-setup') as typeof import('../next-devtools/userspace/app/app-dev-overlay-setup')
 }
 

@@ -99,19 +99,19 @@ export async function initialize(opts: {
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
   }
 
+  const phase = (process.env.NEXT_PHASE = opts.dev
+    ? PHASE_DEVELOPMENT_SERVER
+    : PHASE_PRODUCTION_SERVER)
+
   let experimentalFeatures: ConfiguredExperimentalFeature[] = []
-  const config = await loadConfig(
-    opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-    opts.dir,
-    {
-      silent: false,
-      reportExperimentalFeatures(features) {
-        experimentalFeatures = features.toSorted(({ key: a }, { key: b }) =>
-          a.localeCompare(b)
-        )
-      },
-    }
-  )
+  const config = await loadConfig(phase, opts.dir, {
+    silent: false,
+    reportExperimentalFeatures(features) {
+      experimentalFeatures = features.toSorted(({ key: a }, { key: b }) =>
+        a.localeCompare(b)
+      )
+    },
+  })
 
   let compress: ReturnType<typeof setupCompression> | undefined
 

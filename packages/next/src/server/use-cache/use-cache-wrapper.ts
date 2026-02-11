@@ -71,6 +71,7 @@ import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-st
 import type { CacheLife } from './cache-life'
 import { RenderStage } from '../app-render/staged-rendering'
 import * as Log from '../../build/output/log'
+import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -217,12 +218,9 @@ function createUseCacheStore(
       explicitExpire: undefined,
       explicitStale: undefined,
       tags: null,
-      hmrRefreshHash: getHmrRefreshHash(workStore, outerWorkUnitStore),
-      isHmrRefresh: isHmrRefresh(workStore, outerWorkUnitStore),
-      serverComponentsHmrCache: getServerComponentsHmrCache(
-        workStore,
-        outerWorkUnitStore
-      ),
+      hmrRefreshHash: getHmrRefreshHash(outerWorkUnitStore),
+      isHmrRefresh: isHmrRefresh(outerWorkUnitStore),
+      serverComponentsHmrCache: getServerComponentsHmrCache(outerWorkUnitStore),
       forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
       runtimeStagePromise: getRuntimeStagePromise(outerWorkUnitStore),
       draftMode: getDraftModeProviderForCacheScope(
@@ -267,7 +265,7 @@ function createUseCacheStore(
       explicitStale: undefined,
       tags: null,
       hmrRefreshHash:
-        outerWorkUnitStore && getHmrRefreshHash(workStore, outerWorkUnitStore),
+        outerWorkUnitStore && getHmrRefreshHash(outerWorkUnitStore),
       isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
       serverComponentsHmrCache:
         useCacheOrRequestStore?.serverComponentsHmrCache,
@@ -637,7 +635,7 @@ async function generateCacheEntryImpl(
   // necessary here; the errors are encoded in the stream, and will be reported
   // in the "Server" environment.
   const handleError = createReactServerErrorHandler(
-    workStore.dev,
+    process.env.NODE_ENV === 'development',
     workStore.isBuildTimePrerendering ?? false,
     workStore.reactServerErrorsByDigest,
     (error) => {
@@ -1046,8 +1044,7 @@ export async function cache(
   // components have been edited. This is a very coarse approach. But it's
   // also only a temporary solution until Action IDs are unique per
   // implementation. Remove this once Action IDs hash the implementation.
-  const hmrRefreshHash =
-    workUnitStore && getHmrRefreshHash(workStore, workUnitStore)
+  const hmrRefreshHash = workUnitStore && getHmrRefreshHash(workUnitStore)
 
   const hangingInputAbortSignal = workUnitStore
     ? createHangingInputAbortSignal(workUnitStore)
@@ -1906,7 +1903,7 @@ function shouldForceRevalidate(
     return true
   }
 
-  if (workStore.dev && workUnitStore) {
+  if (process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER && workUnitStore) {
     switch (workUnitStore.type) {
       case 'request':
         return workUnitStore.headers.get('cache-control') === 'no-cache'

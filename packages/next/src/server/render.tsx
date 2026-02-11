@@ -39,6 +39,7 @@ import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Revalidate } from './lib/cache-control'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
 import ReactDOMServerPages from 'next/dist/server/ReactDOMServerPages'
@@ -244,7 +245,6 @@ export type RenderOptsPartial = {
   assetPrefix?: string
   err?: Error | null
   isBuildTimePrerendering?: boolean
-  dev?: boolean
   ErrorDebug?: PagesDevOverlayBridgeType
   isNextDataRequest?: boolean
   params?: ParsedUrlQuery
@@ -456,10 +456,11 @@ export async function renderToHTMLImpl(
 
   const metadata: PagesRenderResultMetadata = {}
 
-  metadata.assetQueryString =
-    (renderOpts.dev && renderOpts.assetQueryString) || ''
+  const isDevServer = process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER
 
-  if (renderOpts.dev && !metadata.assetQueryString) {
+  metadata.assetQueryString = (isDevServer && renderOpts.assetQueryString) || ''
+
+  if (isDevServer && !metadata.assetQueryString) {
     const userAgent = (req.headers['user-agent'] || '').toLowerCase()
     if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
       // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -483,7 +484,6 @@ export async function renderToHTMLImpl(
 
   const {
     err,
-    dev = false,
     pageConfig = {},
     buildManifest,
     reactLoadableManifest,
@@ -554,7 +554,7 @@ export async function renderToHTMLImpl(
   // would normally be automatically statically optimized
   // ensure we set cache header so it's not rendered on-demand
   // every request
-  if (isAutoExport && !dev && isExperimentalCompile) {
+  if (isAutoExport && !isDevServer && isExperimentalCompile) {
     res.setHeader(
       'Cache-Control',
       getCacheControlHeader({ revalidate: false, expire: expireTime })
@@ -602,7 +602,7 @@ export async function renderToHTMLImpl(
 
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
-  if (dev) {
+  if (isDevServer) {
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
@@ -836,7 +836,7 @@ export async function renderToHTMLImpl(
   const nextExport =
     !isSSG &&
     (renderOpts.isBuildTimePrerendering ||
-      (dev && (isAutoExport || isFallback)))
+      (isDevServer && (isAutoExport || isFallback)))
 
   const styledJsxInsertedHTML = () => {
     const styles = jsxStyleRegistry.styles()
@@ -964,7 +964,7 @@ export async function renderToHTMLImpl(
     }
 
     if (
-      (dev || isBuildTimeSSG) &&
+      (isDevServer || isBuildTimeSSG) &&
       !metadata.isNotFound &&
       !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
     ) {
@@ -1183,7 +1183,7 @@ export async function renderToHTMLImpl(
     }
 
     if (
-      (dev || isBuildTimeSSG) &&
+      (isDevServer || isBuildTimeSSG) &&
       !isSerializableProps(pathname, 'getServerSideProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
@@ -1301,7 +1301,7 @@ export async function renderToHTMLImpl(
           return { html, head }
         }
 
-        if (dev && (props.router || props.Component)) {
+        if (isDevServer && (props.router || props.Component)) {
           throw new Error(
             `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
           )
@@ -1483,7 +1483,9 @@ export async function renderToHTMLImpl(
         dynamicImportsIds.size === 0
           ? undefined
           : Array.from(dynamicImportsIds),
-      err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+      err: renderOpts.err
+        ? serializeError(isDevServer, renderOpts.err)
+        : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
       customServer: sharedContext.customServer,
@@ -1494,13 +1496,14 @@ export async function renderToHTMLImpl(
       defaultLocale,
       domainLocales,
       isPreview: isPreview === true ? true : undefined,
-      notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
+      notFoundSrcPage:
+        notFoundSrcPage && isDevServer ? notFoundSrcPage : undefined,
     },
     nonce,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
     dangerousAsPath: router.asPath,
-    isDevelopment: !!dev,
+    isDevelopment: isDevServer,
     deploymentId: sharedContext.deploymentId,
     dynamicImports: Array.from(dynamicImports),
     dynamicCssManifest: new Set(renderOpts.dynamicCssManifest || []),
