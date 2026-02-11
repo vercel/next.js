@@ -571,7 +571,7 @@ function processQueueInMicrotask() {
   // no open network connections. At that point, all active prefetch tasks have
   // finished reading from the cache (moving live entries to the LRU head), so
   // eviction targets genuinely stale data.
-  if (heapPeek(taskHeap) === null && inProgressRequests === 0) {
+  if (task === null && inProgressRequests === 0) {
     cleanup()
   }
 }
