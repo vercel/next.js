@@ -318,7 +318,7 @@ jobs:
       # it can fail to restore in different OS'
       - uses: actions/checkout@v4
         with:
-          # crates/napi/build.rs uses git-describe to find the most recent git tag. It's okay if
+          # crates/next-napi-bindings/build.rs uses git-describe to find the most recent git tag. It's okay if
           # this fails, but fetch with enough depth that we're likely to find a recent tag.
           fetch-depth: 100
 

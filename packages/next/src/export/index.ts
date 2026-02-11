@@ -474,7 +474,7 @@ async function exportAppImpl(
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
     previewProps: prerenderManifest?.preview,
-    nextExport: true,
+    isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
@@ -500,7 +500,6 @@ async function exportAppImpl(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
     images: nextConfig.images,
-    deploymentId: nextConfig.deploymentId,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
@@ -713,6 +712,7 @@ async function exportAppImpl(
         batches.map(async (batch) =>
           worker.exportPages({
             buildId,
+            deploymentId: nextConfig.deploymentId,
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,
@@ -834,6 +834,10 @@ async function exportAppImpl(
 
       if (typeof result.hasPostponed !== 'undefined') {
         info.hasPostponed = result.hasPostponed
+      }
+
+      if (typeof result.hasStaticRsc !== 'undefined') {
+        info.hasStaticRsc = result.hasStaticRsc
       }
 
       if (typeof result.fetchMetrics !== 'undefined') {

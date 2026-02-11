@@ -199,6 +199,7 @@ pub async fn get_babel_loader_rules(
                                 .resolved_cell(),
                         ),
                         query: None,
+                        content_type: None,
                     });
                 }
                 ReactCompilerCompilationMode::Infer => {
@@ -212,6 +213,7 @@ pub async fn get_babel_loader_rules(
                                 .resolved_cell(),
                         ),
                         query: None,
+                        content_type: None,
                     });
                 }
                 ReactCompilerCompilationMode::All => {}
@@ -228,6 +230,7 @@ pub async fn get_babel_loader_rules(
             }]),
             rename_as: Some(rcstr!("*")),
             condition: Some(ConditionItem::All(loader_conditions.into())),
+            module_type: None,
         },
     )])
 }

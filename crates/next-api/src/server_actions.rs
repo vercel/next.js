@@ -74,11 +74,9 @@ pub(crate) async fn create_server_actions_manifest(
 ) -> Result<Vc<ServerActionsManifest>> {
     let loader =
         build_server_actions_loader(project_path, page_name.clone(), actions, rsc_asset_context);
-    let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
-        .await?
-        .context("loader module must be evaluatable")?
-        .to_resolved()
-        .await?;
+    let evaluable =
+        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(loader.to_resolved().await?)
+            .context("loader module must be evaluatable")?;
 
     let chunk_item = loader.as_chunk_item(module_graph, chunking_context);
     let manifest = build_manifest(
@@ -145,12 +143,12 @@ pub(crate) async fn build_server_actions_loader(
         .module();
 
     let Some(placeable) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module.to_resolved().await?)
     else {
         bail!("internal module must be evaluatable");
     };
 
-    Ok(placeable)
+    Ok(*placeable)
 }
 
 /// Builds a manifest containing every action's hashed id, with an internal
@@ -206,7 +204,9 @@ async fn build_manifest(
             &key,
             ActionManifestWorkerEntry {
                 module_id: loader_id.clone(),
-                is_async: *async_module_info.is_async(chunk_item.module()).await?,
+                is_async: async_module_info
+                    .is_async(chunk_item.module().to_resolved().await?)
+                    .await?,
                 exported_name: name.as_str(),
                 filename: filename.as_str(),
             },

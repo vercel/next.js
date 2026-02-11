@@ -35,10 +35,12 @@ export declare class ExternalObject<T> {
   }
 }
 export declare function lockfileTryAcquireSync(
-  path: string
+  path: string,
+  content?: string | undefined | null
 ): { __napiType: 'Lockfile' } | null
 export declare function lockfileTryAcquire(
-  path: string
+  path: string,
+  content?: string | undefined | null
 ): Promise<{ __napiType: 'Lockfile' } | null>
 export declare function lockfileUnlockSync(lockfile: {
   __napiType: 'Lockfile'
@@ -164,6 +166,7 @@ export interface NapiProjectOptions {
    * When set, only routes matching these paths will be included in the build.
    */
   debugBuildPaths?: NapiDebugBuildPaths
+  isPersistentCachingEnabled: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -215,8 +218,6 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** Use the new backend with filesystem cache enabled. */
-  persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
@@ -313,14 +314,16 @@ export declare function projectEntrypointsSubscribe(
 ): { __napiType: 'RootTask' }
 export declare function projectHmrEvents(
   project: { __napiType: 'Project' },
-  identifier: RcStr,
+  chunkName: RcStr,
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export interface HmrIdentifiers {
-  identifiers: Array<RcStr>
+export interface HmrChunkNames {
+  chunkNames: Array<RcStr>
 }
-export declare function projectHmrIdentifiersSubscribe(
+export declare function projectHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface NapiUpdateMessage {
@@ -407,7 +410,7 @@ export interface NapiNextTurbopackCallbacksJsObject {
     opts: TurbopackInternalErrorOpts
   ) => never
 }
-/** Arguments for [`NapiNextTurbopackCallbacks::throw_turbopack_internal_error`]. */
+/** Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`. */
 export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string

@@ -36,6 +36,8 @@ import { getIsPossibleServerAction } from '../../server/lib/server-action-reques
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_INSTANT_PREFETCH_HEADER,
+  NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
@@ -52,9 +54,10 @@ import {
 import { FallbackMode, parseFallbackField } from '../../lib/fallback'
 import RenderResult from '../../server/render-result'
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
@@ -75,10 +78,6 @@ import {
  */
 declare const tree: LoaderTree
 
-// TODO this should ideally be read from the loader tree instead, where it's always inserted already anyway.
-import GlobalError from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-component' }
-export { GlobalError }
-
 // These are injected by the loader afterwards.
 declare const __next_app_require__: (id: string | number) => unknown
 declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
@@ -86,7 +85,6 @@ declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
 // We inject the tree and pages here so that we can use them in the route
 // module.
 // INJECT:tree
-
 // INJECT:__next_app_require__
 // INJECT:__next_app_load_chunk__
 
@@ -350,6 +348,27 @@ export async function handler(
   const hasDebugFallbackShellQuery =
     hasDebugStaticShellQuery && query.__nextppronly === 'fallback'
 
+  // Whether the testing API is exposed (dev mode or explicit flag)
+  const exposeTestingApi =
+    routeModule.isDev === true ||
+    nextConfig.experimental.exposeTestingApiInProductionBuild === true
+
+  // Enable the Instant Navigation Testing API. Renders only the prefetched
+  // portion of the page, excluding dynamic content. This allows tests to
+  // assert on the prefetched UI state deterministically.
+  // - Header: Used for client-side navigations where we can set request headers
+  // - Cookie: Used for MPA navigations (page reload, full page load) where we
+  //   can't set request headers. Only applies to document requests (no RSC
+  //   header) - RSC requests should proceed normally even during a locked scope,
+  //   with blocking happening on the client side.
+  const isInstantNavigationTest =
+    exposeTestingApi &&
+    couldSupportPPR &&
+    (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
+      (req.headers[RSC_HEADER] === undefined &&
+        typeof req.headers.cookie === 'string' &&
+        req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')))
+
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
   const isRoutePPREnabled: boolean =
@@ -361,13 +380,13 @@ export async function handler(
       // Ideally we'd want to check the appConfig to see if this page has PPR
       // enabled or not, but that would require plumbing the appConfig through
       // to the server during development. We assume that the page supports it
-      // but only during development.
-      (hasDebugStaticShellQuery &&
-        (routeModule.isDev === true ||
+      // but only during development or when the testing API is exposed.
+      ((hasDebugStaticShellQuery || isInstantNavigationTest) &&
+        (exposeTestingApi ||
           routerServerContext?.experimentalTestProxy === true)))
 
   const isDebugStaticShell: boolean =
-    hasDebugStaticShellQuery && isRoutePPREnabled
+    (hasDebugStaticShellQuery || isInstantNavigationTest) && isRoutePPREnabled
 
   // We should enable debugging dynamic accesses when the static shell
   // debugging has been enabled and we're also in development mode.
@@ -386,8 +405,17 @@ export async function handler(
   // If PPR is enabled, and this is a RSC request (but not a prefetch), then
   // we can use this fact to only generate the flight data for the request
   // because we can't cache the HTML (as it's also dynamic).
+  const staticPrefetchDataRoute =
+    prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+
   let isDynamicRSCRequest =
-    isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
+    isRoutePPREnabled &&
+    isRSCRequest &&
+    !isPrefetchRSCRequest &&
+    // If generated at build time, treat the RSC request as static
+    // so we can serve the prebuilt .rsc without a dynamic render.
+    // Only do this for routes that have a concrete prefetchDataRoute.
+    !staticPrefetchDataRoute
 
   // During a PPR revalidation, the RSC request is not dynamic if we do not have the postponed data.
   // We only attach the postponed data during a resume. If there's no postponed data, then it must be a revalidation.
@@ -407,7 +435,7 @@ export async function handler(
   // when fixing this to correct logic it causes hydration issue since we set
   // serveStreamingMetadata to true during export
   const serveStreamingMetadata =
-    isHtmlBot && isRoutePPREnabled
+    botType && isRoutePPREnabled
       ? false
       : !userAgent
         ? true
@@ -417,9 +445,10 @@ export async function handler(
     (prerenderInfo ||
       isPrerendered ||
       prerenderManifest.routes[normalizedSrcPage]) &&
-      // If this is a html bot request and PPR is enabled, then we don't want
-      // to serve a static response.
-      !(isHtmlBot && isRoutePPREnabled)
+      // If this is a bot request and PPR is enabled, then we don't want
+      // to serve a static response. This applies to both DOM bots (like Googlebot)
+      // and HTML-limited bots.
+      !(botType && isRoutePPREnabled)
   )
 
   // When a page supports cacheComponents, we can support RDC for Navigations
@@ -449,8 +478,9 @@ export async function handler(
       : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
         isDynamicRSCRequest)
 
-  // When html bots request PPR page, perform the full dynamic rendering.
-  const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
+  // When bots request PPR page, perform the full dynamic rendering.
+  // This applies to both DOM bots (like Googlebot) and HTML-limited bots.
+  const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
 
   let ssgCacheKey: string | null = null
   if (
@@ -489,7 +519,6 @@ export async function handler(
   const ComponentMod = {
     ...entryBase,
     tree,
-    GlobalError,
     handler,
     routeModule,
     __next_app__,
@@ -575,7 +604,17 @@ export async function handler(
       })
     }
 
-    const incrementalCache = getRequestMeta(req, 'incrementalCache')
+    const incrementalCache =
+      getRequestMeta(req, 'incrementalCache') ||
+      (await routeModule.getIncrementalCache(
+        req,
+        nextConfig,
+        prerenderManifest,
+        isMinimalMode
+      ))
+
+    incrementalCache?.resetRequestCache()
+    ;(globalThis as any).__incrementalCache = incrementalCache
 
     const doRender = async ({
       span,
@@ -611,6 +650,7 @@ export async function handler(
         page: normalizedSrcPage,
         sharedContext: {
           buildId,
+          deploymentId,
         },
         serverComponentsHmrCache: getRequestMeta(
           req,
@@ -659,7 +699,6 @@ export async function handler(
           trailingSlash: nextConfig.trailingSlash,
           images: nextConfig.images,
           previewProps: prerenderManifest.preview,
-          deploymentId: deploymentId,
           enableTainting: nextConfig.experimental.taint,
           htmlLimitedBots: nextConfig.htmlLimitedBots,
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
@@ -669,12 +708,15 @@ export async function handler(
           cacheLifeProfiles: nextConfig.cacheLife,
           basePath: nextConfig.basePath,
           serverActions: nextConfig.experimental.serverActions,
+          logServerFunctions:
+            typeof nextConfig.logging === 'object' &&
+            Boolean(nextConfig.logging.serverFunctions),
 
           ...(isDebugStaticShell ||
           isDebugDynamicAccesses ||
           isDebugFallbackShell
             ? {
-                nextExport: true,
+                isBuildTimePrerendering: true,
                 supportsDynamicResponse: false,
                 isStaticGeneration: true,
                 isDebugDynamicAccesses: isDebugDynamicAccesses,
@@ -722,12 +764,6 @@ export async function handler(
           err: getRequestMeta(req, 'invokeError'),
           dev: routeModule.isDev,
         },
-      }
-
-      if (isDebugStaticShell || isDebugDynamicAccesses) {
-        context.renderOpts.nextExport = true
-        context.renderOpts.supportsDynamicResponse = false
-        context.renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 
       // When we're revalidating in the background, we should not allow dynamic
@@ -1133,6 +1169,15 @@ export async function handler(
 
       const didPostpone = typeof cacheEntry.value.postponed === 'string'
 
+      // Set the build ID header for RSC navigation requests when deploymentId is configured. This
+      // corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the build ID
+      // from the RSC payload when deploymentId is set (relying on this header instead). Server
+      // actions are excluded because the client doesn't check the build ID for action responses.
+      // For static prerenders served from CDN, routes-manifest.json adds a header.
+      if (isRSCRequest && !isPossibleServerAction && deploymentId) {
+        res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
+      }
+
       if (
         isSSG &&
         // We don't want to send a cache header for requests that contain dynamic
@@ -1205,7 +1250,10 @@ export async function handler(
           // Otherwise if the revalidate value is false, then we should use the
           // cache time of one year.
           else {
-            cacheControl = { revalidate: CACHE_ONE_YEAR, expire: undefined }
+            cacheControl = {
+              revalidate: CACHE_ONE_YEAR_SECONDS,
+              expire: undefined,
+            }
           }
         }
       }

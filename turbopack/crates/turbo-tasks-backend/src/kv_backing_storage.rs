@@ -7,8 +7,8 @@ use std::{
 
 use anyhow::{Context, Result};
 use turbo_bincode::{
-    TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder, turbo_bincode_decode,
-    turbo_bincode_encode, turbo_bincode_encode_into,
+    TurboBincodeBuffer, new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode,
+    turbo_bincode_encode_into,
 };
 use turbo_tasks::{
     TaskId,
@@ -250,15 +250,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
     }
 
-    fn serialize(
-        &self,
-        task: TaskId,
-        data: &TaskStorage,
-        category: SpecificTaskDataCategory,
-    ) -> Result<TurboBincodeBuffer> {
-        encode_task_data(task, data, category)
-    }
-
     fn save_snapshot<I>(
         &self,
         operations: Vec<Arc<AnyOperation>>,
@@ -279,8 +270,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         let mut batch = self.inner.database.write_batch()?;
 
         // these buffers should be large, because they're temporary and re-used.
-        const INITIAL_ENCODE_BUFFER_CAPACITY: usize = 1024;
-
+        // From measuring a large application the largest TaskType was ~365b, so this should be big
+        // enough to trigger no resizes in the loop.
+        const INITIAL_ENCODE_BUFFER_CAPACITY: usize = 512;
+        #[cfg(feature = "print_cache_item_size")]
+        let all_stats: std::sync::Mutex<
+            std::collections::HashMap<&'static str, TaskTypeCacheStats>,
+        > = std::sync::Mutex::new(std::collections::HashMap::new());
         // Start organizing the updates in parallel
         match &mut batch {
             &mut WriteBatch::Concurrent(ref batch, _) => {
@@ -328,7 +324,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
                                 batch
                                     .put(
-                                        KeySpace::ForwardTaskCache,
+                                        KeySpace::TaskCache,
                                         WriteBuffer::Borrowed(&task_type_bytes),
                                         WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                                     )
@@ -337,17 +333,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                             "Unable to write task cache {task_type:?} => {task_id}"
                                         )
                                     })?;
-                                batch
-                                    .put(
-                                        KeySpace::ReverseTaskCache,
-                                        WriteBuffer::Borrowed(IntKey::new(task_id).as_ref()),
-                                        WriteBuffer::Borrowed(&task_type_bytes),
-                                    )
-                                    .with_context(|| {
-                                        format!(
-                                            "Unable to write task cache {task_id} => {task_type:?}"
-                                        )
-                                    })?;
+                                #[cfg(feature = "print_cache_item_size")]
+                                all_stats
+                                    .lock()
+                                    .unwrap()
+                                    .entry(task_type.get_name())
+                                    .or_default()
+                                    .add(&task_type_bytes);
                                 max_task_id = max_task_id.max(task_id);
                             }
 
@@ -415,22 +407,20 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
                         batch
                             .put(
-                                KeySpace::ForwardTaskCache,
+                                KeySpace::TaskCache,
                                 WriteBuffer::Borrowed(&task_type_bytes),
                                 WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                             )
                             .with_context(|| {
                                 format!("Unable to write task cache {task_type:?} => {task_id}")
                             })?;
-                        batch
-                            .put(
-                                KeySpace::ReverseTaskCache,
-                                WriteBuffer::Borrowed(IntKey::new(task_id).as_ref()),
-                                WriteBuffer::Borrowed(&task_type_bytes),
-                            )
-                            .with_context(|| {
-                                format!("Unable to write task cache {task_id} => {task_type:?}")
-                            })?;
+                        #[cfg(feature = "print_cache_item_size")]
+                        all_stats
+                            .lock()
+                            .unwrap()
+                            .entry(task_type.get_name())
+                            .or_default()
+                            .add(&task_type_bytes);
                         next_task_id = next_task_id.max(task_id + 1);
                     }
                 }
@@ -442,6 +432,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 )?;
             }
         }
+        #[cfg(feature = "print_cache_item_size")]
+        print_task_type_cache_stats(all_stats.into_inner().unwrap());
 
         {
             let _span = tracing::trace_span!("commit").entered();
@@ -467,8 +459,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         ) -> Result<Option<TaskId>> {
             let mut task_type_bytes = TurboBincodeBuffer::new();
             encode_task_type(task_type, &mut task_type_bytes, None)?;
-            let Some(bytes) = database.get(tx, KeySpace::ForwardTaskCache, &task_type_bytes)?
-            else {
+            let Some(bytes) = database.get(tx, KeySpace::TaskCache, &task_type_bytes)? else {
                 return Ok(None);
             };
             let bytes = bytes.borrow().try_into()?;
@@ -483,32 +474,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         inner
             .with_tx(tx, |tx| lookup(&self.inner.database, tx, task_type))
             .with_context(|| format!("Looking up task id for {task_type:?} from database failed"))
-    }
-
-    unsafe fn reverse_lookup_task_cache(
-        &self,
-        tx: Option<&T::ReadTransaction<'_>>,
-        task_id: TaskId,
-    ) -> Result<Option<Arc<CachedTaskType>>> {
-        let inner = &*self.inner;
-        fn lookup<D: KeyValueDatabase>(
-            database: &D,
-            tx: &D::ReadTransaction<'_>,
-            task_id: TaskId,
-        ) -> Result<Option<Arc<CachedTaskType>>> {
-            let Some(bytes) = database.get(
-                tx,
-                KeySpace::ReverseTaskCache,
-                IntKey::new(*task_id).as_ref(),
-            )?
-            else {
-                return Ok(None);
-            };
-            Ok(Some(turbo_bincode_decode(bytes.borrow())?))
-        }
-        inner
-            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id))
-            .with_context(|| format!("Looking up task type for {task_id} from database failed"))
     }
 
     unsafe fn lookup_data(
@@ -715,6 +680,67 @@ type SerializedTasks = Vec<
     )>,
 >;
 
+#[cfg(feature = "print_cache_item_size")]
+#[derive(Default)]
+struct TaskTypeCacheStats {
+    key_size: usize,
+    key_size_compressed: usize,
+    count: usize,
+}
+
+#[cfg(feature = "print_cache_item_size")]
+impl TaskTypeCacheStats {
+    fn compressed_size(data: &[u8]) -> Result<usize> {
+        Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
+            data,
+            &mut Vec::new(),
+            lzzzz::lz4::ACC_LEVEL_DEFAULT,
+        )?)
+    }
+    fn add(&mut self, key_bytes: &[u8]) {
+        self.key_size += key_bytes.len();
+        self.key_size_compressed += Self::compressed_size(key_bytes).unwrap_or(0);
+        self.count += 1;
+    }
+}
+
+#[cfg(feature = "print_cache_item_size")]
+fn print_task_type_cache_stats(stats: std::collections::HashMap<&'static str, TaskTypeCacheStats>) {
+    use turbo_tasks::util::FormatBytes;
+
+    let mut stats: Vec<_> = stats.into_iter().collect();
+    if stats.is_empty() {
+        return;
+    }
+    stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
+        (stats_b.key_size_compressed, *key_b).cmp(&(stats_a.key_size_compressed, *key_a))
+    });
+    println!(
+        "Task type cache stats: {} ({})",
+        FormatBytes(
+            stats
+                .iter()
+                .map(|(_, s)| s.key_size_compressed)
+                .sum::<usize>()
+        ),
+        FormatBytes(stats.iter().map(|(_, s)| s.key_size).sum::<usize>())
+    );
+    for (fn_name, stats) in stats {
+        println!(
+            "  {} ({}) {fn_name}  x {} avg {} ({})",
+            FormatBytes(stats.key_size_compressed),
+            FormatBytes(stats.key_size),
+            stats.count,
+            FormatBytes(
+                stats
+                    .key_size_compressed
+                    .checked_div(stats.count)
+                    .unwrap_or(0)
+            ),
+            FormatBytes(stats.key_size.checked_div(stats.count).unwrap_or(0)),
+        );
+    }
+}
 fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync, I>(
     tasks: Vec<I>,
     batch: Option<&B>,
@@ -761,31 +787,4 @@ where
 
         Ok(result)
     })
-}
-
-fn encode_task_data(
-    task: TaskId,
-    data: &TaskStorage,
-    category: SpecificTaskDataCategory,
-) -> Result<TurboBincodeBuffer> {
-    // TODO: see if the caller can pass us a buffer instead of us allocating a new one.
-    // This should be possible and save a lot of small allocations.
-    let mut buffer = TurboBincodeBuffer::new();
-    let mut encoder = new_turbo_bincode_encoder(&mut buffer);
-    data.encode(category, &mut encoder)?;
-
-    if !cfg!(feature = "verify_serialization") {
-        return Ok(buffer);
-    }
-
-    TaskStorage::new()
-        .decode(category, &mut new_turbo_bincode_decoder(buffer.borrow()))
-        .with_context(|| {
-            format!(
-                "expected to be able to decode serialized data for '{category:?}' information for \
-                 {task}"
-            )
-        })?;
-
-    Ok(buffer)
 }

@@ -10,16 +10,14 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        ModuleChunkItemIdExt,
-    },
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
     environment::Rendering,
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
-        ExternalType, ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve,
+        ExternalType, ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request,
+        url_resolve,
     },
 };
 
@@ -59,7 +57,7 @@ pub struct UrlAssetReference {
     request: ResolvedVc<Request>,
     rendering: Rendering,
     issue_source: IssueSource,
-    in_try: bool,
+    error_mode: ResolveErrorMode,
     url_rewrite_behavior: UrlRewriteBehavior,
 }
 
@@ -69,7 +67,7 @@ impl UrlAssetReference {
         request: ResolvedVc<Request>,
         rendering: Rendering,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         url_rewrite_behavior: UrlRewriteBehavior,
     ) -> Self {
         UrlAssetReference {
@@ -77,7 +75,7 @@ impl UrlAssetReference {
             request,
             rendering,
             issue_source,
-            in_try,
+            error_mode,
             url_rewrite_behavior,
         }
     }
@@ -96,8 +94,16 @@ impl ModuleReference for UrlAssetReference {
             *self.request,
             ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl),
             Some(self.issue_source),
-            self.in_try,
+            self.error_mode,
         )
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
     }
 }
 
@@ -108,17 +114,6 @@ impl ValueToString for UrlAssetReference {
         Ok(Vc::cell(
             format!("new URL({})", self.request.to_string().await?,).into(),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for UrlAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        }))
     }
 }
 

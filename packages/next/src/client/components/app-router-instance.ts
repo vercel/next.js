@@ -24,6 +24,7 @@ import {
   dispatchAppRouterAction,
   dispatchGestureState,
 } from './use-action-queue'
+import { resetKnownRoutes } from './segment-cache/optimistic-routes'
 import { FreshnessPolicy } from './router-reducer/ppr-navigations'
 import { addBasePath } from '../add-base-path'
 import { isExternalURL } from './app-router-utils'
@@ -456,6 +457,9 @@ export const publicAppRouterInstance: AppRouterInstance = {
         'hmrRefresh can only be used in development mode. Please use refresh instead.'
       )
     } else {
+      // Reset the known routes table so that route predictions are cleared
+      // when routes change during development.
+      resetKnownRoutes()
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_HMR_REFRESH,

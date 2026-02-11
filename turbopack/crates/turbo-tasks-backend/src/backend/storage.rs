@@ -5,6 +5,7 @@ use std::{
 };
 
 use smallvec::SmallVec;
+use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{FxDashMap, TaskId, parallel};
 
 use crate::{
@@ -106,13 +107,15 @@ impl Storage {
     /// the results. Ends snapshot mode afterwards.
     /// preprocess is potentially called within a lock, so it should be fast.
     /// process is called outside of locks, so it could do more expensive operations.
+    /// Both process and process_snapshot receive a mutable scratch buffer that can be reused
+    /// across iterations to avoid repeated allocations.
     pub fn take_snapshot<
         'l,
         T,
         R,
         PP: for<'a> Fn(TaskId, &'a TaskStorage) -> T + Sync,
-        P: Fn(TaskId, T) -> R + Sync,
-        PS: Fn(TaskId, Box<TaskStorage>) -> R + Sync,
+        P: Fn(TaskId, T, &mut TurboBincodeBuffer) -> R + Sync,
+        PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> R + Sync,
     >(
         &'l self,
         preprocess: &'l PP,
@@ -153,7 +156,9 @@ impl Storage {
                 // Safety: guard must outlive the iterator.
                 drop(guard);
             }
-
+            /// How big of a buffer to allocate initially.  Based on metrics from a large
+            /// application this should cover about 98% of values with no resizes
+            const SCRATCH_BUFFER_SIZE: usize = 4096;
             SnapshotShard {
                 direct_snapshots,
                 modified,
@@ -162,6 +167,7 @@ impl Storage {
                 process,
                 preprocess,
                 process_snapshot,
+                scratch_buffer: TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_SIZE),
             }
         })
     }
@@ -282,12 +288,31 @@ pub struct StorageWriteGuard<'a> {
 
 impl StorageWriteGuard<'_> {
     /// Tracks mutation of this task
-    pub fn track_modification(&mut self, category: SpecificTaskDataCategory) {
+    #[inline(always)]
+    pub fn track_modification(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        #[allow(unused_variables)] name: &str,
+    ) {
+        self.track_modification_internal(
+            category,
+            #[cfg(feature = "trace_task_modification")]
+            name,
+        );
+    }
+
+    fn track_modification_internal(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        #[cfg(feature = "trace_task_modification")] name: &str,
+    ) {
         let flags = &self.inner.flags;
         if flags.is_snapshot(category) {
             return;
         }
         let modified = flags.is_modified(category);
+        #[cfg(feature = "trace_task_modification")]
+        let _span = (!modified).then(|| tracing::trace_span!("mark_modified", name).entered());
         match (self.storage.snapshot_mode(), modified) {
             (false, false) => {
                 // Not in snapshot mode and item is unmodified
@@ -362,26 +387,36 @@ pub struct SnapshotShard<'l, PP, P, PS> {
     process: &'l P,
     preprocess: &'l PP,
     process_snapshot: &'l PS,
+    /// Scratch buffer for encoding task data, reused across iterations to avoid allocations
+    scratch_buffer: TurboBincodeBuffer,
 }
 
 impl<'l, T, R, PP, P, PS> Iterator for SnapshotShard<'l, PP, P, PS>
 where
     PP: for<'a> Fn(TaskId, &'a TaskStorage) -> T + Sync,
-    P: Fn(TaskId, T) -> R + Sync,
-    PS: Fn(TaskId, Box<TaskStorage>) -> R + Sync,
+    P: Fn(TaskId, T, &mut TurboBincodeBuffer) -> R + Sync,
+    PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> R + Sync,
 {
     type Item = R;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((task_id, snapshot)) = self.direct_snapshots.pop() {
-            return Some((self.process_snapshot)(task_id, snapshot));
+            return Some((self.process_snapshot)(
+                task_id,
+                snapshot,
+                &mut self.scratch_buffer,
+            ));
         }
         while let Some(task_id) = self.modified.pop() {
             let inner = self.storage.map.get(&task_id).unwrap();
             if !inner.flags.any_snapshot() {
                 let preprocessed = (self.preprocess)(task_id, &inner);
                 drop(inner);
-                return Some((self.process)(task_id, preprocessed));
+                return Some((self.process)(
+                    task_id,
+                    preprocessed,
+                    &mut self.scratch_buffer,
+                ));
             } else {
                 drop(inner);
                 let maybe_snapshot = {
@@ -392,7 +427,11 @@ where
                     snapshot.take()
                 };
                 if let Some(snapshot) = maybe_snapshot {
-                    return Some((self.process_snapshot)(task_id, snapshot));
+                    return Some((self.process_snapshot)(
+                        task_id,
+                        snapshot,
+                        &mut self.scratch_buffer,
+                    ));
                 }
             }
         }

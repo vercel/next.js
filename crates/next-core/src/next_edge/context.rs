@@ -6,12 +6,13 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType, UnusedReferences,
-        chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
+        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
+    issue::IssueSeverity,
     module_graph::binding_usage_info::OptionBindingUsageInfo,
 };
 use turbopack_css::chunk::CssChunkType;
@@ -30,7 +31,10 @@ use crate::{
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
         get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
     },
-    util::{NextRuntime, OptionEnvMap, defines, foreign_code_context_condition},
+    util::{
+        NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
+        free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
+    },
 };
 
 #[turbo_tasks::function]
@@ -44,9 +48,13 @@ async fn next_edge_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileTim
 async fn next_edge_free_vars(
     project_path: FileSystemPath,
     define_env: Vc<OptionEnvMap>,
+    report_system_env_inlining: Vc<IssueSeverity>,
 ) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
-        ..defines(&*define_env.await?).into_iter(),
+        ..free_var_references_with_vercel_system_env_warnings(
+            defines(&*define_env.await?),
+            *report_system_env_inlining.await?
+        ),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: rcstr!("buffer"),
             lookup_path: Some(project_path),
@@ -61,6 +69,7 @@ pub async fn get_edge_compile_time_info(
     project_path: FileSystemPath,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
+    report_system_env_inlining: Vc<IssueSeverity>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::EdgeWorker(
@@ -71,7 +80,7 @@ pub async fn get_edge_compile_time_info(
     )
     .defines(next_edge_defines(define_env).to_resolved().await?)
     .free_var_references(
-        next_edge_free_vars(project_path, define_env)
+        next_edge_free_vars(project_path, define_env, report_system_env_inlining)
             .to_resolved()
             .await?,
     )
@@ -214,6 +223,7 @@ pub struct EdgeChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
+    pub css_url_suffix: Option<RcStr>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -237,6 +247,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         nested_async_chunking,
         client_root,
         asset_prefix,
+        css_url_suffix,
     } = options;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -251,6 +262,10 @@ pub async fn get_edge_chunking_context_with_client_assets(
         next_mode.runtime_type(),
     )
     .asset_base_path(Some(asset_prefix))
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix,
+    })
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -263,7 +278,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
         builder = builder
@@ -308,6 +324,7 @@ pub async fn get_edge_chunking_context(
         nested_async_chunking,
         client_root,
         asset_prefix,
+        css_url_suffix,
     } = options;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -324,6 +341,17 @@ pub async fn get_edge_chunking_context(
     .client_roots_override(rcstr!("client"), client_root.clone())
     .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
     .asset_base_path_override(rcstr!("client"), asset_prefix)
+    .url_behavior_override(
+        rcstr!("client"),
+        UrlBehavior {
+            suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+            static_suffix: css_url_suffix.clone(),
+        },
+    )
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix,
+    })
     // Since one can't read files in edge directly, any asset need to be fetched
     // instead. This special blob url is handled by the custom fetch
     // implementation in the edge sandbox. It will respond with the
@@ -340,7 +368,8 @@ pub async fn get_edge_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
         builder = builder

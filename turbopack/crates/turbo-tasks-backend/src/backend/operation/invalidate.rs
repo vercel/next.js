@@ -1,6 +1,6 @@
 use bincode::{Decode, Encode};
 use smallvec::SmallVec;
-use turbo_tasks::{TaskExecutionReason, TaskId};
+use turbo_tasks::{TaskExecutionReason, TaskId, event::EventDescription};
 
 use crate::{
     backend::{
@@ -107,25 +107,28 @@ pub enum TaskDirtyCause {
 }
 
 #[cfg(feature = "trace_task_dirty")]
-struct TaskDirtyCauseInContext<'l, 'e, E: ExecuteContext<'e>> {
+struct TaskDirtyCauseInContext<'l> {
     cause: &'l TaskDirtyCause,
-    ctx: &'l E,
-    _phantom: std::marker::PhantomData<&'e ()>,
+    task_description: String,
 }
 
 #[cfg(feature = "trace_task_dirty")]
-impl<'l, 'e, E: ExecuteContext<'e>> TaskDirtyCauseInContext<'l, 'e, E> {
-    fn new(cause: &'l TaskDirtyCause, ctx: &'l E) -> Self {
+impl<'l> TaskDirtyCauseInContext<'l> {
+    fn new(cause: &'l TaskDirtyCause, ctx: &'l mut impl ExecuteContext<'_>) -> Self {
         Self {
             cause,
-            ctx,
-            _phantom: Default::default(),
+            task_description: match cause {
+                TaskDirtyCause::OutputChange { task_id } => ctx
+                    .task(*task_id, TaskDataCategory::Data)
+                    .get_task_description(),
+                _ => String::new(),
+            },
         }
     }
 }
 
 #[cfg(feature = "trace_task_dirty")]
-impl<'e, E: ExecuteContext<'e>> std::fmt::Display for TaskDirtyCauseInContext<'_, 'e, E> {
+impl std::fmt::Display for TaskDirtyCauseInContext<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.cause {
             TaskDirtyCause::InitialDirty => write!(f, "initial dirty"),
@@ -158,12 +161,8 @@ impl<'e, E: ExecuteContext<'e>> std::fmt::Display for TaskDirtyCauseInContext<'_
                     turbo_tasks::registry::get_value_type(*value_type).name
                 )
             }
-            TaskDirtyCause::OutputChange { task_id } => {
-                write!(
-                    f,
-                    "task {} output changed",
-                    self.ctx.get_task_description(*task_id)
-                )
+            TaskDirtyCause::OutputChange { .. } => {
+                write!(f, "task {} output changed", self.task_description)
             }
             TaskDirtyCause::CollectiblesChange { collectible_type } => {
                 write!(
@@ -184,12 +183,7 @@ pub fn make_task_dirty(
     queue: &mut AggregationUpdateQueue,
     ctx: &mut impl ExecuteContext<'_>,
 ) {
-    if ctx.is_once_task(task_id) {
-        return;
-    }
-
-    let task = ctx.task(task_id, TaskDataCategory::Meta);
-
+    let task = ctx.task(task_id, TaskDataCategory::All);
     make_task_dirty_internal(
         task,
         task_id,
@@ -224,10 +218,12 @@ pub fn make_task_dirty_internal(
         panic!(
             "Task {} is immutable, but was made dirty. This should not happen and is a \
              bug.{extra_info}",
-            ctx.get_task_description(task_id),
+            task.get_task_description(),
         );
     }
 
+    #[cfg(feature = "trace_task_dirty")]
+    let task_name = task.get_task_name();
     if make_stale
         && let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
             task.get_in_progress_mut()
@@ -237,7 +233,7 @@ pub fn make_task_dirty_internal(
         let _span = tracing::trace_span!(
             "make task stale",
             task_id = display(task_id),
-            name = ctx.get_task_description(task_id),
+            name = task_name,
             cause = %TaskDirtyCauseInContext::new(&cause, ctx)
         )
         .entered();
@@ -250,7 +246,7 @@ pub fn make_task_dirty_internal(
             let _span = tracing::trace_span!(
                 "task already dirty",
                 task_id = display(task_id),
-                name = ctx.get_task_description(task_id),
+                name = task_name,
                 cause = %TaskDirtyCauseInContext::new(&cause, ctx)
             )
             .entered();
@@ -276,7 +272,7 @@ pub fn make_task_dirty_internal(
                 #[cfg(feature = "trace_task_dirty")]
                 let _span = tracing::trace_span!(
                     "session-dependent task already dirty",
-                    name = ctx.get_task_description(task_id),
+                    name = task_name,
                     cause = %TaskDirtyCauseInContext::new(&cause, ctx)
                 )
                 .entered();
@@ -308,7 +304,7 @@ pub fn make_task_dirty_internal(
     let _span = tracing::trace_span!(
         "make task dirty",
         task_id = display(task_id),
-        name = ctx.get_task_description(task_id),
+        name = task_name,
         cause = %TaskDirtyCauseInContext::new(&cause, ctx)
     )
     .entered();
@@ -334,13 +330,12 @@ pub fn make_task_dirty_internal(
 
     let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
 
-    if should_schedule
-        && task.add_scheduled(TaskExecutionReason::Invalidated, || {
-            ctx.get_task_desc_fn(task_id)
-        })
-    {
-        drop(task);
-        let task = ctx.task(task_id, TaskDataCategory::All);
-        ctx.schedule_task(task, parent_priority);
+    if should_schedule {
+        let description = EventDescription::new(|| task.get_task_desc_fn());
+        if task.add_scheduled(TaskExecutionReason::Invalidated, description) {
+            drop(task);
+            let task = ctx.task(task_id, TaskDataCategory::All);
+            ctx.schedule_task(task, parent_priority);
+        }
     }
 }

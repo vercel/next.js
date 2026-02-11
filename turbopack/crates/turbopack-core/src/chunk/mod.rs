@@ -27,9 +27,9 @@ pub use crate::chunk::{
         ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
     },
     chunking_context::{
-        ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType, UnusedReferences,
+        AssetSuffix, ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -44,8 +44,6 @@ use crate::{
         module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
     },
     output::{OutputAssets, OutputAssetsReference},
-    reference::ModuleReference,
-    resolve::BindingUsage,
 };
 
 /// A module id, which can be a number or string
@@ -89,7 +87,7 @@ pub struct ModuleIds(Vec<ModuleId>);
 
 /// A [Module] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
-pub trait ChunkableModule: Module + Asset {
+pub trait ChunkableModule: Module {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
@@ -114,7 +112,7 @@ impl ChunkableModules {
 // with other module types (as a MergeableModule cannot prevent itself from being merged with other
 // module types)
 #[turbo_tasks::value_trait]
-pub trait MergeableModule: Module + Asset {
+pub trait MergeableModule: Module {
     /// Even though MergeableModule is implemented, this allows a dynamic condition to determine
     /// mergeability
     #[turbo_tasks::function]
@@ -389,28 +387,6 @@ impl ChunkingType {
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingTypeOption(Option<ChunkingType>);
-
-/// A [ModuleReference] implementing this trait and returning Some(_) for
-/// [ChunkableModuleReference::chunking_type] are considered as potentially
-/// chunkable references. When all [Module]s of such a reference implement
-/// [ChunkableModule] they are placed in [Chunk]s during chunking.
-/// They are even potentially placed in the same [Chunk] when a chunk type
-/// specific interface is implemented.
-#[turbo_tasks::value_trait]
-pub trait ChunkableModuleReference: ModuleReference + ValueToString {
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        }))
-    }
-
-    #[turbo_tasks::function]
-    fn binding_usage(self: Vc<Self>) -> Vc<BindingUsage> {
-        BindingUsage::all()
-    }
-}
 
 pub struct ChunkGroupContent {
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,

@@ -203,17 +203,30 @@ export async function handler(
   const method = req.method || 'GET'
   const tracer = getTracer()
   const activeSpan = tracer.getActiveScopeSpan()
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
+
+  const incrementalCache =
+    getRequestMeta(req, 'incrementalCache') ||
+    (await routeModule.getIncrementalCache(
+      req,
+      nextConfig,
+      prerenderManifest,
+      isMinimalMode
+    ))
+
+  incrementalCache?.resetRequestCache()
+  ;(globalThis as any).__incrementalCache = incrementalCache
 
   const context: AppRouteRouteHandlerContext = {
     params,
-    prerenderManifest,
+    previewProps: prerenderManifest.preview,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
       supportsDynamicResponse,
-      incrementalCache: getRequestMeta(req, 'incrementalCache'),
+      incrementalCache,
       cacheLifeProfiles: nextConfig.cacheLife,
       waitUntil: ctx.waitUntil,
       onClose: (cb) => {
@@ -289,7 +302,6 @@ export async function handler(
         }
       })
     }
-    const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
     const handleResponse = async (currentSpan?: Span) => {
       const responseGenerator: ResponseGenerator = async ({
