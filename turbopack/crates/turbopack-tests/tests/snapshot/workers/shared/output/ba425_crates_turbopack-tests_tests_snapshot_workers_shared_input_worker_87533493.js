@@ -38,6 +38,12 @@ const WORKER_FORWARDED_GLOBALS = [];
    */ SourceType[SourceType["Update"] = 2] = "Update";
     return SourceType;
 }(SourceType || {});
+/**
+ * Flag indicating which module object type to create when a module is merged. Set to `true`
+ * by each runtime that uses ModuleWithDirection (browser dev-base.ts, nodejs dev-base.ts,
+ * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
+ * uses plain Module objects.
+ */ let createModuleWithDirectionFlag = false;
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -61,9 +67,12 @@ function defineProp(obj, name, options) {
 function getOverwrittenModule(moduleCache, id) {
     let module = moduleCache[id];
     if (!module) {
-        // This is invoked when a module is merged into another module, thus it wasn't invoked via
-        // instantiateModule and the cache entry wasn't created yet.
-        module = createModuleObject(id);
+        if (createModuleWithDirectionFlag) {
+            // set in development modes for hmr support
+            module = createModuleWithDirection(id);
+        } else {
+            module = createModuleObject(id);
+        }
         moduleCache[id] = module;
     }
     return module;
@@ -878,10 +887,10 @@ function formatDependencyChain(dependencyChain) {
  * Returns information about whether the update can be accepted and which
  * modules need to be invalidated.
  *
- * Copied directly from browser implementation.
- *
- * @param moduleId - The module to check for effects
- */ function getAffectedModuleEffects(moduleId) {
+ * @param moduleId - The module that changed
+ * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept().
+ *                           This is used for server-side HMR where pages auto-accept at the top level.
+ */ function getAffectedModuleEffects(moduleId, autoAcceptRootModules) {
     const outdatedModules = new Set();
     const queue = [
         {
@@ -891,20 +900,29 @@ function formatDependencyChain(dependencyChain) {
     ];
     let nextItem;
     while(nextItem = queue.shift()){
-        const { moduleId: currentModuleId, dependencyChain } = nextItem;
+        const { moduleId, dependencyChain } = nextItem;
+        if (moduleId != null) {
+            if (outdatedModules.has(moduleId)) {
+                continue;
+            }
+            outdatedModules.add(moduleId);
+        }
         // We've arrived at the runtime of the chunk, which means that nothing
         // else above can accept this update.
-        if (currentModuleId === undefined) {
+        if (moduleId === undefined) {
+            if (autoAcceptRootModules) {
+                return {
+                    type: 'accepted',
+                    moduleId,
+                    outdatedModules
+                };
+            }
             return {
                 type: 'unaccepted',
                 dependencyChain
             };
         }
-        if (outdatedModules.has(currentModuleId)) {
-            continue;
-        }
-        outdatedModules.add(currentModuleId);
-        const module = devModuleCache[currentModuleId];
+        const module = devModuleCache[moduleId];
         const hotState = moduleHotState.get(module);
         if (// The module is not in the cache. Since this is a "modified" update,
         // it means that the module was never instantiated before.
@@ -915,15 +933,18 @@ function formatDependencyChain(dependencyChain) {
             return {
                 type: 'self-declined',
                 dependencyChain,
-                moduleId: currentModuleId
+                moduleId
             };
         }
-        if (runtimeModules.has(currentModuleId)) {
+        if (runtimeModules.has(moduleId)) {
+            if (autoAcceptRootModules) {
+                continue;
+            }
             queue.push({
                 moduleId: undefined,
                 dependencyChain: [
                     ...dependencyChain,
-                    currentModuleId
+                    moduleId
                 ]
             });
             continue;
@@ -939,9 +960,13 @@ function formatDependencyChain(dependencyChain) {
                 moduleId: parentId,
                 dependencyChain: [
                     ...dependencyChain,
-                    currentModuleId
+                    moduleId
                 ]
             });
+        }
+        // If no parents and we're at a root module, auto-accept if configured
+        if (module.parents.length === 0 && autoAcceptRootModules) {
+            continue;
         }
     }
     return {
@@ -953,13 +978,12 @@ function formatDependencyChain(dependencyChain) {
 /**
  * Computes all modules that need to be invalidated based on which modules changed.
  *
- * Copied directly from browser implementation.
- *
- * @param invalidated - The modules to check for invalidation
- */ function computedInvalidatedModules(invalidated) {
+ * @param invalidated - The modules that have been invalidated
+ * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ */ function computedInvalidatedModules(invalidated, autoAcceptRootModules) {
     const outdatedModules = new Set();
     for (const moduleId of invalidated){
-        const effect = getAffectedModuleEffects(moduleId);
+        const effect = getAffectedModuleEffects(moduleId, autoAcceptRootModules);
         switch(effect.type){
             case 'unaccepted':
                 throw new UpdateApplyError(`cannot apply update: unaccepted module. ${formatDependencyChain(effect.dependencyChain)}.`, effect.dependencyChain);
@@ -1047,10 +1071,11 @@ function formatDependencyChain(dependencyChain) {
  * Processes queued invalidated modules and adds them to the outdated modules set.
  * Modules that call module.hot.invalidate() are queued and processed here.
  *
- * @param outdatedModules - The set of already outdated modules
- */ function applyInvalidatedModules(outdatedModules) {
+ * @param outdatedModules - The current set of outdated modules
+ * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ */ function applyInvalidatedModules(outdatedModules, autoAcceptRootModules) {
     if (queuedInvalidatedModules.size > 0) {
-        computedInvalidatedModules(queuedInvalidatedModules).forEach((moduleId)=>{
+        computedInvalidatedModules(queuedInvalidatedModules, autoAcceptRootModules).forEach((moduleId)=>{
             outdatedModules.add(moduleId);
         });
         queuedInvalidatedModules.clear();
@@ -1251,7 +1276,7 @@ function formatDependencyChain(dependencyChain) {
                     break;
                 }
             default:
-                throw new Error(`Unknown merged chunk update`);
+                throw new Error('Unknown merged chunk update type');
         }
     }
     // If a module was added from one chunk and deleted from another in the same update,
@@ -1287,7 +1312,8 @@ function formatDependencyChain(dependencyChain) {
  * @param added - Map of added modules
  * @param modified - Map of modified modules
  * @param evalModuleEntry - Function to compile module code
- */ function computeOutdatedModules(added, modified, evalModuleEntry) {
+ * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ */ function computeOutdatedModules(added, modified, evalModuleEntry, autoAcceptRootModules) {
     const newModuleFactories = new Map();
     // Compile added modules
     for (const [moduleId, entry] of added){
@@ -1296,7 +1322,8 @@ function formatDependencyChain(dependencyChain) {
         }
     }
     // Walk dependency tree to find all modules affected by modifications
-    const outdatedModules = computedInvalidatedModules(modified.keys());
+    const outdatedModules = computedInvalidatedModules(modified.keys(), autoAcceptRootModules);
+    // Compile modified modules
     for (const [moduleId, entry] of modified){
         newModuleFactories.set(moduleId, evalModuleEntry(entry));
     }
@@ -1340,8 +1367,10 @@ function formatDependencyChain(dependencyChain) {
 /**
  * Internal implementation that orchestrates the full HMR update flow:
  * invalidation, disposal, and application of new modules.
- */ function applyInternal(outdatedModules, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn) {
-    outdatedModules = applyInvalidatedModules(outdatedModules);
+ *
+ * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ */ function applyInternal(outdatedModules, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules) {
+    outdatedModules = applyInvalidatedModules(outdatedModules, autoAcceptRootModules);
     // Find self-accepted modules to re-instantiate
     const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
     // Run dispose handlers, save hot.data, clear caches
@@ -1356,16 +1385,20 @@ function formatDependencyChain(dependencyChain) {
     }
     // Recursively apply any queued invalidations from new module execution
     if (queuedInvalidatedModules.size > 0) {
-        applyInternal(new Set(), [], new Map(), moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn);
+        applyInternal(new Set(), [], new Map(), moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules);
     }
 }
 /**
  * Main entry point for applying an ECMAScript merged update.
  * This is called by both browser and Node.js runtimes with platform-specific callbacks.
+ *
+ * @param options.autoAcceptRootModules - If true, root modules auto-accept updates without explicit
+ *                                   module.hot.accept(). Used for server-side HMR where pages
+ *                                   auto-accept at the top level.
  */ function applyEcmascriptMergedUpdateShared(options) {
-    const { added, modified, disposedModules, evalModuleEntry, instantiateModule, applyModuleFactoryName, moduleFactories, devModuleCache } = options;
-    const { outdatedModules, newModuleFactories } = computeOutdatedModules(added, modified, evalModuleEntry);
-    applyInternal(outdatedModules, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModule, applyModuleFactoryName);
+    const { added, modified, disposedModules, evalModuleEntry, instantiateModule, applyModuleFactoryName, moduleFactories, devModuleCache, autoAcceptRootModules } = options;
+    const { outdatedModules, newModuleFactories } = computeOutdatedModules(added, modified, evalModuleEntry, autoAcceptRootModules);
+    applyInternal(outdatedModules, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModule, applyModuleFactoryName, autoAcceptRootModules);
 }
 /// <reference path="../../../shared/runtime/dev-globals.d.ts" />
 /// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
@@ -1380,6 +1413,8 @@ const devContextPrototype = Context.prototype;
 devModuleCache = Object.create(null);
 devContextPrototype.c = devModuleCache;
 runtimeModules = new Set();
+// Set flag to indicate we use ModuleWithDirection
+createModuleWithDirectionFlag = true;
 /**
  * Map from module ID to the chunks that contain this module.
  *
@@ -1607,7 +1642,8 @@ function applyEcmascriptMergedUpdate(update) {
         instantiateModule,
         applyModuleFactoryName,
         moduleFactories,
-        devModuleCache
+        devModuleCache,
+        autoAcceptRootModules: false
     });
 }
 function handleApply(chunkListPath, update) {

@@ -43,6 +43,17 @@ declare function getOrInstantiateModuleFromParent<M>(
   sourceModule: M
 ): M
 
+// @ts-ignore Defined in `hmr-runtime.ts` (dev mode only)
+declare let devModuleCache: Record<ModuleId, any> | undefined
+
+/**
+ * Flag indicating which module object type to create when a module is merged. Set to `true`
+ * by each runtime that uses ModuleWithDirection (browser dev-base.ts, nodejs dev-base.ts,
+ * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
+ * uses plain Module objects.
+ */
+let createModuleWithDirectionFlag = false
+
 const REEXPORTED_OBJECTS = new WeakMap<Module, ReexportedObjects>()
 
 /**
@@ -111,9 +122,12 @@ function getOverwrittenModule(
 ): Module {
   let module = moduleCache[id]
   if (!module) {
-    // This is invoked when a module is merged into another module, thus it wasn't invoked via
-    // instantiateModule and the cache entry wasn't created yet.
-    module = createModuleObject(id)
+    if (createModuleWithDirectionFlag) {
+      // set in development modes for hmr support
+      module = createModuleWithDirection(id)
+    } else {
+      module = createModuleObject(id)
+    }
     moduleCache[id] = module
   }
   return module

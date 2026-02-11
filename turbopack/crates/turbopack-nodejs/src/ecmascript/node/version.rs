@@ -1,16 +1,20 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
-use turbopack_core::{chunk::MinifyType, version::Version};
+use turbopack_core::{
+    chunk::{MinifyType, ModuleId},
+    version::Version,
+};
 use turbopack_ecmascript::chunk::{CodeAndIds, EcmascriptChunkContent};
 
 #[turbo_tasks::value(serialization = "none")]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
-    chunk_path: String,
-    chunk_items: Vec<ReadRef<CodeAndIds>>,
-    minify_type: MinifyType,
+    pub(super) chunk_path: String,
+    pub(super) chunk_items: Vec<ReadRef<CodeAndIds>>,
+    pub(super) minify_type: MinifyType,
+    pub(super) entries_hashes: FxIndexMap<ModuleId, u64>,
 }
 
 #[turbo_tasks::value_impl]
@@ -30,10 +34,25 @@ impl EcmascriptBuildNodeChunkVersion {
             bail!("chunk path {chunk_path} is not in client root {output_root}");
         };
         let chunk_items = content.await?.chunk_item_code_and_ids().await?;
+
+        // Compute per-module hashes for fine-grained HMR tracking
+        let mut entries_hashes = FxIndexMap::default();
+        for item in &chunk_items {
+            for (module_id, code) in item {
+                let mut hasher = Xxh3Hash64Hasher::new();
+                let source = code.source_code();
+                hasher.write_ref(source);
+                let hash = hasher.finish();
+
+                entries_hashes.insert(module_id.clone(), hash);
+            }
+        }
+
         Ok(EcmascriptBuildNodeChunkVersion {
             chunk_path: chunk_path.to_string(),
             chunk_items,
             minify_type,
+            entries_hashes,
         }
         .cell())
     }
@@ -46,11 +65,13 @@ impl Version for EcmascriptBuildNodeChunkVersion {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_ref(&self.chunk_path);
         hasher.write_ref(&self.minify_type);
-        hasher.write_value(self.chunk_items.len());
-        for item in &self.chunk_items {
-            for (module_id, code) in item {
-                hasher.write_value((module_id, code.source_code()));
-            }
+        let sorted_hashes = {
+            let mut hashes: Vec<_> = self.entries_hashes.values().copied().collect();
+            hashes.sort();
+            hashes
+        };
+        for hash in sorted_hashes {
+            hasher.write_value(hash);
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);

@@ -21,6 +21,9 @@ devModuleCache = Object.create(null)
 devContextPrototype.c = devModuleCache
 runtimeModules = new Set()
 
+// Set flag to indicate we use ModuleWithDirection
+createModuleWithDirectionFlag = true
+
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
 // (e.g. `Module`). Hence, the need for `import()` here.
@@ -381,10 +384,11 @@ function applyEcmascriptMergedUpdate(update: EcmascriptMergedUpdate) {
     modified,
     disposedModules,
     evalModuleEntry: _eval, // browser's eval with source maps
-    instantiateModule,
+    instantiateModule, // now wraps shared logic
     applyModuleFactoryName,
     moduleFactories,
     devModuleCache,
+    autoAcceptRootModules: false,
   })
 }
 

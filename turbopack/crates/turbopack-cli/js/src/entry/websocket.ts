@@ -1,9 +1,9 @@
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/src/client/dev/error-overlay/websocket.ts
 
-import type { WebSocketMessage } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client'
+import type { HmrMessage } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client'
 
 let source: WebSocket
-const messageCallbacks: ((message: WebSocketMessage) => void)[] = []
+const messageCallbacks: ((message: HmrMessage) => void)[] = []
 
 // TODO: add timeout again
 // let lastActivity = Date.now()
@@ -19,7 +19,7 @@ function getSocketProtocol(assetPrefix: string): string {
   return protocol === 'http:' ? 'ws' : 'wss'
 }
 
-export function addMessageListener(cb: (message: WebSocketMessage) => void) {
+export function addMessageListener(cb: (message: HmrMessage) => void) {
   messageCallbacks.push(cb)
 }
 
