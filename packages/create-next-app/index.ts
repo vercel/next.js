@@ -55,8 +55,6 @@ const program = new Command(packageJson.name)
   .option('--biome', 'Initialize with Biome config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
-  .option('--turbopack', 'Enable Turbopack as the bundler.')
-  .option('--webpack', 'Enable Webpack as the bundler.')
   .option('--rspack', 'Enable Rspack as the bundler.')
   .option(
     '--import-alias <prefix/*>',
@@ -590,13 +588,7 @@ async function run(): Promise<void> {
     }
   }
 
-  const bundler: Bundler = opts.turbopack
-    ? Bundler.Turbopack
-    : opts.webpack
-      ? Bundler.Webpack
-      : opts.rspack
-        ? Bundler.Rspack
-        : Bundler.Turbopack
+  const bundler: Bundler = opts.rspack ? Bundler.Rspack : Bundler.Turbopack
 
   try {
     await createApp({

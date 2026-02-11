@@ -1,4 +1,3 @@
-import { join } from 'node:path'
 import {
   projectShouldHaveNoGitChanges,
   tryNextDev,
@@ -66,7 +65,6 @@ describe('create-next-app --api (Headless App)', () => {
           projectName,
           '--js',
           '--api',
-          '--no-turbopack',
           '--no-src-dir',
           '--no-import-alias',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
@@ -99,7 +97,6 @@ describe('create-next-app --api (Headless App)', () => {
           projectName,
           '--ts',
           '--api',
-          '--no-turbopack',
           '--no-src-dir',
           '--no-import-alias',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
@@ -129,7 +126,6 @@ describe('create-next-app --api (Headless App)', () => {
           projectName,
           '--ts',
           '--api',
-          '--no-turbopack',
           '--src-dir',
           '--no-import-alias',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
@@ -155,39 +151,4 @@ describe('create-next-app --api (Headless App)', () => {
       })
     })
   })
-  ;(process.env.NEXT_RSPACK ? it.skip : it)(
-    'should enable webpack dev with --webpack flag',
-    async () => {
-      await useTempDir(async (cwd) => {
-        const projectName = 'app-turbo'
-        const { exitCode } = await run(
-          [
-            projectName,
-            '--ts',
-            '--api',
-            '--webpack',
-            '--no-src-dir',
-            '--no-import-alias',
-          ],
-          nextTgzFilename,
-          {
-            cwd,
-          }
-        )
-
-        // eslint-disable-next-line jest/no-standalone-expect
-        expect(exitCode).toBe(0)
-        const projectRoot = join(cwd, projectName)
-        const pkgJson = require(join(projectRoot, 'package.json'))
-        // eslint-disable-next-line jest/no-standalone-expect
-        expect(pkgJson.scripts.dev).toBe('next dev --webpack')
-
-        await tryNextDev({
-          cwd,
-          isApi: true,
-          projectName,
-        })
-      })
-    }
-  )
 })
