@@ -387,7 +387,11 @@ export async function createHotReloaderTurbopack(
     }
   )
   backgroundLogCompilationEvents(project, {
-    eventTypes: ['StartupCacheInvalidationEvent', 'TimingEvent'],
+    eventTypes: [
+      'StartupCacheInvalidationEvent',
+      'TimingEvent',
+      'SlowFilesystemEvent',
+    ],
   })
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project, projectPath)

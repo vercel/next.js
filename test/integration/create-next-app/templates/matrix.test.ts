@@ -21,8 +21,6 @@ describe.each(['app', 'pages'] as const)(
 
     const allFlagValues = {
       app: [isApp ? '--app' : '--no-app'],
-      turbo: [process.env.IS_TURBOPACK_TEST ? '--turbopack' : '--no-turbopack'],
-
       ts: ['--js', '--ts'],
       importAlias: [
         '--import-alias=@acme/*',
