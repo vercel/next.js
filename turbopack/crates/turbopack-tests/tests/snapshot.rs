@@ -97,6 +97,8 @@ struct SnapshotOptions {
     enable_debug_ids: bool,
     #[serde(default)]
     source_map_source_type: SourceMapSourceType,
+    #[serde(default = "default_chunk_loading_global")]
+    chunk_loading_global: String,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -129,6 +131,7 @@ impl Default for SnapshotOptions {
             production_chunking: false,
             enable_debug_ids: false,
             source_map_source_type: SourceMapSourceType::default(),
+            chunk_loading_global: default_chunk_loading_global(),
         }
     }
 }
@@ -153,6 +156,10 @@ fn default_runtime_type() -> RuntimeType {
 
 fn default_minify_type() -> MinifyType {
     MinifyType::NoMinify
+}
+
+fn default_chunk_loading_global() -> String {
+    "TURBOPACK".to_owned()
 }
 
 fn is_empty_dir_tree(dir_entries: impl IntoIterator<Item = io::Result<fs::DirEntry>>) -> bool {
@@ -434,11 +441,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .module();
 
     let (evaluatable_assets, entry_modules) = if let Some(ecmascript) =
-        Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module.to_resolved().await?)
     {
         let evaluatable_assets = runtime_entries
             .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(ecmascript);
+            .with_entry(*ecmascript);
         (
             evaluatable_assets,
             evaluatable_assets
@@ -504,7 +511,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 None
             })
             .debug_ids(options.enable_debug_ids)
-            .source_map_source_type(options.source_map_source_type);
+            .source_map_source_type(options.source_map_source_type)
+            .chunk_loading_global(options.chunk_loading_global.into());
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(
@@ -592,9 +600,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Runtime::NodeJs => {
             OutputAssetsWithReferenced {
                 assets: ResolvedVc::cell(vec![
-                    Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
-                        .await?
-                        .unwrap()
+                    chunking_context
                         .entry_chunk_group(
                             // `expected` expects a completely flat output directory.
                             chunk_root_path

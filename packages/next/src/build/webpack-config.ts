@@ -51,6 +51,7 @@ import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin as NextFlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { RspackFlightClientEntryPlugin } from './webpack/plugins/rspack-flight-client-entry-plugin'
+import { DeferredEntriesPlugin } from './webpack/plugins/deferred-entries-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -320,6 +321,7 @@ export default async function getBaseWebpackConfig(
     compilerType,
     dev = false,
     entrypoints,
+    deferredEntrypoints,
     isDevFallback = false,
     pagesDir,
     reactProductionProfiling = false,
@@ -347,6 +349,7 @@ export default async function getBaseWebpackConfig(
     compilerType: CompilerNameValues
     dev?: boolean
     entrypoints: webpack.EntryObject
+    deferredEntrypoints?: webpack.EntryObject
     isDevFallback?: boolean
     pagesDir: string | undefined
     reactProductionProfiling?: boolean
@@ -1972,6 +1975,15 @@ export default async function getBaseWebpackConfig(
       //
       // TODO: Rspack currently does not support the hooks and chunk methods required by ForceCompleteRuntimePlugin.
       dev && !isRspack && new ForceCompleteRuntimePlugin(),
+      // Handle deferred entries - must be added early to intercept entry processing
+      !isRspack &&
+        config.experimental.deferredEntries?.length &&
+        deferredEntrypoints &&
+        new DeferredEntriesPlugin({
+          dev,
+          config,
+          deferredEntrypoints,
+        }),
       isNodeServer &&
         new bundler.NormalModuleReplacementPlugin(
           /\.\/(.+)\.shared-runtime$/,
@@ -2514,6 +2526,7 @@ export default async function getBaseWebpackConfig(
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
     serverSourceMaps: config.experimental.serverSourceMaps,
+    deploymentId: config.deploymentId,
   })
 
   // @ts-ignore Cache exists

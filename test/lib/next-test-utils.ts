@@ -818,7 +818,7 @@ export async function retry<T>(
   fn: () => T | Promise<T>,
   duration: number = 3000,
   interval: number = 500,
-  description?: string
+  description: string = fn.name
 ): Promise<T> {
   if (duration % interval !== 0) {
     throw new Error(

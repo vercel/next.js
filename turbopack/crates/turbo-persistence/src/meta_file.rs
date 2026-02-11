@@ -2,21 +2,17 @@ use std::{
     cmp::Ordering,
     fmt::Display,
     fs::File,
-    hash::BuildHasherDefault,
     io::{BufReader, Seek},
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, OnceLock},
+    sync::OnceLock,
 };
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
-use either::Either;
 use memmap2::{Mmap, MmapOptions};
-use quick_cache::sync::GuardResult;
-use rustc_hash::FxHasher;
 use turbo_bincode::turbo_bincode_decode;
 
 use crate::{
@@ -24,18 +20,6 @@ use crate::{
     lookup_entry::LookupValue,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
-
-#[derive(Clone, Default)]
-pub struct AmqfWeighter;
-
-impl quick_cache::Weighter<u32, Arc<qfilter::Filter>> for AmqfWeighter {
-    fn weight(&self, _key: &u32, filter: &Arc<qfilter::Filter>) -> u64 {
-        filter.capacity() + 1
-    }
-}
-
-pub type AmqfCache =
-    quick_cache::sync::Cache<u32, Arc<qfilter::Filter>, AmqfWeighter, BuildHasherDefault<FxHasher>>;
 
 bitfield! {
     #[derive(Clone, Copy, Default)]
@@ -136,30 +120,10 @@ impl MetaEntry {
             .0)
     }
 
-    pub fn amqf(
-        &self,
-        meta: &MetaFile,
-        amqf_cache: &AmqfCache,
-    ) -> Result<impl Deref<Target = qfilter::Filter>> {
-        let use_amqf_cache = self.max_hash - self.min_hash < 1 << 60;
-        Ok(if use_amqf_cache {
-            let amqf = match amqf_cache.get_value_or_guard(&self.sequence_number(), None) {
-                GuardResult::Value(amqf) => amqf,
-                GuardResult::Guard(guard) => {
-                    let amqf = self.deserialize_amqf(meta)?;
-                    let amqf: Arc<qfilter::Filter> = Arc::new(amqf);
-                    let _ = guard.insert(amqf.clone());
-                    amqf
-                }
-                GuardResult::Timeout => unreachable!(),
-            };
-            Either::Left(amqf)
-        } else {
-            let amqf = self.amqf.get_or_try_init(|| {
-                let amqf = self.deserialize_amqf(meta)?;
-                anyhow::Ok(amqf)
-            })?;
-            Either::Right(amqf)
+    pub fn amqf(&self, meta: &MetaFile) -> Result<impl Deref<Target = qfilter::Filter>> {
+        self.amqf.get_or_try_init(|| {
+            let amqf = self.deserialize_amqf(meta)?;
+            anyhow::Ok(amqf)
         })
     }
 
@@ -335,6 +299,20 @@ impl MetaFile {
         Ok(file)
     }
 
+    pub fn clear_cache(&mut self) {
+        for entry in self.entries.iter_mut() {
+            entry.amqf.take();
+            entry.sst.take();
+        }
+    }
+
+    pub fn prepare_sst_cache(&self) {
+        for entry in self.entries.iter() {
+            let _ = entry.sst(self);
+            let _ = entry.amqf(self);
+        }
+    }
+
     pub fn sequence_number(&self) -> u32 {
         self.sequence_number
     }
@@ -400,7 +378,6 @@ impl MetaFile {
         key_family: u32,
         key_hash: u64,
         key: &K,
-        amqf_cache: &AmqfCache,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<MetaLookupResult> {
@@ -413,7 +390,7 @@ impl MetaFile {
                 continue;
             }
             {
-                let amqf = entry.amqf(self, amqf_cache)?;
+                let amqf = entry.amqf(self)?;
                 if !amqf.contains_fingerprint(key_hash) {
                     miss_result = MetaLookupResult::QuickFilterMiss;
                     continue;
@@ -436,7 +413,6 @@ impl MetaFile {
         keys: &[K],
         cells: &mut [(u64, usize, Option<LookupValue>)],
         empty_cells: &mut usize,
-        amqf_cache: &AmqfCache,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<MetaBatchLookupResult> {
@@ -486,8 +462,12 @@ impl MetaFile {
                 }
                 continue;
             }
-            let amqf = entry.amqf(self, amqf_cache)?;
+            let amqf = entry.amqf(self)?;
             for (hash, index, result) in &mut cells[start_index..=end_index] {
+                debug_assert!(
+                    *hash >= entry.min_hash && *hash <= entry.max_hash,
+                    "Key hash out of range"
+                );
                 if result.is_some() {
                     continue;
                 }

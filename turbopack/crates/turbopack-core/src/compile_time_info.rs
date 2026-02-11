@@ -392,6 +392,15 @@ impl FreeVarReferences {
     }
 }
 
+impl IntoIterator for FreeVarReferences {
+    type Item = (Vec<DefinableNameSegment>, FreeVarReference);
+    type IntoIter = indexmap::map::IntoIter<Vec<DefinableNameSegment>, FreeVarReference>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct CompileTimeInfo {

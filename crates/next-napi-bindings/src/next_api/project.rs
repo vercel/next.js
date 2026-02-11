@@ -18,7 +18,7 @@ use next_api::{
         RouteOperation,
     },
     project::{
-        DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions, Project,
+        DebugBuildPaths, DefineEnv, DraftModeOptions, HmrTarget, PartialProjectOptions, Project,
         ProjectContainer, ProjectOptions, WatchOptions,
     },
     route::Endpoint,
@@ -82,14 +82,15 @@ use crate::{
 
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
-const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
+const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(200);
 static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
 static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
     Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
-/// Next doesn't display warnings from node_modules, so configure turbopack to not report them
-/// either. This matches logic in `packages/next/src/server/dev/turbopack-utils.ts`
-pub const NEXT_ISSUE_FILTER: IssueFilter = IssueFilter::warnings_and_foreign_errors();
+/// Get the `Vc<IssueFilter>` for a `ProjectContainer`.
+fn issue_filter_from_container(container: ResolvedVc<ProjectContainer>) -> Vc<IssueFilter> {
+    container.project().issue_filter()
+}
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -190,6 +191,9 @@ pub struct NapiProjectOptions {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<NapiDebugBuildPaths>,
+
+    // Whether persistent caching is enabled
+    pub is_persistent_caching_enabled: bool,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -252,8 +256,6 @@ pub struct NapiDefineEnv {
 
 #[napi(object)]
 pub struct NapiTurboEngineOptions {
-    /// Use the new backend with filesystem cache enabled.
-    pub persistent_caching: Option<bool>,
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
     /// Track dependencies between tasks. If false, any change during build will error.
@@ -296,6 +298,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             write_routes_hashes_manifest,
             current_node_js_version,
             debug_build_paths,
+            is_persistent_caching_enabled,
         } = val;
         ProjectOptions {
             root_path,
@@ -316,6 +319,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 app: p.app,
                 pages: p.pages,
             }),
+            is_persistent_caching_enabled,
         }
     }
 }
@@ -506,13 +510,12 @@ pub fn project_new(
                 .memory_limit
                 .map(|m| m as usize)
                 .unwrap_or(usize::MAX);
-            let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
             let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
             let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
-                persistent_caching,
+                options.is_persistent_caching_enabled,
                 memory_limit,
                 dependency_tracking,
                 is_ci,
@@ -600,8 +603,8 @@ impl CompilationEvent for SlowFilesystemEvent {
     fn message(&self) -> String {
         format!(
             "Slow filesystem detected. The benchmark took {}ms. If {} is a network drive, \
-             consider moving it to a local folder. If you have an antivirus enabled, consider \
-             excluding your project directory.",
+             consider moving it to a local folder.\n\
+            See more: https://nextjs.org/docs/app/guides/local-development",
             self.duration_ms, self.directory
         )
     }
@@ -943,8 +946,9 @@ async fn get_entrypoints_with_issues_operation(
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
+    let filter = issue_filter_from_container(container);
     let (entrypoints, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation).await?;
+        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1041,8 +1045,9 @@ async fn get_all_written_entrypoints_with_issues_operation(
         container,
         app_dir_only,
     ));
+    let filter = issue_filter_from_container(container);
     let (entrypoints, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation).await?;
+        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
     Ok(AllWrittenEntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1204,14 +1209,26 @@ struct HmrUpdateWithIssues {
 }
 
 #[turbo_tasks::function(operation)]
+fn project_hmr_update_operation(
+    project: ResolvedVc<Project>,
+    chunk_name: RcStr,
+    target: HmrTarget,
+    state: ResolvedVc<VersionState>,
+) -> Vc<Update> {
+    project.hmr_update(chunk_name, target, *state)
+}
+
+#[turbo_tasks::function(operation)]
 async fn hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
-    identifier: RcStr,
+    chunk_name: RcStr,
     state: ResolvedVc<VersionState>,
+    target: HmrTarget,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
-    let update_op = project_hmr_update_operation(project, identifier, state);
+    let update_op = project_hmr_update_operation(project, chunk_name, target, state);
     let update = update_op.read_strongly_consistent().await?;
-    let issues = get_issues(update_op, NEXT_ISSUE_FILTER).await?;
+    let filter = project.issue_filter();
+    let issues = get_issues(update_op, filter).await?;
     let diagnostics = get_diagnostics(update_op).await?;
     let effects = Arc::new(get_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
@@ -1223,42 +1240,42 @@ async fn hmr_update_with_issues_operation(
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
-fn project_hmr_update_operation(
-    project: ResolvedVc<Project>,
-    identifier: RcStr,
-    state: ResolvedVc<VersionState>,
-) -> Vc<Update> {
-    project.hmr_update(identifier, *state)
-}
-
-#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func))]
+#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    identifier: RcStr,
+    chunk_name: RcStr,
+    target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    let hmr_target = target
+        .parse::<HmrTarget>()
+        .map_err(napi::Error::from_reason)?;
+
     let container = project.container;
     let session = TransientInstance::new(());
     subscribe(
         project.turbopack_ctx.clone(),
         func,
         {
-            let outer_identifier = identifier.clone();
+            let outer_chunk_name = chunk_name.clone();
             let session = session.clone();
             move || {
-                let identifier: RcStr = outer_identifier.clone();
+                let chunk_name: RcStr = outer_chunk_name.clone();
                 let session = session.clone();
                 async move {
                     let project = container.project().to_resolved().await?;
                     let state = project
-                        .hmr_version_state(identifier.clone(), session)
+                        .hmr_version_state(chunk_name.clone(), hmr_target, session)
                         .to_resolved()
                         .await?;
 
-                    let update_op =
-                        hmr_update_with_issues_operation(project, identifier.clone(), state);
+                    let update_op = hmr_update_with_issues_operation(
+                        project,
+                        chunk_name.clone(),
+                        state,
+                        hmr_target,
+                    );
                     let update = update_op.read_strongly_consistent().await?;
                     let HmrUpdateWithIssues {
                         update,
@@ -1293,7 +1310,7 @@ pub fn project_hmr_events(
                 .collect::<Vec<_>>();
 
             let identifier = ResourceIdentifier {
-                path: identifier.clone(),
+                path: chunk_name.clone(),
                 headers: None,
             };
             let update = match update.as_deref() {
@@ -1318,29 +1335,39 @@ pub fn project_hmr_events(
 }
 
 #[napi(object)]
-struct HmrIdentifiers {
-    pub identifiers: Vec<RcStr>,
+struct HmrChunkNames {
+    pub chunk_names: Vec<RcStr>,
 }
 
 #[turbo_tasks::value(serialization = "none")]
-struct HmrIdentifiersWithIssues {
-    identifiers: ReadRef<Vec<RcStr>>,
+struct HmrChunkNamesWithIssues {
+    chunk_names: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function(operation)]
-async fn get_hmr_identifiers_with_issues_operation(
+fn project_hmr_chunk_names_operation(
     container: ResolvedVc<ProjectContainer>,
-) -> Result<Vc<HmrIdentifiersWithIssues>> {
-    let hmr_identifiers_op = project_container_hmr_identifiers_operation(container);
-    let hmr_identifiers = hmr_identifiers_op.read_strongly_consistent().await?;
-    let issues = get_issues(hmr_identifiers_op, NEXT_ISSUE_FILTER).await?;
-    let diagnostics = get_diagnostics(hmr_identifiers_op).await?;
-    let effects = Arc::new(get_effects(hmr_identifiers_op).await?);
-    Ok(HmrIdentifiersWithIssues {
-        identifiers: hmr_identifiers,
+    target: HmrTarget,
+) -> Vc<Vec<RcStr>> {
+    container.hmr_chunk_names(target)
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_hmr_chunk_names_with_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+    target: HmrTarget,
+) -> Result<Vc<HmrChunkNamesWithIssues>> {
+    let hmr_chunk_names_op = project_hmr_chunk_names_operation(container, target);
+    let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
+    let filter = issue_filter_from_container(container);
+    let issues = get_issues(hmr_chunk_names_op, filter).await?;
+    let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
+    let effects = Arc::new(get_effects(hmr_chunk_names_op).await?);
+    Ok(HmrChunkNamesWithIssues {
+        chunk_names: hmr_chunk_names,
         issues,
         diagnostics,
         effects,
@@ -1348,44 +1375,42 @@ async fn get_hmr_identifiers_with_issues_operation(
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
-fn project_container_hmr_identifiers_operation(
-    container: ResolvedVc<ProjectContainer>,
-) -> Vc<Vec<RcStr>> {
-    container.hmr_identifiers()
-}
-
-#[tracing::instrument(level = "info", name = "get HMR identifiers", skip_all)]
+#[tracing::instrument(level = "info", name = "get HMR chunk names", skip(project, func), fields(target = %target))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_hmr_identifiers_subscribe(
+pub fn project_hmr_chunk_names_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    let hmr_target = target
+        .parse::<HmrTarget>()
+        .map_err(napi::Error::from_reason)?;
+
     let container = project.container;
     subscribe(
         project.turbopack_ctx.clone(),
         func,
         move || async move {
-            let hmr_identifiers_with_issues_op =
-                get_hmr_identifiers_with_issues_operation(container);
-            let HmrIdentifiersWithIssues {
-                identifiers,
+            let hmr_chunk_names_with_issues_op =
+                get_hmr_chunk_names_with_issues_operation(container, hmr_target);
+            let HmrChunkNamesWithIssues {
+                chunk_names,
                 issues,
                 diagnostics,
                 effects,
-            } = &*hmr_identifiers_with_issues_op
+            } = &*hmr_chunk_names_with_issues_op
                 .read_strongly_consistent()
                 .await?;
             effects.apply().await?;
 
-            Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
+            Ok((chunk_names.clone(), issues.clone(), diagnostics.clone()))
         },
         move |ctx| {
-            let (identifiers, issues, diagnostics) = ctx.value;
+            let (chunk_names, issues, diagnostics) = ctx.value;
 
             Ok(vec![TurbopackResult {
-                result: HmrIdentifiers {
-                    identifiers: ReadRef::into_owned(identifiers),
+                result: HmrChunkNames {
+                    chunk_names: ReadRef::into_owned(chunk_names),
                 },
                 issues: issues
                     .iter()

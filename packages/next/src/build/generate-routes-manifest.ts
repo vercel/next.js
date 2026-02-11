@@ -31,6 +31,7 @@ export interface GenerateRoutesManifestOptions {
   config: NextConfigComplete
   redirects: CustomRoutes['redirects']
   headers: CustomRoutes['headers']
+  onMatchHeaders: CustomRoutes['headers']
   rewrites: CustomRoutes['rewrites']
   restrictedRedirectPaths: string[]
   isAppPPREnabled: boolean
@@ -57,6 +58,7 @@ export function generateRoutesManifest(
     config,
     redirects,
     headers,
+    onMatchHeaders,
     rewrites,
     restrictedRedirectPaths,
     isAppPPREnabled,
@@ -102,6 +104,7 @@ export function generateRoutesManifest(
       buildCustomRoute('redirect', r, restrictedRedirectPaths)
     ),
     headers: headers.map((r) => buildCustomRoute('header', r)),
+    onMatchHeaders: onMatchHeaders.map((r) => buildCustomRoute('header', r)),
     rewrites: {
       beforeFiles: rewrites.beforeFiles.map((r) =>
         buildCustomRoute('rewrite', r)

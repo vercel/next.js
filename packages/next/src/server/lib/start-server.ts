@@ -123,6 +123,7 @@ export interface StartServerOptions {
   keepAliveTimeout?: number
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
+  experimentalServerFastRefresh?: boolean
 }
 
 export async function getRequestHandlers({
@@ -135,6 +136,7 @@ export async function getRequestHandlers({
   minimalMode,
   keepAliveTimeout,
   experimentalHttpsServer,
+  experimentalServerFastRefresh,
   quiet,
 }: {
   dir: string
@@ -146,6 +148,7 @@ export async function getRequestHandlers({
   minimalMode?: boolean
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
+  experimentalServerFastRefresh?: boolean
   quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
@@ -158,6 +161,7 @@ export async function getRequestHandlers({
     server,
     keepAliveTimeout,
     experimentalHttpsServer,
+    experimentalServerFastRefresh,
     startServerSpan,
     quiet,
   })
@@ -178,6 +182,7 @@ export async function startServer(
     allowRetry,
     keepAliveTimeout,
     selfSignedCertificate,
+    experimentalServerFastRefresh,
   } = serverOptions
   let { port } = serverOptions
 
@@ -382,7 +387,7 @@ export async function startServer(
       try {
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
-        const cleanup = () => {
+        const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
             // interactive shell (i.e. bash, zsh), the shell will recursively
@@ -413,6 +418,9 @@ export async function startServer(
               cleanupListeners?.runAll().catch(console.error),
             ])
 
+            // Flush any remaining traces to the trace file on shutdown
+            await flushAllTraces()
+
             // Flush telemetry if this is a dev server
             if (isDev) {
               try {
@@ -435,7 +443,23 @@ export async function startServer(
             }
 
             debug('start-server process cleanup finished')
-            process.exit(0)
+
+            // Exit with signal-based exit code (128 + signal number) so that
+            // Node.js treats this as a signal termination, not a normal exit.
+            // This avoids waiting for the debugger to disconnect.
+            switch (signal) {
+              case 'SIGINT':
+                process.exit(130)
+                break
+              case 'SIGTERM':
+                process.exit(143)
+                break
+              default:
+                // Make sure all handled signals have explicit exit codes.
+                // This is just a fallback to guard against unsound types.
+                signal satisfies never
+                process.exit(128)
+            }
           })()
         }
 
@@ -459,6 +483,7 @@ export async function startServer(
           minimalMode,
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
+          experimentalServerFastRefresh,
         })
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
