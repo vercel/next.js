@@ -1,4 +1,4 @@
-mod interval_map;
+pub(crate) mod interval_map;
 pub mod selector;
 
 #[cfg(test)]

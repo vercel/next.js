@@ -28,6 +28,11 @@ pub enum LazyLookupValue<'l> {
 }
 
 impl LazyLookupValue<'_> {
+    /// Returns true if this value is a deletion tombstone.
+    pub fn is_deleted(&self) -> bool {
+        matches!(self, LazyLookupValue::Eager(LookupValue::Deleted))
+    }
+
     /// Returns the size of the value in the SST file.
     pub fn uncompressed_size_in_sst(&self) -> usize {
         match self {
