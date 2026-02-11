@@ -99,6 +99,10 @@ function ensureCleanupIsScheduled() {
   if (lruSize <= maxLruSize) {
     return
   }
+
+  // To schedule cleanup, ping the prefetch scheduler. At the end of its work
+  // loop, once there are no queued tasks and no in-progress requests, it will
+  // call cleanup().
   pingPrefetchScheduler()
 }
 
