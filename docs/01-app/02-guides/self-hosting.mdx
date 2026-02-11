@@ -211,20 +211,11 @@ By default, Next.js uses an in-memory cache that is not shared across instances.
 
 ## Version Skew
 
-Version skew occurs when clients running an older version of your application try to communicate with servers running a newer version (or vice versa). This commonly happens during rolling deployments when some instances are updated before others.
-
-<details>
-  <summary>What is version skew?</summary>
-
-In web applications, version skew typically happens when a user's browser has cached JavaScript or CSS from an older deployment while the server is running a newer version.
-
-For Next.js applications, this can cause issues such as:
+When self-hosting across multiple instances or doing rolling deployments, [version skew](/docs/app/glossary#version-skew) can cause:
 
 - **Missing assets**: The client requests JavaScript or CSS files that no longer exist on the server
-- **Server Function mismatches**: Each Server Function has a unique ID generated at build time. When the client calls a Server Function using an old ID, the server cannot find it, resulting in "Failed to find Server Action" errors
-- **Navigation failures**: Prefetched page data from an old deployment may be incompatible with the new server
-
-</details>
+- **Server Function mismatches**: The client invokes a Server Function using an ID from a previous build that the server no longer recognizes
+- **Navigation failures**: Prefetched page data from an old deployment is incompatible with the new server
 
 Next.js uses the [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) to detect and handle version skew. When a deployment ID is configured:
 
