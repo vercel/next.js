@@ -163,6 +163,26 @@ function _ts_generator(thisArg, body) {
         };
     }
 }
+/**
+ * Describes why a module was instantiated.
+ * Shared between browser and Node.js runtimes.
+ */ var SourceType = /*#__PURE__*/ function(SourceType) {
+    /**
+   * The module was instantiated because it was included in an evaluated chunk's
+   * runtime.
+   * SourceData is a ChunkPath.
+   */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
+    /**
+   * The module was instantiated because a parent module imported it.
+   * SourceData is a ModuleId.
+   */ SourceType[SourceType["Parent"] = 1] = "Parent";
+    /**
+   * The module was instantiated because it was included in a chunk's hot module
+   * update.
+   * SourceData is an array of ModuleIds or undefined.
+   */ SourceType[SourceType["Update"] = 2] = "Update";
+    return SourceType;
+}(SourceType || {});
 var REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -201,6 +221,16 @@ function getOverwrittenModule(moduleCache, id) {
         error: undefined,
         id: id,
         namespaceObject: undefined
+    };
+}
+function createModuleWithDirection(id) {
+    return {
+        exports: {},
+        error: undefined,
+        id: id,
+        namespaceObject: undefined,
+        parents: [],
+        children: []
     };
 }
 var BindingTag_Value = 0;
@@ -588,9 +618,19 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         if (end === chunkModules.length) {
             throw new Error('malformed chunk format, expected a factory function');
         }
-        // Each chunk item has a 'primary id' and optional additional ids. If the primary id is already
-        // present we know all the additional ids are also present, so we don't need to check.
-        if (!moduleFactories.has(moduleId)) {
+        // Check if ANY of the module IDs in this group already have factories (e.g., from HMR updates).
+        // If so, skip installing the old factory from disk to preserve the HMR-updated code.
+        var hasExistingFactory = false;
+        var groupIds = [];
+        for(var j = i; j < end; j++){
+            var id = chunkModules[j];
+            groupIds.push(id);
+            if (moduleFactories.has(id)) {
+                hasExistingFactory = true;
+                break;
+            }
+        }
+        if (!hasExistingFactory) {
             var moduleFactoryFn = chunkModules[end];
             applyModuleFactoryName(moduleFactoryFn);
             newModuleId === null || newModuleId === void 0 ? void 0 : newModuleId(moduleId);
@@ -768,7 +808,7 @@ function applyModuleFactoryName(factory) {
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
-/// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="../../../shared/runtime/runtime-utils.ts" />
 // Used in WebWorkers to tell the runtime about the chunk suffix
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
@@ -798,6 +838,58 @@ function _async_to_generator(fn) {
             _next(undefined);
         });
     };
+}
+function _define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
+function _object_spread(target) {
+    for(var i = 1; i < arguments.length; i++){
+        var source = arguments[i] != null ? arguments[i] : {};
+        var ownKeys = Object.keys(source);
+        if (typeof Object.getOwnPropertySymbols === "function") {
+            ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function(sym) {
+                return Object.getOwnPropertyDescriptor(source, sym).enumerable;
+            }));
+        }
+        ownKeys.forEach(function(key) {
+            _define_property(target, key, source[key]);
+        });
+    }
+    return target;
+}
+function ownKeys(object, enumerableOnly) {
+    var keys = Object.keys(object);
+    if (Object.getOwnPropertySymbols) {
+        var symbols = Object.getOwnPropertySymbols(object);
+        if (enumerableOnly) {
+            symbols = symbols.filter(function(sym) {
+                return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+            });
+        }
+        keys.push.apply(keys, symbols);
+    }
+    return keys;
+}
+function _object_spread_props(target, source) {
+    source = source != null ? source : {};
+    if (Object.getOwnPropertyDescriptors) {
+        Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+        ownKeys(Object(source)).forEach(function(key) {
+            Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+        });
+    }
+    return target;
 }
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
@@ -899,23 +991,6 @@ function _ts_generator(thisArg, body) {
     }
 }
 var browserContextPrototype = Context.prototype;
-var SourceType = /*#__PURE__*/ function(SourceType) {
-    /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   * SourceData is a ChunkPath.
-   */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
-    /**
-   * The module was instantiated because a parent module imported it.
-   * SourceData is a ModuleId.
-   */ SourceType[SourceType["Parent"] = 1] = "Parent";
-    /**
-   * The module was instantiated because it was included in a chunk's hot module
-   * update.
-   * SourceData is an array of ModuleIds or undefined.
-   */ SourceType[SourceType["Update"] = 2] = "Update";
-    return SourceType;
-}(SourceType || {});
 var moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 var availableModules = new Map();
@@ -923,13 +998,13 @@ var availableModuleChunks = new Map();
 function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
     var instantiationReason;
     switch(sourceType){
-        case 0:
+        case SourceType.Runtime:
             instantiationReason = `as a runtime entry of chunk ${sourceData}`;
             break;
-        case 1:
+        case SourceType.Parent:
             instantiationReason = `because it was required from module ${sourceData}`;
             break;
-        case 2:
+        case SourceType.Update:
             instantiationReason = 'because of an HMR update';
             break;
         default:
@@ -940,11 +1015,11 @@ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 function loadChunk(chunkData) {
-    return loadChunkInternal(1, this.m.id, chunkData);
+    return loadChunkInternal(SourceType.Parent, this.m.id, chunkData);
 }
 browserContextPrototype.l = loadChunk;
 function loadInitialChunk(chunkPath, chunkData) {
-    return loadChunkInternal(0, chunkPath, chunkData);
+    return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData);
 }
 function loadChunkInternal(sourceType, sourceData, chunkData) {
     return _async_to_generator(function() {
@@ -1125,7 +1200,7 @@ var loadedChunk = Promise.resolve(undefined);
 var instrumentedBackendLoadChunks = new WeakMap();
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(chunkUrl) {
-    return loadChunkByUrlInternal(1, this.m.id, chunkUrl);
+    return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkUrl);
 }
 browserContextPrototype.L = loadChunkByUrl;
 // Do not make this async. React relies on referential equality of the returned Promise.
@@ -1137,13 +1212,13 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
         entry = thenable.then(resolve).catch(function(cause) {
             var loadReason;
             switch(sourceType){
-                case 0:
+                case SourceType.Runtime:
                     loadReason = `as a runtime dependency of chunk ${sourceData}`;
                     break;
-                case 1:
+                case SourceType.Parent:
                     loadReason = `from module ${sourceData}`;
                     break;
-                case 2:
+                case SourceType.Update:
                     loadReason = 'from an HMR update';
                     break;
                 default:
@@ -1188,17 +1263,21 @@ browserContextPrototype.P = resolveAbsolutePath;
 }
 browserContextPrototype.q = exportUrl;
 /**
- * Returns a URL for the worker.
+ * Creates a worker by instantiating the given WorkerConstructor with the
+ * appropriate URL and options.
+ *
  * The entrypoint is a pre-compiled worker runtime file. The params configure
  * which module chunks to load and which module to run as the entry point.
  *
  * The params are a JSON array of the following structure:
  * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
  *
+ * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint URL path to the worker entrypoint chunk
  * @param moduleChunks list of module chunk paths to load
- * @param shared whether this is a SharedWorker (uses querystring for URL identity)
- */ function getWorkerURL(entrypoint, moduleChunks, shared) {
+ * @param workerOptions options to pass to the Worker constructor (optional)
+ */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
+    var isSharedWorker = WorkerConstructor.name === 'SharedWorker';
     var chunkUrls = moduleChunks.map(function(chunk) {
         return getChunkRelativeUrl(chunk);
     }).reverse();
@@ -1228,18 +1307,22 @@ browserContextPrototype.q = exportUrl;
     }
     var url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
     var paramsJson = JSON.stringify(params);
-    if (shared) {
+    if (isSharedWorker) {
         url.searchParams.set('params', paramsJson);
     } else {
         url.hash = '#params=' + encodeURIComponent(paramsJson);
     }
-    return url;
+    // Remove type: "module" from options since our worker entrypoint is not a module
+    var options = workerOptions ? _object_spread_props(_object_spread({}, workerOptions), {
+        type: undefined
+    }) : undefined;
+    return new WorkerConstructor(url, options);
 }
-browserContextPrototype.b = getWorkerURL;
+browserContextPrototype.b = createWorker;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
-    return instantiateModule(moduleId, 0, chunkPath);
+    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
@@ -1299,11 +1382,11 @@ var regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/;
     return regexCssUrl.test(chunkUrl);
 }
 function loadWebAssembly(chunkPath, edgeModule, importsObj) {
-    return BACKEND.loadWebAssembly(1, this.m.id, chunkPath, edgeModule, importsObj);
+    return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj);
 }
 contextPrototype.w = loadWebAssembly;
 function loadWebAssemblyModule(chunkPath, edgeModule) {
-    return BACKEND.loadWebAssemblyModule(1, this.m.id, chunkPath, edgeModule);
+    return BACKEND.loadWebAssemblyModule(SourceType.Parent, this.m.id, chunkPath, edgeModule);
 }
 contextPrototype.u = loadWebAssemblyModule;
 /// <reference path="./runtime-base.ts" />
@@ -1510,7 +1593,7 @@ function _ts_generator(thisArg, body) {
  *
  * It will be appended to the base runtime code.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
-/// <reference path="../../../shared/runtime-types.d.ts" />
+/// <reference path="../../../shared/runtime/runtime-types.d.ts" />
 function getAssetSuffixFromScriptSrc() {
     var _self_TURBOPACK_ASSET_SUFFIX;
     var _document_currentScript_getAttribute, _document_currentScript_getAttribute1, _document_currentScript, _document;

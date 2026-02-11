@@ -1463,6 +1463,7 @@ function runTests({ dev }) {
            },
          ],
          "headers": [],
+         "onMatchHeaders": [],
          "pages404": true,
          "redirects": [
            {

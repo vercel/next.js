@@ -1864,6 +1864,7 @@ const runTests = (isDev = false) => {
              "source": "/has-header-4",
            },
          ],
+         "onMatchHeaders": [],
          "pages404": true,
          "redirects": [
            {

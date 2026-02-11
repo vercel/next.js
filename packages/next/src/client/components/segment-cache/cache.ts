@@ -1555,8 +1555,8 @@ export async function fetchRouteOnCacheMiss(
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
   }
-  // Dev-only: Tell the server to perform a static pre-render for the Instant
-  // Navigation Testing API. In dev mode, static pre-renders don't normally happen.
+  // Tell the server to perform a static pre-render for the Instant Navigation
+  // Testing API. Static pre-renders don't normally happen during development.
   addInstantPrefetchHeaderIfLocked(headers)
 
   try {
@@ -1688,7 +1688,8 @@ export async function fetchRouteOnCacheMiss(
       )
       const serverData = await createFromNextReadableStream<RootTreePrefetch>(
         prefetchStream,
-        headers
+        headers,
+        { allowPartialStream: true }
       )
 
       if (
@@ -1753,7 +1754,8 @@ export async function fetchRouteOnCacheMiss(
       const serverData =
         await createFromNextReadableStream<NavigationFlightResponse>(
           prefetchStream,
-          headers
+          headers,
+          { allowPartialStream: true }
         )
 
       if (
@@ -1864,8 +1866,8 @@ export async function fetchSegmentOnCacheMiss(
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
   }
-  // Dev-only: Tell the server to perform a static pre-render for the Instant
-  // Navigation Testing API. In dev mode, static pre-renders don't normally happen.
+  // Tell the server to perform a static pre-render for the Instant Navigation
+  // Testing API. Static pre-renders don't normally happen during development.
   addInstantPrefetchHeaderIfLocked(headers)
 
   const requestUrl = isOutputExportMode
@@ -1899,8 +1901,6 @@ export async function fetchSegmentOnCacheMiss(
     // Track when the network connection closes.
     const closed = createPromiseWithResolvers<void>()
 
-    // Wrap the original stream in a new stream that never closes. That way the
-    // Flight client doesn't error if there's a hanging promise.
     const prefetchStream = createPrefetchResponseStream(
       response.body,
       closed.resolve,
@@ -1910,7 +1910,8 @@ export async function fetchSegmentOnCacheMiss(
     )
     const serverData = await createFromNextReadableStream<SegmentPrefetch>(
       prefetchStream,
-      headers
+      headers,
+      { allowPartialStream: true }
     )
     if (
       (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
@@ -2062,7 +2063,8 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const serverData =
       await createFromNextReadableStream<NavigationFlightResponse>(
         prefetchStream,
-        headers
+        headers,
+        { allowPartialStream: true }
       )
 
     const isResponsePartial =
@@ -2526,19 +2528,7 @@ function createPrefetchResponseStream(
   onStreamClose: () => void,
   onResponseSizeUpdate: (size: number) => void
 ): ReadableStream<Uint8Array> {
-  // When PPR is enabled, prefetch streams may contain references that never
-  // resolve, because that's how we encode dynamic data access. In the decoded
-  // object returned by the Flight client, these are reified into hanging
-  // promises that suspend during render, which is effectively what we want.
-  // The UI resolves when it switches to the dynamic data stream
-  // (via useDeferredValue(dynamic, static)).
-  //
-  // However, the Flight implementation currently errors if the server closes
-  // the response before all the references are resolved. As a cheat to work
-  // around this, we wrap the original stream in a new stream that never closes,
-  // and therefore doesn't error.
-  //
-  // While processing the original stream, we also incrementally update the size
+  // While processing the original stream, we incrementally update the size
   // of the cache entry in the LRU.
   let totalByteLength = 0
   const reader = originalFlightStream.getReader()
@@ -2559,8 +2549,7 @@ function createPrefetchResponseStream(
           onResponseSizeUpdate(totalByteLength)
           continue
         }
-        // The server stream has closed. Exit, but intentionally do not close
-        // the target stream. We do notify the caller, though.
+        controller.close()
         onStreamClose()
         return
       }
@@ -2616,15 +2605,15 @@ export function canNewFetchStrategyProvideMoreContent(
 }
 
 /**
- * Dev-only: Adds the instant prefetch header if the navigation lock is active.
- * Uses a lazy require to ensure dead code elimination in production.
+ * Adds the instant prefetch header if the navigation lock is active.
+ * Uses a lazy require to ensure dead code elimination.
  */
 function addInstantPrefetchHeaderIfLocked(
   headers: Record<string, string>
 ): void {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { isNavigationLocked } =
-      require('./dev-navigation-lock') as typeof import('./dev-navigation-lock')
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
     if (isNavigationLocked()) {
       headers[NEXT_INSTANT_PREFETCH_HEADER] = '1'
     }

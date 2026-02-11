@@ -294,6 +294,70 @@ export async function walkTreeWithFlightRouterState({
   return paths
 }
 
+/**
+ * A simplified version of `walkTreeWithFlightRouterState` that doesn't skip any layouts
+ * but returns a result of the same shape.
+ * Intended to be used for instant validation, where we need the complete tree.
+ */
+export async function createFullTreeFlightDataForNavigation({
+  loaderTree,
+  rscHead,
+  injectedCSS,
+  injectedJS,
+  injectedFontPreloadTags,
+  ctx,
+  preloadCallbacks,
+  MetadataOutlet,
+}: {
+  loaderTree: LoaderTree
+  flightRouterState?: FlightRouterState
+  rscHead: HeadData
+  injectedCSS: Set<string>
+  injectedJS: Set<string>
+  injectedFontPreloadTags: Set<string>
+  ctx: AppRenderContext
+  preloadCallbacks: PreloadCallbacks
+  MetadataOutlet: React.ComponentType
+}): Promise<[rootSegment: FlightDataPath]> {
+  const {
+    renderOpts: { experimental },
+    query,
+    getDynamicParamFromSegment,
+  } = ctx
+
+  const routerState = createFlightRouterStateFromLoaderTree(
+    loaderTree,
+    getDynamicParamFromSegment,
+    query
+  )
+  const rootSegment = routerState[0]
+
+  const seedData = await createComponentTree({
+    ctx,
+    loaderTree,
+    parentParams: {},
+    injectedCSS,
+    injectedJS,
+    injectedFontPreloadTags,
+    rootLayoutIncluded: false,
+    preloadCallbacks,
+    authInterrupts: experimental.authInterrupts,
+    MetadataOutlet,
+  })
+
+  return [
+    [
+      // TODO: app-render slices this Segment off.
+      // why is that valid, and why are we including it in the first place?
+      rootSegment,
+      routerState,
+      seedData,
+      rscHead,
+      false,
+    ] satisfies FlightDataSegment,
+  ]
+}
+
 /*
  * This function is used to determine if an existing segment can be overridden
  * by the incoming segment.
