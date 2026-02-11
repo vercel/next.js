@@ -123,6 +123,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "main <anonymous>",
            "Mismatch index.js (5:9)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -226,6 +227,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "main <anonymous>",
            "Mismatch index.js (5:20)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -319,6 +321,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "div <anonymous>",
            "Mismatch index.js (4:5)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -391,6 +394,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "div <anonymous>",
            "Mismatch index.js (4:5)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -461,6 +465,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "div <anonymous>",
            "Mismatch index.js (3:10)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -553,6 +558,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "table <anonymous>",
            "Page index.js (3:5)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -640,6 +646,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "table <anonymous>",
            "Page index.js (3:5)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -735,6 +742,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "main <anonymous>",
            "Mismatch index.js (8:22)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -855,6 +863,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "p <anonymous>",
            "Page index.js (4:7)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -950,6 +959,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "div <anonymous>",
            "Page index.js (6:11)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -1033,6 +1043,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "tr <anonymous>",
            "Page index.js (2:15)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)
@@ -1130,6 +1141,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "stack": [
            "p <anonymous>",
            "Page index.js (3:32)",
+           "App.render ../../../packages/next/src/pages/_app.tsx (44:12)",
          ],
        }
       `)

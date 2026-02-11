@@ -34,11 +34,11 @@ describe('cache-components-segment-configs', () => {
 
       if (isTurbopack) {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
+          `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
+          `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
         )
       }
       expect(redbox.source).toContain(
@@ -95,15 +95,15 @@ describe('cache-components-segment-configs', () => {
 
           if (isTurbopack) {
             expect(redbox.description).toMatchInlineSnapshot(
-              `"Ecmascript file had an error"`
+              `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
             )
           } else {
             expect(redbox.description).toMatchInlineSnapshot(
-              `"  x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
+              `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
             )
           }
           expect(redbox.source).toContain(
-            '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+            '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
           )
         } else {
           await retry(async () => {

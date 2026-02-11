@@ -43,24 +43,24 @@ function filterBrowserLogs(output: string): string {
           source: await getRedboxSource(browser),
         }
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
+          `"Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
         )
         expect(redbox.source).toMatchInlineSnapshot(`
-         "./app/edge-with-layout/edge/page.tsx (1:14)
-         Ecmascript file had an error
-         > 1 | export const runtime = 'edge'
+         "./app/edge-with-layout/layout.tsx (1:14)
+         Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+         > 1 | export const dynamic = 'force-dynamic'
              |              ^^^^^^^
            2 |
-           3 | export default function Page() {
-           4 |   return <div>Test page under app/</div>
-
-         Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."
+           3 | export default function Layout({ children }: { children: React.ReactNode }) {
+           4 |   return <div>{children}</div>"
         `)
         // Count occurrences of the layout error at the specific location
         // Filter out browser logs to avoid counting forwarded browser errors
         const filteredOutput = filterBrowserLogs(next.cliOutput)
+        // Match only the error message format (starts with ⨯ or is at start of line followed by newline with the error message)
+        // Exclude matches from console.error stack traces and page error handler output
         const layoutErrorMatches = filteredOutput.match(
-          /\.\/app\/edge-with-layout\/layout\.tsx:1:14/g
+          /^⨯? ?\.\/app\/edge-with-layout\/layout\.tsx:1:14$/gm
         )
         // We don't show an error stack, just the individual error messages at each location
         expect(layoutErrorMatches?.length).toBe(1)

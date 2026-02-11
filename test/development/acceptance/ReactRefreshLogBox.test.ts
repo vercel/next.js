@@ -440,7 +440,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
@@ -707,7 +707,7 @@ describe('ReactRefreshLogBox', () => {
     await session.patch('index.module.css', `.button`)
 
     if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "Parsing CSS source code failed",
          "environmentLabel": null,
@@ -743,13 +743,13 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word",
+         "description": "Parsing CSS source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.module.css (1:1)
-       Syntax error: <FIXME-project-root>/index.module.css Unknown word
+         "source": "./test/tmp/next-test-1770762033409-692/index.module.css (1:8)
+       Parsing CSS source code failed
        > 1 | .button
-           | ^",
+           |        ^",
          "stack": [],
        }
       `)
@@ -760,7 +760,7 @@ describe('ReactRefreshLogBox', () => {
     await session.patch('index.module.css', `button {}`)
 
     if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "Transforming CSS failed",
          "environmentLabel": null,
@@ -802,15 +802,23 @@ describe('ReactRefreshLogBox', () => {
        }
       `)
     } else {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)",
+         "description": "Transforming CSS failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.module.css (1:1)
-       Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)
-       > 1 | button {}
-           | ^",
+         "source": "./test/tmp/next-test-1770762033409-692/index.module.css
+       Transforming CSS failed
+       Selector "button" is not pure. Pure selectors must contain at least one local class or id.
+       Import traces:
+         Browser:
+           ./test/tmp/next-test-1770762033409-692/index.module.css
+           ./test/tmp/next-test-1770762033409-692/index.js
+           ./test/tmp/next-test-1770762033409-692/pages/index.js
+         SSR:
+           ./test/tmp/next-test-1770762033409-692/index.module.css
+           ./test/tmp/next-test-1770762033409-692/index.js
+           ./test/tmp/next-test-1770762033409-692/pages/index.js",
          "stack": [],
        }
       `)
@@ -1422,11 +1430,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "anonymous error!",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "pages/index.js (3:11) @ eval
+         "source": "pages/index.js (3:11) @ <unknown>
        > 3 |     throw new Error("anonymous error!");
            |           ^",
          "stack": [
-           "eval pages/index.js (3:11)",
+           "<unknown> pages/index.js (3:11)",
            "Array.map <anonymous>",
            "Page pages/index.js (2:13)",
          ],

@@ -84,17 +84,20 @@ describe('server-side dev errors', () => {
       )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/gsp.js (6:3) @ getStaticProps
-        > 6 |   missingVar;return {
-            |   ^",
-          "stack": [
-            "getStaticProps pages/gsp.js (6:3)",
-          ],
-        }
+       {
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "../../test/integration/server-side-dev-errors/pages/gsp.js (6:3) @ getStaticProps
+       > 6 |   missingVar;return {
+           |   ^",
+         "stack": [
+           "getStaticProps ../../test/integration/server-side-dev-errors/pages/gsp.js (6:3)",
+           "async doRender src/server/route-modules/pages/pages-handler.ts (244:22)",
+           "async handleResponse src/server/route-modules/pages/pages-handler.ts (539:24)",
+           "async Module.handler src/server/route-modules/pages/pages-handler.ts (760:9)",
+         ],
+       }
       `)
 
       await fs.writeFile(gspPage, content, { flush: true })
@@ -134,17 +137,20 @@ describe('server-side dev errors', () => {
       )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/gssp.js (6:3) @ getServerSideProps
-        > 6 |   missingVar;return {
-            |   ^",
-          "stack": [
-            "getServerSideProps pages/gssp.js (6:3)",
-          ],
-        }
+       {
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "../../test/integration/server-side-dev-errors/pages/gssp.js (6:3) @ getServerSideProps
+       > 6 |   missingVar;return {
+           |   ^",
+         "stack": [
+           "getServerSideProps ../../test/integration/server-side-dev-errors/pages/gssp.js (6:3)",
+           "async doRender src/server/route-modules/pages/pages-handler.ts (244:22)",
+           "async handleResponse src/server/route-modules/pages/pages-handler.ts (539:24)",
+           "async Module.handler src/server/route-modules/pages/pages-handler.ts (760:9)",
+         ],
+       }
       `)
 
       await fs.writeFile(gsspPage, content)
@@ -184,17 +190,20 @@ describe('server-side dev errors', () => {
       )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/blog/[slug].js (6:3) @ getServerSideProps
-        > 6 |   missingVar;return {
-            |   ^",
-          "stack": [
-            "getServerSideProps pages/blog/[slug].js (6:3)",
-          ],
-        }
+       {
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "../../test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3) @ getServerSideProps
+       > 6 |   missingVar;return {
+           |   ^",
+         "stack": [
+           "getServerSideProps ../../test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3)",
+           "async doRender src/server/route-modules/pages/pages-handler.ts (244:22)",
+           "async handleResponse src/server/route-modules/pages/pages-handler.ts (539:24)",
+           "async Module.handler src/server/route-modules/pages/pages-handler.ts (760:9)",
+         ],
+       }
       `)
 
       await fs.writeFile(dynamicGsspPage, content)
@@ -244,17 +253,18 @@ describe('server-side dev errors', () => {
       }
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/api/hello.js (2:3) @ handler
-        > 2 |   missingVar;res.status(200).json({ hello: 'world' })
-            |   ^",
-          "stack": [
-            "handler pages/api/hello.js (2:3)",
-          ],
-        }
+       {
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler
+       > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+           |   ^",
+         "stack": [
+           "handler ../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3)",
+           "async Module.handler src/build/templates/pages-api.ts (157:7)",
+         ],
+       }
       `)
 
       await fs.writeFile(apiPage, content, { flush: true })
@@ -310,17 +320,18 @@ describe('server-side dev errors', () => {
       }
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/api/blog/[slug].js (2:3) @ handler
-        > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
-            |   ^",
-          "stack": [
-            "handler pages/api/blog/[slug].js (2:3)",
-          ],
-        }
+       {
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3) @ handler
+       > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+           |   ^",
+         "stack": [
+           "handler ../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3)",
+           "async Module.handler src/build/templates/pages-api.ts (157:7)",
+         ],
+       }
       `)
 
       await fs.writeFile(dynamicApiPage, content, { flush: true })

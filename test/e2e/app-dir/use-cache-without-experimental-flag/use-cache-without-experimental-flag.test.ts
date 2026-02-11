@@ -33,17 +33,14 @@ describe('use-cache-without-experimental-flag', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "Error: Turbopack build failed with 1 errors:
          ./app/page.tsx:1:1
-         Ecmascript file had an error
+         To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
          > 1 | 'use cache'
              | ^^^^^^^^^^^
            2 |
            3 | export default async function Page() {
            4 |   return <p>hello world</p>
 
-         To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
-
          Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
-
 
 
              at <unknown> (./app/page.tsx:1:1)
@@ -109,7 +106,7 @@ describe('use-cache-without-experimental-flag', () => {
 
       if (isTurbopack) {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
+          `"To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config."`
         )
       } else if (isRspack) {
         expect(errorDescription).toMatchInlineSnapshot(
@@ -123,18 +120,16 @@ describe('use-cache-without-experimental-flag', () => {
 
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
-           "./app/page.tsx (1:1)
-           Ecmascript file had an error
-           > 1 | 'use cache'
-               | ^^^^^^^^^^^
-             2 |
-             3 | export default async function Page() {
-             4 |   return <p>hello world</p>
+         "./app/page.tsx (1:1)
+         To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
+         > 1 | 'use cache'
+             | ^^^^^^^^^^^
+           2 |
+           3 | export default async function Page() {
+           4 |   return <p>hello world</p>
 
-           To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
-
-           Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage"
-          `)
+         Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage"
+        `)
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx

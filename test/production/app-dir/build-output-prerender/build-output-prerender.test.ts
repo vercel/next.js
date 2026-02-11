@@ -34,9 +34,7 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             - Cache Components enabled
-             - Experiments (use with caution):
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+             - Cache Components enabled"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -127,7 +125,6 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -242,11 +239,9 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
-             - Experiments (use with caution):
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
-            `)
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
+              `"▲ Next.js x.y.z (Turbopack)"`
+            )
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
               `"▲ Next.js x.y.z (Rspack)"`
@@ -303,7 +298,6 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {

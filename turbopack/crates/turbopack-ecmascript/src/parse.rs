@@ -400,11 +400,7 @@ async fn parse_file_content(
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
-    let (emitter, collector) = IssueEmitter::new(
-        source,
-        source_map.clone(),
-        Some(rcstr!("Ecmascript file had an error")),
-    );
+    let (emitter, collector) = IssueEmitter::new(source, source_map.clone(), None);
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let (emitter, collector_parse) = IssueEmitter::new(

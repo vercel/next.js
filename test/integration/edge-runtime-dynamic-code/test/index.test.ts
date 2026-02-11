@@ -290,7 +290,7 @@ describe.each([
 
         it('should have middleware warning during build', () => {
           if (process.env.IS_TURBOPACK_TEST) {
-            expect(buildResult.stderr).toContain(`Ecmascript file had an error`)
+            expect(buildResult.stderr).toContain(DYNAMIC_CODE_ERROR)
           } else {
             expect(buildResult.stderr).toContain(`Failed to compile`)
             expect(buildResult.stderr).toContain(
