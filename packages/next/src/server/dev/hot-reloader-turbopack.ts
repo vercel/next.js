@@ -372,7 +372,7 @@ export async function createHotReloaderTurbopack(
       }),
       buildId,
       encryptionKey,
-      previewProps: opts.fsChecker.prerenderManifest.preview,
+      previewProps: opts.fsChecker.previewProps,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling: false,
       writeRoutesHashesManifest: false,
@@ -387,7 +387,11 @@ export async function createHotReloaderTurbopack(
     }
   )
   backgroundLogCompilationEvents(project, {
-    eventTypes: ['StartupCacheInvalidationEvent', 'TimingEvent'],
+    eventTypes: [
+      'StartupCacheInvalidationEvent',
+      'TimingEvent',
+      'SlowFilesystemEvent',
+    ],
   })
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project, projectPath)

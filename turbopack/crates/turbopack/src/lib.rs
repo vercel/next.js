@@ -46,7 +46,6 @@ use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
     TreeShakingMode,
     chunk::EcmascriptChunkPlaceable,
-    inlined_bytes_module::InlinedBytesJsModule,
     references::{
         FollowExportsResult,
         external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
@@ -275,9 +274,6 @@ async fn apply_module_type(
                 .to_resolved()
                 .await?,
         ),
-        ModuleType::InlinedBytesJs => {
-            ResolvedVc::upcast(InlinedBytesJsModule::new(*source).to_resolved().await?)
-        }
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
             WebAssemblyModuleAsset::new(
                 WebAssemblySource::new(*source, *source_ty),

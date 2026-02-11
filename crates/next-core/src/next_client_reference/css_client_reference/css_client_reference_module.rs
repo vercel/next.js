@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkGroupType, ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkGroupType, ChunkingType, ChunkingTypeOption},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
@@ -91,21 +91,18 @@ impl CssClientReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for CssClientReference {
+impl ModuleReference for CssClientReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        *ModuleResolveResult::module(self.module)
+    }
+
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Isolated {
             _ty: ChunkGroupType::Evaluated,
             merge_tag: Some(rcstr!("client")),
         }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for CssClientReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *ModuleResolveResult::module(self.module)
     }
 }
 
