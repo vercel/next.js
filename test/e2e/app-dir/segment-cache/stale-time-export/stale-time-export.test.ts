@@ -12,7 +12,7 @@ describe('segment cache - export const unstable_staleTime', () => {
   })
 
   if (isNextDev || isCacheComponentsEnabled) {
-    test('skipped in development', () => {})
+    test('skipped', () => {})
     return
   }
 
