@@ -4,7 +4,7 @@ use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
-    constants::MAX_MEDIUM_VALUE_SIZE,
+    constants::{MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence},
     parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
@@ -1045,20 +1045,43 @@ fn batch_get_different_sizes() -> Result<()> {
 
     // Write values of different sizes
     let batch = db.write_batch()?;
-    batch.put(0, vec![1u8], vec![1u8; 10].into())?; // small
-    batch.put(0, vec![2u8], vec![2u8; 1024].into())?; // medium
-    batch.put(0, vec![3u8], vec![3u8; 10 * 1024].into())?; // larger
+    batch.put(0, vec![0u8], vec![].into())?; // empty
+    batch.put(0, vec![1u8], vec![1u8; 4].into())?; // inline
+    batch.put(0, vec![2u8], vec![2u8; 10].into())?; // small
+    batch.put(0, vec![3u8], vec![3u8; MAX_SMALL_VALUE_SIZE + 1].into())?; // medium
+    batch.put(0, vec![4u8], vec![4u8; 10 * MAX_SMALL_VALUE_SIZE].into())?; // larger
+    batch.put(0, vec![5u8], vec![5u8; MAX_MEDIUM_VALUE_SIZE + 1].into())?; // blob
     db.commit_write_batch(batch)?;
 
     // Fetch all with different sizes
-    let keys_to_fetch = vec![vec![1u8], vec![2u8], vec![3u8], vec![4u8]];
+    let keys_to_fetch = vec![
+        vec![0u8],
+        vec![1u8],
+        vec![2u8],
+        vec![3u8],
+        vec![4u8],
+        vec![5u8],
+        vec![6u8], // non-existing
+    ];
     let results = db.batch_get(0, &keys_to_fetch)?;
 
-    assert_eq!(results.len(), 4);
-    assert_eq!(results[0].as_deref(), Some(&vec![1u8; 10][..]));
-    assert_eq!(results[1].as_deref(), Some(&vec![2u8; 1024][..]));
-    assert_eq!(results[2].as_deref(), Some(&vec![3u8; 10 * 1024][..]));
-    assert_eq!(results[3], None);
+    assert_eq!(results.len(), 7);
+    assert_eq!(results[0].as_deref(), Some(&[][..]));
+    assert_eq!(results[1].as_deref(), Some(&vec![1u8; 4][..]));
+    assert_eq!(results[2].as_deref(), Some(&vec![2u8; 10][..]));
+    assert_eq!(
+        results[3].as_deref(),
+        Some(&vec![3u8; MAX_SMALL_VALUE_SIZE + 1][..])
+    );
+    assert_eq!(
+        results[4].as_deref(),
+        Some(&vec![4u8; 10 * MAX_SMALL_VALUE_SIZE][..])
+    );
+    assert_eq!(
+        results[5].as_deref(),
+        Some(&vec![5u8; MAX_MEDIUM_VALUE_SIZE + 1][..])
+    );
+    assert_eq!(results[6], None);
 
     db.shutdown()?;
     Ok(())
@@ -1301,5 +1324,127 @@ fn batch_get_after_restore() -> Result<()> {
         db.shutdown()?;
     }
 
+    Ok(())
+}
+
+/// Test that compaction works with many small values without overflowing block indices.
+/// Reproduces a CI benchmark failure with key_4/value_512/entries_1.98Mi/compacted.
+#[test]
+fn many_small_values_compaction() -> Result<()> {
+    use rand::{Rng, SeedableRng, rngs::SmallRng};
+
+    use crate::parallel_scheduler::SerialScheduler;
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+
+    let mut rng = SmallRng::seed_from_u64(42);
+
+    // Mimic the benchmark: key_size=4, value_size=512, single commit, then compact.
+    // entry_count = 1GB / (4+512) ≈ 2M entries
+    let entry_count = 1024 * 1024 * 1024 / (4 + 512);
+    let batch = db.write_batch()?;
+    for i in 0..entry_count as u32 {
+        let key = i.to_be_bytes().to_vec();
+        let mut value = vec![0u8; 512];
+        rng.fill(&mut value[..]);
+        batch.put(0, key, value.into())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    // This is what panics in CI with "Block index overflow"
+    for _ in 0..3 {
+        db.full_compact()?;
+    }
+
+    // Quick sanity check
+    let result = db.get(0, &0u32.to_be_bytes())?;
+    assert!(result.is_some(), "Entry 0 not found after compaction");
+    assert_eq!(result.unwrap().len(), 512);
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Test compaction with MAX_SMALL_VALUE_SIZE (4096-byte) values.
+/// Worst case for small value blocks: fewest entries per block.
+#[test]
+fn many_max_small_values_compaction() -> Result<()> {
+    use rand::{Rng, SeedableRng, rngs::SmallRng};
+
+    use crate::{constants::MAX_SMALL_VALUE_SIZE, parallel_scheduler::SerialScheduler};
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+
+    let mut rng = SmallRng::seed_from_u64(43);
+
+    // Write enough entries across two commits so compaction merges them into large SSTs.
+    let entry_count = 512 * 1024;
+    for batch_start in [0, entry_count] {
+        let batch = db.write_batch()?;
+        for i in batch_start..batch_start + entry_count {
+            let key = (i as u32).to_be_bytes().to_vec();
+            let mut value = vec![0u8; MAX_SMALL_VALUE_SIZE];
+            rng.fill(&mut value[..]);
+            batch.put(0, key, value.into())?;
+        }
+        db.commit_write_batch(batch)?;
+    }
+
+    for _ in 0..3 {
+        db.full_compact()?;
+    }
+
+    let result = db.get(0, &0u32.to_be_bytes())?;
+    assert!(result.is_some(), "Entry 0 not found after compaction");
+    assert_eq!(result.unwrap().len(), MAX_SMALL_VALUE_SIZE);
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Test compaction with 4097-byte values (minimum medium size).
+/// Each medium value gets its own dedicated block, so this is the worst case for block count.
+#[test]
+fn many_medium_values_compaction() -> Result<()> {
+    use rand::{Rng, SeedableRng, rngs::SmallRng};
+
+    use crate::{constants::MAX_SMALL_VALUE_SIZE, parallel_scheduler::SerialScheduler};
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+
+    let mut rng = SmallRng::seed_from_u64(44);
+
+    let value_size = MAX_SMALL_VALUE_SIZE + 1; // 4097 bytes = minimum medium size
+    // Write enough entries across two commits so compaction merges them.
+    let entry_count = 128 * 1024;
+    for batch_start in [0, entry_count] {
+        let batch = db.write_batch()?;
+        for i in batch_start..batch_start + entry_count {
+            let key = (i as u32).to_be_bytes().to_vec();
+            let mut value = vec![0u8; value_size];
+            rng.fill(&mut value[..]);
+            batch.put(0, key, value.into())?;
+        }
+        db.commit_write_batch(batch)?;
+    }
+
+    for _ in 0..3 {
+        db.full_compact()?;
+    }
+
+    let result = db.get(0, &0u32.to_be_bytes())?;
+    assert!(result.is_some(), "Entry 0 not found after compaction");
+    assert_eq!(result.unwrap().len(), value_size);
+
+    db.shutdown()?;
     Ok(())
 }

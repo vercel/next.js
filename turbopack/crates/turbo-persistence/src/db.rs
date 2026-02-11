@@ -37,6 +37,7 @@ use crate::{
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
+    value_block_count_tracker::ValueBlockCountTracker,
     write_batch::{FinishResult, WriteBatch},
 };
 
@@ -1051,6 +1052,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     entries: Vec<LookupEntry<'l>>,
                                     total_key_size: usize,
                                     total_value_size: usize,
+                                    value_block_tracker: ValueBlockCountTracker,
                                     last_entries: Vec<LookupEntry<'l>>,
                                     last_entries_total_key_size: usize,
                                     new_sst_files:
@@ -1076,13 +1078,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             let key_size = current.key.len();
                                             let value_size =
                                                 current.value.uncompressed_size_in_sst();
+                                            let is_medium = current.value.is_medium_value();
+                                            let small_size = current.value.small_value_size();
                                             collector.total_key_size += key_size;
                                             collector.total_value_size += value_size;
+                                            collector
+                                                .value_block_tracker
+                                                .track(is_medium, small_size);
 
                                             if collector.total_key_size + collector.total_value_size
                                                 > DATA_THRESHOLD_PER_COMPACTED_FILE
                                                 || collector.entries.len()
                                                     >= MAX_ENTRIES_PER_COMPACTED_FILE
+                                                || collector.value_block_tracker.is_full()
                                             {
                                                 let selected_total_key_size =
                                                     collector.last_entries_total_key_size;
@@ -1094,6 +1102,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                                     collector.total_key_size - key_size;
                                                 collector.total_key_size = key_size;
                                                 collector.total_value_size = value_size;
+                                                collector
+                                                    .value_block_tracker
+                                                    .reset_to(is_medium, small_size);
 
                                                 if !collector.entries.is_empty() {
                                                     let seq = sequence_number

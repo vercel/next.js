@@ -39,6 +39,31 @@ impl LazyLookupValue<'_> {
             } => *uncompressed_size as usize,
         }
     }
+
+    /// Returns true if this value gets its own dedicated value block.
+    pub fn is_medium_value(&self) -> bool {
+        match self {
+            LazyLookupValue::Eager(LookupValue::Slice { value })
+                if value.len() > MAX_SMALL_VALUE_SIZE =>
+            {
+                true
+            }
+            LazyLookupValue::Medium { .. } => true,
+            _ => false,
+        }
+    }
+
+    /// Returns the value size if it will be packed into a small value block, or 0 otherwise.
+    pub fn small_value_size(&self) -> usize {
+        match self {
+            LazyLookupValue::Eager(LookupValue::Slice { value })
+                if value.len() > MAX_INLINE_VALUE_SIZE && value.len() <= MAX_SMALL_VALUE_SIZE =>
+            {
+                value.len()
+            }
+            _ => 0,
+        }
+    }
 }
 
 /// An entry from a SST file lookup.
