@@ -121,14 +121,14 @@ export class ReactServerResult {
       this._stream = tee[0]
       return tee[1]
     } else if (process.env.NEXT_RUNTIME !== 'edge') {
-      return this._runInContext(() => {
-        const [primary, secondary] = teeNodeReadable(
-          this._stream as NodeReadable,
-          this._runInContext
-        )
-        this._stream = primary
-        return secondary
-      })
+      // Node tee callback handlers run on event boundaries, so keep request ALS
+      // context stable for whichever branch is consumed later.
+      const [primary, secondary] = teeNodeReadable(
+        this._stream as NodeReadable,
+        this._runInContext
+      )
+      this._stream = primary
+      return secondary
     } else {
       throw new Error('Cannot tee a Node.js stream in the edge runtime')
     }

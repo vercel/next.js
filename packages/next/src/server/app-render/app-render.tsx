@@ -845,24 +845,15 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
   const { clientModules } = getClientReferenceManifest()
   const rscPayload = await getPayload(requestStore)
 
-  const runInContext = <T,>(fn: () => T): T =>
-    workUnitAsyncStorage.run(requestStore, fn)
-
   return await workUnitAsyncStorage.run(
     requestStore,
     scheduleInSequentialTasks,
     () => {
       stageController.advanceStage(RenderStage.Static)
-      return renderToFlightStream(
-        ctx.componentMod,
-        rscPayload,
-        clientModules,
-        {
-          ...options,
-          environmentName,
-        },
-        runInContext
-      )
+      return renderToFlightStream(ctx.componentMod, rscPayload, clientModules, {
+        ...options,
+        environmentName,
+      })
     },
     () => {
       stageController.advanceStage(RenderStage.Dynamic)
@@ -2847,6 +2838,8 @@ async function renderToStream(
           setReactDebugChannel(browserChannel, htmlRequestId, requestId)
         }
 
+        // Node stream callbacks can run outside the originating ALS scope, so
+        // preserve the request store explicitly for downstream handlers.
         const runInContext = <T,>(fn: () => T): T =>
           workUnitAsyncStorage.run(requestStore, fn)
         reactServerResult = new ReactServerResult(
@@ -3266,6 +3259,8 @@ async function renderWithRestartOnCacheMissInDev(
           initialStageController.advanceStage(RenderStage.Static)
           startTime = performance.now() + performance.timeOrigin
 
+          // teeNodeReadable installs event handlers (`data`/`drain`/`end`/`close`)
+          // that may execute outside the current ALS frame.
           const runInContext = <T,>(fn: () => T): T =>
             workUnitAsyncStorage.run(requestStore, fn)
 
@@ -3280,8 +3275,7 @@ async function renderWithRestartOnCacheMissInDev(
               filterStackFrame,
               debugChannel: debugChannel?.serverSide,
               signal: initialReactController.signal,
-            },
-            runInContext
+            }
           )
           // If we abort the render, we want to reject the stage-dependent promises as well.
           // Note that we want to install this listener after the render is started
@@ -3448,6 +3442,8 @@ async function renderWithRestartOnCacheMissInDev(
         finalStageController.advanceStage(RenderStage.Static)
         startTime = performance.now() + performance.timeOrigin
 
+        // teeNodeReadable installs event handlers (`data`/`drain`/`end`/`close`)
+        // that may execute outside the current ALS frame.
         const runInContext = <T,>(fn: () => T): T =>
           workUnitAsyncStorage.run(requestStore, fn)
 
@@ -3461,8 +3457,7 @@ async function renderWithRestartOnCacheMissInDev(
             startTime,
             filterStackFrame,
             debugChannel: debugChannel?.serverSide,
-          },
-          runInContext
+          }
         )
 
         if (
@@ -5889,6 +5884,8 @@ async function prerenderToStream(
       errorType
     )
 
+    // Keep prerender-legacy async storage stable across node stream event
+    // callbacks and pipeable renderer hooks.
     const runInLegacyContext = <T,>(fn: () => T): T =>
       workUnitAsyncStorage.run(prerenderLegacyStore, fn)
 
