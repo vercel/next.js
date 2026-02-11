@@ -108,7 +108,7 @@ const program = new Command(packageJson.name)
   )
   .option(
     '--agents-md',
-    'Generate AGENTS.md and CLAUDE.md with version-matched Next.js docs. (default)'
+    'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
   .option('--disable-git', `Skip initializing a git repository.`)
   .action((name) => {
@@ -604,7 +604,7 @@ async function run(): Promise<void> {
             type: 'toggle',
             name: 'agentsMd',
             message:
-              'Would you like to generate AGENTS.md and CLAUDE.md for AI coding assistants?',
+              'Would you like to include AGENTS.md to guide coding agents to write up-to-date Next.js code?',
             initial: getPrefOrDefault('agentsMd'),
             active: 'Yes',
             inactive: 'No',
