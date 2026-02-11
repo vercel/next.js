@@ -96,10 +96,10 @@ impl ChunkableModule for MergedEcmascriptModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(Vc::upcast(*self), module_graph, *chunking_context)
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -107,8 +107,7 @@ impl ChunkableModule for MergedEcmascriptModule {
 impl EcmascriptChunkPlaceable for MergedEcmascriptModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        // Merged modules inherit exports from their entry points
-        EcmascriptExports::Value.cell()
+        panic!("get_exports() should not be called on merged modules")
     }
 
     #[turbo_tasks::function]

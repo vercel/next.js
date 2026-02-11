@@ -902,25 +902,20 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn async_loader_chunk_item(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        let chunking_context: ResolvedVc<Box<dyn ChunkingContext>> =
-            Vc::upcast::<Box<dyn ChunkingContext>>(self)
-                .to_resolved()
-                .await?;
+        let chunking_context = ResolvedVc::upcast::<Box<dyn ChunkingContext>>(self);
         Ok(if self.await?.manifest_chunks {
             let manifest_asset = ManifestAsyncModule::new(
                 module,
                 module_graph,
                 *chunking_context,
                 availability_info,
-            )
-            .to_resolved()
-            .await?;
-            let loader_module = ManifestLoaderModule::new(*manifest_asset);
+            );
+            let loader_module = ManifestLoaderModule::new(manifest_asset);
             loader_module.as_chunk_item(module_graph, *chunking_context)
         } else {
             let module = AsyncLoaderModule::new(module, *chunking_context, availability_info);

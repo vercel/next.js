@@ -312,20 +312,19 @@ pub struct EcmascriptModuleChunkItem {
 
 /// Factory function to create an EcmascriptModuleChunkItem.
 /// Use this instead of implementing ChunkableModule::as_chunk_item() on each module.
-#[turbo_tasks::function]
-pub async fn ecmascript_chunk_item(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    module_graph: Vc<ModuleGraph>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<Box<dyn ChunkItem>>> {
-    Ok(Vc::upcast(
+pub fn ecmascript_chunk_item(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+) -> Vc<Box<dyn ChunkItem>> {
+    Vc::upcast(
         EcmascriptModuleChunkItem {
-            module: module.to_resolved().await?,
-            chunking_context: chunking_context.to_resolved().await?,
-            module_graph: module_graph.to_resolved().await?,
+            module,
+            chunking_context,
+            module_graph,
         }
         .cell(),
-    ))
+    )
 }
 
 #[turbo_tasks::value_impl]

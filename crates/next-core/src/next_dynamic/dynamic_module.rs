@@ -80,10 +80,10 @@ impl ChunkableModule for NextDynamicEntryModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(Vc::upcast(*self), module_graph, *chunking_context)
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -120,14 +120,13 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
 
     #[turbo_tasks::function]
     async fn chunk_item_content(
-        self: Vc<Self>,
+        &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let inner = self.await?;
-        let module_id = inner.module.chunk_item_id(chunking_context).await?;
+        let module_id = self.module.chunk_item_id(chunking_context).await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"
