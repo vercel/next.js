@@ -1,0 +1,1 @@
+{"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css"],"sourcesContent":[".before {\n  color: red;\n}\n\n.invalid {\n  color\n}\n\n.after {\n  color: green;\n}\n"],"names":[],"mappings":"AAAA,kBAQA"}
