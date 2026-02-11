@@ -60,7 +60,7 @@ use turbopack_ecmascript::{
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use turbopack_json::JsonModuleAsset;
-use turbopack_node::transforms::webpack::{WebpackLoaderItems, WebpackLoaders};
+use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
 use turbopack_resolve::{
     resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
     typescript::type_resolve,
@@ -728,7 +728,15 @@ async fn process_default_internal(
         .to_resolved()
         .await?;
 
-        let loaders_vc = WebpackLoaderItems(vec![loader.clone()]).cell();
+        let loader_relative_path = execution_context_value
+            .project_path
+            .get_relative_path_to(&loader.loader)
+            .context("Loader path must be on project filesystem")?;
+        let webpack_loader_item = WebpackLoaderItem {
+            loader: loader_relative_path,
+            options: loader.options.clone(),
+        };
+        let loaders_vc = WebpackLoaderItems(vec![webpack_loader_item]).cell();
         let webpack_loaders = WebpackLoaders::new(
             *evaluate_context,
             *execution_context,

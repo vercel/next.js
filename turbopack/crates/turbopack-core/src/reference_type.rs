@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
-use crate::{loader::WebpackLoaderItem, module::Module, resolve::ModulePart};
+use crate::{loader::ResolvedWebpackLoaderItem, module::Module, resolve::ModulePart};
 
 /// Named references to inner assets. Modules can use them to allow to
 /// per-module aliases of some requests to already created module assets.
@@ -77,7 +77,7 @@ pub enum EcmaScriptModulesReferenceSubType {
     ImportWithType(RcStr),
     /// Import with `turbopackLoader` attribute specifying an inline loader.
     ImportWithTurbopackUse {
-        loader: WebpackLoaderItem,
+        loader: ResolvedWebpackLoaderItem,
         rename_as: Option<RcStr>,
         module_type: Option<RcStr>,
     },
@@ -317,6 +317,7 @@ pub enum ReferenceType {
     Entry(EntryReferenceSubType),
     Runtime,
     Internal(ResolvedVc<InnerAssets>),
+    Loader,
     Custom(u8),
     #[default]
     Undefined,
@@ -341,6 +342,7 @@ impl Display for ReferenceType {
             ReferenceType::Entry(_) => "entry",
             ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
+            ReferenceType::Loader => "loader",
             ReferenceType::Custom(_) => todo!(),
             ReferenceType::Undefined => "undefined",
         };
@@ -388,6 +390,7 @@ impl ReferenceType {
             }
             ReferenceType::Runtime => matches!(other, ReferenceType::Runtime),
             ReferenceType::Internal(_) => matches!(other, ReferenceType::Internal(_)),
+            ReferenceType::Loader => matches!(other, ReferenceType::Loader),
             ReferenceType::Custom(_) => {
                 todo!()
             }
