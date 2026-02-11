@@ -4,6 +4,7 @@ use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
+    DbConfig, FamilyConfig, FamilyKind,
     constants::{MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence},
     parallel_scheduler::ParallelScheduler,
@@ -1446,5 +1447,545 @@ fn many_medium_values_compaction() -> Result<()> {
     assert_eq!(result.unwrap().len(), value_size);
 
     db.shutdown()?;
+    Ok(())
+}
+
+#[test]
+fn compaction_multi_value_preserves_different_values() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let config = multi_value_config();
+
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        // Write same key with different values in separate batches
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![1u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![2u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![3u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Before compaction: all 3 values exist
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 3, "Should have 3 values before compaction");
+
+        // Compact with MultiValue mode
+        db.full_compact()?;
+
+        // After compaction: all different values should be preserved
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            3,
+            "MultiValue should preserve all different values after compaction"
+        );
+
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(values, vec![1, 2, 3], "All values should be preserved");
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+fn multi_value_config() -> DbConfig<1> {
+    let mut config = DbConfig::<1>::default();
+    config.family_configs[0] = FamilyConfig {
+        kind: FamilyKind::MultiValue,
+    };
+    config
+}
+
+#[test]
+fn compaction_multi_value_multiple_compactions() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let config = multi_value_config();
+
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config.clone(),
+            RayonParallelScheduler,
+        )?;
+
+        // Write initial values
+        for value in [1u8, 2, 3] {
+            let batch = db.write_batch()?;
+            batch.put(0, key.clone(), vec![value].into())?;
+            db.commit_write_batch(batch)?;
+        }
+
+        db.full_compact()?;
+
+        // After first compaction: 3 unique values
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 3);
+
+        // Add more values (some duplicates of existing values)
+        for value in [2u8, 4, 1] {
+            let batch = db.write_batch()?;
+            batch.put(0, key.clone(), vec![value].into())?;
+            db.commit_write_batch(batch)?;
+        }
+
+        // Before second compaction: all 6 entries present (no dedup)
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 6);
+
+        // Second compaction
+        db.full_compact()?;
+
+        // After second compaction: all 6 entries preserved (no dedup)
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            6,
+            "Should have all 6 values after second compaction (no dedup)"
+        );
+
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(
+            values,
+            vec![1, 1, 2, 2, 3, 4],
+            "Should have values 1, 1, 2, 2, 3, 4"
+        );
+
+        db.shutdown()?;
+    }
+
+    // Reopen and verify persistence
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 6, "Should still have 6 values after reopen");
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn multi_value_delete_key() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let config = multi_value_config();
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config.clone(),
+            RayonParallelScheduler,
+        )?;
+
+        // Write multiple values for the same key across separate batches
+        for value in [1u8, 2, 3] {
+            let batch = db.write_batch()?;
+            batch.put(0, key.clone(), vec![value].into())?;
+            db.commit_write_batch(batch)?;
+        }
+
+        // Verify all values are present
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 3, "Should have 3 values before deletion");
+
+        // Delete the key
+        let batch = db.write_batch()?;
+        batch.delete(0, key.clone())?;
+        db.commit_write_batch(batch)?;
+
+        // Verify deleted
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert!(
+            results.is_empty(),
+            "get_multiple should return empty after delete"
+        );
+
+        // Compact and verify still deleted
+        db.full_compact()?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert!(
+            results.is_empty(),
+            "get_multiple should return empty after compaction"
+        );
+
+        db.shutdown()?;
+    }
+
+    // Reopen and verify deletion persists
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert!(
+            results.is_empty(),
+            "get_multiple should return empty after reopen"
+        );
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn multi_value_delete_then_rewrite() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let config = multi_value_config();
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config.clone(),
+            RayonParallelScheduler,
+        )?;
+
+        // Write initial values
+        for value in [1u8, 2, 3] {
+            let batch = db.write_batch()?;
+            batch.put(0, key.clone(), vec![value].into())?;
+            db.commit_write_batch(batch)?;
+        }
+
+        // Delete the key
+        let batch = db.write_batch()?;
+        batch.delete(0, key.clone())?;
+        db.commit_write_batch(batch)?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert!(results.is_empty(), "Should be deleted");
+
+        // Write new values for the same key
+        for value in [10u8, 20] {
+            let batch = db.write_batch()?;
+            batch.put(0, key.clone(), vec![value].into())?;
+            db.commit_write_batch(batch)?;
+        }
+
+        // Only the new values should be visible — old values must not reappear
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 2, "Should have only the 2 new values");
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(values, vec![10, 20], "Should have only new values 10, 20");
+
+        // After compaction, the tombstone prunes old values; only new values remain
+        db.full_compact()?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            2,
+            "Should still have 2 values after compaction"
+        );
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(
+            values,
+            vec![10, 20],
+            "Should still have values 10, 20 after compaction"
+        );
+
+        db.shutdown()?;
+    }
+
+    // Reopen and verify
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 2, "Should have 2 values after reopen");
+        let mut values: Vec<u8> = results.iter().map(|r| r[0]).collect();
+        values.sort();
+        assert_eq!(
+            values,
+            vec![10, 20],
+            "Should have values 10, 20 after reopen"
+        );
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn multi_value_delete_with_compaction_interleaved() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let config = multi_value_config();
+    let key = vec![42u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config.clone(),
+            RayonParallelScheduler,
+        )?;
+
+        // Write values 1, 2
+        for value in [1u8, 2] {
+            let batch = db.write_batch()?;
+            batch.put(0, key.clone(), vec![value].into())?;
+            db.commit_write_batch(batch)?;
+        }
+
+        // Compact — values 1, 2 are now in a compacted SST
+        db.full_compact()?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            2,
+            "Should have 2 values after first compaction"
+        );
+
+        // Write value 3 (new SST on top of compacted data)
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![3u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Delete the key
+        let batch = db.write_batch()?;
+        batch.delete(0, key.clone())?;
+        db.commit_write_batch(batch)?;
+
+        // Verify deleted
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert!(results.is_empty(), "Should be deleted");
+
+        // Compact again — merges everything
+        db.full_compact()?;
+
+        // After compaction, the tombstone prunes all values — key appears empty
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert!(
+            results.is_empty(),
+            "get_multiple should return empty after compaction"
+        );
+
+        // Write new value 4 — visible because it goes into a newer SST than the tombstone
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![4u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 1, "Should have only value 4");
+        assert_eq!(results[0].as_ref(), &[4u8]);
+
+        db.shutdown()?;
+    }
+
+    // Reopen and verify
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config,
+            RayonParallelScheduler,
+        )?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(results.len(), 1, "Should have only value 4 after reopen");
+        assert_eq!(results[0].as_ref(), &[4u8]);
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn single_value_dedup_same_key_same_batch() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // For SingleValue, writing the same key twice in one batch should keep only the last value.
+    let key = vec![1u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![10u8].into())?;
+        batch.put(0, key.clone(), vec![20u8].into())?; // should override
+        db.commit_write_batch(batch)?;
+
+        let result = db.get(0, &key.as_slice())?;
+        assert_eq!(
+            result.as_deref(),
+            Some(&[20u8][..]),
+            "SingleValue should keep only the last put in a batch"
+        );
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn single_value_delete_within_batch() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // For SingleValue, put then delete in the same batch should result in None.
+    let key = vec![2u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![10u8].into())?;
+        batch.delete(0, key.clone())?;
+        db.commit_write_batch(batch)?;
+
+        let result = db.get(0, &key.as_slice())?;
+        assert_eq!(
+            result, None,
+            "SingleValue put+delete in same batch should return None"
+        );
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn multi_value_delete_within_batch() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let config = multi_value_config();
+
+    // For MultiValue, a tombstone in a batch shadows all entries before it
+    // (in insertion order) for that key, including entries from older SSTs.
+    // Entries after the tombstone in the same batch are preserved.
+    let key = vec![3u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config.clone(),
+            RayonParallelScheduler,
+        )?;
+
+        // First write an older value in a separate batch (separate SST)
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![99u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Now in a single batch: put(A), delete, put(B)
+        // The tombstone shadows A (10) and the older SST (99).
+        // Only B (20) survives (it comes after the tombstone).
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![10u8].into())?;
+        batch.delete(0, key.clone())?;
+        batch.put(0, key.clone(), vec![20u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.len(),
+            1,
+            "Should have 1 value (only entries after tombstone survive)"
+        );
+        assert_eq!(results[0].as_ref(), &[20u8]);
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn multi_value_put_delete_at_end_of_batch() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let config = multi_value_config();
+
+    // For MultiValue, put(A), put(B), delete in the same batch: the tombstone
+    // is last so it shadows everything (A, B, and older SSTs).
+    let key = vec![4u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            config.clone(),
+            RayonParallelScheduler,
+        )?;
+
+        // Write an older value in a separate batch
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![99u8].into())?;
+        db.commit_write_batch(batch)?;
+
+        // Now in a single batch: put(A), put(B), delete
+        // Tombstone is last, so it shadows everything.
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), vec![10u8].into())?;
+        batch.put(0, key.clone(), vec![20u8].into())?;
+        batch.delete(0, key.clone())?;
+        db.commit_write_batch(batch)?;
+
+        // All values are shadowed by the tombstone.
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert!(
+            results.is_empty(),
+            "Should have 0 values (tombstone at end shadows everything), got {:?}",
+            results
+        );
+
+        db.shutdown()?;
+    }
+
     Ok(())
 }

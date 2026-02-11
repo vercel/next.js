@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use crate::{
-    ValueBuffer,
+    FamilyKind, ValueBuffer,
     collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey, TINY_VALUE_THRESHOLD},
     constants::{
         DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
@@ -110,10 +110,62 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.entries.push(entry);
     }
 
-    /// Sorts the entries and returns them along with the total key size. This doesn't
-    /// clear the entries.
-    pub fn sorted(&mut self) -> (&[CollectorEntry<K>], usize) {
-        self.entries.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+    /// Sorts the entries, deduplicates same-key entries based on family semantics, and returns
+    /// them along with the total key size.
+    ///
+    /// Uses a stable sort so insertion order is preserved for equal keys — the last entry for a
+    /// given key is the newest.
+    ///
+    /// Dedup rules:
+    /// - SingleValue: keep only the newest (last) entry per key.
+    /// - MultiValue: keep entries from the last tombstone onward (the tombstone shadows all older
+    ///   entries for that key). If there is no tombstone, all entries are kept.
+    pub fn sorted(&mut self, family_kind: FamilyKind) -> (&[CollectorEntry<K>], usize) {
+        self.entries.sort_by(|a, b| a.key.cmp(&b.key));
+
+        // Deduplicate in-place using a write pointer. We scan forward to find runs of same-key
+        // entries, then decide which entries from each run to keep.
+        let mut write = 0;
+        let mut read = 0;
+        let len = self.entries.len();
+        while read < len {
+            // Find the end of the run of entries with the same key
+            let run = &self.entries[read..];
+            let run_len = 1 + run[1..].iter().take_while(|e| e.key == run[0].key).count();
+            let run_end = read + run_len;
+
+            let keep_start = match family_kind {
+                FamilyKind::SingleValue => {
+                    // Keep only the last (newest) entry
+                    run_end - 1
+                }
+                FamilyKind::MultiValue => {
+                    // Find the last tombstone in the run; keep from there onward
+                    let last_tombstone = self.entries[read..run_end]
+                        .iter()
+                        .rposition(|e| matches!(e.value, CollectorEntryValue::Deleted));
+                    last_tombstone.map_or(read, |p| read + p)
+                }
+            };
+
+            // Subtract sizes of dropped entries
+            for e in &self.entries[read..keep_start] {
+                self.total_key_size -= e.key.len();
+                self.total_value_size -= e.value.len();
+            }
+
+            // Move kept entries into place
+            for i in keep_start..run_end {
+                if i != write {
+                    self.entries.swap(write, i);
+                }
+                write += 1;
+            }
+
+            read = run_end;
+        }
+        self.entries.truncate(write);
+
         (&self.entries, self.total_key_size)
     }
 

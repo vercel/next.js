@@ -11,6 +11,7 @@ use byteorder::{BE, ReadBytesExt};
 use memmap2::Mmap;
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
+use smallvec::SmallVec;
 
 use crate::{
     QueryKey,
@@ -47,15 +48,15 @@ const _: () = assert!(
 
 /// The result of a lookup operation.
 pub enum SstLookupResult {
-    /// The key was found.
-    Found(LookupValue),
+    /// One or more values were found.
+    Found(SmallVec<[LookupValue; 1]>),
     /// The key was not found.
     NotFound,
 }
 
 impl From<LookupValue> for SstLookupResult {
     fn from(value: LookupValue) -> Self {
-        SstLookupResult::Found(value)
+        SstLookupResult::Found(smallvec::smallvec![value])
     }
 }
 
@@ -198,7 +199,11 @@ impl StaticSortedFile {
     }
 
     /// Looks up a key in this file.
-    pub fn lookup<K: QueryKey>(
+    ///
+    /// If `FIND_ALL` is false, returns after finding the first match.
+    /// If `FIND_ALL` is true, returns all entries with the same key (useful for
+    /// keyspaces where keys are hashes and collisions are possible).
+    pub fn lookup<K: QueryKey, const FIND_ALL: bool>(
         &self,
         key_hash: u64,
         key: &K,
@@ -215,7 +220,7 @@ impl StaticSortedFile {
                 }
                 BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
                     let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
-                    return self.lookup_key_block(
+                    return self.lookup_key_block::<K, FIND_ALL>(
                         key_block_arc,
                         key_hash,
                         key,
@@ -277,7 +282,10 @@ impl StaticSortedFile {
     }
 
     /// Looks up a key in a key block and the value in a value block.
-    fn lookup_key_block<K: QueryKey>(
+    ///
+    /// If `FIND_ALL` is false, returns after finding the first match.
+    /// If `FIND_ALL` is true, collects all entries with the same key.
+    fn lookup_key_block<K: QueryKey, const FIND_ALL: bool>(
         &self,
         mut block: ArcBytes,
         key_hash: u64,
@@ -292,32 +300,77 @@ impl StaticSortedFile {
 
         let mut l = 0;
         let mut r = entry_count;
-        // binary search for the key
+        // binary search for a matching key
         while l < r {
             let m = (l + r) / 2;
             let GetKeyEntryResult {
                 hash: mid_hash,
                 key: mid_key,
                 ty,
-                val: mid_val,
+                val,
             } = get_key_entry(offsets, entries, entry_count, m, hash_len)?;
 
             let comparison = compare_hash_key(mid_hash, mid_key, key_hash, key);
 
             match comparison {
-                Ordering::Less => {
-                    r = m;
-                }
+                Ordering::Less => r = m,
                 Ordering::Equal => {
-                    return Ok(self
-                        .handle_key_match(ty, mid_val, &block, value_block_cache)?
-                        .into());
+                    if !FIND_ALL {
+                        // SingleValue mode: each key has exactly one entry
+                        // this is enforced when writing
+                        let result = self.handle_key_match(ty, val, &block, value_block_cache)?;
+                        return Ok(SstLookupResult::Found(SmallVec::from_buf([result])));
+                    }
+                    // FIND_ALL (MultiValue) mode: collect all values for
+                    // this key. Entries are insertion order
+                    //
+                    // Scan backwards, stopping at Deleted (nothing before
+                    // it matters). Then scan forwards (Deleted cannot
+                    // appear after a non-Deleted in sort order).
+                    //
+                    // If a Deleted is present it is always the first
+                    // element in the returned results, signalling to the
+                    // caller that older layers should not be searched.
+                    let mut results = SmallVec::new();
+                    // Backward scan: collect values before `m`, stop at Deleted
+                    for i in (0..m).rev() {
+                        let GetKeyEntryResult {
+                            hash,
+                            key: entry_key,
+                            ty,
+                            val,
+                        } = get_key_entry(offsets, entries, entry_count, i, hash_len)?;
+                        if compare_hash_key(hash, entry_key, key_hash, key) != Ordering::Equal {
+                            break;
+                        }
+                        results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+                        // Deleted sorts first, so this is the start of the key group
+                        if ty == KEY_BLOCK_ENTRY_TYPE_DELETED {
+                            break;
+                        }
+                    }
+                    results.reverse();
+                    // Add the entry at `m`
+                    results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+                    // Forward scan: collect remaining entries with the same key
+                    for i in (m + 1)..entry_count {
+                        let GetKeyEntryResult {
+                            hash,
+                            key: entry_key,
+                            ty,
+                            val,
+                        } = get_key_entry(offsets, entries, entry_count, i, hash_len)?;
+                        if compare_hash_key(hash, entry_key, key_hash, key) != Ordering::Equal {
+                            break;
+                        }
+                        results.push(self.handle_key_match(ty, val, &block, value_block_cache)?);
+                    }
+                    return Ok(SstLookupResult::Found(results));
                 }
-                Ordering::Greater => {
-                    l = m + 1;
-                }
+                Ordering::Greater => l = m + 1,
             }
         }
+
         Ok(SstLookupResult::NotFound)
     }
 
