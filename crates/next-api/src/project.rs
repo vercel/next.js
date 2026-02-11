@@ -1440,6 +1440,12 @@ impl Project {
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let css_url_suffix = self
+            .next_config()
+            .asset_suffix_path()
+            .owned()
+            .await?
+            .clone();
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1459,6 +1465,7 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), true),
             debug_ids: self.next_config().turbopack_debug_ids(),
             should_use_absolute_url_references: self.next_config().inline_css(),
+            css_url_suffix,
         }))
     }
 
@@ -1467,6 +1474,12 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
+        let css_url_suffix = self
+            .next_config()
+            .asset_suffix_path()
+            .owned()
+            .await?
+            .clone();
         let options = ServerChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1486,6 +1499,7 @@ impl Project {
             debug_ids: self.next_config().turbopack_debug_ids(),
             client_root: self.client_relative_path().owned().await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
+            css_url_suffix,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1499,6 +1513,12 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let css_url_suffix = self
+            .next_config()
+            .asset_suffix_path()
+            .owned()
+            .await?
+            .clone();
         let options = EdgeChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1517,6 +1537,7 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), false),
             client_root: self.client_relative_path().owned().await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
+            css_url_suffix,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
