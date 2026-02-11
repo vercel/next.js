@@ -9,7 +9,7 @@
     "new-error": "turbo gen error",
     "new-test": "turbo gen test",
     "clean": "lerna clean -y && lerna run clean && lerna exec 'node ../../scripts/rm.mjs dist'",
-    "build": "turbo run build --remote-cache-timeout 60 --summarize true",
+    "build": "node scripts/maybe-build-native.mjs && turbo run build --remote-cache-timeout 60 --summarize true",
     "lerna": "lerna",
     "dev": "turbo run dev --parallel --filter=\"!@next/bundle-analyzer-ui\"",
     "bench:render-pipeline": "tsx bench/render-pipeline/benchmark.ts",
