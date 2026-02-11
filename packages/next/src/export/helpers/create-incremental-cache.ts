@@ -59,17 +59,18 @@ export async function createIncrementalCache({
     flushToDisk,
     maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
-    getPrerenderManifest: () => ({
+    previewProps: {
+      previewModeEncryptionKey: '',
+      previewModeId: '',
+      previewModeSigningKey: '',
+    },
+    prerenderManifest: {
       version: 4,
       routes: {},
       dynamicRoutes: {},
-      preview: {
-        previewModeEncryptionKey: '',
-        previewModeId: '',
-        previewModeSigningKey: '',
-      },
+
       notFoundRoutes: [],
-    }),
+    },
     fs: nodeFs,
     serverDistDir: path.join(distDir, 'server'),
     CurCacheHandler: CacheHandler,

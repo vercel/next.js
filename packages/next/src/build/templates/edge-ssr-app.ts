@@ -77,6 +77,7 @@ async function requestHandler(
     nextConfig,
     buildManifest,
     prerenderManifest,
+    previewProps,
     reactLoadableManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
@@ -92,10 +93,7 @@ async function requestHandler(
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
-  const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
-    req,
-    prerenderManifest.preview
-  )
+  const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(req, previewProps)
 
   const closeController = new CloseController()
 
@@ -141,7 +139,7 @@ async function requestHandler(
       crossOrigin: nextConfig.crossOrigin,
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
-      previewProps: prerenderManifest.preview,
+      previewProps: previewProps,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
@@ -174,6 +172,7 @@ async function requestHandler(
       incrementalCache: await pageRouteModule.getIncrementalCache(
         baseReq,
         nextConfig,
+        previewProps,
         prerenderManifest,
         true
       ),

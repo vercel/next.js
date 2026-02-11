@@ -34,6 +34,7 @@ import type {
   ManifestRewriteRoute,
   ManifestRoute,
   PrerenderManifest,
+  PreviewPropsManifest,
 } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
@@ -361,6 +362,7 @@ export default abstract class Server<
     url?: string
   }): Promise<FindComponentsResult | null>
   protected abstract getPrerenderManifest(): DeepReadonly<PrerenderManifest>
+  protected abstract getPreviewProps(): DeepReadonly<PreviewPropsManifest>
   protected abstract getNextFontManifest():
     | DeepReadonly<NextFontManifest>
     | undefined
@@ -537,7 +539,7 @@ export default abstract class Server<
       trailingSlash: this.nextConfig.trailingSlash,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
-      previewProps: this.getPrerenderManifest().preview,
+      previewProps: this.getPreviewProps(),
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
