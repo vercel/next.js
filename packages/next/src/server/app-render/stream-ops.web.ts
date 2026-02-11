@@ -1,7 +1,34 @@
 /**
  * Web stream operations for the rendering pipeline.
- * Loaded by stream-ops.ts (re-export in this PR, conditional switcher later).
+ * Loaded by stream-ops.js when __NEXT_USE_NODE_STREAMS is false/undefined.
  */
+
+import type {
+  AnyStream,
+  ContinueFizzStreamOptions,
+  ContinueStaticPrerenderOptions,
+  ContinueStreamSharedOptions,
+  ContinueDynamicHTMLResumeOptions,
+  FlightComponentMod,
+  ServerPrerenderComponentMod,
+  FlightPayload,
+  FlightClientModules,
+  FlightRenderOptions,
+} from './stream-ops.node'
+
+// Re-export shared types so they're available to consumers
+export type {
+  AnyStream,
+  ContinueFizzStreamOptions,
+  ContinueStaticPrerenderOptions,
+  ContinueStreamSharedOptions,
+  ContinueDynamicHTMLResumeOptions,
+  FlightComponentMod,
+  ServerPrerenderComponentMod,
+  FlightPayload,
+  FlightClientModules,
+  FlightRenderOptions,
+}
 
 import type { PostponedState, PrerenderOptions } from 'react-dom/static'
 import { resume, renderToReadableStream } from 'react-dom/server'
@@ -11,68 +38,15 @@ import {
   renderToInitialFizzStream,
   streamToString as webStreamToString,
   createRuntimePrefetchTransformStream,
-  continueFizzStream as webContinueFizzStream,
 } from '../stream-utils/node-web-streams-helper'
 import { createInlinedDataReadableStream } from './use-flight-response'
-
-// ---------------------------------------------------------------------------
-// Shared types (web-only for now; will move to stream-ops.node.ts later)
-// ---------------------------------------------------------------------------
-
-type FlightRenderToReadableStream = (
-  model: any,
-  webpackMap: any,
-  options?: any
-) => ReadableStream<Uint8Array>
-
-export type AnyStream = ReadableStream<Uint8Array>
-
-export type ContinueStreamSharedOptions = {
-  deploymentId: string | undefined
-  getServerInsertedHTML: () => Promise<string>
-  getServerInsertedMetadata: () => Promise<string>
-}
-
-export type ContinueFizzStreamOptions = ContinueStreamSharedOptions & {
-  inlinedDataStream: AnyStream | undefined
-  isStaticGeneration: boolean
-  allReady?: Promise<void>
-  validateRootLayout?: boolean
-  suffix?: string
-}
-
-export type ContinueStaticPrerenderOptions = ContinueStreamSharedOptions & {
-  inlinedDataStream: AnyStream
-}
-
-export type ContinueDynamicHTMLResumeOptions = ContinueStreamSharedOptions & {
-  inlinedDataStream: AnyStream
-  delayDataUntilFirstHtmlChunk: boolean
-}
-
-export type FlightComponentMod = {
-  renderToReadableStream: FlightRenderToReadableStream
-}
-
-export type ServerPrerenderComponentMod = {
-  prerender: (...args: any[]) => Promise<any>
-}
-
-export type FlightPayload = Parameters<FlightRenderToReadableStream>[0]
-export type FlightClientModules = Parameters<FlightRenderToReadableStream>[1]
-export type FlightRenderOptions = Parameters<FlightRenderToReadableStream>[2]
-
-export type FizzStreamResult = {
-  stream: AnyStream
-  allReady: Promise<void>
-  abort?: (reason?: unknown) => void
-}
 
 // ---------------------------------------------------------------------------
 // Continue functions
 // ---------------------------------------------------------------------------
 
 export {
+  continueFizzStream,
   continueStaticPrerender,
   continueDynamicPrerender,
   continueStaticFallbackPrerender,
@@ -83,18 +57,6 @@ export {
 } from '../stream-utils/node-web-streams-helper'
 
 export { processPrelude } from './app-render-prerender-utils'
-
-/**
- * Wrapper for continueFizzStream that accepts AnyStream.
- * The underlying implementation expects ReactDOMServerReadableStream but at
- * the stream-ops boundary we only expose AnyStream.
- */
-export function continueFizzStream(
-  renderStream: AnyStream,
-  opts: ContinueFizzStreamOptions
-): Promise<ReadableStream<Uint8Array>> {
-  return webContinueFizzStream(renderStream as any, opts)
-}
 
 // Not available in web bundles
 export const nodeReadableToWeb:
@@ -158,6 +120,12 @@ export function renderToFlightStream(
 
 export async function streamToString(stream: AnyStream): Promise<string> {
   return webStreamToString(stream as ReadableStream<Uint8Array>)
+}
+
+export type FizzStreamResult = {
+  stream: AnyStream
+  allReady: Promise<void>
+  abort?: (reason?: unknown) => void
 }
 
 export async function renderToFizzStream(

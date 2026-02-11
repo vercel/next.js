@@ -1,23 +1,9 @@
-/**
- * Web debug channel implementation.
- * Loaded by debug-channel-server.ts.
- */
+import type {
+  DebugChannelPair,
+  DebugChannelServer,
+} from './debug-channel-server.node'
 
-// Types defined inline for now; will move to debug-channel-server.node.ts later.
-export type DebugChannelPair = {
-  serverSide: DebugChannelServer
-  clientSide: DebugChannelClient
-}
-
-export type DebugChannelServer = {
-  readable?: ReadableStream<Uint8Array>
-  writable: WritableStream<Uint8Array>
-}
-
-export type DebugChannelClient = {
-  readable: ReadableStream<Uint8Array>
-  writable?: WritableStream<Uint8Array>
-}
+export type { DebugChannelPair, DebugChannelServer }
 
 export function createDebugChannel(): DebugChannelPair | undefined {
   if (process.env.NODE_ENV === 'production') {

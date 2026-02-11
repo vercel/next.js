@@ -71,6 +71,7 @@ import {
   getPostponedStateExceededErrorMessage,
   readBodyWithSizeLimit,
 } from '../../server/lib/postponed-request-body'
+import { chainNodeStreams } from '../../server/stream-utils/chain-node-streams'
 
 // These are injected by the loader afterwards.
 
@@ -1479,6 +1480,64 @@ export async function handler(
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
+          cacheControl: { revalidate: 0, expire: undefined },
+        })
+      }
+
+      if (process.env.__NEXT_USE_NODE_STREAMS) {
+        // Node streams path: construct the response as a single Node Readable
+        // chain (cached HTML + optional sentinel + resume render) to avoid
+        // web stream interop issues with Readable.toWeb().
+        const { PassThrough, Readable: NodeReadable } =
+          require('node:stream') as typeof import('node:stream')
+
+        const streams: import('node:stream').Readable[] = [
+          NodeReadable.from(body.toUnchunkedString()),
+        ]
+
+        if (process.env.__NEXT_TEST_MODE) {
+          streams.push(NodeReadable.from('<!-- PPR_BOUNDARY_SENTINEL -->'))
+        }
+
+        const bridge = new PassThrough()
+        streams.push(bridge)
+
+        const combined = chainNodeStreams(...streams)
+
+        const result = new RenderResult(combined, {
+          contentType: body.contentType,
+          metadata: body.metadata as any,
+        })
+
+        doRender({
+          span,
+          postponed: cachedData.postponed,
+          fallbackRouteParams: null,
+          forceStaticRender: false,
+        })
+          .then(async (renderResult) => {
+            if (!renderResult) {
+              throw new Error('Invariant: expected a result to be returned')
+            }
+
+            if (renderResult.value?.kind !== CachedRouteKind.APP_PAGE) {
+              throw new Error(
+                `Invariant: expected a page response, got ${renderResult.value?.kind}`
+              )
+            }
+
+            await renderResult.value.html.pipeToNodeWritable(bridge)
+          })
+          .catch((err) => {
+            bridge.destroy(err instanceof Error ? err : new Error(String(err)))
+          })
+
+        return sendRenderResult({
+          req,
+          res,
+          generateEtags: nextConfig.generateEtags,
+          poweredByHeader: nextConfig.poweredByHeader,
+          result,
           cacheControl: { revalidate: 0, expire: undefined },
         })
       }

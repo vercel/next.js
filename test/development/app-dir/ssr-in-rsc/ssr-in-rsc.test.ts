@@ -133,18 +133,22 @@ describe('react-dom/server in React Server environment', () => {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
         "{
           "default": [
+            "renderToPipeableStream",
             "renderToReadableStream",
             "renderToStaticMarkup",
             "renderToString",
             "resume",
+            "resumeToPipeableStream",
             "version"
           ],
           "named": [
             "default",
+            "renderToPipeableStream",
             "renderToReadableStream",
             "renderToStaticMarkup",
             "renderToString",
             "resume",
+            "resumeToPipeableStream",
             "version"
           ]
         }"
@@ -481,18 +485,22 @@ describe('react-dom/server in React Server environment', () => {
         "{
           "default": {
             "default": [
+              "renderToPipeableStream",
               "renderToReadableStream",
               "renderToStaticMarkup",
               "renderToString",
               "resume",
+              "resumeToPipeableStream",
               "version"
             ],
             "named": [
               "default",
+              "renderToPipeableStream",
               "renderToReadableStream",
               "renderToStaticMarkup",
               "renderToString",
               "resume",
+              "resumeToPipeableStream",
               "version"
             ]
           }
