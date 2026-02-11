@@ -23,6 +23,8 @@
   },
   "include": [
     "run-tests.js",
+    "bench/**/*.ts",
+    "bench/**/*.tsx",
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
     "test/**/*.util.ts",
