@@ -48,12 +48,13 @@ function hasRustChanges(sinceCommit) {
     // Omit HEAD to compare against the working tree, which includes
     // committed, staged, and unstaged changes.
     const diff = execSync(
-      `git diff --name-only ${sinceCommit} -- ':(glob)**/*.rs'`,
+      `git diff --name-only ${sinceCommit} -- ':(glob)**/*.rs' ':(glob)**/*.toml' ':(glob).cargo/**' Cargo.lock rust-toolchain`,
       { cwd: ROOT_DIR, encoding: 'utf8' }
     ).trim()
     return diff.length > 0
   } catch {
-    return false
+    // If we can't determine whether changes occurred, assume they did
+    return true
   }
 }
 
@@ -108,9 +109,16 @@ function main() {
   }
 
   const versionBumpCommit = getVersionBumpCommit()
-  const rustChanged = versionBumpCommit && hasRustChanges(versionBumpCommit)
 
-  if (rustChanged) {
+  if (!versionBumpCommit) {
+    console.log(
+      'Could not determine version bump commit (shallow clone?), building native to be safe...'
+    )
+    buildNative()
+    return
+  }
+
+  if (hasRustChanges(versionBumpCommit)) {
     console.log(
       'Rust source files changed since last version bump, building native...'
     )
