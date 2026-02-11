@@ -2,6 +2,18 @@
   "$schema": "https://turborepo.org/schema.json",
   "extends": ["//"],
   "tasks": {
+    "build": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../Cargo.toml",
+        "../../Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "outputs": ["native/*.node"]
+    },
     "build-native": {
       "inputs": [
         "../../.cargo/**",
