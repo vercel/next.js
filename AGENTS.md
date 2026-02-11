@@ -284,6 +284,58 @@ See [Codebase structure](#codebase-structure) above for detailed explanations.
 - Use `DEBUG=next:*` for debug logging
 - Use `NEXT_TELEMETRY_DISABLED=1` when testing locally
 
+## Render Pipeline Benchmarking and Profiling
+
+For Node streams/rendering investigations, use the benchmark harness in `bench/render-pipeline/`.
+
+- Full playbook: `bench/BENCHMARKING.md`
+- Render benchmark docs: `bench/render-pipeline/README.md`
+
+**Build-first rule:** if you changed Next.js source, run `pnpm --filter=next build` before benchmarking.
+
+**Core commands:**
+
+```bash
+# End-to-end full render path (node streams)
+pnpm bench:render-pipeline --scenario=full --stream-mode=node --build-full=true
+
+# Focused stress routes used for streaming pipeline work
+pnpm bench:render-pipeline \
+  --scenario=full \
+  --stream-mode=node \
+  --build-full=true \
+  --routes=/streaming/heavy,/streaming/chunkstorm,/streaming/wide \
+  --warmup-requests=10 \
+  --serial-requests=40 \
+  --load-requests=400 \
+  --load-concurrency=40
+
+# Helper/micro isolation (fast iteration)
+pnpm bench:render-pipeline --scenario=micro --iterations=300 --warmup=30
+
+# Capture CPU + traces
+pnpm bench:render-pipeline \
+  --scenario=full \
+  --stream-mode=node \
+  --capture-cpu=true \
+  --capture-trace=true \
+  --capture-next-trace=true \
+  --json-out=bench/render-pipeline/artifacts/<run>/results.json \
+  --artifact-dir=bench/render-pipeline/artifacts/<run>
+
+# Analyze hotspots from artifacts
+pnpm bench:render-pipeline:analyze \
+  --artifact-dir=bench/render-pipeline/artifacts/<run> \
+  --top=20
+```
+
+**When profiling Node streams, prioritize these hotspots first:**
+
+- `packages/next/src/server/app-render/use-flight-response.tsx`
+- `packages/next/src/server/app-render/node-stream-tee.ts`
+- `packages/next/src/server/stream-utils/node-stream-helpers.ts`
+- `packages/next/src/server/htmlescape.ts`
+
 ## Context-Efficient Workflows
 
 **Reading large files** (>500 lines, e.g. `app-render.tsx`):
