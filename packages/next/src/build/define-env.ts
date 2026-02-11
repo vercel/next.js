@@ -161,9 +161,13 @@ export function getDefineEnv({
       dev || config.experimental.allowDevelopmentBuild
         ? 'development'
         : 'production',
-    'process.env.NEXT_PHASE': dev
-      ? PHASE_DEVELOPMENT_SERVER
-      : PHASE_PRODUCTION_SERVER,
+    ...(isClient
+      ? {
+          'process.env.NEXT_PHASE': dev
+            ? PHASE_DEVELOPMENT_SERVER
+            : PHASE_PRODUCTION_SERVER,
+        }
+      : undefined),
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
