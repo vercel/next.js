@@ -349,8 +349,10 @@ function InnerScrollAndFocusHandlerNew(props: ScrollAndFocusHandlerProps) {
         // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
         focusAndScrollRef.onlyHashChange = false
 
-        // Set focus on the element
-        instance.focus()
+        // Set focus on the element but don't scroll since we already did that.
+        // The focus might have targetted a deep element outside of the instances
+        // top edge.
+        instance.focus({ preventScroll: true })
       }
     },
     // Used to run on every commit. We may be able to be smarter about this
