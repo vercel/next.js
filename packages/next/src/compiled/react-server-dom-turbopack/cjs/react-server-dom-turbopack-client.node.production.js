@@ -916,7 +916,7 @@ function initializeModelChunk(chunk) {
   chunk.value = null;
   chunk.reason = null;
   try {
-    var value = JSON.parse(resolvedModel, response._fromJSON),
+    var value = walkParsedJSON(response, JSON.parse(resolvedModel), null, ""),
       resolveListeners = chunk.value;
     if (null !== resolveListeners)
       for (
@@ -2099,6 +2099,74 @@ function createFromJSONCallback(response) {
       return value;
     }
   };
+}
+function walkParsedJSON(response, value, parentObject, key) {
+  if ("string" === typeof value)
+    return "$" === value[0]
+      ? parseModelString(response, parentObject, key, value)
+      : value;
+  if ("object" !== typeof value || null === value) return value;
+  if (Array.isArray(value)) {
+    if ("$" === value[0]) {
+      null !== initializingHandler &&
+        (initializingHandler = {
+          parent: initializingHandler,
+          chunk: null,
+          value: null,
+          reason: null,
+          deps: 0,
+          errored: !1
+        });
+      var elType = value[1];
+      if ("string" === typeof elType) {
+        "$" === elType[0] &&
+          (elType = parseModelString(response, value, "1", elType));
+      } else if ("object" === typeof elType && null !== elType) {
+        elType = walkParsedJSON(response, elType, value, "1");
+      }
+      var elKey = value[2];
+      if ("string" === typeof elKey) {
+        "$" === elKey[0] &&
+          (elKey = parseModelString(response, value, "2", elKey));
+      } else if (null !== elKey) {
+        elKey = walkParsedJSON(response, elKey, value, "2");
+      }
+      var elProps = walkParsedJSON(response, value[3], value, "3");
+      key = {
+        $$typeof: REACT_ELEMENT_TYPE,
+        type: elType,
+        key: elKey,
+        ref: null,
+        props: elProps
+      };
+      if (null !== initializingHandler)
+        if (
+          ((value = initializingHandler),
+          (initializingHandler = value.parent),
+          value.errored)
+        )
+          (key = new ReactPromise("rejected", null, value.reason)),
+            (key = createLazyChunkWrapper(key));
+        else if (0 < value.deps) {
+          var blockedChunk = new ReactPromise("blocked", null, null);
+          value.value = key;
+          value.chunk = blockedChunk;
+          key = createLazyChunkWrapper(blockedChunk);
+        }
+      return key;
+    }
+    for (var i = 0; i < value.length; i++)
+      value[i] = walkParsedJSON(response, value[i], value, "" + i);
+    return value;
+  }
+  var walked;
+  for (var k in value) {
+    if ("__proto__" !== k) {
+      walked = walkParsedJSON(response, value[k], value, k);
+      void 0 !== walked ? (value[k] = walked) : delete value[k];
+    } else delete value[k];
+  }
+  return value;
 }
 function close(weakResponse) {
   weakResponse._allowPartialStream
