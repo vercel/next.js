@@ -987,7 +987,7 @@ async function exportAppImpl(
           await Promise.all(
             segmentPaths.map(async (segmentFileSrc) => {
               const segmentPath =
-                '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
+                sep + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
               const segmentFilename =
                 convertSegmentPathToStaticExportFilename(segmentPath)
               const segmentFileDest = join(segmentsDirDest, segmentFilename)
