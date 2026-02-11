@@ -288,8 +288,11 @@ export abstract class RouteModule<
         loadManifestFromRelativePath<PrerenderManifestRuntime>({
           projectDir,
           distDir: this.distDir,
-          manifest: PRERENDER_MANIFEST,
+          manifest: !this.isDev
+            ? `server/${router === 'app' ? 'app' : 'pages'}${normalizedPagePath}/${PRERENDER_MANIFEST}`
+            : PRERENDER_MANIFEST,
           shouldCache: !this.isDev,
+          handleMissing: true,
         }),
         loadManifestFromRelativePath<PreviewPropsManifest>({
           projectDir,
