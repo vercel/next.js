@@ -87,9 +87,10 @@ static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTO
 static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
     Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
-/// Next doesn't display warnings from node_modules, so configure turbopack to not report them
-/// either. This matches logic in `packages/next/src/server/dev/turbopack-utils.ts`
-pub const NEXT_ISSUE_FILTER: IssueFilter = IssueFilter::warnings_and_foreign_errors();
+/// Get the `Vc<IssueFilter>` for a `ProjectContainer`.
+fn issue_filter_from_container(container: ResolvedVc<ProjectContainer>) -> Vc<IssueFilter> {
+    container.project().issue_filter()
+}
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -945,8 +946,9 @@ async fn get_entrypoints_with_issues_operation(
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
+    let filter = issue_filter_from_container(container);
     let (entrypoints, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation).await?;
+        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1043,8 +1045,9 @@ async fn get_all_written_entrypoints_with_issues_operation(
         container,
         app_dir_only,
     ));
+    let filter = issue_filter_from_container(container);
     let (entrypoints, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation).await?;
+        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
     Ok(AllWrittenEntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1224,7 +1227,8 @@ async fn hmr_update_with_issues_operation(
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_op = project_hmr_update_operation(project, chunk_name, target, state);
     let update = update_op.read_strongly_consistent().await?;
-    let issues = get_issues(update_op, NEXT_ISSUE_FILTER).await?;
+    let filter = project.issue_filter();
+    let issues = get_issues(update_op, filter).await?;
     let diagnostics = get_diagnostics(update_op).await?;
     let effects = Arc::new(get_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
@@ -1358,7 +1362,8 @@ async fn get_hmr_chunk_names_with_issues_operation(
 ) -> Result<Vc<HmrChunkNamesWithIssues>> {
     let hmr_chunk_names_op = project_hmr_chunk_names_operation(container, target);
     let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
-    let issues = get_issues(hmr_chunk_names_op, NEXT_ISSUE_FILTER).await?;
+    let filter = issue_filter_from_container(container);
+    let issues = get_issues(hmr_chunk_names_op, filter).await?;
     let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
     let effects = Arc::new(get_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
