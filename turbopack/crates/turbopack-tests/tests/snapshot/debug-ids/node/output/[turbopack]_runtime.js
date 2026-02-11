@@ -1,12 +1,33 @@
 const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const ASSET_PREFIX = "/";
+const WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
+/**
+ * Describes why a module was instantiated.
+ * Shared between browser and Node.js runtimes.
+ */ var SourceType = /*#__PURE__*/ function(SourceType) {
+    /**
+   * The module was instantiated because it was included in an evaluated chunk's
+   * runtime.
+   * SourceData is a ChunkPath.
+   */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
+    /**
+   * The module was instantiated because a parent module imported it.
+   * SourceData is a ModuleId.
+   */ SourceType[SourceType["Parent"] = 1] = "Parent";
+    /**
+   * The module was instantiated because it was included in a chunk's hot module
+   * update.
+   * SourceData is an array of ModuleIds or undefined.
+   */ SourceType[SourceType["Update"] = 2] = "Update";
+    return SourceType;
+}(SourceType || {});
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -45,6 +66,16 @@ function getOverwrittenModule(moduleCache, id) {
         error: undefined,
         id,
         namespaceObject: undefined
+    };
+}
+function createModuleWithDirection(id) {
+    return {
+        exports: {},
+        error: undefined,
+        id,
+        namespaceObject: undefined,
+        parents: [],
+        children: []
     };
 }
 const BindingTag_Value = 0;
@@ -340,9 +371,19 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         if (end === chunkModules.length) {
             throw new Error('malformed chunk format, expected a factory function');
         }
-        // Each chunk item has a 'primary id' and optional additional ids. If the primary id is already
-        // present we know all the additional ids are also present, so we don't need to check.
-        if (!moduleFactories.has(moduleId)) {
+        // Check if ANY of the module IDs in this group already have factories (e.g., from HMR updates).
+        // If so, skip installing the old factory from disk to preserve the HMR-updated code.
+        let hasExistingFactory = false;
+        const groupIds = [];
+        for(let j = i; j < end; j++){
+            const id = chunkModules[j];
+            groupIds.push(id);
+            if (moduleFactories.has(id)) {
+                hasExistingFactory = true;
+                break;
+            }
+        }
+        if (!hasExistingFactory) {
             const moduleFactoryFn = chunkModules[end];
             applyModuleFactoryName(moduleFactoryFn);
             newModuleId?.(moduleId);
@@ -502,7 +543,7 @@ function applyModuleFactoryName(factory) {
         value: 'module evaluation'
     });
 }
-/// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared/runtime/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
 /// If a fn requires node.js specific behavior, it should be placed in `node-external-utils` instead.
@@ -564,7 +605,7 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
     return ABSOLUTE_ROOT;
 }
 Context.prototype.P = resolveAbsolutePath;
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime/runtime-utils.ts" />
 function readWebAssemblyAsResponse(path) {
     const { createReadStream } = require('fs');
     const { Readable } = require('stream');
@@ -585,10 +626,11 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
     const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
     return instance.exports;
 }
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
-/// <reference path="../shared-node/base-externals-utils.ts" />
-/// <reference path="../shared-node/node-externals-utils.ts" />
-/// <reference path="../shared-node/node-wasm-utils.ts" />
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../hmr-types.d.ts" />
+/// <reference path="../../shared/runtime/runtime-utils.ts" />
+/// <reference path="../../shared-node/base-externals-utils.ts" />
+/// <reference path="../../shared-node/node-externals-utils.ts" />
+/// <reference path="../../shared-node/node-wasm-utils.ts" />
 var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
@@ -714,10 +756,31 @@ function loadWebAssemblyModule(chunkPath, _edgeModule) {
     return compileWebAssemblyFromPath(resolved);
 }
 contextPrototype.u = loadWebAssemblyModule;
-function getWorkerURL(_entrypoint, _moduleChunks, _shared) {
-    throw new Error('Worker urls are not implemented yet for Node.js');
+/**
+ * Creates a Node.js worker thread by instantiating the given WorkerConstructor
+ * with the appropriate path and options, including forwarded globals.
+ *
+ * @param WorkerConstructor The Worker constructor from worker_threads
+ * @param workerPath Path to the worker entry chunk
+ * @param workerOptions options to pass to the Worker constructor (optional)
+ */ function createWorker(WorkerConstructor, workerPath, workerOptions) {
+    // Build the forwarded globals object
+    const forwardedGlobals = {};
+    for (const name of WORKER_FORWARDED_GLOBALS){
+        forwardedGlobals[name] = globalThis[name];
+    }
+    // Merge workerData with forwarded globals
+    const existingWorkerData = workerOptions?.workerData || {};
+    const options = {
+        ...workerOptions,
+        workerData: {
+            ...typeof existingWorkerData === 'object' ? existingWorkerData : {},
+            __turbopack_globals__: forwardedGlobals
+        }
+    };
+    return new WorkerConstructor(workerPath, options);
 }
-nodeContextPrototype.b = getWorkerURL;
+nodeContextPrototype.b = createWorker;
 function instantiateModule(id, sourceType, sourceData) {
     const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {
@@ -792,6 +855,12 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
  */ function isJs(chunkUrlOrPath) {
     return regexJsUrl.test(chunkUrlOrPath);
 }
+function __turbopack_server_hmr_apply__(_update) {
+    // TODO: Implement actual HMR logic to update module factories
+    // For now, just return true to indicate we "accepted" the update
+    return true;
+}
+globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__;
 module.exports = (sourcePath)=>({
         m: (id)=>getOrInstantiateRuntimeModule(sourcePath, id),
         c: (chunkData)=>loadRuntimeChunk(sourcePath, chunkData)

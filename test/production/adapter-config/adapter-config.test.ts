@@ -96,6 +96,11 @@ describe('adapter-config', () => {
         expect(output.pathname.endsWith('.html')).toBe(false)
       } else if (output.pathname.endsWith('.rsc')) {
         expect(output.filePath.endsWith('rsc-fallback.json')).toBe(true)
+      } else if (output.filePath.endsWith('.body')) {
+        // Static metadata files (e.g., /icon.png, /manifest.json, /sitemap.xml) are output as static files
+        expect(output.pathname).toMatch(
+          /\.(png|jpg|jpeg|ico|svg|gif|json|webmanifest|xml|txt)$/
+        )
       } else {
         expect(output.pathname).toStartWith('/docs/_next/static')
       }
@@ -105,6 +110,123 @@ describe('adapter-config', () => {
       const stats = await fs.promises.stat(output.filePath)
       expect(stats.isFile()).toBe(true)
     }
+
+    // Verify static metadata files are output as static files, not prerenders
+    // Test icon.png
+    const iconStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/icon.png'
+    )
+    expect(iconStaticFile).toBeDefined()
+    expect(iconStaticFile?.filePath).toMatch(/\.body$/)
+
+    // Static metadata images should NOT be in prerenders
+    const iconPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/icon.png'
+    )
+    expect(iconPrerender).toBeUndefined()
+
+    // Static metadata images should NOT be in appRoutes
+    const iconAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/icon.png' ||
+        item.pathname === '/docs/icon.png.rsc'
+    )
+    expect(iconAppRoute).toBeUndefined()
+
+    // Test favicon.ico
+    const faviconStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/favicon.ico'
+    )
+    expect(faviconStaticFile).toBeDefined()
+    expect(faviconStaticFile?.filePath).toMatch(/\.body$/)
+
+    const faviconPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/favicon.ico'
+    )
+    expect(faviconPrerender).toBeUndefined()
+
+    const faviconAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/favicon.ico' ||
+        item.pathname === '/docs/favicon.ico.rsc'
+    )
+    expect(faviconAppRoute).toBeUndefined()
+
+    // Test opengraph-image.png
+    const ogImageStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/opengraph-image.png'
+    )
+    expect(ogImageStaticFile).toBeDefined()
+    expect(ogImageStaticFile?.filePath).toMatch(/\.body$/)
+
+    const ogImagePrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/opengraph-image.png'
+    )
+    expect(ogImagePrerender).toBeUndefined()
+
+    const ogImageAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/opengraph-image.png' ||
+        item.pathname === '/docs/opengraph-image.png.rsc'
+    )
+    expect(ogImageAppRoute).toBeUndefined()
+
+    // Test manifest.json
+    const manifestStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/manifest.json'
+    )
+    expect(manifestStaticFile).toBeDefined()
+    expect(manifestStaticFile?.filePath).toMatch(/\.body$/)
+
+    const manifestPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/manifest.json'
+    )
+    expect(manifestPrerender).toBeUndefined()
+
+    const manifestAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/manifest.json' ||
+        item.pathname === '/docs/manifest.json.rsc'
+    )
+    expect(manifestAppRoute).toBeUndefined()
+
+    // Test sitemap.xml
+    const sitemapStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/sitemap.xml'
+    )
+    expect(sitemapStaticFile).toBeDefined()
+    expect(sitemapStaticFile?.filePath).toMatch(/\.body$/)
+
+    const sitemapPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/sitemap.xml'
+    )
+    expect(sitemapPrerender).toBeUndefined()
+
+    const sitemapAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/sitemap.xml' ||
+        item.pathname === '/docs/sitemap.xml.rsc'
+    )
+    expect(sitemapAppRoute).toBeUndefined()
+
+    // Test robots.txt
+    const robotsStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/robots.txt'
+    )
+    expect(robotsStaticFile).toBeDefined()
+    expect(robotsStaticFile?.filePath).toMatch(/\.body$/)
+
+    const robotsPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/robots.txt'
+    )
+    expect(robotsPrerender).toBeUndefined()
+
+    const robotsAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/robots.txt' ||
+        item.pathname === '/docs/robots.txt.rsc'
+    )
+    expect(robotsAppRoute).toBeUndefined()
 
     for (const prerenderOutput of prerenderOutputs) {
       try {

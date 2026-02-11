@@ -16,6 +16,6 @@ export function findClosestQuality(
   }
   return config.qualities.reduce(
     (prev, cur) => (Math.abs(cur - q) < Math.abs(prev - q) ? cur : prev),
-    0
+    config.qualities[0]
   )
 }

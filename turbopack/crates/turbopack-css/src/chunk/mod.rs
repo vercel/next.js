@@ -36,7 +36,7 @@ use turbopack_core::{
 };
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
-use crate::{ImportAssetReference, util::stringify_js};
+use crate::ImportAssetReference;
 
 #[turbo_tasks::value]
 pub struct CssChunk {
@@ -130,7 +130,7 @@ impl CssChunk {
         }
 
         for external_import in external_imports {
-            writeln!(code, "@import {};", stringify_js(&external_import))?;
+            writeln!(code, "{}", &external_import)?;
         }
 
         let built = &body.build();

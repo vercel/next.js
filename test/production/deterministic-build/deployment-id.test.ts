@@ -214,7 +214,7 @@ const FILES = {
       })
     })
 
-    describe('build output API - builder', () => {
+    describe.each(['builder', 'adapter'])('build output API - %s', (mode) => {
       const { next } = nextTestSetup({
         files: {
           // A mock file to be able to run `vercel build` without logging in
@@ -222,7 +222,7 @@ const FILES = {
           ...FILES,
         },
         dependencies: {
-          vercel: '>=50.11.0',
+          vercel: '>=50.13.2',
         },
         packageJson: {
           scripts: {
@@ -232,27 +232,30 @@ const FILES = {
           },
         },
         buildCommand: 'pnpm vercel build',
+        env:
+          mode === 'adapter'
+            ? {
+                NEXT_ENABLE_ADAPTER: '1',
+              }
+            : undefined,
         skipStart: true,
         skipDeployment: true,
       })
 
       it('should produce identical build outputs even when changing deployment id', async () => {
         let { run1, run2 } = await runTest(next, readFilesBuilder)
-        expect([...run1.keys()]).toMatchInlineSnapshot(`
-         [
-           ".vercel/output/functions/_global-error.func/.vc-config.json",
-           ".vercel/output/functions/_global-error.rsc.func/.vc-config.json",
-           ".vercel/output/functions/_not-found.func/.vc-config.json",
-           ".vercel/output/functions/_not-found.rsc.func/.vc-config.json",
-           ".vercel/output/functions/app-page.func/.vc-config.json",
-           ".vercel/output/functions/app-page.rsc.func/.vc-config.json",
-           ".vercel/output/functions/app-route.func/.vc-config.json",
-           ".vercel/output/functions/app-route.rsc.func/.vc-config.json",
-           ".vercel/output/functions/middleware.func/.vc-config.json",
-           ".vercel/output/functions/pages-dynamic.func/.vc-config.json",
-           ".vercel/output/functions/pages-static-gsp.func/.vc-config.json",
-         ]
-        `)
+
+        expect([...run1.keys()]).toIncludeAllMembers([
+          '.vercel/output/functions/app-page.func/.vc-config.json',
+          '.vercel/output/functions/app-page.rsc.func/.vc-config.json',
+          '.vercel/output/functions/app-route.func/.vc-config.json',
+          '.vercel/output/functions/app-route.rsc.func/.vc-config.json',
+          '.vercel/output/functions/pages-dynamic.func/.vc-config.json',
+          '.vercel/output/functions/pages-static-gsp.func/.vc-config.json',
+        ])
+        expect([...run1.keys()]).toSatisfyAny((k) =>
+          k.includes('middleware.func')
+        )
         expect([...run1.keys()]).toEqual([...run2.keys()])
       })
     })
