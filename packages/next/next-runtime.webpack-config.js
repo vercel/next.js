@@ -119,10 +119,18 @@ const bundleTypes = {
  * @param {boolean} options.turbo
  * @param {keyof typeof bundleTypes} options.bundleType
  * @param {boolean} options.experimental
+ * @param {boolean} options.nodeStreams
  * @param {Partial<webpack.Configuration>} options.rest
  * @returns {webpack.Configuration}
  */
-module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
+module.exports = ({
+  dev,
+  turbo,
+  bundleType,
+  experimental,
+  nodeStreams,
+  ...rest
+}) => {
   const externalHandler = ({ context, request, getResolve }, callback) => {
     ;(async () => {
       if (
@@ -182,7 +190,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       path: path.join(__dirname, 'dist/compiled/next-server'),
       filename: `[name]${turbo ? '-turbo' : ''}${
         experimental ? '-experimental' : ''
-      }.runtime.${dev ? 'dev' : 'prod'}.js`,
+      }${nodeStreams ? '-nodestreams' : ''}.runtime.${dev ? 'dev' : 'prod'}.js`,
       libraryTarget: 'commonjs2',
     },
     devtool: 'source-map',
@@ -220,6 +228,15 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
           experimental ? true : false
         ),
+        // Only define for app bundles where it controls render code paths.
+        // The server bundle sets this env var at runtime from config.
+        ...(bundleType === 'app'
+          ? {
+              'process.env.__NEXT_USE_NODE_STREAMS': JSON.stringify(
+                nodeStreams ? true : false
+              ),
+            }
+          : {}),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
         'process.turbopack': JSON.stringify(turbo),
         'process.env.TURBOPACK': JSON.stringify(turbo),

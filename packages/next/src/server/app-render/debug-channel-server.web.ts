@@ -14,7 +14,7 @@ export type DebugChannelServer = {
   writable: WritableStream<Uint8Array>
 }
 
-type DebugChannelClient = {
+export type DebugChannelClient = {
   readable: ReadableStream<Uint8Array>
   writable?: WritableStream<Uint8Array>
 }
