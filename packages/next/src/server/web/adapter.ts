@@ -228,7 +228,6 @@ export async function adapter(
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
-        preview: getEdgePreviewProps(),
       },
     })
   }

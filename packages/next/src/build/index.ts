@@ -407,7 +407,6 @@ export type PrerenderManifestRuntime = {
     [route: string]: DynamicPrerenderManifestRouteRuntime
   }
   notFoundRoutes: string[]
-  preview: __ApiPreviewProps
 }
 
 type ManifestBuiltRoute = {

@@ -7,6 +7,7 @@ import type {
 import type { ParsedUrlQuery } from 'node:querystring'
 import type { UrlWithParsedQuery } from 'node:url'
 import type {
+  PrerenderManifest,
   PrerenderManifestRuntime,
   PreviewPropsManifest,
   RequiredServerFilesManifest,
@@ -218,7 +219,6 @@ export abstract class RouteModule<
           dynamicRoutes: {},
           notFoundRoutes: [],
           version: 4,
-          preview: getEdgePreviewProps(),
         } as const,
         previewProps: getEdgePreviewProps(),
         routesManifest: {
@@ -285,7 +285,7 @@ export abstract class RouteModule<
           manifest: ROUTES_MANIFEST,
           shouldCache: !this.isDev,
         }),
-        loadManifestFromRelativePath<PrerenderManifestRuntime>({
+        loadManifestFromRelativePath<PrerenderManifest>({
           projectDir,
           distDir: this.distDir,
           manifest: !this.isDev
@@ -388,7 +388,8 @@ export abstract class RouteModule<
         fallbackBuildManifest,
         routesManifest,
         nextFontManifest,
-        prerenderManifest,
+        prerenderManifest:
+          prerenderManifest satisfies DeepReadonly<PrerenderManifestRuntime>,
         previewProps,
         serverFilesManifest,
         reactLoadableManifest,
