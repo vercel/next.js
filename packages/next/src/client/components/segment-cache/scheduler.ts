@@ -566,9 +566,9 @@ function processQueueInMicrotask() {
   }
 
   // Run LRU cleanup only when the scheduler is fully idle: no queued tasks and
-  // no open network connections. At that point, all active prefetch tasks have
-  // finished reading from the cache (moving live entries to the LRU head), so
-  // eviction targets genuinely stale data.
+  // no in-progress requests. At that point, all active prefetch tasks have
+  // finished reading from the cache (moving recently used entries to the front
+  // of the list), so only genuinely stale data gets evicted.
   if (task === null && inProgressRequests === 0) {
     cleanup()
   }
