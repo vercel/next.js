@@ -174,13 +174,17 @@ export function createBufferedTransformNode(
   options: { maxBufferByteLength?: number } = {}
 ): Transform {
   const { maxBufferByteLength = Infinity } = options
-  let bufferedChunks: Uint8Array[] = []
+  let bufferedChunks: Array<Uint8Array | Buffer> = []
+  let allBufferChunks = true
   let bufferByteLength = 0
   let pending: DetachedPromise<void> | undefined
   const { Transform: T } = getNodeStream()
 
   return new T({
     transform(chunk: Uint8Array, _encoding, callback) {
+      if (allBufferChunks && !Buffer.isBuffer(chunk)) {
+        allBufferChunks = false
+      }
       bufferedChunks.push(chunk)
       bufferByteLength += chunk.byteLength
 
@@ -218,14 +222,32 @@ export function createBufferedTransformNode(
 
   function flushBuffer(transform: Transform) {
     if (bufferedChunks.length === 0) return
-    const total = new Uint8Array(bufferByteLength)
-    let offset = 0
-    for (const chunk of bufferedChunks) {
-      total.set(chunk, offset)
-      offset += chunk.byteLength
+
+    // Fast path: avoid concat/copy when we only buffered one chunk.
+    if (bufferedChunks.length === 1) {
+      const [onlyChunk] = bufferedChunks
+      bufferedChunks.length = 0
+      bufferByteLength = 0
+      allBufferChunks = true
+      transform.push(onlyChunk)
+      return
     }
+
+    let total: Buffer | Uint8Array
+    if (allBufferChunks) {
+      total = Buffer.concat(bufferedChunks as Buffer[], bufferByteLength)
+    } else {
+      total = new Uint8Array(bufferByteLength)
+      let offset = 0
+      for (const chunk of bufferedChunks) {
+        total.set(chunk, offset)
+        offset += chunk.byteLength
+      }
+    }
+
     bufferedChunks.length = 0
     bufferByteLength = 0
+    allBufferChunks = true
     transform.push(total)
   }
 }
