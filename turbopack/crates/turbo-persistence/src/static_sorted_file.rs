@@ -4,6 +4,7 @@ use std::{
     hash::BuildHasherDefault,
     ops::Range,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use anyhow::{Context, Result, bail};
@@ -14,7 +15,7 @@ use rustc_hash::FxHasher;
 
 use crate::{
     QueryKey,
-    arc_slice::ArcSlice,
+    arc_bytes::ArcBytes,
     compression::decompress_into_arc,
     constants::MAX_INLINE_VALUE_SIZE,
     lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
@@ -62,14 +63,21 @@ impl From<LookupValue> for SstLookupResult {
 #[derive(Clone, Default)]
 pub struct BlockWeighter;
 
-impl quick_cache::Weighter<(u32, u16), ArcSlice<u8>> for BlockWeighter {
-    fn weight(&self, _key: &(u32, u16), val: &ArcSlice<u8>) -> u64 {
-        val.len() as u64 + 8
+impl quick_cache::Weighter<(u32, u16), ArcBytes> for BlockWeighter {
+    fn weight(&self, _key: &(u32, u16), val: &ArcBytes) -> u64 {
+        if val.is_mmap_backed() {
+            // Mmap-backed blocks are cheap (just a pointer + Arc clone), so we
+            // assign a small fixed weight. Caching them avoids re-parsing block
+            // offsets on every lookup.
+            64
+        } else {
+            val.len() as u64 + 8
+        }
     }
 }
 
 pub type BlockCache =
-    quick_cache::sync::Cache<(u32, u16), ArcSlice<u8>, BlockWeighter, BuildHasherDefault<FxHasher>>;
+    quick_cache::sync::Cache<(u32, u16), ArcBytes, BlockWeighter, BuildHasherDefault<FxHasher>>;
 
 #[derive(Clone, Debug)]
 pub struct StaticSortedFileMetaData {
@@ -104,7 +112,9 @@ pub struct StaticSortedFile {
     /// The meta file of this file.
     meta: StaticSortedFileMetaData,
     /// The memory mapped file.
-    mmap: Mmap,
+    /// We store as an Arc so we can hand out references (via ArcBytes) that can outlive this
+    /// struct (not that we expect them to outlive it by very much)
+    mmap: Arc<Mmap>,
 }
 
 impl StaticSortedFile {
@@ -126,7 +136,10 @@ impl StaticSortedFile {
             let offset = meta.block_offsets_start(mmap.len());
             let _ = mmap.advise_range(memmap2::Advice::Sequential, offset, mmap.len() - offset);
         }
-        let file = Self { meta, mmap };
+        let file = Self {
+            meta,
+            mmap: Arc::new(mmap),
+        };
         Ok(file)
     }
 
@@ -229,7 +242,7 @@ impl StaticSortedFile {
     /// Looks up a key in a key block and the value in a value block.
     fn lookup_key_block<K: QueryKey>(
         &self,
-        mut block: ArcSlice<u8>,
+        mut block: ArcBytes,
         key_hash: u64,
         key: &K,
         has_hash: bool,
@@ -276,7 +289,7 @@ impl StaticSortedFile {
         &self,
         ty: u8,
         mut val: &[u8],
-        key_block_arc: &ArcSlice<u8>,
+        key_block_arc: &ArcBytes,
         value_block_cache: &BlockCache,
     ) -> Result<LookupValue> {
         Ok(match ty {
@@ -285,7 +298,7 @@ impl StaticSortedFile {
                 let size = val.read_u16::<BE>()? as usize;
                 let position = val.read_u32::<BE>()? as usize;
                 let value = self
-                    .get_value_block(block, value_block_cache)?
+                    .get_small_value_block(block, value_block_cache)?
                     .slice(position..position + size);
                 LookupValue::Slice { value }
             }
@@ -313,7 +326,7 @@ impl StaticSortedFile {
         &self,
         block: u16,
         key_block_cache: &BlockCache,
-    ) -> Result<ArcSlice<u8>, anyhow::Error> {
+    ) -> Result<ArcBytes, anyhow::Error> {
         Ok(
             match key_block_cache.get_value_or_guard(&(self.meta.sequence_number, block), None) {
                 GuardResult::Value(block) => block,
@@ -328,7 +341,11 @@ impl StaticSortedFile {
     }
 
     /// Gets a value block from the cache or reads it from the file.
-    fn get_value_block(&self, block: u16, value_block_cache: &BlockCache) -> Result<ArcSlice<u8>> {
+    fn get_small_value_block(
+        &self,
+        block: u16,
+        value_block_cache: &BlockCache,
+    ) -> Result<ArcBytes> {
         let block =
             match value_block_cache.get_value_or_guard(&(self.meta.sequence_number, block), None) {
                 GuardResult::Value(block) => block,
@@ -343,7 +360,7 @@ impl StaticSortedFile {
     }
 
     /// Reads a key block from the file.
-    fn read_key_block(&self, block_index: u16) -> Result<ArcSlice<u8>> {
+    fn read_key_block(&self, block_index: u16) -> Result<ArcBytes> {
         self.read_block(
             block_index,
             Some(&self.mmap[self.meta.key_compression_dictionary_range()]),
@@ -352,12 +369,12 @@ impl StaticSortedFile {
     }
 
     /// Reads a value block from the file.
-    fn read_small_value_block(&self, block_index: u16) -> Result<ArcSlice<u8>> {
+    fn read_small_value_block(&self, block_index: u16) -> Result<ArcBytes> {
         self.read_block(block_index, None, false)
     }
 
     /// Reads a value block from the file.
-    fn read_value_block(&self, block_index: u16) -> Result<ArcSlice<u8>> {
+    fn read_value_block(&self, block_index: u16) -> Result<ArcBytes> {
         self.read_block(block_index, None, true)
     }
 
@@ -368,8 +385,25 @@ impl StaticSortedFile {
         block_index: u16,
         compression_dictionary: Option<&[u8]>,
         long_term: bool,
-    ) -> Result<ArcSlice<u8>> {
-        let (uncompressed_length, block) = self.get_compressed_block(block_index)?;
+    ) -> Result<ArcBytes> {
+        let (uncompressed_length, block) = self.get_raw_block(block_index)?;
+
+        // 0 means the block was not compressed, just return the slice into the mmap
+        if uncompressed_length == 0 {
+            // SAFETY: get_raw_block only returns reference into the mmap.
+            return Ok(unsafe { ArcBytes::from_mmap(self.mmap.clone(), block) });
+        }
+
+        // Advise Sequential only here: we're about to linearly scan the block
+        // through the decompressor. For uncompressed blocks (returned above)
+        // and lazy medium values (which call get_raw_block directly without
+        // decompressing), the file-level Random advice applies.
+        #[cfg(unix)]
+        let _ = self.mmap.advise_range(
+            memmap2::Advice::Sequential,
+            block.as_ptr() as usize - self.mmap.as_ptr() as usize,
+            block.len(),
+        );
 
         let buffer = decompress_into_arc(
             uncompressed_length,
@@ -377,11 +411,11 @@ impl StaticSortedFile {
             compression_dictionary,
             long_term,
         )?;
-        Ok(ArcSlice::from(buffer))
+        Ok(ArcBytes::from(buffer))
     }
 
     /// Gets the slice of the compressed block from the memory mapped file.
-    fn get_compressed_block(&self, block_index: u16) -> Result<(u32, &[u8])> {
+    fn get_raw_block(&self, block_index: u16) -> Result<(u32, &[u8])> {
         #[cfg(feature = "strict_checks")]
         if block_index >= self.meta.block_count {
             bail!(
@@ -429,13 +463,8 @@ impl StaticSortedFile {
                 self.meta.blocks_start()
             );
         }
-        #[cfg(unix)]
-        let _ = self.mmap.advise_range(
-            memmap2::Advice::Sequential,
-            block_start,
-            block_end - block_start,
-        );
-        let uncompressed_length = (&self.mmap[block_start..block_start + 4]).read_u32::<BE>()?;
+        let uncompressed_length =
+            u32::from_be_bytes(self.mmap[block_start..block_start + 4].try_into()?);
         let block = &self.mmap[block_start + 4..block_end];
         Ok((uncompressed_length, block))
     }
@@ -452,15 +481,15 @@ pub struct StaticSortedFileIter<'l> {
 }
 
 struct CurrentKeyBlock {
-    offsets: ArcSlice<u8>,
-    entries: ArcSlice<u8>,
+    offsets: ArcBytes,
+    entries: ArcBytes,
     entry_count: usize,
     index: usize,
     hash_len: u8,
 }
 
 struct CurrentIndexBlock {
-    entries: ArcSlice<u8>,
+    entries: ArcBytes,
     block_indices_count: usize,
     index: usize,
 }
@@ -534,7 +563,7 @@ impl<'l> StaticSortedFileIter<'l> {
                 let value = if ty == KEY_BLOCK_ENTRY_TYPE_MEDIUM {
                     let mut val = val;
                     let block = val.read_u16::<BE>()?;
-                    let (uncompressed_size, block) = self.this.get_compressed_block(block)?;
+                    let (uncompressed_size, block) = self.this.get_raw_block(block)?;
                     LazyLookupValue::Medium {
                         uncompressed_size,
                         block,

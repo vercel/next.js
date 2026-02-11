@@ -79,8 +79,10 @@ pub enum EntryValue<'l> {
     Small { value: &'l [u8] },
     /// Medium-sized value. They are stored in their own value block.
     Medium { value: &'l [u8] },
-    /// Medium-sized value. They are stored in their own value block. Precompressed.
-    MediumCompressed {
+    /// Medium-sized value. They are stored in their own value block. In the raw form as on disk.
+    MediumRaw {
+        /// The uncompressed size of the block data. `0` means the block is stored uncompressed
+        /// (and thus the size is the `len` of the block)
         uncompressed_size: u32,
         block: &'l [u8],
     },
@@ -224,6 +226,16 @@ fn compute_key_compression_dictionary<E: Entry>(
     Ok(result)
 }
 
+enum CompressionConfig<'a> {
+    /// Attempt compression; use the result only if it's smaller than the original.
+    TryCompress {
+        dict: Option<&'a [u8]>,
+        long_term: bool,
+    },
+    /// Write the block uncompressed.
+    Uncompressed,
+}
+
 struct BlockWriter<'l> {
     buffer: &'l mut Vec<u8>,
     block_offsets: Vec<u32>,
@@ -255,32 +267,69 @@ impl<'l> BlockWriter<'l> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn write_key_block(&mut self, block: &[u8], dict: &[u8]) -> Result<()> {
-        self.write_block(block, Some(dict), false)
-            .context("Failed to write key block")
+        self.write_block(
+            block,
+            CompressionConfig::TryCompress {
+                dict: Some(dict),
+                long_term: false,
+            },
+        )
+        .context("Failed to write key block")
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn write_index_block(&mut self, block: &[u8], dict: &[u8]) -> Result<()> {
-        self.write_block(block, Some(dict), false)
+    fn write_index_block(&mut self, block: &[u8]) -> Result<()> {
+        // Index blocks are minimally compressible so don't try
+        self.write_block(block, CompressionConfig::Uncompressed)
             .context("Failed to write index block")
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn write_small_value_block(&mut self, block: &[u8]) -> Result<()> {
-        self.write_block(block, None, false)
-            .context("Failed to write small value block")
+        self.write_block(
+            block,
+            CompressionConfig::TryCompress {
+                dict: None,
+                long_term: false,
+            },
+        )
+        .context("Failed to write small value block")
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn write_value_block(&mut self, block: &[u8]) -> Result<()> {
-        self.write_block(block, None, true)
-            .context("Failed to write value block")
+        self.write_block(
+            block,
+            CompressionConfig::TryCompress {
+                dict: None,
+                long_term: true,
+            },
+        )
+        .context("Failed to write value block")
     }
 
-    fn write_block(&mut self, block: &[u8], dict: Option<&[u8]>, long_term: bool) -> Result<()> {
-        let uncompressed_size = block.len().try_into().unwrap();
-        self.compress_block_into_buffer(block, dict, long_term)?;
-        let len = (self.buffer.len() + 4).try_into().unwrap();
+    fn write_block(&mut self, block: &[u8], compression: CompressionConfig<'_>) -> Result<()> {
+        let (uncompressed_size, data_to_write): (u32, &[u8]) = match compression {
+            CompressionConfig::TryCompress { dict, long_term } => {
+                self.compress_block_into_buffer(block, dict, long_term)?;
+                // Same threshold as LevelDB/RocksDB: require at least 12.5% savings to store
+                // compressed.
+                // See https://github.com/google/leveldb/blob/ac691084fdc5546421a55b25e7653d450e5a25fb/table/table_builder.cc#L164
+                // Uncompressed blocks take more time to read but we can directly leverage the mmap
+                // on the read side, compressed blocks need to be decompressed and managed in a
+                // cache. So we should only do it if we expect to save time.
+                if self.buffer.len() < block.len() - (block.len() / 8) {
+                    // Compression helped - use compressed data
+                    (block.len().try_into().unwrap(), self.buffer.as_slice())
+                } else {
+                    // Compression didn't help - use uncompressed with sentinel size value
+                    (0, block)
+                }
+            }
+            CompressionConfig::Uncompressed => (0, block),
+        };
+
+        let len: u32 = (data_to_write.len() + 4).try_into().unwrap();
         let offset = self
             .block_offsets
             .last()
@@ -292,10 +341,10 @@ impl<'l> BlockWriter<'l> {
 
         self.writer
             .write_u32::<BE>(uncompressed_size)
-            .context("Failed to write uncompressed size")?;
+            .context("Failed to write uncompressed_size")?;
         self.writer
-            .write_all(self.buffer)
-            .context("Failed to write compressed block")?;
+            .write_all(data_to_write)
+            .context("Failed to write block data")?;
         self.buffer.clear();
         Ok(())
     }
@@ -372,7 +421,7 @@ fn write_value_blocks(
                 value_locations.push((block_index, 0));
                 writer.write_value_block(value)?;
             }
-            EntryValue::MediumCompressed {
+            EntryValue::MediumRaw {
                 uncompressed_size,
                 block,
             } => {
@@ -436,7 +485,7 @@ fn write_key_blocks_and_compute_amqf(
                     value.len().try_into().unwrap(),
                 );
             }
-            EntryValue::Medium { .. } | EntryValue::MediumCompressed { .. } => {
+            EntryValue::Medium { .. } | EntryValue::MediumRaw { .. } => {
                 block.put_medium(entry, value_location.0);
             }
             EntryValue::Large { blob } => {
@@ -526,7 +575,7 @@ fn write_key_blocks_and_compute_amqf(
     }
     let _ = writer.next_block_index();
     index_block.finish();
-    writer.write_index_block(buffer, key_compression_dictionary)?;
+    writer.write_index_block(buffer)?;
     buffer.clear();
 
     Ok(turbo_bincode_encode(&AmqfBincodeWrapper(filter)).expect("AMQF serialization failed"))

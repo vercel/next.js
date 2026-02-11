@@ -3,7 +3,7 @@
 #![feature(sync_unsafe_cell)]
 #![feature(iter_collect_into)]
 
-mod arc_slice;
+mod arc_bytes;
 mod collector;
 mod collector_entry;
 mod compaction;
@@ -26,7 +26,7 @@ mod write_batch;
 #[cfg(test)]
 mod tests;
 
-pub use arc_slice::ArcSlice;
+pub use arc_bytes::ArcBytes;
 pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
 pub use meta_file::MetaEntryFlags;

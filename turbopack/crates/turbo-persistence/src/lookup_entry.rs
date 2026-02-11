@@ -1,5 +1,5 @@
 use crate::{
-    ArcSlice,
+    ArcBytes,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     static_sorted_file_builder::{Entry, EntryValue},
 };
@@ -10,8 +10,8 @@ pub enum LookupValue {
     Deleted,
     /// The value is stored in the SST file.
     ///
-    /// The ArcSlice will be pointing either at a keyblock or a value block in the SST
-    Slice { value: ArcSlice<u8> },
+    /// The ArcBytes will be pointing either at a keyblock or a value block in the SST
+    Slice { value: ArcBytes },
     /// The value is stored in a blob file.
     Blob { sequence_number: u32 },
 }
@@ -35,8 +35,15 @@ impl LazyLookupValue<'_> {
             LazyLookupValue::Eager(LookupValue::Deleted) => 0,
             LazyLookupValue::Eager(LookupValue::Blob { .. }) => 0,
             LazyLookupValue::Medium {
-                uncompressed_size, ..
-            } => *uncompressed_size as usize,
+                uncompressed_size,
+                block,
+            } => {
+                if *uncompressed_size == 0 {
+                    block.len()
+                } else {
+                    *uncompressed_size as usize
+                }
+            }
         }
     }
 
@@ -71,7 +78,7 @@ pub struct LookupEntry<'l> {
     /// The hash of the key.
     pub hash: u64,
     /// The key.
-    pub key: ArcSlice<u8>,
+    pub key: ArcBytes,
     /// The value.
     pub value: LazyLookupValue<'l>,
 }
@@ -107,7 +114,7 @@ impl Entry for LookupEntry<'_> {
             LazyLookupValue::Medium {
                 uncompressed_size,
                 block,
-            } => EntryValue::MediumCompressed {
+            } => EntryValue::MediumRaw {
                 uncompressed_size: *uncompressed_size,
                 block,
             },
