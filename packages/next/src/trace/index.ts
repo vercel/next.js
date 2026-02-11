@@ -7,6 +7,7 @@ import {
   recordTraceEvents,
   Span,
   SpanStatus,
+  hrtimeToEpochNanoseconds,
 } from './trace'
 import { setGlobal } from './shared'
 import type { SpanId, TraceEvent, TraceState } from './types'
@@ -16,6 +17,7 @@ export {
   exportTraceState,
   flushAllTraces,
   getTraceEvents,
+  hrtimeToEpochNanoseconds,
   initializeTraceState,
   recordTraceEvents,
   Span,

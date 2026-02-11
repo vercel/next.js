@@ -641,10 +641,16 @@ impl TryFrom<&FreeVarReference> for JsValue {
                 false,
                 "compile time injected free var module",
             )),
-            FreeVarReference::Error(_) => Ok(JsValue::unknown_empty(
-                false,
-                "compile time injected free var error",
-            )),
+            FreeVarReference::ReportUsage { inner, .. } => {
+                if let Some(inner) = &inner {
+                    inner.as_ref().try_into()
+                } else {
+                    Ok(JsValue::unknown_empty(
+                        false,
+                        "compile time injected free var error",
+                    ))
+                }
+            }
             FreeVarReference::InputRelative(kind) => {
                 use turbopack_core::compile_time_info::InputRelativeConstant;
                 Ok(JsValue::unknown_empty(
@@ -3492,8 +3498,8 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 pub mod test_utils {
     use anyhow::Result;
     use turbo_rcstr::rcstr;
-    use turbo_tasks::{FxIndexMap, Vc};
-    use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
+    use turbo_tasks::{FxIndexMap, PrettyPrintError, Vc};
+    use turbopack_core::compile_time_info::CompileTimeInfo;
 
     use super::{
         ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,

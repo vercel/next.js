@@ -80,7 +80,7 @@ struct TaskStorageSchema {
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
     #[field(storage = "direct", category = "meta", inline, filter_transient)]
-    output: Option<OutputValue>,
+    pub output: Option<OutputValue>,
 
     /// Upper nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", inline, filter_transient)]
@@ -539,6 +539,32 @@ impl TaskStorage {
             reason: TaskExecutionReason::Initial,
         });
     }
+
+    /// Returns counts for aggregation tree and collectibles fields.
+    /// Used for cache size statistics.
+    pub fn meta_counts(&self) -> MetaCounts {
+        MetaCounts {
+            upper: self.upper().len(),
+            collectibles: self.collectibles().map_or(0, |c| c.len()),
+            aggregated_collectibles: self.aggregated_collectibles().map_or(0, |c| c.len()),
+            children: self.children().map_or(0, |c| c.len()),
+            followers: self.followers().map_or(0, |c| c.len()),
+            collectibles_dependents: self.collectibles_dependents().map_or(0, |c| c.len()),
+            aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
+        }
+    }
+}
+
+/// Counts for aggregation tree and collectibles fields.
+#[derive(Default)]
+pub struct MetaCounts {
+    pub upper: usize,
+    pub collectibles: usize,
+    pub aggregated_collectibles: usize,
+    pub children: usize,
+    pub followers: usize,
+    pub collectibles_dependents: usize,
+    pub aggregated_dirty_containers: usize,
 }
 
 // Support serialization filtering for CellDependents and CollectibleDependents
@@ -759,8 +785,6 @@ mod tests {
             .aggregated_dirty_containers_mut()
             .insert(TaskId::new(50).unwrap(), 2);
 
-        // Set flags (persisted)
-        original.flags.set_immutable(true);
         // Set transient flag (should NOT be serialized)
         original.flags.set_current_session_clean(true);
 
@@ -806,9 +830,10 @@ mod tests {
             original.aggregated_dirty_containers()
         );
 
-        // Verify flags (persisted bits should match)
-        assert!(!decoded.flags.invalidator());
-        assert!(decoded.flags.immutable());
+        // Note: invalidator and immutable are data category flags, not meta
+        // They should NOT have changed during meta encode/decode
+        assert!(!decoded.flags.invalidator()); // still default false
+        assert!(!decoded.flags.immutable()); // still default false
         // Transient flag should be preserved (was set to true before decode)
         assert!(decoded.flags.current_session_clean());
 
@@ -871,6 +896,10 @@ mod tests {
             .outdated_output_dependencies_mut()
             .insert(TaskId::new(999).unwrap());
 
+        // Set data category flags (persisted)
+        original.flags.set_invalidator(true);
+        original.flags.set_immutable(true);
+
         // Encode data fields
         let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
         {
@@ -917,6 +946,10 @@ mod tests {
 
         // Verify transient fields were NOT decoded
         assert!(decoded.outdated_output_dependencies().is_none());
+
+        // Verify data category flags were decoded
+        assert!(decoded.flags.invalidator());
+        assert!(decoded.flags.immutable());
     }
 
     #[test]

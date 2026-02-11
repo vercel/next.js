@@ -46,8 +46,7 @@ async fn all_in_one() {
         let c_erased: Vc<Box<dyn Add>> = a_erased.add(b_erased);
 
         assert_eq!(
-            *Vc::try_resolve_downcast_type::<Number>(c_erased)
-                .await?
+            *ResolvedVc::try_downcast_type::<Number>(c_erased.to_resolved().await?)
                 .unwrap()
                 .await?,
             42

@@ -14,6 +14,7 @@ import {
 import { HasLoadingBoundary } from '../../../shared/lib/app-router-types'
 import {
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
@@ -53,7 +54,6 @@ import {
   getPartialLayoutVaryPath,
   getRenderedSearchFromVaryPath,
 } from './vary-path'
-import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import type {
   NormalizedPathname,
@@ -104,6 +104,8 @@ import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { readFromBFCacheDuringRegularNavigation } from './bfcache'
 import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
+import { getNavigationBuildId } from '../../navigation-build-id'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 
 /**
  * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
@@ -1553,6 +1555,9 @@ export async function fetchRouteOnCacheMiss(
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
   }
+  // Tell the server to perform a static pre-render for the Instant Navigation
+  // Testing API. Static pre-renders don't normally happen during development.
+  addInstantPrefetchHeaderIfLocked(headers)
 
   try {
     const url = new URL(pathname + search, location.origin)
@@ -1683,14 +1688,16 @@ export async function fetchRouteOnCacheMiss(
       )
       const serverData = await createFromNextReadableStream<RootTreePrefetch>(
         prefetchStream,
-        headers
+        headers,
+        { allowPartialStream: true }
       )
-      if (serverData.buildId !== getAppBuildId()) {
+
+      if (
+        (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+          serverData.buildId) !== getNavigationBuildId()
+      ) {
         // The server build does not match the client. Treat as a 404. During
         // an actual navigation, the router will trigger an MPA navigation.
-        // TODO: Consider moving the build ID to a response header so we can check
-        // it before decoding the response, and so there's one way of checking
-        // across all response types.
         // TODO: We should cache the fact that this is an MPA navigation.
         rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
         return null
@@ -1747,14 +1754,16 @@ export async function fetchRouteOnCacheMiss(
       const serverData =
         await createFromNextReadableStream<NavigationFlightResponse>(
           prefetchStream,
-          headers
+          headers,
+          { allowPartialStream: true }
         )
-      if (serverData.b !== getAppBuildId()) {
+
+      if (
+        (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+          serverData.b) !== getNavigationBuildId()
+      ) {
         // The server build does not match the client. Treat as a 404. During
         // an actual navigation, the router will trigger an MPA navigation.
-        // TODO: Consider moving the build ID to a response header so we can check
-        // it before decoding the response, and so there's one way of checking
-        // across all response types.
         // TODO: We should cache the fact that this is an MPA navigation.
         rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
         return null
@@ -1857,6 +1866,9 @@ export async function fetchSegmentOnCacheMiss(
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
   }
+  // Tell the server to perform a static pre-render for the Instant Navigation
+  // Testing API. Static pre-renders don't normally happen during development.
+  addInstantPrefetchHeaderIfLocked(headers)
 
   const requestUrl = isOutputExportMode
     ? // In output: "export" mode, we need to add the segment path to the URL.
@@ -1889,8 +1901,6 @@ export async function fetchSegmentOnCacheMiss(
     // Track when the network connection closes.
     const closed = createPromiseWithResolvers<void>()
 
-    // Wrap the original stream in a new stream that never closes. That way the
-    // Flight client doesn't error if there's a hanging promise.
     const prefetchStream = createPrefetchResponseStream(
       response.body,
       closed.resolve,
@@ -1898,16 +1908,17 @@ export async function fetchSegmentOnCacheMiss(
         setSizeInCacheMap(segmentCacheEntry, size)
       }
     )
-    const serverData = await (createFromNextReadableStream(
+    const serverData = await createFromNextReadableStream<SegmentPrefetch>(
       prefetchStream,
-      headers
-    ) as Promise<SegmentPrefetch>)
-    if (serverData.buildId !== getAppBuildId()) {
+      headers,
+      { allowPartialStream: true }
+    )
+    if (
+      (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+        serverData.buildId) !== getNavigationBuildId()
+    ) {
       // The server build does not match the client. Treat as a 404. During
       // an actual navigation, the router will trigger an MPA navigation.
-      // TODO: Consider moving the build ID to a response header so we can check
-      // it before decoding the response, and so there's one way of checking
-      // across all response types.
       rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
       return null
     }
@@ -1924,7 +1935,7 @@ export async function fetchSegmentOnCacheMiss(
     // across different param values for params that the segment doesn't
     // actually depend on.
     const varyParams = serverData.varyParams
-    if (varyParams !== null) {
+    if (process.env.__NEXT_VARY_PARAMS && varyParams !== null) {
       // Re-key the entry by storing it at a more generic vary path where
       // unused params are replaced with Fallback.
       const fulfilledVaryPath = getFulfilledSegmentVaryPath(
@@ -2049,10 +2060,12 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         }
       }
     )
-    const serverData = await (createFromNextReadableStream(
-      prefetchStream,
-      headers
-    ) as Promise<NavigationFlightResponse>)
+    const serverData =
+      await createFromNextReadableStream<NavigationFlightResponse>(
+        prefetchStream,
+        headers,
+        { allowPartialStream: true }
+      )
 
     const isResponsePartial =
       fetchStrategy === FetchStrategy.PPRRuntime
@@ -2216,12 +2229,12 @@ function writeDynamicRenderResponseIntoCache(
   route: FulfilledRouteCacheEntry,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
-  if (serverData.b !== getAppBuildId()) {
+  if (
+    (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b) !==
+    getNavigationBuildId()
+  ) {
     // The server build does not match the client. Treat as a 404. During
     // an actual navigation, the router will trigger an MPA navigation.
-    // TODO: Consider moving the build ID to a response header so we can check
-    // it before decoding the response, and so there's one way of checking
-    // across all response types.
     if (spawnedEntries !== null) {
       rejectSegmentEntriesIfStillPending(spawnedEntries, now + 10 * 1000)
     }
@@ -2407,7 +2420,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       isPartial
     )
     // Re-key the entry based on which params the segment actually depends on.
-    if (segmentVaryParams !== null) {
+    if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
       const fulfilledVaryPath = getFulfilledSegmentVaryPath(
         tree.varyPath,
         segmentVaryParams
@@ -2437,7 +2450,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         isPartial
       )
       // Re-key the entry based on which params the segment actually depends on.
-      if (segmentVaryParams !== null) {
+      if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
         const fulfilledVaryPath = getFulfilledSegmentVaryPath(
           tree.varyPath,
           segmentVaryParams
@@ -2465,7 +2478,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       // Use the fulfilled vary path if available, otherwise fall back to
       // the request vary path.
       const varyPath =
-        segmentVaryParams !== null
+        process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null
           ? getFulfilledSegmentVaryPath(tree.varyPath, segmentVaryParams)
           : getSegmentVaryPathForRequest(fetchStrategy, tree)
       upsertSegmentEntry(now, varyPath, newEntry)
@@ -2515,19 +2528,7 @@ function createPrefetchResponseStream(
   onStreamClose: () => void,
   onResponseSizeUpdate: (size: number) => void
 ): ReadableStream<Uint8Array> {
-  // When PPR is enabled, prefetch streams may contain references that never
-  // resolve, because that's how we encode dynamic data access. In the decoded
-  // object returned by the Flight client, these are reified into hanging
-  // promises that suspend during render, which is effectively what we want.
-  // The UI resolves when it switches to the dynamic data stream
-  // (via useDeferredValue(dynamic, static)).
-  //
-  // However, the Flight implementation currently errors if the server closes
-  // the response before all the references are resolved. As a cheat to work
-  // around this, we wrap the original stream in a new stream that never closes,
-  // and therefore doesn't error.
-  //
-  // While processing the original stream, we also incrementally update the size
+  // While processing the original stream, we incrementally update the size
   // of the cache entry in the LRU.
   let totalByteLength = 0
   const reader = originalFlightStream.getReader()
@@ -2548,8 +2549,7 @@ function createPrefetchResponseStream(
           onResponseSizeUpdate(totalByteLength)
           continue
         }
-        // The server stream has closed. Exit, but intentionally do not close
-        // the target stream. We do notify the caller, though.
+        controller.close()
         onStreamClose()
         return
       }
@@ -2602,4 +2602,20 @@ export function canNewFetchStrategyProvideMoreContent(
   newStrategy: FetchStrategy
 ): boolean {
   return currentStrategy < newStrategy
+}
+
+/**
+ * Adds the instant prefetch header if the navigation lock is active.
+ * Uses a lazy require to ensure dead code elimination.
+ */
+function addInstantPrefetchHeaderIfLocked(
+  headers: Record<string, string>
+): void {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { isNavigationLocked } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    if (isNavigationLocked()) {
+      headers[NEXT_INSTANT_PREFETCH_HEADER] = '1'
+    }
+  }
 }

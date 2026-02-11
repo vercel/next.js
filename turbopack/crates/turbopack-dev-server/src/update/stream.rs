@@ -7,12 +7,12 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+    IntoTraitRef, NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
+    TransientInstance, Vc,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
-    error::PrettyPrintError,
     issue::{
         CollectibleIssuesExt, Issue, IssueFilter, IssueSeverity, IssueStage, OptionStyledString,
         PlainIssue, StyledString,
@@ -187,7 +187,8 @@ async fn get_update_stream_item_operation(
             extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
 
             let from = from.get();
-            if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await?
+            if let Some(from) =
+                ResolvedVc::try_downcast_type::<ProxyResult>(from.to_resolved().await?)
                 && from.await? == proxy_result_value
             {
                 return Ok(UpdateStreamItem::Found {

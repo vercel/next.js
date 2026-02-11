@@ -523,7 +523,7 @@ jobs:
     secrets: inherit
 
   #[NOTE] currently this only checks building wasi target
-  test-next-swc-napi-wasi:
+  test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
     # TODO: Re-enable this when https://github.com/napi-rs/napi-rs/issues/2009 is addressed.
@@ -539,7 +539,7 @@ jobs:
       afterBuild: |
         rustup target add wasm32-wasip1-threads
         pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi
-      stepName: 'test-next-swc-napi-wasi'
+      stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 
   test-unit:

@@ -12,7 +12,7 @@ import type { RouteDefinition } from '../route-definitions/route-definition'
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import { runDependingOnPageType } from '../../build/entries'
+import { runDependingOnPageType, isDeferredEntry } from '../../build/entries'
 import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
@@ -568,9 +568,83 @@ export function onDemandEntryHandler({
     invalidators.set(multiCompiler.outputPath, curInvalidator)
   }
 
+  // Deferred entries state management
+  const deferredEntriesConfig = nextConfig.experimental.deferredEntries
+  const hasDeferredEntriesConfig =
+    deferredEntriesConfig && deferredEntriesConfig.length > 0
+  let onBeforeDeferredEntriesCalled = false
+  let onBeforeDeferredEntriesPromise: Promise<void> | null = null
+
+  // Function to wait for all non-deferred entries to be built
+  async function waitForNonDeferredEntries(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const checkEntries = () => {
+        // Check if there are any non-deferred entries that are still building or added
+        const hasNonDeferredEntriesBuilding = Object.entries(curEntries).some(
+          ([, entry]) => {
+            const entryData = entry as Entry | ChildEntry
+            if (entryData.type !== EntryTypes.ENTRY) return false
+
+            const isDeferred = isDeferredEntry(
+              (entryData as Entry).absolutePagePath
+                .replace(appDir || '', '')
+                .replace(pagesDir || '', '')
+                .replace(rootDir, ''),
+              deferredEntriesConfig
+            )
+
+            return (
+              !isDeferred &&
+              (entryData.status === ADDED || entryData.status === BUILDING)
+            )
+          }
+        )
+
+        if (!hasNonDeferredEntriesBuilding) {
+          resolve()
+        } else {
+          // Check again after a short delay
+          setTimeout(checkEntries, 100)
+        }
+      }
+
+      checkEntries()
+    })
+  }
+
+  // Function to handle deferred entry processing
+  async function processDeferredEntry(): Promise<void> {
+    if (!hasDeferredEntriesConfig) return
+
+    // Wait for all non-deferred entries to be built
+    await waitForNonDeferredEntries()
+
+    // Call the onBeforeDeferredEntries callback once
+    if (!onBeforeDeferredEntriesCalled) {
+      onBeforeDeferredEntriesCalled = true
+
+      if (nextConfig.experimental.onBeforeDeferredEntries) {
+        debug('calling onBeforeDeferredEntries callback')
+        if (!onBeforeDeferredEntriesPromise) {
+          onBeforeDeferredEntriesPromise =
+            nextConfig.experimental.onBeforeDeferredEntries()
+        }
+        await onBeforeDeferredEntriesPromise
+        debug('onBeforeDeferredEntries callback completed')
+      }
+    } else if (onBeforeDeferredEntriesPromise) {
+      // Wait for any in-progress callback
+      await onBeforeDeferredEntriesPromise
+    }
+  }
+
   const startBuilding = (compilation: webpack.Compilation) => {
     const compilationName = compilation.name as any as CompilerNameValues
     curInvalidator.startBuilding(compilationName)
+    // Reset deferred entries state for this compilation cycle
+    // This ensures onBeforeDeferredEntries will be called again during HMR
+    onBeforeDeferredEntriesCalled = false
+    onBeforeDeferredEntriesPromise = null
   }
   for (const compiler of multiCompiler.compilers) {
     compiler.hooks.make.tap('NextJsOnDemandEntries', startBuilding)
@@ -643,6 +717,17 @@ export function onDemandEntryHandler({
     }
 
     getInvalidator(multiCompiler.outputPath)?.doneBuilding([...COMPILER_KEYS])
+
+    // Call onBeforeDeferredEntries after compilation completes during HMR
+    // This ensures the callback is invoked even when non-deferred entries change
+    if (hasDeferredEntriesConfig && !onBeforeDeferredEntriesCalled) {
+      onBeforeDeferredEntriesCalled = true
+      if (nextConfig.experimental.onBeforeDeferredEntries) {
+        debug('calling onBeforeDeferredEntries callback after HMR')
+        onBeforeDeferredEntriesPromise =
+          nextConfig.experimental.onBeforeDeferredEntries()
+      }
+    }
   })
 
   const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
@@ -761,6 +846,16 @@ export function onDemandEntryHandler({
       }
 
       const isInsideAppDir = !!appDir && route.filename.startsWith(appDir)
+
+      // Check if this is a deferred entry and wait for non-deferred entries first
+      if (hasDeferredEntriesConfig) {
+        const isDeferred = isDeferredEntry(route.page, deferredEntriesConfig)
+        if (isDeferred) {
+          debug(`Page ${page} is a deferred entry, waiting for other entries`)
+          await processDeferredEntry()
+          debug(`Deferred entry ${page} can now be processed`)
+        }
+      }
 
       if (typeof isApp === 'boolean' && isApp !== isInsideAppDir) {
         Error.stackTraceLimit = 15

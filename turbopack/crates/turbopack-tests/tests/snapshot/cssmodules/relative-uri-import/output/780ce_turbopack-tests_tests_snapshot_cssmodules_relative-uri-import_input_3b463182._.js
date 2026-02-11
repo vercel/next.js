@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/780ce_turbopack-tests_tests_snapshot_cssmodules_relative-uri-import_input_3b463182._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/780ce_turbopack-tests_tests_snapshot_cssmodules_relative-uri-import_input_3b463182._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/relative-uri-import/input/other.module.css [test] (css module)", ((__turbopack_context__) => {
 
 __turbopack_context__.v({

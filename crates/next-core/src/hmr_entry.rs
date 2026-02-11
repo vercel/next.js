@@ -7,7 +7,7 @@ use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext,
+        ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption,
         EvaluatableAsset,
     },
     ident::AssetIdent,
@@ -147,10 +147,15 @@ impl ModuleReference for HmrEntryModuleReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::module(self.module)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for HmrEntryModuleReference {}
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
+}
 
 /// The chunk item for [`HmrEntryModule`].
 #[turbo_tasks::value]

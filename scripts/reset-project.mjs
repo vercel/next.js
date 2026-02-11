@@ -7,6 +7,9 @@ export const TEST_TOKEN = process.env.VERCEL_TEST_TOKEN
 export const ADAPTER_TEST_TEAM_NAME = process.env.VERCEL_ADAPTER_TEST_TEAM
 export const ADAPTER_TEST_TOKEN = process.env.VERCEL_ADAPTER_TEST_TOKEN
 
+export const TURBOPACK_TEST_TEAM_NAME = process.env.VERCEL_TURBOPACK_TEST_TEAM
+export const TURBOPACK_TEST_TOKEN = process.env.VERCEL_TURBOPACK_TEST_TOKEN
+
 /**
  * Retry a fetch request with exponential backoff
  * @param {string} url - The URL to fetch
@@ -89,8 +92,19 @@ export async function resetProject({
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        framework: 'nextjs',
         name: projectName,
+        framework: 'nextjs',
+        resourceConfig: {
+          buildMachineType: 'enhanced',
+        },
+        environmentVariables: [
+          {
+            key: 'VERCEL_FORCE_NO_BUILD_CACHE_UPLOAD',
+            value: '1',
+            type: 'plain',
+            target: ['production', 'preview', 'development'],
+          },
+        ],
       }),
     },
     {
@@ -120,9 +134,6 @@ export async function resetProject({
         body: JSON.stringify({
           ssoProtection: null,
           passwordProtection: null,
-          resourceConfig: {
-            buildMachineType: 'enhanced',
-          },
         }),
       },
       {

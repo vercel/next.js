@@ -11,6 +11,18 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function checkEvalAvailabilityOnceDev() {
+      if (!hasConfirmedEval) {
+        hasConfirmedEval = !0;
+        try {
+          (0, eval)("null");
+        } catch ($jscomp$unused$catch) {
+          console.error(
+            "eval() is not supported in this environment. React requires eval() in development mode for various debugging features like reconstructing callstacks from a different environment.\nReact will never use eval() in production mode"
+          );
+        }
+      }
+    }
     function resolveClientReference(bundlerConfig, metadata) {
       if (bundlerConfig) {
         var moduleExports = bundlerConfig[metadata[0]];
@@ -475,6 +487,8 @@
                     "$T"
                   );
               }
+              if (void 0 !== temporaryReferences && modelRoot === value)
+                return (modelRoot = null), "$T";
               throw Error(
                 "React Element cannot be passed to Server Functions from the Client without a temporary reference set. Pass a TemporaryReferenceSet to the options." +
                   describeObjectForErrorMessage(this, key)
@@ -755,8 +769,9 @@
         pendingParts = 0,
         formData = null,
         writtenObjects = new WeakMap(),
-        modelRoot = root,
-        json = serializeModel(root, 0);
+        modelRoot = root;
+      checkEvalAvailabilityOnceDev();
+      var json = serializeModel(root, 0);
       null === formData
         ? resolve(json)
         : (formData.set(formFieldPrefix + "0", json),
@@ -1188,7 +1203,11 @@
             value = "null";
             break;
           } else {
-            if (value.$$typeof === REACT_ELEMENT_TYPE) {
+            if (
+              ("$$typeof" in value && hasOwnProperty.call(value, "$$typeof")
+                ? value.$$typeof
+                : void 0) === REACT_ELEMENT_TYPE
+            ) {
               var typeName = getComponentNameFromType(value.type) || "\u2026",
                 key = value.key;
               value = value.props;
@@ -1340,7 +1359,11 @@
             return;
           }
         case "function":
-          value = "" === value.name ? "() => {}" : value.name + "() {}";
+          value = value.name;
+          value =
+            "" === value || "string" !== typeof value
+              ? "() => {}"
+              : value + "() {}";
           break;
         case "string":
           value =
@@ -1719,7 +1742,8 @@
         ((chunk = chunk._debugInfo.splice(0)),
         isArrayImpl(value._debugInfo)
           ? value._debugInfo.unshift.apply(value._debugInfo, chunk)
-          : Object.defineProperty(value, "_debugInfo", {
+          : Object.isFrozen(value) ||
+            Object.defineProperty(value, "_debugInfo", {
               configurable: !1,
               enumerable: !1,
               writable: !0,
@@ -2130,9 +2154,18 @@
       var chunks = response._chunks,
         chunk = chunks.get(id);
       chunk ||
-        ((chunk = response._closed
-          ? new ReactPromise("rejected", null, response._closedReason)
-          : createPendingChunk(response)),
+        (response._closed
+          ? response._allowPartialStream
+            ? ((response = chunk = createPendingChunk(response)),
+              (response.status = "halted"),
+              (response.value = null),
+              (response.reason = null))
+            : (chunk = new ReactPromise(
+                "rejected",
+                null,
+                response._closedReason
+              ))
+          : (chunk = createPendingChunk(response)),
         chunks.set(id, chunk));
       return chunk;
     }
@@ -2911,6 +2944,7 @@
       encodeFormAction,
       nonce,
       temporaryReferences,
+      allowPartialStream,
       findSourceMapURL,
       replayConsole,
       environmentName,
@@ -2930,6 +2964,7 @@
       this._fromJSON = null;
       this._closed = !1;
       this._closedReason = null;
+      this._allowPartialStream = allowPartialStream;
       this._tempRefs = temporaryReferences;
       this._timeOrigin = 0;
       this._pendingInitialRender = null;
@@ -3000,7 +3035,8 @@
         ? chunk._debugInfo.push(asyncInfo)
         : isArrayImpl(value._debugInfo)
           ? value._debugInfo.push(asyncInfo)
-          : Object.defineProperty(value, "_debugInfo", {
+          : Object.isFrozen(value) ||
+            Object.defineProperty(value, "_debugInfo", {
               configurable: !1,
               enumerable: !1,
               writable: !0,
@@ -4675,7 +4711,28 @@
       };
     }
     function close(weakResponse) {
-      reportGlobalError(weakResponse, Error("Connection closed."));
+      if (void 0 !== weakResponse.weak.deref()) {
+        var response = unwrapWeakResponse(weakResponse);
+        response._allowPartialStream
+          ? ((response._closed = !0),
+            response._chunks.forEach(function (chunk) {
+              "pending" === chunk.status
+                ? (releasePendingChunk(response, chunk),
+                  (chunk.status = "halted"),
+                  (chunk.value = null),
+                  (chunk.reason = null))
+                : "fulfilled" === chunk.status &&
+                  null !== chunk.reason &&
+                  chunk.reason.close('"$undefined"');
+            }),
+            (weakResponse = response._debugChannel),
+            void 0 !== weakResponse &&
+              (closeDebugChannel(weakResponse),
+              (response._debugChannel = void 0),
+              null !== debugChannelRegistry &&
+                debugChannelRegistry.unregister(response)))
+          : reportGlobalError(weakResponse, Error("Connection closed."));
+      }
     }
     function noServerCall() {
       throw Error(
@@ -4683,27 +4740,53 @@
       );
     }
     function createResponseFromOptions(options) {
-      return new ResponseInstance(
-        options.serverConsumerManifest.moduleMap,
-        options.serverConsumerManifest.serverModuleMap,
-        options.serverConsumerManifest.moduleLoading,
-        noServerCall,
-        options.encodeFormAction,
-        "string" === typeof options.nonce ? options.nonce : void 0,
-        options && options.temporaryReferences
-          ? options.temporaryReferences
-          : void 0,
-        options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
-        options ? !0 === options.replayConsoleLogs : !1,
-        options && options.environmentName ? options.environmentName : void 0,
-        options && null != options.startTime ? options.startTime : void 0,
-        options && null != options.endTime ? options.endTime : void 0,
+      var bundlerConfig = options.serverConsumerManifest.moduleMap,
+        serverReferenceConfig = options.serverConsumerManifest.serverModuleMap,
+        moduleLoading = options.serverConsumerManifest.moduleLoading,
+        encodeFormAction = options.encodeFormAction,
+        nonce = "string" === typeof options.nonce ? options.nonce : void 0,
+        temporaryReferences =
+          options && options.temporaryReferences
+            ? options.temporaryReferences
+            : void 0,
+        allowPartialStream =
+          options && options.unstable_allowPartialStream
+            ? options.unstable_allowPartialStream
+            : !1,
+        findSourceMapURL =
+          options && options.findSourceMapURL
+            ? options.findSourceMapURL
+            : void 0,
+        replayConsole = options ? !0 === options.replayConsoleLogs : !1,
+        environmentName =
+          options && options.environmentName ? options.environmentName : void 0,
+        debugStartTime =
+          options && null != options.startTime ? options.startTime : void 0,
+        debugEndTime =
+          options && null != options.endTime ? options.endTime : void 0;
+      options =
         options && void 0 !== options.debugChannel
           ? {
               hasReadable: void 0 !== options.debugChannel.readable,
               callback: null
             }
-          : void 0
+          : void 0;
+      checkEvalAvailabilityOnceDev();
+      return new ResponseInstance(
+        bundlerConfig,
+        serverReferenceConfig,
+        moduleLoading,
+        noServerCall,
+        encodeFormAction,
+        nonce,
+        temporaryReferences,
+        allowPartialStream,
+        findSourceMapURL,
+        replayConsole,
+        environmentName,
+        debugStartTime,
+        debugEndTime,
+        options
       )._weakResponse;
     }
     function startReadingFromStream(
@@ -4851,6 +4934,7 @@
       React = require("react"),
       decoderOptions = { stream: !0 },
       bind$1 = Function.prototype.bind,
+      hasConfirmedEval = !1,
       hasOwnProperty = Object.prototype.hasOwnProperty,
       instrumentedChunks = new WeakSet(),
       loadedChunks = new WeakSet(),
