@@ -123,6 +123,15 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     }
   }
 
+  const experimentalFlags = Object.fromEntries(
+    Object.entries({
+      experimentalDebugMemoryUsage,
+      experimentalBuildMode:
+        experimentalBuildMode !== 'default' ? experimentalBuildMode : undefined,
+      experimentalCpuProf: options.experimentalCpuProf,
+    }).filter(([_, value]) => value !== undefined && value !== false)
+  )
+
   return build(
     dir,
     experimentalAnalyze,
@@ -134,7 +143,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     bundler,
     experimentalBuildMode,
     traceUploadUrl,
-    resolvedBuildPaths
+    resolvedBuildPaths,
+    experimentalFlags
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {

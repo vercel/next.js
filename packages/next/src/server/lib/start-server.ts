@@ -28,7 +28,13 @@ import {
 } from '../../shared/lib/constants'
 import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { type Span, trace, flushAllTraces } from '../../trace'
+import {
+  type Span,
+  trace,
+  flushAllTraces,
+  exportTraceState,
+  initializeTraceState,
+} from '../../trace'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
@@ -557,13 +563,34 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
       msg.nextWorkerOptions &&
       process.send
     ) {
+      // Read experimental flags from environment if passed from parent process
+      let experimentalFlagsFromParent = {}
+      if (process.env.NEXT_PRIVATE_EXPERIMENTAL_FLAGS) {
+        try {
+          experimentalFlagsFromParent = JSON.parse(
+            process.env.NEXT_PRIVATE_EXPERIMENTAL_FLAGS
+          )
+        } catch {
+          console.error(
+            'Failed to parse experimental flags from parent process'
+          )
+        }
+      }
+
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),
         'memory.freeMem': String(os.freemem()),
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
+        ...experimentalFlagsFromParent,
       })
+
+      initializeTraceState({
+        ...exportTraceState(),
+        defaultParentSpanId: startServerSpan.getId(),
+      })
+
       const result = await startServerSpan.traceAsyncFn(() =>
         startServer(msg.nextWorkerOptions)
       )

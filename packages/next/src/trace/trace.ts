@@ -24,7 +24,7 @@ export enum SpanStatus {
 }
 
 interface Attributes {
-  [key: string]: string
+  [key: string]: unknown
 }
 
 export class Span {
@@ -126,7 +126,7 @@ export class Span {
     return this.id
   }
 
-  setAttribute(key: string, value: string) {
+  setAttribute(key: string, value: any) {
     this.attrs[key] = value
   }
 
@@ -150,7 +150,7 @@ export class Span {
 export const trace = (
   name: string,
   parentId?: SpanId,
-  attrs?: { [key: string]: string }
+  attrs?: { [key: string]: any }
 ) => {
   return new Span({ name, parentId, attrs })
 }

@@ -107,6 +107,7 @@ interface TraceMetadata {
   pkgName: string
   platform: string
   sessionId: string
+  experimentalFlags: Record<string, unknown>
 }
 
 ;(async function upload() {
@@ -140,12 +141,41 @@ interface TraceMetadata {
   })
 
   const sessionTrace = []
+  let sessionExperimentalFlags: Record<string, unknown> = {}
+  const spanExperimentalFlags = new Map<number, Record<string, unknown>>()
+
   for await (const line of readLineInterface) {
     const lineEvents: TraceEvent[] = JSON.parse(line)
     for (const event of lineEvents) {
       if (event.traceId !== traceId) {
         // Only consider events for the current session
         continue
+      }
+
+      // Extract experimental flags from the root span (next-dev or next-build)
+      if (
+        event.parentId === undefined &&
+        event.tags &&
+        (event.name === 'next-dev' || event.name === 'next-build')
+      ) {
+        for (const [key, value] of Object.entries(event.tags)) {
+          if (key.startsWith('experimental')) {
+            sessionExperimentalFlags[key] = value
+          }
+        }
+      }
+
+      // Collect experimental flags from all events for inheritance
+      if (event.tags) {
+        const experimentalFlags: Record<string, unknown> = {}
+        for (const [key, value] of Object.entries(event.tags)) {
+          if (key.startsWith('experimental')) {
+            experimentalFlags[key] = value
+          }
+        }
+        if (Object.keys(experimentalFlags).length > 0) {
+          spanExperimentalFlags.set(event.id, experimentalFlags)
+        }
       }
 
       if (
@@ -161,6 +191,24 @@ interface TraceMetadata {
     }
   }
 
+  // Apply experimental flag inheritance to session trace
+  const sessionTraceWithInheritance = sessionTrace.map((event) => {
+    if (event.parentId !== undefined) {
+      const parentFlags = spanExperimentalFlags.get(event.parentId)
+      if (parentFlags && Object.keys(parentFlags).length > 0) {
+        const inheritedTags: Record<string, unknown> = { ...event.tags }
+        for (const [key, value] of Object.entries(parentFlags)) {
+          // Only inherit if child doesn't already have this key
+          if (!(key in inheritedTags)) {
+            inheritedTags[key] = value
+          }
+        }
+        return { ...event, tags: inheritedTags }
+      }
+    }
+    return event
+  })
+
   const body: TraceRequestBody = {
     metadata: {
       anonymousId,
@@ -173,11 +221,12 @@ interface TraceMetadata {
       pkgName,
       platform: os.platform(),
       sessionId,
+      experimentalFlags: sessionExperimentalFlags,
     },
     // The trace file can contain events spanning multiple sessions.
     // Only submit traces for the current session, as the metadata we send is
     // intended for this session only.
-    traces: [sessionTrace],
+    traces: [sessionTraceWithInheritance],
   }
 
   if (isDebugEnabled) {
