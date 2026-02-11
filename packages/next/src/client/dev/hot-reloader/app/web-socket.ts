@@ -190,7 +190,7 @@ export function useWebSocketPing(webSocket: WebSocket | undefined) {
 
   useEffect(() => {
     if (!webSocket) {
-      throw new InvariantError('Expected webSocket to be defined in dev mode.')
+      return
     }
 
     // Never send pings when using Turbopack as it's not used.

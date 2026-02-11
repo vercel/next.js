@@ -94,7 +94,8 @@ export function acquireNavigationLock(): void {
  * a refresh to fetch the dynamic data that was blocked during the initial
  * page load.
  *
- * No-op if the lock is not currently acquired.
+ * The cookie is always cleared to prevent stale state, even if the
+ * in-memory lock was not acquired.
  *
  * Not exposed in production builds by default.
  */
@@ -112,20 +113,24 @@ export function releaseNavigationLock(): void {
     // refresh to fetch the dynamic data that was blocked during SSR.
     if (mpaLockedStateNeedsRefresh) {
       mpaLockedStateNeedsRefresh = false
-      triggerRefresh()
+      const { refreshAfterInstantNavigationTest } =
+        require('../app-router-instance') as typeof import('../app-router-instance')
+      refreshAfterInstantNavigationTest()
     }
   }
 }
 
 /**
- * Returns true if the navigation lock is currently acquired.
+ * Returns true if the navigation lock is currently active. Checks the cookie
+ * rather than in-memory lockState because the cookie survives across MPA
+ * navigations (page reloads).
  *
  * Not exposed in production builds by default. Always returns false when the
  * testing API is not available.
  */
 export function isNavigationLocked(): boolean {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    return lockState !== null
+    return document.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')
   }
   return false
 }
@@ -145,15 +150,22 @@ export async function waitForNavigationLockIfActive(): Promise<void> {
 }
 
 /**
- * Called during page initialization when the instant test cookie is detected.
- * Sets up the lock state so that:
+ * Called during page initialization to check if the page was loaded during an
+ * instant navigation test (i.e. the test cookie is set). If so, sets up the
+ * lock state so that:
  * 1. Client-side navigations during the instant scope also block dynamic data
  * 2. When the lock is released, a refresh is triggered to fetch dynamic data
  *
+ * Returns true if the page was loaded during an instant navigation test.
+ *
  * Not exposed in production builds by default.
  */
-export function initializeMpaLockedState(): void {
+export function initializeInstantNavigationTestState(): boolean {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    if (!document.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')) {
+      return false
+    }
+
     // Set the MPA flag so we know to trigger a refresh when the lock is released
     mpaLockedStateNeedsRefresh = true
 
@@ -166,23 +178,8 @@ export function initializeMpaLockedState(): void {
       })
       lockState = { promise, resolve: resolve! }
     }
-  }
-}
 
-/**
- * Triggers a router refresh to fetch dynamic data. Used after releasing the
- * navigation lock following an MPA navigation.
- */
-function triggerRefresh(): void {
-  if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    const { dispatchAppRouterAction } =
-      require('../use-action-queue') as typeof import('../use-action-queue')
-    const { ACTION_REFRESH } =
-      require('../router-reducer/router-reducer-types') as typeof import('../router-reducer/router-reducer-types')
-
-    dispatchAppRouterAction({
-      type: ACTION_REFRESH,
-      devBypassCacheInvalidation: true,
-    })
+    return true
   }
+  return false
 }

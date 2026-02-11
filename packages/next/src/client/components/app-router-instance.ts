@@ -372,6 +372,24 @@ function gesturePush(href: string, options?: NavigateOptions): void {
   }
 }
 
+export function refreshAfterInstantNavigationTest(): void {
+  // This is called when the initial page load (SSR) was triggered during an
+  // Instant Navigation test. It happens at the end of the test scope, to
+  // trigger a refresh of the page with the full dynamic data.
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    if (globalActionQueue === null) {
+      location.reload()
+      return
+    }
+    startTransition(() => {
+      dispatchAppRouterAction({
+        type: ACTION_REFRESH,
+        devBypassCacheInvalidation: true,
+      })
+    })
+  }
+}
+
 /**
  * The app router that is exposed through `useRouter`. These are public API
  * methods. Internal Next.js code should call the lower level methods directly

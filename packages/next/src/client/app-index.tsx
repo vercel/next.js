@@ -67,7 +67,8 @@ declare global {
     __next_f: NextFlight
     /**
      * Testing API that allows e2e tests to assert on the prefetched UI state
-     * before dynamic data streams in. Dev-only.
+     * before dynamic data streams in. Not exposed in production builds
+     * by default.
      */
     __EXPERIMENTAL_NEXT_TESTING__?: {
       navigation: {
@@ -147,6 +148,15 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
   initialServerDataWriter = ctr
 }
 
+// Check if the page load was triggered during an Instant Navigation test. If
+// so, the server only rendered the static shell.
+let isDuringInstantNavigationTest = false
+if (process.env.__NEXT_EXPOSE_TESTING_API) {
+  const { initializeInstantNavigationTestState } =
+    require('./components/segment-cache/navigation-testing-lock') as typeof import('./components/segment-cache/navigation-testing-lock')
+  isDuringInstantNavigationTest = initializeInstantNavigationTestState()
+}
+
 // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
 const DOMContentLoaded = function () {
   if (initialServerDataWriter && !initialServerDataFlushed) {
@@ -211,6 +221,9 @@ if (clientResumeFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
+      // During an instant navigation test, the server only sends the
+      // static shell, so the Flight stream may be incomplete.
+      unstable_allowPartialStream: isDuringInstantNavigationTest,
     })
   ).then(async (fallbackInitialRSCPayload) =>
     createInitialRSCPayloadFromFallbackPrerender(
@@ -311,10 +324,10 @@ export async function hydrate(
   let webSocket: WebSocket | undefined
 
   if (process.env.NODE_ENV !== 'production') {
+    staticIndicatorState = { pathname: null, appIsrManifest: null }
+
     const { createWebSocket } =
       require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
-
-    staticIndicatorState = { pathname: null, appIsrManifest: null }
     webSocket = createWebSocket(assetPrefix, staticIndicatorState)
   }
   const initialRSCPayload = await initialServerResponse
