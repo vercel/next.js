@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { green, blue } from 'picocolors'
 
 export function isFolderEmpty(root: string, name: string): boolean {
-  const validFiles = [
+  const validFiles = new Set([
     '.DS_Store',
     '.git',
     '.gitattributes',
@@ -25,11 +25,12 @@ export function isFolderEmpty(root: string, name: string): boolean {
     'yarn-error.log',
     'yarnrc.yml',
     '.yarn',
-  ]
+    '.vscode'
+  ])
 
   const conflicts = readdirSync(root).filter(
     (file) =>
-      !validFiles.includes(file) &&
+      !validFiles.has(file) &&
       // Support IntelliJ IDEA-based editors
       !/\.iml$/.test(file)
   )
