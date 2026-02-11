@@ -13,7 +13,9 @@ pub mod module_options;
 pub mod transition;
 
 use anyhow::{Context as _, Result, bail};
-use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
+use module_options::{
+    ConfiguredModuleType, ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType,
+};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
@@ -747,24 +749,34 @@ async fn process_default_internal(
         if let Some(type_str) = module_type {
             let empty_transforms = EcmascriptInputTransforms::empty().to_resolved().await?;
             let default_options = EcmascriptOptions::default().resolved_cell();
-            let module_type = ModuleType::from_str_with_defaults(
-                type_str,
-                empty_transforms,
-                empty_transforms,
-                empty_transforms,
-                default_options,
-                None,
-            )?;
-            return apply_module_type(
-                current_source,
-                module_asset_context,
-                module_type.cell(),
-                part,
-                inner_assets,
-                None,
-                false,
-            )
-            .await;
+            let effect = ConfiguredModuleType::parse(type_str)?
+                .into_effect(
+                    empty_transforms,
+                    empty_transforms,
+                    empty_transforms,
+                    default_options,
+                    None,
+                )
+                .await?;
+            match effect {
+                ModuleRuleEffect::ModuleType(module_type) => {
+                    return apply_module_type(
+                        current_source,
+                        module_asset_context,
+                        module_type.cell(),
+                        part,
+                        inner_assets,
+                        None,
+                        false,
+                    )
+                    .await;
+                }
+                ModuleRuleEffect::SourceTransforms(transforms) => {
+                    current_source = transforms.transform(*current_source).to_resolved().await?;
+                    // Fall through to re-process with new ident
+                }
+                _ => bail!("Unexpected module rule effect for turbopackModuleType"),
+            }
         }
 
         // If the ident changed (e.g., due to rename_as), re-process from the
