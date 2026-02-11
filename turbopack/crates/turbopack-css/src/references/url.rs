@@ -11,7 +11,7 @@ use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext},
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
     issue::IssueSource,
     output::OutputAsset,
     reference::ModuleReference,
@@ -84,10 +84,15 @@ impl ModuleReference for UrlAssetReference {
             ResolveErrorMode::Error,
         )
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for UrlAssetReference {}
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl ValueToString for UrlAssetReference {
