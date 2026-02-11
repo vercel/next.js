@@ -117,7 +117,7 @@ export async function POST(request) {
 
 #### In Server Components (pages and layouts)
 
-[Server Components](/docs/app/getting-started/server-and-client-components) (including pages, layouts, and `generateMetadata`) **cannot** use `cookies`, `headers`, or other [Dynamic APIs](/docs/app/guides/caching#dynamic-rendering) inside `after`. This is because Next.js needs to know which part of the component tree accesses request data to support [partial prerendering](/docs/app/getting-started/partial-prerendering) and [Cache Components](/docs/app/getting-started/cache-components), but `after` runs after React's rendering lifecycle.
+[Server Components](/docs/app/getting-started/server-and-client-components) (including pages, layouts, and `generateMetadata`) **cannot** use `cookies`, `headers`, or other [Dynamic APIs](/docs/app/guides/caching#dynamic-rendering) inside `after`. This is because Next.js needs to know which part of the component tree accesses request data to support [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr) and [Cache Components](/docs/app/getting-started/cache-components), but `after` runs after React's rendering lifecycle.
 
 If you need request data inside an `after` callback in a Server Component, read it beforehand and pass the values in:
 
