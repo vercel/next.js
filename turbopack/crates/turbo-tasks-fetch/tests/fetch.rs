@@ -12,7 +12,7 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_testing::{Registration, register, run_once};
 use turbopack_core::issue::{Issue, IssueSeverity};
 
-static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);
+static REGISTRATION: Registration = register!();
 
 /// We inspect information about the global client cache, so *every* test in this process *must*
 /// acquire and hold this lock to prevent potential flakiness.

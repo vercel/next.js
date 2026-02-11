@@ -18,7 +18,7 @@ use turbopack_core::{
     source_map::GenerateSourceMap,
 };
 
-static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);
+static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn split_chunk() {
