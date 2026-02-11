@@ -16,7 +16,7 @@ module.exports = {
 You can also set the deployment ID using the `NEXT_DEPLOYMENT_ID` environment variable:
 
 ```bash
-NEXT_DEPLOYMENT_ID=my-deployment-id next start
+NEXT_DEPLOYMENT_ID=my-deployment-id next build
 ```
 
 > **Good to know:** If the `NEXT_DEPLOYMENT_ID` environment variable is set, it overrides the `deploymentId` value in `next.config.js`.
@@ -27,9 +27,12 @@ When a `deploymentId` is configured, Next.js:
 
 1. Appends `?dpl=<deploymentId>` to static asset URLs (JavaScript, CSS, images)
 2. Adds an `x-deployment-id` header to client-side navigation requests
-3. Injects a `data-dpl-id` attribute on the `<html>` element
+3. Adds an `x-nextjs-deployment-id` header to navigation responses
+4. Injects a `data-dpl-id` attribute on the `<html>` element
 
-When the server detects a mismatch between the client's deployment ID and the server's deployment ID, it triggers a hard navigation (full page reload) instead of a client-side navigation. This ensures users always receive assets from a consistent deployment version.
+When the client detects a mismatch between its deployment ID and the server's (via the response header), it triggers a hard navigation (full page reload) instead of a client-side navigation. This ensures users always receive assets and Server Functions from a consistent deployment version.
+
+> **Good to know:** The deployment ID protects static assets (JavaScript, CSS) and Server Functions from version mismatches. The navigation itself is not "protected" - instead, a mismatch triggers a reload to fetch the correct assets.
 
 ## Use cases
 
@@ -52,20 +55,6 @@ module.exports = {
   deploymentId: process.env.DEPLOYMENT_VERSION || process.env.GIT_SHA,
 }
 ```
-
-## Runtime deployment ID
-
-If you want to use the same build artifact across multiple deployments, you can require the deployment ID to be set at runtime instead of build time:
-
-```js filename="next.config.js"
-module.exports = {
-  experimental: {
-    runtimeServerDeploymentId: true,
-  },
-}
-```
-
-With this option enabled, Next.js will not embed the deployment ID into the build output. Instead, it requires `NEXT_DEPLOYMENT_ID` to be set when starting the server.
 
 ## Version History
 

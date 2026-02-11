@@ -198,7 +198,7 @@ NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=your-generated-key next build
 
 > **Good to know:**
 >
-> - This environment variable must be available at both **build time** and **runtime** with the same value.
+> - This variable is used at **build time** and saved to the build cache. The **server** reads the key from the build cache at startup. If your deployment does not preserve the build cache (for example, standalone output), the server falls back to reading this variable from the environment.
 > - Learn more in the [Data Security guide](/docs/app/guides/data-security#overwriting-encryption-keys-advanced).
 
 ### Deployment identifier
