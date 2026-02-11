@@ -53,6 +53,15 @@ describe('segment cache memory pressure', () => {
         includes: 'Page 0.',
       }
     )
+
+    // Switching back to tab 2 should not evict and re-fetch the prefetches for
+    // Page 0 and Page 1, since they were recently accessed.
+    await act(async () => {
+      await switchToTab2.click()
+    }, [
+      { includes: 'Page 0.', block: 'reject' },
+      { includes: 'Page 1.', block: 'reject' },
+    ])
   })
 
   it('does not leak memory when repeatedly triggering prefetches', async () => {
