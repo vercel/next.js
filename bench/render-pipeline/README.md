@@ -73,7 +73,11 @@ Default routes:
 - `/streaming/light`
 - `/streaming/medium`
 - `/streaming/heavy`
+- `/streaming/chunkstorm`
+- `/streaming/wide`
 - `/streaming/bulk`
+
+The `streaming/*` pages now include a client boundary per Suspense chunk, so benchmark runs also stress Server-to-Client payload serialization in Flight data.
 
 Override with:
 

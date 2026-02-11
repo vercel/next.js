@@ -6,12 +6,12 @@ export const dynamic = 'force-dynamic'
 export default function Page() {
   return (
     <StreamingStressPage
-      title="stream-heavy"
-      boundaryCount={240}
-      payloadBytes={1536}
-      clientPayloadBytes={3072}
-      clientPayloadFragments={6}
-      maxDelayMs={8}
+      title="stream-chunkstorm"
+      boundaryCount={960}
+      payloadBytes={192}
+      clientPayloadBytes={1024}
+      clientPayloadFragments={4}
+      maxDelayMs={3}
     />
   )
 }

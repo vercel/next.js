@@ -127,6 +127,8 @@ function parseRoutes(rawRoutes: string | undefined): string[] {
       '/streaming/light',
       '/streaming/medium',
       '/streaming/heavy',
+      '/streaming/chunkstorm',
+      '/streaming/wide',
       '/streaming/bulk',
     ]
   }
@@ -444,12 +446,17 @@ function printMicroResults(results: BenchResult[]) {
 
 function buildMicroBenchCases(
   htmlChunks: Buffer[],
-  flightChunks: Buffer[]
+  flightChunks: Buffer[],
+  secondaryFlightChunks: Buffer[],
+  secondaryFlightLabel: string
 ): BenchCase[] {
   const webHtmlChunks = htmlChunks.map(
     (chunk) => new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
   )
   const webFlightChunks = flightChunks.map(
+    (chunk) => new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+  )
+  const webSecondaryFlightChunks = secondaryFlightChunks.map(
     (chunk) => new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
   )
 
@@ -483,6 +490,17 @@ function buildMicroBenchCases(
       group: 'unit',
       run: async () => {
         const source = Readable.from(flightChunks)
+        const transformed = chainNodeTransforms(source, [
+          createInlinedDataNodeStream(undefined, null),
+        ])
+        return consumeNodeReadable(transformed)
+      },
+    },
+    {
+      name: `createInlinedDataNodeStream only (${secondaryFlightLabel})`,
+      group: 'unit',
+      run: async () => {
+        const source = Readable.from(secondaryFlightChunks)
         const transformed = chainNodeTransforms(source, [
           createInlinedDataNodeStream(undefined, null),
         ])
@@ -527,6 +545,25 @@ function buildMicroBenchCases(
         const renderStream = Readable.from(htmlChunks)
         const inlinedDataStream = chainNodeTransforms(
           Readable.from(flightChunks),
+          [createInlinedDataNodeStream(undefined, null)]
+        )
+        const stream = await continueDynamicHTMLResumeNode(renderStream, {
+          inlinedDataStream,
+          delayDataUntilFirstHtmlChunk: false,
+          getServerInsertedHTML: async () => '',
+          getServerInsertedMetadata: async () => '',
+          deploymentId: undefined,
+        })
+        return consumeNodeReadable(stream)
+      },
+    },
+    {
+      name: `Node continueDynamicHTMLResume (${secondaryFlightLabel})`,
+      group: 'integration',
+      run: async () => {
+        const renderStream = Readable.from(htmlChunks)
+        const inlinedDataStream = chainNodeTransforms(
+          Readable.from(secondaryFlightChunks),
           [createInlinedDataNodeStream(undefined, null)]
         )
         const stream = await continueDynamicHTMLResumeNode(renderStream, {
@@ -591,6 +628,26 @@ function buildMicroBenchCases(
         return consumeWebReadable(stream)
       },
     },
+    {
+      name: `Web continueDynamicHTMLResume (${secondaryFlightLabel})`,
+      group: 'integration',
+      run: async () => {
+        const renderStream = createWebStream(webHtmlChunks)
+        const inlinedDataStream = createInlinedDataReadableStream(
+          createWebStream(webSecondaryFlightChunks),
+          undefined,
+          null
+        )
+        const stream = await continueDynamicHTMLResume(renderStream, {
+          inlinedDataStream,
+          delayDataUntilFirstHtmlChunk: false,
+          getServerInsertedHTML: async () => '',
+          getServerInsertedMetadata: async () => '',
+          deploymentId: undefined,
+        })
+        return consumeWebReadable(stream)
+      },
+    },
   ]
 }
 
@@ -610,8 +667,21 @@ async function runMicroBenchmarks(options: CliOptions): Promise<BenchResult[]> {
       options.flightChunkBytes,
       options.binaryFlight
     )
+    const secondaryFlightChunks = makeFlightChunks(
+      options.flightChunks,
+      options.flightChunkBytes,
+      !options.binaryFlight
+    )
+    const secondaryFlightLabel = options.binaryFlight
+      ? 'utf8 flight'
+      : 'binary flight'
 
-    const cases = buildMicroBenchCases(htmlChunks, flightChunks)
+    const cases = buildMicroBenchCases(
+      htmlChunks,
+      flightChunks,
+      secondaryFlightChunks,
+      secondaryFlightLabel
+    )
     const results: BenchResult[] = []
     for (const benchCase of cases) {
       const result = await runBenchCase(

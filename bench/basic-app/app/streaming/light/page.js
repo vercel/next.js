@@ -9,6 +9,8 @@ export default function Page() {
       title="stream-light"
       boundaryCount={24}
       payloadBytes={512}
+      clientPayloadBytes={384}
+      clientPayloadFragments={2}
       maxDelayMs={2}
     />
   )

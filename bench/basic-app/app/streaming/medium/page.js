@@ -9,6 +9,8 @@ export default function Page() {
       title="stream-medium"
       boundaryCount={96}
       payloadBytes={1024}
+      clientPayloadBytes={1024}
+      clientPayloadFragments={4}
       maxDelayMs={4}
     />
   )
