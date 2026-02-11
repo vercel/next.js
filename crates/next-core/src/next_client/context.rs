@@ -17,7 +17,7 @@ use turbopack_browser::{
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType, UnusedReferences, chunk_id_strategy::ModuleIdStrategy,
+        SourceMapsType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -507,7 +507,10 @@ pub async fn get_client_chunking_context(
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
-    .css_url_suffix(css_url_suffix);
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix,
+    });
 
     if next_mode.is_development() {
         builder = builder

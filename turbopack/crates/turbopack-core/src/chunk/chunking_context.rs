@@ -98,6 +98,9 @@ pub enum AssetSuffix {
 #[derive(Debug, Clone)]
 pub struct UrlBehavior {
     pub suffix: AssetSuffix,
+    /// Static suffix for contexts that cannot use dynamic JS expressions (e.g., CSS `url()`
+    /// references). Must be a constant string known at build time (e.g., `?dpl=<deployment_id>`).
+    pub static_suffix: Option<RcStr>,
 }
 
 #[derive(
@@ -358,16 +361,9 @@ pub trait ChunkingContext {
     fn url_behavior(self: Vc<Self>, _tag: Option<RcStr>) -> Vc<UrlBehavior> {
         UrlBehavior {
             suffix: AssetSuffix::Inferred,
+            static_suffix: None,
         }
         .cell()
-    }
-
-    /// Returns a constant suffix to append to asset URLs referenced in CSS (e.g., `url()` for
-    /// images and fonts). Since CSS is static text and cannot use runtime JavaScript globals,
-    /// this must be a constant string known at build time (e.g., `?dpl=<deployment_id>`).
-    #[turbo_tasks::function]
-    fn css_url_suffix(self: Vc<Self>) -> Vc<Option<RcStr>> {
-        Vc::cell(None)
     }
 
     #[turbo_tasks::function]

@@ -262,7 +262,10 @@ pub async fn get_edge_chunking_context_with_client_assets(
         next_mode.runtime_type(),
     )
     .asset_base_path(Some(asset_prefix))
-    .css_url_suffix(css_url_suffix)
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix,
+    })
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -342,9 +345,13 @@ pub async fn get_edge_chunking_context(
         rcstr!("client"),
         UrlBehavior {
             suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+            static_suffix: css_url_suffix.clone(),
         },
     )
-    .css_url_suffix(css_url_suffix)
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix,
+    })
     // Since one can't read files in edge directly, any asset need to be fetched
     // instead. This special blob url is handled by the custom fetch
     // implementation in the edge sandbox. It will respond with the

@@ -1082,9 +1082,13 @@ pub async fn get_server_chunking_context_with_client_assets(
         rcstr!("client"),
         UrlBehavior {
             suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+            static_suffix: css_url_suffix.clone(),
         },
     )
-    .css_url_suffix(css_url_suffix)
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix,
+    })
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -1176,9 +1180,13 @@ pub async fn get_server_chunking_context(
         rcstr!("client"),
         UrlBehavior {
             suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+            static_suffix: css_url_suffix.clone(),
         },
     )
-    .css_url_suffix(css_url_suffix)
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix,
+    })
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),

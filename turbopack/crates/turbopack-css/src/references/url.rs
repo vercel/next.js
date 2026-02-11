@@ -124,9 +124,9 @@ pub async fn resolve_url_reference(
                 .unwrap_or_else(|| format!("/{}", path.path).into())
         };
 
-        // Append the CSS URL suffix if configured (e.g., ?dpl=<deployment_id>).
-        let css_suffix = chunking_context.css_url_suffix().await?;
-        let url_with_suffix = if let Some(ref suffix) = *css_suffix {
+        // Append the static suffix from UrlBehavior if configured (e.g., ?dpl=<deployment_id>).
+        let url_behavior = chunking_context.url_behavior(None).await?;
+        let url_with_suffix = if let Some(ref suffix) = url_behavior.static_suffix {
             format!("{}{}", url_path, suffix).into()
         } else {
             url_path
