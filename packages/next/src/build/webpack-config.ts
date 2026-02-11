@@ -2526,6 +2526,7 @@ export default async function getBaseWebpackConfig(
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
     serverSourceMaps: config.experimental.serverSourceMaps,
+    deploymentId: config.deploymentId,
   })
 
   // @ts-ignore Cache exists

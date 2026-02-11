@@ -112,7 +112,7 @@ pub async fn resolve_url_reference(
     if let ReferencedAsset::Some(asset) = &*url.get_referenced_asset(chunking_context).await? {
         let path = asset.path().await?;
 
-        let url_path = if *chunking_context
+        let url_path: RcStr = if *chunking_context
             .should_use_absolute_url_references()
             .await?
         {
@@ -124,7 +124,15 @@ pub async fn resolve_url_reference(
                 .unwrap_or_else(|| format!("/{}", path.path).into())
         };
 
-        return Ok(Vc::cell(Some(url_path)));
+        // Append the static suffix from UrlBehavior if configured (e.g., ?dpl=<deployment_id>).
+        let url_behavior = chunking_context.url_behavior(None).await?;
+        let url_with_suffix = if let Some(ref suffix) = url_behavior.static_suffix {
+            format!("{}{}", url_path, suffix).into()
+        } else {
+            url_path
+        };
+
+        return Ok(Vc::cell(Some(url_with_suffix)));
     }
 
     Ok(Vc::cell(None))

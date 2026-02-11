@@ -223,6 +223,7 @@ pub struct EdgeChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
+    pub css_url_suffix: Option<RcStr>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -246,6 +247,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         nested_async_chunking,
         client_root,
         asset_prefix,
+        css_url_suffix,
     } = options;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -260,6 +262,10 @@ pub async fn get_edge_chunking_context_with_client_assets(
         next_mode.runtime_type(),
     )
     .asset_base_path(Some(asset_prefix))
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix,
+    })
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -318,6 +324,7 @@ pub async fn get_edge_chunking_context(
         nested_async_chunking,
         client_root,
         asset_prefix,
+        css_url_suffix,
     } = options;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -338,8 +345,13 @@ pub async fn get_edge_chunking_context(
         rcstr!("client"),
         UrlBehavior {
             suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+            static_suffix: css_url_suffix.clone(),
         },
     )
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix,
+    })
     // Since one can't read files in edge directly, any asset need to be fetched
     // instead. This special blob url is handled by the custom fetch
     // implementation in the edge sandbox. It will respond with the
