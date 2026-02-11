@@ -719,6 +719,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
