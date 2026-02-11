@@ -1,11 +1,11 @@
 import { deleteMapEntry } from './cache-map'
 import type { UnknownMapEntry } from './cache-map'
+import { pingPrefetchScheduler } from './scheduler'
 
 // We use an LRU for memory management. We must update this whenever we add or
 // remove a new cache entry, or when an entry changes size.
 
 let head: UnknownMapEntry | null = null
-let scheduleCleanup: () => void = cleanup
 let lruSize: number = 0
 
 // TODO: I chose the max size somewhat arbitrarily. Consider setting this based
@@ -99,11 +99,7 @@ function ensureCleanupIsScheduled() {
   if (lruSize <= maxLruSize) {
     return
   }
-  scheduleCleanup()
-}
-
-export function registerScheduleCleanup(cb: () => void) {
-  scheduleCleanup = cb
+  pingPrefetchScheduler()
 }
 
 export function cleanup() {
