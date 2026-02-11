@@ -40,19 +40,6 @@ if (process.env.__NEXT_USE_NODE_STREAMS) {
 }
 /* eslint-enable import/no-extraneous-dependencies */
 
-// chainNodeStreams is used by the app-page.ts build template for PPR resume.
-// We export it from here (pre-compiled runtime bundle) because the template
-// cannot use relative requires (webpack resolves them from the project root).
-export let chainNodeStreams:
-  | typeof import('../stream-utils/node-stream-helpers').chainNodeStreams
-  | undefined
-if (process.env.__NEXT_USE_NODE_STREAMS) {
-  chainNodeStreams = (
-    require('../stream-utils/node-stream-helpers') as typeof import('../stream-utils/node-stream-helpers')
-  ).chainNodeStreams
-} else {
-  chainNodeStreams = undefined
-}
 // TODO: Just re-export `* as ReactServer`
 export { captureOwnerStack, createElement, Fragment } from 'react'
 
