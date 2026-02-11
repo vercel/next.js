@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 
 export default async function Layout({
   children,
@@ -27,7 +27,9 @@ export default async function Layout({
         display: 'flex',
       }}
     >
-      {children}
+      <Suspense fallback={<div id="loading">loading...</div>}>
+        {children}
+      </Suspense>
     </div>
   )
 }
