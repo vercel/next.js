@@ -34,11 +34,7 @@ describe('Invalid Global CSS with Custom App', () => {
       const browser = await next.browser('/')
 
       await waitForRedbox(browser)
-      // Normalize non-deterministic pnpm store paths in webpack loader attribution
-      const errorSource = (await getRedboxSource(browser)).replace(
-        /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
-        './node_modules/'
-      )
+      const errorSource = await getRedboxSource(browser)
 
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`

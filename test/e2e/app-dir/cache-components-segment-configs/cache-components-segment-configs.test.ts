@@ -131,15 +131,9 @@ describe('cache-components-segment-configs', () => {
 })
 
 function expectLinesToAppearTogether(output: string, lines: string[]) {
-  // Normalize non-deterministic pnpm store paths
-  const cleanedOutput = output.replace(
-    /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
-    './node_modules/'
-  )
   const escapedLines = lines.map((line) =>
     line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   )
-  // Use [\s\S]*? to allow (from ...) attribution lines between expected lines
-  const pattern = new RegExp(escapedLines.join('[\\s\\S]*?'), 's')
-  expect(cleanedOutput).toMatch(pattern)
+  const pattern = new RegExp(escapedLines.join('\\s*'), 's')
+  expect(output).toMatch(pattern)
 }

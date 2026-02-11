@@ -109,11 +109,7 @@ describe('use-cache-unknown-cache-kind', () => {
       await waitForRedbox(browser)
 
       const errorDescription = await getRedboxDescription(browser)
-      // Normalize non-deterministic pnpm store paths in webpack loader attribution
-      const errorSource = (await getRedboxSource(browser)).replace(
-        /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
-        './node_modules/'
-      )
+      const errorSource = await getRedboxSource(browser)
 
       if (isTurbopack) {
         expect(errorDescription).toMatchInlineSnapshot(
@@ -207,14 +203,7 @@ function getBuildOutput(cliOutput: string): string {
         break
       }
 
-      const stripped = stripAnsi(line)
-      // Normalize non-deterministic pnpm store paths
-      lines.push(
-        stripped.replace(
-          /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
-          './node_modules/'
-        )
-      )
+      lines.push(stripAnsi(line))
     } else if (
       line.includes('Build error occurred') ||
       line.includes('Failed to compile')

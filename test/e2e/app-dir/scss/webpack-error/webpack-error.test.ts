@@ -24,14 +24,8 @@ describe('SCSS Support', () => {
         'Learn more: https://nextjs.org/docs/messages/install-sass'
       )
 
-      // Normalize non-deterministic pnpm store paths before checking
-      // that internal loader names don't leak into the user-facing error message
-      const normalizedOutput = cliOutput.replace(
-        /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
-        './node_modules/'
-      )
-      expect(normalizedOutput).not.toContain('css-loader')
-      expect(normalizedOutput).not.toContain('sass-loader')
+      expect(cliOutput).not.toContain('css-loader')
+      expect(cliOutput).not.toContain('sass-loader')
     })
   })
 })

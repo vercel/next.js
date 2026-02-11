@@ -150,14 +150,7 @@ function getBuildOutput(cliOutput: string): string {
           '// TODO(veil): Fix broken import trace for Webpack loader resource.'
         )
       } else {
-        const stripped = stripAnsi(line)
-        // Normalize non-deterministic pnpm store paths
-        lines.push(
-          stripped.replace(
-            /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
-            './node_modules/'
-          )
-        )
+        lines.push(stripAnsi(line))
       }
     } else if (
       line.includes('Build error occurred') ||

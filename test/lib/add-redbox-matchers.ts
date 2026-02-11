@@ -125,14 +125,6 @@ function focusSource(
 
   focusedSource = focusedSource.trim()
 
-  // Normalize non-deterministic pnpm store paths e.g.
-  // "./node_modules/.pnpm/next@file+..+hash/node_modules/next/dist/..." →
-  // "./node_modules/next/dist/..."
-  focusedSource = focusedSource.replace(
-    /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
-    './node_modules/'
-  )
-
   if (next !== null) {
     focusedSource = focusedSource.replaceAll(
       next.testDir,
@@ -148,8 +140,6 @@ function focusSource(
   if (
     sourceLines[0].startsWith('./node_modules/.pnpm/next@file+') ||
     sourceLines[0].startsWith('./node_modules/.pnpm/file+') ||
-    // e.g. "./node_modules/next/dist/build/webpack/loaders/..." or "../../../packages/next/dist/build/webpack/loaders/..."
-    /(?:^|\/)next\/dist\/build\/webpack\/loaders\//.test(sourceLines[0]) ||
     // e.g. "next-app-loader?<SEARCH PARAMS>" (in rspack, the loader doesn't seem to be prefixed with node_modules)
     /^next-[a-zA-Z0-9\-_]+?-loader\?/.test(sourceLines[0])
   ) {

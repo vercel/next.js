@@ -23,14 +23,8 @@ describe('app-dir - error-on-next-codemod-comment', () => {
 
       await waitForRedbox(browser)
 
-      // Normalize non-deterministic pnpm store paths in webpack loader attribution
-      const errorSource = (await getRedboxSource(browser)).replace(
-        /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
-        './node_modules/'
-      )
-
       if (process.env.IS_TURBOPACK_TEST) {
-        expect(errorSource).toMatchInlineSnapshot(`
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
            "./app/page.tsx (2:2)
            Ecmascript file had an error
              1 | export default function Page() {
@@ -44,7 +38,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
            After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can be taken."
           `)
       } else if (process.env.NEXT_RSPACK) {
-        expect(errorSource).toMatchInlineSnapshot(`
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
          "./app/page.tsx
            ╰─▶   × Error:   x You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.
                  │   | After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can be taken.
@@ -59,7 +53,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
                  │"
         `)
       } else {
-        expect(errorSource).toMatchInlineSnapshot(`
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
          "./app/page.tsx
          Error:   x You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.
            | After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can be taken.

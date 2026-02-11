@@ -15,11 +15,7 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
     await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
-      // Normalize non-deterministic pnpm store paths in webpack loader attribution
-      source: (await getRedboxSource(browser)).replace(
-        /\.\/node_modules\/\.pnpm\/[^/]+\/node_modules\//g,
-        './node_modules/'
-      ),
+      source: await getRedboxSource(browser),
     }
 
     if (process.env.IS_TURBOPACK_TEST) {
