@@ -1,3 +1,4 @@
+import type { Readable as NodeReadable } from 'node:stream'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 // React's RSC prerender function will emit an incomplete flight stream when using `prerender`. If the connection
@@ -159,4 +160,35 @@ export async function processPrelude(
   const preludeIsEmpty = firstResult.done === true
 
   return { prelude, preludeIsEmpty }
+}
+
+export async function processNodePrelude(unprocessedPrelude: NodeReadable) {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new Error('processNodePrelude is not supported in edge runtime')
+  } else {
+    const { teeNodeReadable } =
+      require('./node-stream-tee') as typeof import('./node-stream-tee')
+    const [prelude, peek] = teeNodeReadable(unprocessedPrelude)
+
+    // Read the first chunk from the peek stream to check if it's empty
+    const firstChunk = await new Promise<Uint8Array | null>(
+      (resolve, reject) => {
+        peek.once('data', (chunk) => {
+          peek.destroy()
+          resolve(chunk)
+        })
+        peek.once('end', () => {
+          resolve(null)
+        })
+        peek.once('error', (err) => {
+          if (!prelude.destroyed) prelude.destroy(err)
+          reject(err)
+        })
+      }
+    )
+
+    const preludeIsEmpty = firstChunk === null
+
+    return { prelude, preludeIsEmpty }
+  }
 }

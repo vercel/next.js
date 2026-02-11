@@ -144,3 +144,157 @@ export async function pipeToNodeResponse(
     throw new Error('failed to pipe response', { cause: err })
   }
 }
+
+/**
+ * Pipes a Node.js Readable stream directly to a ServerResponse.
+ * This avoids the overhead of wrapping in web WritableStream.
+ */
+export async function pipeNodeReadableToResponse(
+  readable: import('node:stream').Readable,
+  res: ServerResponse,
+  waitUntilForEnd?: Promise<unknown>
+) {
+  // Guard so webpack can DCE node:stream require when the node-streams
+  // runtime path is disabled.
+  if (process.env.__NEXT_USE_NODE_STREAMS) {
+    try {
+      const { errored, destroyed } = res
+      if (errored || destroyed) return
+
+      let started = false
+      const finished = new DetachedPromise<void>()
+
+      const { Writable: NodeWritable } =
+        require('node:stream') as typeof import('node:stream')
+
+      const writable = new NodeWritable({
+        write(chunk: Uint8Array, _encoding, callback) {
+          if (!started) {
+            started = true
+
+            if (
+              'performance' in globalThis &&
+              process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+            ) {
+              const metrics = getClientComponentLoaderMetrics()
+              if (metrics) {
+                performance.measure(
+                  `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
+                  {
+                    start: metrics.clientComponentLoadStart,
+                    end:
+                      metrics.clientComponentLoadStart +
+                      metrics.clientComponentLoadTimes,
+                  }
+                )
+              }
+            }
+
+            res.flushHeaders()
+            getTracer().trace(
+              NextNodeServerSpan.startResponse,
+              {
+                spanName: 'start response',
+              },
+              () => undefined
+            )
+          }
+
+          try {
+            const ok = res.write(chunk)
+
+            // Added by the `compression` middleware, this is a function that will
+            // flush the partially-compressed response to the client.
+            if ('flush' in res && typeof res.flush === 'function') {
+              res.flush()
+            }
+
+            if (!ok) {
+              res.once('drain', callback)
+            } else {
+              callback()
+            }
+          } catch (err) {
+            if (!res.writableFinished) {
+              res.end()
+            }
+            // Destroy the readable to stop it from pushing more data
+            if (!readable.destroyed) {
+              readable.destroy()
+            }
+            callback(
+              new Error('failed to write chunk to response', { cause: err })
+            )
+          }
+        },
+        final(callback) {
+          if (waitUntilForEnd) {
+            const finalize = () => {
+              if (!res.writableFinished) {
+                res.end()
+              }
+              callback()
+              finished.resolve()
+            }
+            waitUntilForEnd.then(finalize, finalize)
+          } else {
+            if (!res.writableFinished) {
+              res.end()
+            }
+            callback()
+            finished.resolve()
+          }
+        },
+        destroy(err, callback) {
+          if (err && !res.writableFinished) {
+            res.destroy(err)
+          }
+          callback(err)
+          finished.resolve()
+        },
+      })
+
+      // Handle client disconnect.
+      //
+      // When the client disconnects during backpressure, the failure chain is:
+      //   1. res.write(chunk) returned false (backpressure)
+      //   2. res.once('drain', callback) was registered to resume writing
+      //   3. Client disconnects, res emits 'close'
+      //   4. The 'drain' event will never fire on the closed response
+      //
+      // Node.js .pipe() does NOT propagate source destruction to the
+      // destination, so destroying the readable alone is not enough:
+      // the writable would stay alive waiting for a drain that never comes,
+      // and finished.promise (awaited below) would never resolve.
+      //
+      // Destroying the writable triggers its destroy() handler above,
+      // which calls finished.resolve() and unblocks the await.
+      const onClose = () => {
+        if (!readable.destroyed) {
+          readable.destroy()
+        }
+        if (!writable.destroyed) {
+          writable.destroy()
+        }
+      }
+      res.once('close', onClose)
+
+      // Forward errors since Node.js .pipe() does not propagate them.
+      readable.on('error', (err) => {
+        if (!writable.destroyed) {
+          writable.destroy(err)
+        }
+      })
+
+      readable.pipe(writable)
+
+      await finished.promise
+      res.off('close', onClose)
+    } catch (err: any) {
+      if (isAbortError(err)) return
+      throw new Error('failed to pipe node readable to response', {
+        cause: err,
+      })
+    }
+  }
+}

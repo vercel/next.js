@@ -148,7 +148,6 @@ export type TurbopackModuleType =
   | 'raw'
   | 'node'
   | 'bytes'
-  | 'text'
 
 export type TurbopackRuleConfigItem = {
   /** Loaders to apply to matched files. */
@@ -508,11 +507,6 @@ export interface ExperimentalConfig {
   turbopackImportTypeBytes?: boolean
 
   /**
-   * Enable support for `with {type: "text"}` for ESM imports.
-   */
-  turbopackImportTypeText?: boolean
-
-  /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
@@ -600,6 +594,19 @@ export interface ExperimentalConfig {
    * for production.
    */
   turbopackModuleIds?: 'named' | 'deterministic'
+
+  /**
+   * Filter out specific Turbopack errors and warnings so they do not appear
+   * in the CLI output or the error overlay. String values for `path` are
+   * glob patterns; string values for `title`/`description` are exact matches.
+   * RegExp values match anywhere within the string (use `^` and `$` anchors
+   * for full-string matching).
+   */
+  turbopackIgnoreIssue?: Array<{
+    path: string | RegExp
+    title?: string | RegExp
+    description?: string | RegExp
+  }>
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -835,6 +842,13 @@ export interface ExperimentalConfig {
    * Enables the use of the `"use cache"` directive.
    */
   useCache?: boolean
+
+  /**
+   * Use Node.js native streams instead of web streams for the App Router
+   * rendering pipeline on the Node.js runtime. This can improve performance
+   * by avoiding the overhead of web stream wrappers.
+   */
+  useNodeStreams?: boolean
 
   /**
    * Enables detection and reporting of slow modules during development builds.
@@ -1811,6 +1825,7 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'devCacheControlNoCache'
     | 'exposeTestingApiInProductionBuild'
+    | 'useNodeStreams'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1875,6 +1890,7 @@ export function getNextConfigRuntime(
         maxPostponedStateSize: ex.maxPostponedStateSize,
         devCacheControlNoCache: ex.devCacheControlNoCache,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+        useNodeStreams: ex.useNodeStreams,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,
