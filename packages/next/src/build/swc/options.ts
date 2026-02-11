@@ -326,7 +326,7 @@ export function getJestSWCOptions({
   resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
   serverComponents?: boolean
-  imageConfig?: Record<string, unknown>
+  imageConfig?: Partial<NextConfig['images']>
   serverReferenceHashSalt: string
 }) {
   let baseOptions = getBaseSWCOptions({
