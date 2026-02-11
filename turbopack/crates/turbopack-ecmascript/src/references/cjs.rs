@@ -73,6 +73,7 @@ impl ModuleReference for CjsAssetReference {
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
+            resolve_export: None,
         }))
     }
 }
@@ -130,6 +131,7 @@ impl ModuleReference for CjsRequireAssetReference {
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
+            resolve_export: None,
         }))
     }
 }
@@ -262,6 +264,7 @@ impl ModuleReference for CjsRequireResolveAssetReference {
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
+            resolve_export: None,
         }))
     }
 }

@@ -132,6 +132,7 @@ impl ModuleReference for SingleChunkableModuleReference {
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: true,
             hoisted: false,
+            resolve_export: None,
         }))
     }
 

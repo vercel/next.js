@@ -516,6 +516,7 @@ impl ModuleReference for EsmAssetReference {
                     Some(ChunkingType::Parallel {
                         inherit_async: true,
                         hoisted: true,
+                        resolve_export: None,
                     })
                 } else if chunking_type == "none" {
                     None
@@ -529,6 +530,7 @@ impl ModuleReference for EsmAssetReference {
                 Some(ChunkingType::Parallel {
                     inherit_async: true,
                     hoisted: true,
+                    resolve_export: None,
                 })
             },
         ))

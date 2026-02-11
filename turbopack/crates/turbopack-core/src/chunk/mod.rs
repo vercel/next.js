@@ -264,6 +264,8 @@ pub enum ChunkingType {
         /// Whether the referenced module is executed always immediately before the parent module
         /// (corresponding to ESM import semantics).
         hoisted: bool,
+        /// Resolve the specified export to get the inner modules.
+        resolve_export: Option<RcStr>,
     },
     /// An async loader is placed into the referencing chunk and loads the
     /// separate chunk group in which the module is placed.
@@ -292,10 +294,12 @@ impl Display for ChunkingType {
             ChunkingType::Parallel {
                 inherit_async,
                 hoisted,
+                resolve_export,
             } => {
                 write!(
                     f,
-                    "Parallel(inherit_async: {inherit_async}, hoisted: {hoisted})",
+                    "Parallel(inherit_async: {inherit_async}, hoisted: {hoisted}, resolve_export: \
+                     {resolve_export:?})",
                 )
             }
             ChunkingType::Async => write!(f, "Async"),
@@ -364,9 +368,14 @@ impl ChunkingType {
 
     pub fn without_inherit_async(&self) -> Self {
         match self {
-            ChunkingType::Parallel { hoisted, .. } => ChunkingType::Parallel {
+            ChunkingType::Parallel {
+                hoisted,
+                resolve_export,
+                ..
+            } => ChunkingType::Parallel {
                 hoisted: *hoisted,
                 inherit_async: false,
+                resolve_export: resolve_export.clone(),
             },
             ChunkingType::Async => ChunkingType::Async,
             ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
