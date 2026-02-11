@@ -22,6 +22,7 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import * as Log from '../build/output/log'
+import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 
 export type NextStartOptions = {
   port: number
@@ -80,6 +81,8 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
     process.on('SIGTERM', () => saveCpuProfile())
     process.on('SIGINT', () => saveCpuProfile())
   }
+
+  process.env.NEXT_PHASE = PHASE_PRODUCTION_SERVER
 
   await startServer({
     dir,

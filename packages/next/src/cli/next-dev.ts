@@ -26,6 +26,7 @@ import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import {
@@ -307,6 +308,7 @@ const nextDev = async (
         env: {
           ...defaultEnv,
           ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
+          NEXT_PHASE: PHASE_DEVELOPMENT_SERVER,
           NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
