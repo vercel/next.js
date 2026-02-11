@@ -57,7 +57,7 @@ export async function fetchUsers() {
 
 Then you can import the `fetchUsers` Server Function into a Client Component and execute it on the client-side.
 
-```tsx filename="app/components/my-button.tsx" highlight={1,2,8} switcher
+```tsx filename="app/components/my-button.tsx" highlight={1,2,5} switcher
 'use client'
 import { fetchUsers } from '../actions'
 
@@ -66,7 +66,7 @@ export default function MyButton() {
 }
 ```
 
-```jsx filename="app/components/my-button.js" highlight={1,2,8} switcher
+```jsx filename="app/components/my-button.js" highlight={1,2,5} switcher
 'use client'
 import { fetchUsers } from '../actions'
 

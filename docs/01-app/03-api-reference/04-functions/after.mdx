@@ -65,7 +65,7 @@ Whether you can use request APIs like [`cookies`](/docs/app/api-reference/functi
 
 You can call `cookies` and `headers` directly inside the `after` callback when used in [Route Handlers](/docs/app/api-reference/file-conventions/route) and [Server Functions](/docs/app/getting-started/updating-data). This is useful for logging activity after a mutation or API request. For example:
 
-```ts filename="app/api/route.ts" highlight={2,10-13} switcher
+```ts filename="app/api/route.ts" highlight={2,10-16} switcher
 import { after } from 'next/server'
 import { cookies, headers } from 'next/headers'
 import { logUserAction } from '@/app/utils'
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 }
 ```
 
-```js filename="app/api/route.js" highlight={2,10-13} switcher
+```js filename="app/api/route.js" highlight={2,10-16} switcher
 import { after } from 'next/server'
 import { cookies, headers } from 'next/headers'
 import { logUserAction } from '@/app/utils'

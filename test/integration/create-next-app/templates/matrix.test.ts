@@ -35,8 +35,8 @@ describe.each(['app', 'pages'] as const)(
       // srcDir and reactCompiler don't interact so we're testing them together
       // instead of all permutations.
       srcDirAndCompiler: [
-        '--src-dir --react-compiler',
-        '--no-src-dir --no-react-compiler',
+        '--src-dir --react-compiler --no-agents-md',
+        '--no-src-dir --no-react-compiler --no-agents-md',
       ],
       tailwind: ['--tailwind', '--no-tailwind'],
 
