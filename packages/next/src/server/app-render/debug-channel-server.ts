@@ -2,7 +2,7 @@ import type {
   DebugChannelPair,
   DebugChannelServer,
   DebugChannelClient,
-} from './debug-channel-server.web'
+} from './debug-channel-server.node'
 
 type DebugChannelRuntimeModule = {
   createDebugChannel: () => DebugChannelPair | undefined
@@ -18,7 +18,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     require('./debug-channel-server.web') as typeof import('./debug-channel-server.web')
 } else if (process.env.__NEXT_USE_NODE_STREAMS) {
   debugChannelRuntimeModule =
-    require('./debug-channel-server.node') as typeof import('./debug-channel-server.node') as unknown as DebugChannelRuntimeModule
+    require('./debug-channel-server.node') as typeof import('./debug-channel-server.node')
 } else {
   debugChannelRuntimeModule =
     require('./debug-channel-server.web') as typeof import('./debug-channel-server.web')

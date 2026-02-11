@@ -53,6 +53,8 @@ import {
   getClientPrerender,
   processPrelude as processPreludeOp,
   createDocumentClosingStream,
+  nodeReadableToWeb,
+  pipeRuntimePrefetchTransform,
 } from './stream-ops'
 import { stripInternalQueries } from '../internal-utils'
 import {
@@ -174,6 +176,7 @@ import {
   ReactServerResult,
   createReactServerPrerenderResultFromRender,
 } from './app-render-prerender-utils'
+import { teeNodeReadable } from './node-stream-tee'
 import {
   Phase,
   printDebugThrownValueForProspectiveRender,
@@ -243,6 +246,53 @@ import {
   type DebugChannelPair,
 } from './debug-channel-server'
 import { createNodeStreamWithLateRelease } from './instant-validation/stream-utils'
+
+/**
+ * Tees a debug channel's client-side readable into an SSR branch and a
+ * browser branch. The browser branch is always a web ReadableStream because
+ * setReactDebugChannel sends it to the client via HMR.
+ */
+function teeDebugChannelForSsrAndBrowser(debugChannel: DebugChannelPair): {
+  ssrStream: ReadableStream<Uint8Array> | import('node:stream').Readable
+  browserChannel: { readable: ReadableStream<Uint8Array> }
+} {
+  const readable = debugChannel.clientSide.readable
+  if (readable instanceof ReadableStream) {
+    const [ssrStream, browserStream] = readable.tee()
+    return { ssrStream, browserChannel: { readable: browserStream } }
+  } else if (process.env.__NEXT_USE_NODE_STREAMS && nodeReadableToWeb) {
+    // Node Readable: tee natively, convert browser branch to web for HMR
+    const [ssrStream, browserNodeStream] = teeNodeReadable(readable)
+    const browserStream = nodeReadableToWeb(browserNodeStream)
+    return { ssrStream, browserChannel: { readable: browserStream } }
+  } else {
+    throw new Error(
+      'Debug channel readable is not a ReadableStream but node streams are not enabled, this is a bug in the Next.js codebase'
+    )
+  }
+}
+
+/**
+ * Returns a web-shaped { readable: ReadableStream } for the browser side of a
+ * debug channel. When the debug channel already uses web streams, this is a
+ * no-op. When it uses Node streams, we convert to web for HMR delivery.
+ */
+function debugChannelClientForBrowser(debugChannel: DebugChannelPair): {
+  readable: ReadableStream<Uint8Array>
+} {
+  const readable = debugChannel.clientSide.readable
+  if (readable instanceof ReadableStream) {
+    return { readable }
+  } else if (process.env.__NEXT_USE_NODE_STREAMS && nodeReadableToWeb) {
+    return {
+      readable: nodeReadableToWeb(readable),
+    }
+  } else {
+    throw new Error(
+      'Debug channel readable is not a ReadableStream but node streams are not enabled, this is a bug in the Next.js codebase'
+    )
+  }
+}
 
 // NOTE: Only use this for types, access implementations via ComponentMod
 import type * as InstantValidation from './instant-validation/instant-validation'
@@ -702,7 +752,11 @@ async function generateDynamicFlightRenderResult(
   const debugChannel = setReactDebugChannel && createDebugChannel()
 
   if (debugChannel) {
-    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
+    setReactDebugChannel(
+      debugChannelClientForBrowser(debugChannel),
+      htmlRequestId,
+      requestId
+    )
   }
 
   const { clientModules } = getClientReferenceManifest()
@@ -890,7 +944,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   }
 
   let debugChannel: DebugChannelPair | undefined
-  let stream: ReadableStream<Uint8Array>
+  let stream: ReadableStream<Uint8Array> | Readable
 
   if (
     // We only do this flow if we can safely recreate the store from scratch
@@ -924,11 +978,22 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     )
 
     if (shouldValidate) {
-      let validationDebugChannelClient: Readable | undefined = undefined
+      let validationDebugChannelClient:
+        | Readable
+        | ReadableStream<Uint8Array>
+        | undefined = undefined
       if (returnedDebugChannel) {
-        const [t1, t2] = returnedDebugChannel.clientSide.readable.tee()
-        returnedDebugChannel.clientSide.readable = t1
-        validationDebugChannelClient = nodeStreamFromReadableStream(t2)
+        const readable = returnedDebugChannel.clientSide.readable
+        if (readable instanceof ReadableStream) {
+          const [t1, t2] = readable.tee()
+          returnedDebugChannel.clientSide.readable = t1
+          validationDebugChannelClient = t2
+        } else {
+          // Node Readable: tee natively, no web→Node conversion needed
+          const [t1, t2] = teeNodeReadable(readable)
+          returnedDebugChannel.clientSide.readable = t1
+          validationDebugChannelClient = t2
+        }
       }
       consoleAsyncStorage.run(
         { dim: true },
@@ -973,7 +1038,11 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   }
 
   if (debugChannel && setReactDebugChannel) {
-    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
+    setReactDebugChannel(
+      debugChannelClientForBrowser(debugChannel),
+      htmlRequestId,
+      requestId
+    )
   }
 
   return new FlightRenderResult(stream, {
@@ -1177,7 +1246,9 @@ async function prospectiveRuntimeServerPrerender(
   }
 
   try {
-    return await createReactServerPrerenderResult(pendingInitialServerResult)
+    return await createReactServerPrerenderResultFromPrerender(
+      pendingInitialServerResult
+    )
   } catch (err) {
     if (
       initialServerRenderController.signal.aborted ||
@@ -1739,7 +1810,7 @@ function ErrorApp<T>({
   nonce,
   images,
 }: {
-  reactServerStream: BinaryStreamOf<T>
+  reactServerStream: Readable | BinaryStreamOf<T>
   preinitScripts: () => void
   ServerInsertedHTMLProvider: ComponentType<{
     children: JSX.Element
@@ -2480,7 +2551,7 @@ async function renderToStream(
   metadata: AppPageRenderResultMetadata,
   createRequestStore: (() => RequestStore) | undefined,
   devFallbackParams: OpaqueFallbackRouteParams | null
-): Promise<ReadableStream<Uint8Array>> {
+): Promise<ReadableStream<Uint8Array> | Readable> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   const {
     assetPrefix,
@@ -2625,7 +2696,10 @@ async function renderToStream(
     )
 
     let reactServerResult: null | ReactServerResult = null
-    let reactDebugStream: ReadableStream<Uint8Array> | undefined
+    let reactDebugStream:
+      | ReadableStream<Uint8Array>
+      | import('node:stream').Readable
+      | undefined
 
     const setHeader = res.setHeader.bind(res)
     const appendHeader = res.appendHeader.bind(res)
@@ -2695,11 +2769,22 @@ async function renderToStream(
             serverComponentsErrorHandler
           )
 
-          let validationDebugChannelClient: Readable | undefined = undefined
+          let validationDebugChannelClient:
+            | Readable
+            | ReadableStream<Uint8Array>
+            | undefined = undefined
           if (returnedDebugChannel) {
-            const [t1, t2] = returnedDebugChannel.clientSide.readable.tee()
-            returnedDebugChannel.clientSide.readable = t1
-            validationDebugChannelClient = nodeStreamFromReadableStream(t2)
+            const readable = returnedDebugChannel.clientSide.readable
+            if (readable instanceof ReadableStream) {
+              const [t1, t2] = readable.tee()
+              returnedDebugChannel.clientSide.readable = t1
+              validationDebugChannelClient = t2
+            } else {
+              // Node Readable: tee natively, no web→Node conversion needed
+              const [t1, t2] = teeNodeReadable(readable)
+              returnedDebugChannel.clientSide.readable = t1
+              validationDebugChannelClient = t2
+            }
           }
 
           consoleAsyncStorage.run(
@@ -2716,7 +2801,9 @@ async function renderToStream(
             validationDebugChannelClient
           )
 
-          reactServerResult = new ReactServerResult(serverStream)
+          reactServerResult = new ReactServerResult(serverStream, (fn) =>
+            workUnitAsyncStorage.run(finalRequestStore, fn)
+          )
           requestStore = finalRequestStore
           debugChannel = returnedDebugChannel
         } else {
@@ -2738,20 +2825,16 @@ async function renderToStream(
                 debugChannel: debugChannel?.serverSide,
               }
             )
-          reactServerResult = new ReactServerResult(serverStream)
+          reactServerResult = new ReactServerResult(serverStream, (fn) =>
+            workUnitAsyncStorage.run(requestStore, fn)
+          )
         }
 
         if (debugChannel && setReactDebugChannel) {
-          const [readableSsr, readableBrowser] =
-            debugChannel.clientSide.readable.tee()
-
-          reactDebugStream = readableSsr
-
-          setReactDebugChannel(
-            { readable: readableBrowser },
-            htmlRequestId,
-            requestId
-          )
+          const { ssrStream, browserChannel } =
+            teeDebugChannelForSsrAndBrowser(debugChannel)
+          reactDebugStream = ssrStream
+          setReactDebugChannel(browserChannel, htmlRequestId, requestId)
         }
       } else {
         // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
@@ -2767,18 +2850,16 @@ async function renderToStream(
         const debugChannel = setReactDebugChannel && createDebugChannel()
 
         if (debugChannel) {
-          const [readableSsr, readableBrowser] =
-            debugChannel.clientSide.readable.tee()
-
-          reactDebugStream = readableSsr
-
-          setReactDebugChannel(
-            { readable: readableBrowser },
-            htmlRequestId,
-            requestId
-          )
+          const { ssrStream, browserChannel } =
+            teeDebugChannelForSsrAndBrowser(debugChannel)
+          reactDebugStream = ssrStream
+          setReactDebugChannel(browserChannel, htmlRequestId, requestId)
         }
 
+        // Node stream callbacks can run outside the originating ALS scope, so
+        // preserve the request store explicitly for downstream handlers.
+        const runInContext = <T,>(fn: () => T): T =>
+          workUnitAsyncStorage.run(requestStore, fn)
         reactServerResult = new ReactServerResult(
           renderToFlightStream(
             ctx.componentMod,
@@ -2789,8 +2870,9 @@ async function renderToStream(
               onError: serverComponentsErrorHandler,
               debugChannel: debugChannel?.serverSide,
             },
-            (fn) => workUnitAsyncStorage.run(requestStore, fn)
-          )
+            runInContext
+          ),
+          runInContext
         )
       }
 
@@ -3184,7 +3266,12 @@ async function renderWithRestartOnCacheMissInDev(
       initialStageController.advanceStage(RenderStage.EarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = renderToFlightStream(
+      // teeNodeReadable installs event handlers (`data`/`drain`/`end`/`close`)
+      // that may execute outside the current ALS frame.
+      const runInContext = <T,>(fn: () => T): T =>
+        workUnitAsyncStorage.run(requestStore, fn)
+
+      const stream = renderToFlightStream(
         ComponentMod,
         initialRscPayload,
         clientModules,
@@ -3196,9 +3283,8 @@ async function renderWithRestartOnCacheMissInDev(
           debugChannel: debugChannel?.serverSide,
           signal: initialReactController.signal,
         },
-        (fn) => workUnitAsyncStorage.run(requestStore, fn)
-      ).tee()
-
+        runInContext
+      )
       // If we abort the render, we want to reject the stage-dependent promises as well.
       // Note that we want to install this listener after the render is started
       // so that it runs after react is finished running its abort code.
@@ -3206,20 +3292,41 @@ async function renderWithRestartOnCacheMissInDev(
         initialDataController.abort(initialReactController.signal.reason)
       })
 
-      const stream = streamPair[0]
+      if (
+        process.env.__NEXT_USE_NODE_STREAMS &&
+        !(stream instanceof ReadableStream)
+      ) {
+        const [continuationStream, accumulatingStream] = teeNodeReadable(
+          stream as import('node:stream').Readable,
+          runInContext
+        )
+        const accumulatedChunksPromise = accumulateNodeStreamChunks(
+          accumulatingStream,
+          initialStageController,
+          initialDataController.signal
+        )
+        return {
+          stream: continuationStream,
+          accumulatedChunksPromise,
+        }
+      }
+
+      const [continuationStream, accumulatingStream] = (
+        stream as ReadableStream<Uint8Array>
+      ).tee()
       const accumulatedChunksPromise = accumulateStreamChunks(
-        streamPair[1],
+        accumulatingStream,
         initialStageController,
         initialDataController.signal
       )
 
       initialDataController.signal.addEventListener('abort', () => {
         accumulatedChunksPromise.catch(() => {})
-        stream.cancel()
+        continuationStream.cancel()
       })
 
       return {
-        stream,
+        stream: continuationStream,
         accumulatedChunksPromise,
       }
     },
@@ -3331,7 +3438,12 @@ async function renderWithRestartOnCacheMissInDev(
       finalStageController.advanceStage(RenderStage.EarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = renderToFlightStream(
+      // teeNodeReadable installs event handlers (`data`/`drain`/`end`/`close`)
+      // that may execute outside the current ALS frame.
+      const runInContext = <T,>(fn: () => T): T =>
+        workUnitAsyncStorage.run(requestStore, fn)
+
+      const stream = renderToFlightStream(
         ComponentMod,
         finalRscPayload,
         clientModules,
@@ -3342,13 +3454,35 @@ async function renderWithRestartOnCacheMissInDev(
           filterStackFrame,
           debugChannel: debugChannel?.serverSide,
         },
-        (fn) => workUnitAsyncStorage.run(requestStore, fn)
-      ).tee()
+        runInContext
+      )
 
+      if (
+        process.env.__NEXT_USE_NODE_STREAMS &&
+        !(stream instanceof ReadableStream)
+      ) {
+        const [continuationStream, accumulatingStream] = teeNodeReadable(
+          stream as import('node:stream').Readable,
+          runInContext
+        )
+        const accumulatedChunksPromise = accumulateNodeStreamChunks(
+          accumulatingStream,
+          finalStageController,
+          null
+        )
+        return {
+          stream: continuationStream,
+          accumulatedChunksPromise,
+        }
+      }
+
+      const [continuationStream, accumulatingStream] = (
+        stream as ReadableStream<Uint8Array>
+      ).tee()
       return {
-        stream: streamPair[0],
+        stream: continuationStream,
         accumulatedChunksPromise: accumulateStreamChunks(
-          streamPair[1],
+          accumulatingStream,
           finalStageController,
           null
         ),
@@ -3453,6 +3587,64 @@ async function accumulateStreamChunks(
     // Only swallow errors caused by our intentional cancel();
     // re-throw unexpected errors to avoid silently returning partial data.
     if (!cancelled) {
+      throw err
+    }
+  }
+
+  return { staticChunks, runtimeChunks, dynamicChunks }
+}
+
+async function accumulateNodeStreamChunks(
+  stream: Readable,
+  stageController: StagedRenderingController,
+  signal: AbortSignal | null
+): Promise<AccumulatedStreamChunks> {
+  const staticChunks: Array<Uint8Array> = []
+  const runtimeChunks: Array<Uint8Array> = []
+  const dynamicChunks: Array<Uint8Array> = []
+
+  let destroyed = false
+  function destroy() {
+    if (!destroyed) {
+      destroyed = true
+      stream.destroy()
+    }
+  }
+
+  if (signal) {
+    signal.addEventListener('abort', destroy, { once: true })
+  }
+
+  try {
+    for await (const value of stream) {
+      if (destroyed) break
+      const chunk = value as Uint8Array
+      switch (stageController.currentStage) {
+        case RenderStage.Before:
+          throw new InvariantError(
+            'Unexpected stream chunk while in Before stage'
+          )
+        case RenderStage.Static:
+          staticChunks.push(chunk)
+        // fall through
+        case RenderStage.Runtime:
+          runtimeChunks.push(chunk)
+        // fall through
+        case RenderStage.Dynamic:
+          dynamicChunks.push(chunk)
+          break
+        case RenderStage.Abandoned:
+          break
+        default:
+          stageController.currentStage satisfies never
+          break
+      }
+    }
+  } catch (err) {
+    // When we destroy the stream we may reject the iteration.
+    // Only swallow errors caused by our intentional destroy();
+    // re-throw unexpected errors to avoid silently returning partial data.
+    if (!destroyed) {
       throw err
     }
   }
@@ -3577,7 +3769,14 @@ async function logMessagesAndSendErrorsToBrowser(
       { filterStackFrame }
     )
 
-    sendErrorsToBrowser(errorsFlightStream, htmlRequestId)
+    // sendErrorsToBrowser expects a web ReadableStream. In node-streams mode,
+    // renderToFlightStream returns a Node Readable, so convert it.
+    const errorsRscStream =
+      errorsFlightStream instanceof ReadableStream
+        ? errorsFlightStream
+        : nodeReadableToWeb!(errorsFlightStream as any)
+
+    sendErrorsToBrowser(errorsRscStream, htmlRequestId)
   }
 }
 
@@ -3639,7 +3838,7 @@ async function spawnStaticShellValidationInDevImpl(
   ctx: AppRenderContext,
   requestStore: RequestStore,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  debugChannelClient: Readable | undefined
+  debugChannelClient: Readable | ReadableStream<Uint8Array> | undefined
 ): Promise<void> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -3675,9 +3874,22 @@ async function spawnStaticShellValidationInDevImpl(
   let debugChunks: Uint8Array[] | null = null
   if (debugChannelClient) {
     debugChunks = []
-    debugChannelClient.on('data', (c) => {
-      debugChunks!.push(c)
-    })
+    if (debugChannelClient instanceof ReadableStream) {
+      // Web ReadableStream: pump via reader (non-nodestreams debug channel)
+      const reader = debugChannelClient.getReader()
+      ;(async () => {
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          debugChunks!.push(value)
+        }
+      })()
+    } else {
+      // Node Readable: use .on('data') event listener
+      debugChannelClient.on('data', (c) => {
+        debugChunks!.push(c)
+      })
+    }
   }
 
   const accumulatedChunks = await accumulatedChunksPromise
@@ -4418,7 +4630,7 @@ async function validateInstantConfigNavigation(
 }
 
 type PrerenderToStreamResult = {
-  stream: ReadableStream<Uint8Array>
+  stream: ReadableStream<Uint8Array> | Readable
   digestErrorsMap: Map<string, DigestedError>
   ssrErrors: Array<unknown>
   dynamicAccess?: null | Array<DynamicAccess>
@@ -4774,9 +4986,10 @@ async function prerenderToStream(
 
       let initialServerResult
       try {
-        initialServerResult = await createReactServerPrerenderResult(
-          pendingInitialServerResult
-        )
+        initialServerResult =
+          await createReactServerPrerenderResultFromPrerender(
+            pendingInitialServerResult
+          )
       } catch (err) {
         if (
           initialServerReactController.signal.aborted ||
@@ -4831,7 +5044,7 @@ async function prerenderToStream(
           getClientPrerender,
           // eslint-disable-next-line @next/internal/no-ambiguous-jsx
           <App
-            reactServerStream={initialServerResult.asUnclosingStream()}
+            reactServerStream={initialServerResult.asUnclosingFlightStream()}
             reactDebugStream={undefined}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
@@ -5097,7 +5310,7 @@ async function prerenderToStream(
               getClientPrerender,
               // eslint-disable-next-line @next/internal/no-ambiguous-jsx
               <App
-                reactServerStream={reactServerResult.asUnclosingStream()}
+                reactServerStream={reactServerResult.asUnclosingFlightStream()}
                 reactDebugStream={undefined}
                 debugEndTime={undefined}
                 preinitScripts={preinitScripts}
@@ -5175,7 +5388,9 @@ async function prerenderToStream(
         tracingMetadata: tracingMetadata,
       })
 
-      const flightData = await streamToBuffer(reactServerResult.asStream())
+      const flightData = await streamToBuffer(
+        reactServerResult.asFlightStream()
+      )
       metadata.flightData = flightData
       metadata.segmentData = await collectSegmentData(
         flightData,
@@ -5244,7 +5459,9 @@ async function prerenderToStream(
           )
         }
 
-        let htmlStream: ReadableStream<Uint8Array> = prelude
+        let htmlStream:
+          | ReadableStream<Uint8Array>
+          | import('node:stream').Readable = prelude
         if (postponed != null) {
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
@@ -5300,7 +5517,7 @@ async function prerenderToStream(
             )
           finalStream = await continueStaticFallbackPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataStream(
-              emptyReactServerResult.consumeAsStream(),
+              emptyReactServerResult.consumeAsFlightStream(),
               nonce,
               formState
             ),
@@ -5312,7 +5529,7 @@ async function prerenderToStream(
           // Normal static prerender case, no fallback param handling needed
           finalStream = await continueStaticPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataStream(
-              reactServerResult.consumeAsStream(),
+              reactServerResult.consumeAsFlightStream(),
               nonce,
               formState
             ),
@@ -5401,7 +5618,7 @@ async function prerenderToStream(
           getClientPrerender,
           // eslint-disable-next-line @next/internal/no-ambiguous-jsx
           <App
-            reactServerStream={reactServerResult.asUnclosingStream()}
+            reactServerStream={reactServerResult.asUnclosingFlightStream()}
             reactDebugStream={undefined}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
@@ -5427,7 +5644,9 @@ async function prerenderToStream(
       // After awaiting here we've waited for the entire RSC render to complete. Crucially this means
       // that when we detect whether we've used dynamic APIs below we know we'll have picked up even
       // parts of the React Server render that might not be used in the SSR render.
-      const flightData = await streamToBuffer(reactServerResult.asStream())
+      const flightData = await streamToBuffer(
+        reactServerResult.asFlightStream()
+      )
 
       if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
@@ -5532,7 +5751,9 @@ async function prerenderToStream(
           )
         }
 
-        let htmlStream: ReadableStream<Uint8Array> = prelude
+        let htmlStream:
+          | ReadableStream<Uint8Array>
+          | import('node:stream').Readable = prelude
         if (postponed != null) {
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
@@ -5564,7 +5785,7 @@ async function prerenderToStream(
           ssrErrors: allCapturedErrors,
           stream: await continueStaticPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataStream(
-              reactServerResult.consumeAsStream(),
+              reactServerResult.consumeAsFlightStream(),
               nonce,
               formState
             ),
@@ -5620,7 +5841,7 @@ async function prerenderToStream(
       const { stream: htmlStream } = await renderToFizzStream(
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <App
-          reactServerStream={reactServerResult.asUnclosingStream()}
+          reactServerStream={reactServerResult.asUnclosingFlightStream()}
           reactDebugStream={undefined}
           debugEndTime={undefined}
           preinitScripts={preinitScripts}
@@ -5637,7 +5858,9 @@ async function prerenderToStream(
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
-        const flightData = await streamToBuffer(reactServerResult.asStream())
+        const flightData = await streamToBuffer(
+          reactServerResult.asFlightStream()
+        )
         metadata.flightData = flightData
         metadata.segmentData = await collectSegmentData(
           flightData,
@@ -5659,7 +5882,7 @@ async function prerenderToStream(
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
           inlinedDataStream: createInlinedDataStream(
-            reactServerResult.consumeAsStream(),
+            reactServerResult.consumeAsFlightStream(),
             nonce,
             formState
           ),
@@ -5807,7 +6030,7 @@ async function prerenderToStream(
 
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(
-          reactServerPrerenderResult.asStream()
+          reactServerPrerenderResult.asFlightStream()
         )
         metadata.flightData = flightData
         metadata.segmentData = await collectSegmentData(
@@ -5820,7 +6043,7 @@ async function prerenderToStream(
 
       // This is intentionally using the readable datastream from the main
       // render rather than the flight data from the error page render
-      const flightStream = reactServerPrerenderResult.consumeAsStream()
+      const flightStream = reactServerPrerenderResult.consumeAsFlightStream()
 
       return {
         digestErrorsMap: reactServerErrorsByDigest,
@@ -5987,31 +6210,4 @@ function WarnForBypassCachesInDev({ route }: { route: string }) {
     `Route ${route} is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev`
   )
   return null
-}
-
-function nodeStreamFromReadableStream<T>(stream: ReadableStream<T>) {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      'nodeStreamFromReadableStream cannot be used in the edge runtime'
-    )
-  } else {
-    const reader = stream.getReader()
-
-    const { Readable } = require('node:stream') as typeof import('node:stream')
-
-    return new Readable({
-      read() {
-        reader
-          .read()
-          .then(({ done, value }) => {
-            if (done) {
-              this.push(null)
-            } else {
-              this.push(value)
-            }
-          })
-          .catch((err) => this.destroy(err))
-      },
-    })
-  }
 }

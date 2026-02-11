@@ -10,7 +10,7 @@ import type {
   FlightPayload,
   FlightClientModules,
   FlightRenderOptions,
-} from './stream-ops.web'
+} from './stream-ops.node'
 
 export type {
   AnyStream,
@@ -23,7 +23,7 @@ export type {
   FlightPayload,
   FlightClientModules,
   FlightRenderOptions,
-} from './stream-ops.web'
+} from './stream-ops.node'
 
 export type FizzStreamResult = {
   stream: AnyStream
@@ -58,7 +58,9 @@ type StreamOpsRuntimeModule = {
     prelude: AnyStream
     preludeIsEmpty: boolean
   }>
-  createDocumentClosingStream: () => AnyStream
+  createDocumentClosingStream: () =>
+    | ReadableStream<Uint8Array>
+    | import('node:stream').Readable
   createInlinedDataStream: (
     source: AnyStream,
     nonce: string | undefined,
@@ -109,7 +111,10 @@ type StreamOpsRuntimeModule = {
 
 let streamOpsRuntimeModule: StreamOpsRuntimeModule
 
-if (process.env.__NEXT_USE_NODE_STREAMS) {
+if (process.env.NEXT_RUNTIME === 'edge') {
+  streamOpsRuntimeModule =
+    require('./stream-ops.web') as typeof import('./stream-ops.web') as unknown as StreamOpsRuntimeModule
+} else if (process.env.__NEXT_USE_NODE_STREAMS) {
   streamOpsRuntimeModule =
     require('./stream-ops.node') as typeof import('./stream-ops.node') as unknown as StreamOpsRuntimeModule
 } else {
