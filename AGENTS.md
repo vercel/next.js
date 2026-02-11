@@ -39,6 +39,17 @@ The main Next.js framework lives in `packages/next/`. This is what gets publishe
 - `packages/font/` - `next/font` implementation
 - `packages/third-parties/` - Third-party script integrations
 
+### README files
+
+Before editing or creating files in any subdirectory (e.g., `packages/*`, `crates/*`), read all `README.md` files in the directory path from the repo root up to and including the target file's directory. This helps identify any local patterns, conventions, and documentation.
+
+**Example:** Before editing `turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/runtime/runtime-base.ts`, read:
+
+- `turbopack/README.md` (if exists)
+- `turbopack/crates/README.md` (if exists)
+- `turbopack/crates/turbopack-ecmascript-runtime/README.md` (if exists)
+- `turbopack/crates/turbopack-ecmascript-runtime/js/README.md` (if exists - closest to target file)
+
 ## Build Commands
 
 ```bash

@@ -27,8 +27,9 @@ import type {
   CompilationEvent,
   DefineEnv,
   Endpoint,
-  HmrIdentifiers,
+  HmrChunkNames,
   Lockfile,
+  NodeJsHmrUpdate,
   PartialProjectOptions,
   Project,
   ProjectOptions,
@@ -42,6 +43,11 @@ import type {
   WrittenEndpoint,
 } from './types'
 import { throwTurbopackInternalError } from '../../shared/lib/turbopack/internal-error'
+
+export enum HmrTarget {
+  Client = 'client',
+  Server = 'server',
+}
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -735,17 +741,39 @@ function bindingToApi(
       })()
     }
 
-    hmrEvents(identifier: string) {
-      return subscribe<TurbopackResult<Update>>(true, async (callback) =>
-        binding.projectHmrEvents(this._nativeProject, identifier, callback)
+    hmrEvents(
+      chunkName: string,
+      target: HmrTarget.Client
+    ): AsyncIterableIterator<TurbopackResult<Update>>
+    hmrEvents(
+      chunkName: string,
+      target: HmrTarget.Server
+    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+    hmrEvents(chunkName: string, target: HmrTarget.Client | HmrTarget.Server) {
+      return subscribe(true, async (callback) =>
+        binding.projectHmrEvents(
+          this._nativeProject,
+          chunkName,
+          target,
+          callback
+        )
       )
     }
 
-    hmrIdentifiersSubscribe() {
-      return subscribe<TurbopackResult<HmrIdentifiers>>(
+    /**
+     * Subscribe to the list of output chunk paths that can receive HMR updates.
+     * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
+     * or "_next/static/chunks/app/page.js" for client.
+     */
+    hmrChunkNamesSubscribe(target: HmrTarget) {
+      return subscribe<TurbopackResult<HmrChunkNames>>(
         false,
         async (callback) =>
-          binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
+          binding.projectHmrChunkNamesSubscribe(
+            this._nativeProject,
+            target,
+            callback
+          )
       )
     }
 
