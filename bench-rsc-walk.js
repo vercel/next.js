@@ -4,53 +4,19 @@
 // Tests the actual production code path through initializeModelChunk.
 //
 // Run: node --expose-gc bench-rsc-walk.js
+//
+// This benchmark uses require() (not vm.createContext) so both versions
+// run in the same V8 context — matching real-world conditions.
 
 const { performance } = require('perf_hooks')
 const fs = require('fs')
 const path = require('path')
 
-const BASE =
-  'packages/next/dist/compiled/react-server-dom-turbopack/cjs'
-const MODIFIED_FILE = path.join(BASE, 'react-server-dom-turbopack-client.node.production.js')
-const BACKUP_FILE = path.join(BASE, 'react-server-dom-turbopack-client.node.production.js.bak')
-
-// We can't require both files directly since they'd cache. Instead, we extract
-// the key functions using a sandboxed require via vm module.
-const vm = require('vm')
-
-function loadModule(filePath) {
-  const code = fs.readFileSync(filePath, 'utf8')
-  const mod = { exports: {} }
-  const sandbox = {
-    module: mod,
-    exports: mod.exports,
-    require: require,
-    console: console,
-    Error: Error,
-    Symbol: Symbol,
-    Promise: Promise,
-    Object: Object,
-    Array: Array,
-    Map: Map,
-    Set: Set,
-    Uint8Array: Uint8Array,
-    ArrayBuffer: ArrayBuffer,
-    DataView: DataView,
-    BigInt: BigInt,
-    parseInt: parseInt,
-    parseFloat: parseFloat,
-    Infinity: Infinity,
-    NaN: NaN,
-    isNaN: isNaN,
-    TextDecoder: require('util').TextDecoder,
-    global: {},
-    setTimeout: setTimeout,
-    queueMicrotask: queueMicrotask,
-  }
-  vm.createContext(sandbox)
-  vm.runInContext(code, sandbox, { filename: filePath })
-  return mod.exports
-}
+const BASE = 'packages/next/dist/compiled/react-server-dom-turbopack/cjs'
+const MODIFIED_FILE = path.resolve(
+  BASE,
+  'react-server-dom-turbopack-client.node.production.js'
+)
 
 // ─── Generate realistic RSC payloads ────────────────────────────────────────
 // These match what the server produces: each row is a JSON string that gets
@@ -77,19 +43,16 @@ function makeSmallPayload() {
 }
 
 function makeMediumPayload() {
-  // A page with nav + content
-  const navItems = ['Product', 'Features', 'Pricing', 'About'].map(
-    (name) => [
-      '$',
-      'a',
-      null,
-      {
-        href: '/' + name.toLowerCase(),
-        className: 'text-sm font-semibold leading-6 text-gray-900',
-        children: name,
-      },
-    ]
-  )
+  const navItems = ['Product', 'Features', 'Pricing', 'About'].map((name) => [
+    '$',
+    'a',
+    null,
+    {
+      href: '/' + name.toLowerCase(),
+      className: 'text-sm font-semibold leading-6 text-gray-900',
+      children: name,
+    },
+  ])
   return makeElementRow('main', {
     className: 'min-h-screen bg-white',
     children: [
@@ -128,7 +91,6 @@ function makeMediumPayload() {
 }
 
 function makeLargePayload() {
-  // 30-item list (common pattern: tables, feeds)
   const items = Array.from({ length: 30 }, (_, i) => [
     '$',
     'div',
@@ -174,7 +136,8 @@ function makeLargePayload() {
           {
             className:
               'inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700',
-            children: i % 3 === 0 ? 'Active' : i % 3 === 1 ? 'Pending' : 'Inactive',
+            children:
+              i % 3 === 0 ? 'Active' : i % 3 === 1 ? 'Pending' : 'Inactive',
           },
         ],
       ],
@@ -187,7 +150,6 @@ function makeLargePayload() {
 }
 
 function makeXLPayload() {
-  // Nested tree: simulates a complex dashboard
   function makeCard(i) {
     return [
       '$',
@@ -227,7 +189,7 @@ function makeXLPayload() {
                   null,
                   {
                     className: 'text-2xl font-bold',
-                    children: '' + (i * 1234),
+                    children: '' + i * 1234,
                   },
                 ],
                 [
@@ -284,6 +246,23 @@ function makeXLPayload() {
   })
 }
 
+function makeTablePayload(rowCount) {
+  const rows = Array.from({ length: rowCount }, (_, i) => [
+    '$',
+    'tr',
+    'row-' + i,
+    {
+      children: [
+        ['$', 'td', null, { children: '' + i }],
+        ['$', 'td', null, { children: 'Item ' + i }],
+      ],
+    },
+  ])
+  return makeElementRow('table', {
+    children: ['$', 'tbody', null, { children: rows }],
+  })
+}
+
 // ─── Benchmark infrastructure ───────────────────────────────────────────────
 
 const REACT_ELEMENT_TYPE = Symbol.for('react.transitional.element')
@@ -299,126 +278,15 @@ function countElements(obj) {
   return count
 }
 
-// Simulate what the RSC runtime does: create a response, resolve a chunk,
-// then initialize it (which triggers JSON.parse + reviver/walk).
-function createTestHarness(moduleExports) {
-  return function parsePayload(jsonString) {
-    // Create a minimal response using the module's exported createFromFetch
-    // infrastructure. We'll simulate the chunk resolution directly.
-    //
-    // The module doesn't export initializeModelChunk directly, but we can
-    // simulate the pipeline by creating a stream and feeding data.
+// ─── Load module via require() for same V8 context ──────────────────────────
+// We patch the file to export internals, save as temp file, and require() it.
+// This ensures both versions run in the same V8 context — no vm overhead.
 
-    // We'll use a simpler approach: create a response and manually trigger
-    // the parsing path via the public API.
-    return null // placeholder - we'll use a different approach
-  }
-}
-
-// Since the modules don't expose initializeModelChunk directly, we need a
-// different approach. We'll extract and benchmark the core functions.
-// The most accurate way: use the module's createFromReadableStream and feed
-// it real RSC wire-format data.
-
-function makeRSCStream(payloads) {
-  // RSC wire format: each row is "ID:TYPE_TAG:JSON\n" or "ID:JSON\n"
-  // For model rows (type 0, the default), format is just "ID:JSON\n"
-  const encoder = new TextEncoder()
-  const chunks = payloads.map((json, i) => {
-    // Row format: hex(id) ":" json "\n"
-    return encoder.encode(i.toString(16) + ':' + json + '\n')
-  })
-
-  let chunkIndex = 0
-  return new ReadableStream({
-    pull(controller) {
-      if (chunkIndex < chunks.length) {
-        controller.enqueue(chunks[chunkIndex++])
-      } else {
-        controller.close()
-      }
-    },
-  })
-}
-
-async function benchmarkModule(label, modulePath, payloads, iterations) {
-  // Clear require cache to get fresh module
-  delete require.cache[require.resolve(modulePath)]
-  const mod = require(modulePath)
-
-  // Warmup: parse all payloads a few times
-  for (let w = 0; w < Math.min(100, iterations); w++) {
-    for (const json of payloads) {
-      const stream = makeRSCStream([json])
-      const result = mod.createFromReadableStream(stream, {
-        serverConsumerManifest: {
-          moduleMap: null,
-          serverModuleMap: null,
-          moduleLoading: null,
-        },
-      })
-      try {
-        await result
-      } catch (e) {
-        // Chunks might not fully resolve in this simplified setup.
-        // That's OK — we're measuring the parse path.
-      }
-      // Small delay to let the stream complete
-      await new Promise((r) => setTimeout(r, 0))
-    }
-  }
-
-  if (global.gc) global.gc()
-
-  const times = []
-  for (let i = 0; i < iterations; i++) {
-    const start = performance.now()
-    for (const json of payloads) {
-      const stream = makeRSCStream([json])
-      const result = mod.createFromReadableStream(stream, {
-        serverConsumerManifest: {
-          moduleMap: null,
-          serverModuleMap: null,
-          moduleLoading: null,
-        },
-      })
-      // Don't await - we just want to measure the sync parse path
-      // The stream reading + initializeModelChunk is what we're measuring
-    }
-    // Let microtasks flush (stream reading is async)
-    await new Promise((r) => setTimeout(r, 0))
-    times.push(performance.now() - start)
-  }
-
-  times.sort((a, b) => a - b)
-  return {
-    label,
-    avg: times.reduce((a, b) => a + b, 0) / times.length,
-    p50: times[Math.floor(times.length * 0.5)],
-    p95: times[Math.floor(times.length * 0.95)],
-    min: times[0],
-  }
-}
-
-// ─── Alternative: direct function extraction benchmark ──────────────────────
-// More accurate — extracts the core functions and benchmarks them directly
-// without stream overhead.
-
-function extractCoreFunctions(filePath) {
+function loadWithInternalsExposed(filePath, tempSuffix) {
   const code = fs.readFileSync(filePath, 'utf8')
 
-  // We need to extract initializeModelChunk and its dependencies.
-  // The cleanest way: eval the module in a sandbox and expose internals.
-
-  const mod = { exports: {} }
-  const util = require('util')
-
-  // Patch the code to expose internals we need for benchmarking
-  const patchedCode =
-    code +
-    `
+  const patch = `
 ;(function() {
-  // Expose internals for benchmarking
   module.exports.__benchmark = {
     ResponseInstance: ResponseInstance,
     initializeModelChunk: initializeModelChunk,
@@ -427,85 +295,44 @@ function extractCoreFunctions(filePath) {
   };
 })();
 `
+  const dir = path.dirname(filePath)
+  const ext = path.extname(filePath)
+  const base = path.basename(filePath, ext)
+  const tempPath = path.join(dir, base + tempSuffix + ext)
+  fs.writeFileSync(tempPath, code + patch)
 
-  const script = new vm.Script(patchedCode, { filename: filePath })
-  const context = vm.createContext({
-    module: mod,
-    exports: mod.exports,
-    require: require,
-    console: console,
-    global: {},
-    process: { env: {} },
-    Error: Error,
-    TypeError: TypeError,
-    RangeError: RangeError,
-    Symbol: Symbol,
-    Promise: Promise,
-    Object: Object,
-    Array: Array,
-    Map: Map,
-    Set: Set,
-    WeakMap: WeakMap,
-    WeakRef: WeakRef,
-    FinalizationRegistry: FinalizationRegistry,
-    Uint8Array: Uint8Array,
-    ArrayBuffer: ArrayBuffer,
-    DataView: DataView,
-    BigInt: BigInt,
-    parseInt: parseInt,
-    parseFloat: parseFloat,
-    Infinity: Infinity,
-    NaN: NaN,
-    isNaN: isNaN,
-    setTimeout: setTimeout,
-    clearTimeout: clearTimeout,
-    queueMicrotask: queueMicrotask,
-    TextDecoder: util.TextDecoder,
-    ReadableStream: typeof ReadableStream !== 'undefined' ? ReadableStream : undefined,
-    Headers: typeof Headers !== 'undefined' ? Headers : undefined,
-    Blob: typeof Blob !== 'undefined' ? Blob : undefined,
-    FormData: typeof FormData !== 'undefined' ? FormData : undefined,
-    Date: Date,
-    RegExp: RegExp,
-    JSON: JSON,
-    Math: Math,
-    String: String,
-    Number: Number,
-    Boolean: Boolean,
-    Proxy: Proxy,
-    Reflect: Reflect,
-    encodeURIComponent: encodeURIComponent,
-    decodeURIComponent: decodeURIComponent,
-  })
-
-  script.runInContext(context)
-  return mod.exports.__benchmark
+  try {
+    // Clear cache in case of re-runs
+    delete require.cache[require.resolve(tempPath)]
+    const mod = require(tempPath)
+    return mod.__benchmark
+  } finally {
+    // Clean up temp file
+    try {
+      fs.unlinkSync(tempPath)
+    } catch (e) {}
+  }
 }
 
-function directBenchmark(label, internals, payloads, iterations) {
-  const { ResponseInstance, initializeModelChunk, ReactPromise, getChunk } = internals
+// ─── Direct benchmark ───────────────────────────────────────────────────────
 
-  // Create a response instance
+function directBenchmark(label, internals, payloads, iterations) {
+  const { ResponseInstance, initializeModelChunk, ReactPromise } = internals
+
   function makeResponse() {
     return new ResponseInstance(
-      null, // bundlerConfig
-      null, // serverReferenceConfig
-      null, // moduleLoading
-      undefined, // callServer
-      undefined, // encodeFormAction
-      undefined, // nonce
-      undefined // temporaryReferences
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      undefined,
+      undefined
     )
   }
 
-  // Simulate how initializeModelChunk is called:
-  // 1. A chunk is created with status "resolved_model"
-  // 2. chunk.value = JSON string, chunk.reason = response
-  // 3. initializeModelChunk(chunk) is called
-
   function createResolvedModelChunk(response, json) {
-    const chunk = new ReactPromise('resolved_model', json, response)
-    return chunk
+    return new ReactPromise('resolved_model', json, response)
   }
 
   // Correctness check
@@ -525,7 +352,7 @@ function directBenchmark(label, internals, payloads, iterations) {
   }
   if (global.gc) global.gc()
 
-  // Measure
+  // Measure in batches
   const times = []
   const batchSize = 100
   const batches = Math.ceil(iterations / batchSize)
@@ -556,7 +383,7 @@ function directBenchmark(label, internals, payloads, iterations) {
 
 // ─── Main ───────────────────────────────────────────────────────────────────
 
-async function main() {
+function main() {
   console.log('React Server DOM — reviver vs walk benchmark')
   console.log(`Node.js ${process.version}`)
   console.log(`Date: ${new Date().toISOString()}`)
@@ -564,17 +391,48 @@ async function main() {
     `GC exposed: ${typeof global.gc === 'function' ? 'yes' : 'no (use --expose-gc)'}`
   )
 
-  console.log('\nLoading modules...')
-  const origInternals = extractCoreFunctions(path.resolve(BACKUP_FILE))
-  const walkInternals = extractCoreFunctions(path.resolve(MODIFIED_FILE))
+  const BACKUP_FILE = path.resolve(
+    BASE,
+    'react-server-dom-turbopack-client.node.production.js.bak'
+  )
+
+  if (!fs.existsSync(BACKUP_FILE)) {
+    console.error(
+      `\nERROR: Backup file not found: ${BACKUP_FILE}\n` +
+        `Create it with the original (unmodified) version:\n` +
+        `  git show HEAD~2:packages/next/src/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.production.js > ${BACKUP_FILE}`
+    )
+    process.exit(1)
+  }
+
+  console.log('\nLoading modules via require() (same V8 context)...')
+  const origInternals = loadWithInternalsExposed(BACKUP_FILE, '.orig-bench')
+  const walkInternals = loadWithInternalsExposed(MODIFIED_FILE, '.walk-bench')
   console.log('  Original (reviver): loaded')
   console.log('  Modified (walk): loaded')
 
   const suites = [
-    { name: 'Small (2 elements)', payloads: [makeSmallPayload()], iters: 50000 },
-    { name: 'Medium (~12 elements)', payloads: [makeMediumPayload()], iters: 20000 },
-    { name: 'Large (~90 elements)', payloads: [makeLargePayload()], iters: 5000 },
+    {
+      name: 'Small (2 elements)',
+      payloads: [makeSmallPayload()],
+      iters: 50000,
+    },
+    {
+      name: 'Medium (~12 elements)',
+      payloads: [makeMediumPayload()],
+      iters: 20000,
+    },
+    {
+      name: 'Large (~90 elements)',
+      payloads: [makeLargePayload()],
+      iters: 5000,
+    },
     { name: 'XL (~200 elements)', payloads: [makeXLPayload()], iters: 2000 },
+    {
+      name: 'Table (1000 rows)',
+      payloads: [makeTablePayload(1000)],
+      iters: 500,
+    },
   ]
 
   for (const suite of suites) {
@@ -623,7 +481,4 @@ async function main() {
   console.log(`${'═'.repeat(82)}`)
 }
 
-main().catch((e) => {
-  console.error(e)
-  process.exit(1)
-})
+main()

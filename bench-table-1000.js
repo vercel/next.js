@@ -186,7 +186,13 @@ function runBench(label, internals, jsonPayload, iterations) {
 
   function makeResponse() {
     return new ResponseInstance(
-      null, null, null, undefined, undefined, undefined, undefined
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      undefined,
+      undefined
     )
   }
 
@@ -265,7 +271,9 @@ function printResults(suite, results) {
 
 console.log('<Table> RSC payload benchmark — reviver vs walk')
 console.log(`Node.js ${process.version}`)
-console.log(`GC: ${typeof global.gc === 'function' ? 'yes' : 'no (use --expose-gc)'}`)
+console.log(
+  `GC: ${typeof global.gc === 'function' ? 'yes' : 'no (use --expose-gc)'}`
+)
 console.log()
 
 console.log('Loading variants...')
@@ -280,31 +288,22 @@ console.log(`  1000 rows: ${(payload1000.length / 1024).toFixed(1)} KB`)
 console.log(`  5000 rows: ${(payload5000.length / 1024).toFixed(1)} KB`)
 
 // --- 100 rows ---
-printResults(
-  'Table with 100 rows (baseline)',
-  [
-    runBench('Original (reviver)', origInternals, payload100, 10000),
-    runBench('Walk', walkInternals, payload100, 10000),
-  ]
-)
+printResults('Table with 100 rows (baseline)', [
+  runBench('Original (reviver)', origInternals, payload100, 10000),
+  runBench('Walk', walkInternals, payload100, 10000),
+])
 
 // --- 1000 rows ---
-printResults(
-  'Table with 1,000 rows',
-  [
-    runBench('Original (reviver)', origInternals, payload1000, 2000),
-    runBench('Walk', walkInternals, payload1000, 2000),
-  ]
-)
+printResults('Table with 1,000 rows', [
+  runBench('Original (reviver)', origInternals, payload1000, 2000),
+  runBench('Walk', walkInternals, payload1000, 2000),
+])
 
 // --- 5000 rows ---
-printResults(
-  'Table with 5,000 rows',
-  [
-    runBench('Original (reviver)', origInternals, payload5000, 500),
-    runBench('Walk', walkInternals, payload5000, 500),
-  ]
-)
+printResults('Table with 5,000 rows', [
+  runBench('Original (reviver)', origInternals, payload5000, 500),
+  runBench('Walk', walkInternals, payload5000, 500),
+])
 
 // Cleanup temp file
 try {

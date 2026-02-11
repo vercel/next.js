@@ -134,8 +134,8 @@ function createFromJSONCallback_A(response) {
               (initializingHandler_A = value.parent),
               value.errored)
             )
-              (key = new ReactPromise('rejected', null, value.reason)),
-                (key = createLazyChunkWrapper(key))
+              ((key = new ReactPromise('rejected', null, value.reason)),
+                (key = createLazyChunkWrapper(key)))
             else if (0 < value.deps) {
               var blockedChunk = new ReactPromise('blocked', null, null)
               value.value = key
@@ -279,10 +279,7 @@ function createFromJSONCallback_C(response) {
             createLazyChunkWrapper(response)
           )
         case 64:
-          return (
-            (key = parseInt(value.slice(2), 16)),
-            getChunk(response, key)
-          )
+          return ((key = parseInt(value.slice(2), 16)), getChunk(response, key))
         case 83:
           return Symbol.for(value.slice(2))
         case 73:
@@ -375,13 +372,7 @@ function postProcessWalk(response, obj) {
       case 110:
         return BigInt(obj.slice(2))
       default:
-        return getOutlinedModel(
-          response,
-          obj.slice(1),
-          null,
-          '',
-          createModel
-        )
+        return getOutlinedModel(response, obj.slice(1), null, '', createModel)
     }
   }
   if (typeof obj !== 'object' || obj === null) return obj
@@ -469,13 +460,7 @@ function reviverFn_F(key, value) {
       default:
         return (
           (value = value.slice(1)),
-          getOutlinedModel(
-            currentResponse_F,
-            value,
-            this,
-            key,
-            createModel
-          )
+          getOutlinedModel(currentResponse_F, value, this, key, createModel)
         )
     }
   }
@@ -752,21 +737,30 @@ function runSuite(payloadName, payload, iterations) {
       name: 'A: Original (prod)',
       fn: () => {
         initializingHandler_A = null
-        return JSON.parse(payload, createFromJSONCallback_A(createMockResponse()))
+        return JSON.parse(
+          payload,
+          createFromJSONCallback_A(createMockResponse())
+        )
       },
     },
     {
       name: 'B: charCodeAt+earlyRet',
       fn: () => {
         initializingHandler_B = null
-        return JSON.parse(payload, createFromJSONCallback_B(createMockResponse()))
+        return JSON.parse(
+          payload,
+          createFromJSONCallback_B(createMockResponse())
+        )
       },
     },
     {
       name: 'C: Fully inlined',
       fn: () => {
         initializingHandler_C = null
-        return JSON.parse(payload, createFromJSONCallback_C(createMockResponse()))
+        return JSON.parse(
+          payload,
+          createFromJSONCallback_C(createMockResponse())
+        )
       },
     },
     {
@@ -818,8 +812,7 @@ function runSuite(payloadName, payload, iterations) {
 
   // Show reviver overhead vs bare JSON.parse
   const baseline = results[results.length - 1]
-  const origOverhead =
-    ((results[0].avg - baseline.avg) / baseline.avg) * 100
+  const origOverhead = ((results[0].avg - baseline.avg) / baseline.avg) * 100
   console.log(
     `\n  Reviver overhead vs bare JSON.parse: +${origOverhead.toFixed(1)}%`
   )
@@ -837,13 +830,22 @@ function runParseModelStringMicro() {
   const parentObj = {}
 
   const plainStrings = [
-    'div', 'span', 'p', 'h1', 'h2', 'a', 'button',
+    'div',
+    'span',
+    'p',
+    'h1',
+    'h2',
+    'a',
+    'button',
     'text-sm font-medium leading-6 text-gray-900',
     'flex items-center justify-between gap-x-6 py-5',
     'mx-auto max-w-2xl text-center',
     'Hello World',
     'Some longer text content that appears in a paragraph',
-    '/api/data', '/getting-started', 'container', 'main-content',
+    '/api/data',
+    '/getting-started',
+    'container',
+    'main-content',
     'inline-flex items-center rounded-md bg-green-50 px-2 py-1',
     'border-b border-gray-200 py-4',
     'text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl',
@@ -851,7 +853,8 @@ function runParseModelStringMicro() {
   ]
 
   const testValues = []
-  for (let i = 0; i < 600; i++) testValues.push(plainStrings[i % plainStrings.length])
+  for (let i = 0; i < 600; i++)
+    testValues.push(plainStrings[i % plainStrings.length])
   for (let i = 0; i < 150; i++) testValues.push('$')
   for (let i = 0; i < 200; i++) testValues.push('$' + (i % 64).toString(16))
   for (let i = 0; i < 50; i++)
@@ -876,14 +879,16 @@ function runParseModelStringMicro() {
   for (const { name, fn } of parsers) {
     // Warmup
     for (let w = 0; w < 500; w++) {
-      for (let i = 0; i < testValues.length; i++) fn(response, parentObj, '0', testValues[i])
+      for (let i = 0; i < testValues.length; i++)
+        fn(response, parentObj, '0', testValues[i])
     }
     if (global.gc) global.gc()
 
     const times = []
     for (let b = 0; b < iterations; b++) {
       const start = performance.now()
-      for (let i = 0; i < testValues.length; i++) fn(response, parentObj, '0', testValues[i])
+      for (let i = 0; i < testValues.length; i++)
+        fn(response, parentObj, '0', testValues[i])
       times.push(performance.now() - start)
     }
     times.sort((a, b) => a - b)
@@ -895,14 +900,17 @@ function runParseModelStringMicro() {
     })
   }
 
-  console.log(`  ${testValues.length} calls per iteration, ${iterations} iterations\n`)
+  console.log(
+    `  ${testValues.length} calls per iteration, ${iterations} iterations\n`
+  )
   console.log(
     `  ${'Variant'.padEnd(20)} ${'Avg (ms)'.padStart(10)} ${'P50 (ms)'.padStart(10)} ${'Min (ms)'.padStart(10)} ${'vs Orig'.padStart(9)}`
   )
   console.log(`  ${'-'.repeat(59)}`)
   for (const r of allResults) {
     const sp = ((allResults[0].avg - r.avg) / allResults[0].avg) * 100
-    const spStr = r === allResults[0] ? '     -' : `${sp > 0 ? '+' : ''}${sp.toFixed(1)}%`
+    const spStr =
+      r === allResults[0] ? '     -' : `${sp > 0 ? '+' : ''}${sp.toFixed(1)}%`
     console.log(
       `  ${r.name.padEnd(20)} ${r.avg.toFixed(4).padStart(10)} ${r.p50.toFixed(4).padStart(10)} ${r.min.toFixed(4).padStart(10)} ${spStr.padStart(9)}`
     )
