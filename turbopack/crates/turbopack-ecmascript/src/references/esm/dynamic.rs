@@ -103,7 +103,7 @@ impl ModuleReference for EsmAsyncAssetReference {
         Vc::cell(Some(ChunkingType::Async))
     }
 
-        #[turbo_tasks::function]
+    #[turbo_tasks::function]
     fn binding_usage(&self) -> Vc<BindingUsage> {
         let export = match &self.export_names {
             None => ExportUsage::All,
