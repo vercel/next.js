@@ -498,6 +498,7 @@ ${ENDGROUP}`)
         '--runInBand',
         '--forceExit',
         '--verbose',
+        ...(isRetry ? ['--no-cache'] : []),
         ...(isTestJob
           ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
           : []),
