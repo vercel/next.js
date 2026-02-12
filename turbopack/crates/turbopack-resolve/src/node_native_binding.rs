@@ -33,7 +33,7 @@ struct NodePreGypConfig {
 
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug, ValueToString)]
-#[value_to_string("node-gyp in {} with {} for {}", self.context_dir.value_to_string().await?, self.config_file_pattern, self.compile_target.await?)]
+#[value_to_string("node-gyp in {context_dir} with {config_file_pattern} for {compile_target}")]
 pub struct NodePreGypConfigReference {
     pub context_dir: FileSystemPath,
     pub config_file_pattern: ResolvedVc<Pattern>,
@@ -217,7 +217,7 @@ async fn resolve_node_pre_gyp_files(
 
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug, ValueToString)]
-#[value_to_string("node-gyp in {} for {}", self.context_dir.value_to_string().await?, self.compile_target.await?)]
+#[value_to_string("node-gyp in {context_dir} for {compile_target}")]
 pub struct NodeGypBuildReference {
     pub context_dir: FileSystemPath,
     collect_affecting_sources: bool,
@@ -339,7 +339,7 @@ async fn resolve_node_gyp_build_files(
 
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug, ValueToString)]
-#[value_to_string("bindings in {}", self.context_dir.value_to_string().await?)]
+#[value_to_string("bindings in {context_dir}")]
 pub struct NodeBindingsReference {
     pub context_dir: FileSystemPath,
     pub file_name: RcStr,

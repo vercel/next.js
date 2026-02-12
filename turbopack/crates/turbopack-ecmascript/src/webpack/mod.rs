@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::ecma::ast::Lit;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     file_source::FileSource,
@@ -70,13 +70,23 @@ impl Module for WebpackModuleAsset {
 
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
-#[value_to_string("webpack chunk {}", {match &self.chunk_id { Lit::Str(str) => str.value.to_string_lossy().into_owned(), Lit::Num(num) => format!("{num}"), _ => todo!() }})]
+#[value_to_string("webpack chunk {}", self.chunk_id())]
 pub struct WebpackChunkAssetReference {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     pub chunk_id: Lit,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+}
+
+impl WebpackChunkAssetReference {
+    pub fn chunk_id(&self) -> RcStr {
+        match &self.chunk_id {
+            Lit::Str(s) => RcStr::from(s.value.to_string_lossy().to_string()),
+            Lit::Num(n) => RcStr::from(n.to_string()),
+            _ => panic!("Unexpected literal type"),
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]

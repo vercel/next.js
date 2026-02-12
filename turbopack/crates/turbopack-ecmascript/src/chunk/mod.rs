@@ -176,16 +176,6 @@ impl Chunk for EcmascriptChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptChunk {
-    #[turbo_tasks::function]
-    async fn to_string(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("chunk {}", self.ident().to_string().await?).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl EcmascriptChunk {
     #[turbo_tasks::function]
     pub fn chunk_content(&self) -> Vc<EcmascriptChunkContent> {

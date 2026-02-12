@@ -21,10 +21,19 @@ pub trait ValueToString {
 /// Provides async string conversion with a blanket implementation for `Display`
 /// types. `Vc<T>` and `ResolvedVc<T>` have specialized implementations that
 /// await the inner value's `ValueToString` implementation.
+///
+/// Note that these methods are inlined and these function calls are only used for
+/// effecient macro codegen.
+#[doc(hidden)]
 pub trait ValueToStringify {
     fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send;
+    fn is_async() -> bool {
+        true
+    }
 }
 
+/// Used only for macro codegen.
+#[doc(hidden)]
 pub enum StringifyType {
     RcStr(ReadRef<RcStr>),
     String(String),
@@ -60,6 +69,10 @@ impl<T: Display + Send + Sync> ValueToStringify for T {
     fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
         let s = self.to_string();
         async move { Ok(StringifyType::String(s)) }
+    }
+    #[inline(always)]
+    fn is_async() -> bool {
+        false
     }
 }
 

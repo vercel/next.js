@@ -307,7 +307,7 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
 
 #[turbo_tasks::value]
 #[derive(ValueToString)]
-#[value_to_string({match self.worker_type { WorkerType::WebWorker => "web worker module", WorkerType::NodeWorkerThread => "node worker thread module", WorkerType::SharedWebWorker => "shared web worker module" }})]
+#[value_to_string("{} module", self.worker_type.friendly_str())]
 struct WorkerModuleReference {
     module: ResolvedVc<Box<dyn Module>>,
     worker_type: WorkerType,

@@ -61,7 +61,7 @@ impl ModuleReferences {
 /// A reference that always resolves to a single module.
 #[turbo_tasks::value]
 #[derive(ValueToString)]
-#[value_to_string("{description}")]
+#[value_to_string(self.description)]
 pub struct SingleModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
     description: RcStr,
@@ -93,7 +93,7 @@ impl SingleModuleReference {
 
 #[turbo_tasks::value]
 #[derive(ValueToString)]
-#[value_to_string("{description}")]
+#[value_to_string(self.description)]
 pub struct SingleChunkableModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
     description: RcStr,
@@ -144,7 +144,7 @@ impl ModuleReference for SingleChunkableModuleReference {
 /// A reference that always resolves to a single module.
 #[turbo_tasks::value]
 #[derive(ValueToString)]
-#[value_to_string("{description}")]
+#[value_to_string(self.description)]
 pub struct SingleOutputAssetReference {
     asset: ResolvedVc<Box<dyn OutputAsset>>,
     description: RcStr,

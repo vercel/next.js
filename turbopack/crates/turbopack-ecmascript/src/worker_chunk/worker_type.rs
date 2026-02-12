@@ -27,6 +27,14 @@ impl WorkerType {
         }
     }
 
+    pub fn friendly_str(&self) -> RcStr {
+        match self {
+            WorkerType::WebWorker => rcstr!("web worker"),
+            WorkerType::SharedWebWorker => rcstr!("shared web worker"),
+            WorkerType::NodeWorkerThread => rcstr!("node worker thread"),
+        }
+    }
+
     pub fn reference_type(&self) -> ReferenceType {
         ReferenceType::Worker(match self {
             WorkerType::WebWorker => WorkerReferenceSubType::WebWorker,
