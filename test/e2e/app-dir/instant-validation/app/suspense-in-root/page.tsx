@@ -12,7 +12,10 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/runtime/suspense-around-dynamic" />
         </li>
         <li>
-          <DebugLinks href="/suspense-in-root/runtime/no-suspense-around-params/123" />
+          <DebugLinks href="/suspense-in-root/runtime/valid-no-suspense-around-params/123" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/valid-no-suspense-around-search-params?foo=bar" />
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/runtime/missing-suspense-around-dynamic" />
@@ -47,6 +50,9 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/static/missing-suspense-around-params/123" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/missing-suspense-around-search-params?foo=bar" />
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/static/missing-suspense-around-dynamic-layout" />

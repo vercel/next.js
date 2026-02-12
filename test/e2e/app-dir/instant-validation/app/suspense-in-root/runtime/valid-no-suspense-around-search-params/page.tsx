@@ -7,15 +7,16 @@ export const unstable_instant = {
 }
 
 export default async function Page({
-  params,
+  searchParams,
 }: {
-  params: Promise<{ param: string }>
+  searchParams: Promise<Record<string, string | string[]>>
 }) {
+  const search = await searchParams
   return (
     <main>
       <div>
         <p>Params don't need a suspense boundary when runtime-prefetched:</p>
-        <Runtime params={params} />
+        <div id="runtime-content">Search: {JSON.stringify(search)}</div>
       </div>
 
       <div>
@@ -26,11 +27,6 @@ export default async function Page({
       </div>
     </main>
   )
-}
-
-async function Runtime({ params }: { params: Promise<{ param: string }> }) {
-  const { param } = await params
-  return <div id="runtime-content">Param value: {param}</div>
 }
 
 async function Dynamic() {
