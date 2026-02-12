@@ -232,7 +232,6 @@ import {
   anySegmentNeedsInstantValidation,
 } from './instant-validation/instant-config'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
-import { extractStaleTimeFromLoaderTree } from './extract-stale-time-from-loader-tree'
 import {
   createDebugChannel,
   type DebugChannelPair,
@@ -705,18 +704,6 @@ async function generateDynamicFlightRenderResult(
 
   if (debugChannel) {
     setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
-  }
-
-  // Extract staleTime for dynamic pages if not already set by createComponentTree.
-  // This handles cases where walkTreeWithFlightRouterState short-circuits for
-  // prefetch requests without a loading component.
-  if (requestStore.stale === undefined) {
-    const extractedStaleTime = await extractStaleTimeFromLoaderTree(
-      ctx.componentMod.routeModule.userland.loaderTree
-    )
-    if (typeof extractedStaleTime === 'number') {
-      requestStore.stale = extractedStaleTime
-    }
   }
 
   const { clientModules } = getClientReferenceManifest()

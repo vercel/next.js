@@ -1046,6 +1046,5 @@
   "1045": "LRUCache: calculateSize returned %s%s, but size must be > 0. Items with size 0 would never be evicted, causing unbounded cache growth.",
   "1046": "`draftMode` must not be used within a Client Component. Next.js should be preventing `draftMode` from being included in Client Components statically, but did not in this case.",
   "1047": "Extra keys returned from getStaticPaths in %s (%s) Expected: { paths: [], fallback: boolean }\\nSee here for more info: https://nextjs.org/docs/messages/invalid-getstaticpaths-value",
-  "1048": "\\`unstable_staleTime\\` is only supported in pages, but you're using it in a layout. Please remove it.",
-  "1049": "Page \"%s\" cannot use \\`export const unstable_staleTime = ...\\` when \\`cacheComponents\\` is enabled."
+  "1048": "\\`unstable_staleTime\\` is only supported in page files (\\`page.js\\`, \\`page.jsx\\`, \\`page.ts\\`, \\`page.tsx\\`). You are using it in a layout file. Move this export to the corresponding page file or remove it from the layout."
 }

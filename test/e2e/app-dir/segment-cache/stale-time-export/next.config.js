@@ -2,7 +2,7 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  // NO cacheComponents - export const unstable_staleTime doesn't work with cacheComponents
+  // Baseline config used for stale-time assertions.
   experimental: {
     staleTimes: {
       dynamic: 30,

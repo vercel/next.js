@@ -11,19 +11,19 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::{
+        DUMMY_SP, FileName, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        utils::{ExprFactory, prepend_stmts, quote_ident, quote_str},
         visit::{
-            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
-            VisitWith,
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
         },
     },
 };
@@ -370,7 +370,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             vec![span],
         ),
         RSCErrorKind::NextRscErrStaleTimeInLayout(span) => (
-            "`unstable_staleTime` is only supported in pages, but you're using it in a layout. Please remove it."
+            "`unstable_staleTime` is only supported in page files (`page.js`, `page.jsx`, `page.ts`, `page.tsx`). You are using it in a layout file. Move this export to the corresponding page file or remove it from the layout."
                 .to_string(),
             vec![span],
         ),
@@ -952,17 +952,7 @@ impl ReactServerComponentValidator {
                         }
                     }
                     "unstable_staleTime" => {
-                        if self.cache_components_enabled {
-                            possibly_invalid_exports.insert(
-                                export_name.clone(),
-                                (
-                                    InvalidExportKind::RouteSegmentConfig(
-                                        NextConfigProperty::CacheComponents,
-                                    ),
-                                    *span,
-                                ),
-                            );
-                        } else if is_layout {
+                        if is_layout {
                             possibly_invalid_exports.insert(
                                 export_name.clone(),
                                 (InvalidExportKind::StaleTimeInLayout, *span),

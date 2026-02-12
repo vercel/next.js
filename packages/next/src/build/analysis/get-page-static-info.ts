@@ -690,16 +690,10 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  if ('unstable_staleTime' in config && nextConfig.cacheComponents) {
-    throw new Error(
-      `Page "${page}" cannot use \`export const unstable_staleTime = ...\` when \`cacheComponents\` is enabled.`
-    )
-  }
-
   // unstable_staleTime is only supported on page segments, not layouts
   if ('unstable_staleTime' in config && /\/layout\.[^/]+$/.test(pageFilePath)) {
     throw new Error(
-      `\`unstable_staleTime\` is only supported in pages, but you're using it in a layout. Please remove it.`
+      `\`unstable_staleTime\` is only supported in page files (\`page.js\`, \`page.jsx\`, \`page.ts\`, \`page.tsx\`). You are using it in a layout file. Move this export to the corresponding page file or remove it from the layout.`
     )
   }
 

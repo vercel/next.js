@@ -3,6 +3,12 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 import { retry } from 'next-test-utils'
 import { outdent } from 'outdent'
+import {
+  NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_ROUTER_STALE_TIME_HEADER,
+  RSC_HEADER,
+} from 'next/dist/client/components/app-router-headers'
 
 const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
@@ -75,6 +81,24 @@ describe('segment cache - export const unstable_staleTime', () => {
     )
   })
 
+  it('does not apply unstable_staleTime when route-tree prefetch short-circuits', async () => {
+    const response = await next.fetch('/stale-5-minutes', {
+      headers: {
+        [RSC_HEADER]: '1',
+        [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+        [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/_tree',
+      },
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)).toBeNull()
+
+    const prefetchResponse = await response.text()
+    expect(prefetchResponse).not.toContain(
+      'Page with unstable_staleTime = 300 (5 minutes)'
+    )
+  })
+
   // TODO: Test for caching unstable_staleTime on navigation without prefetch
   //
   // Currently, navigation responses (without prefetch) cache the route tree
@@ -129,7 +153,7 @@ describe('unstable_staleTime - layout build error', () => {
 
         await retry(async () => {
           expect(next.cliOutput).toContain(
-            "`unstable_staleTime` is only supported in pages, but you're using it in a layout. Please remove it."
+            '`unstable_staleTime` is only supported in page files (`page.js`, `page.jsx`, `page.ts`, `page.tsx`). You are using it in a layout file. Move this export to the corresponding page file or remove it from the layout.'
           )
         })
       }
@@ -137,8 +161,8 @@ describe('unstable_staleTime - layout build error', () => {
   })
 })
 
-describe('unstable_staleTime - cacheComponents build error', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+describe('unstable_staleTime - cacheComponents', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
@@ -148,7 +172,7 @@ describe('unstable_staleTime - cacheComponents build error', () => {
     return
   }
 
-  it('should error when unstable_staleTime is used with cacheComponents', async () => {
+  it('should allow unstable_staleTime when cacheComponents is enabled', async () => {
     await next.patchFile(
       'next.config.js',
       outdent`
@@ -157,29 +181,26 @@ describe('unstable_staleTime - cacheComponents build error', () => {
         }
       `,
       async () => {
-        try {
-          await next.start()
-        } catch {
-          // we expect the build/start to fail
-        }
+        await next.start()
 
         if (isNextDev) {
-          // In dev mode, we need to trigger the compilation by visiting a page
-          // with unstable_staleTime
+          // In dev mode, trigger compilation and ensure the route is served.
           await next.fetch('/stale-5-minutes')
+          expect(next.cliOutput).not.toContain(
+            'cannot use `export const unstable_staleTime = ...` when `cacheComponents` is enabled.'
+          )
+          expect(next.cliOutput).not.toContain(
+            '"unstable_staleTime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+          )
+        } else {
+          const pageMeta = JSON.parse(
+            await next.readFile('.next/server/app/stale-5-minutes.meta')
+          )
+          expect(pageMeta.headers['x-nextjs-stale-time']).toBe('300')
         }
 
-        await retry(async () => {
-          if (isTurbopack) {
-            expect(next.cliOutput).toContain(
-              '"unstable_staleTime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
-            )
-          } else {
-            expect(next.cliOutput).toContain(
-              'cannot use `export const unstable_staleTime = ...` when `cacheComponents` is enabled.'
-            )
-          }
-        })
+        const response = await next.fetch('/stale-5-minutes')
+        expect(response.status).toBe(200)
       }
     )
   })

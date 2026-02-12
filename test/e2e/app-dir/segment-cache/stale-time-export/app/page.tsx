@@ -5,8 +5,7 @@ export default function Page() {
     <>
       <p>
         Tests for export const unstable_staleTime segment config. This test
-        suite does NOT use cacheComponents, as unstable_staleTime segment config
-        is not supported with cacheComponents.
+        suite verifies stale-time behavior with and without cacheComponents.
       </p>
       <ul>
         <li>
