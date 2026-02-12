@@ -28,7 +28,7 @@ async fn test_simple_task() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
+                "task_statistics::double": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
@@ -50,7 +50,7 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
+                "task_statistics::double": {
                     "cache_miss": 1,
                     "cache_hit": 0,
                 },
@@ -78,11 +78,11 @@ async fn test_vc_receiving_task() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
+                "task_statistics::double": {
                     "cache_miss": 10,
                     "cache_hit": 5,
                 },
-                "double_vc": {
+                "task_statistics::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
@@ -111,15 +111,15 @@ async fn test_trait_methods() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "wrap": {
+                "task_statistics::wrap": {
                     "cache_miss": 10,
                     "cache_hit": 5,
                 },
-                "WrappedU64::Doublable::double": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
-                "WrappedU64::Doublable::double_vc": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
@@ -154,15 +154,15 @@ async fn test_dyn_trait_methods() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "wrap": {
+                "task_statistics::wrap": {
                     "cache_miss": 10,
                     "cache_hit": 7,
                 },
-                "WrappedU64::Doublable::double": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
                     "cache_miss": 10,
                     "cache_hit": 17,
                 },
-                "WrappedU64::Doublable::double_vc": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 17,
                 },
@@ -186,27 +186,66 @@ async fn test_no_execution() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "WrappedU64::Doublable::double": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
                     "cache_hit": 0,
                     "cache_miss": 1
                 },
-                "WrappedU64::Doublable::double_vc":  {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc":  {
                     "cache_hit": 0,
                     "cache_miss": 1
                 },
-                "double":  {
+                "task_statistics::double":  {
                     "cache_hit": 0,
                     "cache_miss": 1
                 },
-                "double_vc":  {
+                "task_statistics::double_vc":  {
                     "cache_hit": 0,
                     "cache_miss": 1
                 },
-                "wrap_vc": {
+                "task_statistics::wrap_vc": {
                     "cache_hit": 0,
                     "cache_miss": 1
                 },
             })
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_inline_definitions() -> Result<()> {
+    run_without_cache_check(&REGISTRATION, async move {
+        enable_stats();
+        inline_definitions().await?;
+        assert_eq!(
+            stats_json(),
+            json!({
+                "<() as dyn turbo_tasks::vc::default::ValueDefault>::value_default": {
+                    "cache_hit": 4,
+                    "cache_miss": 1
+                },
+                "<dyn task_statistics::inline_definitions_turbo_tasks_function_inline::Trait>::trait_fn": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions_turbo_tasks_function_inline::Value::value_fn": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions_turbo_tasks_function_inline::inline_fn": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions_turbo_tasks_function_inline::{{closure}}::inline_fn_in_closure": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                }
+            }),
         );
         Ok(())
     })
@@ -296,4 +335,38 @@ fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
         _ => unreachable!("expected object"),
     };
     json
+}
+
+#[turbo_tasks::function]
+fn inline_definitions() {
+    #[turbo_tasks::function]
+    fn inline_fn() {}
+    let _ = inline_fn();
+
+    let closure = || {
+        #[turbo_tasks::function]
+        fn inline_fn_in_closure() {}
+        let _ = inline_fn_in_closure();
+    };
+    closure();
+
+    #[turbo_tasks::value]
+    struct Value;
+
+    #[turbo_tasks::value_impl]
+    impl Value {
+        #[turbo_tasks::function]
+        fn value_fn(&self) {}
+    }
+    let _ = Value.cell().value_fn();
+
+    #[turbo_tasks::value_trait]
+    trait Trait {
+        #[turbo_tasks::function]
+        fn trait_fn(&self) {}
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Trait for Value {}
+    let _ = Value.cell().trait_fn();
 }
