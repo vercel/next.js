@@ -11,6 +11,7 @@ import noCssTags from './rules/no-css-tags'
 import noDocumentImportInPage from './rules/no-document-import-in-page'
 import noDuplicateHead from './rules/no-duplicate-head'
 import noHeadElement from './rules/no-head-element'
+import noInvalidHeadChildren from './rules/no-invalid-head-children'
 import noHeadImportInDocument from './rules/no-head-import-in-document'
 import noHtmlLinkForPages from './rules/no-html-link-for-pages'
 import noImgElement from './rules/no-img-element'
@@ -32,6 +33,7 @@ const recommendedRules = {
   '@next/next/no-css-tags': 'warn',
   '@next/next/no-head-element': 'warn',
   '@next/next/no-html-link-for-pages': 'warn',
+  '@next/next/no-invalid-head-children': 'warn',
   '@next/next/no-img-element': 'warn',
   '@next/next/no-page-custom-font': 'warn',
   '@next/next/no-styled-jsx-in-document': 'warn',
@@ -71,6 +73,7 @@ const plugin = {
     'no-duplicate-head': noDuplicateHead,
     'no-head-element': noHeadElement,
     'no-head-import-in-document': noHeadImportInDocument,
+    'no-invalid-head-children': noInvalidHeadChildren,
     'no-html-link-for-pages': noHtmlLinkForPages,
     'no-img-element': noImgElement,
     'no-page-custom-font': noPageCustomFont,
