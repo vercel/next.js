@@ -294,7 +294,7 @@ export abstract class RouteModule<
         loadManifestFromRelativePath<PreviewPropsManifest>({
           projectDir,
           distDir: this.distDir,
-          manifest: PREVIEW_PROPS_MANIFEST,
+          manifest: `server/${PREVIEW_PROPS_MANIFEST}`,
           shouldCache: !this.isDev,
         }),
         loadManifestFromRelativePath<BuildManifest>({

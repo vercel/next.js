@@ -217,7 +217,11 @@ export async function setupFsCheck(opts: {
     }
 
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-    const previewPropsManifestPath = path.join(distDir, PREVIEW_PROPS_MANIFEST)
+    const previewPropsManifestPath = path.join(
+      distDir,
+      'server',
+      PREVIEW_PROPS_MANIFEST
+    )
     const middlewareManifestPath = path.join(
       distDir,
       'server',

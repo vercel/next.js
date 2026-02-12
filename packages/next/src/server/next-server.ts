@@ -1892,7 +1892,11 @@ export default class NextNodeServer extends BaseServer<
     }
 
     this._cachedPreviewPropsManifest = loadManifest(
-      join(/* turbopackIgnore: true */ this.distDir, PREVIEW_PROPS_MANIFEST)
+      join(
+        /* turbopackIgnore: true */ this.distDir,
+        'server',
+        PREVIEW_PROPS_MANIFEST
+      )
     ) as PreviewPropsManifest
 
     return this._cachedPreviewPropsManifest

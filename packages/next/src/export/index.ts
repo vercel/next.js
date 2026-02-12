@@ -263,7 +263,7 @@ async function exportAppImpl(
 
   let previewProps: DeepReadonly<PreviewPropsManifest> | undefined
   try {
-    previewProps = require(join(distDir, PREVIEW_PROPS_MANIFEST))
+    previewProps = require(join(distDir, 'server', PREVIEW_PROPS_MANIFEST))
   } catch {}
 
   let prerenderManifest: DeepReadonly<PrerenderManifest> | undefined

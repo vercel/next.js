@@ -322,7 +322,11 @@ async function startWatcher(
     JSON.stringify(routesManifest)
   )
 
-  const previewPropsManifestPath = path.join(distDir, PREVIEW_PROPS_MANIFEST)
+  const previewPropsManifestPath = path.join(
+    distDir,
+    'server',
+    PREVIEW_PROPS_MANIFEST
+  )
   await fs.promises.writeFile(
     previewPropsManifestPath,
     JSON.stringify(opts.fsChecker.previewProps, null, 2)

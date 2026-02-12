@@ -1823,7 +1823,7 @@ export default async function build(
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
               PRERENDER_MANIFEST,
-              PREVIEW_PROPS_MANIFEST,
+              path.join(SERVER_DIRECTORY, PREVIEW_PROPS_MANIFEST),
               path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
@@ -3974,7 +3974,7 @@ export default async function build(
       }
 
       await writeManifest(
-        path.join(distDir, PREVIEW_PROPS_MANIFEST),
+        path.join(distDir, 'server', PREVIEW_PROPS_MANIFEST),
         previewProps
       )
 
