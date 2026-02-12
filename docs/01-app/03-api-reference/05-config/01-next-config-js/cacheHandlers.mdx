@@ -58,6 +58,8 @@ module.exports = {
 }
 ```
 
+> **Good to know**: Cache handler files must be JavaScript (`.js`) or ESM (`.mjs`) files. They are loaded at runtime via dynamic `import()`, so TypeScript files need to be pre-compiled to JavaScript before use. See the **Using TypeScript** section below for a setup guide.
+
 ### Handler types
 
 - **`default`**: Used by the `'use cache'` directive
@@ -412,6 +414,91 @@ module.exports = {
   },
 }
 ```
+
+<details>
+<summary>Using TypeScript</summary>
+
+Cache handlers are loaded at runtime by Node.js, which doesn't natively support TypeScript. To use TypeScript, compile your handler to JavaScript before building your Next.js app.
+
+**1. Write your handler in TypeScript:**
+
+```ts filename="cache-handlers/my-handler.ts"
+import type {
+  CacheEntry,
+  CacheHandler,
+} from 'next/dist/server/lib/cache-handlers/types'
+
+const cache = new Map<string, CacheEntry>()
+
+const handler: CacheHandler = {
+  async get(cacheKey: string, softTags: string[]) {
+    return cache.get(cacheKey)
+  },
+
+  async set(cacheKey: string, pendingEntry: Promise<CacheEntry>) {
+    const entry = await pendingEntry
+    cache.set(cacheKey, entry)
+  },
+
+  async refreshTags() {},
+
+  async getExpiration(tags: string[]) {
+    return 0
+  },
+
+  async updateTags(tags: string[], durations?: { expire?: number }) {
+    for (const [key, entry] of cache.entries()) {
+      if (entry.tags.some((tag) => tags.includes(tag))) {
+        cache.delete(key)
+      }
+    }
+  },
+}
+
+export default handler
+```
+
+**2. Compile to JavaScript:**
+
+Using `tsc`:
+
+```bash
+npx tsc cache-handlers/my-handler.ts --outDir cache-handlers/dist --module nodenext --moduleResolution nodenext
+```
+
+Or add a build script using [tsup](https://tsup.egoist.dev/) for a simpler setup:
+
+```bash
+npx tsup cache-handlers/my-handler.ts --outDir cache-handlers/dist --format esm
+```
+
+**3. Reference the compiled file in your config:**
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheHandlers: {
+    default: require.resolve('./cache-handlers/dist/my-handler.js'),
+  },
+}
+
+export default nextConfig
+```
+
+**4. Add the compile step to your scripts in `package.json`:**
+
+```json filename="package.json"
+{
+  "scripts": {
+    "build:cache-handler": "tsup cache-handlers/my-handler.ts --outDir cache-handlers/dist --format esm",
+    "dev": "npm run build:cache-handler && next dev",
+    "build": "npm run build:cache-handler && next build"
+  }
+}
+```
+
+</details>
 
 ## Platform Support
 
