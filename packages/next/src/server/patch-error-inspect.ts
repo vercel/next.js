@@ -169,7 +169,13 @@ function getSourcemappedFrameIfPossible(
     //
     // But frame.file might also be "webpack-internal:///(rsc)/./app/bad-sourcemap/page.js" or
     // "<anonymous>" or "node:internal/process/task_queues" here
-    if (path.isAbsolute(frame.file)) {
+    if (sourceURL.startsWith('file:')) {
+      // devirtualizeReactServerURL uses decodeURI, so file URLs may have
+      // decoded characters (e.g. `[` instead of `%5B`). Normalize via
+      // round-trip to match the encoding Node.js uses in its source map
+      // registry.
+      sourceURL = url.pathToFileURL(url.fileURLToPath(sourceURL)).toString()
+    } else if (path.isAbsolute(frame.file)) {
       sourceURL = url.pathToFileURL(frame.file).toString()
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
