@@ -3,19 +3,7 @@ import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { createServer } from 'http'
 import { spawn } from 'child_process'
-
-type SpanId = number
-
-type TraceEvent = {
-  traceId?: string
-  parentId?: SpanId
-  name: string
-  id: SpanId
-  timestamp: number
-  duration: number
-  tags?: Record<string, unknown>
-  startTime?: number
-}
+import type { TraceEvent } from 'next/dist/trace'
 
 interface TraceStructure {
   events: TraceEvent[]
