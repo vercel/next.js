@@ -44,6 +44,7 @@ import {
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import type { SegmentRequestKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
+import { cleanup } from './lru'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -150,6 +151,17 @@ export type PrefetchTask = {
    * We also use this field to check whether a task is currently in the queue.
    */
   _heapIndex: number
+
+  /**
+   * Called when the prefetch task finishes (either completed or canceled).
+   * Used by the Instant Navigation Testing API to await prefetch completion.
+   * Not exposed in production builds by default.
+   *
+   * Note: "Complete" means the scheduler has no more work to do for this task
+   * — all network requests have been spawned. It does not mean all data has
+   * been retrieved; responses may still be in flight.
+   */
+  _onComplete?: () => void
 }
 
 const enum PrefetchTaskExitStatus {
@@ -226,7 +238,7 @@ export function startRevalidationCooldown(): void {
   revalidationCooldownTimeoutHandle = setTimeout(() => {
     revalidationCooldownTimeoutHandle = null
     // Retry the prefetch queue now that the cooldown has expired.
-    ensureWorkIsScheduled()
+    pingPrefetchScheduler()
   }, REVALIDATION_COOLDOWN_MS)
 }
 
@@ -243,13 +255,15 @@ export type IncludeDynamicData = null | 'full' | 'dynamic'
  * @param treeAtTimeOfPrefetch The app's current FlightRouterState
  * @param fetchStrategy Whether to prefetch dynamic data, in addition to
  * static data. This is used by `<Link prefetch={true}>`.
+ * @param _onComplete Called when the prefetch task finishes. Testing API only.
  */
 export function schedulePrefetchTask(
   key: RouteCacheKey,
   treeAtTimeOfPrefetch: FlightRouterState,
   fetchStrategy: PrefetchTaskFetchStrategy,
   priority: PrefetchPriority,
-  onInvalidate: null | (() => void)
+  onInvalidate: null | (() => void),
+  _onComplete?: () => void
 ): PrefetchTask {
   // Spawn a new prefetch task
   const task: PrefetchTask = {
@@ -267,6 +281,9 @@ export function schedulePrefetchTask(
     onInvalidate,
     _heapIndex: -1,
   }
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    task._onComplete = _onComplete
+  }
 
   trackMostRecentlyHoveredLink(task)
 
@@ -279,7 +296,7 @@ export function schedulePrefetchTask(
   // By deferring to a microtask, we only process the queue once per JS task.
   // If they have different priorities, it also ensures they are processed in
   // the optimal order.
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 
   return task
 }
@@ -292,6 +309,14 @@ export function cancelPrefetchTask(task: PrefetchTask): void {
   // does not get added back to the queue when it's pinged by the network.
   task.isCanceled = true
   heapDelete(taskHeap, task)
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    // Call completion callback. In practice this shouldn't be reached for
+    // test-initiated prefetches since cancellation is only used by the Link
+    // component when elements scroll out of viewport.
+    const onComplete = task._onComplete
+    task._onComplete = undefined
+    onComplete?.()
+  }
 }
 
 export function reschedulePrefetchTask(
@@ -306,6 +331,10 @@ export function reschedulePrefetchTask(
   //
   // The primary use case is to increase the priority of a Link-initated
   // prefetch on hover.
+  //
+  // Note: _onComplete is not reset here because it's preserved on the same
+  // task object. When the rescheduled task completes, the original callback
+  // will still be invoked.
 
   // Un-cancel the task, in case it was previously canceled.
   task.isCanceled = false
@@ -330,7 +359,7 @@ export function reschedulePrefetchTask(
   } else {
     heapPush(taskHeap, task)
   }
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 }
 
 export function isPrefetchTaskDirty(
@@ -369,7 +398,7 @@ function trackMostRecentlyHoveredLink(task: PrefetchTask) {
   }
 }
 
-function ensureWorkIsScheduled() {
+export function pingPrefetchScheduler() {
   if (didScheduleMicrotask) {
     // Already scheduled a task to process the queue
     return
@@ -450,7 +479,7 @@ function onPrefetchConnectionClosed(): void {
 
   // Notify the scheduler that we have more bandwidth, and can continue
   // processing tasks.
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 }
 
 /**
@@ -470,7 +499,7 @@ export function pingPrefetchTask(task: PrefetchTask) {
   }
   // Add the task back to the queue.
   heapPush(taskHeap, task)
-  ensureWorkIsScheduled()
+  pingPrefetchScheduler()
 }
 
 function processQueueInMicrotask() {
@@ -520,6 +549,13 @@ function processQueueInMicrotask() {
           heapResift(taskHeap, task)
         } else {
           // The prefetch is complete. Continue to the next task.
+          if (process.env.__NEXT_EXPOSE_TESTING_API) {
+            // Notify the Instant Navigation Testing API that the prefetch has
+            // completed, so it can proceed with navigation.
+            const onComplete = task._onComplete
+            task._onComplete = undefined
+            onComplete?.()
+          }
           heapPop(taskHeap)
         }
         task = heapPeek(taskHeap)
@@ -527,6 +563,14 @@ function processQueueInMicrotask() {
       default:
         exitStatus satisfies never
     }
+  }
+
+  // Run LRU cleanup only when the scheduler is fully idle: no queued tasks and
+  // no in-progress requests. At that point, all active prefetch tasks have
+  // finished reading from the cache (moving recently used entries to the front
+  // of the list), so only genuinely stale data gets evicted.
+  if (task === null && inProgressRequests === 0) {
+    cleanup()
   }
 }
 

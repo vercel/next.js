@@ -1,3 +1,10 @@
+const CALLBACK_TIMESTAMP = 0
+
 export default function DeferredPage() {
-  return <h1>Deferred Page</h1>
+  return (
+    <div>
+      <h1>Deferred Page</h1>
+      <p id="deferred-callback-timestamp">{CALLBACK_TIMESTAMP}</p>
+    </div>
+  )
 }
