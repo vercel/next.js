@@ -9,19 +9,25 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::Asset,
-    chunk::ChunkableModule,
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     file_source::FileSource,
+    ident::AssetIdent,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
     module::Module,
+    module_graph::ModuleGraph,
+    output::{OutputAssets, OutputAssetsWithReferenced},
     resolve::{FindContextFileResult, find_context_file, package_json},
 };
 
-use crate::references::{
-    async_module::OptionAsyncModule,
-    esm::{EsmExport, EsmExports},
+use crate::{
+    chunk::EcmascriptChunkItemContent,
+    references::{
+        async_module::OptionAsyncModule,
+        esm::{EsmExport, EsmExports},
+    },
 };
 
 #[turbo_tasks::value_trait]
@@ -31,6 +37,42 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
     #[turbo_tasks::function]
     fn get_async_module(self: Vc<Self>) -> Vc<OptionAsyncModule> {
         Vc::cell(None)
+    }
+
+    /// Generate chunk item content directly on the module.
+    /// This replaces the need for separate ChunkItem wrapper structs.
+    /// The `estimated` parameter is used during size estimation - when true, implementations
+    /// should avoid calling chunking context APIs that would cause cycles.
+    #[turbo_tasks::function]
+    fn chunk_item_content(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Vc<EcmascriptChunkItemContent>;
+
+    /// Returns the content identity for cache invalidation.
+    /// Override this for modules whose content depends on more than just the module source
+    /// (e.g., async loaders that depend on available modules).
+    #[turbo_tasks::function]
+    fn chunk_item_content_ident(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Vc<AssetIdent> {
+        self.ident()
+    }
+
+    /// Returns output assets that this chunk item depends on.
+    /// Override this for modules that reference static assets, manifests, etc.
+    #[turbo_tasks::function]
+    fn chunk_item_output_assets(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(OutputAssets::empty())
     }
 }
 

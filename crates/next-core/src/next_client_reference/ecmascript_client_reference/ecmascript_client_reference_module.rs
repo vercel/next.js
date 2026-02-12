@@ -281,6 +281,17 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceModule {
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
         self.proxy_module().get_exports()
     }
+
+    #[turbo_tasks::function]
+    fn chunk_item_content(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        bail!("Attempted to get chunk_item_content for EcmascriptClientReferenceModule")
+    }
 }
 
 /// This wrapper only exists to overwrite the `asset_ident` method of the

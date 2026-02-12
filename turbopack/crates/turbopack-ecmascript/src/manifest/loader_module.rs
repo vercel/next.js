@@ -6,20 +6,21 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkData, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunksData,
+        AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunksData,
         ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::{OutputAssetsReference, OutputAssetsWithReferenced},
+    output::OutputAssetsWithReferenced,
+    reference::ModuleReferences,
 };
 
 use super::chunk_asset::ManifestAsyncModule;
 use crate::{
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, data::EcmascriptChunkData,
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
@@ -29,47 +30,39 @@ fn modifier() -> RcStr {
     rcstr!("loader")
 }
 
-/// The manifest loader item is shipped in the same chunk that uses the dynamic
+/// The manifest loader module is shipped in the same chunk that uses the dynamic
 /// `import()` expression.
 ///
 /// Its responsibility is to load the manifest chunk from the server. The
-/// dynamic import has been rewritten to import this manifest loader item,
+/// dynamic import has been rewritten to import this manifest loader module,
 /// which will load the manifest chunk from the server, which will load all
 /// the chunks needed by the dynamic import. Finally, we'll be able to import
 /// the module we're trying to dynamically import.
 ///
 /// Splitting the dynamic import into a quickly generate-able manifest loader
-/// item and a slow-to-generate manifest chunk allows for faster incremental
+/// module and a slow-to-generate manifest chunk allows for faster incremental
 /// compilation. The traversal won't be performed until the dynamic import is
 /// actually reached, instead of eagerly as part of the chunk that the dynamic
 /// import appears in.
 #[turbo_tasks::value]
-pub struct ManifestLoaderChunkItem {
-    manifest: ResolvedVc<ManifestAsyncModule>,
-    module_graph: ResolvedVc<ModuleGraph>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+pub struct ManifestLoaderModule {
+    pub manifest: ResolvedVc<ManifestAsyncModule>,
 }
 
 #[turbo_tasks::value_impl]
-impl ManifestLoaderChunkItem {
+impl ManifestLoaderModule {
     #[turbo_tasks::function]
-    pub fn new(
-        manifest: ResolvedVc<ManifestAsyncModule>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Self> {
-        Self::cell(ManifestLoaderChunkItem {
-            manifest,
-            module_graph,
-            chunking_context,
-        })
+    pub fn new(manifest: ResolvedVc<ManifestAsyncModule>) -> Vc<Self> {
+        Self::cell(ManifestLoaderModule { manifest })
     }
 
     #[turbo_tasks::function]
-    pub async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
-        let chunks = self.manifest.manifest_chunk_group().await?.assets;
+    pub async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
+        let this = self.await?;
+        let manifest = this.manifest.await?;
+        let chunks = this.manifest.manifest_chunk_group().await?.assets;
         Ok(ChunkData::from_assets(
-            self.chunking_context.output_root().owned().await?,
+            manifest.chunking_context.output_root().owned().await?,
             *chunks,
         ))
     }
@@ -81,48 +74,56 @@ impl ManifestLoaderChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAssetsReference for ManifestLoaderChunkItem {
+impl Module for ManifestLoaderModule {
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
-        self.manifest.manifest_chunk_group()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for ManifestLoaderChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
+    fn ident(&self) -> Vc<AssetIdent> {
         self.manifest.module_ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
-    fn content_ident(&self) -> Vc<AssetIdent> {
-        self.manifest.content_ident().with_modifier(modifier())
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
+    fn references(&self) -> Vc<ModuleReferences> {
+        Vc::cell(vec![])
     }
 
     #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        *ResolvedVc::upcast(self.manifest)
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for ManifestLoaderChunkItem {
+impl ChunkableModule for ManifestLoaderModule {
     #[turbo_tasks::function]
-    async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = &*self.await?;
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkPlaceable for ManifestLoaderModule {
+    #[turbo_tasks::function]
+    fn get_exports(&self) -> Vc<EcmascriptExports> {
+        EcmascriptExports::Value.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let this = self.await?;
         let mut code = Vec::new();
 
         let manifest = this.manifest.await?;
@@ -181,5 +182,31 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
             ..Default::default()
         }
         .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_item_content_ident(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Vc<AssetIdent> {
+        self.content_ident()
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_item_output_assets(
+        &self,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Vc<OutputAssetsWithReferenced> {
+        self.manifest.manifest_chunk_group()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ManifestLoaderModule {
+    #[turbo_tasks::function]
+    pub fn content_ident(&self) -> Vc<AssetIdent> {
+        self.manifest.content_ident().with_modifier(modifier())
     }
 }

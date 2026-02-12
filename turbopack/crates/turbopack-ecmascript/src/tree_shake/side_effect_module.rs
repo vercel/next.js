@@ -1,8 +1,11 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset, ModuleChunkItemIdExt,
+    },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -12,8 +15,13 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptModuleAsset,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    tree_shake::chunk_item::SideEffectsModuleChunkItem,
+    chunk::{
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, ecmascript_chunk_item, item::RewriteSourcePath,
+    },
+    references::async_module::AsyncModuleOptions,
+    runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
+    utils::StringifyModuleId,
 };
 
 #[turbo_tasks::value]
@@ -126,24 +134,85 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         self.resolved_as.get_exports()
     }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let module = self.await?;
+        let mut code = RopeBuilder::default();
+        let mut has_top_level_await = false;
+
+        for &side_effect in module.side_effects.iter() {
+            let need_await = 'need_await: {
+                let async_module = *side_effect.get_async_module().await?;
+                if let Some(async_module) = async_module
+                    && async_module.await?.has_top_level_await
+                {
+                    break 'need_await true;
+                }
+                false
+            };
+
+            if !has_top_level_await && need_await {
+                has_top_level_await = true;
+            }
+
+            code.push_bytes(
+                format!(
+                    "{}{TURBOPACK_IMPORT}({});\n",
+                    if need_await { "await " } else { "" },
+                    StringifyModuleId(&side_effect.chunk_item_id(chunking_context).await?)
+                )
+                .as_bytes(),
+            );
+        }
+
+        code.push_bytes(
+            format!(
+                "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));\n",
+                StringifyModuleId(&module.resolved_as.chunk_item_id(chunking_context).await?)
+            )
+            .as_bytes(),
+        );
+
+        let code = code.build();
+
+        Ok(EcmascriptChunkItemContent {
+            inner_code: code,
+            source_map: None,
+            rewrite_source_path: RewriteSourcePath::None,
+            options: EcmascriptChunkItemOptions {
+                strict: true,
+                async_module: if has_top_level_await {
+                    Some(AsyncModuleOptions {
+                        has_top_level_await: true,
+                    })
+                } else {
+                    None
+                },
+                ..Default::default()
+            },
+            additional_ids: Default::default(),
+            placeholder_for_future_extensions: (),
+        }
+        .cell())
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for SideEffectsModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
-        self: Vc<Self>,
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
-            SideEffectsModuleChunkItem {
-                module: self.to_resolved().await?,
-                module_graph,
-                chunking_context,
-            }
-            .cell(),
-        ))
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
