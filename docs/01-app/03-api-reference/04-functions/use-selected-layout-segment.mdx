@@ -35,6 +35,7 @@ export default function ExampleClientComponent() {
 >
 > - Since `useSelectedLayoutSegment` is a [Client Component](/docs/app/getting-started/server-and-client-components) hook, and Layouts are [Server Components](/docs/app/getting-started/server-and-client-components) by default, `useSelectedLayoutSegment` is usually called via a Client Component that is imported into a Layout.
 > - `useSelectedLayoutSegment` only returns the segment one level down. To return all active segments, see [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments)
+> - For [catch-all](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments) routes, the matched segments are returned as a single joined string. For example, given `app/blog/[...slug]/page.js`, calling from `app/blog/layout.js` when visiting `/blog/a/b/c` returns `'a/b/c'`.
 
 ## Parameters
 
@@ -58,6 +59,12 @@ For example, given the Layouts and URLs below, the returned segment would be:
 | `app/dashboard/layout.js` | `/dashboard/settings`          | `'settings'`     |
 | `app/dashboard/layout.js` | `/dashboard/analytics`         | `'analytics'`    |
 | `app/dashboard/layout.js` | `/dashboard/analytics/monthly` | `'analytics'`    |
+
+For catch-all routes (`[...slug]`), the returned segment contains all matched path segments joined as a single string:
+
+| Layout               | Visited URL   | Returned Segment |
+| -------------------- | ------------- | ---------------- |
+| `app/blog/layout.js` | `/blog/a/b/c` | `'a/b/c'`        |
 
 ## Examples
 
