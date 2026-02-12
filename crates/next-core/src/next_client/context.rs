@@ -475,7 +475,6 @@ pub async fn get_client_chunking_context(
         should_use_absolute_url_references,
         css_url_suffix,
     } = options;
-    let css_url_suffix = css_url_suffix.owned().await?;
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
@@ -510,7 +509,7 @@ pub async fn get_client_chunking_context(
     .worker_forwarded_globals(worker_forwarded_globals())
     .default_url_behavior(UrlBehavior {
         suffix: AssetSuffix::Inferred,
-        static_suffix: css_url_suffix,
+        static_suffix: css_url_suffix.to_resolved().await?,
     });
 
     if next_mode.is_development() {

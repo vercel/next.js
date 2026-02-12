@@ -249,7 +249,6 @@ pub async fn get_edge_chunking_context_with_client_assets(
         asset_prefix,
         css_url_suffix,
     } = options;
-    let css_url_suffix = css_url_suffix.owned().await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -265,7 +264,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .asset_base_path(Some(asset_prefix))
     .default_url_behavior(UrlBehavior {
         suffix: AssetSuffix::Inferred,
-        static_suffix: css_url_suffix,
+        static_suffix: css_url_suffix.to_resolved().await?,
     })
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
@@ -327,7 +326,7 @@ pub async fn get_edge_chunking_context(
         asset_prefix,
         css_url_suffix,
     } = options;
-    let css_url_suffix = css_url_suffix.owned().await?;
+    let css_url_suffix = css_url_suffix.to_resolved().await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -347,7 +346,7 @@ pub async fn get_edge_chunking_context(
         rcstr!("client"),
         UrlBehavior {
             suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
-            static_suffix: css_url_suffix.clone(),
+            static_suffix: css_url_suffix,
         },
     )
     .default_url_behavior(UrlBehavior {
