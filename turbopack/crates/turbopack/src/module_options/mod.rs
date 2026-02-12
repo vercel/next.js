@@ -27,6 +27,7 @@ use turbopack_core::{
 use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions, SpecifiedModuleType,
+    bytes_source_transform::BytesSourceTransform, text_source_transform::TextSourceTransform,
 };
 use turbopack_mdx::MdxTransform;
 use turbopack_node::{
@@ -237,6 +238,7 @@ impl ModuleOptions {
                     enable_typeof_window_inlining,
                     enable_exports_info_inlining,
                     enable_import_as_bytes,
+                    enable_import_as_text,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
@@ -359,6 +361,31 @@ impl ModuleOptions {
 
         let mut rules = vec![];
 
+        // Import attribute rules (bytes/text) must come BEFORE config rules.
+        // Import attributes have a stronger API contract - they're explicit in the source code
+        // and should override any file-pattern-based config rules.
+        if enable_import_as_bytes {
+            rules.push(ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
+                )),
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(BytesSourceTransform::new().to_resolved().await?),
+                ]))],
+            ));
+        }
+
+        if enable_import_as_text {
+            rules.push(ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
+                )),
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
+                ]))],
+            ));
+        }
+
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let webpack_loaders_options = webpack_loaders_options.await?;
             let execution_context =
@@ -435,15 +462,17 @@ impl ModuleOptions {
 
                     // Add module type if specified
                     if let Some(type_str) = rule.module_type.as_ref() {
-                        let module_type = ModuleType::from_str_with_defaults(
-                            type_str,
-                            ecma_preprocess,
-                            main,
-                            postprocess,
-                            ecmascript_options_vc,
-                            environment,
-                        )?;
-                        effects.push(ModuleRuleEffect::ModuleType(module_type));
+                        effects.push(
+                            ConfiguredModuleType::parse(type_str)?
+                                .into_effect(
+                                    ecma_preprocess,
+                                    main,
+                                    postprocess,
+                                    ecmascript_options_vc,
+                                    environment,
+                                )
+                                .await?,
+                        )
                     }
 
                     if !effects.is_empty() {
@@ -526,15 +555,6 @@ impl ModuleOptions {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
             ),
         ]);
-
-        if enable_import_as_bytes {
-            rules.push(ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
-                )),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::InlinedBytesJs)],
-            ));
-        }
 
         // Rules that apply based on file extension or content type
         rules.extend([

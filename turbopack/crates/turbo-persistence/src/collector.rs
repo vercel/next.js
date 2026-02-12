@@ -7,6 +7,7 @@ use crate::{
         DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
     },
     key::{StoreKey, hash_key},
+    value_block_count_tracker::ValueBlockCountTracker,
 };
 
 /// A collector accumulates entries that should be eventually written to a file. It keeps track of
@@ -14,6 +15,7 @@ use crate::{
 pub struct Collector<K: StoreKey, const SIZE_SHIFT: usize = 0> {
     total_key_size: usize,
     total_value_size: usize,
+    value_block_tracker: ValueBlockCountTracker,
     entries: Vec<CollectorEntry<K>>,
 }
 
@@ -23,6 +25,7 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         Self {
             total_key_size: 0,
             total_value_size: 0,
+            value_block_tracker: ValueBlockCountTracker::new(),
             entries: Vec::with_capacity(MAX_ENTRIES_PER_INITIAL_FILE >> SIZE_SHIFT),
         }
     }
@@ -37,6 +40,7 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.entries.len() >= MAX_ENTRIES_PER_INITIAL_FILE >> SIZE_SHIFT
             || self.total_key_size + self.total_value_size
                 > DATA_THRESHOLD_PER_INITIAL_FILE >> SIZE_SHIFT
+            || self.value_block_tracker.is_full()
     }
 
     /// Adds a normal key-value pair to the collector.
@@ -64,6 +68,8 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         };
         self.total_key_size += key.len();
         self.total_value_size += value.len();
+        self.value_block_tracker
+            .track(value.is_medium_value(), value.small_value_size());
         self.entries.push(CollectorEntry { key, value });
     }
 
@@ -97,6 +103,10 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     pub fn add_entry(&mut self, entry: CollectorEntry<K>) {
         self.total_key_size += entry.key.len();
         self.total_value_size += entry.value.len();
+        self.value_block_tracker.track(
+            entry.value.is_medium_value(),
+            entry.value.small_value_size(),
+        );
         self.entries.push(entry);
     }
 
@@ -112,6 +122,7 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.entries.clear();
         self.total_key_size = 0;
         self.total_value_size = 0;
+        self.value_block_tracker.reset();
     }
 
     /// Drains all entries from the collector in un-sorted order. This can be used to move the
@@ -119,6 +130,7 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     pub fn drain(&mut self) -> impl Iterator<Item = CollectorEntry<K>> + '_ {
         self.total_key_size = 0;
         self.total_value_size = 0;
+        self.value_block_tracker.reset();
         self.entries.drain(..)
     }
 
@@ -127,5 +139,6 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         drop(take(&mut self.entries));
         self.total_key_size = 0;
         self.total_value_size = 0;
+        self.value_block_tracker.reset();
     }
 }

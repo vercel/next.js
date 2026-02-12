@@ -148,6 +148,7 @@ export type TurbopackModuleType =
   | 'raw'
   | 'node'
   | 'bytes'
+  | 'text'
 
 export type TurbopackRuleConfigItem = {
   /** Loaders to apply to matched files. */
@@ -323,6 +324,7 @@ export interface LoggingConfig {
 
 export interface ExperimentalConfig {
   adapterPath?: string
+  appNewScrollHandler?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
   cacheHandlers?: NextConfig['cacheHandlers']
@@ -487,6 +489,11 @@ export interface ExperimentalConfig {
   turbopackImportTypeBytes?: boolean
 
   /**
+   * Enable support for `with {type: "text"}` for ESM imports.
+   */
+  turbopackImportTypeText?: boolean
+
+  /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
@@ -550,6 +557,19 @@ export interface ExperimentalConfig {
    * Defaults to `true`
    */
   turbopackInferModuleSideEffects?: boolean
+
+  /**
+   * An array of issue filter rules to ignore specific Turbopack issues.
+   * Each rule must have a `path` field (mandatory) and optionally `title`
+   * and `description`. String paths are treated as glob patterns. String
+   * titles/descriptions are exact matches. RegExp values match anywhere
+   * within the string (use `^` and `$` anchors for full-string matching).
+   */
+  turbopackIgnoreIssue?: Array<{
+    path: string | RegExp
+    title?: string | RegExp
+    description?: string | RegExp
+  }>
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -1598,6 +1618,7 @@ export const defaultConfig = Object.freeze({
   },
   experimental: {
     adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+    appNewScrollHandler: false,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,
