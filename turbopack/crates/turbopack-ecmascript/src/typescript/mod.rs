@@ -178,7 +178,8 @@ impl Module for TsConfigModuleAsset {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("compiler reference {}", self.request)]
 pub struct CompilerReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -209,18 +210,10 @@ impl ModuleReference for CompilerReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for CompilerReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("compiler reference {}", self.request.to_string().await?).into(),
-        ))
-    }
-}
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("tsconfig extends {}", self.config.ident())]
 pub struct TsExtendsReference {
     pub config: ResolvedVc<Box<dyn Source>>,
 }
@@ -243,22 +236,10 @@ impl ModuleReference for TsExtendsReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for TsExtendsReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "tsconfig extends {}",
-                self.config.ident().to_string().await?,
-            )
-            .into(),
-        ))
-    }
-}
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("tsconfig tsnode require {}", self.request)]
 pub struct TsNodeRequireReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -289,22 +270,10 @@ impl ModuleReference for TsNodeRequireReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for TsNodeRequireReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "tsconfig tsnode require {}",
-                self.request.to_string().await?
-            )
-            .into(),
-        ))
-    }
-}
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("tsconfig types {}", self.request)]
 pub struct TsConfigTypesReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -329,12 +298,3 @@ impl ModuleReference for TsConfigTypesReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for TsConfigTypesReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("tsconfig types {}", self.request.to_string().await?,).into(),
-        ))
-    }
-}

@@ -4,6 +4,8 @@ use turbo_tasks::{ValueDefault, ValueToString, Vc};
 
 use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
 
+#[derive(ValueToString)]
+#[value_to_string(self.name)]
 #[turbo_tasks::value]
 pub struct VirtualFileSystem {
     pub name: RcStr,
@@ -76,10 +78,3 @@ impl FileSystem for VirtualFileSystem {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for VirtualFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.name.clone())
-    }
-}

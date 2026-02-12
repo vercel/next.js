@@ -265,21 +265,6 @@ impl ModuleReference for WorkerAssetReference {
     }
 }
 
-impl WorkerAssetReference {
-    /// Downgrade errors to warnings if we are not in Error mode or if loose errors is enabled
-    async fn get_module_type_issue_severity(&self) -> Result<IssueSeverity> {
-        Ok(
-            if self.error_mode != ResolveErrorMode::Error
-                || self.origin.resolve_options().await?.loose_errors
-            {
-                IssueSeverity::Warning
-            } else {
-                IssueSeverity::Error
-            },
-        )
-    }
-}
-
 #[turbo_tasks::value_impl]
 impl ValueToString for WorkerAssetReference {
     #[turbo_tasks::function]
@@ -301,6 +286,22 @@ impl ValueToString for WorkerAssetReference {
         ))
     }
 }
+
+impl WorkerAssetReference {
+    /// Downgrade errors to warnings if we are not in Error mode or if loose errors is enabled
+    async fn get_module_type_issue_severity(&self) -> Result<IssueSeverity> {
+        Ok(
+            if self.error_mode != ResolveErrorMode::Error
+                || self.origin.resolve_options().await?.loose_errors
+            {
+                IssueSeverity::Warning
+            } else {
+                IssueSeverity::Error
+            },
+        )
+    }
+}
+
 
 impl IntoCodeGenReference for WorkerAssetReference {
     fn into_code_gen_reference(

@@ -5,7 +5,6 @@ use swc_core::{
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
@@ -34,7 +33,8 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("dynamic import {}", self.request)]
 pub struct EsmAsyncAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -94,15 +94,6 @@ impl ModuleReference for EsmAsyncAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("dynamic import {}", self.request.to_string().await?,).into(),
-        ))
-    }
-}
 
 impl IntoCodeGenReference for EsmAsyncAssetReference {
     fn into_code_gen_reference(

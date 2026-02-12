@@ -5,7 +5,6 @@ use swc_core::{
     ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
     quote,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
@@ -29,7 +28,8 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("generic commonjs {}", self.request)]
 pub struct CjsAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -77,18 +77,10 @@ impl ModuleReference for CjsAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for CjsAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("generic commonjs {}", self.request.to_string().await?,).into(),
-        ))
-    }
-}
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("require {}", self.request)]
 pub struct CjsRequireAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -134,15 +126,6 @@ impl ModuleReference for CjsRequireAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for CjsRequireAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("require {}", self.request.to_string().await?,).into(),
-        ))
-    }
-}
 
 impl IntoCodeGenReference for CjsRequireAssetReference {
     fn into_code_gen_reference(
@@ -220,7 +203,8 @@ impl CjsRequireAssetReferenceCodeGen {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("require.resolve {}", self.request)]
 pub struct CjsRequireResolveAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -266,15 +250,6 @@ impl ModuleReference for CjsRequireResolveAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for CjsRequireResolveAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("require.resolve {}", self.request.to_string().await?,).into(),
-        ))
-    }
-}
 
 impl IntoCodeGenReference for CjsRequireResolveAssetReference {
     fn into_code_gen_reference(

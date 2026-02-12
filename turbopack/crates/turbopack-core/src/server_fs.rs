@@ -1,11 +1,12 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{
     FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
 };
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("root-of-the-server")]
 pub struct ServerFileSystem {}
 
 #[turbo_tasks::value_impl]
@@ -49,10 +50,3 @@ impl FileSystem for ServerFileSystem {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for ServerFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("root-of-the-server"))
-    }
-}
