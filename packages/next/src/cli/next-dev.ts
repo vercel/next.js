@@ -253,14 +253,14 @@ const nextDev = async (
     traceUploadUrl = options.experimentalUploadTrace
   }
 
-  const experimentalFlags = Object.fromEntries(
+  const experimentalFlags = 
     Object.entries({
       experimentalServerFastRefresh: options.experimentalServerFastRefresh,
       experimentalCpuProf: options.experimentalCpuProf,
     }).filter(([_, value]) => value !== undefined && value !== false)
-  )
+  
 
-  for (const [key, value] of Object.entries(experimentalFlags)) {
+  for (const [key, value] of experimentalFlags) {
     sessionSpan.setAttribute(key, value)
   }
 
