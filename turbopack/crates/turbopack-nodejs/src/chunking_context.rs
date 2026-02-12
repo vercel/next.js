@@ -488,7 +488,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             .or_else(|| self.default_url_behavior.clone())
             .unwrap_or(UrlBehavior {
                 suffix: AssetSuffix::Inferred,
-                static_suffix: None,
+                static_suffix: ResolvedVc::cell(None),
             })
             .cell()
     }
