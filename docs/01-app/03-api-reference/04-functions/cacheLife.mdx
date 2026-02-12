@@ -117,6 +117,7 @@ Maximum time before the server must regenerate cached content.
 
 - After this period with no traffic, the server regenerates content synchronously on the next request
 - When you set both `revalidate` and `expire`, `expire` must be longer than `revalidate`. Next.js validates this and raises an error for invalid configurations.
+- If `expire` is omitted, the cache will never expire. This is equivalent to the behavior of the `default` preset profile.
 
 ```tsx
 cacheLife({ expire: 3600 }) // 1 hour
@@ -128,7 +129,7 @@ If you don't specify a profile, Next.js uses the `default` profile. We recommend
 
 | **Profile** | **Use Case**                           | `stale`    | `revalidate` | `expire` |
 | ----------- | -------------------------------------- | ---------- | ------------ | -------- |
-| `default`   | Standard content                       | 5 minutes  | 15 minutes   | 1 year   |
+| `default`   | Standard content                       | 5 minutes  | 15 minutes   | never    |
 | `seconds`   | Real-time data                         | 30 seconds | 1 second     | 1 minute |
 | `minutes`   | Frequently updated content             | 5 minutes  | 1 minute     | 1 hour   |
 | `hours`     | Content updated multiple times per day | 5 minutes  | 1 hour       | 1 day    |
@@ -172,7 +173,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-The example above caches for 14 days, checks for updates daily, and expires the cache after 14 days. You can then reference this profile throughout your application by its name:
+The example above caches for 14 days, checks for updates daily, and expires the cache after 14 days. If you omit `expire`, the cache will never expire, similar to the `default` profile. You can then reference this profile throughout your application by its name:
 
 ```tsx filename="app/page.tsx" highlight={5}
 'use cache'
