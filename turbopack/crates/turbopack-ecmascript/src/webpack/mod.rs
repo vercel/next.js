@@ -142,7 +142,7 @@ impl ModuleReference for WebpackEntryAssetReference {
 
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
-#[value_to_string("webpack {}", self.request)]
+#[value_to_string("webpack {request}")]
 pub struct WebpackRuntimeAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,

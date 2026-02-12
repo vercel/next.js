@@ -12,7 +12,7 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(ValueToString)]
-#[value_to_string("source map file is referenced by {}", self.from)]
+#[value_to_string("source map file is referenced by {from}")]
 pub struct SourceMapReference {
     from: FileSystemPath,
     file: FileSystemPath,

@@ -52,7 +52,7 @@ pub enum UrlRewriteBehavior {
 /// referenced file to be imported/fetched/etc.
 #[turbo_tasks::value]
 #[derive(ValueToString)]
-#[value_to_string("new URL({})", self.request)]
+#[value_to_string("new URL({request})")]
 pub struct UrlAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,

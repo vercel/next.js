@@ -20,7 +20,7 @@ use crate::references::util::check_and_emit_too_many_matches_warning;
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("raw asset {}", self.path)]
+#[value_to_string("raw asset {path}")]
 pub struct FileSourceReference {
     context_dir: FileSystemPath,
     path: ResolvedVc<Pattern>,
@@ -86,7 +86,7 @@ impl ModuleReference for FileSourceReference {
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("directory assets {}", self.path)]
+#[value_to_string("directory assets {path}")]
 pub struct DirAssetReference {
     context_dir: FileSystemPath,
     path: ResolvedVc<Pattern>,

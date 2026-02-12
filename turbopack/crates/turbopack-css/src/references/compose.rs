@@ -11,7 +11,7 @@ use crate::references::css_resolve;
 /// A `composes: ... from ...` CSS module reference.
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("compose(url) {}", self.request)]
+#[value_to_string("compose(url) {request}")]
 pub struct CssModuleComposeReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,

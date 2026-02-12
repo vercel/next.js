@@ -51,7 +51,7 @@ struct DirectExpr {
 
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
-#[value_to_string("prefix({}) suffix({})", self.name, self.count)]
+#[value_to_string("prefix({name}) suffix({count})")]
 struct FormatExprs {
     name: RcStr,
     count: u32,
@@ -59,7 +59,7 @@ struct FormatExprs {
 
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
-#[value_to_string("inner: {}", self.inner)]
+#[value_to_string("inner: {inner}")]
 struct VcExprDelegate {
     inner: ResolvedVc<NamedFields>,
 }

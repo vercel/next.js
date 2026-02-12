@@ -29,7 +29,7 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("generic commonjs {}", self.request)]
+#[value_to_string("generic commonjs {request}")]
 pub struct CjsAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -79,7 +79,7 @@ impl ModuleReference for CjsAssetReference {
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("require {}", self.request)]
+#[value_to_string("require {request}")]
 pub struct CjsRequireAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -202,7 +202,7 @@ impl CjsRequireAssetReferenceCodeGen {
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("require.resolve {}", self.request)]
+#[value_to_string("require.resolve {request}")]
 pub struct CjsRequireResolveAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,

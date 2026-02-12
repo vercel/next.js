@@ -31,7 +31,7 @@ pub enum ReferencedAsset {
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("url {}", self.request)]
+#[value_to_string("url {request}")]
 pub struct UrlAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,

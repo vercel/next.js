@@ -8,7 +8,7 @@ use turbopack_core::{
 
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug, ValueToString)]
-#[value_to_string("package.json {}", self.package_json)]
+#[value_to_string("package.json {package_json}")]
 pub struct PackageJsonReference {
     pub package_json: FileSystemPath,
 }

@@ -319,7 +319,7 @@ impl EsmAssetReferences {
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("import {} with {}", self.request, self.annotations)]
+#[value_to_string("import {request} with {annotations}")]
 pub struct EsmAssetReference {
     pub module: ResolvedVc<EcmascriptModuleAsset>,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,

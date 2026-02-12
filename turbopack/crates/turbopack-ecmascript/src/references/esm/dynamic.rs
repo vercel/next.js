@@ -34,7 +34,7 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("dynamic import {}", self.request)]
+#[value_to_string("dynamic import {request}")]
 pub struct EsmAsyncAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,

@@ -80,7 +80,7 @@ impl ImportAttributes {
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("import(url) {}", self.request)]
+#[value_to_string("import(url) {request}")]
 pub struct ImportAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
