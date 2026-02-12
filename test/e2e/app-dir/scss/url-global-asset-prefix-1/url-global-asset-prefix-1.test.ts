@@ -34,7 +34,7 @@ describe.skip('SCSS Support loader handling', () => {
           .elementByCss('.red-text')
           .getComputedCss('background-image')
         expect(background).toMatch(
-          /url\(".*\/foo\/_next\/static\/media\/dark\..*\.svg"\), url\(".*\/foo\/_next\/static\/media\/dark2\..*\.svg"\)/
+          /url\(".*\/foo\/_next\/static\/media\/dark\..*\.svg(?:\?.*)?"\), url\(".*\/foo\/_next\/static\/media\/dark2\..*\.svg(?:\?.*)?"\)/
         )
 
         const urls = getUrlFromBackgroundImage(background)
