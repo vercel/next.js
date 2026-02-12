@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
+import { readdirSync, rmSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -59,46 +59,15 @@ function hasRustChanges(sinceCommit) {
 }
 
 function buildNative() {
-  console.log('Running build-native...')
-  execSync('pnpm run build-native', {
-    cwd: PKG_DIR,
+  console.log('Running swc-build-native...')
+  execSync('pnpm run swc-build-native', {
+    cwd: ROOT_DIR,
     stdio: 'inherit',
     env: {
       ...process.env,
       CARGO_TERM_COLOR: 'always',
       TTY: '1',
     },
-  })
-
-  copyGeneratedTypes()
-}
-
-function copyGeneratedTypes() {
-  const generatedTypesPath = join(NATIVE_DIR, 'index.d.ts')
-  const vendoredTypesPath = join(
-    ROOT_DIR,
-    'packages/next/src/build/swc/generated-native.d.ts'
-  )
-  const generatedTypesMarker = '// GENERATED-TYPES-BELOW\n'
-  const generatedNotice =
-    '// DO NOT MANUALLY EDIT THESE TYPES\n' +
-    '// You can regenerate this file by running `pnpm swc-build-native` in the root of the repo.\n\n'
-
-  const generatedTypes = readFileSync(generatedTypesPath, 'utf8')
-  let vendoredTypes = readFileSync(vendoredTypesPath, 'utf8')
-
-  vendoredTypes = vendoredTypes.split(generatedTypesMarker)[0]
-  vendoredTypes =
-    vendoredTypes + generatedTypesMarker + generatedNotice + generatedTypes
-
-  writeFileSync(vendoredTypesPath, vendoredTypes)
-
-  console.log(
-    'Copied generated types to packages/next/src/build/swc/generated-native.d.ts'
-  )
-  execSync(`pnpm prettier --write ${vendoredTypesPath}`, {
-    cwd: ROOT_DIR,
-    stdio: 'inherit',
   })
 }
 
