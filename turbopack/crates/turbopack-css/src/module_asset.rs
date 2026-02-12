@@ -8,7 +8,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
     issue::{
@@ -17,7 +17,6 @@ use turbopack_core::{
     },
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
@@ -25,8 +24,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        ecmascript_chunk_item,
     },
     parse::generate_js_source_map,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
@@ -178,8 +177,7 @@ impl ModuleCssAsset {
             .inner(ReferenceType::Css(CssReferenceSubType::Analyze))
             .module();
 
-        let inner = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner)
-            .await?
+        let inner = ResolvedVc::try_sidecast::<Box<dyn ProcessCss>>(inner.to_resolved().await?)
             .context("inner asset should be CSS processable")?;
 
         let result = inner.get_css_with_placeholder().await?;
@@ -254,14 +252,7 @@ impl ChunkableModule for ModuleCssAsset {
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
-            ModuleChunkItem {
-                chunking_context,
-                module_graph,
-                module: self,
-            }
-            .cell(),
-        )
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -271,61 +262,16 @@ impl EcmascriptChunkPlaceable for ModuleCssAsset {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
     }
-}
-
-#[turbo_tasks::value_impl]
-impl ResolveOrigin for ModuleCssAsset {
-    #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
-    }
 
     #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
-    }
-}
-
-#[turbo_tasks::value]
-struct ModuleChunkItem {
-    module: ResolvedVc<ModuleCssAsset>,
-    module_graph: ResolvedVc<ModuleGraph>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAssetsReference for ModuleChunkItem {}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for ModuleChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(*self.module)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for ModuleChunkItem {
-    #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let classes = self.module.classes().await?;
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let classes = self.classes().await?;
 
         let mut code = format!("{TURBOPACK_EXPORT_VALUE}({{\n");
         for (export_name, class_names) in &*classes {
@@ -343,7 +289,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error,
                                 // TODO(PACK-4879): this should include detailed location information
-                                source: IssueSource::from_source_only(self.module.await?.source),
+                                source: IssueSource::from_source_only(self.await?.source),
                                 message: formatdoc! {
                                     r#"
                                         Module {from} referenced in `composes: ... from {from};` can't be resolved.
@@ -360,7 +306,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error,
                                 // TODO(PACK-4879): this should include detailed location information
-                                source: IssueSource::from_source_only(self.module.await?.source),
+                                source: IssueSource::from_source_only(self.await?.source),
                                 message: formatdoc! {
                                     r#"
                                         Module {from} referenced in `composes: ... from {from};` is not a CSS module.
@@ -377,7 +323,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         let placeable: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>> =
                             ResolvedVc::upcast(css_module);
 
-                        let module_id = placeable.chunk_item_id(*self.chunking_context).await?;
+                        let module_id = placeable.chunk_item_id(chunking_context).await?;
                         let module_id = StringifyJs(&module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names
@@ -398,9 +344,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             )?;
         }
         code += "});\n";
-        let source_map = *self
-            .chunking_context
-            .reference_module_source_maps(*ResolvedVc::upcast(self.module))
+        let source_map = *chunking_context
+            .reference_module_source_maps(Vc::upcast(self))
             .await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: code.clone().into(),
@@ -408,7 +353,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             // displayed in dev tools.
             source_map: if source_map {
                 Some(generate_minimal_source_map(
-                    self.module.ident().to_string().await?.to_string(),
+                    self.ident().to_string().await?.to_string(),
                     code,
                 )?)
             } else {
@@ -417,6 +362,19 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             ..Default::default()
         }
         .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolveOrigin for ModuleCssAsset {
+    #[turbo_tasks::function]
+    fn origin_path(&self) -> Vc<FileSystemPath> {
+        self.source.ident().path()
+    }
+
+    #[turbo_tasks::function]
+    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
+        *self.asset_context
     }
 }
 

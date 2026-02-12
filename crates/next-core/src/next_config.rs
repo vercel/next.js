@@ -12,14 +12,20 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack::module_options::{
-    ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem, WebpackRules,
-    module_options_context::MdxTransformOptions,
+    ConditionContentType, ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem,
+    WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
     chunk::SourceMapsType,
-    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage,
+        OptionStyledString, StyledString,
+    },
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
@@ -710,6 +716,42 @@ impl TryFrom<ConfigConditionQuery> for ConditionQuery {
 }
 
 #[derive(
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ConfigConditionContentType {
+    Glob(RcStr),
+    Regex(RegexComponents),
+}
+
+impl TryFrom<ConfigConditionContentType> for ConditionContentType {
+    type Error = anyhow::Error;
+
+    fn try_from(config: ConfigConditionContentType) -> Result<ConditionContentType> {
+        Ok(match config {
+            ConfigConditionContentType::Glob(value) => ConditionContentType::Glob(value),
+            ConfigConditionContentType::Regex(regex) => {
+                ConditionContentType::Regex(EsRegex::try_from(regex)?.resolved_cell())
+            }
+        })
+    }
+}
+
+#[derive(
     Deserialize,
     Clone,
     PartialEq,
@@ -741,6 +783,8 @@ pub enum ConfigConditionItem {
         content: Option<RegexComponents>,
         #[serde(default)]
         query: Option<ConfigConditionQuery>,
+        #[serde(default, rename = "contentType")]
+        content_type: Option<ConfigConditionContentType>,
     },
 }
 
@@ -765,6 +809,7 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
                 path,
                 content,
                 query,
+                content_type,
             } => ConditionItem::Base {
                 path: path.map(ConditionPath::try_from).transpose()?,
                 content: content
@@ -772,6 +817,9 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
                     .transpose()?
                     .map(EsRegex::resolved_cell),
                 query: query.map(ConditionQuery::try_from).transpose()?,
+                content_type: content_type
+                    .map(ConditionContentType::try_from)
+                    .transpose()?,
             },
         })
     }
@@ -791,11 +839,14 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RuleConfigItem {
+    #[serde(default)]
     pub loaders: Vec<LoaderItem>,
     #[serde(default, alias = "as")]
     pub rename_as: Option<RcStr>,
     #[serde(default)]
     pub condition: Option<ConfigConditionItem>,
+    #[serde(default, alias = "type")]
+    pub module_type: Option<RcStr>,
 }
 
 #[derive(
@@ -919,6 +970,73 @@ pub enum ReactCompilerOptionsOrBoolean {
 #[turbo_tasks::value(transparent)]
 pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>);
 
+/// Serialized representation of a path pattern for `turbopackIgnoreIssue`.
+/// Strings are serialized as `{ "type": "glob", "value": "..." }` and
+/// RegExp as `{ "type": "regex", "source": "...", "flags": "..." }`.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(tag = "type")]
+pub enum TurbopackIgnoreIssuePathPattern {
+    #[serde(rename = "glob")]
+    Glob { value: RcStr },
+    #[serde(rename = "regex")]
+    Regex { source: RcStr, flags: RcStr },
+}
+
+impl TurbopackIgnoreIssuePathPattern {
+    fn to_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
+        match self {
+            TurbopackIgnoreIssuePathPattern::Glob { value } => Ok(IgnoreIssuePattern::Glob(
+                Glob::parse(value.clone(), GlobOptions::default())?,
+            )),
+            TurbopackIgnoreIssuePathPattern::Regex { source, flags } => {
+                Ok(IgnoreIssuePattern::Regex(EsRegex::new(source, flags)?))
+            }
+        }
+    }
+}
+
+/// Serialized representation of a text pattern (title/description) for
+/// `turbopackIgnoreIssue`. Strings are serialized as
+/// `{ "type": "string", "value": "..." }` and RegExp as
+/// `{ "type": "regex", "source": "...", "flags": "..." }`.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(tag = "type")]
+pub enum TurbopackIgnoreIssueTextPattern {
+    #[serde(rename = "string")]
+    String { value: RcStr },
+    #[serde(rename = "regex")]
+    Regex { source: RcStr, flags: RcStr },
+}
+
+impl TurbopackIgnoreIssueTextPattern {
+    fn to_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
+        match self {
+            TurbopackIgnoreIssueTextPattern::String { value } => {
+                Ok(IgnoreIssuePattern::ExactString(value.clone()))
+            }
+            TurbopackIgnoreIssueTextPattern::Regex { source, flags } => {
+                Ok(IgnoreIssuePattern::Regex(EsRegex::new(source, flags)?))
+            }
+        }
+    }
+}
+
+/// A single rule in `experimental.turbopackIgnoreIssue`.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+pub struct TurbopackIgnoreIssueRule {
+    pub path: TurbopackIgnoreIssuePathPattern,
+    #[serde(default)]
+    pub title: Option<TurbopackIgnoreIssueTextPattern>,
+    #[serde(default)]
+    pub description: Option<TurbopackIgnoreIssueTextPattern>,
+}
+
 #[derive(
     Clone,
     Debug,
@@ -977,6 +1095,7 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
+    app_new_scroll_handler: Option<bool>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
@@ -1027,7 +1146,6 @@ pub struct ExperimentalConfig {
 
     turbopack_minify: Option<bool>,
     turbopack_module_ids: Option<ModuleIds>,
-    turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
@@ -1035,6 +1153,7 @@ pub struct ExperimentalConfig {
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
+    turbopack_import_type_text: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
     turbopack_use_builtin_sass: Option<bool>,
@@ -1050,8 +1169,16 @@ pub struct ExperimentalConfig {
     turbopack_remove_unused_exports: Option<bool>,
     /// Enable local analysis to infer side effect free modules. Defaults to true.
     turbopack_infer_module_side_effects: Option<bool>,
+    /// Issue patterns to ignore (suppress) from Turbopack output.
+    #[serde(default)]
+    turbopack_ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
+    /// Whether to report inlined system environment variables as warnings or errors.
+    report_system_env_inlining: Option<String>,
+    // Use project.is_persistent_caching() instead
+    // turbopack_file_system_cache_for_dev: Option<bool>,
+    // turbopack_file_system_cache_for_build: Option<bool>,
 }
 
 #[derive(
@@ -1272,6 +1399,9 @@ pub struct OptionFileSystemPath(Option<FileSystemPath>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionServerActions(Option<ServerActions>);
+
+#[turbo_tasks::value(transparent)]
+pub struct IgnoreIssues(Vec<IgnoreIssue>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionJsonValue(
@@ -1521,6 +1651,7 @@ impl NextConfig {
                                 loaders: transform_loaders(&mut [loaders].into_iter()),
                                 rename_as: None,
                                 condition: None,
+                                module_type: None,
                             },
                         ));
                     }
@@ -1528,6 +1659,7 @@ impl NextConfig {
                         loaders,
                         rename_as,
                         condition,
+                        module_type,
                     }) => {
                         // If the extension contains a wildcard, and the rename_as does not,
                         // emit an issue to prevent users from encountering duplicate module
@@ -1576,6 +1708,7 @@ impl NextConfig {
                                 loaders: transform_loaders(&mut loaders.iter()),
                                 rename_as: rename_as.clone(),
                                 condition,
+                                module_type: module_type.clone(),
                             },
                         ));
                     }
@@ -1583,15 +1716,6 @@ impl NextConfig {
             }
         }
         Ok(Vc::cell(rules))
-    }
-
-    #[turbo_tasks::function]
-    pub fn persistent_caching_enabled(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.experimental
-                .turbopack_persistent_caching
-                .unwrap_or_default(),
-        ))
     }
 
     #[turbo_tasks::function]
@@ -1791,6 +1915,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_app_new_scroll_handler(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.app_new_scroll_handler.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
     pub fn enable_cache_components(&self) -> Vc<bool> {
         Vc::cell(self.cache_components.unwrap_or(false))
     }
@@ -1972,6 +2101,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn turbopack_import_type_text(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_import_type_text
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<SourceMapsType>> {
         let input_source_maps = self
             .experimental
@@ -2060,6 +2198,47 @@ impl NextConfig {
     pub fn fetch_client(&self) -> Vc<FetchClientConfig> {
         FetchClientConfig::default().cell()
     }
+
+    #[turbo_tasks::function]
+    pub async fn report_system_env_inlining(&self) -> Result<Vc<IssueSeverity>> {
+        match self.experimental.report_system_env_inlining.as_deref() {
+            None => Ok(IssueSeverity::Suggestion.cell()),
+            Some("warn") => Ok(IssueSeverity::Warning.cell()),
+            Some("error") => Ok(IssueSeverity::Error.cell()),
+            _ => bail!(
+                "`experimental.reportSystemEnvInlining` must be undefined, \"error\", or \"warn\""
+            ),
+        }
+    }
+
+    /// Returns the list of ignore-issue rules from the experimental config,
+    /// converted to the `IgnoreIssue` type used by `IssueFilter`.
+    #[turbo_tasks::function]
+    pub fn turbopack_ignore_issue_rules(&self) -> Result<Vc<IgnoreIssues>> {
+        let rules = self
+            .experimental
+            .turbopack_ignore_issue
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(|rule| {
+                Ok(IgnoreIssue {
+                    path: rule.path.to_ignore_pattern()?,
+                    title: rule
+                        .title
+                        .as_ref()
+                        .map(|t| t.to_ignore_pattern())
+                        .transpose()?,
+                    description: rule
+                        .description
+                        .as_ref()
+                        .map(|d| d.to_ignore_pattern())
+                        .transpose()?,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Vc::cell(rules))
+    }
 }
 
 /// A subset of ts/jsconfig that next.js implicitly
@@ -2130,6 +2309,7 @@ mod tests {
             RuleConfigItem {
                 loaders: vec![],
                 rename_as: Some(rcstr!("*.js")),
+                module_type: None,
                 condition: Some(ConfigConditionItem::All(
                     [
                         ConfigConditionItem::Builtin(WebpackLoaderBuiltinCondition::Production),
@@ -2151,6 +2331,7 @@ mod tests {
                                         source: rcstr!("@someQuery"),
                                         flags: rcstr!(""),
                                     })),
+                                    content_type: None,
                                 },
                             ]
                             .into(),

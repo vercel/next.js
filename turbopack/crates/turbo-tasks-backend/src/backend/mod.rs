@@ -28,10 +28,12 @@ use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bin
 use turbo_tasks::{
     CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
     ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT, TaskExecutionReason,
-    TaskId, TaskPriority, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    TaskId, TaskPriority, TraitTypeId, TurboTasksBackendApi, TurboTasksPanic, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskType,
-        TurboTasksExecutionError, TypedCellContent, VerificationMode,
+        TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
+        TurboTasksExecutionError, TurboTasksExecutionErrorMessage, TypedCellContent,
+        VerificationMode,
     },
     event::{Event, EventDescription, EventListener},
     message_queue::TimingEvent,
@@ -39,7 +41,6 @@ use turbo_tasks::{
     scope::scope_and_block,
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
-    turbo_tasks,
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
 };
 
@@ -66,6 +67,7 @@ use crate::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
     },
+    error::TaskError,
     utils::{
         arc_or_owned::ArcOrOwned,
         chunked_vec::ChunkedVec,
@@ -386,6 +388,69 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn track_cache_miss(&self, task_type: &CachedTaskType) {
         self.task_statistics
             .map(|stats| stats.increment_cache_miss(task_type.native_fn));
+    }
+
+    /// Reconstructs a full [`TurboTasksExecutionError`] from the compact [`TaskError`] storage
+    /// representation. For [`TaskError::TaskChain`], this looks up the source error from the last
+    /// task's output and rebuilds the nested `TaskContext` wrappers with `TurboTasksCallApi`
+    /// references for lazy name resolution.
+    fn task_error_to_turbo_tasks_execution_error(
+        &self,
+        error: &TaskError,
+        ctx: &mut impl ExecuteContext<'_>,
+    ) -> TurboTasksExecutionError {
+        match error {
+            TaskError::Panic(panic) => TurboTasksExecutionError::Panic(panic.clone()),
+            TaskError::Error(item) => TurboTasksExecutionError::Error(Arc::new(TurboTasksError {
+                message: item.message.clone(),
+                source: item
+                    .source
+                    .as_ref()
+                    .map(|e| self.task_error_to_turbo_tasks_execution_error(e, ctx)),
+            })),
+            TaskError::LocalTaskContext(local_task_context) => {
+                TurboTasksExecutionError::LocalTaskContext(Arc::new(TurboTaskLocalContextError {
+                    name: local_task_context.name.clone(),
+                    source: local_task_context
+                        .source
+                        .as_ref()
+                        .map(|e| self.task_error_to_turbo_tasks_execution_error(e, ctx)),
+                }))
+            }
+            TaskError::TaskChain(chain) => {
+                let task_id = chain.last().unwrap();
+                let error = {
+                    let task = ctx.task(*task_id, TaskDataCategory::Meta);
+                    if let Some(OutputValue::Error(error)) = task.get_output() {
+                        Some(error.clone())
+                    } else {
+                        None
+                    }
+                };
+                let error = error.map_or_else(
+                    || {
+                        // Eventual consistency will cause errors to no longer be available
+                        TurboTasksExecutionError::Panic(Arc::new(TurboTasksPanic {
+                            message: TurboTasksExecutionErrorMessage::PIISafe(Cow::Borrowed(
+                                "Error no longer available",
+                            )),
+                            location: None,
+                        }))
+                    },
+                    |e| self.task_error_to_turbo_tasks_execution_error(&e, ctx),
+                );
+                let mut current_error = error;
+                for &task_id in chain.iter().rev() {
+                    current_error =
+                        TurboTasksExecutionError::TaskContext(Arc::new(TurboTaskContextError {
+                            task_id,
+                            source: Some(current_error),
+                            turbo_tasks: ctx.turbo_tasks(),
+                        }));
+                }
+                current_error
+            }
+        }
     }
 }
 
@@ -715,11 +780,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let result = match output {
                 OutputValue::Cell(cell) => Ok(Ok(RawVc::TaskCell(cell.task, cell.cell))),
                 OutputValue::Output(task) => Ok(Ok(RawVc::TaskOutput(*task))),
-                OutputValue::Error(error) => Err(error
-                    .with_task_context(task.get_task_type(), Some(task_id))
-                    .into()),
+                OutputValue::Error(error) => Err(error.clone()),
             };
-            if let Some(mut reader_task) = reader_task
+            if let Some(mut reader_task) = reader_task.take()
                 && options.tracking.should_track(result.is_err())
                 && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
@@ -759,9 +822,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 drop(reader_task);
 
                 queue.execute(&mut ctx);
+            } else {
+                drop(task);
             }
 
-            return result;
+            return result.map_err(|error| {
+                self.task_error_to_turbo_tasks_execution_error(&error, &mut ctx)
+                    .with_task_context(task_id, turbo_tasks.pin())
+                    .into()
+            });
         }
         drop(reader_task);
 
@@ -962,6 +1031,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         parent_span: Option<tracing::Id>,
         reason: &str,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Option<(Instant, bool)> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason)
@@ -1004,51 +1074,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
-        let preprocess = |task_id: TaskId, inner: &TaskStorage| {
-            if task_id.is_transient() {
-                return (None, None);
-            }
-
-            let meta_restored = inner.flags.meta_restored();
-            let data_restored = inner.flags.data_restored();
-
-            // Encode meta/data directly from TaskStorage
-            let meta = meta_restored.then(|| inner.clone_meta_snapshot());
-            let data = data_restored.then(|| inner.clone_data_snapshot());
-
-            (meta, data)
-        };
-        let process = |task_id: TaskId,
-                       (meta, data): (Option<TaskStorage>, Option<TaskStorage>),
-                       buffer: &mut TurboBincodeBuffer| {
-            (
-                task_id,
-                meta.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Meta, buffer)),
-                data.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Data, buffer)),
-            )
-        };
-        let process_snapshot =
-            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
-                if task_id.is_transient() {
-                    return (task_id, None, None);
-                }
-
-                // Encode meta/data directly from TaskStorage snapshot
-                (
-                    task_id,
-                    inner.flags.meta_modified().then(|| {
-                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Meta, buffer)
-                    }),
-                    inner.flags.data_modified().then(|| {
-                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Data, buffer)
-                    }),
-                )
-            };
-
-        let snapshot = self
-            .storage
-            .take_snapshot(&preprocess, &process, &process_snapshot);
-
         #[cfg(feature = "print_cache_item_size")]
         #[derive(Default)]
         struct TaskCacheStats {
@@ -1058,6 +1083,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             meta: usize,
             meta_compressed: usize,
             meta_count: usize,
+            upper_count: usize,
+            collectibles_count: usize,
+            aggregated_collectibles_count: usize,
+            children_count: usize,
+            followers_count: usize,
+            collectibles_dependents_count: usize,
+            aggregated_dirty_containers_count: usize,
+            output_size: usize,
         }
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
@@ -1080,10 +1113,90 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
                 self.meta_count += 1;
             }
+
+            fn add_counts(&mut self, storage: &TaskStorage) {
+                let counts = storage.meta_counts();
+                self.upper_count += counts.upper;
+                self.collectibles_count += counts.collectibles;
+                self.aggregated_collectibles_count += counts.aggregated_collectibles;
+                self.children_count += counts.children;
+                self.followers_count += counts.followers;
+                self.collectibles_dependents_count += counts.collectibles_dependents;
+                self.aggregated_dirty_containers_count += counts.aggregated_dirty_containers;
+                if let Some(output) = storage.get_output() {
+                    use turbo_bincode::turbo_bincode_encode;
+
+                    self.output_size += turbo_bincode_encode(&output)
+                        .map(|data| data.len())
+                        .unwrap_or(0);
+                }
+            }
         }
         #[cfg(feature = "print_cache_item_size")]
         let task_cache_stats: Mutex<FxHashMap<_, TaskCacheStats>> =
             Mutex::new(FxHashMap::default());
+
+        let preprocess = |task_id: TaskId, inner: &TaskStorage| {
+            if task_id.is_transient() {
+                return (None, None);
+            }
+
+            let meta_restored = inner.flags.meta_restored();
+            let data_restored = inner.flags.data_restored();
+
+            // Encode meta/data directly from TaskStorage
+            let meta = meta_restored.then(|| inner.clone_meta_snapshot());
+            let data = data_restored.then(|| inner.clone_data_snapshot());
+
+            (meta, data)
+        };
+        let process = |task_id: TaskId,
+                       (meta, data): (Option<TaskStorage>, Option<TaskStorage>),
+                       buffer: &mut TurboBincodeBuffer| {
+            #[cfg(feature = "print_cache_item_size")]
+            if let Some(ref m) = meta {
+                task_cache_stats
+                    .lock()
+                    .entry(self.get_task_name(task_id, turbo_tasks))
+                    .or_default()
+                    .add_counts(m);
+            }
+            (
+                task_id,
+                meta.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Meta, buffer)),
+                data.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Data, buffer)),
+            )
+        };
+        let process_snapshot =
+            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
+                if task_id.is_transient() {
+                    return (task_id, None, None);
+                }
+
+                #[cfg(feature = "print_cache_item_size")]
+                if inner.flags.meta_modified() {
+                    task_cache_stats
+                        .lock()
+                        .entry(self.get_task_name(task_id, turbo_tasks))
+                        .or_default()
+                        .add_counts(&inner);
+                }
+
+                // Encode meta/data directly from TaskStorage snapshot
+                (
+                    task_id,
+                    inner.flags.meta_modified().then(|| {
+                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Meta, buffer)
+                    }),
+                    inner.flags.data_modified().then(|| {
+                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Data, buffer)
+                    }),
+                )
+            };
+
+        let snapshot = self
+            .storage
+            .take_snapshot(&preprocess, &process, &process_snapshot);
 
         let task_snapshots = snapshot
             .into_iter()
@@ -1100,7 +1213,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     #[cfg(feature = "print_cache_item_size")]
                                     task_cache_stats
                                         .lock()
-                                        .entry(self.debug_get_task_description(task_id))
+                                        .entry(self.get_task_name(task_id, turbo_tasks))
                                         .or_default()
                                         .add_meta(&meta);
                                     Some(meta)
@@ -1120,7 +1233,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     #[cfg(feature = "print_cache_item_size")]
                                     task_cache_stats
                                         .lock()
-                                        .entry(self.debug_get_task_description(task_id))
+                                        .entry(self.get_task_name(task_id, turbo_tasks))
                                         .or_default()
                                         .add_data(&data);
                                     Some(data)
@@ -1169,6 +1282,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .collect::<Vec<_>>();
                 if !task_cache_stats.is_empty() {
                     use turbo_tasks::util::FormatBytes;
+
+                    use crate::utils::markdown_table::print_markdown_table;
+
                     task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
                         (stats_b.data_compressed + stats_b.meta_compressed, key_b)
                             .cmp(&(stats_a.data_compressed + stats_a.meta_compressed, key_a))
@@ -1189,34 +1305,81 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         )
                     );
 
-                    for (task_desc, stats) in task_cache_stats {
-                        println!(
-                            "  {} ({}) {task_desc} = {} ({}) meta {} x {} ({}), {} ({}) data {} x \
-                             {} ({})",
-                            FormatBytes(stats.data_compressed + stats.meta_compressed),
-                            FormatBytes(stats.data + stats.meta),
-                            FormatBytes(stats.meta_compressed),
-                            FormatBytes(stats.meta),
-                            stats.meta_count,
-                            FormatBytes(
-                                stats
-                                    .meta_compressed
-                                    .checked_div(stats.meta_count)
-                                    .unwrap_or(0)
-                            ),
-                            FormatBytes(stats.meta.checked_div(stats.meta_count).unwrap_or(0)),
-                            FormatBytes(stats.data_compressed),
-                            FormatBytes(stats.data),
-                            stats.data_count,
-                            FormatBytes(
-                                stats
-                                    .data_compressed
-                                    .checked_div(stats.data_count)
-                                    .unwrap_or(0)
-                            ),
-                            FormatBytes(stats.data.checked_div(stats.data_count).unwrap_or(0)),
-                        );
-                    }
+                    print_markdown_table(
+                        [
+                            "Task",
+                            " Total Size",
+                            " Data Size",
+                            " Data Count x Avg",
+                            " Data Count x Avg",
+                            " Meta Size",
+                            " Meta Count x Avg",
+                            " Meta Count x Avg",
+                            " Uppers",
+                            " Coll",
+                            " Agg Coll",
+                            " Children",
+                            " Followers",
+                            " Coll Deps",
+                            " Agg Dirty",
+                            " Output Size",
+                        ],
+                        task_cache_stats.iter(),
+                        |(task_desc, stats)| {
+                            [
+                                task_desc.to_string(),
+                                format!(
+                                    " {} ({})",
+                                    FormatBytes(stats.data_compressed + stats.meta_compressed),
+                                    FormatBytes(stats.data + stats.meta)
+                                ),
+                                format!(
+                                    " {} ({})",
+                                    FormatBytes(stats.data_compressed),
+                                    FormatBytes(stats.data)
+                                ),
+                                format!(" {} x", stats.data_count,),
+                                format!(
+                                    "{} ({})",
+                                    FormatBytes(
+                                        stats
+                                            .data_compressed
+                                            .checked_div(stats.data_count)
+                                            .unwrap_or(0)
+                                    ),
+                                    FormatBytes(
+                                        stats.data.checked_div(stats.data_count).unwrap_or(0)
+                                    ),
+                                ),
+                                format!(
+                                    " {} ({})",
+                                    FormatBytes(stats.meta_compressed),
+                                    FormatBytes(stats.meta)
+                                ),
+                                format!(" {} x", stats.meta_count,),
+                                format!(
+                                    "{} ({})",
+                                    FormatBytes(
+                                        stats
+                                            .meta_compressed
+                                            .checked_div(stats.meta_count)
+                                            .unwrap_or(0)
+                                    ),
+                                    FormatBytes(
+                                        stats.meta.checked_div(stats.meta_count).unwrap_or(0)
+                                    ),
+                                ),
+                                format!(" {}", stats.upper_count),
+                                format!(" {}", stats.collectibles_count),
+                                format!(" {}", stats.aggregated_collectibles_count),
+                                format!(" {}", stats.children_count),
+                                format!(" {}", stats.followers_count),
+                                format!(" {}", stats.collectibles_dependents_count),
+                                format!(" {}", stats.aggregated_dirty_containers_count),
+                                format!(" {}", FormatBytes(stats.output_size)),
+                            ]
+                        },
+                    );
                 }
             }
         }
@@ -1224,7 +1387,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let elapsed = start.elapsed();
         // avoid spamming the event queue with information about fast operations
         if elapsed > Duration::from_secs(10) {
-            turbo_tasks().send_compilation_event(Arc::new(TimingEvent::new(
+            turbo_tasks.send_compilation_event(Arc::new(TimingEvent::new(
                 "Finished writing to filesystem cache".to_string(),
                 elapsed,
             )));
@@ -1273,7 +1436,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.verify_aggregation_graph(turbo_tasks, false);
         }
         if self.should_persist() {
-            self.snapshot_and_persist(Span::current().into(), "stop");
+            self.snapshot_and_persist(Span::current().into(), "stop", turbo_tasks);
         }
         drop_contents(&self.task_cache);
         self.storage.drop_contents();
@@ -1622,6 +1785,22 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             format!("{task_id:?} {}", value)
         } else {
             format!("{task_id:?} unknown")
+        }
+    }
+
+    fn get_task_name(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) -> String {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.task(task_id, TaskDataCategory::Data);
+        if let Some(value) = task.get_persistent_task_type() {
+            value.to_string()
+        } else if let Some(value) = task.get_transient_task_type() {
+            value.to_string()
+        } else {
+            "unknown".to_string()
         }
     }
 
@@ -2075,11 +2254,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             Err(err) => {
                 if let Some(OutputValue::Error(old_error)) = current_output
-                    && old_error == &err
+                    && **old_error == err
                 {
                     None
                 } else {
-                    Some(OutputValue::Error(err))
+                    Some(OutputValue::Error(Arc::new((&err).into())))
                 }
             }
         };
@@ -2534,20 +2713,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // Shrink memory usage for collections that are only mutated during/after execution
-        task.shrink_persistent_cell_data();
-        task.shrink_transient_cell_data();
-        task.shrink_cell_type_max_index();
-        task.shrink_cell_dependencies();
-        task.shrink_output_dependencies();
-        task.shrink_collectibles_dependencies();
-        task.shrink_outdated_cell_dependencies();
-        task.shrink_outdated_output_dependencies();
-        task.shrink_outdated_collectibles();
-        task.shrink_outdated_collectibles_dependencies();
-        task.shrink_children();
-        task.shrink_collectibles();
-        task.shrink_in_progress_cells();
+        // Clean up task storage after execution:
+        // - Shrink collections marked with shrink_on_completion
+        // - Drop dependency fields for immutable tasks (they'll never re-execute)
+        task.cleanup_after_execution();
 
         drop(task);
 
@@ -2620,7 +2789,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         }
 
                         let this = self.clone();
-                        let snapshot = this.snapshot_and_persist(None, reason);
+                        let snapshot = this.snapshot_and_persist(None, reason, turbo_tasks);
                         if let Some((snapshot_start, new_data)) = snapshot {
                             last_snapshot = snapshot_start;
                             if !new_data {
@@ -3431,6 +3600,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     fn is_tracking_dependencies(&self) -> bool {
         self.0.options.dependency_tracking
+    }
+
+    fn get_task_name(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) -> String {
+        self.0.get_task_name(task, turbo_tasks)
     }
 }
 

@@ -6,7 +6,6 @@ import os from 'os'
 import type { CompilerOptions } from 'typescript'
 import { getTypeDefinitionGlobPatterns } from './type-paths'
 import * as Log from '../../build/output/log'
-import { defaultConfig } from '../../server/config-shared'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
@@ -190,7 +189,6 @@ export async function writeConfigurationDefaults(
   hasAppDir: boolean,
   distDir: string,
   hasPagesDir: boolean,
-  isolatedDevBuild: boolean | undefined,
   strictRouteTypes: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
@@ -268,17 +266,9 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  const resolvedIsolatedDevBuild =
-    isolatedDevBuild === undefined
-      ? defaultConfig.experimental.isolatedDevBuild
-      : isolatedDevBuild
-
   // Get type definition glob patterns using shared utility to ensure consistency
   // with other TypeScript infrastructure (e.g., runTypeCheck.ts)
-  const nextTypes = getTypeDefinitionGlobPatterns(
-    distDir,
-    resolvedIsolatedDevBuild
-  )
+  const nextTypes = getTypeDefinitionGlobPatterns(distDir)
 
   if (!('include' in userTsConfig)) {
     const defaultInclude =

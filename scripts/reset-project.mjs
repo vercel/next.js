@@ -4,6 +4,12 @@ export const TEST_PROJECT_NAME = 'vtest314-e2e-tests'
 export const TEST_TEAM_NAME = process.env.VERCEL_TEST_TEAM
 export const TEST_TOKEN = process.env.VERCEL_TEST_TOKEN
 
+export const ADAPTER_TEST_TEAM_NAME = process.env.VERCEL_ADAPTER_TEST_TEAM
+export const ADAPTER_TEST_TOKEN = process.env.VERCEL_ADAPTER_TEST_TOKEN
+
+export const TURBOPACK_TEST_TEAM_NAME = process.env.VERCEL_TURBOPACK_TEST_TEAM
+export const TURBOPACK_TEST_TOKEN = process.env.VERCEL_TURBOPACK_TEST_TOKEN
+
 /**
  * Retry a fetch request with exponential backoff
  * @param {string} url - The URL to fetch
@@ -55,7 +61,8 @@ async function fetchWithRetry(
 export async function resetProject({
   teamId = TEST_TEAM_NAME,
   projectName = TEST_PROJECT_NAME,
-  disableDeploymentProtection,
+  token = TEST_TOKEN,
+  disableDeploymentProtection = true,
 }) {
   console.log(`Resetting project ${teamId}/${projectName}`)
   // TODO: error/bail if existing deployments are pending
@@ -66,7 +73,7 @@ export async function resetProject({
     {
       method: 'DELETE',
       headers: {
-        Authorization: `Bearer ${TEST_TOKEN}`,
+        Authorization: `Bearer ${token}`,
       },
     },
     {
@@ -82,11 +89,22 @@ export async function resetProject({
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        Authorization: `Bearer ${TEST_TOKEN}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        framework: 'nextjs',
         name: projectName,
+        framework: 'nextjs',
+        resourceConfig: {
+          buildMachineType: 'enhanced',
+        },
+        environmentVariables: [
+          {
+            key: 'VERCEL_FORCE_NO_BUILD_CACHE_UPLOAD',
+            value: '1',
+            type: 'plain',
+            target: ['production', 'preview', 'development'],
+          },
+        ],
       }),
     },
     {
@@ -111,7 +129,7 @@ export async function resetProject({
         method: 'PATCH',
         headers: {
           'content-type': 'application/json',
-          Authorization: `Bearer ${TEST_TOKEN}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           ssoProtection: null,

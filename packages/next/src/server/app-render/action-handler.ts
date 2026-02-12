@@ -58,6 +58,7 @@ import {
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { normalizeFilePath } from './segment-explorer-path'
+import { extractInfoFromServerReferenceId } from '../../shared/lib/server-reference-info'
 import type { ServerActionLogInfo } from '../dev/server-action-logger'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
@@ -1084,9 +1085,16 @@ export async function handleAction({
             actionId!
           ]
 
-        // Log server action call in development
+        // Log server action call in development when enabled
         let logInfo: ServerActionLogInfo | null = null
-        if (process.env.NODE_ENV === 'development') {
+        const { type: actionType } = extractInfoFromServerReferenceId(actionId!)
+        if (
+          process.env.NODE_ENV === 'development' &&
+          ctx.renderOpts.logServerFunctions &&
+          // TODO: For now, skip logging for 'use cache' Server Functions as the
+          // output needs more work, or a different approach entirely.
+          actionType !== 'use-cache'
+        ) {
           const serverActionsManifest = getServerActionsManifest()
           const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
           const actionInfo = serverActionsManifest[runtime]?.[actionId!]

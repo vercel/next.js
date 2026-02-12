@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     common::util::take::Take,
-    ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
+    ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -11,15 +11,15 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext, EvaluatableAsset},
+    chunk::{ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption, EvaluatableAsset},
     context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{
-        ModuleResolveResult, ModuleResolveResultItem, handle_resolve_error, origin::ResolveOrigin,
-        parse::Request, pattern::Pattern, resolve_raw, url_resolve,
+        ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode, handle_resolve_error,
+        origin::ResolveOrigin, parse::Request, pattern::Pattern, resolve_raw, url_resolve,
     },
 };
 
@@ -42,7 +42,7 @@ pub struct WorkerAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: WorkerRequest,
     pub issue_source: IssueSource,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
     /// When true, skip creating WorkerLoaderModule and return the inner module directly.
     /// This is used when we're only tracing dependencies, not generating code.
     pub tracing_only: bool,
@@ -68,7 +68,7 @@ impl WorkerAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         tracing_only: bool,
         is_shared: bool,
     ) -> Self {
@@ -81,7 +81,7 @@ impl WorkerAssetReference {
             origin,
             request: WorkerRequest::Url(request),
             issue_source,
-            in_try,
+            error_mode,
             tracing_only,
         }
     }
@@ -92,7 +92,7 @@ impl WorkerAssetReference {
         path: ResolvedVc<Pattern>,
         collect_affecting_sources: bool,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         tracing_only: bool,
     ) -> Self {
         WorkerAssetReference {
@@ -104,7 +104,7 @@ impl WorkerAssetReference {
                 collect_affecting_sources,
             },
             issue_source,
-            in_try,
+            error_mode,
             tracing_only,
         }
     }
@@ -124,7 +124,7 @@ impl ModuleReference for WorkerAssetReference {
                     **request,
                     self.worker_type.reference_type(),
                     Some(self.issue_source),
-                    self.in_try,
+                    self.error_mode,
                 )
             }
             (
@@ -152,7 +152,7 @@ impl ModuleReference for WorkerAssetReference {
                     *self.origin,
                     Request::parse(path.owned().await?),
                     self.origin.resolve_options(),
-                    self.in_try,
+                    self.error_mode,
                     Some(self.issue_source),
                 )
                 .await?
@@ -255,13 +255,23 @@ impl ModuleReference for WorkerAssetReference {
         }
         .cell())
     }
+
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
 }
 
 impl WorkerAssetReference {
-    /// Downgrade errors to warnings if we are in a try context or if loos errors is enabled
+    /// Downgrade errors to warnings if we are not in Error mode or if loose errors is enabled
     async fn get_module_type_issue_severity(&self) -> Result<IssueSeverity> {
         Ok(
-            if self.in_try || self.origin.resolve_options().await?.loose_errors {
+            if self.error_mode != ResolveErrorMode::Error
+                || self.origin.resolve_options().await?.loose_errors
+            {
                 IssueSeverity::Warning
             } else {
                 IssueSeverity::Error
@@ -291,9 +301,6 @@ impl ValueToString for WorkerAssetReference {
         ))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for WorkerAssetReference {}
 
 impl IntoCodeGenReference for WorkerAssetReference {
     fn into_code_gen_reference(
@@ -339,34 +346,38 @@ impl WorkerAssetReferenceCodeGen {
         )
         .await?;
 
+        // Transform `new Worker(url, opts)` into `require(id)(Worker, opts)`
+        // The loader module exports a function that creates the worker with all necessary
+        // configuration (entrypoint, chunks, forwarded globals, etc.)
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
-            let message = if let Expr::New(NewExpr { args, .. }) = expr {
-                if let Some(args) = args {
+            let message = if let Expr::New(new_expr) = expr {
+                if let Some(args) = &mut new_expr.args {
                     match args.first_mut() {
                         Some(ExprOrSpread {
                             spread: None,
-                            expr: key_expr,
+                            expr: url_expr,
                         }) => {
-                            // Replace the first argument (the URL/path) with a turbopack_require
-                            // call that uses the pattern mapping to resolve to the correct loader
-                            // module
-                            *key_expr = quote_expr!(
-                                "$require",
-                                require: Expr = pm.create_require(*key_expr.take())
-                            );
+                            // Get the Worker constructor (callee)
+                            let constructor = new_expr.callee.take();
 
-                            // For web workers, remove type: "module" if it exists
-                            if matches!(
-                                reference.worker_type,
-                                WorkerType::WebWorker | WorkerType::SharedWebWorker
-                            ) && let Some(opts) = args.get_mut(1)
-                                && opts.spread.is_none()
-                            {
-                                *opts.expr = *quote_expr!(
-                                    "{...$opts, type: undefined}",
-                                    opts: Expr = (*opts.expr).take()
-                                );
-                            }
+                            // Build the require call for the loader module
+                            let require_call = pm.create_require(*url_expr.take());
+
+                            // Build the arguments: (WorkerConstructor, ...rest_args)
+                            let mut call_args = vec![ExprOrSpread {
+                                spread: None,
+                                expr: constructor,
+                            }];
+                            // Add any remaining arguments (e.g., worker options)
+                            call_args.extend(args.drain(1..));
+
+                            // Transform to: require(id)(Worker, opts)
+                            *expr = Expr::Call(CallExpr {
+                                span: new_expr.span,
+                                callee: Callee::Expr(Box::new(require_call)),
+                                args: call_args,
+                                ..Default::default()
+                            });
                             return;
                         }
                         // These are SWC bugs: https://github.com/swc-project/swc/issues/5394

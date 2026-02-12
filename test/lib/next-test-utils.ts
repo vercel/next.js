@@ -818,7 +818,7 @@ export async function retry<T>(
   fn: () => T | Promise<T>,
   duration: number = 3000,
   interval: number = 500,
-  description?: string
+  description: string = fn.name
 ): Promise<T> {
   if (duration % interval !== 0) {
     throw new Error(
@@ -1993,3 +1993,7 @@ export function getClientReferenceManifest(
 
   return manifest
 }
+
+export const getCacheHeader = (curRes: Response) =>
+  // favor generic header
+  curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')

@@ -130,14 +130,28 @@ const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.union([
     path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
     content: z.instanceof(RegExp).optional(),
     query: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+    contentType: z.union([z.string(), z.instanceof(RegExp)]).optional(),
   }),
+])
+
+const zTurbopackModuleType = z.enum([
+  'asset',
+  'ecmascript',
+  'typescript',
+  'css',
+  'css-module',
+  'wasm',
+  'raw',
+  'node',
+  'bytes',
 ])
 
 const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> =
   z.strictObject({
-    loaders: z.array(zTurbopackLoaderItem),
+    loaders: z.array(zTurbopackLoaderItem).optional(),
     as: z.string().optional(),
     condition: zTurbopackCondition.optional(),
+    type: zTurbopackModuleType.optional(),
   })
 
 const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection> =
@@ -168,6 +182,7 @@ export const experimentalSchema = {
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
+  appNewScrollHandler: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
   allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
   staleTimes: z
@@ -196,6 +211,7 @@ export const experimentalSchema = {
   clientParamParsingOrigins: z.array(z.string()).optional(),
   dynamicOnHover: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
+  varyParams: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
@@ -213,6 +229,7 @@ export const experimentalSchema = {
   externalDir: z.boolean().optional(),
   externalMiddlewareRewritesResolve: z.boolean().optional(),
   externalProxyRewritesResolve: z.boolean().optional(),
+  exposeTestingApiInProductionBuild: z.boolean().optional(),
   fallbackNodePolyfills: z.literal(false).optional(),
   fetchCacheKeyPrefix: z.string().optional(),
   forceSwcTransforms: z.boolean().optional(),
@@ -247,7 +264,6 @@ export const experimentalSchema = {
   prerenderEarlyExit: z.boolean().optional(),
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),
-  isolatedDevBuild: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
@@ -310,10 +326,20 @@ export const experimentalSchema = {
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
+  turbopackImportTypeText: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
+  turbopackIgnoreIssue: z
+    .array(
+      z.object({
+        path: z.union([z.string(), z.instanceof(RegExp)]),
+        title: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+        description: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+      })
+    )
+    .optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
   strictRouteTypes: z.boolean().optional(),
@@ -356,6 +382,9 @@ export const experimentalSchema = {
   hideLogsAfterAbort: z.boolean().optional(),
   runtimeServerDeploymentId: z.boolean().optional(),
   devCacheControlNoCache: z.boolean().optional(),
+  deferredEntries: z.array(z.string()).optional(),
+  onBeforeDeferredEntries: z.function().returns(z.promise(z.void())).optional(),
+  reportSystemEnvInlining: z.enum(['warn', 'error']).optional(),
 }
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
@@ -626,6 +655,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               }),
             ])
             .optional(),
+          serverFunctions: z.boolean().optional(),
           browserToTerminal: z
             .union([z.boolean(), z.enum(['error', 'warn'])])
             .optional(),

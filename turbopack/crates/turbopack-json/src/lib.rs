@@ -17,18 +17,17 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent};
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::OutputAssetsReference,
     source::Source,
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        ecmascript_chunk_item,
     },
     runtime_functions::TURBOPACK_EXPORT_VALUE,
 };
@@ -69,13 +68,10 @@ impl ChunkableModule for JsonModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(JsonChunkItem::cell(JsonChunkItem {
-            module: self,
-            chunking_context,
-        }))
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -85,49 +81,19 @@ impl EcmascriptChunkPlaceable for JsonModuleAsset {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
     }
-}
-
-#[turbo_tasks::value]
-struct JsonChunkItem {
-    module: ResolvedVc<JsonModuleAsset>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAssetsReference for JsonChunkItem {}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for JsonChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(*self.module)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for JsonChunkItem {
-    #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
         // We parse to JSON and then stringify again to ensure that the
         // JSON is valid.
-        let content = self.module.await?.source.content().file_content();
+        let this = self.await?;
+        let content = this.source.content().file_content();
         let data = content.parse_json().await?;
         match &*data {
             FileJsonContent::Content(data) => {
@@ -152,7 +118,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
                     // `uri_from_file`) need to handle percent encoding correctly first.
                     //
                     // See turbopack/crates/turbopack-core/src/source_map/utils.rs as well
-                    "sources": [format!("turbopack:///{}", self.module.ident().path().to_string().await?)],
+                    "sources": [format!("turbopack:///{}", self.ident().path().to_string().await?)],
                     "sourcesContent": [&data_str],
                     "names": [],
                     // Maps 0:0 in the output code to 0:0 in the `source_code`. Sufficient for
@@ -183,10 +149,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
                 Err(Error::msg(message))
             }
             FileJsonContent::NotFound => {
-                bail!(
-                    "JSON file not found: {}",
-                    self.module.ident().to_string().await?
-                );
+                bail!("JSON file not found: {}", self.ident().to_string().await?);
             }
         }
     }

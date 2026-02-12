@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/53446_snapshot_intermediate-tree-shake_rename-side-effect-free-facade_input_cbcbaae7._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/53446_snapshot_intermediate-tree-shake_rename-side-effect-free-facade_input_cbcbaae7._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/rename-side-effect-free-facade/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 

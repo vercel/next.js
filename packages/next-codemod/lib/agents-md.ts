@@ -5,7 +5,7 @@
  * index of all doc files, and injects it into CLAUDE.md or AGENTS.md.
  */
 
-import { execSync } from 'child_process'
+import execa from 'execa'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -133,9 +133,20 @@ async function cloneDocsFolder(tag: string, destDir: string): Promise<void> {
 
   try {
     try {
-      execSync(
-        `git clone --depth 1 --filter=blob:none --sparse --branch ${tag} https://github.com/vercel/next.js.git .`,
-        { cwd: tempDir, stdio: 'pipe' }
+      await execa(
+        'git',
+        [
+          'clone',
+          '--depth',
+          '1',
+          '--filter=blob:none',
+          '--sparse',
+          '--branch',
+          tag,
+          'https://github.com/vercel/next.js.git',
+          '.',
+        ],
+        { cwd: tempDir }
       )
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -147,7 +158,7 @@ async function cloneDocsFolder(tag: string, destDir: string): Promise<void> {
       throw error
     }
 
-    execSync('git sparse-checkout set docs', { cwd: tempDir, stdio: 'pipe' })
+    await execa('git', ['sparse-checkout', 'set', 'docs'], { cwd: tempDir })
 
     const sourceDocsDir = path.join(tempDir, 'docs')
     if (!fs.existsSync(sourceDocsDir)) {
@@ -171,12 +182,12 @@ export function collectDocFiles(dir: string): { relativePath: string }[] {
     .filter(
       (f) =>
         (f.endsWith('.mdx') || f.endsWith('.md')) &&
-        !f.endsWith('/index.mdx') &&
-        !f.endsWith('/index.md') &&
+        !/[/\\]index\.mdx$/.test(f) &&
+        !/[/\\]index\.md$/.test(f) &&
         !f.startsWith('index.')
     )
     .sort()
-    .map((f) => ({ relativePath: f }))
+    .map((f) => ({ relativePath: f.replace(/\\/g, '/') }))
 }
 
 interface DocSection {
@@ -189,7 +200,7 @@ export function buildDocTree(files: { relativePath: string }[]): DocSection[] {
   const sections: Map<string, DocSection> = new Map()
 
   for (const file of files) {
-    const parts = file.relativePath.split('/')
+    const parts = file.relativePath.split(/[/\\]/)
     if (parts.length < 2) continue
 
     const topLevelDir = parts[0]
@@ -299,7 +310,10 @@ function groupByDirectory(files: string[]): Map<string, string[]> {
   const grouped = new Map<string, string[]>()
 
   for (const filePath of files) {
-    const lastSlash = filePath.lastIndexOf('/')
+    const lastSlash = Math.max(
+      filePath.lastIndexOf('/'),
+      filePath.lastIndexOf('\\')
+    )
     const dir = lastSlash === -1 ? '.' : filePath.slice(0, lastSlash)
     const fileName = lastSlash === -1 ? filePath : filePath.slice(lastSlash + 1)
 

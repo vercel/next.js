@@ -10,13 +10,13 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
     environment::ChunkLoading,
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        ModuleResolveResult,
+        ModuleResolveResult, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -40,7 +40,7 @@ pub struct EsmAsyncAssetReference {
     pub request: ResolvedVc<Request>,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
 }
 
@@ -60,7 +60,7 @@ impl EsmAsyncAssetReference {
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         import_externals: bool,
     ) -> Self {
         EsmAsyncAssetReference {
@@ -68,7 +68,7 @@ impl EsmAsyncAssetReference {
             request,
             issue_source,
             annotations,
-            in_try,
+            error_mode,
             import_externals,
         }
     }
@@ -82,10 +82,15 @@ impl ModuleReference for EsmAsyncAssetReference {
             self.get_origin().resolve().await?,
             *self.request,
             EcmaScriptModulesReferenceSubType::DynamicImport,
-            self.in_try,
+            self.error_mode,
             Some(self.issue_source),
         )
         .await
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Async))
     }
 }
 
@@ -96,14 +101,6 @@ impl ValueToString for EsmAsyncAssetReference {
         Ok(Vc::cell(
             format!("dynamic import {}", self.request.to_string().await?,).into(),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Async))
     }
 }
 

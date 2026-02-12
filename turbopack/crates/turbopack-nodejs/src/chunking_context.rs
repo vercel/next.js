@@ -26,7 +26,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
     chunk::EcmascriptChunk,
-    manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
+    manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
@@ -149,6 +149,13 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn worker_forwarded_globals(mut self, globals: Vec<RcStr>) -> Self {
+        self.chunking_context
+            .worker_forwarded_globals
+            .extend(globals);
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -217,6 +224,8 @@ pub struct NodeJsChunkingContext {
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Enable debug IDs for chunks and source maps.
     debug_ids: bool,
+    /// Global variable names to forward to workers (e.g. NEXT_DEPLOYMENT_ID)
+    worker_forwarded_globals: Vec<RcStr>,
 }
 
 impl NodeJsChunkingContext {
@@ -260,6 +269,7 @@ impl NodeJsChunkingContext {
                 unused_references: None,
                 chunking_configs: Default::default(),
                 debug_ids: false,
+                worker_forwarded_globals: vec![],
             },
         }
     }
@@ -478,6 +488,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             .or_else(|| self.default_url_behavior.clone())
             .unwrap_or(UrlBehavior {
                 suffix: AssetSuffix::Inferred,
+                static_suffix: ResolvedVc::cell(None),
             })
             .cell()
     }
@@ -627,17 +638,24 @@ impl ChunkingContext for NodeJsChunkingContext {
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
+        let chunking_context: ResolvedVc<Box<dyn ChunkingContext>> =
+            Vc::upcast::<Box<dyn ChunkingContext>>(self)
+                .to_resolved()
+                .await?;
         Ok(if self.await?.manifest_chunks {
-            let manifest_asset =
-                ManifestAsyncModule::new(module, module_graph, Vc::upcast(self), availability_info);
-            Vc::upcast(ManifestLoaderChunkItem::new(
-                manifest_asset,
+            let manifest_asset = ManifestAsyncModule::new(
+                module,
                 module_graph,
-                Vc::upcast(self),
-            ))
+                *chunking_context,
+                availability_info,
+            )
+            .to_resolved()
+            .await?;
+            let loader_module = ManifestLoaderModule::new(*manifest_asset);
+            loader_module.as_chunk_item(module_graph, *chunking_context)
         } else {
-            let module = AsyncLoaderModule::new(module, Vc::upcast(self), availability_info);
-            module.as_chunk_item(module_graph, Vc::upcast(self))
+            let module = AsyncLoaderModule::new(module, *chunking_context, availability_info);
+            module.as_chunk_item(module_graph, *chunking_context)
         })
     }
 
@@ -647,7 +665,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<AssetIdent>> {
         Ok(if self.await?.manifest_chunks {
-            ManifestLoaderChunkItem::asset_ident_for(module)
+            ManifestLoaderModule::asset_ident_for(module)
         } else {
             AsyncLoaderModule::asset_ident_for(module)
         })
@@ -677,5 +695,10 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn debug_ids_enabled(&self) -> Vc<bool> {
         Vc::cell(self.debug_ids)
+    }
+
+    #[turbo_tasks::function]
+    fn worker_forwarded_globals(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.worker_forwarded_globals.clone())
     }
 }

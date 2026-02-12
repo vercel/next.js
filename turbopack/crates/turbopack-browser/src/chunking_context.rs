@@ -19,7 +19,6 @@ use turbopack_core::{
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
     },
-    context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -33,7 +32,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
     chunk::EcmascriptChunk,
-    manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
+    manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
@@ -232,6 +231,18 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn worker_forwarded_globals(mut self, globals: Vec<RcStr>) -> Self {
+        self.chunking_context
+            .worker_forwarded_globals
+            .extend(globals);
+        self
+    }
+
+    pub fn chunk_loading_global(mut self, chunk_loading_global: RcStr) -> Self {
+        self.chunking_context.chunk_loading_global = Some(chunk_loading_global);
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -321,6 +332,11 @@ pub struct BrowserChunkingContext {
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Whether to use absolute URLs for static assets (e.g. in CSS: `url("/absolute/path")`)
     should_use_absolute_url_references: bool,
+    /// Global variable names to forward to workers (e.g. NEXT_DEPLOYMENT_ID)
+    worker_forwarded_globals: Vec<RcStr>,
+    /// The global variable name used for chunk loading.
+    /// Default: "TURBOPACK"
+    chunk_loading_global: Option<RcStr>,
 }
 
 impl BrowserChunkingContext {
@@ -370,6 +386,8 @@ impl BrowserChunkingContext {
                 unused_references: None,
                 chunking_configs: Default::default(),
                 should_use_absolute_url_references: false,
+                worker_forwarded_globals: vec![],
+                chunk_loading_global: Default::default(),
             },
         }
     }
@@ -481,6 +499,17 @@ impl BrowserChunkingContext {
             content_hashing: self.content_hashing,
         }
         .cell()
+    }
+
+    /// Returns the chunk loading global variable name.
+    /// Defaults to "TURBOPACK" if not set.
+    #[turbo_tasks::function]
+    pub fn chunk_loading_global(&self) -> Vc<RcStr> {
+        Vc::cell(
+            self.chunk_loading_global
+                .clone()
+                .unwrap_or_else(|| rcstr!("TURBOPACK")),
+        )
     }
 }
 
@@ -651,6 +680,7 @@ impl ChunkingContext for BrowserChunkingContext {
             .or_else(|| self.default_url_behavior.clone())
             .unwrap_or(UrlBehavior {
                 suffix: AssetSuffix::Inferred,
+                static_suffix: ResolvedVc::cell(None),
             })
             .cell()
     }
@@ -872,22 +902,24 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn async_loader_chunk_item(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
+        let chunking_context = ResolvedVc::upcast::<Box<dyn ChunkingContext>>(self);
         Ok(if self.await?.manifest_chunks {
-            let manifest_asset =
-                ManifestAsyncModule::new(module, module_graph, Vc::upcast(self), availability_info);
-            Vc::upcast(ManifestLoaderChunkItem::new(
-                manifest_asset,
+            let manifest_asset = ManifestAsyncModule::new(
+                module,
                 module_graph,
-                Vc::upcast(self),
-            ))
+                *chunking_context,
+                availability_info,
+            );
+            let loader_module = ManifestLoaderModule::new(manifest_asset);
+            loader_module.as_chunk_item(module_graph, *chunking_context)
         } else {
-            let module = AsyncLoaderModule::new(module, Vc::upcast(self), availability_info);
-            module.as_chunk_item(module_graph, Vc::upcast(self))
+            let module = AsyncLoaderModule::new(module, *chunking_context, availability_info);
+            module.as_chunk_item(module_graph, *chunking_context)
         })
     }
 
@@ -897,7 +929,7 @@ impl ChunkingContext for BrowserChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<AssetIdent>> {
         Ok(if self.await?.manifest_chunks {
-            ManifestLoaderChunkItem::asset_ident_for(module)
+            ManifestLoaderModule::asset_ident_for(module)
         } else {
             AsyncLoaderModule::asset_ident_for(module)
         })
@@ -930,14 +962,17 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn worker_entrypoint(
-        self: Vc<Self>,
-        asset_context: Vc<Box<dyn AssetContext>>,
-    ) -> Vc<Box<dyn OutputAsset>> {
-        Vc::upcast(EcmascriptBrowserWorkerEntrypoint::new(
-            Vc::upcast(self),
-            asset_context,
-        ))
+    fn worker_forwarded_globals(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.worker_forwarded_globals.clone())
+    }
+
+    #[turbo_tasks::function]
+    async fn worker_entrypoint(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let chunking_context: Vc<Box<dyn ChunkingContext>> = Vc::upcast(self);
+        let resolved = chunking_context.to_resolved().await?;
+        let forwarded_globals = chunking_context.worker_forwarded_globals();
+        let entrypoint = EcmascriptBrowserWorkerEntrypoint::new(*resolved, forwarded_globals);
+        Ok(Vc::upcast(entrypoint))
     }
 }
 

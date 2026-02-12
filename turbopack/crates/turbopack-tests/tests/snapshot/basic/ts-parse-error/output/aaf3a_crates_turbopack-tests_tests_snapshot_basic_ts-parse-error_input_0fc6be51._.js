@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_basic_ts-parse-error_input_0fc6be51._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/aaf3a_crates_turbopack-tests_tests_snapshot_basic_ts-parse-error_input_0fc6be51._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/ts-parse-error/input/other.ts [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 const e = new Error("Could not parse module '[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/ts-parse-error/input/other.ts'\n\nCannot assign to this");
