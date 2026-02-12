@@ -1,5 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitForNoErrorToast } from '../../../lib/next-test-utils'
+import {
+  openRedbox,
+  retry,
+  waitForNoErrorToast,
+  waitForRedbox,
+} from '../../../lib/next-test-utils'
+import {
+  createRedboxSnapshot,
+  ErrorSnapshot,
+  RedboxSnapshot,
+} from '../../../lib/add-redbox-matchers'
 
 describe.each([
   { debugChannelEnabled: true, description: 'with debug channel' },
@@ -19,15 +29,15 @@ describe.each([
   }
 
   describe.each([
-    { clientNav: false, description: 'initial load' },
-    { clientNav: true, description: 'client navigation' },
-  ])('$description', ({ clientNav }) => {
+    { isClientNav: false, description: 'initial load' },
+    { isClientNav: true, description: 'client navigation' },
+  ])('$description', ({ isClientNav }) => {
     /**
      * Navigate to a page either via initial load or soft navigation.
      * For soft nav, navigates to the index page first, then clicks the link.
      */
     async function navigateTo(href: string) {
-      if (!clientNav) {
+      if (!isClientNav) {
         // Initial load - navigate directly
         const browser = await next.browser(href)
         await browser.elementByCss('main')
@@ -660,6 +670,266 @@ describe.each([
            ],
          }
         `)
+      })
+    })
+
+    describe('client components', () => {
+      it('unable to validate - parent suspends on client data and blocks children', async () => {
+        const browser = await navigateTo(
+          '/suspense-in-root/static/invalid-client-data-blocks-validation'
+        )
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
+           "environmentLabel": "Server",
+           "label": "Console Error",
+           "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx (12:19) @ FetchesClientData
+         > 12 |   const data = use(promise)
+              |                   ^",
+           "stack": [
+             "FetchesClientData app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx (12:19)",
+             "Layout app/suspense-in-root/static/invalid-client-data-blocks-validation/layout.tsx (17:9)",
+           ],
+         }
+        `)
+      })
+
+      it('valid - parent suspends on client data but does not block children', async () => {
+        const browser = await navigateTo(
+          '/suspense-in-root/static/valid-client-data-does-not-block-validation'
+        )
+        await waitForNoErrorToast(browser)
+      })
+
+      it('valid - parent uses sync IO in a client component', async () => {
+        const browser = await navigateTo(
+          '/suspense-in-root/static/valid-client-api-in-parent/sync-io'
+        )
+        // TODO(instant-validation) - this should be valid, but currently isn't
+        // await waitForNoErrorToast(browser)
+        await expect(browser).toDisplayCollapsedRedbox(`
+         [
+           {
+             "description": "Route "/suspense-in-root/static/valid-client-api-in-parent/sync-io": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/suspense-in-root/layout.tsx (26:9) @ Header
+         > 26 |         <div id="root-layout-timestamp">
+              |         ^",
+             "stack": [
+               "div <anonymous>",
+               "Header app/suspense-in-root/layout.tsx (26:9)",
+               "RootLayout app/suspense-in-root/layout.tsx (12:11)",
+             ],
+           },
+           {
+             "description": "Route "/suspense-in-root/static/valid-client-api-in-parent/sync-io": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/suspense-in-root/static/valid-client-api-in-parent/sync-io/layout.tsx (17:9) @ Layout
+         > 17 |         <SyncIOInClient>{children}</SyncIOInClient>
+              |         ^",
+             "stack": [
+               "Layout app/suspense-in-root/static/valid-client-api-in-parent/sync-io/layout.tsx (17:9)",
+             ],
+           },
+         ]
+        `)
+      })
+      it('valid - parent uses dynamic usePathname() in a client component', async () => {
+        const browser = await navigateTo(
+          '/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/123'
+        )
+        // TODO(instant-validation) - this should be valid, but currently isn't
+        // await waitForNoErrorToast(browser)
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "Route "/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/[id]": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
+           "environmentLabel": "Server",
+           "label": "Console Error",
+           "source": "app/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/[id]/client.tsx (6:31) @ ShouldNotSuspendDuringValidation
+         > 6 |   const pathname = usePathname()
+             |                               ^",
+           "stack": [
+             "ShouldNotSuspendDuringValidation app/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/[id]/client.tsx (6:31)",
+             "Layout app/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/[id]/layout.tsx (18:7)",
+           ],
+         }
+        `)
+      })
+      it('valid - parent uses useSearchPatams() in a client component', async () => {
+        const browser = await navigateTo(
+          '/suspense-in-root/static/valid-client-api-in-parent/search-params'
+        )
+        // TODO(instant-validation) - this should be valid, but currently isn't
+        // await waitForNoErrorToast(browser)
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "Route "/suspense-in-root/static/valid-client-api-in-parent/search-params": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
+           "environmentLabel": "Server",
+           "label": "Console Error",
+           "source": "app/suspense-in-root/static/valid-client-api-in-parent/search-params/layout.tsx (19:7) @ Layout
+         > 19 |       <ShouldNotSuspendDuringValidation>
+              |       ^",
+           "stack": [
+             "Layout app/suspense-in-root/static/valid-client-api-in-parent/search-params/layout.tsx (19:7)",
+           ],
+         }
+        `)
+      })
+    })
+
+    describe('client errors', () => {
+      function removeExpectedError(
+        errors: RedboxSnapshot,
+        shouldRemove: (error: ErrorSnapshot) => boolean
+      ): ErrorSnapshot[] {
+        if (!Array.isArray(errors)) {
+          throw new Error('Expected to receive multiple errors to filter')
+        }
+        let found = false
+        const result = errors.filter((err) => {
+          if (shouldRemove(err)) {
+            found = true
+            return false
+          } else {
+            return true
+          }
+        })
+        if (!found) {
+          throw new Error(
+            `Did not find expected error in errors array: ${JSON.stringify(errors, null, 2)}`
+          )
+        }
+        return result
+      }
+
+      it('unable to validate - client error in parent blocks children', async () => {
+        const browser = await navigateTo(
+          '/suspense-in-root/static/invalid-client-error-in-parent-blocks-children'
+        )
+        // We expect a collapsed redbox. We need to open it to assert on the messages.
+        await openRedbox(browser)
+
+        let errors = await createRedboxSnapshot(browser, next)
+
+        if (!isClientNav) {
+          // In SSR, we expect a "Switched to client rendering ..." error because we deliberately throw in a client component.
+          // However, the timing of when it appears is inconsistent -- sometimes it's before validation errors,
+          // and sometimes it's after.
+          // To avoid flakiness, we filter it out (but assert that it appears in the redbox)
+          errors = removeExpectedError(errors, (err) => {
+            return (
+              err.label === 'Recoverable Error' &&
+              err.description.startsWith(
+                'Switched to client rendering because the server rendering errored:\n\nNo SSR please'
+              )
+            )
+          })
+        }
+
+        expect(errors).toMatchInlineSnapshot(`
+         [
+           {
+             "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": null,
+             "stack": [],
+           },
+           {
+             "description": "No SSR please",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/client.tsx (5:11) @ ErrorInSSR
+         > 5 |     throw new Error('No SSR please')
+             |           ^",
+             "stack": [
+               "ErrorInSSR app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/client.tsx (5:11)",
+             ],
+           },
+         ]
+        `)
+      })
+
+      it('unable to validate - client error from sibling of children slot without suspense', async () => {
+        const browser = await navigateTo(
+          '/suspense-in-root/static/invalid-client-error-in-parent-sibling'
+        )
+
+        if (isClientNav) {
+          // In a client navigation, the redbox will be collapsed.
+          await openRedbox(browser)
+        } else {
+          // In SSR, the redbox will be open due to the missing tags error.
+          await waitForRedbox(browser)
+        }
+
+        let errors = await createRedboxSnapshot(browser, next)
+        if (!isClientNav) {
+          // In SSR, we expect a "Switched to client rendering ..." error because we deliberately throw in a client component.
+          // However, the timing of when it appears is inconsistent -- sometimes it's before validation errors,
+          // and sometimes it's after.
+          // To avoid flakiness, we filter it out (but assert that it appears in the redbox)
+          errors = removeExpectedError(errors, (err) => {
+            return (
+              err.label === 'Runtime Error' &&
+              err.description.startsWith(
+                'Missing <html> and <body> tags in the root layout.'
+              )
+            )
+          })
+        }
+
+        expect(errors).toMatchInlineSnapshot(`
+         [
+           {
+             "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-sibling": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": null,
+             "stack": [],
+           },
+           {
+             "description": "No SSR please",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/client.tsx (5:11) @ ErrorInSSR
+         > 5 |     throw new Error('No SSR please')
+             |           ^",
+             "stack": [
+               "ErrorInSSR app/suspense-in-root/static/invalid-client-error-in-parent-sibling/client.tsx (5:11)",
+             ],
+           },
+         ]
+        `)
+      })
+
+      it('valid - client error from sibling of children slot with suspense', async () => {
+        const browser = await navigateTo(
+          '/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation'
+        )
+        if (isClientNav) {
+          // In a client nav, no errors should be reported.
+          await waitForNoErrorToast(browser)
+        } else {
+          // In SSR, we expect to only see the error coming from react.
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Switched to client rendering because the server rendering errored:
+
+           No SSR please",
+             "environmentLabel": null,
+             "label": "Recoverable Error",
+             "source": "app/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation/client.tsx (5:11) @ ErrorInSSR
+           > 5 |     throw new Error('No SSR please')
+               |           ^",
+             "stack": [
+               "ErrorInSSR app/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation/client.tsx (5:11)",
+             ],
+           }
+          `)
+        }
       })
     })
 

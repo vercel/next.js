@@ -1052,5 +1052,11 @@
   "1051": "Turbopack trace server is not supported on this platform (%s/%s) because native bindings are not available. Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.",
   "1052": "Turbopack is not supported on this platform (%s/%s) because native bindings are not available. Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings. Use the --webpack flag instead.",
   "1053": "Export encountered errors on %s %s:\\n\\t%s",
-  "1054": "`runInSequentialTasks` should not be called in edge runtime."
+  "1054": "`runInSequentialTasks` should not be called in edge runtime.",
+  "1055": "Route \"%s\" failed to render during instant validation and Next.js was unable to determine a reason.",
+  "1056": "Route \"%s\": Could not validate \\`unstable_instant\\` because the target segment was prevented from rendering for an unknown reason.",
+  "1057": "Route \"%s\": Could not validate \\`unstable_instant\\` because the target segment was prevented from rendering, likely due to one of the following errors.",
+  "1058": "InstantValidationBoundary should only be rendered in SSR",
+  "1059": "Route \"%s\": Could not validate \\`unstable_instant\\` because the target segment was prevented from rendering, likely due to the following error.",
+  "1060": "Missing boundary tracking state"
 }

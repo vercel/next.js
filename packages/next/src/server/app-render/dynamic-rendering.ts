@@ -50,6 +50,7 @@ import { scheduleOnNextTick } from '../../lib/scheduler'
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { INSTANT_VALIDATION_BOUNDARY_NAME } from './instant-validation/boundary-constants'
+import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -773,12 +774,38 @@ export enum DynamicHoleKind {
   Dynamic = 2,
 }
 
+/** Stores dynamic reasons used during an SSR render in instant validation. */
+export type InstantValidationState = {
+  hasDynamicMetadata: boolean
+  hasAllowedClientDynamicAboveBoundary: boolean
+  dynamicMetadata: null | Error
+  hasDynamicViewport: boolean
+  hasAllowedDynamic: boolean
+  dynamicErrors: Array<Error>
+  validationPreventingErrors: Array<Error>
+  thrownErrorsOutsideBoundary: Array<unknown>
+}
+
+export function createInstantValidationState(): InstantValidationState {
+  return {
+    hasDynamicMetadata: false,
+    hasAllowedClientDynamicAboveBoundary: false,
+    dynamicMetadata: null,
+    hasDynamicViewport: false,
+    hasAllowedDynamic: false,
+    dynamicErrors: [],
+    validationPreventingErrors: [],
+    thrownErrorsOutsideBoundary: [],
+  }
+}
+
 export function trackDynamicHoleInNavigation(
   workStore: WorkStore,
   componentStack: string,
-  dynamicValidation: DynamicValidationState,
+  dynamicValidation: InstantValidationState,
   clientDynamic: DynamicTrackingState,
-  kind: DynamicHoleKind
+  kind: DynamicHoleKind,
+  boundaryState: ValidationBoundaryTracking
 ) {
   if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
@@ -805,32 +832,62 @@ export function trackDynamicHoleInNavigation(
     return
   }
 
-  // Check if we have a Suspense above the hole, but below the validation boundary.
-  // If we do, then this dynamic usage wouldn't block a navigation to this subtree.
-  // Conversely, if the nearest suspense is above the validation boundary, then this subtree would block.
-  //
-  // Note that in the component stack, children come before parents.
-  //
-  // Valid:
-  //   ...
-  //   at Suspense
-  //   ...
-  //   at __next_prefetch_validation_boundary__
-  //
-  // Invalid:
-  //   ...
-  //   at __next_prefetch_validation_boundary__
-  //   ...
-  //   at Suspense
-  //
-  const suspenseLocation = hasSuspenseRegex.exec(componentStack)
-  if (suspenseLocation) {
-    const boundaryLocation =
-      hasPrefetchValidationBoundaryRegex.exec(componentStack)
-    if (boundaryLocation) {
+  const boundaryLocation =
+    hasPrefetchValidationBoundaryRegex.exec(componentStack)
+  if (!boundaryLocation) {
+    // We don't see the validation boundary in the component stack,
+    // so this hole must be coming from a shared parent.
+    // Shared parents are fully resolved and don't have RSC holes,
+    // but they can still suspend in a client component during SSR.
+
+    // If we managed to render all the validation boundaries, that means
+    // that the client holes aren't blocking validation and we can disregard them.
+    // Note that we don't even care whether they have suspense or not.
+    if (boundaryState.expectedIds.size === boundaryState.renderedIds.size) {
+      dynamicValidation.hasAllowedClientDynamicAboveBoundary = true
+      dynamicValidation.hasAllowedDynamic = true // Holes outside the boundary contribute to allowing dynamic metadata
+      return
+    } else {
+      // TODO(instant-validation) TODO(NAR-787)
+      // If shared parents blocked us from validating, we should only log
+      // the errors from the innermost (segments), i.e. omit layouts whose
+      // slots managed to render (because clearly they didn't block validation)
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.`
+      const error = createErrorWithComponentOrOwnerStack(
+        message,
+        componentStack
+      )
+      dynamicValidation.validationPreventingErrors.push(error)
+      return
+    }
+  } else {
+    // The hole originates inside the validation boundary.
+    //
+    // Check if we have a Suspense above the hole, but below the validation boundary.
+    // If we do, then this dynamic usage wouldn't block a navigation to this subtree.
+    // Conversely, if the nearest suspense is above the validation boundary, then this subtree would block.
+    //
+    // Note that in the component stack, children come before parents.
+    //
+    // Valid:
+    //   ...
+    //   at Suspense
+    //   ...
+    //   at __next_prefetch_validation_boundary__
+    //
+    // Invalid:
+    //   ...
+    //   at __next_prefetch_validation_boundary__
+    //   ...
+    //   at Suspense
+    //
+    const suspenseLocation = hasSuspenseRegex.exec(componentStack)
+    if (suspenseLocation) {
       if (suspenseLocation.index < boundaryLocation.index) {
         dynamicValidation.hasAllowedDynamic = true
         return
+      } else {
+        // invalid - fallthrough
       }
     }
   }
@@ -851,6 +908,19 @@ export function trackDynamicHoleInNavigation(
   const error = createErrorWithComponentOrOwnerStack(message, componentStack)
   dynamicValidation.dynamicErrors.push(error)
   return
+}
+
+export function trackThrownErrorInNavigation(
+  dynamicValidation: InstantValidationState,
+  error: unknown,
+  componentStack: string
+) {
+  // If we see a validation boundary on the component stack,
+  // this error couldn't have blocked a validation boundary from rendering.
+  if (hasPrefetchValidationBoundaryRegex.test(componentStack)) {
+    return
+  }
+  dynamicValidation.thrownErrorsOutsideBoundary.push(error)
 }
 
 export function trackDynamicHoleInRuntimeShell(
@@ -1110,27 +1180,57 @@ export function getStaticShellDisallowedDynamicReasons(
 export function getNavigationDisallowedDynamicReasons(
   workStore: WorkStore,
   prelude: PreludeState,
-  dynamicValidation: DynamicValidationState
+  dynamicValidation: InstantValidationState,
+  boundaryState: ValidationBoundaryTracking
 ): Array<Error> {
-  // NOTE: We don't care about Suspense above body here
-  // TODO: Need to make sure the logic here actually makes sense
+  const { validationPreventingErrors } = dynamicValidation
+  if (validationPreventingErrors.length > 0) {
+    return validationPreventingErrors
+  }
 
+  if (boundaryState.renderedIds.size < boundaryState.expectedIds.size) {
+    const { thrownErrorsOutsideBoundary } = dynamicValidation
+    if (thrownErrorsOutsideBoundary.length === 0) {
+      return [
+        new Error(
+          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.`
+        ),
+      ]
+    } else if (thrownErrorsOutsideBoundary.length === 1) {
+      return [
+        new Error(
+          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`
+        ),
+        thrownErrorsOutsideBoundary[0] as Error,
+      ]
+    } else {
+      return [
+        new Error(
+          `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`
+        ),
+        ...(thrownErrorsOutsideBoundary as Error[]),
+      ]
+    }
+  }
+
+  // NOTE: We don't care about Suspense above body here,
+  // we're only concerned with the validation boundary
   if (prelude !== PreludeState.Full) {
-    // We didn't have any sync bailouts but there may be user code which
-    // blocked the root. We would have captured these during the prerender
-    // and can log them here and then terminate the build/validating render
     const dynamicErrors = dynamicValidation.dynamicErrors
     if (dynamicErrors.length > 0) {
       return dynamicErrors
     }
 
     if (prelude === PreludeState.Empty) {
+      // If a client component suspended prevented us from rendering a shell
+      // but didn't block validation, we don't require a prelude.
+      if (dynamicValidation.hasAllowedClientDynamicAboveBoundary) {
+        return []
+      }
       // If we ever get this far then we messed up the tracking of invalid dynamic.
-      // We still adhere to the constraint that you must produce a shell but invite the
-      // user to report this as a bug in Next.js.
       return [
         new InvariantError(
-          `Route "${workStore.route}" did not produce a static shell and Next.js was unable to determine a reason.`
+          `Route "${workStore.route}" failed to render during instant validation and Next.js was unable to determine a reason.`
         ),
       ]
     }
