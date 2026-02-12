@@ -127,7 +127,7 @@ interface ScrollAndFocusHandlerProps {
 }
 class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
   handlePotentialScroll = () => {
-    // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
+    // Handle scroll and focus, it's only applied once.
     const { focusAndScrollRef, segmentPath } = this.props
 
     if (focusAndScrollRef.apply) {
@@ -192,7 +192,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         () => {
           // In case of hash scroll, we only need to scroll the element into view
           if (hashFragment) {
-            ;(domNode as HTMLElement).scrollIntoView()
+            domNode.scrollIntoView()
 
             return
           }
@@ -202,7 +202,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
           const viewportHeight = htmlElement.clientHeight
 
           // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
+          if (topOfElementInViewport(domNode, viewportHeight)) {
             return
           }
 
@@ -213,9 +213,9 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
           htmlElement.scrollTop = 0
 
           // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
+          if (!topOfElementInViewport(domNode, viewportHeight)) {
             // Scroll into view doesn't scroll horizontally by default when not needed
-            ;(domNode as HTMLElement).scrollIntoView()
+            domNode.scrollIntoView()
           }
         },
         {
@@ -238,10 +238,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
   }
 
   componentDidUpdate() {
-    // Because this property is overwritten in handlePotentialScroll it's fine to always run it when true as it'll be set to false for subsequent renders.
-    if (this.props.focusAndScrollRef.apply) {
-      this.handlePotentialScroll()
-    }
+    this.handlePotentialScroll()
   }
 
   render() {
