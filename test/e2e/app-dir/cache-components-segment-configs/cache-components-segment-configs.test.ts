@@ -97,14 +97,17 @@ describe('cache-components-segment-configs', () => {
             expect(redbox.description).toMatchInlineSnapshot(
               `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
             )
+            expect(redbox.source).toContain(
+              '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+            )
           } else {
             expect(redbox.description).toMatchInlineSnapshot(
               `"  x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
             )
+            expect(redbox.source).toContain(
+              '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+            )
           }
-          expect(redbox.source).toContain(
-            '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
-          )
         } else {
           await retry(async () => {
             expect(next.cliOutput).toContain(
