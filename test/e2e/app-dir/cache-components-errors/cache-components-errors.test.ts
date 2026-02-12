@@ -2547,13 +2547,13 @@ describe('Cache Components Errors', () => {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
                        at cache (webpack:///<next-src>)
-                     1358 |                 cacheSignal.endRead()
-                     1359 |               }
-                   > 1360 |               return makeHangingPromise(
+                     1357 |                 cacheSignal.endRead()
+                     1358 |               }
+                   > 1359 |               return makeHangingPromise(
                           |                      ^
-                     1361 |                 workUnitStore.renderSignal,
-                     1362 |                 workStore.route,
-                     1363 |                 'dynamic "use cache"'
+                     1360 |                 workUnitStore.renderSignal,
+                     1361 |                 workStore.route,
+                     1362 |                 'dynamic "use cache"'
                    Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
 
                    > Export encountered errors on following paths:
@@ -2689,13 +2689,13 @@ describe('Cache Components Errors', () => {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
                        at cache (webpack:///<next-src>)
-                     1358 |                 cacheSignal.endRead()
-                     1359 |               }
-                   > 1360 |               return makeHangingPromise(
+                     1357 |                 cacheSignal.endRead()
+                     1358 |               }
+                   > 1359 |               return makeHangingPromise(
                           |                      ^
-                     1361 |                 workUnitStore.renderSignal,
-                     1362 |                 workStore.route,
-                     1363 |                 'dynamic "use cache"'
+                     1360 |                 workUnitStore.renderSignal,
+                     1361 |                 workStore.route,
+                     1362 |                 'dynamic "use cache"'
                    Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
 
                    > Export encountered errors on following paths:
@@ -2933,13 +2933,13 @@ describe('Cache Components Errors', () => {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
                        at cache (webpack:///<next-src>)
-                     1358 |                 cacheSignal.endRead()
-                     1359 |               }
-                   > 1360 |               return makeHangingPromise(
+                     1357 |                 cacheSignal.endRead()
+                     1358 |               }
+                   > 1359 |               return makeHangingPromise(
                           |                      ^
-                     1361 |                 workUnitStore.renderSignal,
-                     1362 |                 workStore.route,
-                     1363 |                 'dynamic "use cache"'
+                     1360 |                 workUnitStore.renderSignal,
+                     1361 |                 workStore.route,
+                     1362 |                 'dynamic "use cache"'
                    Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
 
                    > Export encountered errors on following paths:
@@ -3075,13 +3075,13 @@ describe('Cache Components Errors', () => {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
                        at cache (webpack:///<next-src>)
-                     1358 |                 cacheSignal.endRead()
-                     1359 |               }
-                   > 1360 |               return makeHangingPromise(
+                     1357 |                 cacheSignal.endRead()
+                     1358 |               }
+                   > 1359 |               return makeHangingPromise(
                           |                      ^
-                     1361 |                 workUnitStore.renderSignal,
-                     1362 |                 workStore.route,
-                     1363 |                 'dynamic "use cache"'
+                     1360 |                 workUnitStore.renderSignal,
+                     1361 |                 workStore.route,
+                     1362 |                 'dynamic "use cache"'
                    Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
 
                    > Export encountered errors on following paths:
@@ -3855,13 +3855,13 @@ describe('Cache Components Errors', () => {
                      at cache (webpack:///<next-src>)
                      at Private (webpack:///app/use-cache-private-without-suspense/page.tsx:15:1)
                      at Page (webpack:///app/use-cache-private-without-suspense/page.tsx:10:7)
-                   938 |       // "use cache: private" is dynamic in prerendering contexts.
-                   939 |       case 'prerender':
-                 > 940 |         return makeHangingPromise(
+                   937 |       // "use cache: private" is dynamic in prerendering contexts.
+                   938 |       case 'prerender':
+                 > 939 |         return makeHangingPromise(
                        |                ^
-                   941 |           workUnitStore.renderSignal,
-                   942 |           workStore.route,
-                   943 |           expression
+                   940 |           workUnitStore.renderSignal,
+                   941 |           workStore.route,
+                   942 |           expression
                  Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
 
                  > Export encountered errors on following paths:
