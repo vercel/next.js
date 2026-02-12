@@ -1,11 +1,9 @@
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-
 const basePath = process.env.__NEXT_ROUTER_BASEPATH || ''
 const pathname = `${basePath}/__nextjs_source-map`
 
 export const findSourceMapURL =
   // Source maps are only served by the dev server.
-  process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER
+  process.env.__NEXT_DEV_SERVER
     ? function findSourceMapURL(filename: string): string | null {
         if (filename === '') {
           return null

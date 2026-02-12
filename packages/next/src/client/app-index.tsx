@@ -27,7 +27,6 @@ import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-a
 import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
 import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 /// <reference types="react-dom/experimental" />
 
@@ -191,7 +190,7 @@ let debugChannel:
   | undefined
 
 if (
-  process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER &&
+  process.env.__NEXT_DEV_SERVER &&
   process.env.__NEXT_REACT_DEBUG_CHANNEL &&
   typeof window !== 'undefined'
 ) {
@@ -311,7 +310,7 @@ export async function hydrate(
   let staticIndicatorState: StaticIndicatorState | undefined
   let webSocket: WebSocket | undefined
 
-  if (process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER) {
+  if (process.env.__NEXT_DEV_SERVER) {
     const { createWebSocket } =
       require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
 
@@ -381,7 +380,7 @@ export async function hydrate(
   }
 
   // TODO-APP: Remove this logic when Float has GC built-in in development.
-  if (process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER) {
+  if (process.env.__NEXT_DEV_SERVER) {
     const { linkGc } =
       require('./app-link-gc') as typeof import('./app-link-gc')
     linkGc()

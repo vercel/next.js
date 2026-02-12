@@ -39,7 +39,6 @@ import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Revalidate } from './lib/cache-control'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
 import ReactDOMServerPages from 'next/dist/server/ReactDOMServerPages'
@@ -456,7 +455,7 @@ export async function renderToHTMLImpl(
 
   const metadata: PagesRenderResultMetadata = {}
 
-  const isDevServer = process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER
+  const isDevServer = !!process.env.__NEXT_DEV_SERVER
 
   metadata.assetQueryString = (isDevServer && renderOpts.assetQueryString) || ''
 

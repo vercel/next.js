@@ -194,7 +194,6 @@ import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import {
@@ -322,7 +321,7 @@ const filterStackFrame =
         .filterStackFrameDEV
     : undefined
 
-const isDevServer = process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER
+const isDevServer = !!process.env.__NEXT_DEV_SERVER
 
 interface ParsedRequestHeaders {
   /**

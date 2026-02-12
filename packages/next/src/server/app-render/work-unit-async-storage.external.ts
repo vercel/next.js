@@ -18,7 +18,6 @@ import type {
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { StagedRenderingController } from './staged-rendering'
@@ -415,7 +414,7 @@ export function getRenderResumeDataCache(
   }
 }
 
-const isDevServer = process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER
+const isDevServer = !!process.env.__NEXT_DEV_SERVER
 
 export function getHmrRefreshHash(
   workUnitStore: WorkUnitStore

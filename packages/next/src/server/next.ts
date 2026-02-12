@@ -402,13 +402,9 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   async prepare() {
-    // Set NEXT_PHASE for custom servers, since CLI entry points (next dev, next
-    // start) set this env var themselves but custom servers bypass those code
-    // paths. This must be set before loading any server modules that read it at
-    // module scope.
-    process.env.NEXT_PHASE = this.options.dev
-      ? PHASE_DEVELOPMENT_SERVER
-      : PHASE_PRODUCTION_SERVER
+    if (this.options.dev) {
+      process.env.__NEXT_DEV_SERVER = '1'
+    }
 
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')

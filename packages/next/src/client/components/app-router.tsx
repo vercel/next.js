@@ -47,7 +47,6 @@ import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 import { getDeploymentIdQueryOrEmptyString } from '../../shared/lib/deployment-id'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -480,7 +479,7 @@ function Router({
     </RedirectBoundary>
   )
 
-  if (process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER) {
+  if (process.env.__NEXT_DEV_SERVER) {
     // In development, we apply few error boundaries and hot-reloader:
     // - DevRootHTTPAccessFallbackBoundary: avoid using navigation API like notFound() in root layout
     // - HotReloader:

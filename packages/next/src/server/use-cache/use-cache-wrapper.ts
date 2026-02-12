@@ -71,7 +71,6 @@ import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-st
 import type { CacheLife } from './cache-life'
 import { RenderStage } from '../app-render/staged-rendering'
 import * as Log from '../../build/output/log'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -1903,7 +1902,7 @@ function shouldForceRevalidate(
     return true
   }
 
-  if (process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER && workUnitStore) {
+  if (process.env.__NEXT_DEV_SERVER && workUnitStore) {
     switch (workUnitStore.type) {
       case 'request':
         return workUnitStore.headers.get('cache-control') === 'no-cache'

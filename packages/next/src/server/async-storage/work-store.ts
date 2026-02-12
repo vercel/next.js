@@ -9,7 +9,6 @@ import type { CacheLife } from '../use-cache/cache-life'
 import { AfterContext } from '../after/after-context'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import { createLazyResult, type LazyResult } from '../lib/lazy-result'
 import { getCacheHandlerEntries } from '../use-cache/handlers'
 import { createSnapshot } from '../app-render/async-local-storage'
@@ -104,7 +103,7 @@ export function createWorkStore({
     !renderOpts.isDraftMode &&
     !renderOpts.isPossibleServerAction
 
-  const isDevServer = process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER
+  const isDevServer = !!process.env.__NEXT_DEV_SERVER
 
   const shouldTrackFetchMetrics =
     isDevServer ||

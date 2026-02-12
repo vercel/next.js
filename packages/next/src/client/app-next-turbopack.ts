@@ -1,7 +1,6 @@
 import './register-deployment-id-global'
 import { appBootstrap } from './app-bootstrap'
 import { isRecoverableError } from './react-client-callbacks/on-recoverable-error'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 window.next.turbopack = true
 ;(self as any).__webpack_hash__ = ''
@@ -14,7 +13,7 @@ appBootstrap((assetPrefix) => {
   try {
     hydrate(instrumentationHooks, assetPrefix)
   } finally {
-    if (process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER) {
+    if (process.env.__NEXT_DEV_SERVER) {
       const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
       const { getOwnerStack } =
         require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')

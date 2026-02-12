@@ -34,7 +34,6 @@ import type {
   UseCachePageProps,
 } from '../use-cache/use-cache-wrapper'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import {
   BOUNDARY_PREFIX,
   BOUNDARY_SUFFIX,
@@ -425,8 +424,7 @@ async function createComponentTreeInternal(
   }
 
   // Resolve the segment param
-  const isSegmentViewEnabled =
-    process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER
+  const isSegmentViewEnabled = !!process.env.__NEXT_DEV_SERVER
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -1195,8 +1193,7 @@ async function createBoundaryConventionElement({
   const {
     componentMod: { createElement, Fragment },
   } = ctx
-  const isSegmentViewEnabled =
-    process.env.NEXT_PHASE === PHASE_DEVELOPMENT_SERVER
+  const isSegmentViewEnabled = !!process.env.__NEXT_DEV_SERVER
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR

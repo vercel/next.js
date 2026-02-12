@@ -9,10 +9,6 @@ import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
 import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_SERVER,
-} from '../shared/lib/constants'
-import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
 } from '../lib/static-env'
@@ -161,13 +157,7 @@ export function getDefineEnv({
       dev || config.experimental.allowDevelopmentBuild
         ? 'development'
         : 'production',
-    ...(isClient
-      ? {
-          'process.env.NEXT_PHASE': dev
-            ? PHASE_DEVELOPMENT_SERVER
-            : PHASE_PRODUCTION_SERVER,
-        }
-      : undefined),
+    'process.env.__NEXT_DEV_SERVER': dev ? '1' : '',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
