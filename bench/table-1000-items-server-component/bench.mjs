@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 import { promises as fs } from 'fs'
 import prettyMs from 'pretty-ms'
 import treeKill from 'tree-kill'
+import { Bench } from 'tinybench'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = join(__dirname, '..', '..')
@@ -126,26 +127,56 @@ async function main() {
   const instance = await startServer()
 
   try {
-    // Warmup phase: send requests continuously for WARMUP_DURATION_MS
-    console.log(`\nWarming up for ${prettyMs(WARMUP_DURATION_MS)}...`)
-    let warmupCount = 0
-    const warmupEnd = performance.now() + WARMUP_DURATION_MS
-    while (performance.now() < warmupEnd) {
-      await measureRequest(URL)
-      warmupCount++
-    }
-    console.log(`Warmup complete (${warmupCount} requests)`)
+    // Benchmark requests using tinybench built-in warmup.
+    console.log(`\nPreparing tinybench benchmark...`)
+    const bench = new Bench({
+      name: 'table-1000-items-server-component',
+      time: 0,
+      iterations: BENCH_REQUESTS,
+      warmup: true,
+      warmupTime: WARMUP_DURATION_MS,
+      retainSamples: true,
+      throws: true,
+    })
 
-    // Benchmark requests
-    console.log(`\nRunning ${BENCH_REQUESTS} benchmark requests...\n`)
-    const durations = []
+    bench.add(
+      'request',
+      async () => {
+        await measureRequest(URL)
+      },
+      {
+        async: true,
+      }
+    )
 
-    for (let i = 0; i < BENCH_REQUESTS; i++) {
-      const duration = await measureRequest(URL)
-      durations.push(duration)
-    }
+    console.log(
+      `\nRunning ${BENCH_REQUESTS} benchmark requests with tinybench (${prettyMs(WARMUP_DURATION_MS)} built-in warmup)...\n`
+    )
+    await bench.run()
 
-    const stats = statistics(durations)
+    const latency = bench.tasks[0]?.result?.latency
+    const durations = Array.isArray(latency?.samples)
+      ? [...latency.samples]
+      : []
+    const stats =
+      latency &&
+      typeof latency.min === 'number' &&
+      typeof latency.max === 'number' &&
+      typeof latency.mean === 'number' &&
+      typeof latency.p50 === 'number' &&
+      typeof latency.p75 === 'number' &&
+      typeof latency.p95 === 'number' &&
+      typeof latency.p99 === 'number'
+        ? {
+            min: latency.min,
+            max: latency.max,
+            avg: latency.mean,
+            p50: latency.p50,
+            p75: latency.p75,
+            p95: latency.p95,
+            p99: latency.p99,
+          }
+        : statistics(durations)
 
     console.log('Results:')
     console.log('─'.repeat(40))
