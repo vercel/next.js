@@ -664,6 +664,13 @@ export function getResolveRoutes(
 
               parsedUrl = parseUrl(destination)
 
+              // Re-serialize the query string to ensure proper encoding
+              if (parsedUrl.query) {
+                const search = stringifyQuery(req as any, parsedUrl.query)
+                parsedUrl.search = search ? `?${search}` : ''
+                // Don't delete query as downstream code might need it
+              }
+
               if (parsedUrl.protocol) {
                 return {
                   parsedUrl,
