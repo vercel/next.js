@@ -1,0 +1,18 @@
+{
+  "name": "bench-rsc-many-suspense-components",
+  "private": true,
+  "scripts": {
+    "build-application": "next build",
+    "start": "next start",
+    "bench": "node bench.mjs"
+  },
+  "dependencies": {
+    "next": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "tinybench": "^6.0.0",
+    "typescript": "^5.0.0",
+    "pretty-ms": "^7.0.1"
+  }
+}
