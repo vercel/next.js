@@ -18,7 +18,7 @@ use owo_colors::OwoColorize;
 use serde::Serialize;
 use terminal_hyperlink::Hyperlink;
 use turbo_tasks::{
-    PrettyPrintError, TurboTasks, TurboTasksApi,
+    PrettyPrintError, TurboTasks, TurboTasksCallApi,
     backend::TurboTasksExecutionError,
     message_queue::{CompilationEvent, Severity},
 };

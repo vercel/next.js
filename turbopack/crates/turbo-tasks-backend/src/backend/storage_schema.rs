@@ -1010,7 +1010,7 @@ mod tests {
     fn test_schema_size() {
         assert_eq!(
             size_of::<TaskStorage>(),
-            144,
+            136,
             "TaskStorage size changed! If this is intentional, update this test."
         );
         assert_eq!(

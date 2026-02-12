@@ -28,10 +28,12 @@ use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bin
 use turbo_tasks::{
     CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
     ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT, TaskExecutionReason,
-    TaskId, TaskPriority, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    TaskId, TaskPriority, TraitTypeId, TurboTasksBackendApi, TurboTasksPanic, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskType,
-        TurboTasksExecutionError, TypedCellContent, VerificationMode,
+        TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
+        TurboTasksExecutionError, TurboTasksExecutionErrorMessage, TypedCellContent,
+        VerificationMode,
     },
     event::{Event, EventDescription, EventListener},
     message_queue::TimingEvent,
@@ -39,7 +41,6 @@ use turbo_tasks::{
     scope::scope_and_block,
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
-    turbo_tasks,
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
 };
 
@@ -66,6 +67,7 @@ use crate::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
     },
+    error::TaskError,
     utils::{
         arc_or_owned::ArcOrOwned,
         chunked_vec::ChunkedVec,
@@ -386,6 +388,69 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn track_cache_miss(&self, task_type: &CachedTaskType) {
         self.task_statistics
             .map(|stats| stats.increment_cache_miss(task_type.native_fn));
+    }
+
+    /// Reconstructs a full [`TurboTasksExecutionError`] from the compact [`TaskError`] storage
+    /// representation. For [`TaskError::TaskChain`], this looks up the source error from the last
+    /// task's output and rebuilds the nested `TaskContext` wrappers with `TurboTasksCallApi`
+    /// references for lazy name resolution.
+    fn task_error_to_turbo_tasks_execution_error(
+        &self,
+        error: &TaskError,
+        ctx: &mut impl ExecuteContext<'_>,
+    ) -> TurboTasksExecutionError {
+        match error {
+            TaskError::Panic(panic) => TurboTasksExecutionError::Panic(panic.clone()),
+            TaskError::Error(item) => TurboTasksExecutionError::Error(Arc::new(TurboTasksError {
+                message: item.message.clone(),
+                source: item
+                    .source
+                    .as_ref()
+                    .map(|e| self.task_error_to_turbo_tasks_execution_error(e, ctx)),
+            })),
+            TaskError::LocalTaskContext(local_task_context) => {
+                TurboTasksExecutionError::LocalTaskContext(Arc::new(TurboTaskLocalContextError {
+                    name: local_task_context.name.clone(),
+                    source: local_task_context
+                        .source
+                        .as_ref()
+                        .map(|e| self.task_error_to_turbo_tasks_execution_error(e, ctx)),
+                }))
+            }
+            TaskError::TaskChain(chain) => {
+                let task_id = chain.last().unwrap();
+                let error = {
+                    let task = ctx.task(*task_id, TaskDataCategory::Meta);
+                    if let Some(OutputValue::Error(error)) = task.get_output() {
+                        Some(error.clone())
+                    } else {
+                        None
+                    }
+                };
+                let error = error.map_or_else(
+                    || {
+                        // Eventual consistency will cause errors to no longer be available
+                        TurboTasksExecutionError::Panic(Arc::new(TurboTasksPanic {
+                            message: TurboTasksExecutionErrorMessage::PIISafe(Cow::Borrowed(
+                                "Error no longer available",
+                            )),
+                            location: None,
+                        }))
+                    },
+                    |e| self.task_error_to_turbo_tasks_execution_error(&e, ctx),
+                );
+                let mut current_error = error;
+                for &task_id in chain.iter().rev() {
+                    current_error =
+                        TurboTasksExecutionError::TaskContext(Arc::new(TurboTaskContextError {
+                            task_id,
+                            source: Some(current_error),
+                            turbo_tasks: ctx.turbo_tasks(),
+                        }));
+                }
+                current_error
+            }
+        }
     }
 }
 
@@ -715,11 +780,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let result = match output {
                 OutputValue::Cell(cell) => Ok(Ok(RawVc::TaskCell(cell.task, cell.cell))),
                 OutputValue::Output(task) => Ok(Ok(RawVc::TaskOutput(*task))),
-                OutputValue::Error(error) => Err(error
-                    .with_task_context(task.get_task_type(), Some(task_id))
-                    .into()),
+                OutputValue::Error(error) => Err(error.clone()),
             };
-            if let Some(mut reader_task) = reader_task
+            if let Some(mut reader_task) = reader_task.take()
                 && options.tracking.should_track(result.is_err())
                 && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
@@ -759,9 +822,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 drop(reader_task);
 
                 queue.execute(&mut ctx);
+            } else {
+                drop(task);
             }
 
-            return result;
+            return result.map_err(|error| {
+                self.task_error_to_turbo_tasks_execution_error(&error, &mut ctx)
+                    .with_task_context(task_id, turbo_tasks.pin())
+                    .into()
+            });
         }
         drop(reader_task);
 
@@ -962,6 +1031,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         parent_span: Option<tracing::Id>,
         reason: &str,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Option<(Instant, bool)> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason)
@@ -1087,7 +1157,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if let Some(ref m) = meta {
                 task_cache_stats
                     .lock()
-                    .entry(self.debug_get_task_name(task_id))
+                    .entry(self.get_task_name(task_id, turbo_tasks))
                     .or_default()
                     .add_counts(m);
             }
@@ -1107,7 +1177,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 if inner.flags.meta_modified() {
                     task_cache_stats
                         .lock()
-                        .entry(self.debug_get_task_name(task_id))
+                        .entry(self.get_task_name(task_id, turbo_tasks))
                         .or_default()
                         .add_counts(&inner);
                 }
@@ -1143,7 +1213,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     #[cfg(feature = "print_cache_item_size")]
                                     task_cache_stats
                                         .lock()
-                                        .entry(self.debug_get_task_name(task_id))
+                                        .entry(self.get_task_name(task_id, turbo_tasks))
                                         .or_default()
                                         .add_meta(&meta);
                                     Some(meta)
@@ -1163,7 +1233,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     #[cfg(feature = "print_cache_item_size")]
                                     task_cache_stats
                                         .lock()
-                                        .entry(self.debug_get_task_name(task_id))
+                                        .entry(self.get_task_name(task_id, turbo_tasks))
                                         .or_default()
                                         .add_data(&data);
                                     Some(data)
@@ -1317,7 +1387,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let elapsed = start.elapsed();
         // avoid spamming the event queue with information about fast operations
         if elapsed > Duration::from_secs(10) {
-            turbo_tasks().send_compilation_event(Arc::new(TimingEvent::new(
+            turbo_tasks.send_compilation_event(Arc::new(TimingEvent::new(
                 "Finished writing to filesystem cache".to_string(),
                 elapsed,
             )));
@@ -1366,7 +1436,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.verify_aggregation_graph(turbo_tasks, false);
         }
         if self.should_persist() {
-            self.snapshot_and_persist(Span::current().into(), "stop");
+            self.snapshot_and_persist(Span::current().into(), "stop", turbo_tasks);
         }
         drop_contents(&self.task_cache);
         self.storage.drop_contents();
@@ -1718,9 +1788,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
     }
 
-    #[allow(dead_code)]
-    fn debug_get_task_name(&self, task_id: TaskId) -> String {
-        let task = self.storage.access_mut(task_id);
+    fn get_task_name(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) -> String {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(value) = task.get_persistent_task_type() {
             value.to_string()
         } else if let Some(value) = task.get_transient_task_type() {
@@ -2180,11 +2254,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             Err(err) => {
                 if let Some(OutputValue::Error(old_error)) = current_output
-                    && old_error == &err
+                    && **old_error == err
                 {
                     None
                 } else {
-                    Some(OutputValue::Error(err))
+                    Some(OutputValue::Error(Arc::new((&err).into())))
                 }
             }
         };
@@ -2715,7 +2789,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         }
 
                         let this = self.clone();
-                        let snapshot = this.snapshot_and_persist(None, reason);
+                        let snapshot = this.snapshot_and_persist(None, reason, turbo_tasks);
                         if let Some((snapshot_start, new_data)) = snapshot {
                             last_snapshot = snapshot_start;
                             if !new_data {
@@ -3526,6 +3600,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     fn is_tracking_dependencies(&self) -> bool {
         self.0.options.dependency_tracking
+    }
+
+    fn get_task_name(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) -> String {
+        self.0.get_task_name(task, turbo_tasks)
     }
 }
 
