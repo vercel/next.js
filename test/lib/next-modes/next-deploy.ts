@@ -301,6 +301,11 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
       )
     }
+    if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
+      )
+    }
     if (process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
       additionalEnv.push(
         `NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL=${process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL}`

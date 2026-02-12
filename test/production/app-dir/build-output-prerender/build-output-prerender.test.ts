@@ -20,6 +20,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack, Cache Components)
              - Experiments (use with caution):
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
           } else {
@@ -27,6 +28,7 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
           }
@@ -101,6 +103,7 @@ describe('build-output-prerender', () => {
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack, Cache Components)
              - Experiments (use with caution):
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
@@ -112,6 +115,7 @@ describe('build-output-prerender', () => {
              ▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
@@ -230,6 +234,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack, Cache Components)
              - Experiments (use with caution):
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
           } else {
@@ -237,6 +242,7 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
           }
@@ -278,6 +284,7 @@ describe('build-output-prerender', () => {
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack, Cache Components)
              - Experiments (use with caution):
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
@@ -289,6 +296,7 @@ describe('build-output-prerender', () => {
              ▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
