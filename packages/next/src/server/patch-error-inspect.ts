@@ -5,7 +5,6 @@ import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import {
   type ModernSourceMapPayload,
-  devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
@@ -113,15 +112,14 @@ interface SourceMappedFrame {
 function createUnsourcemappedFrame(
   frame: SourcemappableStackFrame
 ): SourceMappedFrame {
-  const file = devirtualizeReactServerURL(frame.file)
   return {
     stack: {
-      file,
+      file: frame.file,
       line1: frame.line1,
       column1: frame.column1,
       methodName: frame.methodName,
       arguments: frame.arguments,
-      ignored: shouldIgnoreListGeneratedFrame(file),
+      ignored: shouldIgnoreListGeneratedFrame(frame.file),
     },
     code: null,
   }
@@ -161,7 +159,7 @@ function getSourcemappedFrameIfPossible(
   let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
-    let sourceURL = devirtualizeReactServerURL(frame.file)
+    let sourceURL = frame.file
     // e.g. "/Users/foo/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
     // or "C:\Users\foo\APP\.next\server\chunks\ssr\[root-of-the-server]__2934a0._.js"
     // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js".
@@ -169,13 +167,7 @@ function getSourcemappedFrameIfPossible(
     //
     // But frame.file might also be "webpack-internal:///(rsc)/./app/bad-sourcemap/page.js" or
     // "<anonymous>" or "node:internal/process/task_queues" here
-    if (sourceURL.startsWith('file:')) {
-      // devirtualizeReactServerURL uses decodeURI, so file URLs may have
-      // decoded characters (e.g. `[` instead of `%5B`). Normalize via
-      // round-trip to match the encoding Node.js uses in its source map
-      // registry.
-      sourceURL = url.pathToFileURL(url.fileURLToPath(sourceURL)).toString()
-    } else if (path.isAbsolute(frame.file)) {
+    if (path.isAbsolute(frame.file)) {
       sourceURL = url.pathToFileURL(frame.file).toString()
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
