@@ -107,6 +107,7 @@ interface TraceMetadata {
   pkgName: string
   platform: string
   sessionId: string
+  enabledFeatures: Record<string, unknown>
 }
 
 ;(async function upload() {
@@ -140,12 +141,41 @@ interface TraceMetadata {
   })
 
   const sessionTrace = []
+  let sessionEnabledFeatures: Record<string, unknown> = {}
+  const spanEnabledFeatures = new Map<number, Record<string, unknown>>()
+
   for await (const line of readLineInterface) {
     const lineEvents: TraceEvent[] = JSON.parse(line)
     for (const event of lineEvents) {
       if (event.traceId !== traceId) {
         // Only consider events for the current session
         continue
+      }
+
+      // Extract enabled features from the root span (next-dev or next-build)
+      if (
+        event.parentId === undefined &&
+        event.tags &&
+        (event.name === 'next-dev' || event.name === 'next-build')
+      ) {
+        for (const [key, value] of Object.entries(event.tags)) {
+          if (key.startsWith('feature.')) {
+            sessionEnabledFeatures[key] = value
+          }
+        }
+      }
+
+      // Collect feature tags from all events for inheritance
+      if (event.tags) {
+        const enabledFeatures: Record<string, unknown> = {}
+        for (const [key, value] of Object.entries(event.tags)) {
+          if (key.startsWith('feature.')) {
+            enabledFeatures[key] = value
+          }
+        }
+        if (Object.keys(enabledFeatures).length > 0) {
+          spanEnabledFeatures.set(event.id, enabledFeatures)
+        }
       }
 
       if (
@@ -161,6 +191,18 @@ interface TraceMetadata {
     }
   }
 
+  // Apply feature tag inheritance to session trace
+  const sessionTraceWithInheritance = sessionTrace.map((event) => {
+    if (event.parentId !== undefined) {
+      const parentFlags = spanEnabledFeatures.get(event.parentId)
+      if (parentFlags && Object.keys(parentFlags).length > 0) {
+        // Inherit parent flags, but child's own tags take precedence
+        return { ...event, tags: { ...parentFlags, ...event.tags } }
+      }
+    }
+    return event
+  })
+
   const body: TraceRequestBody = {
     metadata: {
       anonymousId,
@@ -173,11 +215,12 @@ interface TraceMetadata {
       pkgName,
       platform: os.platform(),
       sessionId,
+      enabledFeatures: sessionEnabledFeatures,
     },
     // The trace file can contain events spanning multiple sessions.
     // Only submit traces for the current session, as the metadata we send is
     // intended for this session only.
-    traces: [sessionTrace],
+    traces: [sessionTraceWithInheritance],
   }
 
   if (isDebugEnabled) {

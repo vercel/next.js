@@ -914,7 +914,8 @@ export default async function build(
   bundler = Bundler.Turbopack,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
-  debugBuildPaths: { app: string[]; pages: string[] } | undefined
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined,
+  enabledFeatures: Record<string, unknown> = {}
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
@@ -929,6 +930,7 @@ export default async function build(
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
       version: process.env.__NEXT_VERSION as string,
+      ...enabledFeatures,
     })
 
     NextBuildContext.nextBuildSpan = nextBuildSpan
