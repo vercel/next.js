@@ -545,6 +545,7 @@ describe('app dir - metadata dynamic routes', () => {
          "/opengraph-image",
          "/opengraph-image-1ow20b",
          "/robots.txt",
+         "/sitemap",
          "/sitemap-image/sitemap.xml",
          "/sitemap-video/sitemap.xml",
          "/sitemap.xml",

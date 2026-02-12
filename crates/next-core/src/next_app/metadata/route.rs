@@ -83,19 +83,18 @@ pub async fn get_app_metadata_route_entry(
     // Map dynamic sitemap and image routes based on the exports.
     // if there's generator export: add /[__metadata_id__] to the route;
     // otherwise keep the original route.
-    // For sitemap, if the last segment is sitemap, appending .xml suffix.
     if is_dynamic_metadata {
         // remove the last /route segment of page
         page.0.pop();
 
         if is_multi_dynamic {
-            page.push(PageSegment::Dynamic(rcstr!("__metadata_id__")))?;
-        } else {
-            // if page last segment is sitemap, change to sitemap.xml
-            if page.last() == Some(&PageSegment::Static(rcstr!("sitemap"))) {
+            // For sitemap.xml routes with generateSitemaps, revert to sitemap
+            // since multi-dynamic sitemaps use /sitemap/[__metadata_id__]
+            if page.last() == Some(&PageSegment::Static(rcstr!("sitemap.xml"))) {
                 page.0.pop();
-                page.push(PageSegment::Static(rcstr!("sitemap.xml")))?
+                page.push(PageSegment::Static(rcstr!("sitemap")))?;
             }
+            page.push(PageSegment::Dynamic(rcstr!("__metadata_id__")))?;
         };
         // Push /route back
         page.push(PageSegment::PageType(PageType::Route))?;

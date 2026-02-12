@@ -332,6 +332,8 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
         route += ".txt"
     } else if route == "/manifest" {
         route += ".webmanifest"
+    } else if route.ends_with("/sitemap") {
+        route += ".xml"
     } else {
         suffix = get_metadata_route_suffix(&route);
     }
@@ -380,6 +382,9 @@ mod test {
             ],
             ["/robots.txt", "/robots.txt/route"],
             ["/manifest.webmanifest", "/manifest.webmanifest/route"],
+            ["/sitemap", "/sitemap.xml/route"],
+            ["/sitemap.xml", "/sitemap.xml/route"],
+            ["/blog/sitemap", "/blog/sitemap.xml/route"],
         ];
 
         for [input, expected] in cases {
