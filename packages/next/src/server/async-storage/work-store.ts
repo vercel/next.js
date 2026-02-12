@@ -103,10 +103,8 @@ export function createWorkStore({
     !renderOpts.isDraftMode &&
     !renderOpts.isPossibleServerAction
 
-  const isDevServer = !!process.env.__NEXT_DEV_SERVER
-
   const shouldTrackFetchMetrics =
-    isDevServer ||
+    !!process.env.__NEXT_DEV_SERVER ||
     // The only times we want to track fetch metrics outside of development is
     // when we are performing a static generation and we either are in debug
     // mode, or tracking fetch metrics was specifically opted into.

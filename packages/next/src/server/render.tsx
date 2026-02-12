@@ -455,11 +455,10 @@ export async function renderToHTMLImpl(
 
   const metadata: PagesRenderResultMetadata = {}
 
-  const isDevServer = !!process.env.__NEXT_DEV_SERVER
+  metadata.assetQueryString =
+    (process.env.__NEXT_DEV_SERVER && renderOpts.assetQueryString) || ''
 
-  metadata.assetQueryString = (isDevServer && renderOpts.assetQueryString) || ''
-
-  if (isDevServer && !metadata.assetQueryString) {
+  if (process.env.__NEXT_DEV_SERVER && !metadata.assetQueryString) {
     const userAgent = (req.headers['user-agent'] || '').toLowerCase()
     if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
       // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -553,7 +552,7 @@ export async function renderToHTMLImpl(
   // would normally be automatically statically optimized
   // ensure we set cache header so it's not rendered on-demand
   // every request
-  if (isAutoExport && !isDevServer && isExperimentalCompile) {
+  if (isAutoExport && !process.env.__NEXT_DEV_SERVER && isExperimentalCompile) {
     res.setHeader(
       'Cache-Control',
       getCacheControlHeader({ revalidate: false, expire: expireTime })
@@ -601,7 +600,7 @@ export async function renderToHTMLImpl(
 
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
-  if (isDevServer) {
+  if (process.env.__NEXT_DEV_SERVER) {
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
@@ -835,7 +834,7 @@ export async function renderToHTMLImpl(
   const nextExport =
     !isSSG &&
     (renderOpts.isBuildTimePrerendering ||
-      (isDevServer && (isAutoExport || isFallback)))
+      (process.env.__NEXT_DEV_SERVER && (isAutoExport || isFallback)))
 
   const styledJsxInsertedHTML = () => {
     const styles = jsxStyleRegistry.styles()
@@ -963,7 +962,7 @@ export async function renderToHTMLImpl(
     }
 
     if (
-      (isDevServer || isBuildTimeSSG) &&
+      (process.env.__NEXT_DEV_SERVER || isBuildTimeSSG) &&
       !metadata.isNotFound &&
       !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
     ) {
@@ -1182,7 +1181,7 @@ export async function renderToHTMLImpl(
     }
 
     if (
-      (isDevServer || isBuildTimeSSG) &&
+      (process.env.__NEXT_DEV_SERVER || isBuildTimeSSG) &&
       !isSerializableProps(pathname, 'getServerSideProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
@@ -1300,7 +1299,10 @@ export async function renderToHTMLImpl(
           return { html, head }
         }
 
-        if (isDevServer && (props.router || props.Component)) {
+        if (
+          process.env.__NEXT_DEV_SERVER &&
+          (props.router || props.Component)
+        ) {
           throw new Error(
             `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
           )
@@ -1483,7 +1485,7 @@ export async function renderToHTMLImpl(
           ? undefined
           : Array.from(dynamicImportsIds),
       err: renderOpts.err
-        ? serializeError(isDevServer, renderOpts.err)
+        ? serializeError(!!process.env.__NEXT_DEV_SERVER, renderOpts.err)
         : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
@@ -1496,13 +1498,15 @@ export async function renderToHTMLImpl(
       domainLocales,
       isPreview: isPreview === true ? true : undefined,
       notFoundSrcPage:
-        notFoundSrcPage && isDevServer ? notFoundSrcPage : undefined,
+        notFoundSrcPage && process.env.__NEXT_DEV_SERVER
+          ? notFoundSrcPage
+          : undefined,
     },
     nonce,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
     dangerousAsPath: router.asPath,
-    isDevelopment: isDevServer,
+    isDevelopment: !!process.env.__NEXT_DEV_SERVER,
     deploymentId: sharedContext.deploymentId,
     dynamicImports: Array.from(dynamicImports),
     dynamicCssManifest: new Set(renderOpts.dynamicCssManifest || []),

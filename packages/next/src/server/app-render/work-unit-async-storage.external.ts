@@ -414,12 +414,10 @@ export function getRenderResumeDataCache(
   }
 }
 
-const isDevServer = !!process.env.__NEXT_DEV_SERVER
-
 export function getHmrRefreshHash(
   workUnitStore: WorkUnitStore
 ): string | undefined {
-  if (isDevServer) {
+  if (process.env.__NEXT_DEV_SERVER) {
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
@@ -442,7 +440,7 @@ export function getHmrRefreshHash(
 }
 
 export function isHmrRefresh(workUnitStore: WorkUnitStore): boolean {
-  if (isDevServer) {
+  if (process.env.__NEXT_DEV_SERVER) {
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
@@ -466,7 +464,7 @@ export function isHmrRefresh(workUnitStore: WorkUnitStore): boolean {
 export function getServerComponentsHmrCache(
   workUnitStore: WorkUnitStore
 ): ServerComponentsHmrCache | undefined {
-  if (isDevServer) {
+  if (process.env.__NEXT_DEV_SERVER) {
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':

@@ -321,8 +321,6 @@ const filterStackFrame =
         .filterStackFrameDEV
     : undefined
 
-const isDevServer = !!process.env.__NEXT_DEV_SERVER
-
 interface ParsedRequestHeaders {
   /**
    * Router state provided from the client-side router. Used to handle rendering
@@ -382,7 +380,7 @@ function parseRequestHeaders(
   let requestId: string | undefined
   let htmlRequestId: string | undefined
 
-  if (isDevServer) {
+  if (process.env.__NEXT_DEV_SERVER) {
     // The request IDs are only used for the dev server to send debug
     // information to the matching client (identified by the HTML request ID
     // that was sent to the client with the HTML document) for the current
@@ -540,7 +538,7 @@ async function generateDynamicRSCPayload(
     // If we're performing instant validation, we need to render the whole tree,
     // without skipping shared layouts.
     const needsFullTree =
-      isDevServer &&
+      process.env.__NEXT_DEV_SERVER &&
       ctx.renderOpts.cacheComponents &&
       !options?.actionResult && // Only for navigations
       (await anySegmentNeedsInstantValidation(loaderTree))
@@ -1510,7 +1508,7 @@ async function getRSCPayload(
   let missingSlots: Set<string> | undefined
 
   // We only track missing parallel slots in development
-  if (isDevServer) {
+  if (process.env.__NEXT_DEV_SERVER) {
     missingSlots = new Set<string>()
   }
 
@@ -1679,7 +1677,7 @@ async function getErrorRSCPayload(
       isPossibleServerAction: ctx.isPossibleServerAction,
     }),
     createElement(Viewport, null),
-    isDevServer &&
+    process.env.__NEXT_DEV_SERVER &&
       createElement('meta', {
         name: 'next-error',
         content: 'not-found',
@@ -1710,7 +1708,7 @@ async function getErrorRSCPayload(
       createElement(
         'body',
         null,
-        isDevServer && err
+        process.env.__NEXT_DEV_SERVER && err
           ? createElement('template', {
               'data-next-error-message': err.message,
               'data-next-error-digest': 'digest' in err ? err.digest : '',
@@ -1933,7 +1931,7 @@ async function renderToHTMLOrFlightImpl(
       if (!cacheComponents) {
         return false
       }
-      if (isDevServer) {
+      if (process.env.__NEXT_DEV_SERVER) {
         return true
       }
       const workUnitStore = workUnitAsyncStorage.getStore()
@@ -1981,7 +1979,7 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = __next_chunk_load__
   }
 
-  if (isDevServer && setIsrStatus && !cacheComponents) {
+  if (process.env.__NEXT_DEV_SERVER && setIsrStatus && !cacheComponents) {
     // Reset the ISR status at start of request.
     const { pathname } = new URL(req.url || '/', 'http://n')
     setIsrStatus(
@@ -2249,7 +2247,7 @@ async function renderToHTMLOrFlightImpl(
     const requestStore = createRequestStore()
 
     if (
-      isDevServer &&
+      process.env.__NEXT_DEV_SERVER &&
       setIsrStatus &&
       !cacheComponents &&
       // Only pages using the Node runtime can use ISR, so we only need to
@@ -2271,7 +2269,7 @@ async function renderToHTMLOrFlightImpl(
         return generateRuntimePrefetchResult(req, ctx, requestStore)
       } else {
         if (
-          isDevServer &&
+          process.env.__NEXT_DEV_SERVER &&
           process.env.NEXT_RUNTIME !== 'edge' &&
           cacheComponents
         ) {
@@ -2367,7 +2365,7 @@ async function renderToHTMLOrFlightImpl(
     // Invalid dynamic usages should only error the request in development.
     // In production, it's better to produce a result.
     // (the dynamic error will still be thrown inside the component tree, but it's catchable by error boundaries)
-    if (workStore.invalidDynamicUsageError && isDevServer) {
+    if (workStore.invalidDynamicUsageError && process.env.__NEXT_DEV_SERVER) {
       throw workStore.invalidDynamicUsageError
     }
 
@@ -2641,7 +2639,7 @@ async function renderToStream(
 
   // In development mode, set the request ID as a global variable, before the
   // bootstrap script is executed, which depends on it during hydration.
-  const bootstrapScriptContent = isDevServer
+  const bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
     ? `self.__next_r=${JSON.stringify(requestId)}`
     : undefined
 
@@ -2725,7 +2723,7 @@ async function renderToStream(
 
     try {
       if (
-        isDevServer &&
+        process.env.__NEXT_DEV_SERVER &&
         // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
         process.env.NEXT_RUNTIME !== 'edge' &&
         // We only have a Prerender environment for projects opted into cacheComponents
@@ -3041,7 +3039,7 @@ async function renderToStream(
         deploymentId: ctx.sharedContext.deploymentId,
         getServerInsertedHTML,
         getServerInsertedMetadata,
-        validateRootLayout: isDevServer,
+        validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
       })
     } catch (err) {
       if (
@@ -3214,10 +3212,13 @@ async function renderToStream(
             tracingMetadata: tracingMetadata,
           }),
           getServerInsertedMetadata,
-          validateRootLayout: isDevServer,
+          validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
         })
       } catch (finalErr: any) {
-        if (isDevServer && isHTTPAccessFallbackError(finalErr)) {
+        if (
+          process.env.__NEXT_DEV_SERVER &&
+          isHTTPAccessFallbackError(finalErr)
+        ) {
           const { bailOnRootNotFound } =
             require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
           bailOnRootNotFound()
@@ -3423,7 +3424,7 @@ async function renderWithRestartOnCacheMissInDev(
     }
   }
 
-  if (isDevServer && setCacheStatus) {
+  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
     setCacheStatus('filling', htmlRequestId)
   }
 
@@ -3517,7 +3518,7 @@ async function renderWithRestartOnCacheMissInDev(
     )
   )
 
-  if (isDevServer && setCacheStatus) {
+  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
     setCacheStatus('filled', htmlRequestId)
   }
 
@@ -5906,7 +5907,7 @@ async function prerenderToStream(
             tracingMetadata: tracingMetadata,
           }),
           getServerInsertedMetadata,
-          validateRootLayout: isDevServer,
+          validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
           deploymentId: ctx.sharedContext.deploymentId,
         }),
         dynamicAccess: null,
@@ -5920,7 +5921,10 @@ async function prerenderToStream(
         collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
       }
     } catch (finalErr: any) {
-      if (isDevServer && isHTTPAccessFallbackError(finalErr)) {
+      if (
+        process.env.__NEXT_DEV_SERVER &&
+        isHTTPAccessFallbackError(finalErr)
+      ) {
         const { bailOnRootNotFound } =
           require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
         bailOnRootNotFound()
@@ -5960,7 +5964,7 @@ const getGlobalErrorStyles = async (
 
   let globalErrorStyles: ReactNode = styles
 
-  if (isDevServer) {
+  if (process.env.__NEXT_DEV_SERVER) {
     const dir =
       (process.env.NEXT_RUNTIME === 'edge'
         ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -6047,7 +6051,10 @@ async function collectSegmentData(
 }
 
 function isBypassingCachesInDev(requestStore: RequestStore): boolean {
-  return isDevServer && requestStore.headers.get('cache-control') === 'no-cache'
+  return (
+    !!process.env.__NEXT_DEV_SERVER &&
+    requestStore.headers.get('cache-control') === 'no-cache'
+  )
 }
 
 function WarnForBypassCachesInDev({ route }: { route: string }) {
