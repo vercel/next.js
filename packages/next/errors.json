@@ -1045,5 +1045,6 @@
   "1044": "No router instance found.\nYou should only use \"next/router\" on the client side of your app.\n",
   "1045": "LRUCache: calculateSize returned %s%s, but size must be > 0. Items with size 0 would never be evicted, causing unbounded cache growth.",
   "1046": "`draftMode` must not be used within a Client Component. Next.js should be preventing `draftMode` from being included in Client Components statically, but did not in this case.",
-  "1047": "Extra keys returned from getStaticPaths in %s (%s) Expected: { paths: [], fallback: boolean }\\nSee here for more info: https://nextjs.org/docs/messages/invalid-getstaticpaths-value"
+  "1047": "Extra keys returned from getStaticPaths in %s (%s) Expected: { paths: [], fallback: boolean }\\nSee here for more info: https://nextjs.org/docs/messages/invalid-getstaticpaths-value",
+  "1048": "Woah, canSegmentBeOverridden returned true: %s"
 }

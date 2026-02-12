@@ -370,5 +370,11 @@ const canSegmentBeOverridden = (
     return false
   }
 
-  return getSegmentParam(existingSegment)?.paramName === segment[0]
+  const result = getSegmentParam(existingSegment)?.paramName === segment[0]
+  if (result) {
+    throw new Error(
+      `Woah, canSegmentBeOverridden returned true: ${JSON.stringify({ existingSegment, segment })}`
+    )
+  }
+  return result
 }
