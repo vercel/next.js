@@ -17,8 +17,10 @@ import {
   type WorkStore,
 } from '../app-render/work-async-storage.external'
 import type {
+  PrerenderStoreModernClient,
   PrerenderStoreModernRuntime,
   RequestStore,
+  ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
@@ -1947,6 +1949,7 @@ async function renderToHTMLOrFlightImpl(
       switch (workUnitStore.type) {
         case 'prerender':
         case 'prerender-client':
+        case 'validation-client':
         case 'prerender-runtime':
         case 'cache':
         case 'private-cache':
@@ -3748,6 +3751,8 @@ async function spawnStaticShellValidationInDev(
   await warmupClientModulesForStagedValidationInDev(
     // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
     // otherwise, for static shell validation, we only need to warm up to the runtime stage.
+    // we also need to use a different store type, because instant validation allows more APIs to resolve.
+    needsInstantValidation ? 'validation-client' : 'prerender-client',
     needsInstantValidation ? dynamicChunks : runtimeChunks,
     dynamicChunks,
     rootParams,
@@ -3805,8 +3810,6 @@ async function spawnStaticShellValidationInDev(
       debugChunks,
       startTime,
       rootParams,
-      fallbackRouteParams,
-      allowEmptyStaticShell,
       ctx,
       hmrRefreshHash
     )
@@ -3817,6 +3820,7 @@ async function spawnStaticShellValidationInDev(
 }
 
 async function warmupClientModulesForStagedValidationInDev(
+  storeType: PrerenderStoreModernClient['type'] | ValidationStoreClient['type'],
   partialServerChunks: Array<Uint8Array>,
   allServerChunks: Array<Uint8Array>,
   rootParams: Params,
@@ -3834,29 +3838,59 @@ async function warmupClientModulesForStagedValidationInDev(
   const preinitScripts = () => {}
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
 
-  const initialClientPrerenderStore: PrerenderStore = {
-    type: 'prerender-client',
-    phase: 'render',
-    rootParams,
-    fallbackRouteParams,
-    implicitTags,
-    renderSignal: initialClientRenderController.signal,
-    controller: initialClientPrerenderController,
-    // For HTML Generation the only cache tracked activity
-    // is module loading, which has it's own cache signal
-    cacheSignal: null,
-    dynamicTracking: null,
-    allowEmptyStaticShell,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [...implicitTags.tags],
-    // TODO should this be removed from client stores?
-    prerenderResumeDataCache: null,
-    renderResumeDataCache: null,
-    hmrRefreshHash: undefined,
-    // Client prerenders don't track server param access
-    varyParamsAccumulator: null,
+  let initialClientPrerenderStore: PrerenderStore
+  if (storeType === 'prerender-client') {
+    const store: PrerenderStoreModernClient = {
+      type: 'prerender-client',
+      phase: 'render',
+      rootParams,
+      fallbackRouteParams,
+      implicitTags,
+      renderSignal: initialClientRenderController.signal,
+      controller: initialClientPrerenderController,
+      // For HTML Generation the only cache tracked activity
+      // is module loading, which has it's own cache signal
+      cacheSignal: null,
+      dynamicTracking: null,
+      allowEmptyStaticShell,
+      revalidate: INFINITE_CACHE,
+      expire: INFINITE_CACHE,
+      stale: INFINITE_CACHE,
+      tags: [...implicitTags.tags],
+      // TODO should this be removed from client stores?
+      prerenderResumeDataCache: null,
+      renderResumeDataCache: null,
+      hmrRefreshHash: undefined,
+      // Client prerenders don't track server param access
+      varyParamsAccumulator: null,
+    }
+    initialClientPrerenderStore = store
+  } else {
+    const store: ValidationStoreClient = {
+      type: 'validation-client',
+      phase: 'render',
+      rootParams,
+      implicitTags,
+      renderSignal: initialClientRenderController.signal,
+      controller: initialClientPrerenderController,
+      // For HTML Generation the only cache tracked activity
+      // is module loading, which has it's own cache signal
+      cacheSignal: null,
+      dynamicTracking: null,
+      revalidate: INFINITE_CACHE,
+      expire: INFINITE_CACHE,
+      stale: INFINITE_CACHE,
+      tags: [...implicitTags.tags],
+      // TODO should this be removed from client stores?
+      prerenderResumeDataCache: null,
+      renderResumeDataCache: null,
+      hmrRefreshHash: undefined,
+      // Client prerenders don't track server param access
+      varyParamsAccumulator: null,
+      // We're not rendering any validation boundaries yet.
+      boundaryState: null,
+    }
+    initialClientPrerenderStore = store
   }
 
   // TODO: maybe conditionally switch between runtime chunks and all chunks?
@@ -4129,8 +4163,6 @@ async function validateInstantConfigs(
   debugChunks: null | Array<Uint8Array>,
   startTime: number,
   rootParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  allowEmptyStaticShell: boolean,
   ctx: AppRenderContext,
   hmrRefreshHash: string | undefined
 ): Promise<Array<unknown>> {
@@ -4203,8 +4235,6 @@ async function validateInstantConfigs(
       startTime,
       stageEndTimes,
       rootParams,
-      fallbackRouteParams,
-      allowEmptyStaticShell,
       ctx,
       hmrRefreshHash,
       validationRouteTree,
@@ -4224,8 +4254,6 @@ async function validateInstantConfigs(
           startTime,
           stageEndTimes,
           rootParams,
-          fallbackRouteParams,
-          allowEmptyStaticShell,
           ctx,
           hmrRefreshHash,
           validationRouteTree,
@@ -4258,8 +4286,6 @@ async function validateInstantConfigNavigation(
   startTime: number,
   stageEndTimes: InstantValidation.StageEndTimes,
   rootParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  allowEmptyStaticShell: boolean,
   ctx: AppRenderContext,
   hmrRefreshHash: string | undefined,
   routeTree: InstantValidation.RouteTree,
@@ -4284,17 +4310,15 @@ async function validateInstantConfigNavigation(
   const boundaryState = createValidationBoundaryTracking()
 
   const finalClientPrerenderStore: PrerenderStore = {
-    type: 'prerender-client',
+    type: 'validation-client',
     phase: 'render',
     rootParams,
-    fallbackRouteParams,
     implicitTags,
     renderSignal: clientRenderController.signal,
     controller: clientReactController,
     // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
     cacheSignal: null,
     dynamicTracking: clientDynamicTracking,
-    allowEmptyStaticShell,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
