@@ -108,7 +108,9 @@ export function evalManifest<T extends object>(
     try {
       content = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
     } catch (err) {
-      return {} as any
+      let result = {} as any
+      cache.set(path, result)
+      return result
     }
   } else {
     content = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
