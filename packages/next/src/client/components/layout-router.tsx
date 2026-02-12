@@ -229,7 +229,8 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       focusAndScrollRef.onlyHashChange = false
 
       // Set focus on the element
-      domNode.focus()
+      // Checking which tests relies on this.
+      // domNode.focus()
     }
   }
 
