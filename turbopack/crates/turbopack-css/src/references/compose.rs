@@ -50,4 +50,3 @@ impl ModuleReference for CssModuleComposeReference {
         }))
     }
 }
-

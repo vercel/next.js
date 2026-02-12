@@ -70,4 +70,3 @@ impl GenerateSourceMap for SourceMapReference {
         }
     }
 }
-

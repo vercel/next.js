@@ -77,4 +77,3 @@ impl FileSystem for VirtualFileSystem {
         bail!("Reading is not possible on the virtual file system")
     }
 }
-

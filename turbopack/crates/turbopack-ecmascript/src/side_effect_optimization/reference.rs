@@ -85,7 +85,6 @@ impl EcmascriptModulePartReference {
     }
 }
 
-
 #[turbo_tasks::value_impl]
 impl ModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]

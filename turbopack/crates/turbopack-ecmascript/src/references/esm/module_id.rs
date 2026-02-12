@@ -46,7 +46,6 @@ impl ModuleReference for EsmModuleIdAssetReference {
     }
 }
 
-
 impl IntoCodeGenReference for EsmModuleIdAssetReference {
     fn into_code_gen_reference(
         self,

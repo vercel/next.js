@@ -49,4 +49,3 @@ impl FileSystem for ServerFileSystem {
         bail!("Reading is not possible from the marker filesystem for the server")
     }
 }
-

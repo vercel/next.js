@@ -294,7 +294,6 @@ impl ModuleReference for RequireContextAssetReference {
     }
 }
 
-
 impl IntoCodeGenReference for RequireContextAssetReference {
     fn into_code_gen_reference(
         self,
@@ -372,7 +371,6 @@ impl ModuleReference for ResolvedModuleReference {
         }))
     }
 }
-
 
 #[turbo_tasks::value]
 pub struct RequireContextAsset {

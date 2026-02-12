@@ -94,7 +94,6 @@ impl ModuleReference for EsmAsyncAssetReference {
     }
 }
 
-
 impl IntoCodeGenReference for EsmAsyncAssetReference {
     fn into_code_gen_reference(
         self,

@@ -90,4 +90,3 @@ impl FileSystem for EmbeddedFileSystem {
         Ok(FileMeta::default().cell())
     }
 }
-

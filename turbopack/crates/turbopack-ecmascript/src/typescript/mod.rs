@@ -210,7 +210,6 @@ impl ModuleReference for CompilerReference {
     }
 }
 
-
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("tsconfig extends {}", self.config.ident())]
@@ -235,7 +234,6 @@ impl ModuleReference for TsExtendsReference {
         )))
     }
 }
-
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
@@ -270,7 +268,6 @@ impl ModuleReference for TsNodeRequireReference {
     }
 }
 
-
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("tsconfig types {}", self.request)]
@@ -297,4 +294,3 @@ impl ModuleReference for TsConfigTypesReference {
         type_resolve(*self.origin, *self.request)
     }
 }
-

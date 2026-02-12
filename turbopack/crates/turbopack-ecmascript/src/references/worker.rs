@@ -302,7 +302,6 @@ impl WorkerAssetReference {
     }
 }
 
-
 impl IntoCodeGenReference for WorkerAssetReference {
     fn into_code_gen_reference(
         self,

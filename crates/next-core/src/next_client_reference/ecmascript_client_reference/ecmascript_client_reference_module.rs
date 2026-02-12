@@ -392,4 +392,3 @@ impl ModuleReference for EcmascriptClientReference {
         }))
     }
 }
-

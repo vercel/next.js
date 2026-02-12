@@ -84,7 +84,6 @@ impl ModuleReference for FileSourceReference {
     }
 }
 
-
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("directory assets {}", self.path)]
@@ -213,4 +212,3 @@ impl ModuleReference for DirAssetReference {
         Vc::cell(Some(ChunkingType::Traced))
     }
 }
-

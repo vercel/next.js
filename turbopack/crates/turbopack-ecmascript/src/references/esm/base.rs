@@ -513,7 +513,6 @@ impl ModuleReference for EsmAssetReference {
     }
 }
 
-
 impl EsmAssetReference {
     pub async fn code_generation(
         self: ResolvedVc<Self>,

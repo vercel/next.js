@@ -83,7 +83,6 @@ impl ModuleReference for AmdDefineAssetReference {
     }
 }
 
-
 #[derive(
     ValueDebugFormat, Debug, PartialEq, Eq, TraceRawVcs, Clone, NonLocalValue, Hash, Encode, Decode,
 )]

@@ -143,4 +143,3 @@ impl FileSystem for AttachedFileSystem {
         Ok(self.get_inner_fs_path(path).await?.metadata())
     }
 }
-

@@ -77,7 +77,6 @@ impl ModuleReference for CjsAssetReference {
     }
 }
 
-
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("require {}", self.request)]
@@ -125,7 +124,6 @@ impl ModuleReference for CjsRequireAssetReference {
         }))
     }
 }
-
 
 impl IntoCodeGenReference for CjsRequireAssetReference {
     fn into_code_gen_reference(
@@ -249,7 +247,6 @@ impl ModuleReference for CjsRequireResolveAssetReference {
         }))
     }
 }
-
 
 impl IntoCodeGenReference for CjsRequireResolveAssetReference {
     fn into_code_gen_reference(

@@ -342,4 +342,3 @@ impl ModuleReference for WorkerModuleReference {
         }))
     }
 }
-

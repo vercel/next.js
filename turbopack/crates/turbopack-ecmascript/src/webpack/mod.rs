@@ -109,7 +109,6 @@ impl ModuleReference for WebpackChunkAssetReference {
     }
 }
 
-
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("webpack entry")]
@@ -130,7 +129,6 @@ impl ModuleReference for WebpackEntryAssetReference {
         )))
     }
 }
-
 
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
@@ -170,4 +168,3 @@ impl ModuleReference for WebpackRuntimeAssetReference {
             .cell())
     }
 }
-

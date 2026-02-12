@@ -44,7 +44,6 @@ impl ModuleReference for TsConfigReference {
     }
 }
 
-
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("typescript reference path comment {}", self.path)]
@@ -91,7 +90,6 @@ impl ModuleReference for TsReferencePathAssetReference {
     }
 }
 
-
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("typescript reference type comment {}", self.module)]
@@ -123,4 +121,3 @@ impl ModuleReference for TsReferenceTypeAssetReference {
         )
     }
 }
-

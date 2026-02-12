@@ -108,7 +108,6 @@ impl ModuleReference for UrlAssetReference {
     }
 }
 
-
 impl IntoCodeGenReference for UrlAssetReference {
     fn into_code_gen_reference(
         self,

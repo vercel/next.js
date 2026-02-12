@@ -32,4 +32,3 @@ impl ModuleReference for PackageJsonReference {
         )))
     }
 }
-
