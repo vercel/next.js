@@ -743,13 +743,13 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Parsing CSS source code failed",
+         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./test/tmp/next-test-1770762033409-692/index.module.css (1:8)
-       Parsing CSS source code failed
+         "source": "./index.module.css (1:1)
+       Syntax error: <FIXME-project-root>/index.module.css Unknown word
        > 1 | .button
-           |        ^",
+           | ^",
          "stack": [],
        }
       `)
@@ -804,21 +804,13 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Transforming CSS failed",
+         "description": "Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./test/tmp/next-test-1770762033409-692/index.module.css
-       Transforming CSS failed
-       Selector "button" is not pure. Pure selectors must contain at least one local class or id.
-       Import traces:
-         Browser:
-           ./test/tmp/next-test-1770762033409-692/index.module.css
-           ./test/tmp/next-test-1770762033409-692/index.js
-           ./test/tmp/next-test-1770762033409-692/pages/index.js
-         SSR:
-           ./test/tmp/next-test-1770762033409-692/index.module.css
-           ./test/tmp/next-test-1770762033409-692/index.js
-           ./test/tmp/next-test-1770762033409-692/pages/index.js",
+         "source": "./index.module.css (1:1)
+       Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)
+       > 1 | button {}
+           | ^",
          "stack": [],
        }
       `)
@@ -1430,11 +1422,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "anonymous error!",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "pages/index.js (3:11) @ <unknown>
+         "source": "pages/index.js (3:11) @ eval
        > 3 |     throw new Error("anonymous error!");
            |           ^",
          "stack": [
-           "<unknown> pages/index.js (3:11)",
+           "eval pages/index.js (3:11)",
            "Array.map <anonymous>",
            "Page pages/index.js (2:13)",
          ],

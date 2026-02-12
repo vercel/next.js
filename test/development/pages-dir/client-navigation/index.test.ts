@@ -33,17 +33,8 @@ describe('Client Navigation', () => {
          "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "../../../packages/next/src/shared/lib/utils.ts (397:11) @ loadGetInitialProps
-       > 397 |     throw new Error(message)
-             |           ^",
-         "stack": [
-           "loadGetInitialProps ../../../packages/next/src/shared/lib/utils.ts (397:11)",
-           "async App.appGetInitialProps ../../../packages/next/src/pages/_app.tsx (30:21)",
-           "async loadGetInitialProps ../../../packages/next/src/shared/lib/utils.ts (387:17)",
-           "async ../../../packages/next/src/shared/lib/router/router.ts (2221:18)",
-           "async Router.getRouteInfo ../../../packages/next/src/shared/lib/router/router.ts (2189:35)",
-           "async Router.change ../../../packages/next/src/shared/lib/router/router.ts (1595:23)",
-         ],
+         "source": null,
+         "stack": [],
        }
       `)
       expect(pageErrors).toEqual([
@@ -315,11 +306,15 @@ describe('Client Navigation', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Cannot read properties of null (reading 'useInsertionEffect')",
+           "description": "An Expected error occurred",
            "environmentLabel": null,
-           "label": "Runtime TypeError",
-           "source": null,
-           "stack": [],
+           "label": "Runtime Error",
+           "source": "pages/error-inside-browser-page.js (5:13) @ ErrorInRenderPage.render
+         > 5 |       throw new Error('An Expected error occurred')
+             |             ^",
+           "stack": [
+             "ErrorInRenderPage.render pages/error-inside-browser-page.js (5:13)",
+           ],
          }
         `)
       }
@@ -355,11 +350,15 @@ describe('Client Navigation', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Cannot read properties of null (reading 'useInsertionEffect')",
+           "description": "An Expected error occurred",
            "environmentLabel": null,
-           "label": "Runtime TypeError",
-           "source": null,
-           "stack": [],
+           "label": "Runtime Error",
+           "source": "pages/error-in-the-browser-global-scope.js (2:9) @ module evaluation
+         > 2 |   throw new Error('An Expected error occurred')
+             |         ^",
+           "stack": [
+             "module evaluation pages/error-in-the-browser-global-scope.js (2:9)",
+           ],
          }
         `)
       } else if (isRspack) {
