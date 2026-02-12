@@ -1440,12 +1440,7 @@ impl Project {
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        let css_url_suffix = self
-            .next_config()
-            .asset_suffix_path()
-            .owned()
-            .await?
-            .clone();
+        let css_url_suffix = self.next_config().asset_suffix_path();
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1474,12 +1469,7 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
-        let css_url_suffix = self
-            .next_config()
-            .asset_suffix_path()
-            .owned()
-            .await?
-            .clone();
+        let css_url_suffix = self.next_config().asset_suffix_path();
         let options = ServerChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1513,12 +1503,7 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        let css_url_suffix = self
-            .next_config()
-            .asset_suffix_path()
-            .owned()
-            .await?
-            .clone();
+        let css_url_suffix = self.next_config().asset_suffix_path();
         let options = EdgeChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,

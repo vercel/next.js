@@ -449,7 +449,7 @@ pub struct ClientChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub should_use_absolute_url_references: Vc<bool>,
-    pub css_url_suffix: Option<RcStr>,
+    pub css_url_suffix: Vc<Option<RcStr>>,
 }
 
 #[turbo_tasks::function]
@@ -475,6 +475,7 @@ pub async fn get_client_chunking_context(
         should_use_absolute_url_references,
         css_url_suffix,
     } = options;
+    let css_url_suffix = css_url_suffix.owned().await?;
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;

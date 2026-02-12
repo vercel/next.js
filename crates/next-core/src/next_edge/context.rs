@@ -223,7 +223,7 @@ pub struct EdgeChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
-    pub css_url_suffix: Option<RcStr>,
+    pub css_url_suffix: Vc<Option<RcStr>>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -249,6 +249,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         asset_prefix,
         css_url_suffix,
     } = options;
+    let css_url_suffix = css_url_suffix.owned().await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -326,6 +327,7 @@ pub async fn get_edge_chunking_context(
         asset_prefix,
         css_url_suffix,
     } = options;
+    let css_url_suffix = css_url_suffix.owned().await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
