@@ -106,6 +106,14 @@ export const TURBOPACK_CLIENT_BUILD_MANIFEST = 'client-build-manifest.json'
 export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const SERVER_DIRECTORY = 'server'
+export const CONFIG_FILES = [
+  'next.config.js',
+  'next.config.mjs',
+  'next.config.ts',
+  // process.features can be undefined on Edge runtime
+  // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+  ...((process?.features as any)?.typescript ? ['next.config.mts'] : []),
+]
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'
