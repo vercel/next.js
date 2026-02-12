@@ -9074,7 +9074,7 @@ function commitHostUpdate(finishedWork, newProps, oldProps) {
 }
 function commitNewChildToFragmentInstances(fiber, parentFragmentInstances) {
   if (
-    5 === fiber.tag &&
+    (5 === fiber.tag || 6 === fiber.tag) &&
     null === fiber.alternate &&
     null !== parentFragmentInstances
   )
@@ -9087,17 +9087,19 @@ function commitNewChildToFragmentInstances(fiber, parentFragmentInstances) {
 function commitFragmentInstanceDeletionEffects(fiber) {
   for (var parent = fiber.return; null !== parent; ) {
     if (isFragmentInstanceParent(parent)) {
-      var childInstance = fiber.stateNode,
-        eventListeners = parent.stateNode._eventListeners;
-      if (null !== eventListeners)
-        for (var i = 0; i < eventListeners.length; i++) {
-          var _eventListeners$i4 = eventListeners[i];
-          childInstance.removeEventListener(
-            _eventListeners$i4.type,
-            _eventListeners$i4.listener,
-            _eventListeners$i4.optionsOrUseCapture
-          );
-        }
+      var childInstance = fiber.stateNode;
+      if (3 !== childInstance.nodeType) {
+        var eventListeners = parent.stateNode._eventListeners;
+        if (null !== eventListeners)
+          for (var i = 0; i < eventListeners.length; i++) {
+            var _eventListeners$i4 = eventListeners[i];
+            childInstance.removeEventListener(
+              _eventListeners$i4.type,
+              _eventListeners$i4.listener,
+              _eventListeners$i4.optionsOrUseCapture
+            );
+          }
+      }
     }
     if (isHostParent(parent)) break;
     parent = parent.return;
@@ -10129,7 +10131,7 @@ function commitDeletionEffectsOnFiber(
     case 5:
       offscreenSubtreeWasHidden ||
         safelyDetachRef(deletedFiber, nearestMountedAncestor),
-        5 === deletedFiber.tag &&
+        (5 !== deletedFiber.tag && 6 !== deletedFiber.tag) ||
           commitFragmentInstanceDeletionEffects(deletedFiber);
     case 6:
       prevHostParent = hostParent;
@@ -10992,7 +10994,7 @@ function recursivelyTraverseDisappearLayoutEffects(parentFiber) {
       case 26:
       case 5:
         safelyDetachRef(finishedWork, finishedWork.return);
-        5 === finishedWork.tag &&
+        (5 !== finishedWork.tag && 6 !== finishedWork.tag) ||
           commitFragmentInstanceDeletionEffects(finishedWork);
         recursivelyTraverseDisappearLayoutEffects(finishedWork);
         break;
@@ -13472,20 +13474,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1686 = 0;
-  i$jscomp$inline_1686 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1686++
+  var i$jscomp$inline_1687 = 0;
+  i$jscomp$inline_1687 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1687++
 ) {
-  var eventName$jscomp$inline_1687 =
-      simpleEventPluginEvents[i$jscomp$inline_1686],
-    domEventName$jscomp$inline_1688 =
-      eventName$jscomp$inline_1687.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1689 =
-      eventName$jscomp$inline_1687[0].toUpperCase() +
-      eventName$jscomp$inline_1687.slice(1);
+  var eventName$jscomp$inline_1688 =
+      simpleEventPluginEvents[i$jscomp$inline_1687],
+    domEventName$jscomp$inline_1689 =
+      eventName$jscomp$inline_1688.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1690 =
+      eventName$jscomp$inline_1688[0].toUpperCase() +
+      eventName$jscomp$inline_1688.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1688,
-    "on" + capitalizedEvent$jscomp$inline_1689
+    domEventName$jscomp$inline_1689,
+    "on" + capitalizedEvent$jscomp$inline_1690
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15803,13 +15805,14 @@ function indexOfEventListener(
   listener,
   optionsOrUseCapture
 ) {
+  if (0 === eventListeners.length) return -1;
+  optionsOrUseCapture = normalizeListenerOptions(optionsOrUseCapture);
   for (var i = 0; i < eventListeners.length; i++) {
     var item = eventListeners[i];
     if (
       item.type === type &&
       item.listener === listener &&
-      normalizeListenerOptions(item.optionsOrUseCapture) ===
-        normalizeListenerOptions(optionsOrUseCapture)
+      normalizeListenerOptions(item.optionsOrUseCapture) === optionsOrUseCapture
     )
       return i;
   }
@@ -15885,18 +15888,26 @@ function collectChildren(child, collection) {
   return !1;
 }
 FragmentInstance.prototype.blur = function () {
-  traverseVisibleHostChildren(
-    this._fragmentFiber.child,
-    !1,
-    blurActiveElementWithinFragment,
-    void 0,
-    void 0,
-    void 0
-  );
+  var parentHostFiber = getFragmentParentHostFiber(this._fragmentFiber);
+  if (null !== parentHostFiber) {
+    parentHostFiber = getInstanceFromHostFiber(parentHostFiber);
+    var activeElement = parentHostFiber.ownerDocument.activeElement;
+    null !== activeElement &&
+      parentHostFiber.contains(activeElement) &&
+      traverseVisibleHostChildren(
+        this._fragmentFiber.child,
+        !1,
+        blurActiveElementWithinFragment,
+        activeElement,
+        void 0,
+        void 0
+      );
+  }
 };
-function blurActiveElementWithinFragment(child) {
+function blurActiveElementWithinFragment(child, activeElement) {
+  if (6 === child.tag) return !1;
   child = getInstanceFromHostFiber(child);
-  return child === child.ownerDocument.activeElement ? (child.blur(), !0) : !1;
+  return child === activeElement ? (child.blur(), !0) : !1;
 }
 FragmentInstance.prototype.observeUsing = function (observer) {
   null === this._observers && (this._observers = new Set());
@@ -16003,9 +16014,7 @@ FragmentInstance.prototype.compareDocumentPosition = function (otherNode) {
   parentHostFiber = getInstanceFromHostFiber(children[0]);
   parentResult = getInstanceFromHostFiber(children[children.length - 1]);
   for (
-    var firstInstance = getInstanceFromHostFiber(children[0]),
-      foundPortalParent = !1,
-      parent = this._fragmentFiber.return;
+    var foundPortalParent = !1, parent = this._fragmentFiber.return;
     null !== parent;
 
   ) {
@@ -16013,36 +16022,36 @@ FragmentInstance.prototype.compareDocumentPosition = function (otherNode) {
     if (3 === parent.tag || 5 === parent.tag) break;
     parent = parent.return;
   }
-  firstInstance = foundPortalParent
-    ? firstInstance.parentElement
+  foundPortalParent = foundPortalParent
+    ? parentHostFiber.parentElement
     : parentHostInstance;
-  if (null == firstInstance) return Node.DOCUMENT_POSITION_DISCONNECTED;
+  if (null == foundPortalParent) return Node.DOCUMENT_POSITION_DISCONNECTED;
   parentHostInstance =
-    firstInstance.compareDocumentPosition(parentHostFiber) &
+    foundPortalParent.compareDocumentPosition(parentHostFiber) &
     Node.DOCUMENT_POSITION_CONTAINED_BY;
-  firstInstance =
-    firstInstance.compareDocumentPosition(parentResult) &
+  foundPortalParent =
+    foundPortalParent.compareDocumentPosition(parentResult) &
     Node.DOCUMENT_POSITION_CONTAINED_BY;
-  foundPortalParent = parentHostFiber.compareDocumentPosition(otherNode);
-  var lastResult = parentResult.compareDocumentPosition(otherNode);
-  parent =
-    foundPortalParent & Node.DOCUMENT_POSITION_CONTAINED_BY ||
-    lastResult & Node.DOCUMENT_POSITION_CONTAINED_BY;
+  parent = parentHostFiber.compareDocumentPosition(otherNode);
+  var lastResult = parentResult.compareDocumentPosition(otherNode),
+    otherNodeIsWithinFirstOrLastChild =
+      parent & Node.DOCUMENT_POSITION_CONTAINED_BY ||
+      lastResult & Node.DOCUMENT_POSITION_CONTAINED_BY;
   lastResult =
     parentHostInstance &&
-    firstInstance &&
-    foundPortalParent & Node.DOCUMENT_POSITION_FOLLOWING &&
+    foundPortalParent &&
+    parent & Node.DOCUMENT_POSITION_FOLLOWING &&
     lastResult & Node.DOCUMENT_POSITION_PRECEDING;
   parentHostFiber =
     (parentHostInstance && parentHostFiber === otherNode) ||
-    (firstInstance && parentResult === otherNode) ||
-    parent ||
+    (foundPortalParent && parentResult === otherNode) ||
+    otherNodeIsWithinFirstOrLastChild ||
     lastResult
       ? Node.DOCUMENT_POSITION_CONTAINED_BY
       : (!parentHostInstance && parentHostFiber === otherNode) ||
-          (!firstInstance && parentResult === otherNode)
+          (!foundPortalParent && parentResult === otherNode)
         ? Node.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC
-        : foundPortalParent;
+        : parent;
   return parentHostFiber & Node.DOCUMENT_POSITION_DISCONNECTED ||
     parentHostFiber & Node.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC ||
     validateDocumentPositionWithFiberTree(
@@ -16203,20 +16212,22 @@ FragmentInstance.prototype.scrollIntoView = function (alignToTop) {
     }
 };
 function commitNewChildToFragmentInstance(childInstance, fragmentInstance) {
-  var eventListeners = fragmentInstance._eventListeners;
-  if (null !== eventListeners)
-    for (var i = 0; i < eventListeners.length; i++) {
-      var _eventListeners$i3 = eventListeners[i];
-      childInstance.addEventListener(
-        _eventListeners$i3.type,
-        _eventListeners$i3.listener,
-        _eventListeners$i3.optionsOrUseCapture
-      );
-    }
-  null !== fragmentInstance._observers &&
-    fragmentInstance._observers.forEach(function (observer) {
-      observer.observe(childInstance);
-    });
+  if (3 !== childInstance.nodeType) {
+    var eventListeners = fragmentInstance._eventListeners;
+    if (null !== eventListeners)
+      for (var i = 0; i < eventListeners.length; i++) {
+        var _eventListeners$i3 = eventListeners[i];
+        childInstance.addEventListener(
+          _eventListeners$i3.type,
+          _eventListeners$i3.listener,
+          _eventListeners$i3.optionsOrUseCapture
+        );
+      }
+    null !== fragmentInstance._observers &&
+      fragmentInstance._observers.forEach(function (observer) {
+        observer.observe(childInstance);
+      });
+  }
 }
 function clearContainerSparingly(container) {
   var nextNode = container.firstChild;
@@ -18070,16 +18081,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2035 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2036 = React.version;
 if (
-  "19.3.0-canary-272441a9-20260209" !==
-  isomorphicReactPackageVersion$jscomp$inline_2035
+  "19.3.0-canary-6066c782-20260212" !==
+  isomorphicReactPackageVersion$jscomp$inline_2036
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2035,
-      "19.3.0-canary-272441a9-20260209"
+      isomorphicReactPackageVersion$jscomp$inline_2036,
+      "19.3.0-canary-6066c782-20260212"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18099,24 +18110,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2621 = {
+var internals$jscomp$inline_2622 = {
   bundleType: 0,
-  version: "19.3.0-canary-272441a9-20260209",
+  version: "19.3.0-canary-6066c782-20260212",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-272441a9-20260209"
+  reconcilerVersion: "19.3.0-canary-6066c782-20260212"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2622 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2623 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2622.isDisabled &&
-    hook$jscomp$inline_2622.supportsFiber
+    !hook$jscomp$inline_2623.isDisabled &&
+    hook$jscomp$inline_2623.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2622.inject(
-        internals$jscomp$inline_2621
+      (rendererID = hook$jscomp$inline_2623.inject(
+        internals$jscomp$inline_2622
       )),
-        (injectedHook = hook$jscomp$inline_2622);
+        (injectedHook = hook$jscomp$inline_2623);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18202,4 +18213,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-272441a9-20260209";
+exports.version = "19.3.0-canary-6066c782-20260212";
