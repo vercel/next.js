@@ -563,18 +563,15 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
       msg.nextWorkerOptions &&
       process.send
     ) {
-      // Read experimental flags from environment if passed from parent process
-      let experimentalFlagsFromParent = {}
-      if (process.env.NEXT_PRIVATE_EXPERIMENTAL_FLAGS) {
-        try {
-          experimentalFlagsFromParent = JSON.parse(
-            process.env.NEXT_PRIVATE_EXPERIMENTAL_FLAGS
-          )
-        } catch {
-          console.error(
-            'Failed to parse experimental flags from parent process'
-          )
-        }
+      let enabledFeaturesFromParent = {}
+      if (process.env.NEXT_PRIVATE_ENABLED_FEATURES) {
+        const parsed = JSON.parse(process.env.NEXT_PRIVATE_ENABLED_FEATURES)
+        enabledFeaturesFromParent = Object.fromEntries(
+          Object.entries(parsed).map(([key, value]) => [
+            `feature.${key}`,
+            value,
+          ])
+        )
       }
 
       startServerSpan = trace('start-dev-server', undefined, {
@@ -583,7 +580,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.freeMem': String(os.freemem()),
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
-        ...experimentalFlagsFromParent,
+        ...enabledFeaturesFromParent,
       })
 
       initializeTraceState({

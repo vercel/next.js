@@ -253,15 +253,15 @@ const nextDev = async (
     traceUploadUrl = options.experimentalUploadTrace
   }
 
-  const experimentalFlags = 
+  const enabledFeatures = Object.fromEntries(
     Object.entries({
       experimentalServerFastRefresh: options.experimentalServerFastRefresh,
       experimentalCpuProf: options.experimentalCpuProf,
-    }).filter(([_, value]) => value !== undefined && value !== false)
-  
+    }).filter(([_, value]) => value)
+  )
 
-  for (const [key, value] of experimentalFlags) {
-    sessionSpan.setAttribute(key, value)
+  for (const [key, value] of Object.entries(enabledFeatures)) {
+    sessionSpan.setAttribute(`feature.${key}`, value)
   }
 
   initializeTraceState({
@@ -331,7 +331,7 @@ const nextDev = async (
           NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
-          NEXT_PRIVATE_EXPERIMENTAL_FLAGS: JSON.stringify(experimentalFlags),
+          NEXT_PRIVATE_ENABLED_FEATURES: JSON.stringify(enabledFeatures),
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,

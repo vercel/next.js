@@ -44,7 +44,7 @@ function parseTraceFile(tracePath: string): TraceStructure {
   }
 }
 
-describe('experimental flags in trace', () => {
+describe('enabled features in trace', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     startArgs: ['--experimental-server-fast-refresh'],
@@ -55,7 +55,7 @@ describe('experimental flags in trace', () => {
     return
   }
 
-  it('should record experimental flags on root span', async () => {
+  it('should record enabled features on root span', async () => {
     const tracePath = join(next.testDir, '.next/dev/trace')
 
     // Trigger page request to generate traces
@@ -68,7 +68,7 @@ describe('experimental flags in trace', () => {
 
     const traceStructure = parseTraceFile(tracePath)
 
-    // Verify start-dev-server span has experimental flags
+    // Verify start-dev-server span has feature tags
     const startDevServerEvents =
       traceStructure.eventsByName.get('start-dev-server')
     expect(startDevServerEvents).toBeDefined()
@@ -76,13 +76,14 @@ describe('experimental flags in trace', () => {
 
     const startDevServerEvent = startDevServerEvents![0]
     expect(startDevServerEvent.tags).toBeDefined()
-    expect(startDevServerEvent.tags!.experimentalServerFastRefresh).toBe(true)
+    expect(
+      startDevServerEvent.tags!['feature.experimentalServerFastRefresh']
+    ).toBe(true)
   })
 
-  it('should denormalize inherited experimental flags during upload', async () => {
+  it('should denormalize inherited enabled features during upload', async () => {
     const tracePath = join(next.testDir, '.next/dev/trace')
 
-    // Ensure trace file exists
     if (!existsSync(tracePath)) {
       const $ = await next.render$('/')
       expect($('p').text()).toBe('hello world')
@@ -90,7 +91,6 @@ describe('experimental flags in trace', () => {
       await new Promise((resolve) => setTimeout(resolve, 500))
     }
 
-    // Create a fake HTTP server to receive the upload
     const fakeServer = await createTestTraceUploadServer()
 
     // Get trace ID from the trace file
@@ -99,7 +99,6 @@ describe('experimental flags in trace', () => {
     const firstEvents = JSON.parse(firstLine)
     const traceId = firstEvents[0]?.traceId
 
-    // Call the trace uploader
     const uploaderPath = join(
       __dirname,
       '../../../../packages/next/dist/trace/trace-uploader.js'
@@ -130,7 +129,7 @@ describe('experimental flags in trace', () => {
     const uploadedData = fakeServer.getUploadedData()
     fakeServer.close()
 
-    // Verify uploaded data has inherited experimental flags
+    // Verify uploaded data has inherited feature tags
     expect(uploadedData).toBeDefined()
     expect(uploadedData.traces).toHaveLength(1)
     const traces = uploadedData.traces[0]
@@ -139,12 +138,16 @@ describe('experimental flags in trace', () => {
     const compilePathEvent = traces.find((e: any) => e.name === 'compile-path')
     const renderPathEvent = traces.find((e: any) => e.name === 'render-path')
 
-    // Both should have inherited experimentalServerFastRefresh from their parent
+    // Both should have inherited feature.experimentalServerFastRefresh from their parent
     expect(compilePathEvent).toBeDefined()
-    expect(compilePathEvent.tags.experimentalServerFastRefresh).toBe(true)
+    expect(compilePathEvent.tags['feature.experimentalServerFastRefresh']).toBe(
+      true
+    )
 
     expect(renderPathEvent).toBeDefined()
-    expect(renderPathEvent.tags.experimentalServerFastRefresh).toBe(true)
+    expect(renderPathEvent.tags['feature.experimentalServerFastRefresh']).toBe(
+      true
+    )
   })
 })
 

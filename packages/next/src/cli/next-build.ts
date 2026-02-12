@@ -123,7 +123,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     }
   }
 
-  const experimentalFlags = Object.fromEntries(
+  const enabledFeatures = Object.fromEntries(
     Object.entries({
       experimentalDebugMemoryUsage,
       experimentalBuildMode:
@@ -144,7 +144,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     experimentalBuildMode,
     traceUploadUrl,
     resolvedBuildPaths,
-    experimentalFlags
+    enabledFeatures
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {
