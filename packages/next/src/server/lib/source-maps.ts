@@ -207,7 +207,7 @@ export function devirtualizeReactServerURL(sourceURL: string): string {
     const envIdx = sourceURL.indexOf('/', 'about://React/'.length)
     const suffixIdx = sourceURL.lastIndexOf('?')
     if (envIdx > -1 && suffixIdx > -1) {
-      return decodeURI(sourceURL.slice(envIdx + 1, suffixIdx))
+      return sourceURL.slice(envIdx + 1, suffixIdx)
     }
   }
   return sourceURL

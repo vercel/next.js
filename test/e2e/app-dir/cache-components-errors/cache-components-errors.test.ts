@@ -5719,7 +5719,7 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Client (app/client-awaited-io/client.tsx:6:19)
-                   at Page (<next-dist-dir>)
+                   at Page (app/client-awaited-io/page.tsx:5:10)
                  4 |
                  5 | export function Client({ io }: { io: Promise<string> }) {
                > 6 |   const data = use(io)
