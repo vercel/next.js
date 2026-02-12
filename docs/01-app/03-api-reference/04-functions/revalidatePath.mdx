@@ -134,7 +134,7 @@ This pattern ensures that both the specific page and any other pages using the s
 
 ```ts
 import { revalidatePath } from 'next/cache'
-revalidatePath('/blog/post-1')
+revalidatePath('/blog/post-1/')
 ```
 
 This will invalidate one specific path for revalidation on the next page visit.
