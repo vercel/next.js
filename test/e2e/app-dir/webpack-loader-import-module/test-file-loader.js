@@ -8,8 +8,8 @@ module.exports = async function () {
   const config = configModule.default || configModule
 
   // Import an ESM .mjs module that also imports esm-dep.mjs
-  const mjsPath = path.resolve(__dirname, 'config-data.mjs')
-  const mjsModule = await this.importModule(mjsPath)
+  // Uses a relative path (resolved relative to the transformed module, app/file.test-file.ts)
+  const mjsModule = await this.importModule('../config-data.mjs')
   const mjsConfig = mjsModule.default || mjsModule
 
   const title = config.title
@@ -31,8 +31,8 @@ module.exports = async function () {
     aliasValue = aliasData.aliasValue
 
     // importModule on a module whose dependency uses an alias
-    const aliasConfigPath = path.resolve(__dirname, 'alias-config.mjs')
-    const aliasConfigModule = await this.importModule(aliasConfigPath)
+    // Uses a relative path (resolved relative to the transformed module)
+    const aliasConfigModule = await this.importModule('../alias-config.mjs')
     const aliasConfig = aliasConfigModule.default || aliasConfigModule
     aliasDepLabel = aliasConfig.depLabel
   } catch (e) {
@@ -50,8 +50,8 @@ module.exports = async function () {
     customDataValue = customDataModule.default || customDataModule
 
     // importModule on a module whose dependency needs a custom loader rule
-    const dataConsumerPath = path.resolve(__dirname, 'data-consumer.mjs')
-    const dataConsumerModule = await this.importModule(dataConsumerPath)
+    // Uses a relative path (resolved relative to the transformed module)
+    const dataConsumerModule = await this.importModule('../data-consumer.mjs')
     const dataConsumer = dataConsumerModule.default || dataConsumerModule
     consumedValue = dataConsumer.consumedValue
   } catch (e) {
@@ -75,8 +75,7 @@ module.exports = async function () {
     wasmAddResult = String(urlWasm.wasmAddResult)
     dynamicValue = urlWasm.dynamicValue
 
-    const mjsUrlWasmPath = path.resolve(__dirname, 'url-wasm-data.mjs')
-    const mjsUrlWasmModule = await this.importModule(mjsUrlWasmPath)
+    const mjsUrlWasmModule = await this.importModule('../url-wasm-data.mjs')
     const mjsUrlWasm = mjsUrlWasmModule.default || mjsUrlWasmModule
     mjsImageUrl = mjsUrlWasm.mjsImageUrl
     mjsWasmAddResult = String(mjsUrlWasm.mjsWasmAddResult)
