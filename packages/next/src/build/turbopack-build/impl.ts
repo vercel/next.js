@@ -125,6 +125,17 @@ export async function turbopackBuild(): Promise<{
 
   const startTime = process.hrtime()
   const bindings = getBindingsSync() // our caller should have already loaded these
+
+  if (bindings.isWasm) {
+    throw new Error(
+      `Turbopack is not supported on this platform (${process.platform}/${process.arch}) because native bindings are not available. ` +
+        `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
+        `To build on this platform, use Webpack instead:\n` +
+        `  next build --webpack\n\n` +
+        `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
+    )
+  }
+
   const dev = false
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)

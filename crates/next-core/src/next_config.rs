@@ -1095,6 +1095,7 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
+    app_new_scroll_handler: Option<bool>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
@@ -1911,6 +1912,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_gesture_transition(&self) -> Vc<bool> {
         Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_app_new_scroll_handler(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.app_new_scroll_handler.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

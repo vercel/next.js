@@ -22,14 +22,13 @@ use turbo_tasks::{
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     chunk::{
-        ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption,
         MinifyType, ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::CommonJsReferenceSubType,
     resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
@@ -39,9 +38,7 @@ use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
     EcmascriptChunkPlaceable,
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports,
-    },
+    chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -288,7 +285,7 @@ impl ModuleReference for RequireContextAssetReference {
     }
 
     #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
@@ -379,7 +376,7 @@ impl ModuleReference for ResolvedModuleReference {
     }
 
     #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
@@ -451,23 +448,12 @@ impl Module for RequireContextAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for RequireContextAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: ResolvedVc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        let this = self.await?;
-        Ok(Vc::upcast(
-            RequireContextChunkItem {
-                module_graph,
-                chunking_context,
-                inner: self,
-
-                origin: this.origin,
-                map: this.map,
-            }
-            .cell(),
-        ))
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -477,27 +463,17 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
     }
-}
 
-#[turbo_tasks::value]
-pub struct RequireContextChunkItem {
-    module_graph: ResolvedVc<ModuleGraph>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    inner: ResolvedVc<RequireContextAsset>,
-
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    map: ResolvedVc<RequireContextMap>,
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAssetsReference for RequireContextChunkItem {}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for RequireContextChunkItem {
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+    async fn chunk_item_content(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let map = &*self.map.await?;
-        let minify = self.chunking_context.minify_type().await?;
+        let minify = chunking_context.minify_type().await?;
 
         let mut context_map = ObjectLit {
             span: DUMMY_SP,
@@ -508,7 +484,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             let pm = PatternMapping::resolve_request(
                 *entry.request,
                 *self.origin,
-                *self.chunking_context,
+                chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
             )
@@ -574,30 +550,5 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             ..Default::default()
         }
         .cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for RequireContextChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.inner.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        *ResolvedVc::upcast(self.inner)
     }
 }
