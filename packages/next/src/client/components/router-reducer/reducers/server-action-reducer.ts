@@ -48,6 +48,8 @@ import {
 import { invalidateEntirePrefetchCache } from '../../segment-cache/cache'
 import { startRevalidationCooldown } from '../../segment-cache/scheduler'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
+import { getNavigationBuildId } from '../../../navigation-build-id'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../../lib/constants'
 import {
   completeHardNavigation,
   convertServerPatchToFullTree,
@@ -215,13 +217,32 @@ async function fetchServerAction(
       }
     )
 
-    // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
-    actionResult = redirectLocation ? undefined : response.a
-    couldBeIntercepted = response.i
-    const maybeFlightData = normalizeFlightData(response.f)
-    if (maybeFlightData !== '') {
-      actionFlightData = maybeFlightData
-      actionFlightDataRenderedSearch = response.q as NormalizedSearch
+    // Check if the response build ID matches the client build ID.
+    // In a multi-zone setup, the server may pre-fetch the redirect target
+    // from a different Next.js project with a different build ID. If so,
+    // we should discard the flight data and let the redirect trigger an
+    // MPA navigation instead.
+    const responseBuildId =
+      res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? response.b
+    if (
+      responseBuildId !== undefined &&
+      responseBuildId !== getNavigationBuildId()
+    ) {
+      // Build ID mismatch — the RSC data came from a different build.
+      // Discard the flight data. The redirect will still be processed,
+      // and the absence of flight data will cause an MPA navigation
+      // via completeHardNavigation().
+      actionResult = redirectLocation ? undefined : response.a
+      couldBeIntercepted = response.i
+    } else {
+      // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
+      actionResult = redirectLocation ? undefined : response.a
+      couldBeIntercepted = response.i
+      const maybeFlightData = normalizeFlightData(response.f)
+      if (maybeFlightData !== '') {
+        actionFlightData = maybeFlightData
+        actionFlightDataRenderedSearch = response.q as NormalizedSearch
+      }
     }
   } else {
     // An external redirect doesn't contain RSC data.
