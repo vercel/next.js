@@ -452,7 +452,7 @@ pub async fn get_server_module_options_context(
                 .to_resolved()
                 .await?,
         ),
-        config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
+        config_location: PostCssConfigLocation::LocalPathOrProjectPath,
         ..Default::default()
     };
     let postcss_foreign_transform_options = PostCssTransformOptions {

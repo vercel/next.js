@@ -60,9 +60,18 @@ struct PostCssProcessingResult {
     Decode,
 )]
 pub enum PostCssConfigLocation {
+    /// Searches for postcss config only starting from the project root directory.
+    /// Used for foreign code (node_modules) where per-directory configs should be ignored.
     #[default]
     ProjectPath,
+    /// Searches for postcss config starting from the project root directory first,
+    /// then falls back to searching from the CSS file's parent directory if not found
+    /// at the project root.
     ProjectPathOrLocalPath,
+    /// Searches for postcss config starting from the CSS file's parent directory first,
+    /// then falls back to the project root if not found locally. This allows per-directory
+    /// postcss.config.js files to override the project root config.
+    LocalPathOrProjectPath,
 }
 
 #[turbo_tasks::value(shared)]
@@ -437,6 +446,19 @@ async fn find_config_in_location(
     location: PostCssConfigLocation,
     source: Vc<Box<dyn Source>>,
 ) -> Result<Option<FileSystemPath>> {
+    // For LocalPathOrProjectPath, check the CSS file's parent directory first
+    if matches!(location, PostCssConfigLocation::LocalPathOrProjectPath)
+        && let FindContextFileResult::Found(config_path, _) = &*find_context_file_or_package_key(
+            source.ident().path().await?.parent(),
+            postcss_configs(),
+            rcstr!("postcss"),
+        )
+        .await?
+    {
+        return Ok(Some(config_path.clone()));
+    }
+
+    // Check project root (used by all variants as primary or fallback)
     if let FindContextFileResult::Found(config_path, _) =
         &*find_context_file_or_package_key(project_path, postcss_configs(), rcstr!("postcss"))
             .await?
@@ -444,6 +466,7 @@ async fn find_config_in_location(
         return Ok(Some(config_path.clone()));
     }
 
+    // For ProjectPathOrLocalPath, fall back to the CSS file's parent directory
     if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath)
         && let FindContextFileResult::Found(config_path, _) = &*find_context_file_or_package_key(
             source.ident().path().await?.parent(),
