@@ -11,7 +11,7 @@ use turbo_tasks_fs::{FileContent, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegmentRef, DefinableNameSegmentRefs,
@@ -21,7 +21,6 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::OutputAssetsReference,
     resolve::ModulePart,
     source::{OptionSource, Source},
     source_map::GenerateSourceMap,
@@ -29,8 +28,8 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     EcmascriptInputTransforms,
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
-        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, ecmascript_chunk_item,
     },
     source_map::{extract_source_mapping_url_from_content, parse_source_map_comment},
     utils::StringifyJs,
@@ -110,16 +109,10 @@ impl ChunkableModule for RawEcmascriptModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
-            RawEcmascriptChunkItem {
-                module: self,
-                chunking_context,
-            }
-            .cell(),
-        )
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -129,53 +122,22 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::CommonJs.cell()
     }
-}
-
-#[turbo_tasks::value]
-struct RawEcmascriptChunkItem {
-    module: ResolvedVc<RawEcmascriptModule>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAssetsReference for RawEcmascriptChunkItem {}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for RawEcmascriptChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(*self.module)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for RawEcmascriptChunkItem {
-    #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let span = tracing::info_span!(
             "code generation raw module",
-            name = display(self.module.ident().to_string().await?)
+            name = display(self.ident().to_string().await?)
         );
 
         async {
-            let module = self.module.await?;
+            let module = self.await?;
             let source = module.source;
             let content = source.content().file_content().await?;
             let content = match &*content {
@@ -246,12 +208,9 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
 
             code += "(function(){\n";
             let source_mapping_url = extract_source_mapping_url_from_content(&content_str);
-            let source_map = if let Some((source_map, _)) = parse_source_map_comment(
-                source,
-                source_mapping_url,
-                &*self.module.ident().path().await?,
-            )
-            .await?
+            let source_map = if let Some((source_map, _)) =
+                parse_source_map_comment(source, source_mapping_url, &*self.ident().path().await?)
+                    .await?
             {
                 let source_map = source_map.generate_source_map().await?;
                 source_map.as_content().map(|f| f.content().clone())

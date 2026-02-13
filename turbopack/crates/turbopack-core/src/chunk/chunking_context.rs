@@ -100,7 +100,7 @@ pub struct UrlBehavior {
     pub suffix: AssetSuffix,
     /// Static suffix for contexts that cannot use dynamic JS expressions (e.g., CSS `url()`
     /// references). Must be a constant string known at build time (e.g., `?dpl=<deployment_id>`).
-    pub static_suffix: Option<RcStr>,
+    pub static_suffix: ResolvedVc<Option<RcStr>>,
 }
 
 #[derive(
@@ -361,7 +361,7 @@ pub trait ChunkingContext {
     fn url_behavior(self: Vc<Self>, _tag: Option<RcStr>) -> Vc<UrlBehavior> {
         UrlBehavior {
             suffix: AssetSuffix::Inferred,
-            static_suffix: None,
+            static_suffix: ResolvedVc::cell(None),
         }
         .cell()
     }

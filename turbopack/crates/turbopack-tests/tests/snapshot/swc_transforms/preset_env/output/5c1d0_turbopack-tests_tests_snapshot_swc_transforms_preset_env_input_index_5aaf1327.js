@@ -627,25 +627,20 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         if (end === chunkModules.length) {
             throw new Error('malformed chunk format, expected a factory function');
         }
-        // Check if ANY of the module IDs in this group already have factories (e.g., from HMR updates).
-        // If so, skip installing the old factory from disk to preserve the HMR-updated code.
-        var hasExistingFactory = false;
-        var groupIds = [];
+        // Install the factory for each module ID that doesn't already have one.
+        // This handles both the normal case and the case where some IDs in a group
+        // may have been registered separately (e.g., from another chunk or HMR update).
+        var moduleFactoryFn = chunkModules[end];
+        var didInstallFactory = false;
         for(var j = i; j < end; j++){
             var id = chunkModules[j];
-            groupIds.push(id);
-            if (moduleFactories.has(id)) {
-                hasExistingFactory = true;
-                break;
-            }
-        }
-        if (!hasExistingFactory) {
-            var moduleFactoryFn = chunkModules[end];
-            applyModuleFactoryName(moduleFactoryFn);
-            newModuleId === null || newModuleId === void 0 ? void 0 : newModuleId(moduleId);
-            for(; i < end; i++){
-                moduleId = chunkModules[i];
-                moduleFactories.set(moduleId, moduleFactoryFn);
+            if (!moduleFactories.has(id)) {
+                if (!didInstallFactory) {
+                    applyModuleFactoryName(moduleFactoryFn);
+                    newModuleId === null || newModuleId === void 0 ? void 0 : newModuleId(moduleId);
+                    didInstallFactory = true;
+                }
+                moduleFactories.set(id, moduleFactoryFn);
             }
         }
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
@@ -721,7 +716,7 @@ function asyncModule(body, hasAwait) {
     Object.defineProperty(module, 'namespaceObject', attributes);
     function handleAsyncDependencies(deps) {
         var currentDeps = wrapDeps(deps);
-        var getResult = function() {
+        var getResult = function getResult() {
             return currentDeps.map(function(d) {
                 if (d[turbopackError]) throw d[turbopackError];
                 return d[turbopackExports];
@@ -1421,7 +1416,7 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
  */ // Used by the backend
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-var getOrInstantiateModuleFromParent = function(id, sourceModule) {
+var getOrInstantiateModuleFromParent = function getOrInstantiateModuleFromParent(id, sourceModule) {
     var module = moduleCache[id];
     if (module) {
         if (module.error) {
@@ -1752,7 +1747,7 @@ var BACKEND;
                 resolved: false,
                 loadingStarted: false,
                 promise: promise,
-                resolve: function() {
+                resolve: function resolve1() {
                     resolver.resolved = true;
                     resolve();
                 },

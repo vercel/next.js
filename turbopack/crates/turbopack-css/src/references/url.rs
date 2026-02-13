@@ -30,7 +30,8 @@ pub enum ReferencedAsset {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("url {request}")]
 pub struct UrlAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -94,16 +95,6 @@ impl ModuleReference for UrlAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for UrlAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("url {}", self.request.to_string().await?,).into(),
-        ))
-    }
-}
-
 #[turbo_tasks::function]
 pub async fn resolve_url_reference(
     url: Vc<UrlAssetReference>,
@@ -126,7 +117,7 @@ pub async fn resolve_url_reference(
 
         // Append the static suffix from UrlBehavior if configured (e.g., ?dpl=<deployment_id>).
         let url_behavior = chunking_context.url_behavior(None).await?;
-        let url_with_suffix = if let Some(ref suffix) = url_behavior.static_suffix {
+        let url_with_suffix = if let Some(ref suffix) = *url_behavior.static_suffix.await? {
             format!("{}{}", url_path, suffix).into()
         } else {
             url_path

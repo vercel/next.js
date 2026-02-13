@@ -490,6 +490,20 @@ impl IssueSource {
         }
     }
 
+    pub fn from_single_line_col(source: ResolvedVc<Box<dyn Source>>, pos: SourcePos) -> Self {
+        IssueSource {
+            source,
+            range: Some(SourceRange::LineColumn(
+                pos,
+                SourcePos {
+                    line: pos.line,
+                    // The end position is the first character after the range
+                    column: pos.column + 1,
+                },
+            )),
+        }
+    }
+
     async fn into_plain(self) -> Result<PlainIssueSource> {
         let Self { mut source, range } = self;
 

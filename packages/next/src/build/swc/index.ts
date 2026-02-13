@@ -114,11 +114,11 @@ const triples = (() => {
 
   if (rawTargetTriple) {
     Log.warn(
-      `Trying to load next-swc for target triple ${rawTargetTriple}, but there next-swc does not have native bindings support`
+      `next-swc does not have native bindings support for target triple ${rawTargetTriple}. Native features like Turbopack will not be available.`
     )
   } else {
     Log.warn(
-      `Trying to load next-swc for unsupported platforms ${PlatformName}/${ArchName}`
+      `next-swc does not have native bindings for platform ${PlatformName}/${ArchName}. Native features like Turbopack will not be available.`
     )
   }
 
@@ -1359,7 +1359,9 @@ async function loadWasm(importPath = '') {
         _turboEngineOptions?: TurboEngineOptions | undefined
       ): Promise<Project> {
         throw new Error(
-          '`turbo.createProject` is not supported by the wasm bindings.'
+          `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
+            `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings. ` +
+            `Use the --webpack flag instead.`
         )
       },
       startTurbopackTraceServer(
@@ -1367,7 +1369,8 @@ async function loadWasm(importPath = '') {
         _port: number | undefined
       ): void {
         throw new Error(
-          '`turbo.startTurbopackTraceServer` is not supported by the wasm bindings.'
+          `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
+            `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
         )
       },
     },

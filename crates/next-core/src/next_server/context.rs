@@ -1035,7 +1035,7 @@ pub struct ServerChunkingContextOptions {
     pub debug_ids: Vc<bool>,
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
-    pub css_url_suffix: Option<RcStr>,
+    pub css_url_suffix: Vc<Option<RcStr>>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1062,6 +1062,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         asset_prefix,
         css_url_suffix,
     } = options;
+    let css_url_suffix = css_url_suffix.to_resolved().await?;
 
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1082,7 +1083,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         rcstr!("client"),
         UrlBehavior {
             suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
-            static_suffix: css_url_suffix.clone(),
+            static_suffix: css_url_suffix,
         },
     )
     .default_url_behavior(UrlBehavior {
@@ -1159,6 +1160,7 @@ pub async fn get_server_chunking_context(
         asset_prefix,
         css_url_suffix,
     } = options;
+    let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
@@ -1180,7 +1182,7 @@ pub async fn get_server_chunking_context(
         rcstr!("client"),
         UrlBehavior {
             suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
-            static_suffix: css_url_suffix.clone(),
+            static_suffix: css_url_suffix,
         },
     )
     .default_url_behavior(UrlBehavior {
