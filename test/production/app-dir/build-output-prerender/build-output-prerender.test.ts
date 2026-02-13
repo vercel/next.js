@@ -21,6 +21,7 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
           } else if (isRspack) {
@@ -129,6 +130,7 @@ describe('build-output-prerender', () => {
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
@@ -200,6 +202,7 @@ describe('build-output-prerender', () => {
                |                            ^
              5 | }
              6 |
+           To debug the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
            Error: Route "/server" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                at Page (app/server/page.tsx:13:27)
@@ -210,6 +213,7 @@ describe('build-output-prerender', () => {
                 |                           ^
              14 | }
              15 |
+           To debug the issue, start the app in development mode by running \`next dev\`, then open "/server" in your browser to investigate the error.
            Error occurred prerendering page "/server". Read more: https://nextjs.org/docs/messages/prerender-error
 
            > Export encountered errors on following paths:
@@ -228,6 +232,7 @@ describe('build-output-prerender', () => {
                |                            ^
              5 | }
              6 |
+           To debug the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
            Error: Route "/server" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                at Page (webpack:///app/server/page.tsx:13:27)
@@ -238,6 +243,7 @@ describe('build-output-prerender', () => {
                 |                           ^
              14 | }
              15 |
+           To debug the issue, start the app in development mode by running \`next dev\`, then open "/server" in your browser to investigate the error.
            Error occurred prerendering page "/server". Read more: https://nextjs.org/docs/messages/prerender-error
 
            > Export encountered errors on following paths:
@@ -265,6 +271,7 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
           } else if (isRspack) {
@@ -339,6 +346,7 @@ describe('build-output-prerender', () => {
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)

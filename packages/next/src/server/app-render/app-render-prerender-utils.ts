@@ -34,7 +34,15 @@ export function prerenderAndAbortInSequentialTasks<R>(
       scheduleTimeout(() => {
         try {
           expectNoPendingImmediates()
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           abort()
+        } catch (err) {
+          reject(err)
+        }
+      })
+      scheduleTimeout(() => {
+        try {
+          expectNoPendingImmediates()
           resolve(pendingResult)
         } catch (err) {
           reject(err)
