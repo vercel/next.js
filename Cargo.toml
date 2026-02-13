@@ -399,7 +399,7 @@ indexmap = "2.7.1"
 indoc = "2.0.0"
 inventory = "0.3.21"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.69", features = [
+lightningcss = { version = "1.0.0-alpha.70", features = [
   "serde",
   "visitor",
   "into_owned",
