@@ -11,7 +11,7 @@ use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext},
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
     issue::IssueSource,
     output::OutputAsset,
     reference::ModuleReference,
@@ -30,7 +30,8 @@ pub enum ReferencedAsset {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("url {request}")]
 pub struct UrlAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -84,18 +85,13 @@ impl ModuleReference for UrlAssetReference {
             ResolveErrorMode::Error,
         )
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for UrlAssetReference {}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for UrlAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("url {}", self.request.to_string().await?,).into(),
-        ))
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
     }
 }
 
@@ -107,7 +103,7 @@ pub async fn resolve_url_reference(
     if let ReferencedAsset::Some(asset) = &*url.get_referenced_asset(chunking_context).await? {
         let path = asset.path().await?;
 
-        let url_path = if *chunking_context
+        let url_path: RcStr = if *chunking_context
             .should_use_absolute_url_references()
             .await?
         {
@@ -119,7 +115,15 @@ pub async fn resolve_url_reference(
                 .unwrap_or_else(|| format!("/{}", path.path).into())
         };
 
-        return Ok(Vc::cell(Some(url_path)));
+        // Append the static suffix from UrlBehavior if configured (e.g., ?dpl=<deployment_id>).
+        let url_behavior = chunking_context.url_behavior(None).await?;
+        let url_with_suffix = if let Some(ref suffix) = *url_behavior.static_suffix.await? {
+            format!("{}{}", url_path, suffix).into()
+        } else {
+            url_path
+        };
+
+        return Ok(Vc::cell(Some(url_with_suffix)));
     }
 
     Ok(Vc::cell(None))

@@ -1,0 +1,9 @@
+@import './import.css' layer(new);
+
+@layer default, new;
+
+@layer default {
+  h2 {
+    color: rgb(255, 0, 0);
+  }
+}

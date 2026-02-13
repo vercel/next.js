@@ -381,7 +381,7 @@ clap = { version = "4.5.2", features = ["derive"] }
 concurrent-queue = "2.5.0"
 console-subscriber = "0.4.1"
 const_format = "0.2.30"
-criterion = { package = "codspeed-criterion-compat", version = "3.0.5" }
+criterion = { package = "codspeed-criterion-compat", version = "4.3.0" }
 crossbeam-channel = "0.5.8"
 dashmap = "6.1.0"
 data-encoding = "2.3.3"

@@ -28,7 +28,13 @@ import {
 } from '../../shared/lib/constants'
 import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { type Span, trace, flushAllTraces } from '../../trace'
+import {
+  type Span,
+  trace,
+  flushAllTraces,
+  exportTraceState,
+  initializeTraceState,
+} from '../../trace'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
@@ -123,6 +129,7 @@ export interface StartServerOptions {
   keepAliveTimeout?: number
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
+  experimentalServerFastRefresh?: boolean
 }
 
 export async function getRequestHandlers({
@@ -135,6 +142,7 @@ export async function getRequestHandlers({
   minimalMode,
   keepAliveTimeout,
   experimentalHttpsServer,
+  experimentalServerFastRefresh,
   quiet,
 }: {
   dir: string
@@ -146,6 +154,7 @@ export async function getRequestHandlers({
   minimalMode?: boolean
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
+  experimentalServerFastRefresh?: boolean
   quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
@@ -158,6 +167,7 @@ export async function getRequestHandlers({
     server,
     keepAliveTimeout,
     experimentalHttpsServer,
+    experimentalServerFastRefresh,
     startServerSpan,
     quiet,
   })
@@ -178,6 +188,7 @@ export async function startServer(
     allowRetry,
     keepAliveTimeout,
     selfSignedCertificate,
+    experimentalServerFastRefresh,
   } = serverOptions
   let { port } = serverOptions
 
@@ -413,6 +424,9 @@ export async function startServer(
               cleanupListeners?.runAll().catch(console.error),
             ])
 
+            // Flush any remaining traces to the trace file on shutdown
+            await flushAllTraces()
+
             // Flush telemetry if this is a dev server
             if (isDev) {
               try {
@@ -475,6 +489,7 @@ export async function startServer(
           minimalMode,
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
+          experimentalServerFastRefresh,
         })
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
@@ -548,13 +563,31 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
       msg.nextWorkerOptions &&
       process.send
     ) {
+      let enabledFeaturesFromParent = {}
+      if (process.env.NEXT_PRIVATE_ENABLED_FEATURES) {
+        const parsed = JSON.parse(process.env.NEXT_PRIVATE_ENABLED_FEATURES)
+        enabledFeaturesFromParent = Object.fromEntries(
+          Object.entries(parsed).map(([key, value]) => [
+            `feature.${key}`,
+            value,
+          ])
+        )
+      }
+
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),
         'memory.freeMem': String(os.freemem()),
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
+        ...enabledFeaturesFromParent,
       })
+
+      initializeTraceState({
+        ...exportTraceState(),
+        defaultParentSpanId: startServerSpan.getId(),
+      })
+
       const result = await startServerSpan.traceAsyncFn(() =>
         startServer(msg.nextWorkerOptions)
       )

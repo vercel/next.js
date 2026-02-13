@@ -20,16 +20,40 @@ The minimum Node.js version is now **v18.17**. See the [Node.js documentation](h
 
 To update to Next.js version 13, run the following command using your preferred package manager:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add next@latest react@latest react-dom@latest
+```
+
+```bash package="npm"
 npm install next@latest react@latest react-dom@latest
+```
+
+```bash package="yarn"
+yarn add next@latest react@latest react-dom@latest
+```
+
+```bash package="bun"
+bun add next@latest react@latest react-dom@latest
 ```
 
 ### ESLint Version
 
 If you're using ESLint, you need to upgrade your ESLint version:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add -D eslint-config-next@latest
+```
+
+```bash package="npm"
 npm install -D eslint-config-next@latest
+```
+
+```bash package="yarn"
+yarn add -D eslint-config-next@latest
+```
+
+```bash package="bun"
+bun add -D eslint-config-next@latest
 ```
 
 > **Good to know**: You may need to restart the ESLint server in VS Code for the ESLint changes to take effect. Open the Command Palette (`cmd+shift+p` on Mac; `ctrl+shift+p` on Windows) and search for `ESLint: Restart ESLint Server`.
@@ -121,8 +145,20 @@ We recommend reducing the combined complexity of these updates by breaking down 
 
 Update to the latest Next.js version (requires 13.4 or greater):
 
-```bash
+```bash package="pnpm"
+pnpm add next@latest
+```
+
+```bash package="npm"
 npm install next@latest
+```
+
+```bash package="yarn"
+yarn add next@latest
+```
+
+```bash package="bun"
+bun add next@latest
 ```
 
 Then, create a new `app` directory at the root of your project (or `src/` directory).

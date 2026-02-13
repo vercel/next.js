@@ -117,6 +117,7 @@ declare module 'react-server-dom-webpack/client.browser' {
     debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
     startTime?: number
     endTime?: number
+    unstable_allowPartialStream?: boolean
   }
 
   export function createFromFetch<T>(

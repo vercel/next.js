@@ -166,6 +166,9 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
+    'process.env.__NEXT_APP_NEW_SCROLL_HANDLER': Boolean(
+      config.experimental.appNewScrollHandler
+    ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,

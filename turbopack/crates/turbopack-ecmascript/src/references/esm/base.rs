@@ -13,10 +13,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        ModuleChunkItemIdExt,
-    },
+    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
@@ -321,7 +318,8 @@ impl EsmAssetReferences {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("import {request} with {annotations}")]
 pub struct EsmAssetReference {
     pub module: ResolvedVc<EcmascriptModuleAsset>,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -474,18 +472,7 @@ impl ModuleReference for EsmAssetReference {
 
         Ok(result)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(format!("import {} with {}", self.request, self.annotations).into())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Result<Vc<ChunkingTypeOption>> {
         Ok(Vc::cell(

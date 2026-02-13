@@ -2,19 +2,21 @@ use anyhow::{Context, Result};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
-        MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, MergeableModuleExposure,
+        MergeableModules, MergeableModulesExposed,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::OutputAssetsReference,
     reference::ModuleReferences,
 };
 
 use crate::{
     EcmascriptAnalyzable, EcmascriptModuleContent, EcmascriptOptions,
-    chunk::{EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType},
+    chunk::{
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        ecmascript_chunk_item,
+    },
 };
 
 #[turbo_tasks::value(shared)]
@@ -94,72 +96,34 @@ impl ChunkableModule for MergedEcmascriptModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: ResolvedVc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn ChunkItem>> {
-        Vc::upcast(
-            MergedEcmascriptModuleChunkItem {
-                module: self,
-                chunking_context,
-            }
-            .cell(),
-        )
-    }
-}
-
-#[turbo_tasks::value]
-struct MergedEcmascriptModuleChunkItem {
-    module: ResolvedVc<MergedEcmascriptModule>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAssetsReference for MergedEcmascriptModuleChunkItem {}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for MergedEcmascriptModuleChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        *ResolvedVc::upcast(self.module)
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
+impl EcmascriptChunkPlaceable for MergedEcmascriptModule {
     #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
-        panic!("content() should not be called");
+    fn get_exports(&self) -> Vc<EcmascriptExports> {
+        panic!("get_exports() should not be called on merged modules")
     }
 
     #[turbo_tasks::function]
-    async fn content_with_async_module_info(
-        &self,
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let module = self.module.await?;
+        let module = self.await?;
         let modules = &module.modules;
         let entry_points = &module.entry_points;
         let options = modules
             .iter()
-            .map(|(m, _)| m.module_content_options(*self.chunking_context, async_module_info))
+            .map(|(m, _)| m.module_content_options(chunking_context, async_module_info))
             .collect::<Vec<_>>();
 
         let content = EcmascriptModuleContent::new_merged(
@@ -173,7 +137,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
 
         Ok(EcmascriptChunkItemContent::new(
             content,
-            *self.chunking_context,
+            chunking_context,
             async_module_options,
         ))
     }

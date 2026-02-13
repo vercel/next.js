@@ -36,7 +36,7 @@ use turbopack_core::{
 };
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
-use crate::{ImportAssetReference, util::stringify_js};
+use crate::ImportAssetReference;
 
 #[turbo_tasks::value]
 pub struct CssChunk {
@@ -130,7 +130,7 @@ impl CssChunk {
         }
 
         for external_import in external_imports {
-            writeln!(code, "@import {};", stringify_js(&external_import))?;
+            writeln!(code, "{}", &external_import)?;
         }
 
         let built = &body.build();
@@ -522,17 +522,10 @@ impl Introspectable for CssChunk {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, ValueToString)]
+#[value_to_string("css")]
 #[turbo_tasks::value]
 pub struct CssChunkType {}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for CssChunkType {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("css"))
-    }
-}
 
 #[turbo_tasks::value_impl]
 impl ChunkType for CssChunkType {
