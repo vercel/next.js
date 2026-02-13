@@ -402,6 +402,9 @@ impl ReferenceType {
     /// combination with [`ModuleRuleCondition::Internal`] to determine if a
     /// rule should be applied to an internal asset/reference.
     pub fn is_internal(&self) -> bool {
-        matches!(self, ReferenceType::Internal(_) | ReferenceType::Runtime)
+        matches!(
+            self,
+            ReferenceType::Internal(_) | ReferenceType::Runtime | ReferenceType::Loader
+        )
     }
 }
