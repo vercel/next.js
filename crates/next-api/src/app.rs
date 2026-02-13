@@ -52,7 +52,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        availability_info::AvailabilityInfo,
+        SourceMapsType, availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::{AssetIdent, Layer},
@@ -1368,13 +1368,19 @@ impl AppEndpoint {
         let polyfill_output_asset = ResolvedVc::upcast(polyfill_output);
         client_assets.insert(polyfill_output_asset);
 
-        let polyfill_source_map_asset = SourceMapAsset::new_fixed(
-            polyfill_output_path.clone(),
-            *ResolvedVc::upcast(polyfill_output),
-        )
-        .to_resolved()
-        .await?;
-        client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
+        let client_source_maps = project
+            .next_config()
+            .client_source_maps(project.next_mode())
+            .await?;
+        if *client_source_maps != SourceMapsType::None {
+            let polyfill_source_map_asset = SourceMapAsset::new_fixed(
+                polyfill_output_path.clone(),
+                *ResolvedVc::upcast(polyfill_output),
+            )
+            .to_resolved()
+            .await?;
+            client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
+        }
 
         let client_assets: ResolvedVc<OutputAssets> =
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());
