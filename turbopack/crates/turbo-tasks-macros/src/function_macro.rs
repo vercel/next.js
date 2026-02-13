@@ -57,6 +57,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let inline_attrs = filter_inline_attributes(&attrs[..]);
 
     let native_fn = NativeFn {
+        // depth = 2, this strips off a closure and a static item from the name
         function_global_name: global_name_for_scope(2, ident),
         function_path_string: ident.to_string(),
         function_path: quote! { #inline_function_ident },

@@ -5,8 +5,6 @@
 use std::future::IntoFuture;
 
 use anyhow::Result;
-use once_cell::sync::Lazy;
-use regex::Regex;
 use serde_json::json;
 use turbo_tasks::Vc;
 use turbo_tasks_testing::{Registration, register, run_without_cache_check};
@@ -221,10 +219,6 @@ async fn test_inline_definitions() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "<() as dyn turbo_tasks::vc::default::ValueDefault>::value_default": {
-                    "cache_hit": 4,
-                    "cache_miss": 1
-                },
                 "<dyn task_statistics::inline_definitions_turbo_tasks_function_inline::Trait>::trait_fn": {
                     "cache_hit": 0,
                     "cache_miss": 1
@@ -317,7 +311,6 @@ fn stats_json() -> serde_json::Value {
 
 // Global task identifiers can contain the crate name, remove it to simplify test assertions
 fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
-    static HASH_RE: Lazy<Regex> = Lazy::new(|| Regex::new("^[^:@]+@[^:]+:+").unwrap());
     match &mut json {
         serde_json::Value::Object(map) => {
             let old_map = std::mem::take(map);
@@ -329,7 +322,7 @@ fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
                 // assert on it.
                 object.remove("duration");
                 object.remove("executions");
-                map.insert(HASH_RE.replace(&k, "").into_owned(), v);
+                map.insert(k, v);
             }
         }
         _ => unreachable!("expected object"),
@@ -338,14 +331,18 @@ fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
 }
 
 #[turbo_tasks::function]
-fn inline_definitions() {
+fn inline_definitions() -> Result<Vc<()>> {
     #[turbo_tasks::function]
-    fn inline_fn() {}
+    fn inline_fn() -> Vc<()> {
+        Vc::cell(())
+    }
     let _ = inline_fn();
 
     let closure = || {
         #[turbo_tasks::function]
-        fn inline_fn_in_closure() {}
+        fn inline_fn_in_closure() -> Vc<()> {
+            Vc::cell(())
+        }
         let _ = inline_fn_in_closure();
     };
     closure();
@@ -356,7 +353,9 @@ fn inline_definitions() {
     #[turbo_tasks::value_impl]
     impl Value {
         #[turbo_tasks::function]
-        fn value_fn(&self) {}
+        fn value_fn(&self) -> Vc<()> {
+            Vc::cell(())
+        }
     }
     let _ = Value.cell().value_fn();
 
@@ -369,4 +368,6 @@ fn inline_definitions() {
     #[turbo_tasks::value_impl]
     impl Trait for Value {}
     let _ = Value.cell().trait_fn();
+
+    Ok(Vc::cell(()))
 }

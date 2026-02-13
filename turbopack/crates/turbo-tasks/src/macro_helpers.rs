@@ -207,8 +207,7 @@ macro_rules! debug_assert_runs_once {
         {
             use ::std::sync::atomic::{AtomicBool, Ordering};
             static ONLY_RUN_ONCE: AtomicBool = AtomicBool::new(false);
-            assert!(!AtomicBool::load(&ONLY_RUN_ONCE, Ordering::Acquire));
-            AtomicBool::store(&ONLY_RUN_ONCE, true, Ordering::Release);
+            assert!(!AtomicBool::swap(&ONLY_RUN_ONCE, true, Ordering::AcqRel));
         }
     };
 }
