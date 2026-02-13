@@ -1,12 +1,10 @@
 ---
-title: experimental.adapterPath
+title: adapterPath
 description: Configure a custom adapter for Next.js to hook into the build process with modifyConfig and onBuildComplete callbacks.
+version: experimental
 ---
 
 Next.js provides an experimental API that allows you to create custom adapters to hook into the build process. This is useful for deployment platforms or custom build integrations that need to modify Next.js configuration or process build outputs.
-
-> [!WARNING]
-> `experimental.adapterPath` is experimental and may change.
 
 For a full reference implementation, see [`nextjs/adapter-vercel`](https://github.com/nextjs/adapter-vercel).
 
@@ -250,14 +248,20 @@ Client
   | GET /ppr-route
   v
 Adapter Router
-  |-- read cached shell + postponedState --> Platform Cache
-  |<------------- cache hit --------------|
+  |
+  |-- read cached shell + postponedState ---> Platform Cache
+  |<------------- cache hit -----------------|
+  |
   |-- create responseStream = concat(shellStream, resumedStream)
-  |-- start piping shellStream -----------> Client (first bytes)
+  |
+  |-- start piping shellStream ------------> Client (first bytes)
+  |
   |-- invoke handler(req, res, { requestMeta: { postponed } })
-  |   ------------------------------------> Entrypoint (handler)
-  |   <------------------------------------ resumed chunks/cache entry
+  |   -------------------------------------> Entrypoint (handler)
+  |   <------------------------------------- resumed chunks/cache entry
+  |
   |-- append resumed chunks to resumedStream
+  |
   '-- client receives one HTTP response:
       [shell bytes........][resumed bytes........]
 ```
@@ -267,8 +271,10 @@ Adapter Router
 `requestMeta.onCacheEntryV2` is called when a response cache entry is looked up or generated. Use it to persist updated shell/postponed data.
 
 > [!NOTE]
-> `requestMeta.onCacheEntry` still works, but is deprecated. Prefer `requestMeta.onCacheEntryV2`.
-> If your adapter uses an internal `onCacheCallback` abstraction, wire it to `requestMeta.onCacheEntryV2`.
+>
+> - `requestMeta.onCacheEntry` still works, but is deprecated.
+> - Prefer `requestMeta.onCacheEntryV2`.
+> - If your adapter uses an internal `onCacheCallback` abstraction, wire it to `requestMeta.onCacheEntryV2`.
 
 ```ts filename="my-adapter.ts"
 await handler(req, res, {
@@ -304,10 +310,11 @@ Entrypoint (handler)
   | onCacheEntryV2(cacheEntry, { url })
   v
 requestMeta.onCacheEntryV2 callback
-  |-- if APP_PAGE --> persist html + postponedState + headers --> Platform Cache
+  |
+  |-- if APP_PAGE ---> persist html + postponedState + headers ---> Platform Cache
   |
   '-- return false: continue normal Next.js response flow
-      return true: adapter already handled response (short-circuit)
+      return true:  adapter already handled response (short-circuit)
 ```
 
 ## Invoking Entrypoints
