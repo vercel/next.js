@@ -10,6 +10,7 @@ use next_core::{
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
+    next_app::{AppPage, AppPath},
     next_client::{
         ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
     },
@@ -218,42 +219,13 @@ struct DebugBuildPathsRouteKeys {
 }
 
 impl DebugBuildPathsRouteKeys {
-    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Self {
-        Self {
+    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Result<Self> {
+        Ok(Self {
             app: paths
                 .app
                 .iter()
-                .map(|path| {
-                    // App router: "/blog/[slug]/page.tsx" -> "/blog/[slug]"
-                    // First strip the filename
-                    let path_without_file = if let Some(last_slash_idx) = path.rfind('/') {
-                        if last_slash_idx == 0 {
-                            "/" // Root: "/page.tsx" -> "/"
-                        } else {
-                            &path[..last_slash_idx]
-                        }
-                    } else {
-                        path.as_str()
-                    };
-
-                    // Strip route groups (xxx) and parallel routes @xxx to match AppPath format
-                    // This matches the behavior in next-core/src/next_app/mod.rs AppPage -> AppPath
-                    let segments: Vec<&str> = path_without_file
-                        .split('/')
-                        .filter(|s| {
-                            !s.is_empty()
-                                && !s.starts_with('(') // route groups like (dashboard)
-                                && !s.starts_with('@') // parallel routes like @modal
-                        })
-                        .collect();
-
-                    if segments.is_empty() {
-                        "/".into()
-                    } else {
-                        format!("/{}", segments.join("/")).into()
-                    }
-                })
-                .collect(),
+                .map(|path| Ok(AppPath::from(AppPage::parse(path)?).to_string().into()))
+                .collect::<Result<FxHashSet<_>>>()?,
             pages: paths
                 .pages
                 .iter()
@@ -266,10 +238,9 @@ impl DebugBuildPathsRouteKeys {
                     }
                 })
                 .collect(),
-        }
+        })
     }
 
-    /// Checks if an app router route should be included based on pre-converted route keys.
     fn should_include_app_route(&self, route_key: &RcStr) -> bool {
         // Special app router framework routes
         if matches!(route_key.as_str(), "/_not-found" | "/_global-error") {
@@ -278,7 +249,6 @@ impl DebugBuildPathsRouteKeys {
         self.app.contains(route_key)
     }
 
-    /// Checks if a pages router route should be included based on pre-converted route keys.
     fn should_include_pages_route(&self, route_key: &RcStr) -> bool {
         // Special pages router framework routes
         if matches!(route_key.as_str(), "/_error" | "/_document" | "/_app") {
@@ -1653,7 +1623,8 @@ impl Project {
         let debug_build_paths_route_keys = this
             .debug_build_paths
             .as_ref()
-            .map(DebugBuildPathsRouteKeys::from_debug_build_paths);
+            .map(DebugBuildPathsRouteKeys::from_debug_build_paths)
+            .transpose()?;
 
         if let Some(app_project) = &*app_project.await? {
             let app_routes = app_project.routes();
