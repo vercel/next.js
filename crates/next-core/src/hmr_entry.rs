@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
@@ -143,6 +143,8 @@ impl EcmascriptChunkPlaceable for HmrEntryModule {
 impl EvaluatableAsset for HmrEntryModule {}
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("entry")]
 pub struct HmrEntryModuleReference {
     pub module: ResolvedVc<Box<dyn Module>>,
 }
@@ -152,14 +154,6 @@ impl HmrEntryModuleReference {
     #[turbo_tasks::function]
     pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         HmrEntryModuleReference { module }.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for HmrEntryModuleReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("entry"))
     }
 }
 

@@ -1,5 +1,3 @@
-use anyhow::Result;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkingType, ChunkingTypeOption},
@@ -9,6 +7,8 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("Next.js Server Component {}", self.asset.ident())]
 pub struct NextServerComponentModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
 }
@@ -18,20 +18,6 @@ impl NextServerComponentModuleReference {
     #[turbo_tasks::function]
     pub fn new(asset: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         NextServerComponentModuleReference { asset }.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for NextServerComponentModuleReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "Next.js Server Component {}",
-                self.asset.ident().to_string().await?
-            )
-            .into(),
-        ))
     }
 }
 

@@ -8,6 +8,8 @@ use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawD
 /// "subdirectory" in the given root [FileSystem].
 ///
 /// Caveat: The `child_path` itself is not visible as a directory entry.
+#[derive(ValueToString)]
+#[value_to_string("{root_fs}-with-{child_fs}")]
 #[turbo_tasks::value]
 pub struct AttachedFileSystem {
     root_fs: ResolvedVc<Box<dyn FileSystem>>,
@@ -139,17 +141,5 @@ impl FileSystem for AttachedFileSystem {
     #[turbo_tasks::function]
     async fn metadata(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<FileMeta>> {
         Ok(self.get_inner_fs_path(path).await?.metadata())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for AttachedFileSystem {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let root_fs_str = self.root_fs.to_string().await?;
-        let child_fs_str = self.child_fs.to_string().await?;
-        Ok(Vc::cell(
-            format!("{root_fs_str}-with-{child_fs_str}").into(),
-        ))
     }
 }

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -27,6 +27,8 @@ use crate::BrowserChunkingContext;
 /// * moving a module from one chunk to another;
 /// * changing a chunk's path.
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Dev Chunk List")]
 pub(crate) struct EcmascriptDevChunkList {
     pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
     pub(super) ident: ResolvedVc<AssetIdent>,
@@ -59,14 +61,6 @@ impl EcmascriptDevChunkList {
     #[turbo_tasks::function]
     fn own_content(self: Vc<Self>) -> Vc<EcmascriptDevChunkListContent> {
         EcmascriptDevChunkListContent::new(self)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptDevChunkList {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Dev Chunk List"))
     }
 }
 

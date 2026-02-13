@@ -9580,6 +9580,7 @@ name = "turbo-tasks-macros"
 version = "0.1.0"
 dependencies = [
  "either",
+ "indexmap 2.9.0",
  "proc-macro-error",
  "proc-macro2",
  "quote",

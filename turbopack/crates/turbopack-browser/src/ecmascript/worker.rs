@@ -21,6 +21,8 @@ use turbopack_ecmascript::minify::minify;
 /// The worker receives a JSON array via URL params of the following structure:
 /// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...forwarded_global_values]`
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Browser Worker Entrypoint")]
 pub struct EcmascriptBrowserWorkerEntrypoint {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     /// Global variable names to forward from main thread to worker.
@@ -81,14 +83,6 @@ impl EcmascriptBrowserWorkerEntrypoint {
             self.ident_for_path(),
             Vc::upcast(self),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBrowserWorkerEntrypoint {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Browser Worker Entrypoint"))
     }
 }
 

@@ -5,7 +5,6 @@ use swc_core::{
     ecma::ast::{Ident, Lit},
     quote,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
@@ -35,6 +34,8 @@ enum EcmascriptModulePartReferenceMode {
 /// A reference to the [EcmascriptModuleLocalsModule] variant of an original
 /// module.
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string(self.part)]
 pub struct EcmascriptModulePartReference {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
@@ -81,14 +82,6 @@ impl EcmascriptModulePartReference {
             mode: EcmascriptModulePartReferenceMode::Normal,
         }
         .cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptModulePartReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.part.to_string().into())
     }
 }
 

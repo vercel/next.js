@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{Result, bail};
 use indoc::writedoc;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath};
 use turbopack_core::{
@@ -20,6 +20,8 @@ use crate::NodeJsChunkingContext;
 
 /// An Ecmascript chunk that contains the Node.js runtime code.
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Build Node Runtime Chunk")]
 pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
 }
@@ -140,14 +142,6 @@ impl EcmascriptBuildNodeRuntimeChunk {
             self.ident_for_path(),
             Vc::upcast(self),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBuildNodeRuntimeChunk {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Build Node Runtime Chunk"))
     }
 }
 

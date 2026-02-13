@@ -45,7 +45,7 @@ mod capture_future;
 mod collectibles;
 mod completion;
 pub mod debug;
-mod display;
+pub mod display;
 pub mod duration_span;
 mod effect;
 mod error;

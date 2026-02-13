@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ValueToString, Vc, trace::TraceRawVcs};
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug, Copy, Clone)]
+#[derive(Hash, Debug, Copy, Clone, ValueToString)]
 pub struct CompileTarget {
     /// <https://nodejs.org/api/os.html#osarch>
     pub arch: Arch,

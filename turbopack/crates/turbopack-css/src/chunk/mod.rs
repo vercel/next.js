@@ -522,17 +522,10 @@ impl Introspectable for CssChunk {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, ValueToString)]
+#[value_to_string("css")]
 #[turbo_tasks::value]
 pub struct CssChunkType {}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for CssChunkType {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("css"))
-    }
-}
 
 #[turbo_tasks::value_impl]
 impl ChunkType for CssChunkType {
