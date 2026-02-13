@@ -151,4 +151,31 @@ function runTests(getPort: () => number) {
     },
     60 * 1000
   )
+
+  it(
+    'triggers MPA navigation when a server action redirects to a different deployment',
+    async () => {
+      // Verify that when a server action calls redirect() and the redirect
+      // target is served by a different deployment (different build ID), the
+      // client falls back to an MPA navigation instead of attempting to apply
+      // the foreign RSC payload.
+      const browser = await webdriver(getPort(), '/action-redirect')
+
+      // Verify we're on the action redirect page
+      const heading = await browser.elementById('action-page')
+      expect(await heading.text()).toBe('Action Redirect Page')
+
+      // Click the button that triggers the server action redirect
+      const button = await browser.elementById('redirect-action-button')
+      await button.click()
+
+      // Wait for the navigation to complete.
+      // The redirect target is served by deployment 2, which has a different
+      // build ID. The client should detect the build ID mismatch and perform
+      // an MPA navigation (full page load) instead of a client-side transition.
+      const buildId = await browser.waitForElementByCss('#build-id', 30000)
+      expect(await buildId.text()).toBe('Build ID: 2')
+    },
+    60 * 1000
+  )
 }
