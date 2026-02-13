@@ -98,26 +98,4 @@ Different AI coding agents look for different configuration files. `AGENTS.md` i
 
 > **Good to know:** You only need to maintain the instructions in `AGENTS.md`. Other files can reference it (like `CLAUDE.md` does with the `@AGENTS.md` import) or copy its contents.
 
-## Customizing for your project
-
-You can extend `AGENTS.md` with project-specific instructions outside the comment markers. For example, you might add conventions about your data fetching patterns, component structure, or testing approach:
-
-```md filename="AGENTS.md"
-<!-- BEGIN:nextjs-agent-rules -->
-
-# Next.js: ALWAYS read docs before coding
-
-Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
-
-<!-- END:nextjs-agent-rules -->
-
-# Project conventions
-
-- Use Server Components by default. Only add `'use client'` when you need interactivity.
-- Fetch data in Server Components using `async/await`, not client-side hooks.
-- Place shared UI in `components/` and page-specific UI in the route directory.
-```
-
-Keep your additions focused and actionable — agents work best with specific, concrete instructions.
-
 > **Good to know:** To see how bundled docs and `AGENTS.md` improve agent performance on real-world Next.js tasks, visit the [benchmark results](https://nextjs.org/evals).
