@@ -1659,9 +1659,28 @@ export default class Router implements BaseRouter {
             rewriteAs = localeResult.pathname
           }
           const routeRegex = getRouteRegex(pathname)
-          const curRouteMatch = getRouteMatcher(routeRegex)(
+          let curRouteMatch = getRouteMatcher(routeRegex)(
             new URL(rewriteAs, location.href).pathname
           )
+
+          // If the middleware-rewritten path doesn't match the route pattern,
+          // fall back to the original `as` URL for parameter extraction.
+          // This handles cases where middleware rewrites change the path
+          // structure, causing dynamic params to be lost (e.g. /users/[userId]
+          // rewritten to a different path by middleware).
+          if (!curRouteMatch && routeInfo.resolvedAs) {
+            let originalAs = new URL(as, location.href).pathname
+            if (hasBasePath(originalAs)) {
+              originalAs = removeBasePath(originalAs)
+            }
+            if (process.env.__NEXT_I18N_SUPPORT) {
+              originalAs = normalizeLocalePath(
+                originalAs,
+                this.locales
+              ).pathname
+            }
+            curRouteMatch = getRouteMatcher(routeRegex)(originalAs)
+          }
 
           if (curRouteMatch) {
             Object.assign(query, curRouteMatch)
