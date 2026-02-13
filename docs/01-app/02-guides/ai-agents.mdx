@@ -31,30 +31,32 @@ The `AGENTS.md` file at the root of your project tells agents to read these bund
 
 ## Getting started
 
+> **Good to know:** Bundled docs and `AGENTS.md` generation are currently only available in the canary version of Next.js.
+
 ### New projects
 
 [`create-next-app`](/docs/app/api-reference/cli/create-next-app) generates `AGENTS.md` and `CLAUDE.md` automatically. No additional setup is needed:
 
 ```bash package="pnpm"
-pnpm create next-app
+pnpm create next-app@canary
 ```
 
 ```bash package="npm"
-npx create-next-app@latest
+npx create-next-app@canary
 ```
 
 ```bash package="yarn"
-yarn create next-app
+yarn create next-app@canary
 ```
 
 ```bash package="bun"
-bun create next-app
+bun create next-app@canary
 ```
 
 If you don't want the agent files, pass `--no-agents-md`:
 
 ```bash
-npx create-next-app@latest --no-agents-md
+npx create-next-app@canary --no-agents-md
 ```
 
 ### Existing projects
