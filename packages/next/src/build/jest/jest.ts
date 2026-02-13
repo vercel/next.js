@@ -105,11 +105,15 @@ export default function nextJest(options: { dir?: string } = {}) {
 
       const transpiled = (nextConfig?.transpilePackages ?? [])
         .concat(DEFAULT_TRANSPILED_PACKAGES)
-        // Include 'next' itself so that files inside node_modules/next/dist
-        // are transformed by SWC. This allows optimizer.globals.envs to
-        // perform compile-time replacement of process.env.__NEXT_IMAGE_OPTS
-        // (mirroring webpack DefinePlugin behaviour in production builds).
-        .concat(['next'])
+        // Only transpile the runtime modules that need the image-config replacement
+        // instead of the entire `next` package. This limits SWC transforms to the
+        // specific distributed image modules so we avoid unnecessary work and
+        // potential perf impact.
+        .concat([
+          'next/dist/client/image',
+          'next/dist/client/legacy/image',
+          'next/dist/shared/lib/image-external',
+        ])
         .join('|')
 
       // In production, webpack DefinePlugin replaces process.env.__NEXT_IMAGE_OPTS
