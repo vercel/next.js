@@ -297,9 +297,9 @@ fn struct_format_auto_fields_body(fmt: &str) -> (bool, TokenStream2) {
 
     let resolves: Vec<TokenStream2> = field_refs
         .iter()
-        .map(|field| {
-            let access = field.struct_access();
-            generate_resolve(&field.var, &access, true)
+        .map(|f| {
+            let access = f.struct_access();
+            generate_resolve(&f.var, &access, true)
         })
         .collect();
 

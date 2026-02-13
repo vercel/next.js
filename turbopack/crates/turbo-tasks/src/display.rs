@@ -10,6 +10,7 @@ pub use turbo_tasks_macros::ValueToString;
 
 use crate::{self as turbo_tasks, ReadRef, vc::ResolvedVc};
 
+/// Converts a value to a string, like [`Display`], but returning `Vc<RcStr>`.
 #[turbo_tasks::value_trait]
 pub trait ValueToString {
     #[turbo_tasks::function]
@@ -27,9 +28,6 @@ pub trait ValueToString {
 #[doc(hidden)]
 pub trait ValueToStringify {
     fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send;
-    fn is_async() -> bool {
-        true
-    }
 }
 
 /// Used only for macro codegen.
@@ -69,10 +67,6 @@ impl<T: Display + Send + Sync> ValueToStringify for T {
     fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
         let s = self.to_string();
         async move { Ok(StringifyType::String(s)) }
-    }
-    #[inline(always)]
-    fn is_async() -> bool {
-        false
     }
 }
 
