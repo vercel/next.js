@@ -34,10 +34,10 @@ import React from 'react'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
-  getRuntimeStagePromise,
   throwForMissingRequestStore,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
+import { RenderStage } from './staged-rendering'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
@@ -539,11 +539,14 @@ export function createHangingInputAbortSignal(
         // render the content of this cache as deeply as we can so that we can
         // suspend as deeply as possible in the tree or not at all if we don't
         // end up waiting for the input.
-        const runtimeStagePromise = getRuntimeStagePromise(workUnitStore)
-        if (runtimeStagePromise) {
-          runtimeStagePromise.then(() =>
-            scheduleOnNextTick(() => controller.abort())
-          )
+        if (
+          // eslint-disable-next-line no-restricted-syntax -- We are discriminating between two different refined types and don't need an addition exhaustive switch here
+          workUnitStore.type === 'prerender-runtime' &&
+          workUnitStore.stagedRendering
+        ) {
+          workUnitStore.stagedRendering
+            .waitForStage(RenderStage.Runtime)
+            .then(() => scheduleOnNextTick(() => controller.abort()))
         } else {
           scheduleOnNextTick(() => controller.abort())
         }
@@ -1152,8 +1155,10 @@ export function delayUntilRuntimeStage<T>(
   prerenderStore: PrerenderStoreModernRuntime,
   result: Promise<T>
 ): Promise<T> {
-  if (prerenderStore.runtimeStagePromise) {
-    return prerenderStore.runtimeStagePromise.then(() => result)
+  if (prerenderStore.stagedRendering) {
+    return prerenderStore.stagedRendering
+      .waitForStage(RenderStage.Runtime)
+      .then(() => result)
   }
   return result
 }
