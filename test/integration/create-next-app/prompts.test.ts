@@ -29,6 +29,7 @@ describe('create-next-app prompts', () => {
           '--no-tailwind',
           '--no-import-alias',
           '--no-react-compiler',
+          '--no-agents-md',
         ],
         {
           cwd,
@@ -68,6 +69,7 @@ describe('create-next-app prompts', () => {
           '--no-src-dir',
           '--no-import-alias',
           '--no-react-compiler',
+          '--no-agents-md',
         ],
         {
           cwd,
@@ -104,6 +106,7 @@ describe('create-next-app prompts', () => {
           '--no-src-dir',
           '--no-import-alias',
           '--no-react-compiler',
+          '--no-agents-md',
         ],
         {
           cwd,
@@ -140,6 +143,7 @@ describe('create-next-app prompts', () => {
           '--no-tailwind',
           '--no-src-dir',
           '--no-react-compiler',
+          '--no-agents-md',
         ],
         {
           cwd,
@@ -197,6 +201,8 @@ describe('create-next-app prompts', () => {
               'package.json',
               'postcss.config.mjs',
               'tsconfig.json',
+              'AGENTS.md',
+              'CLAUDE.md',
             ],
           })
           resolve()
@@ -238,6 +244,8 @@ describe('create-next-app prompts', () => {
               'package.json',
               'postcss.config.mjs', // tailwind
               'tsconfig.json', // typescript
+              'AGENTS.md', // agent files
+              'CLAUDE.md',
             ],
           })
           resolve()

@@ -137,7 +137,7 @@ export abstract class RouteModule<
   }: RouteModuleOptions<D, U>) {
     this.userland = userland
     this.definition = definition
-    this.isDev = process.env.NODE_ENV === 'development'
+    this.isDev = !!process.env.__NEXT_DEV_SERVER
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
   }

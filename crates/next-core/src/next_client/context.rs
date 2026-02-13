@@ -449,7 +449,7 @@ pub struct ClientChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub should_use_absolute_url_references: Vc<bool>,
-    pub css_url_suffix: Option<RcStr>,
+    pub css_url_suffix: Vc<Option<RcStr>>,
 }
 
 #[turbo_tasks::function]
@@ -509,7 +509,7 @@ pub async fn get_client_chunking_context(
     .worker_forwarded_globals(worker_forwarded_globals())
     .default_url_behavior(UrlBehavior {
         suffix: AssetSuffix::Inferred,
-        static_suffix: css_url_suffix,
+        static_suffix: css_url_suffix.to_resolved().await?,
     });
 
     if next_mode.is_development() {

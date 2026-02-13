@@ -43,6 +43,17 @@ declare function getOrInstantiateModuleFromParent<M>(
   sourceModule: M
 ): M
 
+// @ts-ignore Defined in `hmr-runtime.ts` (dev mode only)
+declare let devModuleCache: Record<ModuleId, any> | undefined
+
+/**
+ * Flag indicating which module object type to create when a module is merged. Set to `true`
+ * by each runtime that uses ModuleWithDirection (browser dev-base.ts, nodejs dev-base.ts,
+ * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
+ * uses plain Module objects.
+ */
+let createModuleWithDirectionFlag = false
+
 const REEXPORTED_OBJECTS = new WeakMap<Module, ReexportedObjects>()
 
 /**
@@ -111,9 +122,12 @@ function getOverwrittenModule(
 ): Module {
   let module = moduleCache[id]
   if (!module) {
-    // This is invoked when a module is merged into another module, thus it wasn't invoked via
-    // instantiateModule and the cache entry wasn't created yet.
-    module = createModuleObject(id)
+    if (createModuleWithDirectionFlag) {
+      // set in development modes for hmr support
+      module = createModuleWithDirection(id)
+    } else {
+      module = createModuleObject(id)
+    }
     moduleCache[id] = module
   }
   return module
@@ -550,26 +564,20 @@ function installCompressedModuleFactories(
       throw new Error('malformed chunk format, expected a factory function')
     }
 
-    // Check if ANY of the module IDs in this group already have factories (e.g., from HMR updates).
-    // If so, skip installing the old factory from disk to preserve the HMR-updated code.
-    let hasExistingFactory = false
-    const groupIds: ModuleId[] = []
+    // Install the factory for each module ID that doesn't already have one.
+    // This handles both the normal case and the case where some IDs in a group
+    // may have been registered separately (e.g., from another chunk or HMR update).
+    const moduleFactoryFn = chunkModules[end] as Function
+    let didInstallFactory = false
     for (let j = i; j < end; j++) {
       const id = chunkModules[j] as ModuleId
-      groupIds.push(id)
-      if (moduleFactories.has(id)) {
-        hasExistingFactory = true
-        break
-      }
-    }
-
-    if (!hasExistingFactory) {
-      const moduleFactoryFn = chunkModules[end] as Function
-      applyModuleFactoryName(moduleFactoryFn)
-      newModuleId?.(moduleId)
-      for (; i < end; i++) {
-        moduleId = chunkModules[i] as ModuleId
-        moduleFactories.set(moduleId, moduleFactoryFn)
+      if (!moduleFactories.has(id)) {
+        if (!didInstallFactory) {
+          applyModuleFactoryName(moduleFactoryFn)
+          newModuleId?.(moduleId)
+          didInstallFactory = true
+        }
+        moduleFactories.set(id, moduleFactoryFn)
       }
     }
     i = end + 1 // end is pointing at the last factory advance to the next id or the end of the array.

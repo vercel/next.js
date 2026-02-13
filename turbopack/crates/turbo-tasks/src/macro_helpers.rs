@@ -12,7 +12,8 @@ use crate::{
     ValueTypeId, debug::ValueDebugFormatString,
 };
 pub use crate::{
-    global_name, inventory_submit,
+    global_name_for_method, global_name_for_scope, global_name_for_trait_method,
+    global_name_for_trait_method_impl, global_name_for_type, inventory_submit,
     magic_any::MagicAny,
     manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
     native_function::{
@@ -142,32 +143,36 @@ inventory::collect! {CollectableTraitCastFunctions}
 
 #[allow(clippy::type_complexity)]
 pub struct CollectableTraitMethods(
-    // A value type name
-    pub &'static str,
-    pub fn() -> (TraitTypeId, Vec<(&'static str, &'static NativeFunction)>),
+    pub  fn() -> (
+        &'static str, // A value type name
+        TraitTypeId,
+        Vec<(&'static str, &'static NativeFunction)>,
+    ),
 );
-inventory::collect! {CollectableTraitMethods}
+inventory::collect!(CollectableTraitMethods);
 
 // Called when initializing ValueTypes by value_impl
-pub fn register_trait_methods(value: &mut ValueType) {
+pub fn register_trait_methods(value_type: &mut ValueType) {
     #[allow(clippy::type_complexity)]
     static TRAIT_METHODS_BY_VALUE: Lazy<
         FxDashMap<&'static str, Vec<(TraitTypeId, Vec<(&'static str, &'static NativeFunction)>)>>,
     > = Lazy::new(|| {
         let map: FxDashMap<&'static str, Vec<_>> = FxDashMap::default();
-        for CollectableTraitMethods(value_name, thunk) in inventory::iter::<CollectableTraitMethods>
-        {
-            map.entry(*value_name).or_default().push(thunk());
+        for CollectableTraitMethods(thunk) in inventory::iter::<CollectableTraitMethods> {
+            let (value_name, trait_type_id, fn_items) = thunk();
+            map.entry(value_name)
+                .or_default()
+                .push((trait_type_id, fn_items));
         }
         map
     });
-    match TRAIT_METHODS_BY_VALUE.remove(value.global_name) {
+    match TRAIT_METHODS_BY_VALUE.remove(value_type.global_name) {
         Some((_, traits)) => {
             for (trait_type_id, methods) in traits {
                 let trait_type = crate::registry::get_trait(trait_type_id);
-                value.register_trait(trait_type_id);
+                value_type.register_trait(trait_type_id);
                 for (name, method) in methods {
-                    value.register_trait_method(trait_type.get(name), method);
+                    value_type.register_trait_method(trait_type.get(name), method);
                 }
             }
         }
@@ -181,6 +186,7 @@ pub fn register_trait_methods(value: &mut ValueType) {
 ///
 /// This macro is a wrapper around `inventory::submit` that adds a `#[not(cfg(rust_analyzer))]`
 /// attribute to the item. This is to avoid warnings about unused items when using Rust Analyzer.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! inventory_submit {
     ($($item:tt)*) => {
@@ -193,21 +199,98 @@ macro_rules! inventory_submit {
 #[doc(hidden)]
 pub use inventory::submit as inventory_submit_inner;
 
-/// Define a global name for a turbo-tasks value.
-#[cfg(not(rust_analyzer))] // ignore-rust-analyzer due to https://github.com/rust-lang/rust-analyzer/issues/19993
+#[doc(hidden)]
 #[macro_export]
-macro_rules! global_name {
-    ($($item:tt)*) => {
-
-        ::std::concat!(::std::env!("CARGO_PKG_NAME"), "@", ::std::module_path!(), "::", $($item)*)
-    }
+macro_rules! debug_assert_runs_once {
+    () => {
+        #[cfg(debug_assertions)]
+        {
+            use ::std::sync::atomic::{AtomicBool, Ordering};
+            static ONLY_RUN_ONCE: AtomicBool = AtomicBool::new(false);
+            assert!(!AtomicBool::swap(&ONLY_RUN_ONCE, true, Ordering::AcqRel));
+        }
+    };
 }
-/// Define a global name for a turbo-tasks value.
-/// This has a dummy implementation for Rust Analyzer to avoid https://github.com/rust-lang/rust-analyzer/issues/19993
-#[cfg(rust_analyzer)]
+
+/// Use `type_name` to get globally unique identifier that's stable across multiple executions of
+/// the same Turbopack version, potentially allowing cache sharing across platforms/architectures.
+///
+/// The stdlib docs explicitly recommend against using type_name to get a unique identifier, but the
+/// way we're using it here seems unlikely to break. We've got runtime logic to panic if it breaks.
+#[doc(hidden)]
 #[macro_export]
-macro_rules! global_name {
-    ($($item:tt)*) => {
-        $($item)*
-    }
+macro_rules! global_name_for_type {
+    ($item:ty) => {
+        ::std::any::type_name::<$item>()
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! global_name_for_method {
+    ($ty:ty, $method:ident) => {{
+        // We cannot use `concat!` because `type_name` is not const, so we leak the string instead
+        // to get a &'static str.
+        //
+        // Assumption: the code that invokes this macro is only run once (e.g. part of an
+        // `inventory::submit!` callsite), so we're leaking a bounded number of strings.
+        $crate::debug_assert_runs_once!();
+        ::std::boxed::Box::leak(::std::string::String::into_boxed_str(::std::format!(
+            "{}::{}",
+            ::std::any::type_name::<$ty>(),
+            ::std::stringify!($method),
+        )))
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! global_name_for_trait_method {
+    ($trait:path, $method:ident) => {{
+        $crate::debug_assert_runs_once!();
+        ::std::boxed::Box::leak(::std::string::String::into_boxed_str(::std::format!(
+            "<{}>::{}",
+            ::std::any::type_name::<dyn $trait>(),
+            ::std::stringify!($method),
+        )))
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! global_name_for_trait_method_impl {
+    ($ty:ty, $trait:path, $method:ident) => {{
+        $crate::debug_assert_runs_once!();
+        ::std::boxed::Box::leak(::std::string::String::into_boxed_str(::std::format!(
+            "<{} as {}>::{}",
+            ::std::any::type_name::<$ty>(),
+            ::std::any::type_name::<dyn $trait>(),
+            ::std::stringify!($method),
+        )))
+    }};
+}
+
+/// Get a globally unique name for an identifier a current or parent scope.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! global_name_for_scope {
+    ($depth:literal, $($item:tt)+) => {{
+        $crate::debug_assert_runs_once!();
+
+        struct PlaceholderMarkerType;
+        let mut base = ::std::any::type_name::<PlaceholderMarkerType>();
+
+        // strip a caller-defined number of ancestors from the end of the path
+        for _ in 0..($depth+1) {  // add one to `depth` for the placeholder
+            base = ::std::option::Option::unwrap(
+                ::std::primitive::str::rsplit_once(base, "::"),
+            ).0;
+        }
+
+        ::std::boxed::Box::leak(
+            ::std::string::String::into_boxed_str(
+                ::std::format!("{}::{}", base, ::std::stringify!($($item)+))
+            ),
+        )
+    }}
 }
