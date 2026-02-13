@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="7f9e79d5-5e60-b3c4-778c-17c7a5b53b63")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="3804020b-9b04-847a-6d0e-e56ae49220ac")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -391,25 +391,20 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         if (end === chunkModules.length) {
             throw new Error('malformed chunk format, expected a factory function');
         }
-        // Check if ANY of the module IDs in this group already have factories (e.g., from HMR updates).
-        // If so, skip installing the old factory from disk to preserve the HMR-updated code.
-        let hasExistingFactory = false;
-        const groupIds = [];
+        // Install the factory for each module ID that doesn't already have one.
+        // This handles both the normal case and the case where some IDs in a group
+        // may have been registered separately (e.g., from another chunk or HMR update).
+        const moduleFactoryFn = chunkModules[end];
+        let didInstallFactory = false;
         for(let j = i; j < end; j++){
             const id = chunkModules[j];
-            groupIds.push(id);
-            if (moduleFactories.has(id)) {
-                hasExistingFactory = true;
-                break;
-            }
-        }
-        if (!hasExistingFactory) {
-            const moduleFactoryFn = chunkModules[end];
-            applyModuleFactoryName(moduleFactoryFn);
-            newModuleId?.(moduleId);
-            for(; i < end; i++){
-                moduleId = chunkModules[i];
-                moduleFactories.set(moduleId, moduleFactoryFn);
+            if (!moduleFactories.has(id)) {
+                if (!didInstallFactory) {
+                    applyModuleFactoryName(moduleFactoryFn);
+                    newModuleId?.(moduleId);
+                    didInstallFactory = true;
+                }
+                moduleFactories.set(id, moduleFactoryFn);
             }
         }
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
@@ -2086,5 +2081,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=7f9e79d5-5e60-b3c4-778c-17c7a5b53b63
+//# debugId=3804020b-9b04-847a-6d0e-e56ae49220ac
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map

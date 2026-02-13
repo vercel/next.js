@@ -495,6 +495,8 @@ impl DiskFileSystemInner {
     }
 }
 
+#[derive(ValueToString)]
+#[value_to_string(self.inner.name)]
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
     inner: Arc<DiskFileSystemInner>,
@@ -1289,16 +1291,9 @@ fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for DiskFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.inner.name.clone())
-    }
-}
-
+#[derive(Debug, Clone, Hash, TaskInput, ValueToString)]
+#[value_to_string("[{fs}]/{path}")]
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
     pub path: RcStr,
@@ -1761,14 +1756,6 @@ impl FileSystemPath {
 
     pub fn realpath_with_links(&self) -> Vc<RealPathResult> {
         realpath_with_links(self.clone())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for FileSystemPath {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        self.value_to_string()
     }
 }
 
@@ -2538,6 +2525,8 @@ impl DirectoryContent {
     }
 }
 
+#[derive(ValueToString)]
+#[value_to_string("null")]
 #[turbo_tasks::value(shared)]
 pub struct NullFileSystem;
 
@@ -2571,14 +2560,6 @@ impl FileSystem for NullFileSystem {
     #[turbo_tasks::function]
     fn metadata(&self, _fs_path: FileSystemPath) -> Vc<FileMeta> {
         FileMeta::default().cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for NullFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("null"))
     }
 }
 
