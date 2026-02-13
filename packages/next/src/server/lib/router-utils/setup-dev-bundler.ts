@@ -115,6 +115,7 @@ export type SetupOpts = {
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
+  experimentalServerFastRefresh?: boolean
 }
 
 export interface DevRoutesManifest {
@@ -124,6 +125,7 @@ export interface DevRoutesManifest {
   rewrites: RoutesManifest['rewrites']
   redirects: RoutesManifest['redirects']
   headers: RoutesManifest['headers']
+  onMatchHeaders: RoutesManifest['headers']
   i18n: RoutesManifest['i18n']
   skipProxyUrlNormalize: RoutesManifest['skipProxyUrlNormalize']
 }
@@ -236,7 +238,8 @@ async function startWatcher(
           serverFields,
           distDir,
           resetFetch,
-          lockfile
+          lockfile,
+          opts.experimentalServerFastRefresh
         )
       })()
     : await (async () => {
@@ -260,7 +263,7 @@ async function startWatcher(
           }),
           telemetry: opts.telemetry,
           rewrites: opts.fsChecker.rewrites,
-          previewProps: opts.fsChecker.prerenderManifest.preview,
+          previewProps: opts.fsChecker.previewProps,
           resetFetch,
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
@@ -309,6 +312,7 @@ async function startWatcher(
     rewrites: opts.fsChecker.rewrites,
     redirects: opts.fsChecker.redirects,
     headers: opts.fsChecker.headers,
+    onMatchHeaders: opts.fsChecker.onMatchHeaders,
     i18n: nextConfig.i18n || undefined,
     skipProxyUrlNormalize: nextConfig.skipProxyUrlNormalize,
   }
@@ -320,7 +324,17 @@ async function startWatcher(
   const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
   await fs.promises.writeFile(
     prerenderManifestPath,
-    JSON.stringify(opts.fsChecker.prerenderManifest, null, 2)
+    JSON.stringify(
+      {
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: opts.fsChecker.previewProps,
+      },
+      null,
+      2
+    )
   )
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {

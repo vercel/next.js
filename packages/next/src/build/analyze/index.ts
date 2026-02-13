@@ -157,7 +157,8 @@ async function collectRoutesForAnalyze(
   }
 
   // Load custom routes
-  const { redirects, headers, rewrites } = await loadCustomRoutes(config)
+  const { redirects, headers, onMatchHeaders, rewrites } =
+    await loadCustomRoutes(config)
 
   // Compute restricted redirect paths
   const restrictedRedirectPaths = ['/_next'].map((pathPrefix) =>
@@ -173,6 +174,7 @@ async function collectRoutesForAnalyze(
     config,
     redirects,
     headers,
+    onMatchHeaders,
     rewrites,
     restrictedRedirectPaths,
     isAppPPREnabled,
