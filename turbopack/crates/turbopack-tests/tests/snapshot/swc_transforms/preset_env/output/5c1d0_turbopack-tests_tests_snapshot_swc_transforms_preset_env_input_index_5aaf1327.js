@@ -716,7 +716,7 @@ function asyncModule(body, hasAwait) {
     Object.defineProperty(module, 'namespaceObject', attributes);
     function handleAsyncDependencies(deps) {
         var currentDeps = wrapDeps(deps);
-        var getResult = function() {
+        var getResult = function getResult() {
             return currentDeps.map(function(d) {
                 if (d[turbopackError]) throw d[turbopackError];
                 return d[turbopackExports];
@@ -1416,7 +1416,7 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
  */ // Used by the backend
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-var getOrInstantiateModuleFromParent = function(id, sourceModule) {
+var getOrInstantiateModuleFromParent = function getOrInstantiateModuleFromParent(id, sourceModule) {
     var module = moduleCache[id];
     if (module) {
         if (module.error) {
@@ -1747,7 +1747,7 @@ var BACKEND;
                 resolved: false,
                 loadingStarted: false,
                 promise: promise,
-                resolve: function() {
+                resolve: function resolve1() {
                     resolver.resolved = true;
                     resolve();
                 },
