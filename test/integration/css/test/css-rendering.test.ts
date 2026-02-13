@@ -22,7 +22,8 @@ describe('CSS Support', () => {
         const appDir = join(fixturesDir, 'npm-import-bad')
         const nextConfig = new File(join(appDir, 'next.config.js'))
 
-        describe.each([true, false])(
+        // Turbopack always uses Lightning CSS anyway
+        describe.each(process.env.IS_TURBOPACK_TEST ? [true] : [true, false])(
           `useLightnincsss(%s)`,
           (useLightningcss) => {
             beforeAll(async () => {

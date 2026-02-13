@@ -1508,10 +1508,10 @@ describe('ReactRefreshLogBox app', () => {
          "description": "Module not found: Can't resolve './boom.css'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/styles2.css (1:2)
+         "source": "./app/styles2.css (1:1)
        Module not found: Can't resolve './boom.css'
        > 1 | @import "./boom.css"
-           |  ^",
+           | ^",
          "stack": [],
        }
       `)
