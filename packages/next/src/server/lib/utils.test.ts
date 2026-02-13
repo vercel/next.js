@@ -4,6 +4,7 @@ import {
   formatNodeOptions,
   tokenizeArgs,
   getParsedNodeOptions,
+  NodeOptions,
 } from './utils'
 
 const originalNodeOptions = process.env.NODE_OPTIONS
@@ -42,15 +43,48 @@ describe('tokenizeArgs', () => {
 
 describe('formatNodeOptions', () => {
   it('wraps values with spaces in quotes', () => {
-    const result = formatNodeOptions({
-      spaces: 'thing with spaces',
-      spacesAndQuotes: 'thing with "spaces"',
-      normal: '1234',
-    })
+    const result = formatNodeOptions(
+      new NodeOptions({
+        '--spaces': ['thing with spaces'],
+        '--spacesAndQuotes': ['thing with "spaces"'],
+        '--normal': ['1234'],
+      })
+    )
 
     expect(result).toBe(
       '--spaces="thing with spaces" --spacesAndQuotes="thing with \\"spaces\\"" --normal=1234'
     )
+  })
+
+  it('formats short options with a space separator', () => {
+    const result = formatNodeOptions(
+      new NodeOptions({
+        '-r': ['./file.js'],
+      })
+    )
+
+    expect(result).toBe('-r ./file.js')
+  })
+
+  it('formats repeated options', () => {
+    const result = formatNodeOptions(
+      new NodeOptions({
+        '-r': ['./a.js', './b.js'],
+      })
+    )
+
+    expect(result).toBe('-r ./a.js -r ./b.js')
+  })
+
+  it('formats boolean options', () => {
+    const result = formatNodeOptions(
+      new NodeOptions({
+        '--inspect': [true],
+        '--other': [true],
+      })
+    )
+
+    expect(result).toBe('--inspect --other')
   })
 })
 
@@ -58,14 +92,21 @@ describe('getParsedDebugAddress', () => {
   it('supports the flag with an equal sign', () => {
     process.env.NODE_OPTIONS = '--inspect=1234'
     const nodeOptions = getParsedNodeOptions()
-    const result = getParsedDebugAddress(nodeOptions.inspect)
+    const result = getParsedDebugAddress(nodeOptions.get('inspect'))
+    expect(result).toEqual({ host: undefined, port: 1234 })
+  })
+
+  it('uses inline value when followed by a positional token', () => {
+    process.env.NODE_OPTIONS = '--inspect=1234 ./some-script.js'
+    const nodeOptions = getParsedNodeOptions()
+    const result = getParsedDebugAddress(nodeOptions.get('inspect'))
     expect(result).toEqual({ host: undefined, port: 1234 })
   })
 
   it('supports the flag without an equal sign', () => {
     process.env.NODE_OPTIONS = '--inspect 1234'
     const nodeOptions = getParsedNodeOptions()
-    const result = getParsedDebugAddress(nodeOptions.inspect)
+    const result = getParsedDebugAddress(nodeOptions.get('inspect'))
     expect(result).toEqual({ host: undefined, port: 1234 })
   })
 })
@@ -103,6 +144,28 @@ describe('getFormattedNodeOptionsWithoutInspect', () => {
     expect(result).toBe(
       '--require="./file with spaces to-require-with-node-require-option.js"'
     )
+  })
+
+  describe('preserves options and assume the following positional to be the value', () => {
+    it('short', () => {
+      process.env.NODE_OPTIONS =
+        '-r ./first-file-to-require-with-node-require-option.js -r ./second-file-to-require-with-node-require-option.js'
+      const result = getFormattedNodeOptionsWithoutInspect()
+
+      expect(result).toBe(
+        '-r ./first-file-to-require-with-node-require-option.js -r ./second-file-to-require-with-node-require-option.js'
+      )
+    })
+
+    it('long', () => {
+      process.env.NODE_OPTIONS =
+        '--require ./first-file-to-require-with-node-require-option.js --require ./second-file-to-require-with-node-require-option.js'
+      const result = getFormattedNodeOptionsWithoutInspect()
+
+      expect(result).toBe(
+        '--require=./first-file-to-require-with-node-require-option.js --require=./second-file-to-require-with-node-require-option.js'
+      )
+    })
   })
 
   it('removes --inspect option with parameters', () => {

@@ -293,34 +293,34 @@ const nextDev = async (
         const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
         maxOldSpaceSize = Math.floor(totalMemInMB * 0.5).toString()
 
-        nodeOptions['max-old-space-size'] = maxOldSpaceSize
+        nodeOptions.set('max-old-space-size', maxOldSpaceSize)
 
         // Ensure the max_old_space_size is not also set.
-        delete nodeOptions['max_old_space_size']
+        nodeOptions.delete('max_old_space_size')
       }
 
       if (options.disableSourceMaps) {
-        delete nodeOptions['enable-source-maps']
+        nodeOptions.delete('enable-source-maps')
       } else {
-        nodeOptions['enable-source-maps'] = true
+        nodeOptions.set('enable-source-maps', true)
       }
 
       const nodeDebugType = getNodeDebugType(nodeOptions)
       const originalAddress =
-        nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
-      delete nodeOptions.inspect
-      delete nodeOptions['inspect-brk']
-      delete nodeOptions['inspect_brk']
+        nodeDebugType === undefined ? undefined : nodeOptions.get(nodeDebugType)
+      nodeOptions.delete('inspect')
+      nodeOptions.delete('inspect-brk')
+      nodeOptions.delete('inspect_brk')
       if (nodeDebugType !== undefined) {
         const address = getParsedDebugAddress(originalAddress)
         address.port = address.port === 0 ? 0 : address.port + 1
-        nodeOptions[nodeDebugType] = formatDebugAddress(address)
+        nodeOptions.set(nodeDebugType, formatDebugAddress(address))
       } else if (options.inspect) {
         const address: DebugAddress =
           options.inspect === true
             ? getParsedDebugAddress(true)
             : options.inspect
-        nodeOptions.inspect = formatDebugAddress(address)
+        nodeOptions.set('inspect', formatDebugAddress(address))
       }
 
       child = fork(startServerPath, {

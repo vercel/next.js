@@ -88,15 +88,15 @@ export class Worker {
     })
 
     const nodeOptions = getParsedNodeOptions()
-    const originalOptions = { ...nodeOptions }
-    delete nodeOptions.inspect
-    delete nodeOptions['inspect-brk']
-    delete nodeOptions['inspect_brk']
+    const originalOptions = nodeOptions.clone()
+    nodeOptions.delete('inspect')
+    nodeOptions.delete('inspect-brk')
+    nodeOptions.delete('inspect_brk')
     if (debuggerPortOffset !== -1) {
       const nodeDebugType = getNodeDebugType(originalOptions)
       if (nodeDebugType) {
         const debuggerAddress = getParsedDebugAddress(
-          originalOptions[nodeDebugType]
+          originalOptions.get(nodeDebugType)
         )
         const address: DebugAddress = {
           host: debuggerAddress.host,
@@ -106,17 +106,17 @@ export class Worker {
               ? 0
               : debuggerAddress.port + 1 + debuggerPortOffset,
         }
-        nodeOptions[nodeDebugType] = formatDebugAddress(address)
+        nodeOptions.set(nodeDebugType, formatDebugAddress(address))
       }
     }
 
     if (enableSourceMaps) {
-      nodeOptions['enable-source-maps'] = true
+      nodeOptions.set('enable-source-maps', true)
     }
 
     if (isolatedMemory) {
-      delete nodeOptions['max-old-space-size']
-      delete nodeOptions['max_old_space_size']
+      nodeOptions.delete('max-old-space-size')
+      nodeOptions.delete('max_old_space_size')
     }
 
     const createWorker = () => {
