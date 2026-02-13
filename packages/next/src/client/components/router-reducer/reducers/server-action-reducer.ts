@@ -217,27 +217,28 @@ async function fetchServerAction(
       }
     )
 
+    // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
+    actionResult = redirectLocation ? undefined : response.a
+    couldBeIntercepted = response.i
+
     // Check if the response build ID matches the client build ID.
-    // In a multi-zone setup, the server may pre-fetch the redirect target
-    // from a different Next.js project with a different build ID. If so,
-    // we should discard the flight data and let the redirect trigger an
-    // MPA navigation instead.
+    // In a multi-zone setup, when a server action triggers a redirect,
+    // the server pre-fetches the redirect target as RSC. If the redirect
+    // target is served by a different Next.js zone (different build), the
+    // pre-fetched RSC data will have a foreign build ID. We must discard
+    // the flight data in that case so the redirect triggers an MPA
+    // navigation (full page load) instead of trying to apply the foreign
+    // RSC payload — which would result in a blank page.
     const responseBuildId =
       res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? response.b
     if (
       responseBuildId !== undefined &&
       responseBuildId !== getNavigationBuildId()
     ) {
-      // Build ID mismatch — the RSC data came from a different build.
-      // Discard the flight data. The redirect will still be processed,
-      // and the absence of flight data will cause an MPA navigation
-      // via completeHardNavigation().
-      actionResult = redirectLocation ? undefined : response.a
-      couldBeIntercepted = response.i
+      // Build ID mismatch — discard the flight data. The redirect will
+      // still be processed, and the absence of flight data will cause an
+      // MPA navigation via completeHardNavigation().
     } else {
-      // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
-      actionResult = redirectLocation ? undefined : response.a
-      couldBeIntercepted = response.i
       const maybeFlightData = normalizeFlightData(response.f)
       if (maybeFlightData !== '') {
         actionFlightData = maybeFlightData
