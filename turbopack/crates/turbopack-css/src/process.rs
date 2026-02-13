@@ -463,6 +463,7 @@ async fn process_content(
                                 Some(loc) => IssueSource::from_single_line_col(
                                     source,
                                     SourcePos {
+                                        // lightningcss::ErrorLocation is 1-based for column only
                                         line: loc.line,
                                         column: loc.column - 1,
                                     },
@@ -502,6 +503,7 @@ async fn process_content(
                         Some(loc) => IssueSource::from_single_line_col(
                             source,
                             SourcePos {
+                                // lightningcss::ErrorLocation is 1-based for column only
                                 line: loc.line,
                                 column: loc.column - 1,
                             },
@@ -525,6 +527,7 @@ async fn process_content(
                     Some(loc) => IssueSource::from_single_line_col(
                         source,
                         SourcePos {
+                            // lightningcss::ErrorLocation is 1-based for column only
                             line: loc.line,
                             column: loc.column - 1,
                         },

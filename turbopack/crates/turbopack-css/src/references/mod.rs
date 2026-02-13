@@ -108,6 +108,7 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                     IssueSource::from_single_line_col(
                         self.source,
                         SourcePos {
+                            // lightningcss::rules::Location is 1-based for column only
                             line: issue_span.line,
                             column: issue_span.column - 1,
                         },
@@ -139,6 +140,7 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                 IssueSource::from_single_line_col(
                     self.source,
                     SourcePos {
+                        // lightningcss::dependencies::Location is 1-based for both line and column
                         line: issue_span.line - 1,
                         column: issue_span.column - 1,
                     },

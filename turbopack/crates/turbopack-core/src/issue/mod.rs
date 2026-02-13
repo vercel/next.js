@@ -497,6 +497,7 @@ impl IssueSource {
                 pos,
                 SourcePos {
                     line: pos.line,
+                    // The end position is the first character after the range
                     column: pos.column + 1,
                 },
             )),
