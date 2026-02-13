@@ -163,6 +163,20 @@ export async function pipeNodeReadableToResponse(
 
       let started = false
       const finished = new DetachedPromise<void>()
+      let pendingDrainCallback: ((error?: Error | null) => void) | null = null
+
+      // Use a single drain listener for the entire response.
+      //
+      // The compression middleware proxies `res.on('drain', listener)` to an
+      // internal Gzip stream. Repeated `res.once('drain', callback)` calls can
+      // accumulate wrappers on that Gzip stream because `once` removal targets
+      // `res`, not the proxied emitter.
+      const onDrain = () => {
+        const callback = pendingDrainCallback
+        pendingDrainCallback = null
+        callback?.()
+      }
+      res.on('drain', onDrain)
 
       const { Writable: NodeWritable } =
         require('node:stream') as typeof import('node:stream')
@@ -210,7 +224,7 @@ export async function pipeNodeReadableToResponse(
             }
 
             if (!ok) {
-              res.once('drain', callback)
+              pendingDrainCallback = callback
             } else {
               callback()
             }
@@ -290,6 +304,7 @@ export async function pipeNodeReadableToResponse(
 
       await finished.promise
       res.off('close', onClose)
+      res.off('drain', onDrain)
     } catch (err: any) {
       if (isAbortError(err)) return
       throw new Error('failed to pipe node readable to response', {

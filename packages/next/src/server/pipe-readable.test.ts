@@ -51,6 +51,24 @@ function createMockResponse(opts: { backpressureAfter: number }) {
   return mock as typeof mock & ServerResponse
 }
 
+function createCompressionPatchedMockResponse(opts: {
+  backpressureAfter: number
+}) {
+  const mock = createMockResponse(opts)
+  const gzip = new EventEmitter()
+  const originalOn = mock.on.bind(mock)
+
+  mock.on = ((event: string, listener: (...args: any[]) => void) => {
+    if (event === 'drain') {
+      gzip.on('drain', listener)
+      return mock
+    }
+    return originalOn(event, listener)
+  }) as typeof mock.on
+
+  return { mock, gzip }
+}
+
 describe('pipeNodeReadableToResponse', () => {
   // Regression test for the backpressure + disconnect hang.
   //
@@ -92,5 +110,26 @@ describe('pipeNodeReadableToResponse', () => {
     ])
 
     expect(result).toBe('resolved')
+  })
+
+  it('does not accumulate gzip drain listeners when drain is proxied by compression', async () => {
+    const readable = Readable.from(
+      Array.from({ length: 20 }, (_, i) => Buffer.from(`chunk-${i}`))
+    )
+    const { mock: res, gzip } = createCompressionPatchedMockResponse({
+      backpressureAfter: 1,
+    })
+
+    const pipePromise = pipeNodeReadableToResponse(readable, res as any)
+
+    const interval = setInterval(() => {
+      gzip.emit('drain')
+    }, 1)
+
+    await pipePromise
+    clearInterval(interval)
+
+    // A single long-lived drain listener is expected for this response.
+    expect(gzip.listenerCount('drain')).toBeLessThanOrEqual(1)
   })
 })
