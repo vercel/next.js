@@ -1894,6 +1894,13 @@ function enforceExperimentalFeatures(
       false,
       configuredExperimentalFeatures
     )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'allowDevelopmentBuild',
+      true,
+      configuredExperimentalFeatures
+    )
   }
 
   // TODO: Remove this once we've made Cache Components the default.

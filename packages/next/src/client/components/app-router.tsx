@@ -479,7 +479,7 @@ function Router({
     </RedirectBoundary>
   )
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     // In development, we apply few error boundaries and hot-reloader:
     // - DevRootHTTPAccessFallbackBoundary: avoid using navigation API like notFound() in root layout
     // - HotReloader:

@@ -100,6 +100,13 @@ $ pnpm unpack-next path/to/project
 
 The dev overlay is a feature of Next.js that allows you to see the internal state of the app including the errors. To learn more about contributing to the dev overlay, see the [Dev Overlay README.md](../../packages/next/src/client/components/react-dev-overlay/README.md).
 
+## `NODE_ENV` vs `__NEXT_DEV_SERVER`
+
+Both `next dev` and `next build --debug-prerender` produce bundles with `NODE_ENV=development`. Use `process.env.__NEXT_DEV_SERVER` to distinguish between them:
+
+- `process.env.NODE_ENV !== 'production'` — code that should exist in dev bundles but be eliminated from prod bundles. This is a build-time check.
+- `process.env.__NEXT_DEV_SERVER` — code that should only run with the dev server (`next dev`), not during `next build --debug-prerender` or `next start`.
+
 ## Recover disk space
 
 Rust builds quickly add up to a lot of disk space, you can clean up old artifacts with this command:

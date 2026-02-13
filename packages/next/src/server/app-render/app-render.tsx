@@ -380,8 +380,8 @@ function parseRequestHeaders(
   let requestId: string | undefined
   let htmlRequestId: string | undefined
 
-  if (process.env.NODE_ENV !== 'production') {
-    // The request IDs are only used in development mode to send debug
+  if (process.env.__NEXT_DEV_SERVER) {
+    // The request IDs are only used for the dev server to send debug
     // information to the matching client (identified by the HTML request ID
     // that was sent to the client with the HTML document) for the current
     // request (identified by the request ID, as defined by the client).
@@ -538,7 +538,7 @@ async function generateDynamicRSCPayload(
     // If we're performing instant validation, we need to render the whole tree,
     // without skipping shared layouts.
     const needsFullTree =
-      process.env.NODE_ENV === 'development' &&
+      process.env.__NEXT_DEV_SERVER &&
       ctx.renderOpts.cacheComponents &&
       !options?.actionResult && // Only for navigations
       (await anySegmentNeedsInstantValidation(loaderTree))
@@ -678,7 +678,6 @@ async function generateDynamicFlightRenderResult(
   } = ctx
 
   const {
-    dev = false,
     onInstrumentationRequestError,
     setReactDebugChannel,
     isBuildTimePrerendering = false,
@@ -694,7 +693,7 @@ async function generateDynamicFlightRenderResult(
   }
 
   const onError = createReactServerErrorHandler(
-    dev,
+    process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
     onFlightDataRenderError
@@ -839,7 +838,6 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   } = ctx
 
   const {
-    dev = false,
     onInstrumentationRequestError,
     setReactDebugChannel,
     setCacheStatus,
@@ -856,7 +854,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   }
 
   const onError = createReactServerErrorHandler(
-    dev,
+    process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     workStore.reactServerErrorsByDigest,
     onFlightDataRenderError
@@ -866,7 +864,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   // instant configs exist, since we render all the layouts necessary to perform
   // the validation in those cases.
   const shouldValidate =
-    !isBypassingCachesInDev(renderOpts, initialRequestStore) &&
+    !isBypassingCachesInDev(initialRequestStore) &&
     (initialRequestStore.isHmrRefresh === true ||
       (await anySegmentNeedsInstantValidation(loaderTree)))
 
@@ -880,7 +878,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       undefined
     )
 
-    if (isBypassingCachesInDev(renderOpts, requestStore)) {
+    if (isBypassingCachesInDev(requestStore)) {
       // Mark the RSC payload to indicate that caches were bypassed in dev.
       // This lets the client know not to cache anything based on this render.
       payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
@@ -904,7 +902,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     createRequestStore &&
     // We only do this flow if we're not bypassing caches in dev using
     // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-    !isBypassingCachesInDev(renderOpts, initialRequestStore)
+    !isBypassingCachesInDev(initialRequestStore)
   ) {
     // Before we kick off the render, we set the cache status back to it's initial state
     // in case a previous render bypassed the cache.
@@ -1510,7 +1508,7 @@ async function getRSCPayload(
   let missingSlots: Set<string> | undefined
 
   // We only track missing parallel slots in development
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.__NEXT_DEV_SERVER) {
     missingSlots = new Set<string>()
   }
 
@@ -1679,7 +1677,7 @@ async function getErrorRSCPayload(
       isPossibleServerAction: ctx.isPossibleServerAction,
     }),
     createElement(Viewport, null),
-    process.env.NODE_ENV === 'development' &&
+    process.env.__NEXT_DEV_SERVER &&
       createElement('meta', {
         name: 'next-error',
         content: 'not-found',
@@ -1710,7 +1708,7 @@ async function getErrorRSCPayload(
       createElement(
         'body',
         null,
-        process.env.NODE_ENV !== 'production' && err
+        process.env.__NEXT_DEV_SERVER && err
           ? createElement('template', {
               'data-next-error-message': err.message,
               'data-next-error-digest': 'digest' in err ? err.digest : '',
@@ -1916,6 +1914,7 @@ async function renderToHTMLOrFlightImpl(
     assetPrefix = '',
     enableTainting,
     cacheComponents,
+    setIsrStatus,
   } = renderOpts
 
   // We need to expose the bundled `require` API globally for
@@ -1932,7 +1931,7 @@ async function renderToHTMLOrFlightImpl(
       if (!cacheComponents) {
         return false
       }
-      if (renderOpts.dev) {
+      if (process.env.__NEXT_DEV_SERVER) {
         return true
       }
       const workUnitStore = workUnitAsyncStorage.getStore()
@@ -1980,14 +1979,10 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = __next_chunk_load__
   }
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    renderOpts.setIsrStatus &&
-    !cacheComponents
-  ) {
+  if (process.env.__NEXT_DEV_SERVER && setIsrStatus && !cacheComponents) {
     // Reset the ISR status at start of request.
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setIsrStatus(
+    setIsrStatus(
       pathname,
       // Only pages using the Node runtime can use ISR, Edge is always dynamic.
       process.env.NEXT_RUNTIME === 'edge' ? false : undefined
@@ -2252,8 +2247,8 @@ async function renderToHTMLOrFlightImpl(
     const requestStore = createRequestStore()
 
     if (
-      process.env.NODE_ENV === 'development' &&
-      renderOpts.setIsrStatus &&
+      process.env.__NEXT_DEV_SERVER &&
+      setIsrStatus &&
       !cacheComponents &&
       // Only pages using the Node runtime can use ISR, so we only need to
       // update the status for those.
@@ -2262,7 +2257,6 @@ async function renderToHTMLOrFlightImpl(
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req)
     ) {
-      const setIsrStatus = renderOpts.setIsrStatus
       req.originalRequest.on('end', () => {
         const { pathname } = new URL(req.url || '/', 'http://n')
         const isStatic = !requestStore.usedDynamic && !workStore.forceDynamic
@@ -2275,7 +2269,7 @@ async function renderToHTMLOrFlightImpl(
         return generateRuntimePrefetchResult(req, ctx, requestStore)
       } else {
         if (
-          process.env.NODE_ENV === 'development' &&
+          process.env.__NEXT_DEV_SERVER &&
           process.env.NEXT_RUNTIME !== 'edge' &&
           cacheComponents
         ) {
@@ -2371,7 +2365,7 @@ async function renderToHTMLOrFlightImpl(
     // Invalid dynamic usages should only error the request in development.
     // In production, it's better to produce a result.
     // (the dynamic error will still be thrown inside the component tree, but it's catchable by error boundaries)
-    if (workStore.invalidDynamicUsageError && workStore.dev) {
+    if (workStore.invalidDynamicUsageError && process.env.__NEXT_DEV_SERVER) {
       throw workStore.invalidDynamicUsageError
     }
 
@@ -2593,7 +2587,6 @@ async function renderToStream(
       renderToReadableStream: serverRenderToReadableStream,
     },
     crossOrigin,
-    dev = false,
     experimental,
     isBuildTimePrerendering = false,
     onInstrumentationRequestError,
@@ -2646,10 +2639,9 @@ async function renderToStream(
 
   // In development mode, set the request ID as a global variable, before the
   // bootstrap script is executed, which depends on it during hydration.
-  const bootstrapScriptContent =
-    process.env.NODE_ENV !== 'production'
-      ? `self.__next_r=${JSON.stringify(requestId)}`
-      : undefined
+  const bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
+    ? `self.__next_r=${JSON.stringify(requestId)}`
+    : undefined
 
   // Create the "render route (app)" span manually so we can keep it open during streaming.
   // This is necessary because errors inside Suspense boundaries are reported asynchronously
@@ -2693,7 +2685,7 @@ async function renderToStream(
       )
     }
     const serverComponentsErrorHandler = createReactServerErrorHandler(
-      dev,
+      process.env.NODE_ENV === 'development',
       isBuildTimePrerendering,
       reactServerErrorsByDigest,
       onHTMLRenderRSCError,
@@ -2714,7 +2706,7 @@ async function renderToStream(
 
     const allCapturedErrors: Array<unknown> = []
     const htmlRendererErrorHandler = createHTMLErrorHandler(
-      dev,
+      process.env.NODE_ENV === 'development',
       isBuildTimePrerendering,
       reactServerErrorsByDigest,
       allCapturedErrors,
@@ -2731,10 +2723,7 @@ async function renderToStream(
 
     try {
       if (
-        // We only want this behavior when we have React's dev builds available
-        process.env.NODE_ENV === 'development' &&
-        // We only want this behavior when running `next dev`
-        dev &&
+        process.env.__NEXT_DEV_SERVER &&
         // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
         process.env.NEXT_RUNTIME !== 'edge' &&
         // We only have a Prerender environment for projects opted into cacheComponents
@@ -2755,7 +2744,7 @@ async function renderToStream(
               res.statusCode === 404
             )
 
-          if (isBypassingCachesInDev(renderOpts, requestStore)) {
+          if (isBypassingCachesInDev(requestStore)) {
             // Mark the RSC payload to indicate that caches were bypassed in dev.
             // This lets the client know not to cache anything based on this render.
             if (renderOpts.setCacheStatus) {
@@ -2779,7 +2768,7 @@ async function renderToStream(
           createRequestStore &&
           // We only do this flow if we're not bypassing caches in dev using
           // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-          !isBypassingCachesInDev(renderOpts, requestStore)
+          !isBypassingCachesInDev(requestStore)
         ) {
           const {
             stream: serverStream,
@@ -3050,7 +3039,7 @@ async function renderToStream(
         deploymentId: ctx.sharedContext.deploymentId,
         getServerInsertedHTML,
         getServerInsertedMetadata,
-        validateRootLayout: dev,
+        validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
       })
     } catch (err) {
       if (
@@ -3223,11 +3212,11 @@ async function renderToStream(
             tracingMetadata: tracingMetadata,
           }),
           getServerInsertedMetadata,
-          validateRootLayout: dev,
+          validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
         })
       } catch (finalErr: any) {
         if (
-          process.env.NODE_ENV === 'development' &&
+          process.env.__NEXT_DEV_SERVER &&
           isHTTPAccessFallbackError(finalErr)
         ) {
           const { bailOnRootNotFound } =
@@ -3435,7 +3424,7 @@ async function renderWithRestartOnCacheMissInDev(
     }
   }
 
-  if (process.env.NODE_ENV === 'development' && setCacheStatus) {
+  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
     setCacheStatus('filling', htmlRequestId)
   }
 
@@ -3529,7 +3518,7 @@ async function renderWithRestartOnCacheMissInDev(
     )
   )
 
-  if (process.env.NODE_ENV === 'development' && setCacheStatus) {
+  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
     setCacheStatus('filled', htmlRequestId)
   }
 
@@ -3742,7 +3731,7 @@ async function spawnStaticShellValidationInDev(
 
   const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
 
-  const hmrRefreshHash = getHmrRefreshHash(workStore, requestStore)
+  const hmrRefreshHash = getHmrRefreshHash(requestStore)
 
   // We don't need to continue the prerender process if we already
   // detected invalid dynamic usage in the initial prerender phase.
@@ -4518,7 +4507,6 @@ async function prerenderToStream(
     buildManifest,
     ComponentMod,
     crossOrigin,
-    dev = false,
     experimental,
     isDebugDynamicAccesses,
     isBuildTimePrerendering = false,
@@ -4587,7 +4575,7 @@ async function prerenderToStream(
     }
   }
   const serverComponentsErrorHandler = createReactServerErrorHandler(
-    dev,
+    process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
     onHTMLRenderRSCError
@@ -4608,7 +4596,7 @@ async function prerenderToStream(
   }
   const allCapturedErrors: Array<unknown> = []
   const htmlRendererErrorHandler = createHTMLErrorHandler(
-    dev,
+    process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
     allCapturedErrors,
@@ -5920,7 +5908,7 @@ async function prerenderToStream(
             tracingMetadata: tracingMetadata,
           }),
           getServerInsertedMetadata,
-          validateRootLayout: dev,
+          validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
           deploymentId: ctx.sharedContext.deploymentId,
         }),
         dynamicAccess: null,
@@ -5935,7 +5923,7 @@ async function prerenderToStream(
       }
     } catch (finalErr: any) {
       if (
-        process.env.NODE_ENV === 'development' &&
+        process.env.__NEXT_DEV_SERVER &&
         isHTTPAccessFallbackError(finalErr)
       ) {
         const { bailOnRootNotFound } =
@@ -5977,7 +5965,7 @@ const getGlobalErrorStyles = async (
 
   let globalErrorStyles: ReactNode = styles
 
-  if (ctx.renderOpts.dev) {
+  if (process.env.__NEXT_DEV_SERVER) {
     const dir =
       (process.env.NEXT_RUNTIME === 'edge'
         ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -6063,13 +6051,9 @@ async function collectSegmentData(
   )
 }
 
-function isBypassingCachesInDev(
-  renderOpts: RenderOpts,
-  requestStore: RequestStore
-): boolean {
+function isBypassingCachesInDev(requestStore: RequestStore): boolean {
   return (
-    process.env.NODE_ENV === 'development' &&
-    !!renderOpts.dev &&
+    !!process.env.__NEXT_DEV_SERVER &&
     requestStore.headers.get('cache-control') === 'no-cache'
   )
 }

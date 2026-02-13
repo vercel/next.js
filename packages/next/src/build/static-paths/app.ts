@@ -836,7 +836,7 @@ export async function buildAppStaticPaths({
   )
 
   const supportsRoutePreGeneration =
-    hadAllParamsGenerated || process.env.NODE_ENV === 'production'
+    hadAllParamsGenerated || !process.env.__NEXT_DEV_SERVER
 
   const fallbackMode = dynamicParams
     ? supportsRoutePreGeneration

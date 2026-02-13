@@ -85,8 +85,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
 
   if (debugPrerender) {
     warn(
-      `Prerendering is running in debug mode. ${italic(
-        'Note: This may affect performance and should not be used for production.'
+      `Prerendering is running in debug mode with NODE_ENV='development'. ${italic(
+        'This will affect performance and should not be used for production.'
       )}`
     )
   }

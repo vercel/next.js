@@ -339,7 +339,6 @@ export const getHandler = ({
 
                     ErrorDebug: getRequestMeta(req, 'PagesErrorDebug'),
                     err: getRequestMeta(req, 'invokeError'),
-                    dev: routeModule.isDev,
 
                     // needed for experimental.optimizeCss feature
                     distDir: path.join(

@@ -73,10 +73,7 @@ let createDebugChannel:
   | typeof import('../../../dev/debug-channel').createDebugChannel
   | undefined
 
-if (
-  process.env.NODE_ENV !== 'production' &&
-  process.env.__NEXT_REACT_DEBUG_CHANNEL
-) {
+if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REACT_DEBUG_CHANNEL) {
   createDebugChannel = (
     require('../../../dev/debug-channel') as typeof import('../../../dev/debug-channel')
   ).createDebugChannel
@@ -123,7 +120,7 @@ async function fetchServerAction(
     headers[NEXT_URL] = nextUrl
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     if (self.__next_r) {
       headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
     }

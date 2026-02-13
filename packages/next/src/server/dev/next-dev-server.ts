@@ -186,7 +186,6 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache(
       // 5MB

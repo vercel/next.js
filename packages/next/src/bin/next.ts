@@ -194,6 +194,10 @@ program
     'Enable CPU profiling. Profile is saved to .next/cpu-profiles/ on completion.'
   )
   .action((directory: string, options: NextBuildOptions) => {
+    if (options.debugPrerender) {
+      // @ts-expect-error not readonly
+      process.env.NODE_ENV = 'development'
+    }
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
