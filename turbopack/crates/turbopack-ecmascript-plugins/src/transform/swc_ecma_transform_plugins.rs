@@ -299,9 +299,22 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                         Err(e) => {
                             use turbopack_core::issue::IssueExt;
 
+                            // Format the error chain without backtrace.
+                            // Using `{:?}` would include the backtrace when
+                            // RUST_BACKTRACE=1, which is not useful in
+                            // user-facing error messages.
+                            let mut description = e.to_string();
+                            let mut causes = e.chain().skip(1).peekable();
+                            if causes.peek().is_some() {
+                                description.push_str("\n\nCaused by:");
+                                for (i, cause) in causes.enumerate() {
+                                    description.push_str(&format!("\n    {i}: {cause}"));
+                                }
+                            }
+
                             SwcEcmaTransformFailureIssue {
                                 file_path: ctx.file_path.clone(),
-                                description: StyledString::Text(format!("{:?}", e).into()),
+                                description: StyledString::Text(description.into()),
                             }
                             .resolved_cell()
                             .emit();
