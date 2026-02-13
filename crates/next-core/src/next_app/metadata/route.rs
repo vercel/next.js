@@ -201,9 +201,13 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
         original_file_content_b64 = StringifyJs(&original_file_content_b64),
     };
 
+    // Use full filename (stem + extension) to avoid conflicts when multiple icon
+    // formats exist (e.g., icon.png and icon.svg)
+    let filename = path.file_name();
+
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(&format!("{stem}--route-entry.js"))?,
+        path.parent().join(&format!("{filename}--route-entry.js"))?,
         AssetContent::file(FileContent::Content(file).cell()),
     );
 
