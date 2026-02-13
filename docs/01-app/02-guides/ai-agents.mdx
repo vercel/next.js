@@ -13,7 +13,7 @@ Next.js ships version-matched documentation inside the `next` package, allowing 
 
 ## How it works
 
-When you install `next`, a curated subset of the Next.js documentation is bundled at `node_modules/next/dist/docs/`. The bundled docs mirror the structure of the [Next.js documentation site](https://nextjs.org/docs):
+When you install `next`, the Next.js documentation is bundled at `node_modules/next/dist/docs/`. The bundled docs mirror the structure of the [Next.js documentation site](https://nextjs.org/docs):
 
 ```txt
 node_modules/next/dist/docs/
@@ -87,16 +87,5 @@ The default `AGENTS.md` contains a single, focused instruction: **read the bundl
 The `<!-- BEGIN:nextjs-agent-rules -->` and `<!-- END:nextjs-agent-rules -->` comment markers delimit the Next.js-managed section. You can add your own project-specific instructions outside these markers without worrying about them being overwritten by future updates.
 
 The bundled docs include guides, API references, and file conventions for the App Router and Pages Router. When an agent encounters a task involving routing, data fetching, or any other Next.js feature, it can look up the correct API in the bundled docs rather than relying on potentially outdated training data.
-
-## Agent-specific files
-
-Different AI coding agents look for different configuration files. `AGENTS.md` is the most widely supported convention, but you can add agent-specific files for deeper integration:
-
-| File        | Agent                                                         |
-| ----------- | ------------------------------------------------------------- |
-| `AGENTS.md` | Cursor, Codex, Gemini CLI, and [others](https://agents.md/)   |
-| `CLAUDE.md` | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) |
-
-> **Good to know:** You only need to maintain the instructions in `AGENTS.md`. Other files can reference it (like `CLAUDE.md` does with the `@AGENTS.md` import) or copy its contents.
 
 > **Good to know:** To see how bundled docs and `AGENTS.md` improve agent performance on real-world Next.js tasks, visit the [benchmark results](https://nextjs.org/evals).
