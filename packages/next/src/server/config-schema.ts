@@ -175,6 +175,15 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   resolveExtensions: z.array(z.string()).optional(),
   root: z.string().optional(),
   debugIds: z.boolean().optional(),
+  ignoreIssue: z
+    .array(
+      z.object({
+        path: z.union([z.string(), z.instanceof(RegExp)]),
+        title: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+        description: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+      })
+    )
+    .optional(),
 })
 
 export const experimentalSchema = {
@@ -331,15 +340,6 @@ export const experimentalSchema = {
   turbopackUseBuiltinSass: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
-  turbopackIgnoreIssue: z
-    .array(
-      z.object({
-        path: z.union([z.string(), z.instanceof(RegExp)]),
-        title: z.union([z.string(), z.instanceof(RegExp)]).optional(),
-        description: z.union([z.string(), z.instanceof(RegExp)]).optional(),
-      })
-    )
-    .optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
   strictRouteTypes: z.boolean().optional(),

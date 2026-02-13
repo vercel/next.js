@@ -1087,7 +1087,7 @@ impl Project {
     }
 
     /// Build the `IssueFilter` for this project, incorporating any
-    /// `experimental.turbopackIgnoreIssue` rules from the Next.js config.
+    /// `turbopack.ignoreIssue` rules from the Next.js config.
     #[turbo_tasks::function]
     pub async fn issue_filter(self: Vc<Self>) -> Result<Vc<IssueFilter>> {
         let ignore_rules = self.next_config().turbopack_ignore_issue_rules().await?;
