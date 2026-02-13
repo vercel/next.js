@@ -55,8 +55,6 @@ const program = new Command(packageJson.name)
   .option('--biome', 'Initialize with Biome config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
-  .option('--turbopack', 'Enable Turbopack as the bundler.')
-  .option('--webpack', 'Enable Webpack as the bundler.')
   .option('--rspack', 'Enable Rspack as the bundler.')
   .option(
     '--import-alias <prefix/*>',
@@ -107,6 +105,10 @@ const program = new Command(packageJson.name)
   In this case, you must specify the path to the example separately:
   --example-path foo/bar
 `
+  )
+  .option(
+    '--agents-md',
+    'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
   .option('--disable-git', `Skip initializing a git repository.`)
   .action((name) => {
@@ -243,6 +245,7 @@ async function run(): Promise<void> {
       empty: false,
       disableGit: false,
       reactCompiler: false,
+      agentsMd: true,
     }
 
     type DisplayConfigItem = {
@@ -260,6 +263,7 @@ async function run(): Promise<void> {
       { key: 'tailwind', values: { true: 'Tailwind CSS' } },
       { key: 'srcDir', values: { true: 'src/ dir' } },
       { key: 'app', values: { true: 'App Router', false: 'Pages Router' } },
+      { key: 'agentsMd', values: { true: 'AGENTS.md' } },
     ]
 
     // Helper to format settings for display based on displayConfig
@@ -588,15 +592,37 @@ async function run(): Promise<void> {
         }
       }
     }
+
+    if (args.includes('--no-agents-md')) {
+      opts.agentsMd = false
+    } else if (!opts.agentsMd) {
+      if (skipPrompt) {
+        opts.agentsMd = getPrefOrDefault('agentsMd')
+      } else {
+        const { agentsMd } = await prompts(
+          {
+            type: 'toggle',
+            name: 'agentsMd',
+            message:
+              'Would you like to include AGENTS.md to guide coding agents to write up-to-date Next.js code?',
+            initial: getPrefOrDefault('agentsMd'),
+            active: 'Yes',
+            inactive: 'No',
+          },
+          {
+            onCancel: () => {
+              console.error('Exiting.')
+              process.exit(1)
+            },
+          }
+        )
+        opts.agentsMd = Boolean(agentsMd)
+        preferences.agentsMd = Boolean(agentsMd)
+      }
+    }
   }
 
-  const bundler: Bundler = opts.turbopack
-    ? Bundler.Turbopack
-    : opts.webpack
-      ? Bundler.Webpack
-      : opts.rspack
-        ? Bundler.Rspack
-        : Bundler.Turbopack
+  const bundler: Bundler = opts.rspack ? Bundler.Rspack : Bundler.Turbopack
 
   try {
     await createApp({
@@ -617,6 +643,7 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      agentsMd: opts.agentsMd,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -651,6 +678,7 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      agentsMd: opts.agentsMd,
     })
   }
   conf.set('preferences', preferences)

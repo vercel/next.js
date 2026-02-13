@@ -16,6 +16,24 @@ We built Turbopack to push the performance of Next.js, including:
 - **Incremental Computation:** Turbopack parallelizes work across cores and **caches** results down to the function level. Once a piece of work is done, Turbopack won’t repeat it.
 - **Lazy Bundling:** Turbopack only bundles what is actually requested by the dev server. This lazy approach can reduce initial compile times and memory usage.
 
+## Supported platforms
+
+Turbopack requires platform-specific native bindings. The following platforms are currently supported:
+
+| Platform       | Architecture |
+| -------------- | ------------ |
+| macOS (Darwin) | x64, ARM64   |
+| Windows        | x64, ARM64   |
+| Linux (glibc)  | x64, ARM64   |
+| Linux (musl)   | x64, ARM64   |
+
+On platforms without native bindings (e.g. FreeBSD, OpenBSD), Next.js falls back to WebAssembly (WASM) bindings. WASM bindings support core SWC features like compilation and minification, but **do not support Turbopack**. On these platforms, use the `--webpack` flag:
+
+```bash
+next dev --webpack
+next build --webpack
+```
+
 ## Getting started
 
 Turbopack is now the **default bundler** in Next.js. No configuration is needed to use Turbopack:

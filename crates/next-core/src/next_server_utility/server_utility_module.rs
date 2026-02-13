@@ -6,18 +6,17 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::OutputAssetsReference,
     reference::ModuleReferences,
     source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
+        ecmascript_chunk_item,
     },
     references::esm::{EsmExport, EsmExports},
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
@@ -82,14 +81,7 @@ impl ChunkableModule for NextServerUtilityModule {
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
-            NextServerComponentChunkItem {
-                module_graph,
-                chunking_context,
-                inner: self,
-            }
-            .cell(),
-        )
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -119,56 +111,26 @@ impl EcmascriptChunkPlaceable for NextServerUtilityModule {
         )
         .cell())
     }
-}
 
-#[turbo_tasks::value]
-struct NextServerComponentChunkItem {
-    module_graph: ResolvedVc<ModuleGraph>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    inner: ResolvedVc<NextServerUtilityModule>,
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAssetsReference for NextServerComponentChunkItem {}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for NextServerComponentChunkItem {
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let inner = self.inner.await?;
-
-        let module_id = inner.module.chunk_item_id(*self.chunking_context).await?;
+    async fn chunk_item_content(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let module_id = self.module.chunk_item_id(chunking_context).await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
-                "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));",
+                r#"
+                    {TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));
+                "#,
                 StringifyJs(&module_id),
             )
             .into(),
             ..Default::default()
         }
         .cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for NextServerComponentChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.inner.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
-        Vc::upcast(Vc::<EcmascriptChunkType>::default())
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(*self.inner)
     }
 }

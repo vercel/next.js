@@ -4178,7 +4178,8 @@ async function validateInstantConfigs(
   try {
     init = await findNavigationsToValidate(
       ctx.componentMod.routeModule.userland.loaderTree,
-      ctx.getDynamicParamFromSegment
+      ctx.getDynamicParamFromSegment,
+      ctx.query
     )
   } catch (err) {
     debug?.('Error while planning validations.')

@@ -94,6 +94,12 @@ pub trait TurboTasksCallApi: Sync + Send {
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
     fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>);
+
+    /// Sends a compilation event to subscribers.
+    fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>);
+
+    /// Returns a human-readable name for the given task.
+    fn get_task_name(&self, task: TaskId) -> String;
 }
 
 /// A type-erased subset of [`TurboTasks`] stored inside a thread local when we're in a turbo task
@@ -190,7 +196,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         event_types: Option<Vec<String>>,
     ) -> Receiver<Arc<dyn CompilationEvent>>;
-    fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>);
 
     // Returns true if TurboTasks is configured to track dependencies.
     fn is_tracking_dependencies(&self) -> bool;
@@ -1274,7 +1279,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                             Ok(raw_vc) => OutputContent::Link(raw_vc),
                             Err(err) => OutputContent::Error(
                                 TurboTasksExecutionError::from(err)
-                                    .with_task_context(task_type, None),
+                                    .with_local_task_context(task_type.to_string()),
                             ),
                         };
 
@@ -1373,6 +1378,16 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
     #[track_caller]
     fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
         self.start_once_process(future)
+    }
+
+    fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>) {
+        if let Err(e) = self.compilation_events.send(event) {
+            tracing::warn!("Failed to send compilation event: {e}");
+        }
+    }
+
+    fn get_task_name(&self, task: TaskId) -> String {
+        self.backend.get_task_name(task, self)
     }
 }
 
@@ -1578,12 +1593,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         event_types: Option<Vec<String>>,
     ) -> Receiver<Arc<dyn CompilationEvent>> {
         self.compilation_events.subscribe(event_types)
-    }
-
-    fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>) {
-        if let Err(e) = self.compilation_events.send(event) {
-            tracing::warn!("Failed to send compilation event: {e}");
-        }
     }
 
     fn is_tracking_dependencies(&self) -> bool {
