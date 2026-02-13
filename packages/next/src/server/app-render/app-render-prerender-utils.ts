@@ -33,7 +33,6 @@ export function prerenderAndAbortInSequentialTasks<R>(
       })
       scheduleTimeout(() => {
         try {
-          expectNoPendingImmediates()
           DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           abort()
         } catch (err) {
