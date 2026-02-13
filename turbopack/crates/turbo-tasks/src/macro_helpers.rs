@@ -1,5 +1,7 @@
 //! Runtime helpers for [turbo-tasks-macro].
 
+use std::any::TypeId;
+
 pub use async_trait::async_trait;
 pub use bincode;
 pub use once_cell::sync::{Lazy, OnceCell};
@@ -144,7 +146,7 @@ inventory::collect! {CollectableTraitCastFunctions}
 #[allow(clippy::type_complexity)]
 pub struct CollectableTraitMethods(
     pub  fn() -> (
-        &'static str, // A value type name
+        TypeId,
         TraitTypeId,
         Vec<(&'static str, &'static NativeFunction)>,
     ),
@@ -152,21 +154,21 @@ pub struct CollectableTraitMethods(
 inventory::collect!(CollectableTraitMethods);
 
 // Called when initializing ValueTypes by value_impl
-pub fn register_trait_methods(value_type: &mut ValueType) {
+pub fn register_trait_methods(type_id: TypeId, value_type: &mut ValueType) {
     #[allow(clippy::type_complexity)]
     static TRAIT_METHODS_BY_VALUE: Lazy<
-        FxDashMap<&'static str, Vec<(TraitTypeId, Vec<(&'static str, &'static NativeFunction)>)>>,
+        FxDashMap<TypeId, Vec<(TraitTypeId, Vec<(&'static str, &'static NativeFunction)>)>>,
     > = Lazy::new(|| {
-        let map: FxDashMap<&'static str, Vec<_>> = FxDashMap::default();
+        let map: FxDashMap<TypeId, Vec<_>> = FxDashMap::default();
         for CollectableTraitMethods(thunk) in inventory::iter::<CollectableTraitMethods> {
-            let (value_name, trait_type_id, fn_items) = thunk();
-            map.entry(value_name)
+            let (type_id, trait_type_id, fn_items) = thunk();
+            map.entry(type_id)
                 .or_default()
                 .push((trait_type_id, fn_items));
         }
         map
     });
-    match TRAIT_METHODS_BY_VALUE.remove(value_type.global_name) {
+    match TRAIT_METHODS_BY_VALUE.remove(&type_id) {
         Some((_, traits)) => {
             for (trait_type_id, methods) in traits {
                 let trait_type = crate::registry::get_trait(trait_type_id);

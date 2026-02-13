@@ -425,11 +425,13 @@ pub fn value_type_and_register(
     };
 
     quote! {
-
         static #value_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueType> =
             turbo_tasks::macro_helpers::Lazy::new(|| {
                 let mut value_type = #new_value_type;
-                turbo_tasks::macro_helpers::register_trait_methods(&mut value_type);
+                turbo_tasks::macro_helpers::register_trait_methods(
+                    ::std::any::TypeId::of::<#ty>(),
+                    &mut value_type,
+                );
                 value_type
              });
 
