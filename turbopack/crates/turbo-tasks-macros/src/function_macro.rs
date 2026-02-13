@@ -4,7 +4,7 @@ use syn::{ItemFn, parse_macro_input};
 
 use crate::{
     func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes},
-    global_name::global_name,
+    global_name::global_name_for_scope,
     ident::get_native_function_ident,
     self_filter::is_self_used,
 };
@@ -55,11 +55,11 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let inline_function_ident = turbo_fn.inline_ident();
     let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(&block);
     let inline_attrs = filter_inline_attributes(&attrs[..]);
-    let function_path_string = ident.to_string();
 
     let native_fn = NativeFn {
-        function_global_name: global_name(&function_path_string),
-        function_path_string,
+        // depth = 2, this strips off a closure and a static item from the name
+        function_global_name: global_name_for_scope(2, ident),
+        function_path_string: ident.to_string(),
         function_path: quote! { #inline_function_ident },
         is_method: turbo_fn.is_method(),
         is_self_used,
