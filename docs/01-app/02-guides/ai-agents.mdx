@@ -1,0 +1,123 @@
+---
+title: How to set up your Next.js project for AI coding agents
+nav_title: AI Coding Agents
+description: Learn how to configure your Next.js project so AI coding agents use up-to-date documentation instead of outdated training data.
+related:
+  title: Next Steps
+  links:
+    - app/guides/mcp
+---
+
+Next.js ships version-matched documentation inside the `next` package, allowing AI coding agents to reference accurate, up-to-date APIs and patterns. An `AGENTS.md` file at the root of your project directs agents to these bundled docs instead of their training data.
+
+## How it works
+
+When you install `next`, a curated subset of the Next.js documentation is bundled at `node_modules/next/dist/docs/`. The bundled docs mirror the structure of the [Next.js documentation site](https://nextjs.org/docs):
+
+```txt
+node_modules/next/dist/docs/
+├── 01-app/
+│   ├── 01-getting-started/
+│   ├── 02-guides/
+│   └── 03-api-reference/
+├── 02-pages/
+├── 03-architecture/
+└── index.mdx
+```
+
+This means agents always have access to docs that match your installed version — no network request or external lookup required.
+
+The `AGENTS.md` file at the root of your project tells agents to read these bundled docs before writing any code. Most AI coding agents — including Claude Code, Cursor, GitHub Copilot, and others — automatically read `AGENTS.md` when they start a session.
+
+## Getting started
+
+### New projects
+
+[`create-next-app`](/docs/app/api-reference/cli/create-next-app) generates `AGENTS.md` and `CLAUDE.md` automatically. No additional setup is needed:
+
+```bash package="pnpm"
+pnpm create next-app
+```
+
+```bash package="npm"
+npx create-next-app@latest
+```
+
+```bash package="yarn"
+yarn create next-app
+```
+
+```bash package="bun"
+bun create next-app
+```
+
+If you don't want the agent files, pass `--no-agents-md`:
+
+```bash
+npx create-next-app@latest --no-agents-md
+```
+
+### Existing projects
+
+Add the following files to the root of your project.
+
+`AGENTS.md` contains the instructions that agents will read:
+
+```md filename="AGENTS.md"
+<!-- BEGIN:nextjs-agent-rules -->
+
+# Next.js: ALWAYS read docs before coding
+
+Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
+
+<!-- END:nextjs-agent-rules -->
+```
+
+`CLAUDE.md` uses the `@` import syntax to include `AGENTS.md`, so [Claude Code](https://docs.anthropic.com/en/docs/claude-code) users get the same instructions without duplicating content:
+
+```md filename="CLAUDE.md"
+@AGENTS.md
+```
+
+## Understanding AGENTS.md
+
+The default `AGENTS.md` contains a single, focused instruction: **read the bundled docs before writing code**. This is intentionally minimal — the goal is to redirect agents from stale training data to the accurate, version-matched documentation in `node_modules/next/dist/docs/`.
+
+The `<!-- BEGIN:nextjs-agent-rules -->` and `<!-- END:nextjs-agent-rules -->` comment markers delimit the Next.js-managed section. You can add your own project-specific instructions outside these markers without worrying about them being overwritten by future updates.
+
+The bundled docs include guides, API references, and file conventions for the App Router and Pages Router. When an agent encounters a task involving routing, data fetching, or any other Next.js feature, it can look up the correct API in the bundled docs rather than relying on potentially outdated training data.
+
+## Agent-specific files
+
+Different AI coding agents look for different configuration files. `AGENTS.md` is the most widely supported convention, but you can add agent-specific files for deeper integration:
+
+| File        | Agent                                                         |
+| ----------- | ------------------------------------------------------------- |
+| `AGENTS.md` | Cursor, Windsurf, and most AI editors                         |
+| `CLAUDE.md` | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) |
+
+> **Good to know:** You only need to maintain the instructions in `AGENTS.md`. Other files can reference it (like `CLAUDE.md` does with the `@AGENTS.md` import) or copy its contents.
+
+## Customizing for your project
+
+You can extend `AGENTS.md` with project-specific instructions outside the comment markers. For example, you might add conventions about your data fetching patterns, component structure, or testing approach:
+
+```md filename="AGENTS.md"
+<!-- BEGIN:nextjs-agent-rules -->
+
+# Next.js: ALWAYS read docs before coding
+
+Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
+
+<!-- END:nextjs-agent-rules -->
+
+# Project conventions
+
+- Use Server Components by default. Only add `'use client'` when you need interactivity.
+- Fetch data in Server Components using `async/await`, not client-side hooks.
+- Place shared UI in `components/` and page-specific UI in the route directory.
+```
+
+Keep your additions focused and actionable — agents work best with specific, concrete instructions.
+
+> **Good to know:** To see how bundled docs and `AGENTS.md` improve agent performance on real-world Next.js tasks, visit the [benchmark results](https://nextjs.org/evals).
