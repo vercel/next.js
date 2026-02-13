@@ -14,9 +14,7 @@ use crate::{
         DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
         split_function_attributes,
     },
-    global_name::{
-        global_name_for_method, global_name_for_trait_method_impl, global_name_for_type,
-    },
+    global_name::{global_name_for_method, global_name_for_trait_method_impl},
     ident::{
         get_cast_to_fat_pointer_ident, get_inherent_impl_function_ident, get_path_ident,
         get_trait_impl_function_ident, get_type_ident,
@@ -293,7 +291,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 });
             }
         }
-        let global_value_name = global_name_for_type(ty);
         quote! {
             // Register all the function impls so the ValueType can find them
             // This means objects resolve as
@@ -304,7 +301,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::macro_helpers::inventory_submit!{
                 turbo_tasks::macro_helpers::CollectableTraitMethods(
                     || (
-                        #global_value_name,
+                        ::std::any::TypeId::of::<#ty>(),
                         <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
                         vec![#(#trait_methods)*]
                     )
