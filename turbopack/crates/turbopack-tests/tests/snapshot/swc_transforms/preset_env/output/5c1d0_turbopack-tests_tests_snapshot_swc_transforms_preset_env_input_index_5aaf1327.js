@@ -618,7 +618,6 @@ function createPromise() {
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     var i = offset;
     while(i < chunkModules.length){
-        var moduleId = chunkModules[i];
         var end = i + 1;
         // Find our factory function
         while(end < chunkModules.length && typeof chunkModules[end] !== 'function'){
@@ -628,19 +627,32 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
             throw new Error('malformed chunk format, expected a factory function');
         }
         // Install the factory for each module ID that doesn't already have one.
-        // This handles both the normal case and the case where some IDs in a group
-        // may have been registered separately (e.g., from another chunk or HMR update).
+        // When some IDs in this group already have a factory, reuse that existing
+        // group factory for the missing IDs to keep all IDs in the group consistent.
+        // Otherwise, install the factory from this chunk.
         var moduleFactoryFn = chunkModules[end];
-        var didInstallFactory = false;
+        var existingGroupFactory = undefined;
         for(var j = i; j < end; j++){
             var id = chunkModules[j];
-            if (!moduleFactories.has(id)) {
+            var existingFactory = moduleFactories.get(id);
+            if (existingFactory) {
+                existingGroupFactory = existingFactory;
+                break;
+            }
+        }
+        var factoryToInstall = existingGroupFactory !== null && existingGroupFactory !== void 0 ? existingGroupFactory : moduleFactoryFn;
+        var didInstallFactory = false;
+        for(var j1 = i; j1 < end; j1++){
+            var id1 = chunkModules[j1];
+            if (!moduleFactories.has(id1)) {
                 if (!didInstallFactory) {
-                    applyModuleFactoryName(moduleFactoryFn);
-                    newModuleId === null || newModuleId === void 0 ? void 0 : newModuleId(moduleId);
+                    if (factoryToInstall === moduleFactoryFn) {
+                        applyModuleFactoryName(moduleFactoryFn);
+                    }
                     didInstallFactory = true;
                 }
-                moduleFactories.set(id, moduleFactoryFn);
+                moduleFactories.set(id1, factoryToInstall);
+                newModuleId === null || newModuleId === void 0 ? void 0 : newModuleId(id1);
             }
         }
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
