@@ -33,14 +33,14 @@ module.exports = nextConfig
 
 ## Trade-Offs
 
-- **Enable** if you use atomic CSS (Tailwind) and prioritize first-time visitor performance
+- **Enable** if you use atomic CSS (like Tailwind) and want to optimize first-load performance for new visitors
 - **Skip** if returning visitors are common and you want them to benefit from cached stylesheets
 
 ### When Inline CSS Helps
 
 Normally, the browser must download HTML, parse it, discover CSS `<link>` tags, then request stylesheets before it can render. Inlining [eliminates this request waterfall](https://web.dev/learn/performance/optimize-resource-loading#inline_critical_css), so that styles arrive with the HTML, so the browser can render immediately.
 
-This benefit is strongest when:
+This benefit is strongest with:
 
 - **First-time visitors**: Since CSS files are render-blocking, inlining eliminates the initial download delay that first-time visitors experience. Returning visitors with cached stylesheets won't see this benefit.
 
@@ -54,7 +54,7 @@ This benefit is strongest when:
 
 Inlined styles cannot be cached separately from HTML. Every page load re-downloads the same CSS.
 
-This cost is highest when:
+This trade-off matters most with:
 
 - **Returning visitors**: Users who visit your site repeatedly would benefit from cached external stylesheets. With inlining, they re-download styles on every visit.
 
