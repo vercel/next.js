@@ -340,4 +340,36 @@ describe('instant-navigation-testing-api', () => {
       'Dynamic content loaded'
     )
   })
+
+  it('hydrates the page during MPA navigation in instant mode', async () => {
+    const page = await openPage('/hydration-test-target')
+
+    // Wait for the page to fully load with dynamic content
+    const dynamicContent = page.locator(
+      '[data-testid="hydration-test-dynamic"]'
+    )
+    await dynamicContent.waitFor({ state: 'visible' })
+
+    await instant(page, async () => {
+      await page.reload()
+
+      // Click a button that reveals a new element. This verifies hydration
+      // completed because the onClick handler must be attached for this to work.
+      const button = page.locator('[data-testid="hydration-test-button"]')
+      await button.waitFor({ state: 'visible' })
+      await button.click()
+
+      const revealed = page.locator('[data-testid="hydration-test-revealed"]')
+      await revealed.waitFor({ state: 'visible' })
+
+      // Dynamic content should not be visible yet
+      expect(await dynamicContent.count()).toBe(0)
+    })
+
+    // After exiting the instant scope, dynamic content streams in
+    await dynamicContent.waitFor({ state: 'visible' })
+    expect(await dynamicContent.textContent()).toContain(
+      'Dynamic content loaded'
+    )
+  })
 })

@@ -63,6 +63,7 @@ import {
 } from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
+import { serveStaticShellForInstantNavigationTest } from '../../server/stream-utils/node-web-streams-helper'
 import { sendRenderResult } from '../../server/send-payload'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
@@ -1466,6 +1467,31 @@ export async function handler(
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
           cacheControl: cacheEntry.cacheControl,
+        })
+      }
+
+      // Instant Navigation Testing API: serve the static shell only. Hydration
+      // is allowed to proceed; the dynamic data will not stream in until after
+      // the testing scope has ended.
+      if (isInstantNavigationTest) {
+        const staticHtml = body.toUnchunkedString()
+        // In dev mode, generate a request ID for the HMR WebSocket.
+        const instantTestRequestId =
+          routeModule.isDev === true ? crypto.randomUUID() : null
+        const resultStream = serveStaticShellForInstantNavigationTest(
+          staticHtml,
+          instantTestRequestId
+        )
+        return sendRenderResult({
+          req,
+          res,
+          generateEtags: nextConfig.generateEtags,
+          poweredByHeader: nextConfig.poweredByHeader,
+          result: new RenderResult(resultStream, {
+            contentType: HTML_CONTENT_TYPE_HEADER,
+            metadata: {},
+          }),
+          cacheControl: { revalidate: 0, expire: undefined },
         })
       }
 

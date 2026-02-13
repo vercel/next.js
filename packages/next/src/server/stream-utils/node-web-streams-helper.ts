@@ -19,6 +19,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_RSC_UNION_QUERY,
+  NEXT_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 
@@ -458,10 +459,9 @@ function createHeadInsertionTransformStream(
   })
 }
 
-function createClientResumeScriptInsertionTransformStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+function createClientResumeScriptInsertionTransformStream(
+  requestId: string | null
+): TransformStream<Uint8Array, Uint8Array> {
   const segmentPath = '/_full'
   const cacheBustingHeader = computeCacheBustingSearchParam(
     '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
@@ -470,7 +470,17 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
     undefined //       headers[NEXT_URL]
   )
   const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
-  const NEXT_CLIENT_RESUME_SCRIPT = `<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
+  const requestIdHeader =
+    requestId !== null ? `,'${NEXT_REQUEST_ID_HEADER}':self.__next_r` : ''
+  // When a requestId is provided, inject self.__next_r before the resume
+  // fetch so the fetch can include it as a header. This lets the server set up
+  // the debug channel for this request, and the client reuses the same ID for
+  // the HMR WebSocket connection.
+  const requestIdScript =
+    requestId !== null
+      ? `<script>self.__next_r=${JSON.stringify(requestId)}</script>`
+      : ''
+  const NEXT_CLIENT_RESUME_SCRIPT = `${requestIdScript}<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'${requestIdHeader}}})</script>`
 
   let didAlreadyInsert = false
   return new TransformStream({
@@ -988,7 +998,7 @@ export async function continueStaticFallbackPrerender(
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
     // Insert the client resume script into the head
-    createClientResumeScriptInsertionTransformStream(),
+    createClientResumeScriptInsertionTransformStream(null),
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
@@ -996,6 +1006,24 @@ export async function continueStaticFallbackPrerender(
     // Close tags should always be deferred to the end
     createMoveSuffixStream(),
   ])
+}
+
+/**
+ * Serves a PPR static shell for the Instant Navigation Testing API.
+ *
+ * The static shell doesn't include inline Flight data — that's normally
+ * provided by the resume render at request time. Instead of performing a
+ * resume render, this inserts a client resume script that fetches the static
+ * data only, then closes the document.
+ */
+export function serveStaticShellForInstantNavigationTest(
+  staticShellHtml: string,
+  requestId: string | null
+): ReadableStream<Uint8Array> {
+  const transformed = chainTransformers(streamFromString(staticShellHtml), [
+    createClientResumeScriptInsertionTransformStream(requestId),
+  ])
+  return chainStreams(transformed, streamFromString(CLOSE_TAG))
 }
 
 type ContinueResumeOptions = {
