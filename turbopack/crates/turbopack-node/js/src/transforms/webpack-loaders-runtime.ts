@@ -45,7 +45,7 @@ const MODULE_ID_PATH_RE = /^\[project\]\/(.+?)(?:\s+\[|\s+\()/
 const ASYNC_PROMISE = Symbol('asyncPromise')
 
 function defineProp(obj: any, name: string, descriptor: PropertyDescriptor) {
-  if (!Object.prototype.hasOwnProperty.call(obj, name)) {
+  if (!Object.hasOwn(obj, name)) {
     Object.defineProperty(obj, name, descriptor)
   }
 }
