@@ -8,6 +8,9 @@
                     module: "x2",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -29,6 +32,9 @@
                     module: "x1",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -48,6 +54,9 @@
                 module: "x3",
                 annotations: ImportAnnotations {
                     map: {},
+                    turbopack_loader: None,
+                    turbopack_rename_as: None,
+                    turbopack_module_type: None,
                 },
             },
         ),

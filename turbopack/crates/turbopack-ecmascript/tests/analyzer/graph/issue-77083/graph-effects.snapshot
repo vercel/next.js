@@ -85,6 +85,9 @@
                                     module: "./assert",
                                     annotations: ImportAnnotations {
                                         map: {},
+                                        turbopack_loader: None,
+                                        turbopack_rename_as: None,
+                                        turbopack_module_type: None,
                                     },
                                 },
                             ),
@@ -369,6 +372,9 @@
                     module: "./assert",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
@@ -514,6 +520,9 @@
                     module: "./assert",
                     annotations: ImportAnnotations {
                         map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
                     },
                 },
             ),
