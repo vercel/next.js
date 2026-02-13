@@ -49,6 +49,7 @@ export default async function nextFontLoader(this: any) {
       isDev,
       isServer,
       assetPrefix,
+      deploymentId,
       fontLoaderPath,
       postcss: getPostcss,
     } = this.getOptions()
@@ -92,7 +93,7 @@ export default async function nextFontLoader(this: any) {
         this.emitFile(interpolatedName, content, null)
       }
       // But both the server and client must get the resulting path
-      return outputPath
+      return outputPath + (deploymentId ? `?dpl=${deploymentId}` : '')
     }
 
     try {
