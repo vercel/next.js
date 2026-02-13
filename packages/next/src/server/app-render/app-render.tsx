@@ -3295,9 +3295,11 @@ async function renderWithRestartOnCacheMissInDev(
 
   const initialReactController = new AbortController()
   const initialDataController = new AbortController() // Controls hanging promises we create
+  const initialAbandonController = new AbortController() // Controls whether this render is abandoned
   const initialStageController = new StagedRenderingController(
     initialDataController.signal,
-    hasRuntimePrefetch
+    hasRuntimePrefetch,
+    initialAbandonController
   )
 
   requestStore.prerenderResumeDataCache = prerenderResumeDataCache
@@ -3372,7 +3374,7 @@ async function renderWithRestartOnCacheMissInDev(
             // Regardless of whether we are going to abandon this
             // render we need the unblock runtime b/c it's essential
             // filling caches.
-            initialStageController.abandonRender()
+            initialAbandonController.abort()
             return null
           }
 
@@ -3394,7 +3396,7 @@ async function renderWithRestartOnCacheMissInDev(
           // We won't advance the stage, and thus leave dynamic APIs hanging,
           // because they won't be cached anyway, so it'd be wasted work.
           if (cacheSignal.hasPendingReads()) {
-            initialStageController.abandonRender()
+            initialAbandonController.abort()
             return null
           }
 
