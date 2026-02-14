@@ -1,8 +1,0 @@
-{
-  "compilerOptions": {
-    "module": "NodeNext",
-    "allowJs": true,
-    "strict": true,
-    "outDir": "dist"
-  }
-}

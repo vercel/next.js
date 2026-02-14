@@ -1,1 +1,0 @@
-export var named = 'named'
