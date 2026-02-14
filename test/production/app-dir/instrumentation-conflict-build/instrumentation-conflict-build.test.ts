@@ -1,10 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('instrumentation-conflict-build', () => {
-  const { skipped } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeploy: true,
+    skipDeployment: true,
   })
 
   if (skipped) {
@@ -12,14 +12,10 @@ describe('instrumentation-conflict-build', () => {
   }
 
   it('should throw an error during build when both root and src instrumentation files exist', async () => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-      skipDeploy: true,
-    })
+    await expect(() => next.start()).rejects.toThrow()
 
-    await expect(next.build()).rejects.toThrow(
-      /Conflicting instrumentation files detected/
+    expect(next.cliOutput).toContain(
+      'Conflicting instrumentation files detected'
     )
   })
 })
