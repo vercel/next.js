@@ -216,7 +216,7 @@ describe('build-output-prerender', () => {
            To debug the issue, start the app in development mode by running \`next dev\`, then open "/server" in your browser to investigate the error.
            Error occurred prerendering page "/server". Read more: https://nextjs.org/docs/messages/prerender-error
 
-           > Export encountered errors on following paths:
+           > Export encountered errors on 2 paths:
            	/client/page: /client
            	/server/page: /server"
           `)
@@ -246,7 +246,7 @@ describe('build-output-prerender', () => {
            To debug the issue, start the app in development mode by running \`next dev\`, then open "/server" in your browser to investigate the error.
            Error occurred prerendering page "/server". Read more: https://nextjs.org/docs/messages/prerender-error
 
-           > Export encountered errors on following paths:
+           > Export encountered errors on 2 paths:
            	/client/page: /client
            	/server/page: /server"
           `)
