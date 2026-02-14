@@ -119,38 +119,24 @@ function getAppDebugPaths(
 }
 
 /**
- * Collect deferred app routes and metadata routes in debugBuildPaths format.
- * Pages routes are intentionally excluded because they are built in the first
- * pass and preserved when routes are merged.
+ * Collect all app routes for the second pass in debugBuildPaths format.
+ * Pages routes are intentionally excluded from the second pass.
  */
-function getDeferredBuildPaths(
-  deferredEntries: string[],
+function getSecondPassBuildPaths(
   appPaths: string[],
   pageExtensions: string[]
 ): {
   app: string[]
   pages: string[]
 } {
-  const deferredAppPaths: string[] = []
+  const secondPassAppPaths: string[] = []
   for (const appPath of appPaths) {
-    const {
-      isPageRoute,
-      isRouteHandler,
-      normalizedRoute,
-      isMetadataRoute,
-      debugPaths,
-    } = getAppDebugPaths(appPath, pageExtensions)
-    if (
-      ((isPageRoute || isRouteHandler) &&
-        isDeferredAppRoute(normalizedRoute, deferredEntries)) ||
-      isMetadataRoute
-    ) {
-      deferredAppPaths.push(...debugPaths)
-    }
+    const { debugPaths } = getAppDebugPaths(appPath, pageExtensions)
+    secondPassAppPaths.push(...debugPaths)
   }
 
   return {
-    app: [...new Set(deferredAppPaths)],
+    app: [...new Set(secondPassAppPaths)],
     pages: [],
   }
 }
@@ -268,9 +254,9 @@ export async function turbopackBuild(): Promise<{
           pagesPaths
         )
       : null
-  const deferredBuildPaths =
+  const secondPassBuildPaths =
     hasDeferredEntries && NextBuildContext.appDir
-      ? getDeferredBuildPaths(deferredEntries, appPaths, config.pageExtensions!)
+      ? getSecondPassBuildPaths(appPaths, config.pageExtensions!)
       : null
 
   const persistentCaching = isFileSystemCacheEnabledForBuild(config)
@@ -373,25 +359,26 @@ export async function turbopackBuild(): Promise<{
     }
 
     // Handle deferred entries: call callback and do second build
-    if (deferredBuildPaths) {
+    if (secondPassBuildPaths) {
       // Call onBeforeDeferredEntries callback after first build completes
       if (onBeforeDeferredEntries) {
         await onBeforeDeferredEntries()
       }
 
-      // Second build: only build deferred entries.
-      const deferredEntrypoints = await project.writeAllEntrypointsToDisk(
-        appDirOnly,
-        deferredBuildPaths
-      )
-      printBuildErrors(deferredEntrypoints, dev)
+      // Second build: rebuild app routes as a single final graph.
+      await project.update({
+        debugBuildPaths: secondPassBuildPaths,
+      })
+      const secondPassEntrypoints =
+        await project.writeAllEntrypointsToDisk(appDirOnly)
+      printBuildErrors(secondPassEntrypoints, dev)
 
-      const deferredRoutes = deferredEntrypoints.routes
-      if (!deferredRoutes) {
+      const secondPassRoutes = secondPassEntrypoints.routes
+      if (!secondPassRoutes) {
         throw new Error(`Turbopack build failed`)
       }
-      // Merge deferred routes into the main routes
-      for (const [key, value] of deferredRoutes) {
+      // Merge second-pass app routes into the main routes.
+      for (const [key, value] of secondPassRoutes) {
         routes.set(key, value)
       }
 

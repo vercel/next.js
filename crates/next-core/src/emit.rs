@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_tasks::{TryFlatJoinIterExt, Vc};
-use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, rebase};
+use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, rebase, to_sys_path};
 use turbopack_core::{
     asset::Asset,
     output::{ExpandedOutputAssets, OutputAsset, OutputAssets},
@@ -124,7 +124,7 @@ async fn emit_assets_internal(
 #[turbo_tasks::function]
 async fn emit(asset: Vc<Box<dyn OutputAsset>>, preserve_existing: bool) -> Result<()> {
     let path = asset.path().owned().await?;
-    if preserve_existing && !matches!(*path.get_type().await?, FileSystemEntryType::NotFound) {
+    if preserve_existing && output_path_exists_on_disk(&path).await? {
         return Ok(());
     }
     asset
@@ -147,7 +147,7 @@ async fn emit_rebase(
     let path = rebase(asset.path().owned().await?, from, to)
         .owned()
         .await?;
-    if preserve_existing && !matches!(*path.get_type().await?, FileSystemEntryType::NotFound) {
+    if preserve_existing && output_path_exists_on_disk(&path).await? {
         return Ok(());
     }
     let content = asset.content();
@@ -158,4 +158,15 @@ async fn emit_rebase(
         .as_side_effect()
         .await?;
     Ok(())
+}
+
+async fn output_path_exists_on_disk(path: &FileSystemPath) -> Result<bool> {
+    if let Some(sys_path) = to_sys_path(path.clone()).await? {
+        return Ok(std::fs::symlink_metadata(sys_path).is_ok());
+    }
+
+    Ok(!matches!(
+        *path.get_type().await?,
+        FileSystemEntryType::NotFound
+    ))
 }

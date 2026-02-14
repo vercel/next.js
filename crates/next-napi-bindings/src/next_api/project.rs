@@ -244,6 +244,10 @@ pub struct NapiPartialProjectOptions {
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
     pub no_mangling: Option<bool>,
+
+    /// Debug build paths for selective builds.
+    /// When set, only routes matching these paths will be included in the build.
+    pub debug_build_paths: Option<NapiDebugBuildPaths>,
 }
 
 #[napi(object)]
@@ -340,6 +344,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             browserslist_query,
             no_mangling,
             write_routes_hashes_manifest,
+            debug_build_paths,
         } = val;
         PartialProjectOptions {
             root_path,
@@ -355,7 +360,10 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             browserslist_query,
             no_mangling,
             write_routes_hashes_manifest,
-            debug_build_paths: None,
+            debug_build_paths: debug_build_paths.map(|p| DebugBuildPaths {
+                app: p.app,
+                pages: p.pages,
+            }),
         }
     }
 }
